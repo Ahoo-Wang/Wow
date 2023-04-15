@@ -1,0 +1,117 @@
+@startuml Aggregate-Modeling-Single-Class
+!include layout.puml
+
+title Aggregate Modeling Using Single Class
+
+class Aggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    Aggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+    == onCommand ==
+    - onCommand(command)
+}
+
+@enduml
+
+@startuml
+!include layout.puml
+
+title Aggregate Modeling Using Inheritance Pattern
+
+class StateAggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregate{
+    == onCommand ==
+    - onCommand(command)
+}
+
+StateAggregate <|-- CommandAggregate
+
+@enduml
+
+@startuml
+!include layout.puml
+
+title Aggregate Modeling Using Aggregation Pattern
+
+class StateAggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregate<S : StateAggregate>{
+    S state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+class StateAggregateA {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateA(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class StateAggregateB {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateB(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregateA<StateAggregateA>{
+    StateAggregateA state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+class CommandAggregateB<StateAggregateB>{
+    StateAggregateB state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+StateAggregate "1" --o CommandAggregate::state
+
+StateAggregate <|-- StateAggregateA
+
+StateAggregate <|-- StateAggregateB
+CommandAggregate <|-- CommandAggregateA
+CommandAggregate <|-- CommandAggregateB
+
+StateAggregateA "1" --o CommandAggregateA::state
+StateAggregateB "1" --o CommandAggregateB::state
+@enduml

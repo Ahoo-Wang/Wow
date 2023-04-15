@@ -1,0 +1,16 @@
+coverage:
+  range: 60..100
+  round: down
+  precision: 2
+  status:
+    patch:
+      default:
+        target: 60%
+        threshold: 1%
+    project:
+      default:
+        target: 60%
+        threshold: 1%
+ignore:
+  - "document/.*"
+  - "wow-test/.*"

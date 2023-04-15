@@ -1,0 +1,61 @@
+@startuml Message-Subscriber
+
+!include layout.puml
+
+title
+Message Subscriber
+__Class Diagram__
+end title
+
+interface MessageHandler<M extends Message<?>,R>{
+    Class<?> bodyType()
+    R handle(M message)
+}
+
+interface MessageHandlerRegistrar{
+
+    void register(MessageHandler handler);
+
+    void unregister(MessageHandler handler);
+
+    MessageHandler getHandler(Class<?> messageBodyType);
+}
+
+MessageHandlerRegistrar o-- MessageHandler
+
+@enduml
+
+
+@startuml
+
+!include layout.puml
+
+title
+Message Handle
+__Sequence Diagram__
+end title
+
+queue MessageBus
+participant MessageProcessor
+participant MessageSubscriberRegistrar
+participant MessageSubscriber
+participant MessageHandler
+
+MessageBus++
+MessageProcessor++
+MessageSubscriberRegistrar++
+MessageSubscriber++
+MessageHandler++
+
+MessageBus <- MessageProcessor: Subscribe
+MessageSubscriberRegistrar <- MessageSubscriber: register
+
+MessageBus -> MessageProcessor: Message
+
+MessageProcessor -> MessageSubscriberRegistrar: getSubscriber
+
+MessageProcessor -> MessageSubscriber: Message
+
+MessageSubscriber -> MessageHandler: message
+
+@enduml

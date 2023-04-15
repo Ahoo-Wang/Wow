@@ -1,0 +1,59 @@
+@startuml OrderProcessManager
+
+!include layout.puml
+
+title
+OrderProcessManager
+(Saga)
+Eventual Consistency
+end title
+hide footbox
+
+actor User
+participant Order
+participant "OrderProcessManager" as OPM
+participant Inventory
+participant Payment
+autonumber "[0]"
+
+User ++
+
+User -> Order ++  : CreateOrder
+Order -> Inventory ++: CheckInventory
+Order <-- Inventory -- : OK
+User --
+Order --> OPM ++-- : OrderCreated
+
+OPM->OPM --: wait for payment
+
+User ++
+User -> Payment ++-- :Pay
+OPM <-- Payment ++--: PaymentPaid
+
+Order <- OPM++--: Pay Order
+
+Order --> OPM--++: OrderPaid
+
+OPM -> Inventory ++-- : PrepareInventory \n (Lock Inventory)
+alt success
+    OPM <-- Inventory++--: InventoryPrepared
+    Order <- OPM++--: ConfirmOrder \n (Mark Inventory Prepared)
+    Order --> OPM++--: OrderConfirmed
+    OPM -> Inventory++--: Ship
+    OPM <-- Inventory++--: Shipped
+    Order <- OPM++--: ShipOrder
+    Order --> OPM++--: OrderShipped
+    OPM--
+else fail
+    Inventory++
+    OPM <-- Inventory++-- : InventoryNotPrepared
+    Order <- OPM++--: CancelOrder
+    Order --> OPM++--: OrderCancelled
+    OPM -> Payment++--: Refund
+    OPM <-- Payment++--: Refunded
+    Order <- OPM++--: RefundOrder
+    OPM <-- Order++--: OrderRefunded
+end
+
+@enduml
+

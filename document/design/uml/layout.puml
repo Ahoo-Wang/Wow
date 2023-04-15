@@ -1,0 +1,12 @@
+@startuml
+skinparam hyperlinkColor grey
+
+!$watermark= "[[https://github.com/Ahoo-Wang/Wow]]"
+
+header
+$watermark
+endheader
+
+center footer $watermark
+
+@enduml

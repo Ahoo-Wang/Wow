@@ -1,0 +1,55 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.ahoo.wow.r2dbc
+
+import io.r2dbc.spi.ConnectionFactory
+import me.ahoo.cosid.sharding.ModCycle
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.sharding.CompositeAggregateIdSharding
+import me.ahoo.wow.sharding.CosIdShardingDecorator
+import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+
+class R2DbcAggregateDispatcherTest : AggregateDispatcherSpec() {
+    private val connectionFactory: ConnectionFactory = ConnectionFactoryProviders.create()
+
+    override fun createSnapshotRepository(): SnapshotRepository {
+        val simpleSnapshotSchema = SimpleSnapshotSchema()
+        return R2dbcSnapshotRepository(
+            SimpleDatabase(connectionFactory),
+            simpleSnapshotSchema,
+        )
+    }
+
+    override fun createEventStore(): EventStore {
+        return R2dbcEventStore(
+            SimpleDatabase(connectionFactory),
+            ShardingEventStreamSchema(
+                CompositeAggregateIdSharding(
+                    mapOf(
+                        MaterializedNamedAggregate(
+                            aggregateMetadata.contextName,
+                            aggregateMetadata.aggregateName,
+                        ) to CosIdShardingDecorator(
+                            sharding = ModCycle(
+                                4,
+                                aggregateMetadata.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+}

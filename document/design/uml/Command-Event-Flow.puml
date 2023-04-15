@@ -1,0 +1,77 @@
+@startuml
+
+title
+Command Event Flow
+__Activity Diagram__
+end title
+
+start
+:Send Command;
+-> Group command streams
+ by aggregate ID
+ ;
+
+partition CommandBus {
+    split
+    :AggregateId-A;
+    group AggregateRepository
+        :load(aggregateId);
+    end group
+
+    group aggregate-A
+        :onCommand(command);
+        -> DomainEventStream;
+        :onSourcing(eventStream);
+    end group
+
+    group eventStore
+        :append(eventStream);
+    end group
+
+    split again
+    :AggregateId-B;
+    group AggregateRepository
+        :load(aggregateId);
+    end group
+
+    group aggregate-B
+        :onCommand(command);
+        -> DomainEventStream;
+        :onSourcing(eventStream);
+    end group
+
+    group eventStore
+    :append(eventStream);
+    end group
+
+    split again
+    :...;
+    end split
+}
+
+-> 保持命令处理结果（DomainEventStream）顺序。
+领域事件按聚合ID分区，保证事件投递和消费的有序性。
+--
+Kafka: Topic:aggregateName,Key:aggregateId;
+
+partition DomainEventBus {
+    split
+    :AggregateId-A;
+        split
+        :projection|
+        end
+        split again
+        :snapshot strategy|
+        end
+        split again
+        :event processor<
+        end split;
+    split again
+    :AggregateId-B;
+    :...;
+    end split
+}
+
+stop
+
+@enduml

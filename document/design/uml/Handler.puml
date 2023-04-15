@@ -1,0 +1,12 @@
+@startuml
+
+autonumber
+
+?-> Handler: MessageExchange
+Handler -> Handler: handle(MessageExchange) \n ExceptionHandlerWrapper
+Handler -> FunctionMappingFilter : filter(MessageExchange,Chain)
+FunctionMappingFilter -> FunctionMappingFilter: getFunction(MessageExchange)
+FunctionMappingFilter -> FunctionMappingFilter: writeFunctionToContext()
+FunctionMappingFilter -> MessageFunctionFilter: function.handle(message)
+
+@enduml
