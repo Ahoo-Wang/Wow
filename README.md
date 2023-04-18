@@ -2,6 +2,7 @@
 
 A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/e56e65d6287f492e930426e194239939)](https://app.codacy.com/gh/Ahoo-Wang/Wow?utm_source=github.com&utm_medium=referral&utm_content=Ahoo-Wang/Wow&utm_campaign=Badge_Grade)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core)
