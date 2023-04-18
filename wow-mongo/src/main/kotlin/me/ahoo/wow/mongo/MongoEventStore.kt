@@ -86,8 +86,8 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyAsId().toJson().asObject<DomainEventStream>()
-                require(domainEventStream.aggregateId.tenantId == aggregateId.tenantId) {
-                    "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[${domainEventStream.aggregateId.tenantId}] stored in the eventStore"
+                require(domainEventStream.aggregateId == aggregateId) {
+                    "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
                 }
 
                 domainEventStream

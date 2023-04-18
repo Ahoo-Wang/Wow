@@ -70,11 +70,8 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
         document: Document,
     ): Snapshot<S> {
         val snapshot = document.asSnapshot<S>()
-        require(aggregateId.id == snapshot.aggregateId.id) {
-            "aggregateId is not equal! expected: ${aggregateId.id}, actual: ${snapshot.aggregateId.id}"
-        }
-        require(snapshot.aggregateId.tenantId == aggregateId.tenantId) {
-            "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[${snapshot.aggregateId.tenantId}] stored in the eventStore"
+        require(aggregateId == snapshot.aggregateId) {
+            "aggregateId: $aggregateId != snapshot.aggregateId: ${snapshot.aggregateId}"
         }
         return snapshot
     }
