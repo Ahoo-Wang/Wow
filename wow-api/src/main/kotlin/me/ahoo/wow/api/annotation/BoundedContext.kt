@@ -37,6 +37,10 @@ annotation class BoundedContext(
          * aggregate name.
          */
         val name: String,
+        /**
+         * Custom ID generator name
+         */
+        val id: String = "",
         val scopes: Array<String> = [],
         val packageScopes: Array<KClass<*>> = [],
     )

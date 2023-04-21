@@ -35,6 +35,7 @@ import java.time.Duration
 
  * @author ahoo wang
  */
+@Suppress("LongParameterList")
 class AggregateDispatcher(
     /**
      * named like `AggregateDispatcher`
