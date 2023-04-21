@@ -13,7 +13,7 @@
 
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:2.7.11"))
-    api(platform("me.ahoo.cosid:cosid-bom:1.18.8"))
+    api(platform("me.ahoo.cosid:cosid-bom:2.0.5"))
     api(platform("io.opentelemetry:opentelemetry-bom:1.25.0"))
     api(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:1.25.0"))
     api(platform("io.r2dbc:r2dbc-bom:Borca-RELEASE"))
