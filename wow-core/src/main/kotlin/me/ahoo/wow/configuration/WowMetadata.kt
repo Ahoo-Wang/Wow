@@ -51,6 +51,10 @@ data class Aggregate(
      * Aggregate type fully qualified name
      */
     val type: String? = null,
+    /**
+     * Custom ID generator name
+     */
+    val id: String = "",
     val commands: Set<String> = emptySet(),
     val events: Set<String> = emptySet(),
 ) : NamingScopes, Merge<Aggregate> {
@@ -70,9 +74,11 @@ data class Aggregate(
         if (mergedType.isNullOrBlank()) {
             mergedType = other.type
         }
+        val mergedId: String = id.ifBlank { other.id }
         return Aggregate(
             scopes = mergedScopes,
             type = mergedType,
+            id = mergedId,
             commands = mergedCommands,
             events = mergedEvents,
         )

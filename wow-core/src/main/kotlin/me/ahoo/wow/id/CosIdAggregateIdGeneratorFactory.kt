@@ -20,7 +20,7 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.asString
+import me.ahoo.wow.configuration.MetadataSearcher
 import org.slf4j.LoggerFactory
 
 @Order(ORDER_LAST)
@@ -30,7 +30,14 @@ class CosIdAggregateIdGeneratorFactory : AggregateIdGeneratorFactory {
     }
 
     override fun create(namedAggregate: NamedAggregate): IdGenerator {
-        val idGenName = namedAggregate.asString()
+        val idGenName = MetadataSearcher.metadata
+            .contexts[namedAggregate.contextName]
+            ?.aggregates
+            ?.get(namedAggregate.aggregateName)
+            ?.id
+            .orEmpty().ifBlank {
+                namedAggregate.aggregateName
+            }
 
         val idGeneratorOp = DefaultIdGeneratorProvider.INSTANCE.get(idGenName)
         if (idGeneratorOp.isPresent) {
