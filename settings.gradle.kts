@@ -28,6 +28,7 @@ include(":wow-spring-boot-starter")
 include(":wow-opentelemetry")
 include(":wow-test")
 include(":code-coverage-report")
+include(":wow-it")
 
 include(":example-api")
 project(":example-api").projectDir = file("example/example-api")
@@ -48,3 +49,4 @@ pluginManagement {
         id("io.github.gradle-nexus.publish-plugin") version "1.3.0" apply false
     }
 }
+

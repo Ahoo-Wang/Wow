@@ -14,10 +14,8 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.HandledSignal
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.modeling.materialize
@@ -25,20 +23,17 @@ import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
-import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import java.time.Duration
 
 abstract class AbstractEventDispatcher<R : Mono<*>>(
     private val domainEventBus: DomainEventBus,
     private val functionRegistrar: AbstractEventFunctionRegistrar<R>,
     private val eventHandler: Handler<DomainEventExchange<Any>>,
 ) :
-    AbstractMessageDispatcher<HandledSignal>() {
+    AbstractMessageDispatcher<Void>() {
 
     private companion object {
-        val DEFAULT_TIMEOUT: Duration = Duration.ofSeconds(30)
         val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
     }
 
@@ -50,49 +45,26 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
         domainEventBus
             .receive(topics)
             .writeReceiverGroup(name)
-            .groupBy { it.message.aggregateId }
+            .parallel()
+            .runOn(scheduler)
             .flatMap { handle(it) }
             .subscribe(this)
     }
 
-    private fun handle(groupedEventStream: GroupedFlux<AggregateId, EventStreamExchange>): Mono<HandledSignal> {
-        if (log.isDebugEnabled) {
-            log.debug(
-                "[$name] Create {} GroupedFlux - Timeout {}.",
-                groupedEventStream.key(),
-                DEFAULT_TIMEOUT,
-            )
-        }
-        return groupedEventStream.publishOn(scheduler)
-            .timeout(
-                DEFAULT_TIMEOUT,
-                Mono.defer {
-                    if (log.isDebugEnabled) {
-                        log.debug(
-                            "[$name] Clear {} group: has not received events for {}.",
-                            groupedEventStream.key(),
-                            DEFAULT_TIMEOUT,
-                        )
-                    }
-                    Mono.empty()
-                },
-            ).concatMap { exchange ->
-                Flux.fromIterable(exchange.message)
-                    .concatMap { handleEvent(it, groupedEventStream, exchange) }
-                    .doFinally { exchange.acknowledge() }
-            }
-            .then(Mono.just(HandledSignal))
+    private fun handle(exchange: EventStreamExchange): Mono<Void> {
+        return Flux.fromIterable(exchange.message)
+            .concatMap { handleEvent(it) }
+            .doFinally { exchange.acknowledge() }
+            .then()
     }
 
     private fun handleEvent(
-        event: DomainEvent<*>,
-        groupedEventStream: GroupedFlux<AggregateId, EventStreamExchange>,
-        exchange: EventStreamExchange,
+        event: DomainEvent<*>
     ): Mono<Void> {
         val eventType: Class<*> = event.body.javaClass
         val functions = functionRegistrar.getFunctions(eventType)
             .filter {
-                if (!it.supportedTopics.contains(groupedEventStream.key().materialize())) {
+                if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
                     return@filter false
                 }
                 return@filter event.shouldHandle(it.processor.javaClass.asName())
@@ -100,14 +72,15 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
         if (functions.isEmpty()) {
             if (log.isDebugEnabled) {
                 log.debug(
-                    "${exchange.message.aggregateId} eventType[$eventType] not find any functions.Ignore this event:[${exchange.message}].",
+                    "{} eventType[{}] not find any functions.Ignore this event:[{}].",
+                    event.aggregateId,
+                    eventType,
+                    event
                 )
             }
             return Mono.empty()
         }
         return Flux.fromIterable(functions)
-            .parallel()
-            .runOn(scheduler)
             .flatMap { function ->
                 @Suppress("UNCHECKED_CAST")
                 val eventExchange: DomainEventExchange<Any> =

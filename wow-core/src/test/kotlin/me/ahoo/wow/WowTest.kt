@@ -17,11 +17,24 @@ import me.ahoo.wow.api.Wow
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
+import reactor.core.scheduler.Schedulers
+import reactor.kotlin.core.publisher.toFlux
 
 internal class WowTest {
+    companion object {
+        private val log = LoggerFactory.getLogger(WowTest::class.java)
+    }
+
     @Test
     fun test() {
         assertThat(Wow.WOW, equalTo("wow"))
         assertThat(Wow.WOW_PREFIX, equalTo("wow."))
+        (1..1000).toFlux()
+            .publishOn(Schedulers.boundedElastic())
+            .doOnNext {
+                log.info("doOnNext:$it")
+            }.blockLast();
+        Thread.sleep(1000)
     }
 }

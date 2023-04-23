@@ -131,7 +131,8 @@ abstract class AggregateDispatcherSpec {
     }
 
     protected open fun onCommandSeek(): Mono<Void> = Mono.empty()
-    val concurrency: Int = 2000
+    val concurrency: Int = 2
+    val aggregateCount: Int = 8000
 
     @Test
     fun run() {
@@ -158,7 +159,6 @@ abstract class AggregateDispatcherSpec {
     }
 
     private fun orchestra() {
-        val aggregateCount = 8
         val creates = buildList {
             repeat(aggregateCount) {
                 add(
@@ -186,8 +186,7 @@ abstract class AggregateDispatcherSpec {
                 // 生成聚合
                 commandGateway
                     .sendAndWaitForProcessed(it!!.asCommandMessage())
-            }
-            .doOnNext {
+            }.doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
             .sequential()

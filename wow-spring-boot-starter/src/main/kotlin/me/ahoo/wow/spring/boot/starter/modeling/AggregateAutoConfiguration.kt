@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.modeling
 
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
@@ -66,7 +67,7 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    protected fun commandAggregateFactory(eventStore: EventStore): CommandAggregateFactory {
+    fun commandAggregateFactory(eventStore: EventStore): CommandAggregateFactory {
         return SimpleCommandAggregateFactory(eventStore)
     }
 
@@ -131,12 +132,14 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun aggregateDispatcher(
+        namedBoundedContext: NamedBoundedContext,
         commandBus: CommandBus,
         aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
         serviceProvider: ServiceProvider,
     ): AggregateDispatcher {
         return AggregateDispatcher(
+            name = "${namedBoundedContext.contextName}.${AggregateDispatcher::class.simpleName}",
             aggregateTtl = Duration.ofSeconds(30),
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,

@@ -56,6 +56,7 @@ allprojects {
             attributes["Implementation-Title"] = project.name
             attributes["Implementation-Version"] = project.version
         }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }
 
@@ -130,6 +131,15 @@ configure(publishProjects) {
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
+                }
+            }
+            //TODO
+            maven {
+                name = "LinYiPackages"
+                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
+                credentials {
+                    username = project.properties["linyiPackageUsername"]?.toString()
+                    password = project.properties["linyiPackagePwd"]?.toString()
                 }
             }
         }

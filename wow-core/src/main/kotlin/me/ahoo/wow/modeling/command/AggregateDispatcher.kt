@@ -12,21 +12,17 @@
  */
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.HandledSignal
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 
@@ -47,20 +43,25 @@ class AggregateDispatcher(
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider,
-) : AbstractMessageDispatcher<HandledSignal>() {
+) : AbstractMessageDispatcher<Void>() {
 
     private companion object {
         private val log: Logger = LoggerFactory.getLogger(AggregateDispatcher::class.java)
     }
 
-    private val scheduler: Scheduler = Schedulers.newParallel(AggregateDispatcher::class.java.simpleName)
+//    private val scheduler: Scheduler = Schedulers.newParallel(
+//        AggregateDispatcher::class.java.simpleName
+//    )
 
     override fun start() {
         commandBus
             .receive(topics)
             .writeReceiverGroup(name)
-            .groupBy { it.message.aggregateId }
-            .flatMap { handleGroupedCommand(it) }
+//            .groupBy { it.message.aggregateId.hashCode() % Schedulers.DEFAULT_POOL_SIZE }
+//            .flatMap { handleGroupedCommand(it) }
+            .parallel()
+            .runOn(Schedulers.boundedElastic())
+            .flatMap { handleCommand(it) }
             .subscribe(this)
     }
 
@@ -70,39 +71,20 @@ class AggregateDispatcher(
      * Workers have aggregate ID affinity.
      *
      */
-    private fun handleGroupedCommand(grouped: GroupedFlux<AggregateId, ServerCommandExchange<Any>>): Mono<HandledSignal> {
-        if (log.isDebugEnabled) {
-            log.debug(
-                "[$name] Create {} GroupedFlux - Timeout {}.",
-                grouped.key(),
-                aggregateTtl,
-            )
-        }
-        val aggregateId = grouped.key()
+//    private fun handleGroupedCommand(grouped: GroupedFlux<Int, ServerCommandExchange<Any>>): Mono<HandledSignal> {
+//        return grouped.publishOn(scheduler).flatMap { handleCommand(it) }.then(Mono.just(HandledSignal))
+//    }
+
+    private fun handleCommand(commandExchange: ServerCommandExchange<Any>): Mono<Void> {
+        val aggregateId = commandExchange.message.aggregateId
 
         @Suppress("UNCHECKED_CAST")
         val aggregateType: Class<Any> =
             MetadataSearcher.namedAggregateType[aggregateId.namedAggregate]!! as Class<Any>
         val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
-        return grouped
-            .publishOn(scheduler)
-            .timeout(
-                aggregateTtl,
-                Mono.defer {
-                    if (log.isDebugEnabled) {
-                        log.debug(
-                            "[$name] Clear {} group: has not received commands for {}.",
-                            aggregateId,
-                            aggregateTtl,
-                        )
-                    }
-                    Mono.empty()
-                },
-            ).concatMap {
-                it.serviceProvider = serviceProvider
-                it.aggregateProcessor = aggregateProcessor
-                commandHandler.handle(it)
-            }.then(Mono.just(HandledSignal))
+        commandExchange.serviceProvider = serviceProvider
+        commandExchange.aggregateProcessor = aggregateProcessor
+        return commandHandler.handle(commandExchange)
     }
 }
