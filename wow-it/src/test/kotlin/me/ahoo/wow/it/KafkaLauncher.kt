@@ -36,6 +36,7 @@ object KafkaLauncher {
         sender = KafkaSender.create(senderOptions)
     }
 
+    val isRunning = KAFKA_CONTAINER.isRunning
     val kafkaProperties: Map<String, Any>
         get() {
             return buildMap {

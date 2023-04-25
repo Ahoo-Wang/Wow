@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.test.spec.command
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
@@ -27,6 +28,10 @@ import java.time.Duration
  * Command Bus Implementation Specification.
  */
 abstract class CommandBusSpec {
+    companion object {
+        private val log = org.slf4j.LoggerFactory.getLogger(CommandBusSpec::class.java)
+    }
+
     protected val namedAggregateForSend = MockSendCommand::class.java.asRequiredNamedAggregate()
     protected val namedAggregateForReceive = MockReceiveCommand::class.java.asRequiredNamedAggregate()
     protected abstract fun createCommandBus(): CommandBus
@@ -62,5 +67,26 @@ abstract class CommandBusSpec {
             }
             .expectNextCount(10)
             .verifyTimeout(Duration.ofSeconds(2))
+    }
+
+    @Test
+    fun sendPerformance() {
+        val commandBus = createCommandBus()
+        val MAX_TIMES = 80000
+        val duration = Flux.generate<CommandMessage<MockSendCommand>, Int>({ 0 }) { state, sink ->
+            if (state < MAX_TIMES) {
+                sink.next(MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage())
+            } else {
+                sink.complete()
+            }
+            state + 1
+        }.subscribeOn(Schedulers.boundedElastic())
+            .flatMap {
+                commandBus.send(it)
+            }
+            .test()
+            .verifyComplete()
+
+        log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
     }
 }

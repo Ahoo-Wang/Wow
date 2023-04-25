@@ -15,6 +15,7 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.test.spec.event.DomainEventBusSpec
+import org.junit.jupiter.api.BeforeAll
 
 internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
     override fun createEventBus(): DomainEventBus {
@@ -22,5 +23,13 @@ internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
             sender = KafkaLauncher.sender,
             receiverOptions = KafkaLauncher.receiverOptions,
         )
+    }
+
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun waitLauncher(): Unit {
+            KafkaLauncher.isRunning
+        }
     }
 }

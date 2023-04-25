@@ -17,28 +17,27 @@ import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.MongoSnapshotRepository
-import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 class ItAggregateDispatcherSpec : AggregateDispatcherSpec() {
     companion object {
         const val DATABASE_NAME = "wow_it_db"
+
+        @JvmStatic
+        @BeforeAll
+        fun waitLauncher(): Unit {
+            KafkaLauncher.isRunning
+        }
     }
 
     private val client = MongoClients.create(MongoLauncher.getConnectionString())
-    override fun createSnapshotRepository(): SnapshotRepository {
-        val database = client.getDatabase(DATABASE_NAME)
-        SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
-        return MongoSnapshotRepository(database)
-    }
 
     override fun createEventStore(): EventStore {
         val database = client.getDatabase(DATABASE_NAME)
@@ -73,4 +72,5 @@ class ItAggregateDispatcherSpec : AggregateDispatcherSpec() {
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
+
 }

@@ -15,8 +15,18 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.test.spec.command.CommandBusSpec
+import org.junit.jupiter.api.BeforeAll
+
 
 internal class KafkaCommandBusTest : CommandBusSpec() {
+
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun waitLauncher(): Unit {
+            KafkaLauncher.isRunning
+        }
+    }
 
     override fun createCommandBus(): CommandBus {
         return KafkaCommandBus(
@@ -24,4 +34,6 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
+
+
 }

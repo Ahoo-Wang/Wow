@@ -30,5 +30,5 @@ class ProjectionDispatcher(
     projectionHandler: DomainEventHandler,
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, projectionHandler) {
 
-    override val scheduler: Scheduler = Schedulers.newParallel(ProjectionDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.boundedElastic()
 }

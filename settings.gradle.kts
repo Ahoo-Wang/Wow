@@ -43,8 +43,8 @@ pluginManagement {
     plugins {
         id("com.google.devtools.ksp") version "1.8.20-1.0.11" apply false
         id("io.gitlab.arturbosch.detekt") version "1.22.0" apply false
-        kotlin("jvm") version "1.8.20" apply false
-        kotlin("plugin.spring") version "1.8.20" apply false
+        kotlin("jvm") version "1.8.21" apply false
+        kotlin("plugin.spring") version "1.8.21" apply false
         id("org.jetbrains.dokka") version "1.8.10" apply false
         id("io.github.gradle-nexus.publish-plugin") version "1.3.0" apply false
     }

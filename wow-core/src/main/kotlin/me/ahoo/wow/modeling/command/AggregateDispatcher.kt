@@ -20,9 +20,9 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 
@@ -46,22 +46,27 @@ class AggregateDispatcher(
 ) : AbstractMessageDispatcher<Void>() {
 
     private companion object {
-        private val log: Logger = LoggerFactory.getLogger(AggregateDispatcher::class.java)
+        private const val CREATE_AGGREGATE_KEY = -1
+        private fun ServerCommandExchange<*>.asGroupKey(mod: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
+            if (message.isCreate) {
+                return CREATE_AGGREGATE_KEY
+            }
+            return message.aggregateId.hashCode() % mod
+        }
+
+        private fun Int.isCreateKey(): Boolean {
+            return this == CREATE_AGGREGATE_KEY
+        }
     }
 
-//    private val scheduler: Scheduler = Schedulers.newParallel(
-//        AggregateDispatcher::class.java.simpleName
-//    )
+    private val scheduler: Scheduler = Schedulers.boundedElastic()
 
     override fun start() {
         commandBus
             .receive(topics)
             .writeReceiverGroup(name)
-//            .groupBy { it.message.aggregateId.hashCode() % Schedulers.DEFAULT_POOL_SIZE }
-//            .flatMap { handleGroupedCommand(it) }
-            .parallel()
-            .runOn(Schedulers.boundedElastic())
-            .flatMap { handleCommand(it) }
+            .groupBy { it.asGroupKey() }
+            .flatMap({ handleGroupedCommand(it) }, Int.MAX_VALUE)
             .subscribe(this)
     }
 
@@ -71,9 +76,13 @@ class AggregateDispatcher(
      * Workers have aggregate ID affinity.
      *
      */
-//    private fun handleGroupedCommand(grouped: GroupedFlux<Int, ServerCommandExchange<Any>>): Mono<HandledSignal> {
-//        return grouped.publishOn(scheduler).flatMap { handleCommand(it) }.then(Mono.just(HandledSignal))
-//    }
+    private fun handleGroupedCommand(grouped: GroupedFlux<Int, ServerCommandExchange<Any>>): Mono<Void> {
+        if (grouped.key().isCreateKey()) {
+            return grouped.publishOn(scheduler).flatMap({ handleCommand(it) }, Int.MAX_VALUE).then()
+        }
+        return grouped.publishOn(scheduler)
+            .concatMap { handleCommand(it) }.then()
+    }
 
     private fun handleCommand(commandExchange: ServerCommandExchange<Any>): Mono<Void> {
         val aggregateId = commandExchange.message.aggregateId
@@ -87,4 +96,5 @@ class AggregateDispatcher(
         commandExchange.aggregateProcessor = aggregateProcessor
         return commandHandler.handle(commandExchange)
     }
+
 }

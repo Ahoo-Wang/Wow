@@ -31,6 +31,7 @@ import me.ahoo.wow.route.asCommandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.ExceptionHandler
 import me.ahoo.wow.webflux.route.CommandHandlerFunction
+import me.ahoo.wow.webflux.route.DEFAULT_TIME_OUT
 import org.springdoc.core.fn.builders.operation.Builder
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder
 import org.springframework.http.HttpStatus
@@ -141,6 +142,13 @@ class CommandRouteAppender(
                         .`in`(ParameterIn.HEADER)
                         .example("${CommandStage.PROCESSED}")
                         .implementation(CommandStage::class.java),
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_TIME_OUT)
+                        .`in`(ParameterIn.HEADER)
+                        .example("${DEFAULT_TIME_OUT.seconds}")
+                        .implementation(Int::class.java),
                 )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()

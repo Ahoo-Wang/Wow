@@ -15,16 +15,22 @@ package me.ahoo.wow.test.spec.event
 
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.test.spec.eventsourcing.MockDomainEventStreams
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
 
 abstract class DomainEventBusSpec {
+    companion object {
+        private val log = org.slf4j.LoggerFactory.getLogger(DomainEventBusSpec::class.java)
+    }
+
     protected val namedAggregateForSend = MockDomainEventBusSendEvent::class.java.asRequiredNamedAggregate()
     protected val namedAggregateForReceive = MockDomainEventBusReceiveEvent::class.java.asRequiredNamedAggregate()
 
@@ -69,6 +75,37 @@ abstract class DomainEventBusSpec {
             }
             .expectNextCount(10)
             .verifyTimeout(Duration.ofSeconds(2))
+    }
+
+
+    @Test
+    fun sendPerformance() {
+        val eventBus = createEventBus()
+        val MAX_TIMES = 80000
+        val duration = Flux.generate<DomainEventStream, Int>({ 0 }) { state, sink ->
+            if (state < MAX_TIMES) {
+                val eventStream = MockDomainEventStreams.generateEventStream(
+                    aggregateId = namedAggregateForReceive.asAggregateId(GlobalIdGenerator.generateAsString()),
+                    eventCount = 1,
+                    createdEventSupplier = {
+                        MockDomainEventBusReceiveEvent(
+                            GlobalIdGenerator.generateAsString(),
+                        )
+                    },
+                )
+                sink.next(eventStream)
+            } else {
+                sink.complete()
+            }
+            state + 1
+        }.subscribeOn(Schedulers.boundedElastic())
+            .flatMap {
+                eventBus.send(it)
+            }
+            .test()
+            .verifyComplete()
+
+        log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
     }
 }
 

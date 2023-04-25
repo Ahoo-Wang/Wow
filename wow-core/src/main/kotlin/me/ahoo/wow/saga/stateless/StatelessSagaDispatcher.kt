@@ -30,5 +30,5 @@ class StatelessSagaDispatcher(
     statelessSagaHandler: DomainEventHandler,
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, statelessSagaHandler) {
 
-    override val scheduler: Scheduler = Schedulers.newParallel(StatelessSagaDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.boundedElastic()
 }

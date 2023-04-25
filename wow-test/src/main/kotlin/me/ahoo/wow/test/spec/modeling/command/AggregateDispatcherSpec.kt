@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.ThreadLocalRandom
 
@@ -131,8 +132,8 @@ abstract class AggregateDispatcherSpec {
     }
 
     protected open fun onCommandSeek(): Mono<Void> = Mono.empty()
-    val concurrency: Int = 2
-    val aggregateCount: Int = 8000
+    val concurrency: Int = 600
+    val aggregateCount: Int = 60000
 
     @Test
     fun run() {
@@ -154,8 +155,21 @@ abstract class AggregateDispatcherSpec {
         aggregateDispatcher.use {
             it.run()
             onCommandSeek().block()
+            warmUp()
             orchestra()
         }
+    }
+
+    private fun warmUp() {
+        val createAggregate = CreateAggregate(
+            id = GlobalIdGenerator.generateAsString(),
+            state = GlobalIdGenerator.generateAsString()
+        )
+        commandGateway
+            .sendAndWaitForProcessed(createAggregate.asCommandMessage())
+            .then()
+            .test()
+            .verifyComplete()
     }
 
     private fun orchestra() {
@@ -174,14 +188,9 @@ abstract class AggregateDispatcherSpec {
             equalTo(aggregateCount)
         )
 
-        // 等待 Kafka 消费者组 Offset 重置完成
-        // LockSupport.parkNanos(Duration.ofMillis(200).toNanos())
-
         log.info("------------- CreateAggregate -------------")
-
-        creates.toFlux()
-            .parallel()
-            .runOn(Schedulers.parallel())
+        val createdDuration = creates.toFlux()
+            .subscribeOn(Schedulers.boundedElastic())
             .flatMap {
                 // 生成聚合
                 commandGateway
@@ -189,15 +198,17 @@ abstract class AggregateDispatcherSpec {
             }.doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
-            .sequential()
-            .blockLast(Duration.ofMinutes(2))
+            .timeout(Duration.ofMinutes(3))
+            .then()
+            .test()
+            .verifyComplete()
 
-        log.info("------------- Aggregate Created -------------")
+        log.info("------------- Aggregate Created Duration:[$createdDuration]-------------")
 
         /*
          * 模拟聚合命令乱序
          */
-        buildList {
+        val changedDuration = buildList {
             repeat(concurrency) {
                 val randomCreate = creates[ThreadLocalRandom.current().nextInt(0, aggregateCount)]
                 add(
@@ -208,15 +219,18 @@ abstract class AggregateDispatcherSpec {
                 )
             }
         }.toFlux()
-            .parallel()
-            .runOn(Schedulers.parallel())
+            .subscribeOn(Schedulers.boundedElastic())
             .flatMap {
                 commandGateway.sendAndWaitForProcessed(it.asCommandMessage())
             }
             .doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
-            .sequential()
-            .blockLast(Duration.ofMinutes(2))
+            .timeout(Duration.ofMinutes(2))
+            .then()
+            .test()
+            .verifyComplete()
+
+        log.warn("------- Aggregate Created Duration:[$createdDuration],Changed Duration:[$changedDuration] -------")
     }
 }

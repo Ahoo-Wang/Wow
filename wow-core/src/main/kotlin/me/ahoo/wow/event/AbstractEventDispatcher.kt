@@ -14,6 +14,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.handler.Handler
@@ -23,8 +24,10 @@ import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
+import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 
 abstract class AbstractEventDispatcher<R : Mono<*>>(
     private val domainEventBus: DomainEventBus,
@@ -35,6 +38,9 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
 
     private companion object {
         val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
+        private fun AggregateId.asGroupKey(mod: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
+            return hashCode() % mod
+        }
     }
 
     override val topics: Set<NamedAggregate>
@@ -45,17 +51,19 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
         domainEventBus
             .receive(topics)
             .writeReceiverGroup(name)
-            .parallel()
-            .runOn(scheduler)
-            .flatMap { handle(it) }
+            .groupBy { it.message.aggregateId.asGroupKey() }
+            .flatMap({ handleGroupedEvent(it) }, Int.MAX_VALUE)
             .subscribe(this)
     }
 
-    private fun handle(exchange: EventStreamExchange): Mono<Void> {
-        return Flux.fromIterable(exchange.message)
-            .concatMap { handleEvent(it) }
-            .doFinally { exchange.acknowledge() }
-            .then()
+    private fun handleGroupedEvent(grouped: GroupedFlux<Int, EventStreamExchange>): Mono<Void> {
+        return grouped
+            .publishOn(scheduler)
+            .concatMap { exchange ->
+                Flux.fromIterable(exchange.message)
+                    .concatMap { handleEvent(it) }
+                    .doFinally { exchange.acknowledge() }
+            }.then()
     }
 
     private fun handleEvent(

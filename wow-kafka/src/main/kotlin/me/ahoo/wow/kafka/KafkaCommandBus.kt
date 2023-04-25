@@ -25,11 +25,13 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kafka.receiver.KafkaReceiver
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderRecord
+import reactor.util.concurrent.Queues
 import reactor.util.retry.Retry
 import reactor.util.retry.RetryBackoffSpec
 import java.time.Duration
@@ -48,16 +50,20 @@ class KafkaCommandBus(
     }
 
     override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
-        return Mono.defer {
-            val senderRecord = encode(command)
-            sender.send(Mono.just(senderRecord))
-                .doOnError {
-                    if (log.isErrorEnabled) {
-                        log.error("Send command[${command.id}] failed!", it)
-                    }
+        val senderRecord = encode(command)
+        return sender.send(Mono.just(senderRecord))
+            .doOnNext {
+                val error = it.exception()
+                if (error != null) {
+                    it.correlationMetadata().tryEmitError(error)
+                } else {
+                    it.correlationMetadata().tryEmitEmpty()
                 }
-                .then()
-        }
+            }
+            .flatMap {
+                it.correlationMetadata().asMono()
+            }
+            .next()
     }
 
     /**
@@ -74,7 +80,7 @@ class KafkaCommandBus(
 
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
             KafkaReceiver.create(customizedOptions)
-                .receive()
+                .receive(Queues.SMALL_BUFFER_SIZE)
                 .retryWhen(DEFAULT_RECEIVE_RETRY_SPEC)
                 .mapNotNull {
                     val commandMessage = decode(it) ?: return@mapNotNull null
@@ -83,7 +89,7 @@ class KafkaCommandBus(
         }
     }
 
-    private fun encode(commandMessage: CommandMessage<*>): SenderRecord<String, String, String> {
+    private fun encode(commandMessage: CommandMessage<*>): SenderRecord<String, String, Sinks.Empty<Void>> {
         val producerRecord = ProducerRecord(
             /* topic = */ commandMessage.asCommandTopic(topicPrefix),
             /* partition = */ null,
@@ -91,7 +97,7 @@ class KafkaCommandBus(
             /* key = */ commandMessage.aggregateId.id,
             /* value = */ commandMessage.asJsonString(),
         )
-        return SenderRecord.create(producerRecord, commandMessage.id)
+        return SenderRecord.create(producerRecord, Sinks.empty())
     }
 
     private fun decode(receiverRecord: ReceiverRecord<String, String>): CommandMessage<Any>? {

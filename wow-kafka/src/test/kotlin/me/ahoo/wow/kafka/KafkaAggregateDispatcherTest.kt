@@ -16,11 +16,19 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 internal class KafkaAggregateDispatcherTest : AggregateDispatcherSpec() {
 
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun waitLauncher(): Unit {
+            KafkaLauncher.isRunning
+        }
+    }
     private val onCommandSeekSink = Sinks.empty<Void>()
     override fun onCommandSeek(): Mono<Void> {
         return onCommandSeekSink.asMono()

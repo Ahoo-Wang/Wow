@@ -103,7 +103,7 @@ configure(libraryProjects + exampleDomainProject) {
         api(platform(dependenciesProject))
         detektPlugins(platform(dependenciesProject))
         implementation("org.slf4j:slf4j-api")
-        testImplementation("ch.qos.logback:logback-classic")
+//        testImplementation("ch.qos.logback:logback-classic")
         testImplementation("org.junit.jupiter:junit-jupiter-api")
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testImplementation("org.hamcrest:hamcrest")

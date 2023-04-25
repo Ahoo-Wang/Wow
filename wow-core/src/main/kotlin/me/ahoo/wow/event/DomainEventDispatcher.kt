@@ -27,5 +27,5 @@ class DomainEventDispatcher(
     eventHandler: Handler<DomainEventExchange<Any>>,
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, eventHandler) {
 
-    override val scheduler: Scheduler = Schedulers.newParallel(DomainEventDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.boundedElastic()
 }

@@ -25,11 +25,13 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kafka.receiver.KafkaReceiver
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderRecord
+import reactor.util.concurrent.Queues
 
 class KafkaDomainEventBus(
     private val sender: KafkaSender<String, String>,
@@ -42,16 +44,20 @@ class KafkaDomainEventBus(
     }
 
     override fun send(eventStream: DomainEventStream): Mono<Void> {
-        return Mono.defer {
-            val senderRecord = encode(eventStream)
-            sender.send(Mono.just(senderRecord))
-                .doOnError {
-                    if (log.isErrorEnabled) {
-                        log.error("Send eventStream[${eventStream.id}] failed!", it)
-                    }
+        val senderRecord = encode(eventStream)
+        return sender.send(Mono.just(senderRecord))
+            .doOnNext {
+                val error = it.exception()
+                if (error != null) {
+                    it.correlationMetadata().tryEmitError(error)
+                } else {
+                    it.correlationMetadata().tryEmitEmpty()
                 }
-                .then()
-        }
+            }
+            .flatMap {
+                it.correlationMetadata().asMono()
+            }
+            .next()
     }
 
     /**
@@ -64,7 +70,7 @@ class KafkaDomainEventBus(
                 .subscription(namedAggregates.map { it.asEventStreamTopic(topicPrefix) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
             KafkaReceiver.create(customizedOptions)
-                .receive()
+                .receive(Queues.SMALL_BUFFER_SIZE)
                 .retryWhen(DEFAULT_RECEIVE_RETRY_SPEC)
                 .mapNotNull {
                     val eventStream = decode(it) ?: return@mapNotNull null
@@ -73,7 +79,7 @@ class KafkaDomainEventBus(
         }
     }
 
-    private fun encode(domainEventStream: DomainEventStream): SenderRecord<String, String, String> {
+    private fun encode(domainEventStream: DomainEventStream): SenderRecord<String, String, Sinks.Empty<Void>> {
         val producerRecord = ProducerRecord(
             /* topic = */ domainEventStream.asEventStreamTopic(topicPrefix),
             /* partition = */ null,
@@ -81,7 +87,7 @@ class KafkaDomainEventBus(
             /* key = */ domainEventStream.aggregateId.id,
             /* value = */ domainEventStream.asJsonString(),
         )
-        return SenderRecord.create(producerRecord, domainEventStream.id)
+        return SenderRecord.create(producerRecord, Sinks.empty())
     }
 
     private fun decode(receiverRecord: ReceiverRecord<String, String>): DomainEventStream? {
