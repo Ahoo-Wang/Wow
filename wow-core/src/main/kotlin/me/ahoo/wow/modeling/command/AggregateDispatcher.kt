@@ -96,5 +96,4 @@ class AggregateDispatcher(
         commandExchange.aggregateProcessor = aggregateProcessor
         return commandHandler.handle(commandExchange)
     }
-
 }
