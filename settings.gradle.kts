@@ -40,7 +40,7 @@ project(":example-server").projectDir = file("example/example-server")
 
 pluginManagement {
     plugins {
-        id("com.google.devtools.ksp") version "1.8.20-1.0.11" apply false
+        id("com.google.devtools.ksp") version "1.8.21-1.0.11" apply false
         id("io.gitlab.arturbosch.detekt") version "1.22.0" apply false
         kotlin("jvm") version "1.8.21" apply false
         kotlin("plugin.spring") version "1.8.21" apply false
