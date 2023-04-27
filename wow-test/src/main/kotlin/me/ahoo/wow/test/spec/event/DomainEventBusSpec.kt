@@ -77,13 +77,12 @@ abstract class DomainEventBusSpec {
             .verifyTimeout(Duration.ofSeconds(2))
     }
 
-
     @Test
     fun sendPerformance() {
         val eventBus = createEventBus()
-        val MAX_TIMES = 80000
+        val maxTimes = 80000
         val duration = Flux.generate<DomainEventStream, Int>({ 0 }) { state, sink ->
-            if (state < MAX_TIMES) {
+            if (state < maxTimes) {
                 val eventStream = MockDomainEventStreams.generateEventStream(
                     aggregateId = namedAggregateForReceive.asAggregateId(GlobalIdGenerator.generateAsString()),
                     eventCount = 1,

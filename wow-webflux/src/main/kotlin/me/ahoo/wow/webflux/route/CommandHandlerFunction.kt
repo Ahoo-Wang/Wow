@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.Locale
 
-val DEFAULT_TIME_OUT: Duration = Duration.ofMinutes(1)
+val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
 
 fun CommandResult.asServerResponse(): Mono<ServerResponse> {
     return if (succeeded) {
@@ -67,7 +67,7 @@ class CommandHandlerFunction(
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val commandWaitTimeout = request.headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)?.let {
-            Duration.ofSeconds(it.toLong())
+            Duration.ofMillis(it.toLong())
         } ?: timeout
         return if (commandRouteMetadata.pathVariableMetadata.isEmpty()) {
             request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)

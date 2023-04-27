@@ -17,8 +17,8 @@ import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
-import java.util.LinkedList
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * InMemoryEventStore .
@@ -27,14 +27,14 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class InMemoryEventStore : AbstractEventStore() {
 
-    private val events = ConcurrentHashMap<AggregateId, LinkedList<DomainEventStream>>()
+    private val events = ConcurrentHashMap<AggregateId, CopyOnWriteArrayList<DomainEventStream>>()
 
     public override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {
             events.compute(
                 eventStream.aggregateId,
             ) { _, value ->
-                val aggregateStream = value ?: LinkedList()
+                val aggregateStream = value ?: CopyOnWriteArrayList()
                 val storedTailVersion =
                     if (aggregateStream.isEmpty()) 0 else aggregateStream.last().version
                 if (eventStream.version <= storedTailVersion) {
@@ -62,7 +62,7 @@ class InMemoryEventStore : AbstractEventStore() {
         tailVersion: Int,
     ): Flux<DomainEventStream> {
         return Flux.defer {
-            val eventsOfAgg: LinkedList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
+            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
             eventsOfAgg
                 .filter { it.version in headVersion..tailVersion }
                 .toFlux()

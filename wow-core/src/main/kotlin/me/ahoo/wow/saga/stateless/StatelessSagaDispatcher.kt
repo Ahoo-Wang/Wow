@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.saga.stateless
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventHandler
@@ -28,7 +29,5 @@ class StatelessSagaDispatcher(
     domainEventBus: DomainEventBus,
     functionRegistrar: StatelessSagaFunctionRegistrar,
     statelessSagaHandler: DomainEventHandler,
-) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, statelessSagaHandler) {
-
-    override val scheduler: Scheduler = Schedulers.boundedElastic()
-}
+    override val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + StatelessSagaDispatcher::class.java.simpleName)
+) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, statelessSagaHandler)

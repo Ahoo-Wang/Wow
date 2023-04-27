@@ -14,8 +14,8 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -38,9 +38,6 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
 
     private companion object {
         val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
-        private fun AggregateId.asGroupKey(mod: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
-            return hashCode() % mod
-        }
     }
 
     override val topics: Set<NamedAggregate>
@@ -51,7 +48,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
         domainEventBus
             .receive(topics)
             .writeReceiverGroup(name)
-            .groupBy { it.message.aggregateId.asGroupKey() }
+            .groupBy { it.message.aggregateId.mod(Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE) }
             .flatMap({ handleGroupedEvent(it) }, Int.MAX_VALUE)
             .subscribe(this)
     }

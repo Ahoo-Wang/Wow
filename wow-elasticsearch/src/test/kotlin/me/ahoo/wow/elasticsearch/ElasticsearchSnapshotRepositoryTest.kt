@@ -15,10 +15,18 @@ package me.ahoo.wow.elasticsearch
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotRepositorySpec
+import org.junit.jupiter.api.BeforeAll
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.reactive.ReactiveRestClients
 
 internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun waitLauncher(): Unit {
+            ElasticsearchLauncher.isRunning
+        }
+    }
 
     override fun createSnapshotRepository(): SnapshotRepository {
         val clientConfiguration = ClientConfiguration.builder()

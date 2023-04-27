@@ -1,18 +1,19 @@
-server:
-  port: 8066
 spring:
   application:
     name: order-service
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
+    exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+  data:
+    mongodb:
+      uri: mongodb://root:root@localhost:27017/?maxIdleTimeMS=60000
+      database: order_db
+
 #  r2dbc:
 #    url: r2dbc:pool:mariadb://root:root@localhost:3306/wow_db?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
-
 logging:
   level:
     #    root: debug
-    me.ahoo.wow: debug
-    org.springframework.r2dbc: trace # for queries
+    me.ahoo.wow: warn
 
 cosid:
   machine:
@@ -20,58 +21,69 @@ cosid:
     distributor:
       type: manual
       manual:
-        machine-id: 2
+        machine-id: 1
   generator:
     enabled: true
-
+#  snowflake:
+#    enabled: true
+#    provider:
+#      order:
+#        converter:
+#          type: radix
 wow:
-  # Current runtime bounded context
-  context-name: order-service
-  r2dbc:
-    datasource:
-      type: sharding
-      sharding:
-        databases:
-          event_stream_0:
-            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
-          event_stream_1:
-            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
-          snapshot_0:
-            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
-          snapshot_1:
-            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
-        event-stream:
-          order:
-            database-algorithm: event_stream_db
-            table-algorithm: order_event_stream_table
-        snapshot:
-          order:
-            database-algorithm: snapshot_db
-            table-algorithm: order_snapshot_table
-        algorithms:
-          event_stream_db:
-            type: mod
-            mod:
-              logic-name-prefix: event_stream_
-              divisor: 2
-          snapshot_db:
-            type: mod
-            mod:
-              logic-name-prefix: snapshot_
-              divisor: 2
-          order_event_stream_table:
-            type: mod
-            mod:
-              logic-name-prefix: order_event_stream_
-              divisor: 4
-          order_snapshot_table:
-            type: mod
-            mod:
-              logic-name-prefix: order_snapshot_
-              divisor: 4
+  command:
+    bus:
+      type: in_memory
+  event:
+    bus:
+      type: in_memory
   kafka:
-    bootstrap-servers: 'PLAINTEXT://localhost:55091'
+    enabled: false
+#    bootstrap-servers: 'PLAINTEXT://localhost:63081'
   eventsourcing:
+    store:
+      storage: in_memory
     snapshot:
-      strategy: all
-#      storage: elasticsearch
+      storage: in_memory
+#  r2dbc:
+#    datasource:
+#      type: sharding
+#      sharding:
+#        databases:
+#          event_stream_0:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          event_stream_1:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          snapshot_0:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          snapshot_1:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#        event-stream:
+#          order:
+#            database-algorithm: event_stream_db
+#            table-algorithm: order_event_stream_table
+#        snapshot:
+#          order:
+#            database-algorithm: snapshot_db
+#            table-algorithm: order_snapshot_table
+#        algorithms:
+#          event_stream_db:
+#            type: mod
+#            mod:
+#              logic-name-prefix: event_stream_
+#              divisor: 2
+#          snapshot_db:
+#            type: mod
+#            mod:
+#              logic-name-prefix: snapshot_
+#              divisor: 2
+#          order_event_stream_table:
+#            type: mod
+#            mod:
+#              logic-name-prefix: order_event_stream_
+#              divisor: 4
+#          order_snapshot_table:
+#            type: mod
+#            mod:
+#              logic-name-prefix: order_snapshot_
+#              divisor: 4

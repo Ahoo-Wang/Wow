@@ -49,5 +49,5 @@ class DuplicateAggregateIdException(
 ) : ConflictException,
     WowException(
         EventSourcingErrorCodes.DUPLICATE_AGGREGATE_ID,
-        "Failed to append eventStream[${eventStream.id}]: Duplicate aggregateId[${eventStream.aggregateId.id}].",
+        "Failed to append eventStream[${eventStream.id}]: Duplicate ${eventStream.aggregateId}.",
     )

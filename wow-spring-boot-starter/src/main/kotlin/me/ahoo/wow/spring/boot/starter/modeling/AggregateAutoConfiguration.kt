@@ -43,7 +43,6 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
-import java.time.Duration
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -140,7 +139,6 @@ class AggregateAutoConfiguration {
     ): AggregateDispatcher {
         return AggregateDispatcher(
             name = "${namedBoundedContext.contextName}.${AggregateDispatcher::class.simpleName}",
-            aggregateTtl = Duration.ofSeconds(30),
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,

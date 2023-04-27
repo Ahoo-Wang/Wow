@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.messaging.handler.Handler
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -25,7 +26,5 @@ class DomainEventDispatcher(
     domainEventBus: DomainEventBus,
     functionRegistrar: DomainEventFunctionRegistrar,
     eventHandler: Handler<DomainEventExchange<Any>>,
-) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, eventHandler) {
-
-    override val scheduler: Scheduler = Schedulers.boundedElastic()
-}
+    override val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + DomainEventDispatcher::class.java.simpleName)
+) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, eventHandler)

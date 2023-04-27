@@ -13,13 +13,19 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.shouldHandle
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
+import reactor.core.publisher.GroupedFlux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 
 private const val SNAPSHOT_PROCESSOR_NAME = "snapshot"
@@ -32,6 +38,7 @@ class SnapshotDispatcher(
     override val topics: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
     private val domainEventBus: DomainEventBus,
+    private val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + SnapshotDispatcher::class.java.simpleName)
 ) : AbstractMessageDispatcher<Void>(), MessageDispatcher {
 
     override fun start() {
@@ -40,9 +47,16 @@ class SnapshotDispatcher(
             .filter {
                 it.message.shouldHandle(SNAPSHOT_PROCESSOR_NAME)
             }
-            .parallel()
-            .runOn(Schedulers.boundedElastic())
-            .flatMap { snapshotHandler.handle(it) }
+            .groupBy { it.message.aggregateId.mod(Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE) }
+            .flatMap { handleGroupedStream(it) }
             .subscribe(this)
+    }
+
+    private fun handleGroupedStream(grouped: GroupedFlux<Int, EventStreamExchange>): Mono<Void> {
+        return grouped
+            .publishOn(scheduler)
+            .concatMap { exchange ->
+                snapshotHandler.handle(exchange)
+            }.then()
     }
 }

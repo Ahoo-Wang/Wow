@@ -110,6 +110,7 @@ configure(libraryProjects + exampleDomainProject) {
         testImplementation("io.mockk:mockk") {
             exclude(group = "org.slf4j", module = "slf4j-api")
         }
+        testImplementation("io.micrometer:micrometer-core")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }

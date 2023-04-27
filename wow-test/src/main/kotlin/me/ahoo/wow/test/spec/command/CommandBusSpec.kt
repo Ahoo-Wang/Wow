@@ -71,22 +71,23 @@ abstract class CommandBusSpec {
 
     @Test
     fun sendPerformance() {
+        Schedulers.enableMetrics()
         val commandBus = createCommandBus()
-        val MAX_TIMES = 80000
+        val maxTimes = 80000
         val duration = Flux.generate<CommandMessage<MockSendCommand>, Int>({ 0 }) { state, sink ->
-            if (state < MAX_TIMES) {
+            if (state < maxTimes) {
                 sink.next(MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage())
             } else {
                 sink.complete()
             }
             state + 1
-        }.subscribeOn(Schedulers.boundedElastic())
+        }.metrics()
+            .subscribeOn(Schedulers.boundedElastic())
             .flatMap {
                 commandBus.send(it)
             }
             .test()
             .verifyComplete()
-
         log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
     }
 }

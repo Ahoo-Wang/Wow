@@ -147,7 +147,8 @@ class CommandRouteAppender(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(CommandHeaders.WAIT_TIME_OUT)
                         .`in`(ParameterIn.HEADER)
-                        .example("${DEFAULT_TIME_OUT.seconds}")
+                        .example("${DEFAULT_TIME_OUT.toMillis()}")
+                        .description("Unit: millisecond")
                         .implementation(Int::class.java),
                 )
                 .parameter(

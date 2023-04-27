@@ -30,4 +30,6 @@ object ElasticsearchLauncher {
     init {
         ELASTICSEARCH_CONTAINER.start()
     }
+
+    val isRunning = ELASTICSEARCH_CONTAINER.isRunning
 }

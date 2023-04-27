@@ -36,6 +36,10 @@ fun AggregateId.hash(): Int {
     return result
 }
 
+fun AggregateId.mod(divisor: Int): Int {
+    return id.hashCode().mod(divisor)
+}
+
 /**
  * Aggregate Id .
  *

@@ -7,4 +7,5 @@ dependencies {
     api("org.hamcrest:hamcrest")
     implementation("org.junit.jupiter:junit-jupiter-api")
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("io.micrometer:micrometer-core")
 }

@@ -24,14 +24,22 @@ kotlin {
         languageVersion.set(JavaLanguageVersion.of(8))
     }
 }
-
+tasks.jar.configure {
+    exclude("application.yaml", "bootstrap.yaml")
+    manifest {
+        attributes(
+            "Implementation-Title" to application.applicationName,
+            "Implementation-Version" to archiveVersion,
+        )
+    }
+}
 application {
     mainClass.set("me.ahoo.wow.example.server.ExampleServerKt")
     applicationDefaultJvmArgs = listOf(
-        "-Xms512M",
-        "-Xmx512M",
-        "-XX:MaxMetaspaceSize=128M",
-        "-XX:MaxDirectMemorySize=256M",
+        "-Xms1280M",
+        "-Xmx1280M",
+        "-XX:MaxMetaspaceSize=256M",
+        "-XX:MaxDirectMemorySize=512M",
         "-Xss1m",
         "-server",
         "-XX:+UseG1GC",

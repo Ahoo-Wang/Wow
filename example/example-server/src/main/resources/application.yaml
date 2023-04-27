@@ -1,34 +1,33 @@
 spring:
   application:
     name: order-service
-  #  autoconfigure:
-  #    exclude: org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
   data:
     mongodb:
-      host: localhost
+      uri: mongodb://root:root@localhost:27017/?maxIdleTimeMS=60000
       database: order_db
-      username: root
-      password: root
-      authentication-database: admin
+
 #  r2dbc:
 #    url: r2dbc:pool:mariadb://root:root@localhost:3306/wow_db?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
 logging:
   level:
     #    root: debug
-    me.ahoo.wow: debug
-    org.springframework.r2dbc: trace # for queries
+    me.ahoo.wow: warn
 
 cosid:
   machine:
     enabled: true
     distributor:
-      type: mongo
+      type: manual
+      manual:
+        machine-id: 1
   generator:
     enabled: true
 #  snowflake:
 #    enabled: true
 #    provider:
-#      "[order-service.order]":
+#      order:
 #        converter:
 #          type: radix
 wow:
@@ -41,10 +40,11 @@ wow:
   kafka:
     enabled: false
 #    bootstrap-servers: 'PLAINTEXT://localhost:63081'
-#  eventsourcing:
-#    snapshot:
-#      strategy: all
-#      storage: mongo
+  eventsourcing:
+    store:
+      storage: in_memory
+    snapshot:
+      storage: in_memory
 #  r2dbc:
 #    datasource:
 #      type: sharding

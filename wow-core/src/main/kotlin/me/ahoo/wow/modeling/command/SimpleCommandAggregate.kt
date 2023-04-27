@@ -58,6 +58,9 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     "Failed to process command[${message.id}]: The current StateAggregate[$aggregateId] is not initialized.",
                 ).toMono()
             }
+            check(commandState == CommandState.STORED) {
+                "Failed to process command[${message.id}]: The current StateAggregate[$aggregateId] is not stored."
+            }
 
             if (state.deleted) {
                 return@defer IllegalAccessDeletedAggregateException(

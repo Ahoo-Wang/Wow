@@ -39,12 +39,6 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         private val MIN_BACKOFF = Duration.ofSeconds(2)
     }
 
-    private var aggregateCache: Mono<CommandAggregate<C, S>> = buildAggregateCache()
-
-    private fun buildAggregateCache() = stateAggregateRepository.load(aggregateMetadata.state, aggregateId)
-        .map { commandAggregateFactory.create(aggregateMetadata, it) }
-        .cacheInvalidateIf { CommandState.EXPIRED == it.commandState }
-
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
         .filter {
             val retryable = it.retryable
@@ -55,23 +49,12 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         }
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        if (exchange.message.isCreate) {
-            return aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId)
-                .map { commandAggregateFactory.create(aggregateMetadata, it) }
-                .flatMap { aggregate ->
-                    aggregate.process(exchange)
-                        .doOnSuccess {
-                            aggregateCache = Mono.defer {
-                                if (CommandState.EXPIRED == aggregate.commandState) {
-                                    buildAggregateCache()
-                                } else {
-                                    Mono.just(aggregate)
-                                }
-                            }
-                        }
-                }.retryWhen(retryStrategy)
+        val stateAggregateMono = if (exchange.message.isCreate) {
+            aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId)
+        } else {
+            stateAggregateRepository.load(aggregateMetadata.state, aggregateId)
         }
-        return aggregateCache
+        return stateAggregateMono.map { commandAggregateFactory.create(aggregateMetadata, it) }
             .flatMap { it.process(exchange) }
             .retryWhen(retryStrategy)
     }
