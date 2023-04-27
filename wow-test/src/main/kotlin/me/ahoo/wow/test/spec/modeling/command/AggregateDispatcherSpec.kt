@@ -145,7 +145,6 @@ abstract class AggregateDispatcherSpec {
 
         val aggregateDispatcher = AggregateDispatcher(
             topics = setOf(aggregateMetadata.materialize()),
-            aggregateTtl = Duration.ofSeconds(30),
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = CommandHandler(chain),

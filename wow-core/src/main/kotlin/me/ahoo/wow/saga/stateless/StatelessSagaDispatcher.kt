@@ -29,5 +29,7 @@ class StatelessSagaDispatcher(
     domainEventBus: DomainEventBus,
     functionRegistrar: StatelessSagaFunctionRegistrar,
     statelessSagaHandler: DomainEventHandler,
-    override val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + StatelessSagaDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.newParallel(
+        Wow.WOW_PREFIX + StatelessSagaDispatcher::class.java.simpleName
+    )
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, statelessSagaHandler)

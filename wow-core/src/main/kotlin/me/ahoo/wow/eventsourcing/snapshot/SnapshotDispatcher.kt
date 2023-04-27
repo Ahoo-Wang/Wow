@@ -38,7 +38,9 @@ class SnapshotDispatcher(
     override val topics: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
     private val domainEventBus: DomainEventBus,
-    private val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + SnapshotDispatcher::class.java.simpleName)
+    private val scheduler: Scheduler = Schedulers.newParallel(
+        Wow.WOW_PREFIX + SnapshotDispatcher::class.java.simpleName
+    )
 ) : AbstractMessageDispatcher<Void>(), MessageDispatcher {
 
     override fun start() {

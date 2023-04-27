@@ -26,5 +26,7 @@ class DomainEventDispatcher(
     domainEventBus: DomainEventBus,
     functionRegistrar: DomainEventFunctionRegistrar,
     eventHandler: Handler<DomainEventExchange<Any>>,
-    override val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + DomainEventDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.newParallel(
+        Wow.WOW_PREFIX + DomainEventDispatcher::class.java.simpleName
+    )
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, eventHandler)

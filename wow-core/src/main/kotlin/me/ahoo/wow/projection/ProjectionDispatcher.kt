@@ -29,5 +29,7 @@ class ProjectionDispatcher(
     domainEventBus: DomainEventBus,
     functionRegistrar: ProjectionFunctionRegistrar,
     projectionHandler: DomainEventHandler,
-    override val scheduler: Scheduler = Schedulers.newParallel(Wow.WOW_PREFIX + ProjectionDispatcher::class.java.simpleName)
+    override val scheduler: Scheduler = Schedulers.newParallel(
+        Wow.WOW_PREFIX + ProjectionDispatcher::class.java.simpleName
+    )
 ) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, projectionHandler)
