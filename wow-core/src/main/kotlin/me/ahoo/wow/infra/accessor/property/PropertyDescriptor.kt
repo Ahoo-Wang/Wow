@@ -20,9 +20,8 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
-private val LOG = LoggerFactory.getLogger(PropertyDescriptor::class.java)
-
 object PropertyDescriptor {
+    private val LOG = LoggerFactory.getLogger(PropertyDescriptor::class.java)
     private const val PROPERTY_GETTER_PREFIX = "get"
     private const val PROPERTY_SETTER_PREFIX = "set"
 

@@ -15,7 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
 
 class MongoSnapshotRepositoryTest : SnapshotRepositorySpec() {
     override fun createSnapshotRepository(): SnapshotRepository {

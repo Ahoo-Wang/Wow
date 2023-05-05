@@ -13,7 +13,7 @@
 package me.ahoo.wow.command.metadata
 
 import me.ahoo.wow.command.annotation.commandMetadata
-import me.ahoo.wow.test.spec.command.MockSendCommand
+import me.ahoo.wow.tck.command.MockSendCommand
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.not

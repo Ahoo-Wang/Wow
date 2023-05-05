@@ -4,7 +4,6 @@ plugins {
 dependencies {
     api(project(":example-api"))
     api(project(":wow-spring"))
-    implementation("me.ahoo.cosid:cosid-test")
     ksp(project(":wow-compiler"))
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")

@@ -18,7 +18,7 @@ import me.ahoo.wow.event.MockNamedEmptyEvent
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.NAMED_EVENT
 import me.ahoo.wow.event.REVISED_EVENT
-import me.ahoo.wow.test.spec.event.MockEvent
+import me.ahoo.wow.tck.event.MockEvent
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.notNullValue

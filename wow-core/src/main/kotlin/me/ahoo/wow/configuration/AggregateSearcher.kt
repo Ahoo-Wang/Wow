@@ -15,6 +15,7 @@ package me.ahoo.wow.configuration
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger(AggregateSearcher::class.java)
@@ -31,9 +32,9 @@ class TypeNamedAggregateSearcher(private val source: Map<Class<*>, NamedAggregat
 /**
  * NamedAggregate -> aggregateType
  */
-class NamedAggregateTypeSearcher(private val source: Map<NamedAggregate, Class<*>>) :
+class NamedAggregateTypeSearcher(private val source: Map<MaterializedNamedAggregate, Class<*>>) :
     AggregateSearcher,
-    Map<NamedAggregate, Class<*>> by source
+    Map<MaterializedNamedAggregate, Class<*>> by source
 
 fun WowMetadata.asTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
     val source = mutableMapOf<Class<*>, NamedAggregate>().apply {
@@ -67,7 +68,7 @@ fun WowMetadata.asTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
 
 fun WowMetadata.asNamedAggregateTypeSearcher(): NamedAggregateTypeSearcher {
     val source = asTypeNamedAggregateSearcher().map {
-        it.value to it.key
+        it.value.materialize() to it.key
     }.toMap()
     return NamedAggregateTypeSearcher(source)
 }

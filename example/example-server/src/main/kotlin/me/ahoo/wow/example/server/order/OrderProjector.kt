@@ -20,7 +20,6 @@ import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.spring.stereotype.ProjectionProcessor
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
-import java.time.Duration
 
 @ProjectionProcessor
 class OrderProjector {
@@ -34,11 +33,11 @@ class OrderProjector {
             log.info(orderCreated.toString())
         }
         // write
-        Mono.just(orderCreated).delayElement(Duration.ofSeconds(3)).doOnNext {
-            if (log.isInfoEnabled) {
-                log.info("Block Mono.just(orderCreated)")
-            }
-        }.block()
+//        Mono.just(orderCreated).delayElement(Duration.ofSeconds(3)).doOnNext {
+//            if (log.isInfoEnabled) {
+//                log.info("Block Mono.just(orderCreated)")
+//            }
+//        }.block()
     }
 
     fun onEvent(addressChanged: AddressChanged): Mono<Void> {

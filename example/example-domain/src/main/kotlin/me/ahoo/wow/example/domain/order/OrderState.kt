@@ -32,7 +32,7 @@ import java.math.BigDecimal
  */
 class OrderState(
     /**
-     * [me.ahoo.wow.modeling.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
+     * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
      */
     val id: String,
 ) {
@@ -66,7 +66,7 @@ class OrderState(
      * 并且事件朔源函数不对外部环境/服务产生依赖。
      *
      *
-     * [me.ahoo.wow.modeling.annotation.OnSourcing] 注解是可选的，约定默认使用方法名 `onSourcing` .
+     * [me.ahoo.wow.api.annotation.OnSourcing] 注解是可选的，约定默认使用方法名 `onSourcing` .
      *
      */
     fun onSourcing(orderCreated: DomainEvent<OrderCreated>) {

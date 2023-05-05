@@ -15,7 +15,7 @@ package me.ahoo.wow.r2dbc
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.sharding.CosIdAggregateIdSharding
-import me.ahoo.wow.test.spec.eventsourcing.EventStoreSpec
+import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 internal class R2dbcEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {

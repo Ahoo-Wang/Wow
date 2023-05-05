@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
 
 internal class InMemorySnapshotRepositoryTest : SnapshotRepositorySpec() {
     override fun createSnapshotRepository(): SnapshotRepository {

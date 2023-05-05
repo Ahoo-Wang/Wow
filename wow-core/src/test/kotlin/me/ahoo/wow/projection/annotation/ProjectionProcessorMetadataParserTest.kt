@@ -19,10 +19,10 @@ import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.tck.modeling.AggregateChanged
+import me.ahoo.wow.tck.modeling.AggregateCreated
+import me.ahoo.wow.tck.modeling.MockAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import me.ahoo.wow.test.spec.modeling.AggregateChanged
-import me.ahoo.wow.test.spec.modeling.AggregateCreated
-import me.ahoo.wow.test.spec.modeling.MockAggregate
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItems

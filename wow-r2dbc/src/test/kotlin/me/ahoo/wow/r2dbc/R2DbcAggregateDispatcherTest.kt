@@ -19,7 +19,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.sharding.CompositeAggregateIdSharding
 import me.ahoo.wow.sharding.CosIdShardingDecorator
-import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
 
 class R2DbcAggregateDispatcherTest : AggregateDispatcherSpec() {
     private val connectionFactory: ConnectionFactory = ConnectionFactoryProviders.create()

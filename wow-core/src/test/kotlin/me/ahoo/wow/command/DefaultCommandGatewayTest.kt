@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.test.spec.command.CommandGatewaySpec
+import me.ahoo.wow.tck.command.CommandGatewaySpec
 
 internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     override fun createCommandBus(): CommandBus {

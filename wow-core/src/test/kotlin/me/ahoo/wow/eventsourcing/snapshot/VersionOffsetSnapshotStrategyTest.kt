@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotStrategySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStrategySpec
 
 internal class VersionOffsetSnapshotStrategyTest : SnapshotStrategySpec() {
     override fun createSnapshotStrategy(): SnapshotStrategy {

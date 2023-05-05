@@ -15,9 +15,9 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.test.spec.modeling.ChangeAggregate
-import me.ahoo.wow.test.spec.modeling.CreateAggregate
-import me.ahoo.wow.test.spec.modeling.MockAggregate
+import me.ahoo.wow.tck.modeling.ChangeAggregate
+import me.ahoo.wow.tck.modeling.CreateAggregate
+import me.ahoo.wow.tck.modeling.MockAggregate
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.arrayWithSize
 import org.hamcrest.Matchers.equalTo

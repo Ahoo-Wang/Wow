@@ -27,6 +27,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import java.util.concurrent.TimeoutException
 
 interface ExceptionHandler {
     fun handle(throwable: Throwable): Mono<ServerResponse>
@@ -42,6 +43,7 @@ object DefaultExceptionHandler : ExceptionHandler {
             is GoneException -> HttpStatus.GONE
             is PreconditionFailedException -> HttpStatus.PRECONDITION_FAILED
             is PreconditionRequiredException -> HttpStatus.PRECONDITION_REQUIRED
+            is TimeoutException -> HttpStatus.REQUEST_TIMEOUT
             else -> HttpStatus.BAD_REQUEST
         }
     }

@@ -14,8 +14,8 @@
 package me.ahoo.wow.projection
 
 import me.ahoo.wow.configuration.asNamedAggregate
-import me.ahoo.wow.test.spec.modeling.AggregateChanged
-import me.ahoo.wow.test.spec.modeling.AggregateCreated
+import me.ahoo.wow.tck.modeling.AggregateChanged
+import me.ahoo.wow.tck.modeling.AggregateCreated
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize

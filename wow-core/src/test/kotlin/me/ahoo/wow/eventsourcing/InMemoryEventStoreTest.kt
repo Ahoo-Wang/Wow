@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.test.spec.eventsourcing.EventStoreSpec
+import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 /**
  * InMemoryEventStoreTest .

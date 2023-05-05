@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.test.spec.event.DomainEventBusSpec
+import me.ahoo.wow.tck.event.DomainEventBusSpec
 
 internal class InMemoryDomainEventBusTest : DomainEventBusSpec() {
     override fun createEventBus(): DomainEventBus = InMemoryDomainEventBus()

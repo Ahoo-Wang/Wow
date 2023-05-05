@@ -18,7 +18,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.test.spec.modeling.CreateAggregate
+import me.ahoo.wow.tck.modeling.CreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 

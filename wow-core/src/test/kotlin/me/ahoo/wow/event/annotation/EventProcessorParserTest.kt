@@ -10,11 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("unused")
 
 package me.ahoo.wow.event.annotation
 
-import me.ahoo.wow.test.spec.modeling.AggregateChanged
-import me.ahoo.wow.test.spec.modeling.AggregateCreated
+import me.ahoo.wow.tck.modeling.AggregateChanged
+import me.ahoo.wow.tck.modeling.AggregateCreated
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItems
@@ -35,6 +36,6 @@ internal class EventProcessorParserTest {
 }
 
 internal class MockEventProcessor {
-    fun onEvent(created: AggregateCreated) {}
-    fun onEvent(changed: AggregateChanged) {}
+    fun onEvent(created: AggregateCreated) = Unit
+    fun onEvent(changed: AggregateChanged) = Unit
 }

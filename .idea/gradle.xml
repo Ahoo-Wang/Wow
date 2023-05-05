@@ -8,24 +8,25 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/code-coverage-report" />
             <option value="$PROJECT_DIR$/example/example-api" />
             <option value="$PROJECT_DIR$/example/example-domain" />
             <option value="$PROJECT_DIR$/example/example-server" />
+            <option value="$PROJECT_DIR$/test/code-coverage-report" />
+            <option value="$PROJECT_DIR$/test/wow-it" />
+            <option value="$PROJECT_DIR$/test/wow-tck" />
+            <option value="$PROJECT_DIR$/test/wow-test" />
             <option value="$PROJECT_DIR$/wow-api" />
             <option value="$PROJECT_DIR$/wow-bom" />
             <option value="$PROJECT_DIR$/wow-compiler" />
             <option value="$PROJECT_DIR$/wow-core" />
             <option value="$PROJECT_DIR$/wow-dependencies" />
             <option value="$PROJECT_DIR$/wow-elasticsearch" />
-            <option value="$PROJECT_DIR$/wow-it" />
             <option value="$PROJECT_DIR$/wow-kafka" />
             <option value="$PROJECT_DIR$/wow-mongo" />
             <option value="$PROJECT_DIR$/wow-opentelemetry" />
             <option value="$PROJECT_DIR$/wow-r2dbc" />
             <option value="$PROJECT_DIR$/wow-spring" />
             <option value="$PROJECT_DIR$/wow-spring-boot-starter" />
-            <option value="$PROJECT_DIR$/wow-test" />
             <option value="$PROJECT_DIR$/wow-webflux" />
           </set>
         </option>

@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.modeling.state
 
-import me.ahoo.wow.test.spec.modeling.state.StateAggregateFactorySpec
+import me.ahoo.wow.tck.modeling.state.StateAggregateFactorySpec
 
 internal class ConstructorStateAggregateFactoryTest : StateAggregateFactorySpec() {
 

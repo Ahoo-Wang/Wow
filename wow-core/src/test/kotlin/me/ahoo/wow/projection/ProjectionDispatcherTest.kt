@@ -13,6 +13,6 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.test.spec.projection.ProjectionDispatcherSpec
+import me.ahoo.wow.tck.projection.ProjectionDispatcherSpec
 
 class ProjectionDispatcherTest : ProjectionDispatcherSpec()

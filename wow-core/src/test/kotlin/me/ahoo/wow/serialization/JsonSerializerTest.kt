@@ -27,10 +27,10 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.test.spec.command.MockSendCommand
-import me.ahoo.wow.test.spec.event.MockDomainEventBusSendEvent
-import me.ahoo.wow.test.spec.eventsourcing.MockDomainEventStreams
-import me.ahoo.wow.test.spec.modeling.MockAggregate
+import me.ahoo.wow.tck.command.MockSendCommand
+import me.ahoo.wow.tck.event.MockDomainEventBusSendEvent
+import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams
+import me.ahoo.wow.tck.modeling.MockAggregate
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
 import org.hamcrest.Matchers.equalTo

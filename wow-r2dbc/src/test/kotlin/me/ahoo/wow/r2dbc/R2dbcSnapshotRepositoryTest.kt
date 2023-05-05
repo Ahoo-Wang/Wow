@@ -13,7 +13,7 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
 
 internal class R2dbcSnapshotRepositoryTest : SnapshotRepositorySpec() {
     override fun createSnapshotRepository(): SnapshotRepository {

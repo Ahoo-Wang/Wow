@@ -12,6 +12,6 @@
  */
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
 
 internal class AggregateDispatcherTest : AggregateDispatcherSpec()

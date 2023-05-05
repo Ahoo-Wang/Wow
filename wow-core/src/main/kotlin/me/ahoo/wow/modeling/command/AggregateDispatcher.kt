@@ -18,15 +18,18 @@ import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import reactor.core.scheduler.Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE
 import reactor.util.concurrent.Queues
 
 /**
@@ -47,9 +50,9 @@ class AggregateDispatcher(
     private val serviceProvider: ServiceProvider
 ) : AbstractMessageDispatcher<Void>() {
 
-    private companion object {
-        private const val CREATE_AGGREGATE_KEY = -1
-        private fun ServerCommandExchange<*>.asGroupKey(divisor: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
+    companion object {
+        const val CREATE_AGGREGATE_KEY = -1
+        private fun ServerCommandExchange<*>.asGroupKey(divisor: Int = DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
             if (message.isCreate) {
                 return CREATE_AGGREGATE_KEY
             }
@@ -71,15 +74,18 @@ class AggregateDispatcher(
         commandBus
             .receive(topics)
             .writeReceiverGroup(name)
+            .name(Wow.WOW_PREFIX + "commands")
+            .tag("dispatcher", "aggregate")
+            .metrics()
             .groupBy { it.message.aggregateId.namedAggregate.materialize() }
-            .flatMap({ handle(it) }, Int.MAX_VALUE)
+            .flatMap({ handle(it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
             .subscribe(this)
     }
 
-    private fun handle(grouped: GroupedFlux<NamedAggregate, ServerCommandExchange<Any>>): Mono<Void> {
+    private fun handle(grouped: GroupedFlux<MaterializedNamedAggregate, ServerCommandExchange<Any>>): Mono<Void> {
         val scheduler = requireNotNull(schedulers[grouped.key()])
         return grouped.groupBy { it.asGroupKey() }
-            .flatMap({ handleGroupedCommand(scheduler, it) }, Int.MAX_VALUE)
+            .flatMap({ handleGroupedCommand(scheduler, it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
             .then()
     }
 
@@ -94,19 +100,27 @@ class AggregateDispatcher(
         grouped: GroupedFlux<Int, ServerCommandExchange<Any>>
     ): Mono<Void> {
         if (grouped.key().isCreateKey()) {
-            return grouped.parallel().runOn(scheduler).flatMap { handleCommand(it) }.then()
+            return grouped
+                .name(Wow.WOW_PREFIX + "create")
+                .metrics()
+                .parallel(Queues.SMALL_BUFFER_SIZE)
+                .runOn(scheduler)
+                .flatMap { handleCommand(it) }
+                .then()
         }
-        return grouped.publishOn(scheduler)
-            .concatMap({ handleCommand(it) }, Queues.SMALL_BUFFER_SIZE).then()
+        return grouped
+            .metrics()
+            .publishOn(scheduler)
+            .concatMap({ handleCommand(it) }, Queues.SMALL_BUFFER_SIZE)
+            .then()
     }
 
     private fun handleCommand(commandExchange: ServerCommandExchange<Any>): Mono<Void> {
         val aggregateId = commandExchange.message.aggregateId
 
-        @Suppress("UNCHECKED_CAST")
-        val aggregateType: Class<Any> =
-            MetadataSearcher.namedAggregateType[aggregateId.namedAggregate]!! as Class<Any>
-        val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
+        val aggregateMetadata = aggregateId.namedAggregate
+            .asRequiredAggregateType<Any>()
+            .asAggregateMetadata<Any, Any>()
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
         commandExchange.serviceProvider = serviceProvider
         commandExchange.aggregateProcessor = aggregateProcessor

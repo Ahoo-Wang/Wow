@@ -14,7 +14,7 @@
 package me.ahoo.wow.kafka
 
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.test.spec.event.DomainEventBusSpec
+import me.ahoo.wow.tck.event.DomainEventBusSpec
 import org.junit.jupiter.api.BeforeAll
 
 internal class KafkaDomainEventBusTest : DomainEventBusSpec() {

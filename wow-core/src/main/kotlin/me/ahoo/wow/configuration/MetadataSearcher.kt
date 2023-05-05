@@ -15,6 +15,7 @@ package me.ahoo.wow.configuration
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.JsonSerializer
 import org.slf4j.LoggerFactory
 
@@ -30,6 +31,7 @@ object MetadataSearcher {
                 if (log.isDebugEnabled) {
                     log.debug("Load metadata [{}].", resource)
                 }
+                @Suppress("TooGenericExceptionCaught")
                 resource.openStream().use {
                     try {
                         val next = JsonSerializer.readValue(it, WowMetadata::class.java)
@@ -72,6 +74,17 @@ fun <T> Class<T>.asNamedAggregate(): NamedAggregate? {
 
 fun <T> Class<T>.asRequiredNamedAggregate(): NamedAggregate {
     return MetadataSearcher.scopeNamedAggregate.requiredSearch(name)
+}
+
+fun <T> NamedAggregate.asAggregateType(): Class<T>? {
+    @Suppress("UNCHECKED_CAST")
+    return MetadataSearcher.namedAggregateType[this.materialize()] as Class<T>?
+}
+
+fun <T> NamedAggregate.asRequiredAggregateType(): Class<T> {
+    return checkNotNull(asAggregateType()) {
+        "NamedAggregate [$this] not found."
+    }
 }
 
 inline fun <reified T> namedAggregate(): NamedAggregate? {

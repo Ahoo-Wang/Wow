@@ -49,9 +49,9 @@ internal class FilterChainBuilderTest {
 internal class MockFirstFilter : Filter<MessageExchange<Message<Any>>> {
     override fun filter(
         exchange: MessageExchange<Message<Any>>,
-        chain: FilterChain<MessageExchange<Message<Any>>>,
+        next: FilterChain<MessageExchange<Message<Any>>>,
     ): Mono<Void> {
-        return chain.filter(exchange)
+        return next.filter(exchange)
     }
 }
 
@@ -59,8 +59,8 @@ internal class MockFirstFilter : Filter<MessageExchange<Message<Any>>> {
 internal class MockLastFilter : Filter<MessageExchange<Message<Any>>> {
     override fun filter(
         exchange: MessageExchange<Message<Any>>,
-        chain: FilterChain<MessageExchange<Message<Any>>>,
+        next: FilterChain<MessageExchange<Message<Any>>>,
     ): Mono<Void> {
-        return chain.filter(exchange)
+        return next.filter(exchange)
     }
 }

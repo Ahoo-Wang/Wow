@@ -15,10 +15,10 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
-import me.ahoo.wow.test.spec.modeling.ChangeAggregateDependExternalService
-import me.ahoo.wow.test.spec.modeling.CreateAggregate
-import me.ahoo.wow.test.spec.modeling.ExternalService
-import me.ahoo.wow.test.spec.modeling.MockAggregate
+import me.ahoo.wow.tck.modeling.ChangeAggregateDependExternalService
+import me.ahoo.wow.tck.modeling.CreateAggregate
+import me.ahoo.wow.tck.modeling.ExternalService
+import me.ahoo.wow.tck.modeling.MockAggregate
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.instanceOf

@@ -14,7 +14,7 @@
 package me.ahoo.wow.kafka
 
 import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.test.spec.command.CommandBusSpec
+import me.ahoo.wow.tck.command.CommandBusSpec
 import org.junit.jupiter.api.BeforeAll
 
 

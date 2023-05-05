@@ -15,7 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.test.spec.eventsourcing.EventStoreSpec
+import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 class MongoEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {

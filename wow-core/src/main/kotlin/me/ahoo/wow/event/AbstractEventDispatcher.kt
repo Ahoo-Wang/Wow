@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.modeling.command.AggregateDispatcher
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
@@ -36,8 +38,18 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
 ) :
     AbstractMessageDispatcher<Void>() {
 
-    private companion object {
-        val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
+    companion object {
+        private val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
+        internal fun EventStreamExchange.asGroupKey(divisor: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
+            if (message.version == Version.INITIAL_VERSION) {
+                return AggregateDispatcher.CREATE_AGGREGATE_KEY
+            }
+            return message.aggregateId.mod(divisor)
+        }
+
+        internal fun Int.isCreateKey(): Boolean {
+            return this == AggregateDispatcher.CREATE_AGGREGATE_KEY
+        }
     }
 
     override val topics: Set<NamedAggregate>

@@ -15,7 +15,7 @@ package me.ahoo.wow.eventsourcing
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.test.spec.modeling.state.StateAggregateRepositorySpec
+import me.ahoo.wow.tck.modeling.state.StateAggregateRepositorySpec
 
 internal class EventSourcingStateAggregateRepositoryTest : StateAggregateRepositorySpec() {
     override fun createStateAggregateRepository(

@@ -22,9 +22,9 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.tck.modeling.AggregateCreated
+import me.ahoo.wow.tck.modeling.MockAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import me.ahoo.wow.test.spec.modeling.AggregateCreated
-import me.ahoo.wow.test.spec.modeling.MockAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono

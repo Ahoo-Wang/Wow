@@ -15,7 +15,7 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.MockCommandAggregate
-import me.ahoo.wow.test.spec.modeling.MockAggregate
+import me.ahoo.wow.tck.modeling.MockAggregate
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.greaterThan

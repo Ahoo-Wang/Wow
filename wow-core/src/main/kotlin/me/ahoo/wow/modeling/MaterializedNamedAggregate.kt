@@ -22,7 +22,7 @@ data class MaterializedNamedAggregate(
     override val aggregateName: String,
 ) : NamedAggregate, Materialized
 
-fun NamedAggregate.materialize(): NamedAggregate {
+fun NamedAggregate.materialize(): MaterializedNamedAggregate {
     if (this is MaterializedNamedAggregate) {
         return this
     }
@@ -33,7 +33,7 @@ fun NamedAggregate.materialize(): NamedAggregate {
 }
 
 const val NAMED_AGGREGATE_DELIMITER = "."
-fun String.asNamedAggregate(contextName: String? = null): NamedAggregate {
+fun String.asNamedAggregate(contextName: String? = null): MaterializedNamedAggregate {
     val split = split(NAMED_AGGREGATE_DELIMITER)
     if (split.size == 2) {
         return MaterializedNamedAggregate(split[0], split[1])

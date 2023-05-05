@@ -45,7 +45,7 @@ dependencies {
     api("org.springframework.cloud:spring-cloud-commons")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
-    testImplementation(project(":wow-test"))
+    testImplementation(project(":wow-tck"))
     testImplementation("org.mariadb:r2dbc-mariadb")
     testImplementation(project(":wow-r2dbc"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")

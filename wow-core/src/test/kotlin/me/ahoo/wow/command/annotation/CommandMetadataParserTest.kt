@@ -23,7 +23,7 @@ import me.ahoo.wow.command.MockNamedCommand
 import me.ahoo.wow.command.MockStaticCommand
 import me.ahoo.wow.command.NAMED_COMMAND
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.test.spec.command.MockSendCommand
+import me.ahoo.wow.tck.command.MockSendCommand
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.notNullValue

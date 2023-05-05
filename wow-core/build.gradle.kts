@@ -10,5 +10,5 @@ dependencies {
     api("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    testImplementation(project(":wow-test"))
+    testImplementation(project(":wow-tck"))
 }

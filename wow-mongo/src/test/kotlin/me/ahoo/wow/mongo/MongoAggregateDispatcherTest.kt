@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.test.spec.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
 
 class MongoAggregateDispatcherTest : AggregateDispatcherSpec() {
     private val client = MongoClients.create(MongoLauncher.getConnectionString())

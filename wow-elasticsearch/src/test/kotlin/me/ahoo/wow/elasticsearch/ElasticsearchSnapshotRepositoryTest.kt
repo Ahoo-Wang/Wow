@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.test.spec.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
 import org.junit.jupiter.api.BeforeAll
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.reactive.ReactiveRestClients

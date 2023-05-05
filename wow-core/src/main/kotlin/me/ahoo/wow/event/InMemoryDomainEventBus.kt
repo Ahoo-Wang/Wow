@@ -21,7 +21,7 @@ import reactor.core.publisher.Sinks.Many
 
 class InMemoryDomainEventBus(
     private val sink: Many<EventStreamExchange> = Sinks.many()
-        .multicast().directBestEffort(),
+        .multicast().onBackpressureBuffer(),
 ) : DomainEventBus {
     override fun send(eventStream: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {

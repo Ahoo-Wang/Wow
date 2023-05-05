@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.command
 
-import me.ahoo.wow.test.spec.command.CommandBusSpec
+import me.ahoo.wow.tck.command.CommandBusSpec
 
 /**
  * InMemoryCommandBusTest .

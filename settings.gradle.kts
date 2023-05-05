@@ -26,10 +26,18 @@ include(":wow-spring")
 include(":wow-webflux")
 include(":wow-spring-boot-starter")
 include(":wow-opentelemetry")
-include(":wow-test")
-include(":code-coverage-report")
-include(":wow-it")
 
+//region test
+include(":wow-test")
+project(":wow-test").projectDir = file("test/wow-test")
+include(":wow-tck")
+project(":wow-tck").projectDir = file("test/wow-tck")
+include(":wow-it")
+project(":wow-it").projectDir = file("test/wow-it")
+include(":code-coverage-report")
+project(":code-coverage-report").projectDir = file("test/code-coverage-report")
+//endregion
+//region example
 include(":example-api")
 project(":example-api").projectDir = file("example/example-api")
 
@@ -38,10 +46,10 @@ project(":example-domain").projectDir = file("example/example-domain")
 
 include(":example-server")
 project(":example-server").projectDir = file("example/example-server")
-
+//endregion
 pluginManagement {
     plugins {
-        id("com.google.devtools.ksp") version "1.8.20-1.0.11" apply false
+        id("com.google.devtools.ksp") version "1.8.21-1.0.11" apply false
         id("io.gitlab.arturbosch.detekt") version "1.22.0" apply false
         kotlin("jvm") version "1.8.21" apply false
         kotlin("plugin.spring") version "1.8.21" apply false

@@ -10,9 +10,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("unused")
+
 package me.ahoo.wow.infra.accessor.method.reactive
 
-import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessorFactory.create
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
@@ -23,8 +24,10 @@ import reactor.core.publisher.Mono
 internal class MonoMethodAccessorFactoryTest {
     @Test
     fun createMono() {
-        val methodAccessor =
-            create<MockAggregate, Any>(MockAggregate::class.java.getDeclaredMethod("onCommand", ChangeStateReturnMono::class.java))
+        val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
+            "onCommand",
+            ChangeStateReturnMono::class.java
+        ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
@@ -36,7 +39,10 @@ internal class MonoMethodAccessorFactoryTest {
     @Test
     fun createFlux() {
         val methodAccessor =
-            create<MockAggregate, Any>(MockAggregate::class.java.getDeclaredMethod("onCommand", ChangeStateReturnFlux::class.java))
+            MockAggregate::class.java.getDeclaredMethod(
+                "onCommand",
+                ChangeStateReturnFlux::class.java
+            ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
@@ -48,7 +54,10 @@ internal class MonoMethodAccessorFactoryTest {
     @Test
     fun createPublisher() {
         val methodAccessor =
-            create<MockAggregate, Any>(MockAggregate::class.java.getDeclaredMethod("onCommand", ChangeStateReturnPublisher::class.java))
+            MockAggregate::class.java.getDeclaredMethod(
+                "onCommand",
+                ChangeStateReturnPublisher::class.java
+            ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
@@ -60,7 +69,10 @@ internal class MonoMethodAccessorFactoryTest {
     @Test
     fun createSync() {
         val methodAccessor =
-            create<MockAggregate, Any>(MockAggregate::class.java.getDeclaredMethod("onCommand", ChangeStateReturnSync::class.java))
+            MockAggregate::class.java.getDeclaredMethod(
+                "onCommand",
+                ChangeStateReturnSync::class.java
+            ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(

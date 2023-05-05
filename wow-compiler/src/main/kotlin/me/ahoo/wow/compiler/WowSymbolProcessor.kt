@@ -75,7 +75,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
         if (dependencyFiles.isEmpty()) {
             return emptyList()
         }
-        val dependencies = Dependencies(aggregating = true, sources = *dependencyFiles.toTypedArray())
+        val dependencies = Dependencies(aggregating = true, sources = dependencyFiles.toTypedArray())
         val file = codeGenerator
             .createNewFile(
                 dependencies = dependencies,

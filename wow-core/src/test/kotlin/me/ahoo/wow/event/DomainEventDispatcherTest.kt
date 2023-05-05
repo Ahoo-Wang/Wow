@@ -18,8 +18,8 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.tck.eventsourcing.Created
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import me.ahoo.wow.test.spec.eventsourcing.Created
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
