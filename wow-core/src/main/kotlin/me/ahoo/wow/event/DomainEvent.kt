@@ -43,6 +43,7 @@ data class SimpleDomainEvent<T : Any>(
         copy(header = header.mergeWith(additionalSource))
 }
 
+@Suppress("LongParameterList")
 fun <T : Any> T.asDomainEvent(
     aggregateId: AggregateId,
     commandId: String,
@@ -70,6 +71,7 @@ fun <T : Any> T.asDomainEvent(
     )
 }
 
+@Suppress("LongParameterList")
 fun <T : Any> T.asDomainEvent(
     aggregateId: String,
     tenantId: String,

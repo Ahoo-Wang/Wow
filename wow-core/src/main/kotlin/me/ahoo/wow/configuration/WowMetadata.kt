@@ -26,6 +26,7 @@ data class WowMetadata(
 
 data class BoundedContext(
     val alias: String = "",
+    val serviceId: String = "",
     override val scopes: Set<String> = setOf(),
     /**
      * `aggregateName` -> `Aggregate`
@@ -39,9 +40,10 @@ data class BoundedContext(
             }
         }
         val mergedAlias = alias.ifBlank { other.alias }
+        val mergedServiceId = serviceId.ifBlank { other.serviceId }
         val mergedScopes = scopes.plus(other.scopes)
         val mergedAggregates = aggregates.merge(other.aggregates)
-        return BoundedContext(mergedAlias, mergedScopes, mergedAggregates)
+        return BoundedContext(mergedAlias, mergedServiceId, mergedScopes, mergedAggregates)
     }
 }
 

@@ -24,6 +24,7 @@ abstract class SafeSubscriber<T : Any> : BaseSubscriber<T>(), Named {
         private val log = LoggerFactory.getLogger(SafeSubscriber::class.java)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun hookOnNext(value: T) {
         if (log.isDebugEnabled) {
             log.debug("[$name] OnNext $value")

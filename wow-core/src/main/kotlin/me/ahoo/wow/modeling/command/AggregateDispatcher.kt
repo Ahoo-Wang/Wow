@@ -14,22 +14,23 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
+import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
+import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.isCreate
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
-import reactor.core.scheduler.Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE
 import reactor.util.concurrent.Queues
 
 /**
@@ -50,32 +51,12 @@ class AggregateDispatcher(
     private val serviceProvider: ServiceProvider
 ) : AbstractMessageDispatcher<Void>() {
 
-    companion object {
-        const val CREATE_AGGREGATE_KEY = -1
-        private fun ServerCommandExchange<*>.asGroupKey(divisor: Int = DEFAULT_BOUNDED_ELASTIC_SIZE): Int {
-            if (message.isCreate) {
-                return CREATE_AGGREGATE_KEY
-            }
-            return message.aggregateId.mod(divisor)
-        }
-
-        private fun Int.isCreateKey(): Boolean {
-            return this == CREATE_AGGREGATE_KEY
-        }
-    }
-
-    private val schedulers: Map<NamedAggregate, Scheduler> = topics.associateWith {
-        Schedulers.newParallel(
-            Wow.WOW_PREFIX + it.aggregateName
-        )
-    }
-
     override fun start() {
         commandBus
             .receive(topics)
             .writeReceiverGroup(name)
             .name(Wow.WOW_PREFIX + "commands")
-            .tag("dispatcher", "aggregate")
+            .tag("dispatcher", name)
             .metrics()
             .groupBy { it.message.aggregateId.namedAggregate.materialize() }
             .flatMap({ handle(it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
@@ -83,9 +64,9 @@ class AggregateDispatcher(
     }
 
     private fun handle(grouped: GroupedFlux<MaterializedNamedAggregate, ServerCommandExchange<Any>>): Mono<Void> {
-        val scheduler = requireNotNull(schedulers[grouped.key()])
-        return grouped.groupBy { it.asGroupKey() }
-            .flatMap({ handleGroupedCommand(scheduler, it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
+        val scheduler = requireNotNull(AggregateSchedulerRegistrar.getOrInitialize(grouped.key()))
+        return grouped.groupBy { it.message.asGroupKey() }
+            .flatMap({ handleGroupedCommand(grouped.key(), scheduler, it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
             .then()
     }
 
@@ -96,12 +77,14 @@ class AggregateDispatcher(
      *
      */
     private fun handleGroupedCommand(
+        namedAggregate: NamedAggregate,
         scheduler: Scheduler,
-        grouped: GroupedFlux<Int, ServerCommandExchange<Any>>
+        grouped: GroupedFlux<AggregateGroupKey, ServerCommandExchange<Any>>
     ): Mono<Void> {
-        if (grouped.key().isCreateKey()) {
+        if (grouped.key().isCreate) {
             return grouped
-                .name(Wow.WOW_PREFIX + "create")
+                .name(Wow.WOW_PREFIX + "commands.create")
+                .tag("aggregate", namedAggregate.aggregateName)
                 .metrics()
                 .parallel(Queues.SMALL_BUFFER_SIZE)
                 .runOn(scheduler)
