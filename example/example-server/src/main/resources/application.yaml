@@ -1,8 +1,8 @@
 spring:
   application:
     name: order-service
-  autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+#  autoconfigure:
+#    exclude: org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
   data:
     mongodb:
       uri: mongodb://root:root@localhost:27017/?maxIdleTimeMS=60000

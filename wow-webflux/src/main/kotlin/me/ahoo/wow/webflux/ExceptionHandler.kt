@@ -43,7 +43,7 @@ object DefaultExceptionHandler : ExceptionHandler {
             is GoneException -> HttpStatus.GONE
             is PreconditionFailedException -> HttpStatus.PRECONDITION_FAILED
             is PreconditionRequiredException -> HttpStatus.PRECONDITION_REQUIRED
-            is TimeoutException -> HttpStatus.REQUEST_TIMEOUT
+            is TimeoutException -> HttpStatus.GATEWAY_TIMEOUT
             else -> HttpStatus.BAD_REQUEST
         }
     }

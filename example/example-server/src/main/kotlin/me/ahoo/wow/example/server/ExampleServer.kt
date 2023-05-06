@@ -13,19 +13,31 @@
 
 package me.ahoo.wow.example.server
 
+import io.micrometer.core.instrument.Metrics
+import io.micrometer.core.instrument.logging.LoggingMeterRegistry
+import io.micrometer.core.instrument.logging.LoggingRegistryConfig
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.example.api.order.OrderService
 import me.ahoo.wow.example.domain.cart.CartBoundedContext
 import me.ahoo.wow.example.domain.order.OrderBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import java.time.Duration
 
 @BoundedContext(name = OrderService.SERVICE_NAME)
 @SpringBootApplication(
-    scanBasePackageClasses = [CartBoundedContext::class,OrderBoundedContext::class, ExampleServer::class]
+    scanBasePackageClasses = [CartBoundedContext::class, OrderBoundedContext::class, ExampleServer::class]
 )
 class ExampleServer
 
 fun main(args: Array<String>) {
+    val loggingRegistryConfig = object : LoggingRegistryConfig {
+        override fun get(key: String): String? = null
+        override fun step(): Duration {
+            return Duration.ofSeconds(1)
+        }
+    }
+    val loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
+    Metrics.addRegistry(loggingMeterRegistry)
     runApplication<ExampleServer>(*args)
 }

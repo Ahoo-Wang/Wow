@@ -14,12 +14,14 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 val BUSY_LOOPING_DURATION: Duration = Duration.ofSeconds(1)
 
@@ -34,10 +36,18 @@ class InMemoryCommandBus(
      *
      * @see Sinks.UnicastSpec
      */
-    private val sink: Many<ServerCommandExchange<Any>> = Sinks.many().unicast().onBackpressureBuffer(),
+    private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<Any>> = {
+        Sinks.many().unicast().onBackpressureBuffer()
+    }
 ) : CommandBus {
     companion object {
         private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
+    }
+
+    private val sinks: MutableMap<NamedAggregate, Many<ServerCommandExchange<Any>>> = ConcurrentHashMap()
+
+    private fun computeSink(namedAggregate: NamedAggregate): Many<ServerCommandExchange<Any>> {
+        return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
     override fun <C : Any> send(
@@ -47,6 +57,7 @@ class InMemoryCommandBus(
             if (log.isDebugEnabled) {
                 log.debug("Send {}.", command)
             }
+            val sink = computeSink(command)
             @Suppress("UNCHECKED_CAST")
             sink.emitNext(
                 SimpleServerCommandExchange(command) as ServerCommandExchange<Any>,
@@ -56,11 +67,10 @@ class InMemoryCommandBus(
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
-        return sink.asFlux()
-            .filter { serverCommandExchange ->
-                namedAggregates.any {
-                    it.isSameAggregateName(serverCommandExchange.message)
-                }
-            }
+        val sources = namedAggregates.map {
+            computeSink(it).asFlux()
+        }
+
+        return Flux.merge(sources)
     }
 }

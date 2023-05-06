@@ -26,10 +26,10 @@ import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
-import me.ahoo.wow.modeling.command.AggregateDispatcher
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
+import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.modeling.command.CommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
@@ -38,7 +38,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.command.AggregateDispatcherLauncher
+import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -106,7 +106,7 @@ class AggregateAutoConfiguration {
     ): FilterChain<ServerCommandExchange<Any>> {
         return FilterChainBuilder<ServerCommandExchange<Any>>()
             .addFilters(filters)
-            .filterCondition(AggregateDispatcher::class)
+            .filterCondition(CommandDispatcher::class)
             .build()
     }
 
@@ -136,9 +136,9 @@ class AggregateAutoConfiguration {
         aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
         serviceProvider: ServiceProvider,
-    ): AggregateDispatcher {
-        return AggregateDispatcher(
-            name = "${namedBoundedContext.contextName}.${AggregateDispatcher::class.simpleName}",
+    ): CommandDispatcher {
+        return CommandDispatcher(
+            name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
@@ -148,7 +148,7 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun aggregateDispatcherLauncher(aggregateDispatcher: AggregateDispatcher): AggregateDispatcherLauncher {
-        return AggregateDispatcherLauncher(aggregateDispatcher)
+    fun aggregateDispatcherLauncher(commandDispatcher: CommandDispatcher): CommandDispatcherLauncher {
+        return CommandDispatcherLauncher(commandDispatcher)
     }
 }

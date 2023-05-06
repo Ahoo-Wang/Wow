@@ -10,12 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.modeling.command
 
-package me.ahoo.wow.spring.command
+import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
-import me.ahoo.wow.modeling.command.AggregateDispatcher
-import me.ahoo.wow.spring.MessageDispatcherLauncher
-
-class AggregateDispatcherLauncher(aggregateDispatcher: AggregateDispatcher) : MessageDispatcherLauncher(
-    aggregateDispatcher,
-)
+internal class CommandDispatcherTest : CommandDispatcherSpec()

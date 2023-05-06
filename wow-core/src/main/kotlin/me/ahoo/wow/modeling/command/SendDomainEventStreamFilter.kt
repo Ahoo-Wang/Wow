@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
 import reactor.core.publisher.Mono
 
-@FilterType(AggregateDispatcher::class)
+@FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
 class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : Filter<ServerCommandExchange<Any>> {
     override fun filter(

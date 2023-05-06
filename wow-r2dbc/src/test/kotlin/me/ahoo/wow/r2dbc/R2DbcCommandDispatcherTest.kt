@@ -19,9 +19,9 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.sharding.CompositeAggregateIdSharding
 import me.ahoo.wow.sharding.CosIdShardingDecorator
-import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
-class R2DbcAggregateDispatcherTest : AggregateDispatcherSpec() {
+class R2DbcCommandDispatcherTest : CommandDispatcherSpec() {
     private val connectionFactory: ConnectionFactory = ConnectionFactoryProviders.create()
 
     override fun createSnapshotRepository(): SnapshotRepository {

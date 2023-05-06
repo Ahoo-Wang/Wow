@@ -31,7 +31,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.wow.spring.command.AggregateDispatcherLauncher
+import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -63,7 +63,7 @@ internal class AggregateAutoConfigurationTest {
                     .hasSingleBean(SendDomainEventStreamFilter::class.java)
                     .hasSingleBean(FilterChain::class.java)
                     .hasSingleBean(CommandHandler::class.java)
-                    .hasSingleBean(AggregateDispatcherLauncher::class.java)
+                    .hasSingleBean(CommandDispatcherLauncher::class.java)
             }
     }
 }

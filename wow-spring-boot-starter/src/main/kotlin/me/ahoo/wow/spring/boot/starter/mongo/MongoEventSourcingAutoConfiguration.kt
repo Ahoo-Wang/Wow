@@ -28,13 +28,17 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
+import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.lang.Nullable
 
+@AutoConfiguration(after = [MongoReactiveAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnMongoEnabled
 @ConditionalOnClass(MongoEventStore::class)
@@ -85,6 +89,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     }
 
     @Bean
+    @ConditionalOnBean(MongoClient::class)
     @ConditionalOnMissingBean
     fun mongoPrepareKeyFactory(
         mongoClient: MongoClient,

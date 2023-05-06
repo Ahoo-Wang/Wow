@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
@@ -86,6 +87,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                      * 持久化事件存储,完成持久化领域事件意味着 命令已经完成.
                      */
                     commandState.onStore(eventStore, eventStream)
+                        .name(Wow.WOW_PREFIX + "eventstore.append")
+                        .metrics()
                         .doOnNext { commandState = it }
                         .doOnError { commandState = CommandState.EXPIRED }
                         .thenReturn(eventStream)

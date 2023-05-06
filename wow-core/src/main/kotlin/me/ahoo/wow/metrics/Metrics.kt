@@ -10,8 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
+package me.ahoo.wow.metrics
 
-internal class AggregateDispatcherTest : AggregateDispatcherSpec()
+object Metrics {
+    const val AGGREGATE_KEY = "aggregate"
+}

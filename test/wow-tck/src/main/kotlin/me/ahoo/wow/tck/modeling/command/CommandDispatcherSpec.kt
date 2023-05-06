@@ -40,10 +40,10 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.command.AggregateDispatcher
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
+import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.modeling.command.CommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
@@ -63,14 +63,15 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.ThreadLocalRandom
+import kotlin.reflect.jvm.isAccessible
 
-abstract class AggregateDispatcherSpec {
+abstract class CommandDispatcherSpec {
     protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(1000000, 0.000001)
 
     companion object {
-        private val log = LoggerFactory.getLogger(AggregateDispatcherSpec::class.java)
+        private val log = LoggerFactory.getLogger(CommandDispatcherSpec::class.java)
     }
 
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
@@ -83,6 +84,14 @@ abstract class AggregateDispatcherSpec {
     protected lateinit var stateAggregateRepository: StateAggregateRepository
     protected lateinit var commandAggregateFactory: CommandAggregateFactory
     protected lateinit var domainEventBus: DomainEventBus
+    protected lateinit var loggingMeterRegistry: LoggingMeterRegistry
+
+    private fun publishMeters() {
+        LoggingMeterRegistry::class.members.filter { it.name == "publish" }.forEach {
+            it.isAccessible = true
+            it.call(loggingMeterRegistry)
+        }
+    }
 
     @BeforeEach
     fun setup() {
@@ -92,9 +101,8 @@ abstract class AggregateDispatcherSpec {
                 return Duration.ofSeconds(1)
             }
         }
-        LoggingMeterRegistry.builder(loggingRegistryConfig).build().let {
-            Metrics.addRegistry(it)
-        }
+        loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
+        Metrics.addRegistry(loggingMeterRegistry)
 //        Schedulers.enableMetrics()
         commandBus = createCommandBus()
         commandGateway = DefaultCommandGateway(
@@ -156,15 +164,15 @@ abstract class AggregateDispatcherSpec {
             .addFilter(ProcessedNotifierFilter(LocalCommandWaitNotifier(waitStrategyRegistrar)))
             .build()
 
-        val aggregateDispatcher = AggregateDispatcher(
-            topics = setOf(aggregateMetadata.materialize()),
+        val commandDispatcher = CommandDispatcher(
+            namedAggregates = setOf(aggregateMetadata.materialize()),
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = CommandHandler(chain),
             serviceProvider = serviceProvider,
         )
 
-        aggregateDispatcher.use {
+        commandDispatcher.use {
             it.run()
             onCommandSeek().block()
             warmUp()
@@ -184,6 +192,7 @@ abstract class AggregateDispatcherSpec {
             .verifyComplete()
     }
 
+    @Suppress("LongMethod")
     private fun orchestra() {
         val creates = buildList {
             repeat(aggregateCount) {
@@ -199,24 +208,26 @@ abstract class AggregateDispatcherSpec {
             creates.distinctBy { it.id }.size,
             equalTo(aggregateCount)
         )
-
-        log.info("------------- CreateAggregate -------------")
+        println("------------- CreateAggregate -------------")
         val createdDuration = creates.toFlux()
             .subscribeOn(Schedulers.single())
-            .flatMap {
+            .name("create-aggregate")
+            .metrics()
+            .flatMap({
                 // 生成聚合
                 commandGateway
                     .sendAndWaitForProcessed(it!!.asCommandMessage())
-            }.doOnNext {
+            }, Int.MAX_VALUE).doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
             .timeout(Duration.ofMinutes(3))
             .then()
             .test()
             .verifyComplete()
-
-        log.info("------------- Aggregate Created Duration:[$createdDuration]-------------")
-
+        println(
+            "------------- Aggregate Created Duration:[$createdDuration] Throughput:[${creates.size.toDouble() / createdDuration.toMillis() * 1000}/s]-------------"
+        )
+        publishMeters()
         /*
          * 模拟聚合命令乱序
          */
@@ -231,10 +242,10 @@ abstract class AggregateDispatcherSpec {
                 )
             }
         }.toFlux()
-            .subscribeOn(Schedulers.boundedElastic())
-            .flatMap {
+            .subscribeOn(Schedulers.single())
+            .flatMap({
                 commandGateway.sendAndWaitForProcessed(it.asCommandMessage())
-            }
+            }, Int.MAX_VALUE)
             .doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
@@ -242,7 +253,9 @@ abstract class AggregateDispatcherSpec {
             .then()
             .test()
             .verifyComplete()
-
-        log.warn("------- Aggregate Created Duration:[$createdDuration],Changed Duration:[$changedDuration] -------")
+        println(
+            "------- Aggregate Changed Duration:[$changedDuration]  Throughput:[${concurrency.toDouble() / changedDuration.toMillis() * 1000}/s]-------"
+        )
+        publishMeters()
     }
 }

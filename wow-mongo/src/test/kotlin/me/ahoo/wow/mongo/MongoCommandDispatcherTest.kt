@@ -16,9 +16,9 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
-class MongoAggregateDispatcherTest : AggregateDispatcherSpec() {
+class MongoCommandDispatcherTest : CommandDispatcherSpec() {
     private val client = MongoClients.create(MongoLauncher.getConnectionString())
     override fun createSnapshotRepository(): SnapshotRepository {
         val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)

@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.command.AggregateDispatcher
+import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.projection.ProjectionDispatcher
 import reactor.core.publisher.Mono
 
@@ -40,7 +40,7 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*>>(
     }
 }
 
-@FilterType(AggregateDispatcher::class)
+@FilterType(CommandDispatcher::class)
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier,

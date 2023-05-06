@@ -14,60 +14,48 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.isCreate
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
+import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import reactor.util.concurrent.Queues
 
 /**
- * Aggregate Command Dispatcher .
-
+ * Aggregate Command Dispatcher Grouped by NamedAggregate.
  * @author ahoo wang
  */
 @Suppress("LongParameterList")
-class AggregateDispatcher(
-    /**
-     * named like `AggregateDispatcher`
-     */
-    override val name: String = "AggregateDispatcher",
-    override val topics: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
-    private val commandBus: CommandBus,
+class AggregateDispatcher<C : Any, S : Any>(
+    val aggregateMetadata: AggregateMetadata<C, S>,
+    val scheduler: Scheduler,
+    private val commandFlux: Flux<ServerCommandExchange<Any>>,
+    override val name: String = AggregateDispatcher::class.simpleName!!,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider
 ) : AbstractMessageDispatcher<Void>() {
 
-    override fun start() {
-        commandBus
-            .receive(topics)
-            .writeReceiverGroup(name)
-            .name(Wow.WOW_PREFIX + "commands")
-            .tag("dispatcher", name)
-            .metrics()
-            .groupBy { it.message.aggregateId.namedAggregate.materialize() }
-            .flatMap({ handle(it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
-            .subscribe(this)
-    }
+    override val topics: Set<NamedAggregate>
+        get() = setOf(aggregateMetadata.materialize())
 
-    private fun handle(grouped: GroupedFlux<MaterializedNamedAggregate, ServerCommandExchange<Any>>): Mono<Void> {
-        val scheduler = requireNotNull(AggregateSchedulerRegistrar.getOrInitialize(grouped.key()))
-        return grouped.groupBy { it.message.asGroupKey() }
-            .flatMap({ handleGroupedCommand(grouped.key(), scheduler, it) }, Int.MAX_VALUE, Queues.SMALL_BUFFER_SIZE)
-            .then()
+    override fun start() {
+        commandFlux
+            .name(Wow.WOW_PREFIX + AggregateDispatcher::class.simpleName!!)
+            .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
+            .metrics()
+            .groupBy { it.message.asGroupKey() }
+            .flatMap({
+                handleGroupedCommand(it)
+            }, Int.MAX_VALUE, Int.MAX_VALUE)
+            .subscribe(this)
     }
 
     /**
@@ -77,36 +65,32 @@ class AggregateDispatcher(
      *
      */
     private fun handleGroupedCommand(
-        namedAggregate: NamedAggregate,
-        scheduler: Scheduler,
         grouped: GroupedFlux<AggregateGroupKey, ServerCommandExchange<Any>>
     ): Mono<Void> {
         if (grouped.key().isCreate) {
             return grouped
-                .name(Wow.WOW_PREFIX + "commands.create")
-                .tag("aggregate", namedAggregate.aggregateName)
+                .name(Wow.WOW_PREFIX + "command.create")
+                .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
                 .metrics()
-                .parallel(Queues.SMALL_BUFFER_SIZE)
-                .runOn(scheduler)
+                .parallel().runOn(scheduler)
                 .flatMap { handleCommand(it) }
                 .then()
         }
         return grouped
+            .name(Wow.WOW_PREFIX + "command.update")
+            .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
             .metrics()
             .publishOn(scheduler)
-            .concatMap({ handleCommand(it) }, Queues.SMALL_BUFFER_SIZE)
+            .concatMap { handleCommand(it) }
             .then()
     }
 
     private fun handleCommand(commandExchange: ServerCommandExchange<Any>): Mono<Void> {
         val aggregateId = commandExchange.message.aggregateId
-
-        val aggregateMetadata = aggregateId.namedAggregate
-            .asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, Any>()
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
         commandExchange.serviceProvider = serviceProvider
-        commandExchange.aggregateProcessor = aggregateProcessor
+        @Suppress("UNCHECKED_CAST")
+        commandExchange.aggregateProcessor = aggregateProcessor as AggregateProcessor<Any>
         return commandHandler.handle(commandExchange)
     }
 }

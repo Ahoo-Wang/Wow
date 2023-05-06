@@ -11,24 +11,40 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kafka
+package me.ahoo.wow.it
 
+import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.tck.modeling.command.AggregateDispatcherSpec
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.kafka.KafkaCommandBus
+import me.ahoo.wow.kafka.KafkaDomainEventBus
+import me.ahoo.wow.mongo.EventStreamSchemaInitializer
+import me.ahoo.wow.mongo.MongoEventStore
+import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
-internal class KafkaAggregateDispatcherTest : AggregateDispatcherSpec() {
-
+class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
     companion object {
+        const val DATABASE_NAME = "wow_it_db"
+
         @JvmStatic
         @BeforeAll
         fun waitLauncher(): Unit {
             KafkaLauncher.isRunning
         }
     }
+
+    private val client = MongoClients.create(MongoLauncher.getConnectionString())
+
+    override fun createEventStore(): EventStore {
+        val database = client.getDatabase(DATABASE_NAME)
+        EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
+        return MongoEventStore(database)
+    }
+
     private val onCommandSeekSink = Sinks.empty<Void>()
     override fun onCommandSeek(): Mono<Void> {
         return onCommandSeekSink.asMono()
@@ -56,4 +72,5 @@ internal class KafkaAggregateDispatcherTest : AggregateDispatcherSpec() {
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
+
 }
