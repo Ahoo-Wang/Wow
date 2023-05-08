@@ -153,8 +153,8 @@ abstract class CommandDispatcherSpec {
     }
 
     protected open fun onCommandSeek(): Mono<Void> = Mono.empty()
-    val concurrency: Int = 600
-    val aggregateCount: Int = 60000
+    val concurrency: Int = 1000
+    val aggregateCount: Int = 20000
 
     @Test
     fun run() {
