@@ -44,7 +44,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.notNullValue
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 import java.math.BigDecimal
 
 internal class OrderTest {
@@ -62,18 +62,18 @@ internal class OrderTest {
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.quantity }.last()
+                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.price }.last()
+                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
             }
         }
         return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             .expectEventCount(1)
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
@@ -103,7 +103,7 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(mockk<CreateOrderSpec>())
             .given()
-            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
 
             .expectErrorType(IllegalArgumentException::class.java)
             .expectStateAggregate {
@@ -129,23 +129,23 @@ internal class OrderTest {
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }
+                return orderItems.filter { it.productId == productId }
                     /*
                      * 模拟库存不足
                      */
-                    .map { it.quantity - 1 }.last()
+                    .map { it.quantity - 1 }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.price }.last()
+                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
             }
         }
 
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：库存不足异常.
              */
@@ -173,22 +173,22 @@ internal class OrderTest {
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.quantity }.last()
+                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }
+                return orderItems.filter { it.productId == productId }
                     /*
                      * 模拟下单价格、商品定价不一致
                      */
-                    .map { it.price.plus(BigDecimal.valueOf(1)) }.last()
+                    .map { it.price.plus(BigDecimal.valueOf(1)) }.first().toMono()
             }
         }
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：价格不一致异常.
              */

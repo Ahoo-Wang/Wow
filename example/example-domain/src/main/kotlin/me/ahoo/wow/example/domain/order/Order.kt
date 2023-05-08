@@ -73,10 +73,11 @@ class Order(private val state: OrderState) {
             .then(
                 Mono.just(
                     OrderCreated(
-                        command.aggregateId.id,
-                        createOrder.customerId,
-                        createOrder.items,
-                        createOrder.address,
+                        orderId = command.aggregateId.id,
+                        customerId = createOrder.customerId,
+                        items = createOrder.items,
+                        address = createOrder.address,
+                        fromCart = createOrder.fromCart
                     ),
                 ),
             )

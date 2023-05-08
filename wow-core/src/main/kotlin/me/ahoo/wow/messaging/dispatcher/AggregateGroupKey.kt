@@ -25,25 +25,27 @@ data class AggregateGroupKey(val key: Int) {
     companion object {
         private const val CREATE_AGGREGATE_KEY = -1
         val CREATE_KEY = AggregateGroupKey(CREATE_AGGREGATE_KEY)
+        private val parallelism = System.getProperty("wow.aggregate.parallelism")?.toInt()
+            ?: Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE
         val AggregateGroupKey.isCreate: Boolean
             get() = this.key == CREATE_AGGREGATE_KEY
 
-        fun AggregateId.asGroupKey(divisor: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): AggregateGroupKey {
-            return AggregateGroupKey(mod(divisor))
+        fun AggregateId.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
+            return AggregateGroupKey(mod(parallelism))
         }
 
-        fun <T : CommandMessage<*>> T.asGroupKey(divisor: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): AggregateGroupKey {
+        fun <T : CommandMessage<*>> T.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
             if (isCreate) {
                 return CREATE_KEY
             }
-            return aggregateId.asGroupKey(divisor)
+            return aggregateId.asGroupKey(parallelism)
         }
 
-        fun <T : DomainEventStream> T.asGroupKey(divisor: Int = Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE): AggregateGroupKey {
+        fun <T : DomainEventStream> T.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
             if (version == Version.INITIAL_VERSION) {
                 return CREATE_KEY
             }
-            return aggregateId.asGroupKey(divisor)
+            return aggregateId.asGroupKey(parallelism)
         }
     }
 }

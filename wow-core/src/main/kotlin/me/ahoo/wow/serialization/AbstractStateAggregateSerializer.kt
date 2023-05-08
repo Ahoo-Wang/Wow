@@ -20,18 +20,16 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import me.ahoo.wow.infra.TypeNameMapper.asType
+import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.annotation.asStateAggregateMetadata
+import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import me.ahoo.wow.serialization.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.StateAggregateRecords.STATE
-import me.ahoo.wow.serialization.StateAggregateRecords.STATE_TYPE
 
 object StateAggregateRecords {
-    const val STATE_TYPE: String = "stateType"
     const val STATE: String = "state"
     const val DELETED: String = "deleted"
 }
@@ -45,7 +43,6 @@ abstract class AbstractStateAggregateSerializer<T : StateAggregate<*>>(stateAggr
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
-        generator.writeStringField(STATE_TYPE, value.stateRoot.javaClass.name)
         generator.writePOJOField(STATE, value.stateRoot)
         writeExtend(value, generator, provider)
         generator.writeBooleanField(DELETED, value.deleted)
@@ -59,15 +56,16 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
     StdDeserializer<T>(stateAggregateType) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): T {
         val stateRecord = p.codec.readTree<JsonNode>(p)
-        val metadata = stateRecord[STATE_TYPE].asText().asType<Any>()
-            .asStateAggregateMetadata()
-        val version = stateRecord[MessageRecords.VERSION].asInt()
-        val deleted = stateRecord[DELETED].asBoolean()
-        val stateRoot = stateRecord[STATE].asObject(metadata.aggregateType)
         val namedAggregate = MaterializedNamedAggregate(
             stateRecord[MessageRecords.CONTEXT_NAME].asText(),
             stateRecord[MessageRecords.AGGREGATE_NAME].asText(),
         )
+        val metadata = namedAggregate.asRequiredAggregateType<Any>()
+            .asAggregateMetadata<Any, Any>().state
+        val version = stateRecord[MessageRecords.VERSION].asInt()
+        val deleted = stateRecord[DELETED].asBoolean()
+        val stateRoot = stateRecord[STATE].asObject(metadata.aggregateType)
+
         val aggregateId = namedAggregate.asAggregateId(
             id = stateRecord[MessageRecords.AGGREGATE_ID].asText(),
             tenantId = stateRecord[MessageRecords.TENANT_ID].asText(),

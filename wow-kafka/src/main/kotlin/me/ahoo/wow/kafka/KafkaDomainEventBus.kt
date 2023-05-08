@@ -17,87 +17,36 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.messaging.getReceiverGroup
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
-import reactor.kafka.receiver.KafkaReceiver
+import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
-import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
-import reactor.kafka.sender.SenderRecord
-import reactor.util.concurrent.Queues
 
 class KafkaDomainEventBus(
-    private val sender: KafkaSender<String, String>,
-    private val receiverOptions: ReceiverOptions<String, String>,
+    sender: KafkaSender<String, String>,
+    receiverOptions: ReceiverOptions<String, String>,
     private val topicPrefix: String = Wow.WOW_PREFIX,
-    private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : DomainEventBus {
-    companion object {
-        private val log = LoggerFactory.getLogger(KafkaDomainEventBus::class.java)
+    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
+) : DomainEventBus,
+    AbstractKafkaBus<DomainEventStream, EventStreamExchange>(sender, receiverOptions, receiverOptionsCustomizer) {
+
+    override val messageType: Class<DomainEventStream>
+        get() = DomainEventStream::class.java
+
+    override fun NamedAggregate.asTopic(): String {
+        return asEventStreamTopic(topicPrefix)
+    }
+
+    override fun DomainEventStream.asExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
+        return KafkaEventStreamExchange(this, receiverOffset)
     }
 
     override fun send(eventStream: DomainEventStream): Mono<Void> {
-        val senderRecord = encode(eventStream)
-        return sender.send(Mono.just(senderRecord))
-            .doOnNext {
-                val error = it.exception()
-                if (error != null) {
-                    it.correlationMetadata().tryEmitError(error)
-                } else {
-                    it.correlationMetadata().tryEmitEmpty()
-                }
-            }
-            .flatMap {
-                it.correlationMetadata().asMono()
-            }
-            .next()
+        return super.sendMessage(eventStream)
     }
 
-    /**
-     * `DomainEventBus` 为发布订阅模式,下游订阅者自定义 `GroupId`
-     */
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
-        return Flux.deferContextual { contextView ->
-            val options = receiverOptionsCustomizer.customize(receiverOptions)
-                .consumerProperty(ConsumerConfig.GROUP_ID_CONFIG, contextView.getReceiverGroup())
-                .subscription(namedAggregates.map { it.asEventStreamTopic(topicPrefix) }.toSet())
-            val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
-            KafkaReceiver.create(customizedOptions)
-                .receive(Queues.SMALL_BUFFER_SIZE)
-                .retryWhen(DEFAULT_RECEIVE_RETRY_SPEC)
-                .mapNotNull {
-                    val eventStream = decode(it) ?: return@mapNotNull null
-                    KafkaEventStreamExchange(eventStream, it.receiverOffset())
-                }
-        }
-    }
-
-    private fun encode(domainEventStream: DomainEventStream): SenderRecord<String, String, Sinks.Empty<Void>> {
-        val producerRecord = ProducerRecord(
-            /* topic = */ domainEventStream.asEventStreamTopic(topicPrefix),
-            /* partition = */ null,
-            /* timestamp = */ domainEventStream.createTime,
-            /* key = */ domainEventStream.aggregateId.id,
-            /* value = */ domainEventStream.asJsonString(),
-        )
-        return SenderRecord.create(producerRecord, Sinks.empty())
-    }
-
-    private fun decode(receiverRecord: ReceiverRecord<String, String>): DomainEventStream? {
-        return try {
-            receiverRecord.value().asObject<DomainEventStream>()
-        } catch (e: Throwable) {
-            if (log.isErrorEnabled) {
-                log.error("Failed to decode ReceiverRecord[$receiverRecord].", e)
-            }
-            null
-        }
+        return super.receiveMessage(namedAggregates)
     }
 }

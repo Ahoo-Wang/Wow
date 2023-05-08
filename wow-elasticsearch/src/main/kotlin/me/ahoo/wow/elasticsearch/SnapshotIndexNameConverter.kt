@@ -22,6 +22,6 @@ interface SnapshotIndexNameConverter {
 
 object DefaultSnapshotIndexNameConverter : SnapshotIndexNameConverter {
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.asString()}.snapshot"
+        return "${aggregateId.namedAggregate.asString()}.snapshot"
     }
 }

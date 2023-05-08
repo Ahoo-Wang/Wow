@@ -32,6 +32,9 @@ class CartSagaTest {
                     every {
                         items
                     } returns listOf(orderItem)
+                    every {
+                        fromCart
+                    } returns true
                 },
             )
             .expectCommandBody<RemoveCartItem> {
@@ -39,6 +42,32 @@ class CartSagaTest {
                 assertThat(it.productIds, hasSize(1))
                 assertThat(it.productIds.first(), equalTo(orderItem.productId))
             }
+            .verify()
+    }
+
+    @Test
+    fun onOrderCreatedWhenNotFromCart() {
+        val orderItem = OrderItem(
+            GlobalIdGenerator.generateAsString(),
+            GlobalIdGenerator.generateAsString(),
+            BigDecimal.valueOf(10),
+            10,
+        )
+        sagaVerifier<CartSaga>()
+            .`when`(
+                mockk<OrderCreated> {
+                    every {
+                        customerId
+                    } returns "customerId"
+                    every {
+                        items
+                    } returns listOf(orderItem)
+                    every {
+                        fromCart
+                    } returns false
+                },
+            )
+            .expectNoCommand()
             .verify()
     }
 }

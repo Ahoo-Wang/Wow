@@ -44,9 +44,7 @@ data class CommandMetadata<C>(
         if (this === other) return true
         if (other !is CommandMetadata<*>) return false
 
-        if (commandType != other.commandType) return false
-
-        return true
+        return commandType == other.commandType
     }
 
     override fun hashCode(): Int {

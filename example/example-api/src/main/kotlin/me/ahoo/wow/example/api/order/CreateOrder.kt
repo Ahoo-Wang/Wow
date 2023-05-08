@@ -40,6 +40,7 @@ data class CreateOrder(
     @field:NotNull
     @Valid
     val address: ShippingAddress,
+    val fromCart: Boolean
 )
 
 data class OrderCreated(
@@ -47,4 +48,5 @@ data class OrderCreated(
     val customerId: String,
     val items: List<OrderItem>,
     val address: ShippingAddress,
+    val fromCart: Boolean
 )

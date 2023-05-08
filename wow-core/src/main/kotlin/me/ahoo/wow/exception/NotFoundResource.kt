@@ -18,6 +18,8 @@ import me.ahoo.wow.api.exception.NotFoundException
 import me.ahoo.wow.api.exception.WowException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 
 class NotFoundResourceException(
     errorCode: String = ErrorCodes.NOT_FOUND,
@@ -30,7 +32,7 @@ fun <T> Mono<T>.throwNotFoundIfEmpty(
 ): Mono<T> {
     return switchIfEmpty(
         Mono.defer {
-            Mono.error(NotFoundResourceException(errorCode, errorMsg))
+            NotFoundResourceException(errorCode, errorMsg).toMono()
         },
     )
 }
@@ -41,8 +43,8 @@ fun <T> Flux<T>.throwNotFoundIfEmpty(
 ): Flux<T> {
     return switchIfEmpty(
         Flux.defer {
-            Flux.error(NotFoundResourceException(errorCode, errorMsg))
-        },
+            NotFoundResourceException(errorCode, errorMsg).toFlux()
+        }
     )
 }
 

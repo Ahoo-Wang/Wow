@@ -25,7 +25,10 @@ class CartSaga {
      * 下单之后删除购物车相应商品
      */
     @OnEvent
-    fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem {
+    fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem? {
+        if (!orderCreated.fromCart) {
+            return null
+        }
         return RemoveCartItem(
             customerId = orderCreated.customerId,
             productIds = orderCreated.items.map { it.productId }.toSet(),

@@ -47,7 +47,7 @@ interface ExpectStage<T : Any> {
         }
     }
 
-    fun expectNoCommandCount(): ExpectStage<T> {
+    fun expectNoCommand(): ExpectStage<T> {
         return expectNoError().expect {
             assertThat(it.commandStream, nullValue())
         }
