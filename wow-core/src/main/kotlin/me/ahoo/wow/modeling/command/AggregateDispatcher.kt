@@ -12,82 +12,54 @@
  */
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.isCreate
-import me.ahoo.wow.metrics.Metrics
+import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
-import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 
 /**
  * Aggregate Command Dispatcher Grouped by NamedAggregate.
+ * ----
+ * One AggregateId binds one Worker(Thread).
+ * One Worker can be bound by multiple aggregateIds.
+ * Workers have aggregate ID affinity.
+ *
  * @author ahoo wang
  */
 @Suppress("LongParameterList")
 class AggregateDispatcher<C : Any, S : Any>(
     val aggregateMetadata: AggregateMetadata<C, S>,
-    val scheduler: Scheduler,
+    scheduler: Scheduler,
     private val commandFlux: Flux<ServerCommandExchange<Any>>,
     override val name: String = AggregateDispatcher::class.simpleName!!,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider
-) : AbstractMessageDispatcher<Void>() {
-
-    override val topics: Set<NamedAggregate>
-        get() = setOf(aggregateMetadata.materialize())
-
-    override fun start() {
-        commandFlux
-            .groupBy { it.message.asGroupKey() }
-            .flatMap({
-                handleGroupedCommand(it)
-            }, Int.MAX_VALUE, Int.MAX_VALUE)
-            .subscribe(this)
-    }
-
-    /**
-     * One AggregateId binds one Worker(Thread).
-     * One Worker can be bound by multiple aggregateIds.
-     * Workers have aggregate ID affinity.
-     *
-     */
-    private fun handleGroupedCommand(
-        grouped: GroupedFlux<AggregateGroupKey, ServerCommandExchange<Any>>
-    ): Mono<Void> {
-        if (grouped.key().isCreate) {
-            return grouped
-                .name(Wow.WOW_PREFIX + "command.create")
-                .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
-                .metrics()
-                .parallel().runOn(scheduler)
-                .flatMap { handleCommand(it) }
-                .then()
-        }
-        return grouped
-            .name(Wow.WOW_PREFIX + "command.update")
-            .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
-            .metrics()
-            .publishOn(scheduler)
-            .concatMap { handleCommand(it) }
-            .then()
-    }
-
-    private fun handleCommand(commandExchange: ServerCommandExchange<Any>): Mono<Void> {
-        val aggregateId = commandExchange.message.aggregateId
+) : AggregateMessageDispatcher<ServerCommandExchange<Any>>(
+    Schedulers.DEFAULT_POOL_SIZE,
+    aggregateMetadata.namedAggregate,
+    scheduler
+) {
+    override fun handleExchange(exchange: ServerCommandExchange<Any>): Mono<Void> {
+        val aggregateId = exchange.message.aggregateId
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
-        commandExchange.serviceProvider = serviceProvider
+        exchange.serviceProvider = serviceProvider
         @Suppress("UNCHECKED_CAST")
-        commandExchange.aggregateProcessor = aggregateProcessor as AggregateProcessor<Any>
-        return commandHandler.handle(commandExchange)
+        exchange.aggregateProcessor = aggregateProcessor as AggregateProcessor<Any>
+        return commandHandler.handle(exchange)
+    }
+
+    override fun receive(): Flux<ServerCommandExchange<Any>> {
+        return commandFlux
+    }
+
+    override fun ServerCommandExchange<Any>.asGroupKey(): AggregateGroupKey {
+        return message.asGroupKey()
     }
 }

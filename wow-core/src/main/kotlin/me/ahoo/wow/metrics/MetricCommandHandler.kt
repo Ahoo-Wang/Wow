@@ -24,6 +24,7 @@ class MetricCommandHandler(override val delegate: CommandHandler) : CommandHandl
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "command.handle")
             .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
+            .tag(Metrics.COMMAND_KEY, exchange.message.name)
             .metrics()
     }
 }

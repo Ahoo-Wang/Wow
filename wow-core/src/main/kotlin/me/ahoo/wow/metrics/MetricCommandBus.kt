@@ -28,7 +28,7 @@ class MetricCommandBus(override val delegate: CommandBus) : CommandBus, Decorato
         return delegate.send(command)
             .name(Wow.WOW_PREFIX + "command.send")
             .tag(Metrics.AGGREGATE_KEY, command.aggregateName)
-            .tag("command", command.name)
+            .tag(Metrics.COMMAND_KEY, command.name)
             .metrics()
     }
 
