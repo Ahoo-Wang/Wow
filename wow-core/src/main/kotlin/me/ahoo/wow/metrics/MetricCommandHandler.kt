@@ -23,7 +23,7 @@ class MetricCommandHandler(override val delegate: CommandHandler) : CommandHandl
     override fun handle(exchange: ServerCommandExchange<Any>): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "command.handle")
-            .tag("aggregate", exchange.message.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
             .metrics()
     }
 }

@@ -23,7 +23,7 @@ class MetricSnapshotStrategy(override val delegate: SnapshotStrategy) : Snapshot
     override fun onEvent(eventStream: DomainEventStream): Mono<Void> {
         return delegate.onEvent(eventStream)
             .name(Wow.WOW_PREFIX + "snapshot.event")
-            .tag("aggregate", eventStream.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
             .metrics()
     }
 }

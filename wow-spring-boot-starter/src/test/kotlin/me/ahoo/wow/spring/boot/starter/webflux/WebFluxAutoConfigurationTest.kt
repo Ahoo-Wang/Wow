@@ -28,6 +28,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
@@ -56,6 +57,7 @@ internal class WebFluxAutoConfigurationTest {
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,

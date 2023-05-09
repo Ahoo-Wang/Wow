@@ -14,11 +14,11 @@
 package me.ahoo.wow.spring.boot.starter.projection
 
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
+import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
@@ -44,7 +44,7 @@ internal class ProjectionDispatcherAutoConfigurationTest {
                     .hasSingleBean(ProjectionProcessorAutoRegistrar::class.java)
                     .hasSingleBean(ProjectionFunctionFilter::class.java)
                     .hasBean("projectionFilterChain")
-                    .hasSingleBean(DomainEventHandler::class.java)
+                    .hasSingleBean(ProjectionHandler::class.java)
                     .hasSingleBean(ProjectionDispatcher::class.java)
                     .hasSingleBean(ProjectionDispatcherLauncher::class.java)
             }

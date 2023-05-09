@@ -45,6 +45,7 @@ internal class CommandAutoConfigurationTest {
                 UtilAutoConfiguration::class.java,
                 WebClientAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)

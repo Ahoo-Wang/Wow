@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
     val loggingRegistryConfig = object : LoggingRegistryConfig {
         override fun get(key: String): String? = null
         override fun step(): Duration {
-            return Duration.ofSeconds(1)
+            return Duration.ofSeconds(10)
         }
     }
     val loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()

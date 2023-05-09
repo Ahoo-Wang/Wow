@@ -34,6 +34,8 @@ object Metrics {
     const val AGGREGATE_KEY = "aggregate"
     const val SUBSCRIBER_CONTEXT_KEY = "(MetricsSubscriber)"
     const val SUBSCRIBER_KEY = "subscriber"
+    const val EVENT_KEY = "event"
+    const val PROCESSOR_KEY = "processor"
     val enabled = System.getProperty("wow.metrics.enabled", "true").toBoolean()
 
     fun ContextView.getMetricsSubscriber(): String? {

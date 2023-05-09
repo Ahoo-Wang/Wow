@@ -16,11 +16,11 @@ package me.ahoo.wow.spring.boot.starter.saga
 import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
+import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
@@ -47,7 +47,7 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaProcessorAutoRegistrar::class.java)
                     .hasSingleBean(StatelessSagaFunctionFilter::class.java)
                     .hasBean("statelessSagaFilterChain")
-                    .hasSingleBean(DomainEventHandler::class.java)
+                    .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(StatelessSagaDispatcherLauncher::class.java)
             }

@@ -27,7 +27,7 @@ class MetricCommandBus(override val delegate: CommandBus) : CommandBus, Decorato
     override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
         return delegate.send(command)
             .name(Wow.WOW_PREFIX + "command.send")
-            .tag("aggregate", command.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, command.aggregateName)
             .tag("command", command.name)
             .metrics()
     }
@@ -35,7 +35,7 @@ class MetricCommandBus(override val delegate: CommandBus) : CommandBus, Decorato
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
         return delegate.receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "command.receive")
-            .tag("aggregate", namedAggregates.joinToString(",") { it.aggregateName })
+            .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
     }
 }

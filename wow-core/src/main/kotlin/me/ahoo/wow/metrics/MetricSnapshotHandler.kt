@@ -23,7 +23,7 @@ class MetricSnapshotHandler(override val delegate: SnapshotHandler) : SnapshotHa
     override fun handle(exchange: EventStreamExchange): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "snapshot.handle")
-            .tag("aggregate", exchange.message.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
             .metrics()
     }
 }

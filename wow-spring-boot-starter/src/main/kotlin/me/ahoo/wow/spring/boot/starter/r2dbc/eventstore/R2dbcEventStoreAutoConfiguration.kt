@@ -98,22 +98,22 @@ class R2dbcEventStoreAutoConfiguration {
             )
             return ShardingDatabase(connectionFactoryRegistrar, sharding)
         }
-    }
 
-    @Bean
-    fun eventStreamSchema(
-        boundedContext: NamedBoundedContext,
-        shardingRegistrar: ShardingRegistrar,
-        shardingProperties: ShardingProperties,
-    ): EventStreamSchema {
-        val shardingList = shardingProperties.eventStream.map {
-            it.key to it.value.tableAlgorithm
-        }.toMap()
-        val sharding = ShardingDataSourcingAutoConfiguration.buildCompositeSharding(
-            boundedContext,
-            shardingRegistrar,
-            shardingList,
-        )
-        return ShardingEventStreamSchema(sharding)
+        @Bean
+        fun eventStreamSchema(
+            boundedContext: NamedBoundedContext,
+            shardingRegistrar: ShardingRegistrar,
+            shardingProperties: ShardingProperties,
+        ): EventStreamSchema {
+            val shardingList = shardingProperties.eventStream.map {
+                it.key to it.value.tableAlgorithm
+            }.toMap()
+            val sharding = ShardingDataSourcingAutoConfiguration.buildCompositeSharding(
+                boundedContext,
+                shardingRegistrar,
+                shardingList,
+            )
+            return ShardingEventStreamSchema(sharding)
+        }
     }
 }

@@ -28,21 +28,21 @@ class MetricSnapshotRepository(override val delegate: SnapshotRepository) :
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return delegate.load<S>(aggregateId)
             .name(Wow.WOW_PREFIX + "snapshot.load")
-            .tag("aggregate", aggregateId.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return delegate.save(snapshot)
             .name(Wow.WOW_PREFIX + "snapshot.save")
-            .tag("aggregate", snapshot.aggregateId.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
             .metrics()
     }
 
     override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return delegate.findAggregateId(namedAggregate = namedAggregate, cursorId = cursorId, limit = limit)
             .name(Wow.WOW_PREFIX + "snapshot.findAggregateId")
-            .tag("aggregate", namedAggregate.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
     }
 }

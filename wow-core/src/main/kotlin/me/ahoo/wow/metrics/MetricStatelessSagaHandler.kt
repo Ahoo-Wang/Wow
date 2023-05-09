@@ -26,8 +26,9 @@ class MetricStatelessSagaHandler(override val delegate: StatelessSagaHandler) :
     override fun handle(exchange: DomainEventExchange<Any>): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "saga.handle")
-            .tag("aggregate", exchange.message.aggregateName)
-            .tag("event", exchange.message.name)
+            .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
+            .tag(Metrics.EVENT_KEY, exchange.message.name)
+            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.eventFunction).processor.javaClass.simpleName)
             .metrics()
     }
 }

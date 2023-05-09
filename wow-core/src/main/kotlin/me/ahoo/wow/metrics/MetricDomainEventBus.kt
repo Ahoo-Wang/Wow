@@ -30,14 +30,14 @@ class MetricDomainEventBus(override val delegate: DomainEventBus) :
     override fun send(eventStream: DomainEventStream): Mono<Void> {
         return delegate.send(eventStream)
             .name(Wow.WOW_PREFIX + "event.send")
-            .tag("aggregate", eventStream.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
             .metrics()
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
         return delegate.receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "event.receive")
-            .tag("aggregate", namedAggregates.joinToString(",") { it.aggregateName })
+            .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
     }
 }
