@@ -34,7 +34,6 @@ import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingDataSourcingAutoConfigurati
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
 import org.springframework.context.annotation.Bean
@@ -51,7 +50,6 @@ import org.springframework.context.annotation.Configuration
 class R2dbcEventStoreAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
     fun eventStore(eventStreamDatabase: EventStreamDatabase, eventStreamSchema: EventStreamSchema): EventStore {
         return R2dbcEventStore(eventStreamDatabase, eventStreamSchema)
     }
@@ -65,13 +63,11 @@ class R2dbcEventStoreAutoConfiguration {
     class Simple {
 
         @Bean
-        @ConditionalOnMissingBean
         fun eventStreamDatabase(connectionFactory: ConnectionFactory): EventStreamDatabase {
             return SimpleDatabase(connectionFactory)
         }
 
         @Bean
-        @ConditionalOnMissingBean
         fun eventStreamSchema(): EventStreamSchema {
             return SimpleEventStreamSchema()
         }
@@ -86,7 +82,6 @@ class R2dbcEventStoreAutoConfiguration {
     class Sharding {
 
         @Bean
-        @ConditionalOnMissingBean
         fun eventStreamDatabase(
             boundedContext: NamedBoundedContext,
             connectionFactoryRegistrar: ConnectionFactoryRegistrar,
@@ -106,7 +101,6 @@ class R2dbcEventStoreAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun eventStreamSchema(
         boundedContext: NamedBoundedContext,
         shardingRegistrar: ShardingRegistrar,

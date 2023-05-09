@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
@@ -49,17 +48,9 @@ class DefaultCommandGateway(
             }
     }
 
-    private fun <C : Any> sendWithMetrics(command: CommandMessage<C>): Mono<Void> {
-        return commandBus.send(command)
-            .name(Wow.WOW_PREFIX + "command.send")
-            .tag("aggregate", command.aggregateName)
-            .tag("command", command.name)
-            .metrics()
-    }
-
     override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
         return validate(command).flatMap {
-            sendWithMetrics(command)
+            commandBus.send(command)
         }
     }
 
@@ -80,7 +71,7 @@ class DefaultCommandGateway(
                 waitStrategyRegistrar.register(awaitableCommand.commandId, waitStrategy)
             }
             val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(awaitableCommand, waitStrategy)
-            sendWithMetrics(awaitableCommand)
+            commandBus.send(awaitableCommand)
                 .doOnError {
                     waitStrategyRegistrar.unregister(awaitableCommand.commandId)
                 }

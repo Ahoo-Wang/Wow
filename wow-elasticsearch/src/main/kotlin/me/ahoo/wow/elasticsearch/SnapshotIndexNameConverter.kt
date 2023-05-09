@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.modeling.asString
+import me.ahoo.wow.modeling.asNamedAggregateString
 
 interface SnapshotIndexNameConverter {
     fun convert(aggregateId: AggregateId): String
@@ -22,6 +22,6 @@ interface SnapshotIndexNameConverter {
 
 object DefaultSnapshotIndexNameConverter : SnapshotIndexNameConverter {
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.namedAggregate.asString()}.snapshot"
+        return "${aggregateId.namedAggregate.asNamedAggregateString()}.snapshot"
     }
 }

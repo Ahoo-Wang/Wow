@@ -22,7 +22,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsearchClient
@@ -36,13 +35,11 @@ import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsea
 )
 class ElasticsearchSnapshotAutoConfiguration {
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotIndexNameConverter(): SnapshotIndexNameConverter {
         return DefaultSnapshotIndexNameConverter
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotRepository(
         snapshotIndexNameConverter: SnapshotIndexNameConverter,
         elasticsearchClient: ReactiveElasticsearchClient,

@@ -35,7 +35,6 @@ import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingDataSourcingAutoConfigurati
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
 import org.springframework.context.annotation.Bean
@@ -53,7 +52,6 @@ import org.springframework.context.annotation.Configuration
 class R2dbcSnapshotAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
     fun r2dbcSnapshotRepository(
         snapshotDatabase: SnapshotDatabase,
         snapshotSchema: SnapshotSchema,
@@ -70,13 +68,11 @@ class R2dbcSnapshotAutoConfiguration {
     class Simple {
 
         @Bean
-        @ConditionalOnMissingBean
         fun snapshotDatabase(connectionFactory: ConnectionFactory): SnapshotDatabase {
             return SimpleDatabase(connectionFactory)
         }
 
         @Bean
-        @ConditionalOnMissingBean
         fun snapshotSchema(): SnapshotSchema {
             return SimpleSnapshotSchema()
         }
@@ -91,7 +87,6 @@ class R2dbcSnapshotAutoConfiguration {
     class Sharding {
 
         @Bean
-        @ConditionalOnMissingBean
         fun snapshotDatabase(
             boundedContext: NamedBoundedContext,
             connectionFactoryRegistrar: ConnectionFactoryRegistrar,
@@ -110,7 +105,6 @@ class R2dbcSnapshotAutoConfiguration {
         }
 
         @Bean
-        @ConditionalOnMissingBean
         fun snapshotSchema(
             boundedContext: NamedBoundedContext,
             shardingRegistrar: ShardingRegistrar,

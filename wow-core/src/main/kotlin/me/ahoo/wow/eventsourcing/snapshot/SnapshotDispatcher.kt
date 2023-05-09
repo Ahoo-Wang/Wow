@@ -23,6 +23,7 @@ import me.ahoo.wow.event.shouldHandle
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -46,6 +47,7 @@ class SnapshotDispatcher(
     override fun start() {
         domainEventBus.receive(topics)
             .writeReceiverGroup(name)
+            .writeMetricsSubscriber(name)
             .filter {
                 it.message.shouldHandle(SNAPSHOT_PROCESSOR_NAME)
             }

@@ -20,6 +20,7 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.modeling.AggregateCreated
@@ -77,7 +78,7 @@ internal class SnapshotDispatcherTest {
             .addFilter(snapshotFunctionFilter)
             .filterCondition(SnapshotDispatcher::class)
             .build()
-        val handler = SnapshotHandler(chain)
+        val handler = DefaultSnapshotHandler(chain).metrizable()
         val snapshotDispatcher = SnapshotDispatcher("test", setOf(aggregateMetadata), handler, domainEventBus)
         snapshotDispatcher.start()
         val aggregateId = aggregateMetadata.asAggregateId()

@@ -48,9 +48,6 @@ class AggregateDispatcher<C : Any, S : Any>(
 
     override fun start() {
         commandFlux
-            .name(Wow.WOW_PREFIX + AggregateDispatcher::class.simpleName!!)
-            .tag(Metrics.AGGREGATE_KEY, aggregateMetadata.aggregateName)
-            .metrics()
             .groupBy { it.message.asGroupKey() }
             .flatMap({
                 handleGroupedCommand(it)

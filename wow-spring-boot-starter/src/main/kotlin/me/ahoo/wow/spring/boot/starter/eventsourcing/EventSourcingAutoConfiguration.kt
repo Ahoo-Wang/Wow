@@ -18,7 +18,6 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 
@@ -27,7 +26,6 @@ import org.springframework.context.annotation.Bean
 class EventSourcingAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         value = [ConditionalOnSnapshotEnabled.ENABLED_KEY],
         havingValue = "false",

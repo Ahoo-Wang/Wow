@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.event.DefaultDomainEventHandler
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
@@ -41,13 +42,11 @@ import org.springframework.context.annotation.Bean
 class EventDispatcherAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
     fun domainEventHandlerRegistrar(): DomainEventFunctionRegistrar {
         return DomainEventFunctionRegistrar()
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun eventProcessorAutoRegistrar(
         handlerRegistrar: DomainEventFunctionRegistrar,
         applicationContext: ApplicationContext,
@@ -86,7 +85,7 @@ class EventDispatcherAutoConfiguration {
         @Qualifier("eventDispatcherFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
         @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<Any>>,
     ): DomainEventHandler {
-        return DomainEventHandler(chain, eventProcessorErrorHandler)
+        return DefaultDomainEventHandler(chain, eventProcessorErrorHandler)
     }
 
     @Bean
@@ -95,7 +94,7 @@ class EventDispatcherAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         domainEventBus: DomainEventBus,
         handlerRegistrar: DomainEventFunctionRegistrar,
-        @Qualifier("eventDispatcherHandler") eventDispatcherHandler: DomainEventHandler,
+        eventDispatcherHandler: DomainEventHandler,
     ): DomainEventDispatcher {
         return DomainEventDispatcher(
             name = "${namedBoundedContext.contextName}.${DomainEventDispatcher::class.simpleName}",

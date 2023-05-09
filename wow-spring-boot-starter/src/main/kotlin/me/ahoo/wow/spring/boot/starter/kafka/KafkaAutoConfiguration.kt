@@ -51,7 +51,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         return KafkaSender.create(kafkaProperties.buildSenderOptions())
     }
 
-    @Bean
+    @Bean(CommandProperties.Bus.COMMAND_BUS_BEAN_NAME)
     @ConditionalOnProperty(
         CommandProperties.Bus.TYPE,
         matchIfMissing = true,

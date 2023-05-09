@@ -44,6 +44,6 @@ fun String.asNamedAggregate(contextName: String? = null): MaterializedNamedAggre
     return MaterializedNamedAggregate(contextName, this)
 }
 
-fun NamedAggregate.asString(): String {
+fun NamedAggregate.asNamedAggregateString(): String {
     return "$contextName$NAMED_AGGREGATE_DELIMITER$aggregateName"
 }

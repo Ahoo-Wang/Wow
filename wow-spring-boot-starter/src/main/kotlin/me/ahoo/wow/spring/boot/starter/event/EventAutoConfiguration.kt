@@ -21,7 +21,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -31,7 +30,6 @@ import org.springframework.context.annotation.Bean
 @EnableConfigurationProperties(EventProperties::class)
 class EventAutoConfiguration {
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         EventProperties.Bus.TYPE,
         havingValue = MessageBusType.IN_MEMORY_NAME,
@@ -41,7 +39,6 @@ class EventAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun eventCompensator(
         eventStore: EventStore,
         eventBus: DomainEventBus,

@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.asString
+import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
@@ -65,9 +65,9 @@ class EventCompensateRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asString())
+                .tag(aggregateMetadata.asNamedAggregateString())
                 .summary("event compensate")
-                .operationId("${aggregateMetadata.asString()}.eventCompensate")
+                .operationId("${aggregateMetadata.asNamedAggregateString()}.eventCompensate")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)

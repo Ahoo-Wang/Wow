@@ -24,6 +24,7 @@ import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.instanceOf
@@ -31,6 +32,7 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
@@ -41,6 +43,7 @@ import reactor.test.StepVerifier
  *
  * @author ahoo wang
  */
+@ExtendWith(LoggingMeterRegistryInitializer::class)
 abstract class EventStoreSpec {
     val namedAggregate = EventStoreSpec::class.java.asRequiredNamedAggregate()
     lateinit var eventStore: EventStore

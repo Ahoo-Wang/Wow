@@ -13,6 +13,134 @@
 
 package me.ahoo.wow.metrics
 
+import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.modeling.command.CommandHandler
+import me.ahoo.wow.projection.ProjectionHandler
+import me.ahoo.wow.saga.stateless.StatelessSagaHandler
+import reactor.core.publisher.Flux
+import reactor.util.context.Context
+import reactor.util.context.ContextView
+import kotlin.jvm.optionals.getOrNull
+
+@Suppress("TooManyFunctions")
 object Metrics {
     const val AGGREGATE_KEY = "aggregate"
+    const val SUBSCRIBER_CONTEXT_KEY = "(MetricsSubscriber)"
+    const val SUBSCRIBER_KEY = "subscriber"
+    val enabled = System.getProperty("wow.metrics.enabled", "true").toBoolean()
+
+    fun ContextView.getMetricsSubscriber(): String? {
+        return getOrEmpty<String>(SUBSCRIBER_CONTEXT_KEY).getOrNull()
+    }
+
+    fun Context.setMetricsSubscriber(metricsSubscriber: String): Context {
+        return this.put(SUBSCRIBER_CONTEXT_KEY, metricsSubscriber)
+    }
+
+    fun <T> Flux<T>.writeMetricsSubscriber(metricsSubscriber: String): Flux<T> {
+        return contextWrite {
+            it.setMetricsSubscriber(metricsSubscriber)
+        }
+    }
+
+    fun <T> Flux<T>.tagMetricsSubscriber(): Flux<T> {
+        return Flux.deferContextual {
+            val metricsSubscriber = it.getMetricsSubscriber() ?: return@deferContextual this.metrics()
+            tag(SUBSCRIBER_KEY, metricsSubscriber).metrics()
+        }
+    }
+
+    fun CommandBus.metrizable(): CommandBus {
+        return metrizable {
+            MetricCommandBus(this)
+        }
+    }
+
+    fun DomainEventBus.metrizable(): DomainEventBus {
+        return metrizable {
+            MetricDomainEventBus(this)
+        }
+    }
+
+    fun EventStore.metrizable(): EventStore {
+        return metrizable {
+            MetricEventStore(this)
+        }
+    }
+
+    fun SnapshotStrategy.metrizable(): SnapshotStrategy {
+        return metrizable {
+            MetricSnapshotStrategy(this)
+        }
+    }
+
+    fun SnapshotRepository.metrizable(): SnapshotRepository {
+        return metrizable {
+            MetricSnapshotRepository(this)
+        }
+    }
+
+    fun CommandHandler.metrizable(): CommandHandler {
+        return metrizable {
+            MetricCommandHandler(this)
+        }
+    }
+
+    fun SnapshotHandler.metrizable(): SnapshotHandler {
+        return metrizable {
+            MetricSnapshotHandler(this)
+        }
+    }
+
+    fun DomainEventHandler.metrizable(): DomainEventHandler {
+        return metrizable {
+            MetricDomainEventHandler(this)
+        }
+    }
+
+    fun StatelessSagaHandler.metrizable(): StatelessSagaHandler {
+        return metrizable {
+            MetricStatelessSagaHandler(this)
+        }
+    }
+
+    fun ProjectionHandler.metrizable(): ProjectionHandler {
+        return metrizable {
+            MetricProjectionHandler(this)
+        }
+    }
+
+    fun <T : Any> T.metrizable(): Any {
+        return when (this) {
+            is CommandGateway -> this
+            is CommandBus -> metrizable()
+            is DomainEventBus -> metrizable()
+            is EventStore -> metrizable()
+            is SnapshotStrategy -> metrizable()
+            is SnapshotRepository -> metrizable()
+            is CommandHandler -> metrizable()
+            is SnapshotHandler -> metrizable()
+            is DomainEventHandler -> metrizable()
+            is StatelessSagaHandler -> metrizable()
+            is ProjectionHandler -> metrizable()
+            else -> this
+        }
+    }
+
+    inline fun <T> T.metrizable(block: (T) -> T): T {
+        if (!enabled) {
+            return this
+        }
+        if (this is Metrizable) {
+            return this
+        }
+        return block(this)
+    }
 }

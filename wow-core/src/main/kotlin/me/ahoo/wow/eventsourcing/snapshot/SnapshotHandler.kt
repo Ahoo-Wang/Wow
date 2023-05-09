@@ -17,12 +17,15 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
+import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-class SnapshotHandler(
+interface SnapshotHandler : Handler<EventStreamExchange>
+
+class DefaultSnapshotHandler(
     chain: FilterChain<EventStreamExchange>,
     errorHandler: ErrorHandler<EventStreamExchange> = LogResumeErrorHandler(),
-) : AbstractHandler<EventStreamExchange>(
+) : SnapshotHandler, AbstractHandler<EventStreamExchange>(
     chain,
     errorHandler,
 )

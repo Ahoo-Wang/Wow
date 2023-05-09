@@ -12,9 +12,6 @@
  */
 package me.ahoo.wow.tck.modeling.command
 
-import io.micrometer.core.instrument.Metrics
-import io.micrometer.core.instrument.logging.LoggingMeterRegistry
-import io.micrometer.core.instrument.logging.LoggingRegistryConfig
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -39,12 +36,13 @@ import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.CommandDispatcher
-import me.ahoo.wow.modeling.command.CommandHandler
+import me.ahoo.wow.modeling.command.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
@@ -52,28 +50,24 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.slf4j.LoggerFactory
+import org.junit.jupiter.api.extension.ExtendWith
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.ThreadLocalRandom
-import kotlin.reflect.jvm.isAccessible
 
+@ExtendWith(LoggingMeterRegistryInitializer::class)
 abstract class CommandDispatcherSpec {
     protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(1000000, 0.000001)
-
-    companion object {
-        private val log = LoggerFactory.getLogger(CommandDispatcherSpec::class.java)
-    }
-
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected lateinit var aggregateProcessorFactory: AggregateProcessorFactory
@@ -84,25 +78,9 @@ abstract class CommandDispatcherSpec {
     protected lateinit var stateAggregateRepository: StateAggregateRepository
     protected lateinit var commandAggregateFactory: CommandAggregateFactory
     protected lateinit var domainEventBus: DomainEventBus
-    protected lateinit var loggingMeterRegistry: LoggingMeterRegistry
-
-    private fun publishMeters() {
-        LoggingMeterRegistry::class.members.filter { it.name == "publish" }.forEach {
-            it.isAccessible = true
-            it.call(loggingMeterRegistry)
-        }
-    }
 
     @BeforeEach
     fun setup() {
-        val loggingRegistryConfig = object : LoggingRegistryConfig {
-            override fun get(key: String): String? = null
-            override fun step(): Duration {
-                return Duration.ofSeconds(1)
-            }
-        }
-        loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
-        Metrics.addRegistry(loggingMeterRegistry)
 //        Schedulers.enableMetrics()
         commandBus = createCommandBus()
         commandGateway = DefaultCommandGateway(
@@ -123,19 +101,19 @@ abstract class CommandDispatcherSpec {
     }
 
     protected open fun createCommandBus(): CommandBus {
-        return InMemoryCommandBus()
+        return InMemoryCommandBus().metrizable()
     }
 
     protected open fun createEventBus(): DomainEventBus {
-        return InMemoryDomainEventBus()
+        return InMemoryDomainEventBus().metrizable()
     }
 
     protected open fun createEventStore(): EventStore {
-        return InMemoryEventStore()
+        return InMemoryEventStore().metrizable()
     }
 
     protected open fun createSnapshotRepository(): SnapshotRepository {
-        return InMemorySnapshotRepository()
+        return InMemorySnapshotRepository().metrizable()
     }
 
     protected fun createStateAggregateRepository(
@@ -168,7 +146,7 @@ abstract class CommandDispatcherSpec {
             namedAggregates = setOf(aggregateMetadata.materialize()),
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
-            commandHandler = CommandHandler(chain),
+            commandHandler = DefaultCommandHandler(chain).metrizable(),
             serviceProvider = serviceProvider,
         )
 
@@ -227,7 +205,7 @@ abstract class CommandDispatcherSpec {
         println(
             "------------- Aggregate Created Duration:[$createdDuration] Throughput:[${creates.size.toDouble() / createdDuration.toMillis() * 1000}/s]-------------"
         )
-        publishMeters()
+        LoggingMeterRegistryInitializer.publishMeters()
         /*
          * 模拟聚合命令乱序
          */
@@ -256,6 +234,6 @@ abstract class CommandDispatcherSpec {
         println(
             "------- Aggregate Changed Duration:[$changedDuration]  Throughput:[${concurrency.toDouble() / changedDuration.toMillis() * 1000}/s]-------"
         )
-        publishMeters()
+        LoggingMeterRegistryInitializer.publishMeters()
     }
 }

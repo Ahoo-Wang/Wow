@@ -30,6 +30,7 @@ data class CommandProperties(val bus: Bus = Bus()) {
     ) {
         companion object {
             const val TYPE = "$PREFIX.bus.type"
+            const val COMMAND_BUS_BEAN_NAME = "commandBus"
         }
     }
 }

@@ -16,7 +16,6 @@ package me.ahoo.wow.projection
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventHandler
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
@@ -28,7 +27,7 @@ class ProjectionDispatcher(
     override val name: String,
     domainEventBus: DomainEventBus,
     functionRegistrar: ProjectionFunctionRegistrar,
-    projectionHandler: DomainEventHandler,
+    projectionHandler: ProjectionHandler,
     override val scheduler: Scheduler = Schedulers.newParallel(
         Wow.WOW_PREFIX + ProjectionDispatcher::class.java.simpleName
     )

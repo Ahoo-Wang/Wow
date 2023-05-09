@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.command.CommandBusSpec
 
 /**
@@ -21,6 +22,6 @@ import me.ahoo.wow.tck.command.CommandBusSpec
  */
 internal class InMemoryCommandBusTest : CommandBusSpec() {
     override fun createCommandBus(): CommandBus {
-        return InMemoryCommandBus()
+        return InMemoryCommandBus().metrizable()
     }
 }

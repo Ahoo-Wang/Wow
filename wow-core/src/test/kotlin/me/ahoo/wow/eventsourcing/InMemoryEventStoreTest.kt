@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 /**
@@ -21,6 +22,6 @@ import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
  */
 internal class InMemoryEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
-        return InMemoryEventStore()
+        return MetricEventStore(InMemoryEventStore())
     }
 }

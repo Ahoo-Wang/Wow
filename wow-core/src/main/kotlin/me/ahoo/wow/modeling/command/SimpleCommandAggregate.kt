@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
@@ -37,6 +36,9 @@ class SimpleCommandAggregate<C : Any, S : Any>(
 
     private val commandFunctionRegistry = metadata.asCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.asErrorFunctionRegistry(this)
+
+    @Volatile
+    override var commandState = CommandState.STORED
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return Mono.defer {
@@ -84,11 +86,9 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 }
                 .flatMap { eventStream ->
                     /**
-                     * 持久化事件存储,完成持久化领域事件意味着 命令已经完成.
+                     * 持久化事件存储,完成持久化领域事件意味着命令已经完成.
                      */
                     commandState.onStore(eventStore, eventStream)
-                        .name(Wow.WOW_PREFIX + "eventstore.append")
-                        .metrics()
                         .doOnNext { commandState = it }
                         .doOnError { commandState = CommandState.EXPIRED }
                         .thenReturn(eventStream)
@@ -100,8 +100,6 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 }
         }
     }
-
-    override var commandState = CommandState.STORED
 
     override fun toString(): String {
         return "SimpleCommandAggregate(state=$state, metadata=$metadata, commandState=$commandState)"

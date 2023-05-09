@@ -19,6 +19,7 @@ import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
 
@@ -42,7 +43,7 @@ class CommandDispatcher(
                 val commandFlux = commandBus
                     .receive(setOf(it))
                     .writeReceiverGroup(name)
-
+                    .writeMetricsSubscriber(name)
                 val aggregateMetadata = it
                     .asRequiredAggregateType<Any>()
                     .asAggregateMetadata<Any, Any>()

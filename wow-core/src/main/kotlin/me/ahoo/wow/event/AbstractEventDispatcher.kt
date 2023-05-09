@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
@@ -47,6 +48,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>>(
         domainEventBus
             .receive(topics)
             .writeReceiverGroup(name)
+            .writeMetricsSubscriber(name)
             .groupBy { it.message.aggregateId.mod(Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE) }
             .flatMap({ handleGroupedEvent(it) }, Int.MAX_VALUE)
             .subscribe(this)

@@ -16,6 +16,8 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.metrics.MetricEventStore
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
 class MongoCommandDispatcherTest : CommandDispatcherSpec() {
@@ -29,6 +31,6 @@ class MongoCommandDispatcherTest : CommandDispatcherSpec() {
     override fun createEventStore(): EventStore {
         val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
-        return MongoEventStore(database)
+        return MetricEventStore(MongoEventStore(database)).metrizable()
     }
 }

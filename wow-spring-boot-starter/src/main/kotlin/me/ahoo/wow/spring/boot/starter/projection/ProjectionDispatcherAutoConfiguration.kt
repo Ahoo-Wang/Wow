@@ -16,16 +16,17 @@ package me.ahoo.wow.spring.boot.starter.projection
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
+import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
@@ -80,8 +81,8 @@ class ProjectionDispatcherAutoConfiguration {
     fun projectionHandler(
         @Qualifier("projectionFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
         @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<Any>>,
-    ): DomainEventHandler {
-        return DomainEventHandler(chain, projectionErrorHandler)
+    ): ProjectionHandler {
+        return DefaultProjectionHandler(chain, projectionErrorHandler)
     }
 
     @Bean
@@ -90,7 +91,7 @@ class ProjectionDispatcherAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,
-        @Qualifier("projectionHandler") projectionHandler: DomainEventHandler,
+        projectionHandler: ProjectionHandler,
     ): ProjectionDispatcher {
         return ProjectionDispatcher(
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",

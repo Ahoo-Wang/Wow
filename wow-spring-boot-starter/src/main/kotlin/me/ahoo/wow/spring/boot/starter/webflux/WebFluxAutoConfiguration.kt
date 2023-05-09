@@ -53,6 +53,7 @@ class WebFluxAutoConfiguration {
         return CommandWaitHandlerFunction(waitStrategyRegistrar).routerFunction
     }
 
+    @Suppress("LongParameterList")
     @Bean
     fun commandRouterFunction(
         boundedContext: NamedBoundedContext,

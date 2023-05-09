@@ -19,7 +19,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.asString
+import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
@@ -66,9 +66,9 @@ class BatchRegenerateSnapshotRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asString())
+                .tag(aggregateMetadata.asNamedAggregateString())
                 .summary("Batch regenerate aggregate snapshot")
-                .operationId("${aggregateMetadata.asString()}.batchRegenerateSnapshot")
+                .operationId("${aggregateMetadata.asNamedAggregateString()}.batchRegenerateSnapshot")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(BATCH_REGENERATE_SNAPSHOT_CURSOR_ID)

@@ -17,6 +17,7 @@ import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.eventsourcing.Created
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -55,7 +56,7 @@ internal class DomainEventDispatcherTest {
                 name = "test.DomainEventProcessor",
                 domainEventBus = domainEventBus,
                 functionRegistrar = handlerRegistrar,
-                eventHandler = DomainEventHandler(chain),
+                eventHandler = DefaultDomainEventHandler(chain).metrizable(),
             )
         domainEventProcessor.run()
         val aggregateId = namedAggregate.asAggregateId()

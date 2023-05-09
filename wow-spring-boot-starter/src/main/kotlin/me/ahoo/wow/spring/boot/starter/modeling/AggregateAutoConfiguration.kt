@@ -31,6 +31,7 @@ import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.modeling.command.CommandHandler
+import me.ahoo.wow.modeling.command.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
@@ -122,7 +123,7 @@ class AggregateAutoConfiguration {
         commandFilterChain: FilterChain<ServerCommandExchange<Any>>,
         @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<Any>>,
     ): CommandHandler {
-        return CommandHandler(
+        return DefaultCommandHandler(
             chain = commandFilterChain,
             errorHandler = commandErrorHandler,
         )

@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.asString
+import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
@@ -65,9 +65,9 @@ class RegenerateSnapshotRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asString())
+                .tag(aggregateMetadata.asNamedAggregateString())
                 .summary("Regenerate aggregate snapshot")
-                .operationId("${aggregateMetadata.asString()}.regenerateSnapshot")
+                .operationId("${aggregateMetadata.asNamedAggregateString()}.regenerateSnapshot")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)

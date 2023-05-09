@@ -17,7 +17,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -28,7 +27,6 @@ import org.springframework.context.annotation.Bean
 class EventStoreAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
         havingValue = EventStoreStorage.IN_MEMORY_NAME,

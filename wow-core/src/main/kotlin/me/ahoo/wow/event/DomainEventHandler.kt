@@ -16,12 +16,15 @@ package me.ahoo.wow.event
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
+import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-class DomainEventHandler(
+interface DomainEventHandler : Handler<DomainEventExchange<Any>>
+
+class DefaultDomainEventHandler(
     chain: FilterChain<DomainEventExchange<Any>>,
     errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler(),
-) :
+) : DomainEventHandler,
     AbstractHandler<DomainEventExchange<Any>>(
         chain,
         errorHandler,

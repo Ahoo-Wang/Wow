@@ -17,6 +17,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
@@ -34,7 +35,6 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -48,7 +48,6 @@ class SnapshotAutoConfiguration(
 ) {
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         value = [SnapshotProperties.STORAGE],
         havingValue = SnapshotStorage.IN_MEMORY_NAME,
@@ -58,7 +57,6 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         value = [SnapshotProperties.STRATEGY],
         matchIfMissing = true,
@@ -77,7 +75,6 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         value = [SnapshotProperties.STRATEGY],
         havingValue = Strategy.VERSION_NAME,
@@ -86,7 +83,7 @@ class SnapshotAutoConfiguration(
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore,
         stateAggregateFactory: StateAggregateFactory,
-    ): VersionOffsetSnapshotStrategy {
+    ): SnapshotStrategy {
         return VersionOffsetSnapshotStrategy(
             versionOffset = snapshotProperties.versionOffset,
             snapshotRepository = snapshotRepository,
@@ -96,7 +93,6 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(
         value = [SnapshotProperties.STRATEGY],
         havingValue = Strategy.TIME_NAME,
@@ -105,7 +101,7 @@ class SnapshotAutoConfiguration(
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore,
         stateAggregateFactory: StateAggregateFactory,
-    ): TimeOffsetSnapshotStrategy {
+    ): SnapshotStrategy {
         return TimeOffsetSnapshotStrategy(
             timeOffset = snapshotProperties.timeOffset.toMillis(),
             snapshotRepository = snapshotRepository,
@@ -115,7 +111,6 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotFunctionFilter(
         snapshotStrategy: SnapshotStrategy,
     ): SnapshotFunctionFilter {
@@ -133,15 +128,13 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotHandler(
         @Qualifier("snapshotFilterChain") chain: FilterChain<EventStreamExchange>,
     ): SnapshotHandler {
-        return SnapshotHandler(chain)
+        return DefaultSnapshotHandler(chain)
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotDispatcher(
         namedBoundedContext: NamedBoundedContext,
         snapshotHandler: SnapshotHandler,
@@ -155,7 +148,6 @@ class SnapshotAutoConfiguration(
     }
 
     @Bean
-    @ConditionalOnMissingBean
     fun snapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher): SnapshotDispatcherLauncher {
         return SnapshotDispatcherLauncher(snapshotDispatcher)
     }

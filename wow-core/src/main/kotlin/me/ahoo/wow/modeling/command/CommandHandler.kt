@@ -17,9 +17,12 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
+import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-class CommandHandler(
+interface CommandHandler : Handler<ServerCommandExchange<Any>>
+
+class DefaultCommandHandler(
     chain: FilterChain<ServerCommandExchange<Any>>,
     errorHandler: ErrorHandler<ServerCommandExchange<Any>> = LogResumeErrorHandler(),
-) : AbstractHandler<ServerCommandExchange<Any>>(chain, errorHandler)
+) : CommandHandler, AbstractHandler<ServerCommandExchange<Any>>(chain, errorHandler)
