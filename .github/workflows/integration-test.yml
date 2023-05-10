@@ -121,6 +121,27 @@ jobs:
       - name: Test Wow-Mongo
         run: gradle wow-mongo:clean wow-mongo:check --stacktrace
 
+  wow-it-test:
+    name: Wow IT Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    env:
+      CI: github-actions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-IT
+        run: gradle wow-it:clean wow-it:check --stacktrace
+
   wow-r2dbc-test:
     name: Wow R2DBC Test
     needs: [ wow-core-test ]
