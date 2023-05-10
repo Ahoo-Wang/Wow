@@ -14,4 +14,4 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
-internal class CommandDispatcherTest : CommandDispatcherSpec()
+internal class InMemoryCommandDispatcherTest : CommandDispatcherSpec()

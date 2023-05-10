@@ -14,10 +14,17 @@
 package me.ahoo.wow.messaging.dispatcher
 
 data class MessageParallelism(
-    val group: Int = AggregateGroupKey.DEFAULT_PARALLELISM,
-    val create: Int = AggregateGroupKey.DEFAULT_PARALLELISM
+    val group: Int,
+    val create: Int
 ) {
     companion object {
-        val DEFAULT = MessageParallelism()
+        val DEFAULT_CREATE_PARALLELISM = System.getProperty("wow.parallelism.create")?.toInt()
+            ?: Runtime.getRuntime().availableProcessors()
+        val DEFAULT_GROUP_PARALLELISM = System.getProperty("wow.parallelism.group")?.toInt()
+            ?: (10 * DEFAULT_CREATE_PARALLELISM)
+        val DEFAULT = MessageParallelism(
+            DEFAULT_GROUP_PARALLELISM,
+            DEFAULT_CREATE_PARALLELISM
+        )
     }
 }

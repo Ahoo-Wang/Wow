@@ -82,7 +82,7 @@ abstract class CommandDispatcherSpec {
     @BeforeEach
     fun setup() {
 //        Schedulers.enableMetrics()
-        commandBus = createCommandBus()
+        commandBus = createCommandBus().metrizable()
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
@@ -90,30 +90,30 @@ abstract class CommandDispatcherSpec {
             waitStrategyRegistrar = waitStrategyRegistrar,
             NoOpValidator,
         )
-        eventStore = createEventStore()
-        snapshotRepository = createSnapshotRepository()
+        eventStore = createEventStore().metrizable()
+        snapshotRepository = createSnapshotRepository().metrizable()
         stateAggregateRepository = createStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
         commandAggregateFactory =
             createCommandAggregateFactory(eventStore)
         aggregateProcessorFactory =
             RetryableAggregateProcessorFactory(stateAggregateFactory, stateAggregateRepository, commandAggregateFactory)
-        domainEventBus = createEventBus()
+        domainEventBus = createEventBus().metrizable()
     }
 
     protected open fun createCommandBus(): CommandBus {
-        return InMemoryCommandBus().metrizable()
+        return InMemoryCommandBus()
     }
 
     protected open fun createEventBus(): DomainEventBus {
-        return InMemoryDomainEventBus().metrizable()
+        return InMemoryDomainEventBus()
     }
 
     protected open fun createEventStore(): EventStore {
-        return InMemoryEventStore().metrizable()
+        return InMemoryEventStore()
     }
 
     protected open fun createSnapshotRepository(): SnapshotRepository {
-        return InMemorySnapshotRepository().metrizable()
+        return InMemorySnapshotRepository()
     }
 
     protected fun createStateAggregateRepository(
