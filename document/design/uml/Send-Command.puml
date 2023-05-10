@@ -1,0 +1,41 @@
+@startuml
+
+!include layout.puml
+
+title
+Send Command
+__Sequence Diagram__
+end title
+
+actor User
+participant CommandGateway
+participant CommandValidator
+participant IdempotencyChecker
+participant WaitStrategyRegistrar
+queue CommandQueue
+
+CommandQueue++
+User ++
+
+autonumber "[00]"
+
+User -> CommandGateway ++: sendAndWait(command,waitStrategy)
+
+CommandGateway -> CommandValidator++: verify(command)
+CommandGateway <-- CommandValidator--: VerifyResult
+alt verification failed
+    User <-- CommandGateway: failed
+else verification success
+    CommandGateway -> IdempotencyChecker++: check(command)
+    CommandGateway <-- IdempotencyChecker--: CheckResult
+    alt check failed
+        User <-- CommandGateway: failed
+    else check success
+        CommandGateway -> CommandQueue: emit(Command)
+        CommandGateway <-- CommandQueue: CommandResult is a Future
+        CommandGateway -> WaitStrategyRegistrar++: register(commandId,commandResult)
+        CommandGateway <-- WaitStrategyRegistrar--
+        User <-- CommandGateway: Mono<CommandResult>
+    end
+end
+@enduml

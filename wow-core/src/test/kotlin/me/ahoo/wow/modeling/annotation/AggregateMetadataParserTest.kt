@@ -1,0 +1,78 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.ahoo.wow.modeling.annotation
+
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.notNullValue
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
+
+/**
+ * AnnotationAggregateParserTest .
+ *
+ * @author ahoo wang
+ */
+internal class AggregateMetadataParserTest {
+    @Test
+    fun parse() {
+        val aggregateMetadata =
+            aggregateMetadata<MockAggregate, MockAggregate>()
+        assertThat(aggregateMetadata, notNullValue())
+        assertThat(
+            aggregateMetadata.state.aggregateType,
+            equalTo(
+                MockAggregate::class.java,
+            ),
+        )
+        assertThat(aggregateMetadata.isAggregationPattern, equalTo(false))
+    }
+
+    @Test
+    fun parseCombined() {
+        val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
+        assertThat(aggregateMetadata, notNullValue())
+        assertThat(
+            aggregateMetadata.command.aggregateType,
+            equalTo(
+                MockCommandAggregate::class.java,
+            ),
+        )
+        assertThat(
+            aggregateMetadata.state.aggregateType,
+            equalTo(
+                MockStateAggregate::class.java,
+            ),
+        )
+        assertThat(aggregateMetadata.isAggregationPattern, equalTo(true))
+    }
+
+    @Test
+    fun parseWhenWithAggregateId() {
+        val aggregateMetadata = aggregateMetadata<MockAggregateWithAggregateId, MockAggregateWithAggregateId>()
+        assertThat(aggregateMetadata, notNullValue())
+        assertThat(
+            aggregateMetadata.state.aggregateType,
+            equalTo(
+                MockAggregateWithAggregateId::class.java,
+            ),
+        )
+    }
+
+    @Test
+    fun parseWhenWithoutConstructor() {
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            aggregateMetadata<MockAggregateWithoutConstructor, MockAggregateWithoutConstructor>()
+        }
+    }
+}

@@ -1,0 +1,263 @@
+@startuml Message
+!include layout.puml
+
+title
+Message
+__Class Diagram__
+end title
+interface Identifier{
+  id:String
+}
+interface Version{
+  version:Int
+}
+package messaging{
+  interface Map<String,String>{
+
+  }
+  interface Header{
+
+  }
+
+  Map <|-- Header
+
+  map TrackingHeader{
+    userId => user-id
+    deviceId => device-id
+    sessionId => session-id
+    traceId => trace-id
+    upstreamId => upstream-id
+  }
+  Header -- TrackingHeader
+
+  interface Message<B>{
+    header:Header
+    body:B
+    createTime:long
+    mergeHeader(additionalSource): Message<T>
+  }
+  Header --* Message
+  Identifier --* Message
+
+  interface ResultMessage{
+    sourceId:String
+    succeeded:Boolean
+    errorCode:String
+    errorMsg:String
+  }
+
+  Message <|-- ResultMessage
+
+  note bottom of Message
+
+    Message is First-Class
+  end note
+}
+
+package command{
+  interface CommandName{
+    commandName:String
+  }
+  interface Command{
+    targetAggregateId:AggregateId
+    expectedAggregateVersion:Int?
+  }
+
+  interface CommandResult{
+
+  }
+  enum WaitStrategy{
+    SENT
+    COMMAND_RESULT
+    EVENT_RESULT
+  }
+  interface CommandExchange{
+
+  }
+  CommandName <|-- Command
+  Message <|-- Command
+  ResultMessage <|-- CommandResult
+  Command -- CommandResult
+  Command --* CommandExchange
+  CommandResult --* CommandExchange
+  note bottom of CommandResult
+    <code>
+    succeeded：true -> DomainEvent
+    </code>
+  end note
+}
+
+package domain-event{
+  interface EventName{
+    eventName:String
+  }
+  interface DomainEvent{
+    aggregateId:AggregateId
+  }
+  EventName <|-- DomainEvent
+  Version <|-- DomainEvent
+  Message <|-- DomainEvent
+}
+
+@enduml
+
+@startuml
+
+title Message Flow
+
+object PayPayment{
+  id= pay-payment-id(start-process-id)
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+}
+
+object PaymentPaid{
+  id= payment-paid-id
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+  upstreamId= pay-payment-id
+}
+
+PayPayment --> PaymentPaid : Message Flow
+PayPayment::traceId <--* PaymentPaid::traceId
+PayPayment::id <--* PaymentPaid::upstreamId
+
+object PayOrder{
+  id= pay-order-id
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+  upstreamId= payment-paid-id
+}
+
+PaymentPaid --> PayOrder : Message Flow
+PayPayment::traceId <--* PayOrder::traceId
+PaymentPaid::id <--* PayOrder::upstreamId
+
+object OrderPaid{
+  id= order-paid-id
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+  upstreamId= pay-order-id
+}
+
+PayOrder --> OrderPaid : Message Flow
+PayPayment::traceId <--* OrderPaid::traceId
+PayOrder::id <--* OrderPaid::upstreamId
+
+object Purchase{
+  id= purchase-id
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+  upstreamId= order-paid-id
+}
+
+OrderPaid --> Purchase : Message Flow
+PayPayment::traceId <--* Purchase::traceId
+OrderPaid::id <--* Purchase::upstreamId
+
+object Notify{
+  id= notify-id
+  userId = user-id
+  deviceId = device-id
+  sessionId = session-id
+  traceId = pay-payment-id
+  upstreamId= order-paid-id
+}
+
+OrderPaid --> Notify : Message Flow
+PayPayment::traceId <--* Notify::traceId
+OrderPaid::id <--* Notify::upstreamId
+
+@enduml
+
+@startuml
+
+!theme plain
+top to bottom direction
+skinparam linetype ortho
+
+class AbstractMessage<T> {
+  + id(): String
+  + header(): Header
+  + bodyType(): Class<T>
+  + body(): T
+  + createTime(): long
+}
+interface Command<C> << interface >> {
+  + mergeHeader(Map<String, String>): Command<C>
+  + isCreateAggregate(): boolean
+  + expectedAggregateVersion(): OptionalLong
+  + targetAggregateId(): AggregateId
+}
+class DefaultCommandMessage<C> {
+  + isCreateAggregate(): boolean
+  + commandName(): String
+  + targetAggregateId(): AggregateId
+  + mergeHeader(Map<String, String>): Command<C>
+  + toString(): String
+  + expectedAggregateVersion(): OptionalLong
+}
+class DefaultDomainEventMessage<E> {
+  + revision(): String
+  + toString(): String
+  + version(): long
+  + aggregateId(): AggregateId
+}
+class DefaultEventMessage<E> {
+  + mergeHeader(Map<String, String>): Message<E>
+  + eventName(): String
+  + toString(): String
+}
+interface DomainEvent<E> << interface >> {
+  + aggregateId(): AggregateId
+}
+interface EventMessage<E> << interface >>
+interface Identifier << interface >> {
+  + id(): String
+}
+annotation Immutable << annotation >> {
+  + containerOf(): String[]
+}
+interface Message<T> << interface >> {
+  + mergeHeader(Map<String, String>): Message<T>
+  + header(): Header
+  + bodyType(): Class<T>
+  + body(): T
+  + createTime(): long
+}
+interface Query<Q, R> << interface >> {
+  + queryName(): String
+  + responseType(): ResponseType<R>
+}
+interface ResultMessage<R> << interface >>
+interface TypedBody<T> << interface >> {
+  + bodyType(): Class<T>
+}
+
+AbstractMessage            -[#008200,dashed]-^  Message
+Command             -[#008200,plain]-^  Message
+DefaultCommandMessage      -[#000082,plain]-^  AbstractMessage
+DefaultCommandMessage      -[#008200,dashed]-^  Command
+DefaultDomainEventMessage  -[#000082,plain]-^  DefaultEventMessage
+DefaultDomainEventMessage  -[#008200,dashed]-^  DomainEvent
+DefaultEventMessage        -[#000082,plain]-^  AbstractMessage
+DefaultEventMessage        -[#008200,dashed]-^  EventMessage
+DomainEvent         -[#008200,plain]-^  EventMessage
+EventMessage               -[#008200,plain]-^  Message
+Identifier                 -[#999900,dotted]-  Immutable
+Message                    -[#008200,plain]-^  Identifier
+Message                    -[#999900,dotted]-  Immutable
+Message                    -[#008200,plain]-^  TypedBody
+Query               -[#008200,plain]-^  Message
+ResultMessage              -[#008200,plain]-^  Message
+@enduml

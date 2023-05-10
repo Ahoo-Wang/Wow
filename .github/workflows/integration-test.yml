@@ -1,0 +1,261 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Integration Test
+on:
+  push:
+    paths-ignore:
+      - 'document/**'
+      - 'wow-example/**'
+  pull_request:
+    paths-ignore:
+      - 'document/**'
+      - 'wow-example/**'
+env:
+  CI: GITHUB_ACTIONS
+
+jobs:
+  wow-api-test:
+    name: Wow Api Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Api
+        run: gradle wow-api:clean wow-api:check --stacktrace
+
+  wow-core-test:
+    name: Wow Core Test
+    runs-on: ubuntu-latest
+    needs: [ wow-api-test ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Core
+        run: gradle wow-core:clean wow-core:check --stacktrace
+
+  wow-compiler-test:
+    name: Wow Compiler Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Compiler
+        run: gradle wow-compiler:clean wow-compiler:check --stacktrace
+
+  wow-kafka-test:
+    name: Wow Kafka Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Kafka
+        run: gradle wow-kafka:clean wow-kafka:check --stacktrace
+
+  wow-mongo-test:
+    name: Wow Mongo Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Mongo
+        run: gradle wow-mongo:clean wow-mongo:check --stacktrace
+
+  wow-it-test:
+    name: Wow IT Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-IT
+        run: gradle wow-it:clean wow-it:check --stacktrace
+
+  wow-r2dbc-test:
+    name: Wow R2DBC Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    env:
+      MYSQL: 5.1
+    steps:
+      - name: Start Mysql
+        run: sudo /etc/init.d/mysql start
+
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Init Wow-Db
+        run: mysql -vvv -h localhost -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
+
+      - name: Test Wow-R2DBC
+        run: gradle wow-r2dbc:clean wow-r2dbc:check --stacktrace
+
+  wow-elasticsearch-test:
+    name: Wow ElasticSearch Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-ElasticSearch
+        run: gradle wow-elasticsearch:clean wow-elasticsearch:check --stacktrace
+
+  wow-spring-test:
+    name: Wow Spring Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Spring
+        run: gradle wow-spring:clean wow-spring:check --stacktrace
+
+  wow-webflux-test:
+    name: Wow Webflux Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Webflux
+        run: gradle wow-webflux:clean wow-webflux:check --stacktrace
+
+  wow-spring-boot-starter-test:
+    name: Wow Spring-Boot-Starter Test
+    needs: [ wow-spring-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Spring-Boot-Starter
+        run: gradle wow-spring-boot-starter:clean wow-spring-boot-starter:check --stacktrace
+
+  wow-opentelemetry-test:
+    name: Wow Opentelemetry Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-opentelemetry
+        run: gradle wow-opentelemetry:clean wow-opentelemetry:check --stacktrace

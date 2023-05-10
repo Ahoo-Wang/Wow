@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="459px" preserveAspectRatio="none" style="width:442px;height:459px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 442 459" width="442px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="245.5" y="0"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="245.5" y="9.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <rect fill="none" height="42.9766" id="_title" style="stroke:none;stroke-width:1.0;" width="163" x="132.75"
+              y="17.7773"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="153" x="137.75" y="36.3125">Aggregate State Flow
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              text-decoration="underline" textLength="102" x="163.25" y="52.8008">State Diagram
+        </text>
+        <g id="Stored">
+            <rect fill="#F1F1F1" height="50.6211" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;"
+                  width="215" x="180" y="153.7539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="180" x2="395" y1="180.2422" y2="180.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="45" x="265"
+                  y="172.2891">Stored
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacing" textLength="195" x="185"
+                  y="196.8438">Sourced.Version = Stored.Version
+            </text>
+        </g>
+        <g id="Sourced">
+            <rect fill="#F1F1F1" height="50.6211" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;"
+                  width="215" x="121" y="281.7539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="121" x2="336" y1="308.2422" y2="308.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="56"
+                  x="200.5" y="300.2891">Sourced
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacing" textLength="195" x="126"
+                  y="324.8438">Sourced.Version &gt; Stored.Version
+            </text>
+        </g>
+        <g id="elem_AppendState">
+            <polygon fill="#F1F1F1" points="228.5,409.7539,240.5,421.7539,228.5,433.7539,216.5,421.7539,228.5,409.7539"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+        </g>
+        <g id="Expired">
+            <rect fill="#F1F1F1" height="50.6211" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;"
+                  width="97" x="7" y="153.7539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="7" x2="104" y1="180.2422" y2="180.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="53" x="29"
+                  y="172.2891">Expired
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacing" textLength="77" x="12"
+                  y="196.8438">InConsistency
+            </text>
+        </g>
+        <ellipse cx="287.5" cy="82.7539" fill="#222222" rx="10" ry="10" style="stroke:none;stroke-width:1.0;"/><!--MD5=[82cd71edbb762befba2c6267d21cbb1c]
+link *start to Stored-->
+        <g id="link_*start_Stored">
+            <path d="M287.5,93.1639 C287.5,105.6639 287.5,128.3539 287.5,147.1639 " fill="none" id="*start-to-Stored"
+                  style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818" points="287.5,151.8639,291.5,142.8639,287.5,146.8639,283.5,142.8639,287.5,151.8639"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--MD5=[bf4dd46fb3975b818d684f0e0088b9fb]
+link Stored to Sourced-->
+        <g id="link_Stored_Sourced">
+            <path d="M275.84,205.1439 C266.35,225.4239 252.9,254.1439 242.77,275.7839 " fill="none"
+                  id="Stored-to-Sourced" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="240.77,280.0439,248.2018,273.5811,242.8852,275.5134,240.9529,270.1967,240.77,280.0439"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="55"
+                  x="262.5" y="248.3223">sourcing
+            </text>
+        </g><!--MD5=[9454c616b031254d23af2b50e89b3797]
+link Sourced to AppendState-->
+        <g id="link_Sourced_AppendState">
+            <path d="M228.5,333.2239 C228.5,354.3239 228.5,384.0339 228.5,402.8439 " fill="none"
+                  id="Sourced-to-AppendState" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818" points="228.5,407.7239,232.5,398.7239,228.5,402.7239,224.5,398.7239,228.5,407.7239"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="123"
+                  x="229.5" y="376.3223">appendEventStream
+            </text>
+        </g><!--MD5=[8329ae992f943b3e85b6b9aaf594d4f4]
+link AppendState to Stored-->
+        <g id="link_AppendState_Stored">
+            <path d="M240.69,421.3039 C267.77,421.7839 332.8,418.6339 361.5,379.7539 C400.5,326.9139 349.65,251.2539 314.93,209.9539 "
+                  fill="none" id="AppendState-to-Stored" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="311.77,206.2439,314.5696,215.6865,315.0157,210.0472,320.6549,210.4934,311.77,206.2439"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="58"
+                  x="376.5" y="312.3223">[success]
+            </text>
+        </g><!--MD5=[32445accf86860a936258734c15d0bf9]
+link AppendState to Expired-->
+        <g id="link_AppendState_Expired">
+            <path d="M219.16,418.5939 C191.49,411.6639 109.61,387.1539 73.5,332.7539 C49.38,296.4139 48.74,244.2439 51.42,211.3139 "
+                  fill="none" id="AppendState-to-Expired" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="51.85,206.5039,47.0427,215.0998,51.3922,211.4829,55.0091,215.8324,51.85,206.5039"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="28" x="74.5"
+                  y="312.3223">[fail]
+            </text>
+        </g><!--MD5=[7f4ca0ec0d7be80934ee881d08955701]
+link Expired to Stored-->
+        <g id="link_Expired_Stored">
+            <path d="M104.42,179.2539 C124.68,179.2539 149.09,179.2539 173.4,179.2539 " fill="none"
+                  id="Expired-to-Stored" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="178.4,179.2539,169.4115,175.2282,173.4,179.2396,169.3886,183.2282,178.4,179.2539"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="39"
+                  x="122.5" y="172.8223">reload
+            </text>
+        </g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="122.75" y="439.7539"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="122.75" y="449.4219">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--MD5=[debb2af063eb4bdaf3b9432c5e7a43ad]
+@startuml
+
+!include layout.puml
+
+title
+Aggregate State Flow
+__State Diagram__
+end title
+
+state Stored
+state Sourced
+state AppendState <<choice>>
+state Expired
+
+Stored: Sourced.Version = Stored.Version
+Expired: InConsistency
+
+[*] - -> Stored
+
+Stored - -> Sourced: sourcing
+Sourced: Sourced.Version > Stored.Version
+
+Sourced - -> AppendState: appendEventStream
+
+AppendState - -> Stored: [success]
+AppendState - -> Expired: [fail]
+
+Expired -> Stored: reload
+
+@enduml
+
+@startuml
+
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title
+Aggregate State Flow
+__State Diagram__
+end title
+
+state Stored
+state Sourced
+state AppendState <<choice>>
+state Expired
+
+Stored: Sourced.Version = Stored.Version
+Expired: InConsistency
+
+[*] - -> Stored
+
+Stored - -> Sourced: sourcing
+Sourced: Sourced.Version > Stored.Version
+
+Sourced - -> AppendState: appendEventStream
+
+AppendState - -> Stored: [success]
+AppendState - -> Expired: [fail]
+
+Expired -> Stored: reload
+
+@enduml
+
+PlantUML version 1.2022.12(Mon Oct 24 02:12:26 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+-->
+    </g>
+</svg>

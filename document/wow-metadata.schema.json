@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/document/wow-metadata.schema.json",
+  "title": "Wow Bounded Context Schema",
+  "description": "Wow Bounded Context Schema",
+  "type": "object",
+  "properties": {
+    "domain": {
+      "$ref": "#/definitions/domain"
+    },
+    "contexts": {
+      "$ref": "#/definitions/contexts"
+    }
+  },
+  "required": [
+    "contexts"
+  ],
+  "definitions": {
+    "domain": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "domain name"
+        }
+      }
+    },
+    "contexts": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/boundedContext"
+      }
+    },
+    "boundedContext": {
+      "description": "Bounded Context",
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "aggregates": {
+          "$ref": "#/definitions/aggregates"
+        }
+      },
+      "additionalProperties": false
+    },
+    "aggregates": {
+      "type": "object",
+      "description": "Aggregate name Map Aggregate",
+      "additionalProperties": {
+        "$ref": "#/definitions/aggregate"
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Aggregate type fully qualified name"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

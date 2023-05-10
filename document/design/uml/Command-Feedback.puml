@@ -1,0 +1,53 @@
+@startuml
+
+!include layout.puml
+
+title
+Command Feedback
+__Sequence Diagram__
+end title
+
+actor Client
+participant CommandExchange
+queue CommandBus
+queue FeedbackBus
+participant Aggregate
+queue DomainEventBus
+participant Projector
+
+Client ++
+CommandBus++
+FeedbackBus++
+DomainEventBus++
+Aggregate++
+Projector ++
+CommandBus <- Aggregate: Subscribe
+DomainEventBus <-- Projector: Subscribe
+
+autonumber "[00]"
+
+Client -> CommandBus : send(Command)
+
+CommandBus --> Aggregate: Command
+
+create CommandExchange
+
+CommandExchange <- CommandBus++
+Client <-- CommandExchange
+Client -> CommandExchange: WaitingFor \n 1. Sent \n 2. Aggregate \n 3. Projector
+
+CommandExchange -> FeedbackBus: Subscribe
+
+Aggregate -> Aggregate: handle Command
+Aggregate -> DomainEventBus: Domain Event
+DomainEventBus --> Projector: Domain Event
+
+FeedbackBus <- Aggregate: aggregate handle result \n with CommandId
+CommandExchange <- FeedbackBus: aggregate handle result \n with CommandId
+FeedbackBus <- Projector: projector handle result \n with CommandId
+
+CommandExchange <- FeedbackBus:projector handle result \n with CommandId
+
+Client <-- CommandExchange: Result
+
+@enduml

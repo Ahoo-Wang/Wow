@@ -1,0 +1,50 @@
+complexity:
+  LongParameterList:
+    active: false
+  NestedBlockDepth:
+    active: false
+  TooManyFunctions:
+    active: false
+style:
+  MaxLineLength:
+    maxLineLength: 300
+  ReturnCount:
+    active: false
+  UseCheckOrError:
+    active: false
+  UnusedPrivateMember:
+    active: false
+  ProtectedMemberInFinalClass:
+    active: false
+  MagicNumber:
+    active: false
+  UnnecessaryAbstractClass:
+    active: false
+  WildcardImport:
+    excludeImports:
+      - java.util.*
+      - org.hamcrest.Matchers.*
+naming:
+  MemberNameEqualsClassName:
+    active: false
+  MatchingDeclarationName:
+    active: false
+exceptions:
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+    excludes:
+      - me.ahoo.wow.messaging.dispatcher.SafeSubscriber.kt
+  ThrowingExceptionsWithoutMessageOrCause:
+    active: false
+performance:
+  SpreadOperator:
+    active: false
+formatting:
+  NoWildcardImports:
+    packagesToUseImportOnDemandProperty: "java.util.*,org.hamcrest.Matchers.*"
+  MaximumLineLength:
+    active: false
+  Filename:
+    active: false

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+    </annotationProcessing>
+    <bytecodeTargetLevel target="1.8">
+      <module name="Wow.example.example-api.jmh" target="8" />
+      <module name="Wow.example.example-api.main" target="8" />
+      <module name="Wow.example.example-api.test" target="8" />
+      <module name="Wow.example.jmh" target="8" />
+      <module name="Wow.example.main" target="8" />
+      <module name="Wow.example.test" target="8" />
+      <module name="Wow.jmh" target="11" />
+      <module name="Wow.saas.jmh" target="8" />
+      <module name="Wow.saas.main" target="8" />
+      <module name="Wow.saas.tenant-service.jmh" target="8" />
+      <module name="Wow.saas.tenant-service.main" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.jmh" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.main" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.tenant-api.jmh" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.tenant-api.main" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.tenant-api.test" target="8" />
+      <module name="Wow.saas.tenant-service.tenant-api.test" target="8" />
+      <module name="Wow.saas.tenant-service.test" target="8" />
+      <module name="Wow.saas.test" target="8" />
+      <module name="Wow.tenant-api.jmh" target="8" />
+      <module name="Wow.tenant-api.main" target="8" />
+      <module name="Wow.tenant-api.test" target="8" />
+      <module name="Wow.wow-connector.jmh" target="8" />
+      <module name="Wow.wow-connector.main" target="8" />
+      <module name="Wow.wow-connector.test" target="8" />
+      <module name="Wow.wow-dashboard.main" target="8" />
+      <module name="Wow.wow-dashboard.test" target="8" />
+      <module name="Wow.wow-domains.jmh" target="8" />
+      <module name="Wow.wow-domains.main" target="8" />
+      <module name="Wow.wow-domains.test" target="8" />
+      <module name="Wow.wow-example.main" target="8" />
+      <module name="Wow.wow-example.test" target="8" />
+      <module name="Wow.wow-ksp.jmh" target="8" />
+      <module name="Wow.wow-ksp.main" target="8" />
+      <module name="Wow.wow-ksp.test" target="8" />
+      <module name="Wow.wow-tracing.jmh" target="8" />
+      <module name="Wow.wow-tracing.main" target="8" />
+      <module name="Wow.wow-tracing.test" target="8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

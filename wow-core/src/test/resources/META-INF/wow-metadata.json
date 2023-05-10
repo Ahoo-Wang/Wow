@@ -1,0 +1,44 @@
+{
+  "contexts": {
+    "wow-core-test": {
+      "scopes": [
+        "me.ahoo.wow"
+      ],
+      "aggregates": {
+        "command_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.command"
+          ]
+        },
+        "event_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.event"
+          ]
+        },
+        "modeling_state_aggregate": {
+          "scopes": [
+            "me.ahoo.wow.modeling.state"
+          ]
+        },
+        "modeling_annotation_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockCommandAggregate"
+        },
+        "modeling_annotation_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAggregate"
+        },
+        "modeling_annotation_aggregate_with_aggregate_id": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAggregateWithAggregateId"
+        },
+        "modeling_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.MockCommandAggregate",
+          "scopes": [
+            "me.ahoo.wow.modeling.command"
+          ]
+        },
+        "messaging_aggregate": {
+          "scopes": ["me.ahoo.wow.messaging"]
+        }
+      }
+    }
+  }
+}

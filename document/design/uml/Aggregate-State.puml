@@ -1,0 +1,30 @@
+@startuml
+
+!include layout.puml
+
+title
+Aggregate State Flow
+__State Diagram__
+end title
+
+state Stored
+state Sourced
+state AppendState <<choice>>
+state Expired
+
+Stored: Sourced.Version = Stored.Version
+Expired: InConsistency
+
+[*] --> Stored
+
+Stored --> Sourced: sourcing
+Sourced: Sourced.Version > Stored.Version
+
+Sourced --> AppendState: appendEventStream
+
+AppendState --> Stored: [success]
+AppendState --> Expired: [fail]
+
+Expired -> Stored: reload
+
+@enduml
