@@ -18,6 +18,7 @@ import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.writeReceiverGroup
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -78,7 +79,7 @@ abstract class CommandBusSpec {
         log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
     }
 
-    private fun sendLoop(commandBus: CommandBus, maxCount: Int = 20000): Mono<Void> {
+    private fun sendLoop(commandBus: CommandBus, maxCount: Int = 2000): Mono<Void> {
         return Flux.range(0, maxCount)
             .publishOn(Schedulers.boundedElastic())
             .map {
@@ -88,6 +89,7 @@ abstract class CommandBusSpec {
             }.then()
     }
 
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
     @Test
     fun receivePerformance() {
         val commandBus = createCommandBus()

@@ -72,11 +72,16 @@ spec:
           volumeMounts:
             - mountPath: /etc/localtime
               name: volume-localtime
+            - mountPath: /opt/example-server/config/
+              name: wow-example-config
       volumes:
         - hostPath:
             path: /etc/localtime
             type: ""
           name: volume-localtime
+        - name: wow-example-config
+          configMap:
+            name: wow-example-config
 ---
 apiVersion: v1
 kind: Service
