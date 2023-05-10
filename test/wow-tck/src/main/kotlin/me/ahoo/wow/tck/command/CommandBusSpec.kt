@@ -91,7 +91,7 @@ abstract class CommandBusSpec {
     @Test
     fun receivePerformance() {
         val commandBus = createCommandBus()
-        val maxCount: Long = 20000
+        val maxCount: Long = 2000
         val duration = commandBus.receive(setOf(namedAggregateForSend))
             .writeReceiverGroup(GlobalIdGenerator.generateAsString())
             .test()

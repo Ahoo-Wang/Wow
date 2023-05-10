@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wow-example
+  labels:
+    app: wow-example
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: wow-example
+  template:
+    metadata:
+      labels:
+        app: wow-example
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      containers:
+        - name: wow-example
+          image: ahoowang/wow-example-server:latest
+          env:
+            - name: LANG
+              value: C.utf8
+            - name: TZ
+              value: Asia/Shanghai
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          startupProbe:
+            failureThreshold: 15
+            httpGet:
+              path: /actuator/health
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2560Mi
+            requests:
+              cpu: 250m
+              memory: 1792Mi
+          volumeMounts:
+            - mountPath: /etc/localtime
+              name: volume-localtime
+      volumes:
+        - hostPath:
+            path: /etc/localtime
+            type: ""
+          name: volume-localtime
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wow-example-svc
+spec:
+  selector:
+    app: wow-example
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wow-example-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wow-example
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 1200
