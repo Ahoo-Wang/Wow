@@ -25,23 +25,23 @@ data class AggregateGroupKey(val key: Int) {
     companion object {
         private const val CREATE_AGGREGATE_KEY = -1
         val CREATE_KEY = AggregateGroupKey(CREATE_AGGREGATE_KEY)
-        private val parallelism = System.getProperty("wow.aggregate.parallelism")?.toInt()
+        val DEFAULT_PARALLELISM = System.getProperty("wow.aggregate.parallelism")?.toInt()
             ?: Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE
         val AggregateGroupKey.isCreate: Boolean
             get() = this.key == CREATE_AGGREGATE_KEY
 
-        fun AggregateId.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
+        fun AggregateId.asGroupKey(parallelism: Int = DEFAULT_PARALLELISM): AggregateGroupKey {
             return AggregateGroupKey(mod(parallelism))
         }
 
-        fun <T : CommandMessage<*>> T.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
+        fun <T : CommandMessage<*>> T.asGroupKey(parallelism: Int = DEFAULT_PARALLELISM): AggregateGroupKey {
             if (isCreate) {
                 return CREATE_KEY
             }
             return aggregateId.asGroupKey(parallelism)
         }
 
-        fun <T : DomainEventStream> T.asGroupKey(parallelism: Int = AggregateGroupKey.parallelism): AggregateGroupKey {
+        fun <T : DomainEventStream> T.asGroupKey(parallelism: Int = DEFAULT_PARALLELISM): AggregateGroupKey {
             if (version == Version.INITIAL_VERSION) {
                 return CREATE_KEY
             }

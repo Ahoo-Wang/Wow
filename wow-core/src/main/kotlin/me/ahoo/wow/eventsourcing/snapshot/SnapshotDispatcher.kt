@@ -13,21 +13,19 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.shouldHandle
 import me.ahoo.wow.messaging.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
-import reactor.core.publisher.GroupedFlux
-import reactor.core.publisher.Mono
+import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import reactor.core.publisher.Flux
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 
 private const val SNAPSHOT_PROCESSOR_NAME = "snapshot"
 
@@ -36,31 +34,34 @@ class SnapshotDispatcher(
      * named like `applicationName.SnapshotDispatcher`
      */
     override val name: String,
-    override val topics: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
+    override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
     private val domainEventBus: DomainEventBus,
-    private val scheduler: Scheduler = Schedulers.newParallel(
-        Wow.WOW_PREFIX + SnapshotDispatcher::class.java.simpleName
-    )
-) : AbstractMessageDispatcher<Void>(), MessageDispatcher {
+    val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    private val schedulerSupplier: (NamedAggregate) -> Scheduler =
+        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+) : AbstractDispatcher<EventStreamExchange>(), MessageDispatcher {
 
-    override fun start() {
-        domainEventBus.receive(topics)
+    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
+        return domainEventBus
+            .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
             .filter {
                 it.message.shouldHandle(SNAPSHOT_PROCESSOR_NAME)
             }
-            .groupBy { it.message.aggregateId.mod(Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE) }
-            .flatMap { handleGroupedStream(it) }
-            .subscribe(this)
     }
 
-    private fun handleGroupedStream(grouped: GroupedFlux<Int, EventStreamExchange>): Mono<Void> {
-        return grouped
-            .publishOn(scheduler)
-            .concatMap { exchange ->
-                snapshotHandler.handle(exchange)
-            }.then()
+    override fun newAggregateDispatcher(
+        namedAggregate: NamedAggregate,
+        messageFlux: Flux<EventStreamExchange>
+    ): MessageDispatcher {
+        return AggregateSnapshotDispatcher(
+            snapshotHandler = snapshotHandler,
+            namedAggregate = namedAggregate,
+            parallelism = parallelism,
+            scheduler = schedulerSupplier(namedAggregate),
+            messageFlux = messageFlux
+        )
     }
 }

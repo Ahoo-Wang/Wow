@@ -14,14 +14,19 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import reactor.core.publisher.Flux
+import reactor.core.scheduler.Scheduler
 
 /**
  * Aggregate Command Dispatcher .
@@ -31,38 +36,37 @@ import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
 @Suppress("LongParameterList")
 class CommandDispatcher(
     override val name: String = CommandDispatcher::class.simpleName!!,
-    private val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
+    val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val commandBus: CommandBus,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
-    private val serviceProvider: ServiceProvider
-) : MessageDispatcher {
-    private val aggregateDispatchers = lazy {
-        namedAggregates
-            .map {
-                val commandFlux = commandBus
-                    .receive(setOf(it))
-                    .writeReceiverGroup(name)
-                    .writeMetricsSubscriber(name)
-                val aggregateMetadata = it
-                    .asRequiredAggregateType<Any>()
-                    .asAggregateMetadata<Any, Any>()
-                AggregateDispatcher(
-                    aggregateMetadata = aggregateMetadata,
-                    scheduler = AggregateSchedulerRegistrar.getOrInitialize(it),
-                    commandFlux = commandFlux,
-                    aggregateProcessorFactory = aggregateProcessorFactory,
-                    commandHandler = commandHandler,
-                    serviceProvider = serviceProvider
-                )
-            }
+    private val serviceProvider: ServiceProvider,
+    private val schedulerSupplier: (NamedAggregate) -> Scheduler =
+        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+) : AbstractDispatcher<ServerCommandExchange<Any>>() {
+    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<Any>> {
+        return commandBus
+            .receive(setOf(namedAggregate))
+            .writeReceiverGroup(name)
+            .writeMetricsSubscriber(name)
     }
 
-    override fun run() {
-        aggregateDispatchers.value.forEach { it.run() }
-    }
-
-    override fun close() {
-        aggregateDispatchers.value.forEach { it.close() }
+    override fun newAggregateDispatcher(
+        namedAggregate: NamedAggregate,
+        messageFlux: Flux<ServerCommandExchange<Any>>
+    ): MessageDispatcher {
+        val aggregateMetadata = namedAggregate
+            .asRequiredAggregateType<Any>()
+            .asAggregateMetadata<Any, Any>()
+        return AggregateCommandDispatcher(
+            aggregateMetadata = aggregateMetadata,
+            scheduler = schedulerSupplier(namedAggregate),
+            messageFlux = messageFlux,
+            parallelism = parallelism,
+            aggregateProcessorFactory = aggregateProcessorFactory,
+            commandHandler = commandHandler,
+            serviceProvider = serviceProvider
+        )
     }
 }

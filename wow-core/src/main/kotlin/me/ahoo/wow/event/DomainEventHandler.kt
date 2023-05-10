@@ -19,7 +19,8 @@ import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-interface DomainEventHandler : Handler<DomainEventExchange<Any>>
+interface EventHandler : Handler<DomainEventExchange<Any>>
+interface DomainEventHandler : EventHandler
 
 class DefaultDomainEventHandler(
     chain: FilterChain<DomainEventExchange<Any>>,

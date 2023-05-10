@@ -11,20 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.environment
+package me.ahoo.wow.messaging.dispatcher
 
-import reactor.core.scheduler.Scheduler
-
-interface DispatcherConfiguration {
+data class MessageParallelism(
+    val group: Int = AggregateGroupKey.DEFAULT_PARALLELISM,
+    val create: Int = AggregateGroupKey.DEFAULT_PARALLELISM
+) {
     companion object {
-        val DEFAULT_PARALLELISM = System.getProperty("wow.dispatcher.defaultParallelism")?.toInt()
-            ?: Runtime.getRuntime().availableProcessors()
+        val DEFAULT = MessageParallelism()
     }
-
-    val parallelism: Int
-    val scheduler: SchedulerConfiguration
-}
-
-interface SchedulerConfiguration {
-    fun newScheduler(): Scheduler
 }

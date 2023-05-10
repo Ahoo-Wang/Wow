@@ -13,7 +13,7 @@ spring:
 logging:
   level:
     #    root: debug
-    me.ahoo.wow: warn
+    me.ahoo.wow: info
 
 cosid:
   machine:

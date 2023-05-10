@@ -14,7 +14,6 @@
 package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.isCreate
@@ -26,26 +25,20 @@ import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
-/**
- * TODO
- */
-abstract class AggregateMessageDispatcher<T : MessageExchange<*>>(
-    private val parallelism: Int,
-    override val namedAggregate: NamedAggregate,
-    val scheduler: Scheduler
-) :
-    MessageDispatcher, NamedAggregateDecorator,
+abstract class AggregateMessageDispatcher<T : MessageExchange<*>> : MessageDispatcher, NamedAggregateDecorator,
     SafeSubscriber<Void>() {
     companion object {
         private val log = LoggerFactory.getLogger(AggregateMessageDispatcher::class.java)
     }
 
-    abstract fun receive(): Flux<T>
+    abstract val parallelism: MessageParallelism
+    abstract val scheduler: Scheduler
+    abstract val messageFlux: Flux<T>
     override fun run() {
         if (log.isInfoEnabled) {
             log.info("[$name] Run subscribe to $namedAggregate.")
         }
-        receive()
+        messageFlux
             .groupBy { it.asGroupKey() }
             .flatMap({
                 handleGroupedExchange(it)
@@ -57,13 +50,13 @@ abstract class AggregateMessageDispatcher<T : MessageExchange<*>>(
 
     private fun handleGroupedExchange(grouped: GroupedFlux<AggregateGroupKey, T>): Mono<Void> {
         val metricsGroupedFlux = grouped.name(Wow.WOW_PREFIX + "dispatcher")
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .tag("dispatcher", name)
+            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .tag("group.key", grouped.key().key.toString())
             .metrics()
         if (grouped.key().isCreate) {
             return metricsGroupedFlux
-                .parallel(parallelism).runOn(scheduler)
+                .parallel(parallelism.create).runOn(scheduler)
                 .flatMap { handleExchange(it) }
                 .then()
         }

@@ -14,13 +14,13 @@
 package me.ahoo.wow.projection
 
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-interface ProjectionHandler : Handler<DomainEventExchange<Any>>
+interface ProjectionHandler : EventHandler
 
 class DefaultProjectionHandler(
     chain: FilterChain<DomainEventExchange<Any>>,

@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
+@ConditionalOnMetricsEnabled
 class MetricsAutoConfiguration {
 
     @Bean

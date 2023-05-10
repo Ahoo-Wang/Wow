@@ -56,7 +56,7 @@ abstract class ProjectionDispatcherSpec {
                 name = "test-spec.ProjectionDispatcher",
                 domainEventBus = domainEventBus,
                 functionRegistrar = handlerRegistrar,
-                projectionHandler = DefaultProjectionHandler(chain).metrizable(),
+                eventHandler = DefaultProjectionHandler(chain).metrizable(),
             )
         projectionDispatcher.run()
 

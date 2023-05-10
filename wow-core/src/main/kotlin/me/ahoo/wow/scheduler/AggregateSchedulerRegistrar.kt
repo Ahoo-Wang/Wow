@@ -23,6 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 object AggregateSchedulerRegistrar {
     private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    val DEFAULT_SCHEDULER_SUPPLIER: (NamedAggregate) -> Scheduler = {
+        getOrInitialize(it)
+    }
 
     fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler {
         return schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->

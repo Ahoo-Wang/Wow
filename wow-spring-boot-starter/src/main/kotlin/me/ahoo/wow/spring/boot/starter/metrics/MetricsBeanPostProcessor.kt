@@ -14,11 +14,19 @@
 package me.ahoo.wow.spring.boot.starter.metrics
 
 import me.ahoo.wow.metrics.Metrics.metrizable
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 
 class MetricsBeanPostProcessor : BeanPostProcessor {
+    companion object {
+        private val log = LoggerFactory.getLogger(MetricsBeanPostProcessor::class.java)
+    }
+
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         val metrizableBean = bean.metrizable()
+        if (metrizableBean !== bean && log.isInfoEnabled) {
+            log.info("Metrizable bean [{}] - [{}]", beanName, metrizableBean::class.java.name)
+        }
         return metrizableBean
     }
 }

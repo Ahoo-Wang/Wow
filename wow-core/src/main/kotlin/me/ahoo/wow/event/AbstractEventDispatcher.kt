@@ -13,85 +13,43 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.mod
-import me.ahoo.wow.messaging.dispatcher.AbstractMessageDispatcher
-import me.ahoo.wow.messaging.handler.Handler
+import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.naming.annotation.asName
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
-import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 
-abstract class AbstractEventDispatcher<R : Mono<*>>(
-    private val domainEventBus: DomainEventBus,
-    private val functionRegistrar: AbstractEventFunctionRegistrar<R>,
-    private val eventHandler: Handler<DomainEventExchange<Any>>,
-) : AbstractMessageDispatcher<Void>() {
-
-    companion object {
-        private val log: Logger = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
-    }
-
-    override val topics: Set<NamedAggregate>
+abstract class AbstractEventDispatcher<R : Mono<*>> : AbstractDispatcher<EventStreamExchange>() {
+    abstract val parallelism: MessageParallelism
+    abstract val domainEventBus: DomainEventBus
+    abstract val functionRegistrar: AbstractEventFunctionRegistrar<R>
+    abstract val eventHandler: EventHandler
+    override val namedAggregates: Set<NamedAggregate>
         get() = functionRegistrar.namedAggregates
-    protected abstract val scheduler: Scheduler
+    protected abstract val schedulerSupplier: (NamedAggregate) -> Scheduler
 
-    override fun start() {
-        domainEventBus
-            .receive(topics)
+    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
+        return domainEventBus
+            .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
-            .groupBy { it.message.aggregateId.mod(Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE) }
-            .flatMap({ handleGroupedEvent(it) }, Int.MAX_VALUE)
-            .subscribe(this)
     }
 
-    private fun handleGroupedEvent(grouped: GroupedFlux<Int, EventStreamExchange>): Mono<Void> {
-        return grouped
-            .publishOn(scheduler)
-            .concatMap { exchange ->
-                Flux.fromIterable(exchange.message)
-                    .concatMap { handleEvent(it) }
-                    .doFinally { exchange.acknowledge() }
-            }.then()
-    }
-
-    private fun handleEvent(
-        event: DomainEvent<*>
-    ): Mono<Void> {
-        val eventType: Class<*> = event.body.javaClass
-        val functions = functionRegistrar.getFunctions(eventType)
-            .filter {
-                if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
-                    return@filter false
-                }
-                return@filter event.shouldHandle(it.processor.javaClass.asName())
-            }
-        if (functions.isEmpty()) {
-            if (log.isDebugEnabled) {
-                log.debug(
-                    "{} eventType[{}] not find any functions.Ignore this event:[{}].",
-                    event.aggregateId,
-                    eventType,
-                    event
-                )
-            }
-            return Mono.empty()
-        }
-        return Flux.fromIterable(functions)
-            .flatMap { function ->
-                @Suppress("UNCHECKED_CAST")
-                val eventExchange: DomainEventExchange<Any> =
-                    SimpleDomainEventExchange(event, function) as DomainEventExchange<Any>
-                eventHandler.handle(eventExchange)
-            }.then()
+    override fun newAggregateDispatcher(
+        namedAggregate: NamedAggregate,
+        messageFlux: Flux<EventStreamExchange>
+    ): MessageDispatcher {
+        return AggregateEventDispatcher(
+            namedAggregate = namedAggregate,
+            parallelism = parallelism,
+            messageFlux = messageFlux,
+            eventHandler = eventHandler,
+            functionRegistrar = functionRegistrar,
+            scheduler = schedulerSupplier(namedAggregate)
+        )
     }
 }

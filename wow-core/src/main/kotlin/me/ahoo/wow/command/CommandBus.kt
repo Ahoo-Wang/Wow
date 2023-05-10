@@ -14,9 +14,8 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageBus
-import reactor.core.publisher.Flux
+import me.ahoo.wow.messaging.ReceiveMessageBus
 import reactor.core.publisher.Mono
 
 /**
@@ -26,8 +25,6 @@ import reactor.core.publisher.Mono
  * @see InMemoryCommandBus
  *
  */
-interface CommandBus : MessageBus {
+interface CommandBus : MessageBus, ReceiveMessageBus<ServerCommandExchange<Any>> {
     fun <C : Any> send(command: CommandMessage<C>): Mono<Void>
-
-    fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>>
 }

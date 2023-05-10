@@ -11,10 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.dispatcher
+package me.ahoo.wow.spring.boot.starter.metrics
 
-object HandledSignal {
-    override fun toString(): String {
-        return "HandledSignal"
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+
+@ConditionalOnProperty(
+    value = [ConditionalOnMetricsEnabled.ENABLED_KEY],
+    matchIfMissing = true,
+    havingValue = "true",
+)
+annotation class ConditionalOnMetricsEnabled {
+    companion object {
+        const val ENABLED_KEY: String = Wow.WOW_PREFIX + "metrics" + ENABLED_SUFFIX_KEY
     }
 }

@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
@@ -42,7 +43,7 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
     override fun createEventStore(): EventStore {
         val database = client.getDatabase(DATABASE_NAME)
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
-        return MongoEventStore(database)
+        return MongoEventStore(database).metrizable()
     }
 
     private val onCommandSeekSink = Sinks.empty<Void>()
@@ -63,7 +64,7 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
                         }
                     }
             },
-        )
+        ).metrizable()
     }
 
     override fun createEventBus(): DomainEventBus {

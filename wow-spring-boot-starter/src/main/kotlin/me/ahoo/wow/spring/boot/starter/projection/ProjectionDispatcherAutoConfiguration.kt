@@ -97,7 +97,7 @@ class ProjectionDispatcherAutoConfiguration {
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",
             domainEventBus = domainEventBus,
             functionRegistrar = handlerRegistrar,
-            projectionHandler = projectionHandler,
+            eventHandler = projectionHandler,
         )
     }
 

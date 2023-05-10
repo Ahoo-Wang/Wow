@@ -13,22 +13,23 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 
 class ProjectionDispatcher(
     /**
      * named like `applicationName.ProjectionDispatcher`
      */
     override val name: String,
-    domainEventBus: DomainEventBus,
-    functionRegistrar: ProjectionFunctionRegistrar,
-    projectionHandler: ProjectionHandler,
-    override val scheduler: Scheduler = Schedulers.newParallel(
-        Wow.WOW_PREFIX + ProjectionDispatcher::class.java.simpleName
-    )
-) : AbstractEventDispatcher<Mono<*>>(domainEventBus, functionRegistrar, projectionHandler)
+    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val domainEventBus: DomainEventBus,
+    override val functionRegistrar: ProjectionFunctionRegistrar,
+    override val eventHandler: ProjectionHandler,
+    override val schedulerSupplier: (NamedAggregate) -> Scheduler =
+        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+) : AbstractEventDispatcher<Mono<*>>()

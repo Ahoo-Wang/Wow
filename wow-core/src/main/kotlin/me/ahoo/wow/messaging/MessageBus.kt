@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import reactor.core.publisher.Flux
 import reactor.util.context.Context
 import reactor.util.context.ContextView
@@ -20,6 +21,10 @@ import reactor.util.context.ContextView
 interface MessageBus
 
 interface MessageGateway : MessageBus
+
+interface ReceiveMessageBus<E> : MessageBus {
+    fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
+}
 
 const val RECEIVER_GROUP = "(ReceiverGroup)"
 

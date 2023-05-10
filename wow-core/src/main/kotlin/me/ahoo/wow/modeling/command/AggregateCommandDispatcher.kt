@@ -12,16 +12,17 @@
  */
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 
 /**
  * Aggregate Command Dispatcher Grouped by NamedAggregate.
@@ -33,19 +34,21 @@ import reactor.core.scheduler.Schedulers
  * @author ahoo wang
  */
 @Suppress("LongParameterList")
-class AggregateDispatcher<C : Any, S : Any>(
+class AggregateCommandDispatcher<C : Any, S : Any>(
     val aggregateMetadata: AggregateMetadata<C, S>,
-    scheduler: Scheduler,
-    private val commandFlux: Flux<ServerCommandExchange<Any>>,
-    override val name: String = AggregateDispatcher::class.simpleName!!,
+    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val scheduler: Scheduler,
+    override val messageFlux: Flux<ServerCommandExchange<Any>>,
+    override val name: String =
+        "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider
-) : AggregateMessageDispatcher<ServerCommandExchange<Any>>(
-    Schedulers.DEFAULT_POOL_SIZE,
-    aggregateMetadata.namedAggregate,
-    scheduler
-) {
+) : AggregateMessageDispatcher<ServerCommandExchange<Any>>() {
+
+    override val namedAggregate: NamedAggregate
+        get() = aggregateMetadata.namedAggregate
+
     override fun handleExchange(exchange: ServerCommandExchange<Any>): Mono<Void> {
         val aggregateId = exchange.message.aggregateId
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
@@ -55,11 +58,7 @@ class AggregateDispatcher<C : Any, S : Any>(
         return commandHandler.handle(exchange)
     }
 
-    override fun receive(): Flux<ServerCommandExchange<Any>> {
-        return commandFlux
-    }
-
     override fun ServerCommandExchange<Any>.asGroupKey(): AggregateGroupKey {
-        return message.asGroupKey()
+        return message.asGroupKey(parallelism.group)
     }
 }

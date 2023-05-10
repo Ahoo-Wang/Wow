@@ -12,9 +12,8 @@
  */
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageBus
-import reactor.core.publisher.Flux
+import me.ahoo.wow.messaging.ReceiveMessageBus
 import reactor.core.publisher.Mono
 
 /**
@@ -24,8 +23,6 @@ import reactor.core.publisher.Mono
  * 2. 领域事件处理有序性
  *
  */
-interface DomainEventBus : MessageBus {
+interface DomainEventBus : MessageBus, ReceiveMessageBus<EventStreamExchange> {
     fun send(eventStream: DomainEventStream): Mono<Void>
-
-    fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange>
 }

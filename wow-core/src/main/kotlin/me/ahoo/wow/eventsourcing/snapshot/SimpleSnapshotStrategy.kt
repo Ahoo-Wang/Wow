@@ -14,7 +14,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.function.logErrorResume
@@ -42,10 +42,8 @@ open class SimpleSnapshotStrategy(
     override fun onEvent(eventStream: DomainEventStream): Mono<Void> {
         val aggregateId = eventStream.aggregateId
 
-        @Suppress("UNCHECKED_CAST")
-        val aggregateType: Class<Any> = MetadataSearcher.namedAggregateType[aggregateId.namedAggregate]!! as Class<Any>
         val aggregateMetadata =
-            aggregateType.asAggregateMetadata<Any, Any>()
+            aggregateId.namedAggregate.asRequiredAggregateType<Any>().asAggregateMetadata<Any, Any>()
 
         return snapshotRepository.load<Any>(aggregateId)
             .map {

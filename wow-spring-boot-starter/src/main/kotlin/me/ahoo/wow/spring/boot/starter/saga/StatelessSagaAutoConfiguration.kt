@@ -98,7 +98,7 @@ class StatelessSagaAutoConfiguration {
             name = "${namedBoundedContext.contextName}.${StatelessSagaDispatcher::class.simpleName}",
             domainEventBus = domainEventBus,
             functionRegistrar = handlerRegistrar,
-            statelessSagaHandler = statelessSagaHandler,
+            eventHandler = statelessSagaHandler,
         )
     }
 

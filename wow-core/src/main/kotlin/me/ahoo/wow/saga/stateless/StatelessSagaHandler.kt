@@ -14,13 +14,13 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-interface StatelessSagaHandler : Handler<DomainEventExchange<Any>>
+interface StatelessSagaHandler : EventHandler
 
 class DefaultStatelessSagaHandler(
     chain: FilterChain<DomainEventExchange<Any>>,
