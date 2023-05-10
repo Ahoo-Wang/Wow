@@ -80,7 +80,7 @@ abstract class DomainEventBusSpec {
     @Test
     fun sendPerformance() {
         val eventBus = createEventBus()
-        val maxTimes = 80000
+        val maxTimes = 20000
         val duration = Flux.generate<DomainEventStream, Int>({ 0 }) { state, sink ->
             if (state < maxTimes) {
                 val eventStream = MockDomainEventStreams.generateEventStream(

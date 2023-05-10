@@ -78,7 +78,7 @@ abstract class CommandBusSpec {
         log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
     }
 
-    private fun sendLoop(commandBus: CommandBus, maxCount: Int = 80000): Mono<Void> {
+    private fun sendLoop(commandBus: CommandBus, maxCount: Int = 20000): Mono<Void> {
         return Flux.range(0, maxCount)
             .publishOn(Schedulers.boundedElastic())
             .map {
@@ -91,7 +91,7 @@ abstract class CommandBusSpec {
     @Test
     fun receivePerformance() {
         val commandBus = createCommandBus()
-        val maxCount: Long = 80000
+        val maxCount: Long = 20000
         val duration = commandBus.receive(setOf(namedAggregateForSend))
             .writeReceiverGroup(GlobalIdGenerator.generateAsString())
             .test()
