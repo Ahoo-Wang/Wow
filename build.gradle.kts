@@ -134,7 +134,6 @@ configure(publishProjects) {
                     password = System.getenv("GITHUB_TOKEN")
                 }
             }
-            //TODO
             maven {
                 name = "LinYiPackages"
                 url = uri(project.properties["linyiPackageReleaseUrl"].toString())
