@@ -89,7 +89,7 @@ abstract class CommandBusSpec {
             }.then()
     }
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @DisabledIfEnvironmentVariable(named = "CI", matches = ".*")
     @Test
     fun receivePerformance() {
         val commandBus = createCommandBus()
