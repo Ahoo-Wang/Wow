@@ -25,7 +25,7 @@ import me.ahoo.wow.example.api.cart.CartService.SERVICE_NAME
     ]
 )
 object CartService {
-    const val SERVICE_NAME = "cart-service"
+    const val SERVICE_NAME = "cart-example-service"
     const val SERVICE_ALIAS = "cart"
     const val CART_AGGREGATE_NAME = "cart"
 }

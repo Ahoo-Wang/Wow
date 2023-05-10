@@ -23,7 +23,7 @@ import me.ahoo.wow.example.api.order.OrderService.ORDER_AGGREGATE_NAME
     ]
 )
 object OrderService {
-    const val SERVICE_NAME = "order-service"
+    const val SERVICE_NAME = "order-example-service"
 
     const val ORDER_AGGREGATE_NAME = "order"
 }
