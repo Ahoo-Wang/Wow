@@ -19,7 +19,8 @@ import reactor.util.context.Context
 import reactor.util.context.ContextView
 
 interface MessageBus
-
+interface LocalMessageBus : MessageBus
+interface DistributedMessageBus : MessageBus
 interface MessageGateway : MessageBus
 
 interface ReceiveMessageBus<E> : MessageBus {

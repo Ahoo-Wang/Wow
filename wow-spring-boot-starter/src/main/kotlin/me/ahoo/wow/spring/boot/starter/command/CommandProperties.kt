@@ -27,10 +27,15 @@ data class CommandProperties(val bus: Bus = Bus()) {
 
     data class Bus(
         val type: MessageBusType = MessageBusType.KAFKA,
+        val localFirst: LocalFirst = LocalFirst(),
     ) {
         companion object {
             const val TYPE = "$PREFIX.bus.type"
             const val COMMAND_BUS_BEAN_NAME = "commandBus"
         }
     }
+
+    data class LocalFirst(
+        val enabled: Boolean = true,
+    )
 }

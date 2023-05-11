@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.command
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.LocalFirstCommandBus
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -25,8 +26,10 @@ import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.infra.Decorator.Companion.getDelegate
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -84,19 +87,29 @@ class CommandGatewayAutoConfiguration {
         return ProjectedNotifierFilter(commandWaitNotifier)
     }
 
+    @Suppress("LongParameterList")
     @Bean
     @Primary
     @ConditionalOnMissingBean
     fun commandGateway(
+        commandProperties: CommandProperties,
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
         validator: Validator,
         idempotencyChecker: IdempotencyChecker,
         waitStrategyRegistrar: WaitStrategyRegistrar,
     ): CommandGateway {
+        val perfectCommandBus =
+            if (commandProperties.bus.localFirst.enabled &&
+                commandBus.getDelegate() is DistributedMessageBus
+            ) {
+                LocalFirstCommandBus(distributedCommandBus = commandBus)
+            } else {
+                commandBus
+            }
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
-            commandBus = commandBus,
+            commandBus = perfectCommandBus,
             idempotencyChecker = idempotencyChecker,
             waitStrategyRegistrar = waitStrategyRegistrar,
             validator = validator,

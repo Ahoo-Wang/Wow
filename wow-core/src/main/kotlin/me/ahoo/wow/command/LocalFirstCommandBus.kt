@@ -11,32 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.command
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricCommandBus(delegate: CommandBus) : CommandBus, AbstractMetricDecorator<CommandBus>(delegate), Metrizable {
+class LocalFirstCommandBus(
+    private val distributedCommandBus: CommandBus,
+    private val localCommandBus: CommandBus = InMemoryCommandBus().metrizable(),
+    private val localAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
+) : CommandBus {
+
     override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
-        return delegate.send(command)
-            .name(Wow.WOW_PREFIX + "command.send")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, command.aggregateName)
-            .tag(Metrics.COMMAND_KEY, command.name)
-            .metrics()
+        if (localAggregates.contains(command.materialize())) {
+            return localCommandBus.send(command)
+        }
+        return distributedCommandBus.send(command)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
-        return delegate.receive(namedAggregates)
-            .name(Wow.WOW_PREFIX + "command.receive")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
-            .tagMetricsSubscriber()
+        val localFlux = localCommandBus.receive(namedAggregates)
+        val distributedFlux = distributedCommandBus.receive(namedAggregates)
+        return Flux.merge(localFlux, distributedFlux)
     }
 }

@@ -14,6 +14,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -39,7 +40,7 @@ class InMemoryCommandBus(
     private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<Any>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
-) : CommandBus {
+) : CommandBus, LocalMessageBus {
     companion object {
         private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
     }

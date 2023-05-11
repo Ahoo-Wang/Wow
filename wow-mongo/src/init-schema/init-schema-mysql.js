@@ -16,3 +16,12 @@ db.snapshot.createIndex({tenantId: "hashed"});
 sh.enableSharding("wow_db");
 sh.shardCollection("wow_db.snapshot", { "_id" : 1 });
 sh.shardCollection("wow_db.event_stream", { "aggregateId" : "hashed" });
+
+
+// example
+use wow_example_db;
+sh.enableSharding("wow_example_db");
+sh.shardCollection("wow_example_db.order_snapshot", { "_id" : 1 });
+sh.shardCollection("wow_example_db.order_event_stream", { "aggregateId" : "hashed" });
+sh.shardCollection("wow_example_db.cart_snapshot", { "_id" : 1 });
+sh.shardCollection("wow_example_db.cart_event_stream", { "aggregateId" : "hashed" });
