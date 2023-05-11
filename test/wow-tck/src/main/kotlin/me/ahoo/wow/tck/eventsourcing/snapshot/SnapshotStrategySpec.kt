@@ -17,6 +17,7 @@ import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.modeling.AggregateChanged
@@ -35,8 +36,8 @@ abstract class SnapshotStrategySpec {
     private val snapshotStrategy: SnapshotStrategy
 
     init {
-        this.eventStore = createEventStore()
-        this.snapshotStrategy = createSnapshotStrategy()
+        this.eventStore = createEventStore().metrizable()
+        this.snapshotStrategy = createSnapshotStrategy().metrizable()
     }
 
     open fun createEventStore(): EventStore {

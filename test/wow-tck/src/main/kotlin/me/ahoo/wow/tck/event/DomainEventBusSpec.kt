@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams
 import org.junit.jupiter.api.Test
@@ -38,7 +39,7 @@ abstract class DomainEventBusSpec {
 
     @Test
     fun send() {
-        val eventBus = createEventBus()
+        val eventBus = createEventBus().metrizable()
 
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregateForSend.asAggregateId(GlobalIdGenerator.generateAsString()),
@@ -52,7 +53,7 @@ abstract class DomainEventBusSpec {
 
     @Test
     fun receive() {
-        val eventBus = createEventBus()
+        val eventBus = createEventBus().metrizable()
         eventBus.receive(setOf(namedAggregateForReceive))
             .writeReceiverGroup(GlobalIdGenerator.generateAsString())
             .test()
@@ -79,7 +80,7 @@ abstract class DomainEventBusSpec {
 
     @Test
     fun sendPerformance() {
-        val eventBus = createEventBus()
+        val eventBus = createEventBus().metrizable()
         val maxTimes = 20000
         val duration = Flux.generate<DomainEventStream, Int>({ 0 }) { state, sink ->
             if (state < maxTimes) {

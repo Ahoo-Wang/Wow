@@ -27,6 +27,7 @@ import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.metrics.Metrics.metrizable
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.BeforeEach
@@ -47,7 +48,7 @@ abstract class CommandGatewaySpec {
 
     @BeforeEach
     fun setup() {
-        commandBus = createCommandBus()
+        commandBus = createCommandBus().metrizable()
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,

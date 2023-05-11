@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
@@ -50,7 +51,7 @@ abstract class EventStoreSpec {
 
     @BeforeEach
     fun setup() {
-        eventStore = createEventStore()
+        eventStore = createEventStore().metrizable()
     }
 
     protected abstract fun createEventStore(): EventStore
@@ -83,7 +84,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun appendEventStreamWhenDuplicateAggregateId() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         val aggregateId = namedAggregate.asAggregateId()
         val eventStream = generateEventStream(aggregateId)
         eventStore.append(eventStream)
@@ -200,7 +201,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun appendEventStreamWhenParallel() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         Flux.range(0, TIMES)
             .parallel(DEFAULT_PARALLELISM)
             .runOn(Schedulers.parallel())
@@ -213,7 +214,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamWhenParallel() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -230,7 +231,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamWhenNotFound() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         eventStore.load(namedAggregate.asAggregateId())
             .test()
             .expectNextCount(0)
@@ -239,7 +240,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamGivenHeadVersion() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -258,7 +259,7 @@ abstract class EventStoreSpec {
 
     @Test
     fun loadEventStreamGivenWrongVersion() {
-        val eventStore = createEventStore()
+        val eventStore = createEventStore().metrizable()
         val eventStream = generateEventStream()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             eventStore.load(
