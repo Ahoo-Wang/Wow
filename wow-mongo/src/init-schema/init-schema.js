@@ -19,7 +19,7 @@ sh.shardCollection("wow_db.event_stream", { "aggregateId" : "hashed" });
 
 
 // example
-use wow_example_db;
+// use wow_example_db;
 sh.enableSharding("wow_example_db");
 sh.shardCollection("wow_example_db.order_snapshot", { "_id" : 1 });
 sh.shardCollection("wow_example_db.order_event_stream", { "aggregateId" : "hashed" });
