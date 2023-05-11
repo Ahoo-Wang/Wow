@@ -11,19 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra
+package me.ahoo.wow.metrics
 
-interface Decorator<out C : Any> {
-    val delegate: C
+import me.ahoo.wow.infra.Decorator
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
-    companion object {
-        @Suppress("UNCHECKED_CAST")
-        @JvmStatic
-        fun <C : Any> C.getDelegate(): C {
-            if (this is Decorator<*>) {
-                return delegate.getDelegate() as C
-            }
-            return this
-        }
+abstract class AbstractMetricDecorator<T : Any>(final override val delegate: T) : Decorator<T> {
+    private val source: String = delegate.javaClass.simpleName
+    fun <M> Mono<M>.tagSource(): Mono<M> {
+        return this.tag(Metrics.SOURCE_KEY, source)
+    }
+
+    fun <M> Flux<M>.tagSource(): Flux<M> {
+        return this.tag(Metrics.SOURCE_KEY, source)
     }
 }

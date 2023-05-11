@@ -35,6 +35,7 @@ object Metrics {
     const val SUBSCRIBER_CONTEXT_KEY = "(MetricsSubscriber)"
     const val SUBSCRIBER_KEY = "subscriber"
     const val COMMAND_KEY = "command"
+    const val SOURCE_KEY = "source"
     const val EVENT_KEY = "event"
     const val PROCESSOR_KEY = "processor"
     val enabled = System.getProperty("wow.metrics.enabled", "true").toBoolean()

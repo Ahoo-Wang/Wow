@@ -18,18 +18,18 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricDomainEventBus(override val delegate: DomainEventBus) :
+class MetricDomainEventBus(delegate: DomainEventBus) :
     DomainEventBus,
-    Decorator<DomainEventBus>,
+    AbstractMetricDecorator<DomainEventBus>(delegate),
     Metrizable {
     override fun send(eventStream: DomainEventStream): Mono<Void> {
         return delegate.send(eventStream)
             .name(Wow.WOW_PREFIX + "event.send")
+            .tagSource()
             .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
             .metrics()
     }
@@ -37,6 +37,7 @@ class MetricDomainEventBus(override val delegate: DomainEventBus) :
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
         return delegate.receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "event.receive")
+            .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
     }

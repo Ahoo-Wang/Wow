@@ -17,6 +17,7 @@ import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.writeReceiverGroup
+import me.ahoo.wow.metrics.Metrics.metrizable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import reactor.core.publisher.Flux
@@ -39,7 +40,7 @@ abstract class CommandBusSpec {
 
     @Test
     fun send() {
-        val commandBus = createCommandBus()
+        val commandBus = createCommandBus().metrizable()
         val commandMessage = MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
         Schedulers.single().schedule {
             commandBus
@@ -52,7 +53,7 @@ abstract class CommandBusSpec {
 
     @Test
     fun receive() {
-        val commandBus = createCommandBus()
+        val commandBus = createCommandBus().metrizable()
         commandBus.receive(setOf(namedAggregateForReceive))
             .writeReceiverGroup(GlobalIdGenerator.generateAsString())
             .test()
@@ -72,7 +73,7 @@ abstract class CommandBusSpec {
 
     @Test
     fun sendPerformance() {
-        val commandBus = createCommandBus()
+        val commandBus = createCommandBus().metrizable()
         val duration = sendLoop(commandBus = commandBus)
             .test()
             .verifyComplete()
@@ -92,7 +93,7 @@ abstract class CommandBusSpec {
     @DisabledIfEnvironmentVariable(named = "CI", matches = ".*")
     @Test
     fun receivePerformance() {
-        val commandBus = createCommandBus()
+        val commandBus = createCommandBus().metrizable()
         val maxCount: Long = 2000
         val duration = commandBus.receive(setOf(namedAggregateForSend))
             .writeReceiverGroup(GlobalIdGenerator.generateAsString())

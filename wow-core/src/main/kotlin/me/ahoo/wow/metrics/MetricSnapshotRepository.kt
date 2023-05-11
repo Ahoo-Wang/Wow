@@ -18,16 +18,16 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricSnapshotRepository(override val delegate: SnapshotRepository) :
+class MetricSnapshotRepository(delegate: SnapshotRepository) :
     SnapshotRepository,
-    Decorator<SnapshotRepository> {
+    AbstractMetricDecorator<SnapshotRepository>(delegate) {
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return delegate.load<S>(aggregateId)
             .name(Wow.WOW_PREFIX + "snapshot.load")
+            .tagSource()
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
     }
@@ -35,6 +35,7 @@ class MetricSnapshotRepository(override val delegate: SnapshotRepository) :
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return delegate.save(snapshot)
             .name(Wow.WOW_PREFIX + "snapshot.save")
+            .tagSource()
             .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
             .metrics()
     }
@@ -42,6 +43,7 @@ class MetricSnapshotRepository(override val delegate: SnapshotRepository) :
     override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return delegate.findAggregateId(namedAggregate = namedAggregate, cursorId = cursorId, limit = limit)
             .name(Wow.WOW_PREFIX + "snapshot.findAggregateId")
+            .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
     }

@@ -21,6 +21,15 @@ spec:
       annotations:
         instrumentation.opentelemetry.io/inject-java: "true"
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: performance
+                    operator: In
+                    values:
+                      - high
       containers:
         - name: wow-example
           image: ahoowang/wow-example-server:latest
@@ -64,7 +73,7 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "4"
+              cpu: "32"
               memory: 2560Mi
             requests:
               cpu: 250m
@@ -94,22 +103,3 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8080
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: wow-example-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: wow-example
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 1200

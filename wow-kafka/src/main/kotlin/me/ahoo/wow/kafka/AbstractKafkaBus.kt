@@ -45,9 +45,13 @@ abstract class AbstractKafkaBus<M, E>(
 
     abstract val messageType: Class<M>
     protected fun sendMessage(message: M): Mono<Void> {
+        if (log.isDebugEnabled) {
+            log.debug("Send {}.", message)
+        }
         val senderRecord = encode(message)
         return sender.send(Mono.just(senderRecord))
             .doOnNext {
+                @Suppress("ThrowingExceptionsWithoutMessageOrCause")
                 val error = it.exception()
                 if (error != null) {
                     it.correlationMetadata().tryEmitError(error)
