@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.spring.boot.starter.kafka
 
-import me.ahoo.wow.kafka.KafkaCommandBus
-import me.ahoo.wow.kafka.KafkaDomainEventBus
+import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -32,14 +33,15 @@ internal class KafkaAutoConfigurationTest {
             .enableWow()
             .withPropertyValues("${KafkaProperties.PREFIX}.bootstrap-servers=kafka")
             .withUserConfiguration(
+                WowOpenTelemetryAutoConfiguration::class.java,
                 KafkaAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(ReceiverOptionsCustomizer::class.java)
                     .hasSingleBean(KafkaSender::class.java)
-                    .hasSingleBean(KafkaCommandBus::class.java)
-                    .hasSingleBean(KafkaDomainEventBus::class.java)
+                    .hasSingleBean(CommandBus::class.java)
+                    .hasSingleBean(DomainEventBus::class.java)
             }
     }
 }
