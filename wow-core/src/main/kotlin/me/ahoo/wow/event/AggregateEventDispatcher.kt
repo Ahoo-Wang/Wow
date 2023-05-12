@@ -48,12 +48,13 @@ class AggregateEventDispatcher<R : Mono<*>>(
 
     override fun handleExchange(exchange: EventStreamExchange): Mono<Void> {
         return Flux.fromIterable(exchange.message)
-            .concatMap { handleEvent(it) }
+            .concatMap { handleEvent(exchange, it) }
             .doFinally { exchange.acknowledge() }
             .then()
     }
 
     private fun handleEvent(
+        exchange: EventStreamExchange,
         event: DomainEvent<*>
     ): Mono<Void> {
         val eventType: Class<*> = event.body.javaClass
@@ -79,7 +80,11 @@ class AggregateEventDispatcher<R : Mono<*>>(
             .flatMap { function ->
                 @Suppress("UNCHECKED_CAST")
                 val eventExchange: DomainEventExchange<Any> =
-                    SimpleDomainEventExchange(event, function) as DomainEventExchange<Any>
+                    SimpleDomainEventExchange(
+                        message = event,
+                        eventFunction = function,
+                        attributes = exchange.attributes
+                    ) as DomainEventExchange<Any>
                 eventHandler.handle(eventExchange)
             }.then()
     }

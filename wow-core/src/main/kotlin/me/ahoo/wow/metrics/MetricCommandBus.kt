@@ -22,15 +22,18 @@ import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricCommandBus(delegate: CommandBus) : CommandBus, AbstractMetricDecorator<CommandBus>(delegate), Metrizable {
-    override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
-        return delegate.send(command)
+open class MetricCommandBus(delegate: CommandBus) : CommandBus, AbstractMetricDecorator<CommandBus>(delegate),
+    Metrizable {
+
+    override fun send(message: CommandMessage<*>): Mono<Void> {
+        return delegate.send(message)
             .name(Wow.WOW_PREFIX + "command.send")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, command.aggregateName)
-            .tag(Metrics.COMMAND_KEY, command.name)
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
+            .tag(Metrics.COMMAND_KEY, message.name)
             .metrics()
     }
+
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
         return delegate.receive(namedAggregates)

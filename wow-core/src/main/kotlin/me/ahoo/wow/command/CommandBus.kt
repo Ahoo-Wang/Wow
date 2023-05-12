@@ -14,9 +14,8 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.ReceiveMessageBus
-import reactor.core.publisher.Mono
+import me.ahoo.wow.messaging.SendMessageBus
 
 /**
  * Command Bus .
@@ -25,6 +24,4 @@ import reactor.core.publisher.Mono
  * @see InMemoryCommandBus
  *
  */
-interface CommandBus : MessageBus, ReceiveMessageBus<ServerCommandExchange<Any>> {
-    fun <C : Any> send(command: CommandMessage<C>): Mono<Void>
-}
+interface CommandBus : SendMessageBus<CommandMessage<*>>, ReceiveMessageBus<ServerCommandExchange<Any>>

@@ -18,6 +18,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
 interface DomainEventExchange<T : Any> : MessageExchange<DomainEvent<T>> {
     val eventFunction: MessageFunction<Any, DomainEventExchange<T>, Mono<*>>?
@@ -38,4 +39,5 @@ data class SimpleDomainEventExchange<T : Any>(
     override val eventFunction: MessageFunction<Any, DomainEventExchange<T>, Mono<*>>? = null,
     @Volatile
     override var serviceProvider: ServiceProvider? = null,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : DomainEventExchange<T>

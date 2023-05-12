@@ -34,12 +34,14 @@ wow:
   command:
     bus:
       type: in_memory
+#      local-first:
+#        enabled: false
   event:
     bus:
       type: in_memory
   kafka:
     enabled: false
-#    bootstrap-servers: 'PLAINTEXT://localhost:63081'
+    bootstrap-servers: 'PLAINTEXT://localhost:61546'
   eventsourcing:
     store:
       storage: in_memory

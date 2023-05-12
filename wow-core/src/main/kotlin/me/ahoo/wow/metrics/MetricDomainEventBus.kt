@@ -26,11 +26,12 @@ class MetricDomainEventBus(delegate: DomainEventBus) :
     DomainEventBus,
     AbstractMetricDecorator<DomainEventBus>(delegate),
     Metrizable {
-    override fun send(eventStream: DomainEventStream): Mono<Void> {
-        return delegate.send(eventStream)
+
+    override fun send(message: DomainEventStream): Mono<Void> {
+        return delegate.send(message)
             .name(Wow.WOW_PREFIX + "event.send")
             .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
             .metrics()
     }
 

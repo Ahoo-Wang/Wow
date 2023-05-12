@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import reactor.kafka.receiver.ReceiverOffset
+import java.util.concurrent.ConcurrentHashMap
 
 data class KafkaServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
@@ -31,7 +32,9 @@ data class KafkaServerCommandExchange<C : Any>(
     override var eventStream: DomainEventStream? = null,
     @Volatile
     override var error: Throwable? = null,
-) : ServerCommandExchange<C> {
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+
+    ) : ServerCommandExchange<C> {
     override fun acknowledge() {
         receiverOffset.acknowledge()
     }

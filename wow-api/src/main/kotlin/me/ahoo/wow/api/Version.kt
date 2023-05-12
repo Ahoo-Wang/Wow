@@ -29,4 +29,9 @@ interface Version {
         get() {
             return version > UNINITIALIZED_VERSION
         }
+
+    val isInitialVersion: Boolean
+        get() {
+            return version == INITIAL_VERSION
+        }
 }

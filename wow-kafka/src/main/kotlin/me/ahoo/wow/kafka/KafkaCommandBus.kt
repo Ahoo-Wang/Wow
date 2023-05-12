@@ -53,8 +53,8 @@ class KafkaCommandBus(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
-        return super.sendMessage(command as CommandMessage<Any>)
+    override fun send(message: CommandMessage<*>): Mono<Void> {
+        return super.sendMessage(message as CommandMessage<Any>)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {

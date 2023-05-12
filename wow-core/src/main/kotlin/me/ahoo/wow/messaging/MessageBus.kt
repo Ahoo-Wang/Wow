@@ -13,17 +13,29 @@
 
 package me.ahoo.wow.messaging
 
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import reactor.util.context.ContextView
 
 interface MessageBus
 interface LocalMessageBus : MessageBus
-interface DistributedMessageBus : MessageBus
-interface MessageGateway : MessageBus
 
-interface ReceiveMessageBus<E> : MessageBus {
+interface DistributedMessageBus : MessageBus
+
+interface MessageGateway : MessageBus
+interface SendMessageBus<M : Message<*>> : MessageBus {
+    fun send(message: M): Mono<Void>
+}
+
+interface LocalSendMessageBus<M : Message<*>, E : MessageExchange<M>> : LocalMessageBus, MessageBus, SendMessageBus<M> {
+    fun sendExchange(exchange: E): Mono<Void>
+}
+
+interface ReceiveMessageBus<E : MessageExchange<*>> : MessageBus {
     fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
 }
 

@@ -17,7 +17,6 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
-import me.ahoo.wow.spring.boot.starter.command.CommandProperties.Bus.Companion.COMMAND_BUS_BEAN_NAME
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -28,7 +27,7 @@ import org.springframework.context.annotation.Bean
 @EnableConfigurationProperties(CommandProperties::class)
 class CommandAutoConfiguration {
 
-    @Bean(COMMAND_BUS_BEAN_NAME)
+    @Bean
     @ConditionalOnProperty(
         CommandProperties.Bus.TYPE,
         havingValue = MessageBusType.IN_MEMORY_NAME,

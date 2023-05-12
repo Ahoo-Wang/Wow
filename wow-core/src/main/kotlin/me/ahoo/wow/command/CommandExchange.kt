@@ -21,6 +21,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Command Exchange .
@@ -37,6 +38,7 @@ data class SimpleClientCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val waitStrategy: WaitStrategy,
     override var serviceProvider: ServiceProvider? = null,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : ClientCommandExchange<C>
 
 interface ServerCommandExchange<C : Any> : CommandExchange<C> {
@@ -84,4 +86,5 @@ data class SimpleServerCommandExchange<C : Any>(
     override var eventStream: DomainEventStream? = null,
     @Volatile
     override var error: Throwable? = null,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : ServerCommandExchange<C>

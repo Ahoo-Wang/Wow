@@ -23,6 +23,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 val MATCH_ALL: (Snapshot<Any>, DomainEventStream) -> Boolean =
     { _, _ ->
@@ -45,30 +46,23 @@ open class SimpleSnapshotStrategy(
         val aggregateMetadata =
             aggregateId.namedAggregate.asRequiredAggregateType<Any>().asAggregateMetadata<Any, Any>()
 
-        return snapshotRepository.load<Any>(aggregateId)
-            .map {
-                SimpleSnapshot(
-                    delegate = it,
-                    snapshotTime = System.currentTimeMillis(),
-                )
-            }
-            .switchIfEmpty(
-                stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-                    .map {
-                        SimpleSnapshot(
-                            delegate = it,
-                            snapshotTime = System.currentTimeMillis(),
-                        )
-                    },
+        return if (eventStream.isInitialVersion) {
+            stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        } else {
+            snapshotRepository.load(aggregateId)
+        }.map {
+            SimpleSnapshot(
+                delegate = it,
+                snapshotTime = System.currentTimeMillis(),
             )
-            .flatMap {
-                sourcing(it, eventStream, aggregateId)
-            }.flatMap {
-                if (log.isDebugEnabled) {
-                    log.debug("Save snapshot ${it.aggregateId} version[${it.version}].")
-                }
-                snapshotRepository.save(it).logErrorResume()
+        }.flatMap {
+            sourcing(it, eventStream, aggregateId)
+        }.flatMap {
+            if (log.isDebugEnabled) {
+                log.debug("Save snapshot ${it.aggregateId} version[${it.version}].")
             }
+            snapshotRepository.save(it).logErrorResume()
+        }
     }
 
     private fun sourcing(
@@ -98,14 +92,11 @@ open class SimpleSnapshotStrategy(
                 snapshot.onSourcing(it)
                 snapshot
             }
-            .switchIfEmpty {
-                Mono.error<DomainEventStream>(
-                    IllegalStateException(
-                        "$aggregateId No event streams found - headVersion:[${snapshot.expectedNextVersion}] - tailVersion:[${eventStream.version - 1}]",
-
-                    ),
-                )
-            }
+            .switchIfEmpty(
+                IllegalStateException(
+                    "$aggregateId No event streams found - headVersion:[${snapshot.expectedNextVersion}] - tailVersion:[${eventStream.version - 1}]",
+                ).toMono()
+            )
             .last().map {
                 snapshot.onSourcing(eventStream)
                 snapshot

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.getReceiverGroup
+import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -38,7 +39,7 @@ abstract class AbstractKafkaBus<M, E>(
     private val sender: KafkaSender<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate {
+) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }

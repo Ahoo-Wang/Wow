@@ -17,12 +17,14 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.ioc.ServiceProvider
 import reactor.kafka.receiver.ReceiverOffset
+import java.util.concurrent.ConcurrentHashMap
 
 data class KafkaEventStreamExchange(
     override val message: DomainEventStream,
     private val receiverOffset: ReceiverOffset,
     @Volatile
     override var serviceProvider: ServiceProvider? = null,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : EventStreamExchange {
     override fun acknowledge() {
         receiverOffset.acknowledge()

@@ -15,6 +15,7 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.LocalFirstCommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.eventsourcing.EventStore
@@ -123,6 +124,7 @@ object Metrics {
 
     fun <T : Any> T.metrizable(): Any {
         return when (this) {
+            is LocalFirstCommandBus -> this
             is CommandGateway -> this
             is CommandBus -> metrizable()
             is DomainEventBus -> metrizable()

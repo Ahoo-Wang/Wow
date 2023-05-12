@@ -48,9 +48,9 @@ class DefaultCommandGateway(
             }
     }
 
-    override fun <C : Any> send(command: CommandMessage<C>): Mono<Void> {
-        return validate(command).flatMap {
-            commandBus.send(command)
+    override fun send(message: CommandMessage<*>): Mono<Void> {
+        return validate(message).flatMap {
+            commandBus.send(message)
         }
     }
 
