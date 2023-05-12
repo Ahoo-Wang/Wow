@@ -38,7 +38,6 @@ object AggregateInstrumenter {
 
 object AggregateSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<Any>> {
     override fun extract(request: ServerCommandExchange<Any>): String {
-        checkNotNull(request.aggregateProcessor).aggregateType
         return "${request.message.aggregateName}.${request.message.name}"
     }
 }
