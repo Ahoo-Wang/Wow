@@ -12,9 +12,8 @@
  */
 package me.ahoo.wow.event
 
-import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.ReceiveMessageBus
-import reactor.core.publisher.Mono
+import me.ahoo.wow.messaging.SendMessageBus
 
 /**
  * Domain Event Bus.
@@ -23,6 +22,4 @@ import reactor.core.publisher.Mono
  * 2. 领域事件处理有序性
  *
  */
-interface DomainEventBus : MessageBus, ReceiveMessageBus<EventStreamExchange> {
-    fun send(eventStream: DomainEventStream): Mono<Void>
-}
+interface DomainEventBus : SendMessageBus<DomainEventStream>, ReceiveMessageBus<EventStreamExchange>

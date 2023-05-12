@@ -16,8 +16,9 @@ package me.ahoo.wow.spring.boot.starter.metrics
 import me.ahoo.wow.metrics.Metrics.metrizable
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
+import org.springframework.core.Ordered
 
-class MetricsBeanPostProcessor : BeanPostProcessor {
+class MetricsBeanPostProcessor : BeanPostProcessor, Ordered {
     companion object {
         private val log = LoggerFactory.getLogger(MetricsBeanPostProcessor::class.java)
     }
@@ -25,8 +26,12 @@ class MetricsBeanPostProcessor : BeanPostProcessor {
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         val metrizableBean = bean.metrizable()
         if (metrizableBean !== bean && log.isInfoEnabled) {
-            log.info("Metrizable bean [{}] - [{}]", beanName, metrizableBean::class.java.name)
+            log.info("Metrizable bean [{}] [{}] -> [{}]", beanName, bean.javaClass.name, metrizableBean.javaClass.name)
         }
         return metrizableBean
+    }
+
+    override fun getOrder(): Int {
+        return Ordered.LOWEST_PRECEDENCE
     }
 }

@@ -22,7 +22,7 @@ import me.ahoo.wow.serialization.MessageRecords
 
 object WowInstrumenter {
     private const val INSTRUMENTATION_NAME = "me.ahoo.wow"
-    const val INSTRUMENTATION_VERSION = "1.17.2"
+    const val INSTRUMENTATION_VERSION = "1.8.20"
     const val INSTRUMENTATION_NAME_PREFIX = "$INSTRUMENTATION_NAME-"
 
     private const val MESSAGE_PREFIX = Wow.WOW_PREFIX + "message."

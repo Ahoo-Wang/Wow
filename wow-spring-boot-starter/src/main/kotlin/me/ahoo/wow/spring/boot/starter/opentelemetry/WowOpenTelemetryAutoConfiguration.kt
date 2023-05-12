@@ -18,6 +18,7 @@ import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
 import me.ahoo.wow.opentelemetry.snapshot.TraceSnapshotFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
@@ -57,5 +58,10 @@ class WowOpenTelemetryAutoConfiguration {
     @Bean
     fun traceEventProcessorFilter(): TraceEventProcessorFilter {
         return TraceEventProcessorFilter
+    }
+
+    @Bean
+    fun tracingBeanPostProcessor(commandProperties: CommandProperties?): TracingBeanPostProcessor {
+        return TracingBeanPostProcessor(commandProperties?.bus?.localFirst?.enabled ?: false)
     }
 }

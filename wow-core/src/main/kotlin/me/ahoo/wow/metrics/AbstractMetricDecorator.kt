@@ -13,17 +13,30 @@
 
 package me.ahoo.wow.metrics
 
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.infra.Decorator.Companion.getDelegate
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractMetricDecorator<T : Any>(final override val delegate: T) : Decorator<T> {
-    private val source: String = delegate.javaClass.simpleName
+abstract class AbstractMetricDecorator<T : Any>(final override val delegate: T) : Decorator<T>, Named {
+    override val name: String = delegate.getDelegate().javaClass.simpleName
+
     fun <M> Mono<M>.tagSource(): Mono<M> {
-        return this.tag(Metrics.SOURCE_KEY, source)
+        return this.tagSource(name)
     }
 
     fun <M> Flux<M>.tagSource(): Flux<M> {
-        return this.tag(Metrics.SOURCE_KEY, source)
+        return this.tagSource(name)
+    }
+
+    companion object {
+        fun <M> Mono<M>.tagSource(source: String): Mono<M> {
+            return this.tag(Metrics.SOURCE_KEY, source)
+        }
+
+        fun <M> Flux<M>.tagSource(source: String): Flux<M> {
+            return this.tag(Metrics.SOURCE_KEY, source)
+        }
     }
 }

@@ -20,6 +20,7 @@ import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -36,6 +37,7 @@ internal class ProjectionDispatcherAutoConfigurationTest {
             .enableWow()
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withUserConfiguration(
+                WowOpenTelemetryAutoConfiguration::class.java,
                 ProjectionDispatcherAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->

@@ -14,7 +14,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.LocalMessageBus
+import me.ahoo.wow.messaging.LocalSendMessageBus
 import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -40,7 +40,7 @@ class InMemoryCommandBus(
     private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<Any>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
-) : CommandBus, LocalMessageBus {
+) : CommandBus, LocalSendMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
     companion object {
         private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
     }
@@ -51,20 +51,23 @@ class InMemoryCommandBus(
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
-    override fun <C : Any> send(
-        command: CommandMessage<C>,
-    ): Mono<Void> {
+    override fun sendExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
         return Mono.fromRunnable {
             if (log.isDebugEnabled) {
-                log.debug("Send {}.", command)
+                log.debug("Send {}.", exchange.message)
             }
-            val sink = computeSink(command)
+            val sink = computeSink(exchange.message)
             @Suppress("UNCHECKED_CAST")
             sink.emitNext(
-                SimpleServerCommandExchange(command) as ServerCommandExchange<Any>,
+                exchange as ServerCommandExchange<Any>,
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION)
             )
         }
+    }
+
+    override fun send(message: CommandMessage<*>): Mono<Void> {
+        val exchange = SimpleServerCommandExchange(message)
+        return sendExchange(exchange)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.ioc.ServiceProvider
 
 interface MessageExchange<out M : Message<*>> {
+    val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge() = Unit
     var serviceProvider: ServiceProvider?
