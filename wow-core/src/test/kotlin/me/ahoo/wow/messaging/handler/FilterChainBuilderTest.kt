@@ -35,6 +35,8 @@ internal class FilterChainBuilderTest {
         assertThat(chain.current, instanceOf(MockFirstFilter::class.java))
         assertThat((chain.next as SimpleFilterChain).current, instanceOf(MockLastFilter::class.java))
         val exchange: MessageExchange<Message<Any>> = object : MessageExchange<Message<Any>> {
+            override val attributes: MutableMap<String, Any>
+                get() = mutableMapOf()
             override val message: Message<Any>
                 get() = throw UnsupportedOperationException()
             override var serviceProvider: ServiceProvider? = null

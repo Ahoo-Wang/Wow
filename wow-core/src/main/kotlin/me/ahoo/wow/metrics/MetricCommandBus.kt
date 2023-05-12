@@ -22,7 +22,9 @@ import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-open class MetricCommandBus(delegate: CommandBus) : CommandBus, AbstractMetricDecorator<CommandBus>(delegate),
+open class MetricCommandBus(delegate: CommandBus) :
+    CommandBus,
+    AbstractMetricDecorator<CommandBus>(delegate),
     Metrizable {
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
@@ -33,7 +35,6 @@ open class MetricCommandBus(delegate: CommandBus) : CommandBus, AbstractMetricDe
             .tag(Metrics.COMMAND_KEY, message.name)
             .metrics()
     }
-
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
         return delegate.receive(namedAggregates)

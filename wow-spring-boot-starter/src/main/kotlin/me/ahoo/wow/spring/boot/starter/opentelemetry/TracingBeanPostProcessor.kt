@@ -59,7 +59,6 @@ class TracingBeanPostProcessor(val commandProperties: CommandProperties) : BeanP
                 }
 
                 else -> bean
-
             }
 
         if (tracingBean !== bean && log.isInfoEnabled) {
