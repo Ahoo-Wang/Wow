@@ -23,12 +23,11 @@ import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.opentelemetry.messaging.Tracing.tracing
 import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
-import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
-class TracingBeanPostProcessor(val commandProperties: CommandProperties) : BeanPostProcessor, Ordered {
+class TracingBeanPostProcessor(private val localFirstEnabled: Boolean) : BeanPostProcessor, Ordered {
     companion object {
         private val log = LoggerFactory.getLogger(TracingBeanPostProcessor::class.java)
     }
@@ -46,7 +45,7 @@ class TracingBeanPostProcessor(val commandProperties: CommandProperties) : BeanP
 
                 is CommandBus -> {
                     val tracingCommandBus = bean.tracing()
-                    if (commandProperties.bus.localFirst.enabled &&
+                    if (localFirstEnabled &&
                         bean.getDelegate() is DistributedMessageBus
                     ) {
                         LocalFirstCommandBus(

@@ -31,6 +31,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -51,6 +52,7 @@ internal class AggregateAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(CommandBus::class.java, { InMemoryCommandBus() })
             .withUserConfiguration(
+                WowOpenTelemetryAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->

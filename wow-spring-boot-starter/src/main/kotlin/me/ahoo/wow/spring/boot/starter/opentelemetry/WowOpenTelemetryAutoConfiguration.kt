@@ -61,7 +61,7 @@ class WowOpenTelemetryAutoConfiguration {
     }
 
     @Bean
-    fun tracingBeanPostProcessor(commandProperties: CommandProperties,): TracingBeanPostProcessor {
-        return TracingBeanPostProcessor(commandProperties)
+    fun tracingBeanPostProcessor(commandProperties: CommandProperties?): TracingBeanPostProcessor {
+        return TracingBeanPostProcessor(commandProperties?.bus?.localFirst?.enabled ?: false)
     }
 }
