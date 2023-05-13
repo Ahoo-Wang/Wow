@@ -34,23 +34,29 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class MonoTraceTest {
-    val namedAggregate = MaterializedNamedAggregate("MonoTraceTest", "MonoTraceTest")
 
-    companion object {   init {
-        val sdkTracerProvider: SdkTracerProvider = SdkTracerProvider.builder()
-            .build()
-        OpenTelemetrySdk.builder()
-            .setTracerProvider(sdkTracerProvider)
-            .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-            .buildAndRegisterGlobal()
-    }
+    companion object {
+        val TEST_NAMED_AGGREGATE = MaterializedNamedAggregate(
+            contextName = "MonoTraceTest",
+            aggregateName = "MonoTraceTest"
+        )
+
+        init {
+
+            val sdkTracerProvider: SdkTracerProvider = SdkTracerProvider.builder()
+                .build()
+            OpenTelemetrySdk.builder()
+                .setTracerProvider(sdkTracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .buildAndRegisterGlobal()
+        }
     }
 
     @Test
     fun traceEventProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateId } returns namedAggregate.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { eventFunction } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
@@ -70,7 +76,7 @@ class MonoTraceTest {
     fun traceSagaProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateId } returns namedAggregate.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { eventFunction } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
@@ -90,7 +96,7 @@ class MonoTraceTest {
     fun traceProjectionProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateId } returns namedAggregate.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { eventFunction } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
@@ -110,8 +116,8 @@ class MonoTraceTest {
     fun traceSnapshotProcessor() {
         val exchange = mockk<EventStreamExchange> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateName } returns namedAggregate.aggregateName
-            every { message.aggregateId } returns namedAggregate.asAggregateId()
+            every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
         }
 
         MonoTrace(
