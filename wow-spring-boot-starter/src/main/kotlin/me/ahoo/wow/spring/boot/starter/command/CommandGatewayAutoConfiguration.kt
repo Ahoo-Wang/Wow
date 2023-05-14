@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.command
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -27,10 +29,13 @@ import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.cloud.commons.util.InetUtils
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
@@ -47,8 +52,31 @@ class CommandGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun idempotencyChecker(): IdempotencyChecker {
-        return BloomFilterIdempotencyChecker(1000000, 0.000001)
+    @ConditionalOnProperty(
+        value = [CommandProperties.Idempotency.PREFIX + ENABLED_SUFFIX_KEY],
+        matchIfMissing = false,
+        havingValue = "false",
+    )
+    fun noOpIdempotencyChecker(): IdempotencyChecker {
+        return NoOpIdempotencyChecker
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+        value = [CommandProperties.Idempotency.PREFIX + ENABLED_SUFFIX_KEY],
+        matchIfMissing = true,
+        havingValue = "true",
+    )
+    fun idempotencyChecker(commandProperties: CommandProperties): IdempotencyChecker {
+        val bloomFilter = commandProperties.idempotency.bloomFilter
+        return BloomFilterIdempotencyChecker(bloomFilter.ttl) {
+            BloomFilter.create(
+                Funnels.stringFunnel(Charsets.UTF_8),
+                bloomFilter.expectedInsertions,
+                bloomFilter.fpp
+            )
+        }
     }
 
     @Bean

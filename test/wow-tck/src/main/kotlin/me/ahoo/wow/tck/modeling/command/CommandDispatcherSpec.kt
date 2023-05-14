@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.tck.modeling.command
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -67,7 +69,11 @@ import java.util.concurrent.ThreadLocalRandom
 abstract class CommandDispatcherSpec {
     protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
-    protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(1000000, 0.000001)
+    protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
+        Duration.ofSeconds(1)
+    ) {
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10)
+    }
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected lateinit var aggregateProcessorFactory: AggregateProcessorFactory

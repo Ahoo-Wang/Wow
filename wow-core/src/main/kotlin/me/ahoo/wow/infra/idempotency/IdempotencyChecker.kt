@@ -25,3 +25,10 @@ fun interface IdempotencyChecker {
      */
     fun check(element: String): Mono<Boolean>
 }
+
+object NoOpIdempotencyChecker : IdempotencyChecker {
+    private val ALWAYS_TRUE = Mono.just(true)
+    override fun check(element: String): Mono<Boolean> {
+        return ALWAYS_TRUE
+    }
+}

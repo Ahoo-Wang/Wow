@@ -12,12 +12,18 @@
  */
 package me.ahoo.wow.infra.idempotency
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
+import java.time.Duration
 
 class BloomFilterIdempotencyCheckerTest {
-    private val idempotencyChecker = BloomFilterIdempotencyChecker(1000000, 0.00001)
+    private val idempotencyChecker = BloomFilterIdempotencyChecker(Duration.ofSeconds(1)
+    ) {
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10)
+    }
 
     @Test
     fun check() {

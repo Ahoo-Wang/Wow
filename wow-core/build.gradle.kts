@@ -6,7 +6,7 @@ dependencies {
     api("io.projectreactor:reactor-core")
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")
     api("jakarta.validation:jakarta.validation-api")
-    implementation("com.google.guava:guava")
+    api("com.google.guava:guava")
     api("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")

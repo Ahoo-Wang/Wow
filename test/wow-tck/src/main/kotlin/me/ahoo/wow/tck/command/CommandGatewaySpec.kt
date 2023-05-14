@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.tck.command
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandErrorCodes
 import me.ahoo.wow.command.CommandGateway
@@ -41,7 +43,12 @@ import java.util.concurrent.TimeUnit
 abstract class CommandGatewaySpec {
     protected val namedAggregate = MockSendCommand::class.java.asRequiredNamedAggregate()
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
-    protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(1000000, 0.000001)
+    protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
+        Duration.ofSeconds(1)
+    ) {
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 1000000)
+    }
+
     protected lateinit var commandBus: CommandBus
     protected lateinit var commandGateway: CommandGateway
     protected abstract fun createCommandBus(): CommandBus

@@ -13,9 +13,9 @@
 package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
-import com.google.common.hash.Funnel
-import com.google.common.hash.PrimitiveSink
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 /**
  * BloomFilterIdempotencyChecker .
@@ -24,27 +24,29 @@ import reactor.core.publisher.Mono
  * @author ahoo wang
  */
 @Suppress("UnstableApiUsage")
-class BloomFilterIdempotencyChecker(private val bloomFilter: BloomFilter<String>) : IdempotencyChecker {
-    constructor(expectedInsertions: Long, fpp: Double) : this(
-        BloomFilter.create<String>(
-            STRING_FUNNEL,
-            expectedInsertions,
-            fpp,
-        ),
-    )
-
-    override fun check(element: String): Mono<Boolean> {
-        return Mono.fromCallable {
-            val contain = bloomFilter.mightContain(element)
-            if (!contain) {
-                bloomFilter.put(element)
-                return@fromCallable true
-            }
-            false
-        }
+class BloomFilterIdempotencyChecker(
+    private val ttl: Duration,
+    private val bloomFilterSupplier: () -> BloomFilter<String>
+) :
+    IdempotencyChecker {
+    companion object {
+        private val log = LoggerFactory.getLogger(BloomFilterIdempotencyChecker::class.java)
     }
 
-    companion object {
-        val STRING_FUNNEL = Funnel { from: String, into: PrimitiveSink -> into.putString(from, Charsets.UTF_8) }
+    private val bloomFilterCache = Mono.fromCallable {
+        if (log.isInfoEnabled) {
+            log.info("Create new BloomFilter.")
+        }
+        bloomFilterSupplier()
+    }.cache(ttl)
+
+    override fun check(element: String): Mono<Boolean> {
+        return bloomFilterCache.map {
+            val contain = it.mightContain(element)
+            if (!contain) {
+                it.put(element)
+            }
+            !contain
+        }
     }
 }

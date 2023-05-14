@@ -10,4 +10,5 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("io.micrometer:micrometer-core")
     implementation(kotlin("reflect"))
+    implementation(project(mapOf("path" to ":wow-spring-boot-starter")))
 }
