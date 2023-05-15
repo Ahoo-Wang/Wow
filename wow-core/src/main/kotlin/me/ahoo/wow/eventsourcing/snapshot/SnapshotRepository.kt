@@ -37,7 +37,7 @@ interface SnapshotRepository {
     fun findAggregateId(
         namedAggregate: NamedAggregate,
         cursorId: String = FIRST_CURSOR_ID,
-        limit: Int
+        limit: Int = 10
     ): Flux<AggregateId>
 }
 

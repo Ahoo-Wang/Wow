@@ -16,10 +16,15 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.search.sort.SortOrder
 import org.elasticsearch.xcontent.XContentType
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsearchClient
@@ -31,8 +36,8 @@ class ElasticsearchSnapshotRepository(
     private val elasticsearchClient: ReactiveElasticsearchClient,
 ) : SnapshotRepository {
 
-    private fun AggregateId.asIndexName(): String {
-        return snapshotIndexNameConverter.convert(aggregateId = this)
+    private fun NamedAggregate.asIndexName(): String {
+        return snapshotIndexNameConverter.convert(namedAggregate = this)
     }
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
@@ -56,10 +61,18 @@ class ElasticsearchSnapshotRepository(
             .then()
     }
 
-    /**
-     * TODO
-     */
     override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        throw UnsupportedOperationException()
+        val searchSourceBuilder = SearchSourceBuilder()
+            .fetchSource(MessageRecords.TENANT_ID, null)
+            .searchAfter(arrayOf(cursorId))
+            .size(limit)
+            .sort("_id", SortOrder.ASC)
+
+        val searchRequest = SearchRequest(arrayOf(namedAggregate.asIndexName()), searchSourceBuilder)
+        return elasticsearchClient.search(searchRequest)
+            .map {
+                val tenantId = it.sourceAsMap[MessageRecords.TENANT_ID] as String
+                namedAggregate.asAggregateId(it.id, tenantId)
+            }
     }
 }

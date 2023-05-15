@@ -105,6 +105,9 @@ class R2dbcSnapshotRepository(
             .then()
     }
 
+    /**
+     * TODO
+     */
     override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         throw UnsupportedOperationException()
     }

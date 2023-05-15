@@ -161,4 +161,21 @@ abstract class SnapshotRepositorySpec {
             }
             .verifyComplete()
     }
+
+    @Test
+    open fun findAggregateId() {
+        val snapshotRepository = createSnapshotRepository()
+        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        val snapshot: Snapshot<MockAggregate> =
+            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+        snapshotRepository.save(snapshot)
+            .test()
+            .verifyComplete()
+
+        snapshotRepository.findAggregateId(aggregateId, limit = 1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
 }
