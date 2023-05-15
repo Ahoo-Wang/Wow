@@ -14,7 +14,6 @@
 package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
@@ -27,9 +26,7 @@ import me.ahoo.wow.event.SimpleEventStreamExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.LocalSendMessageBus
 import me.ahoo.wow.messaging.MessageBus
-import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.messaging.Tracing.setParentContext
-import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus.Companion.sendExchangeWithTracing
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -48,30 +45,16 @@ class TracingLocalCommandBus(override val delegate: CommandBus) :
         localSendMessageBus = delegate as LocalSendMessageBus<CommandMessage<*>, ServerCommandExchange<out Any>>
     }
 
-    companion object {
-        fun <E : MessageExchange<*>> Instrumenter<E, Unit>.sendExchangeWithTracing(
-            exchange: E,
-            send: (E) -> Mono<Void>
-        ): Mono<Void> {
-            val parentContext = Context.current()
-            if (!shouldStart(parentContext, exchange)) {
-                exchange.setParentContext(Context.current())
-                return send(exchange)
-            }
-            val currentContext = start(parentContext, exchange)
-            currentContext.makeCurrent().use {
-                exchange.setParentContext(currentContext)
-                return send(exchange)
-                    .doOnError { end(currentContext, exchange, null, it) }
-                    .doOnSuccess { end(currentContext, exchange, null, null) }
-            }
-        }
-    }
-
     override fun send(message: CommandMessage<*>): Mono<Void> {
         val exchange = SimpleServerCommandExchange(message)
-        return LocalCommandBusInstrumenter.INSTRUMENTER
-            .sendExchangeWithTracing(exchange) { localSendMessageBus.sendExchange(it) }
+        val source = localSendMessageBus.sendExchange(exchange)
+        val parentContext = Context.current()
+        return MonoLocalBusTrace(
+            parentContext = parentContext,
+            instrumenter = LocalCommandBusInstrumenter.INSTRUMENTER,
+            exchange = exchange,
+            source = source
+        )
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
@@ -111,8 +94,14 @@ class TracingLocalEventBus(override val delegate: DomainEventBus) :
 
     override fun send(message: DomainEventStream): Mono<Void> {
         val exchange = SimpleEventStreamExchange(message)
-        return LocalEventBusInstrumenter.INSTRUMENTER
-            .sendExchangeWithTracing(exchange) { localSendMessageBus.sendExchange(it) }
+        val source = localSendMessageBus.sendExchange(exchange)
+        val parentContext = Context.current()
+        return MonoLocalBusTrace(
+            parentContext = parentContext,
+            instrumenter = LocalEventBusInstrumenter.INSTRUMENTER,
+            exchange = exchange,
+            source = source
+        )
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
