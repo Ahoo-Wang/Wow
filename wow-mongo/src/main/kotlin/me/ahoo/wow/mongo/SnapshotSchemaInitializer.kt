@@ -13,13 +13,16 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.infra.accessor.method.reactive.asBlockable
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.asSnapshotCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import org.slf4j.LoggerFactory
+import reactor.kotlin.core.publisher.toMono
 
 class SnapshotSchemaInitializer(private val database: MongoDatabase) {
     companion object {
@@ -47,5 +50,7 @@ class SnapshotSchemaInitializer(private val database: MongoDatabase) {
         }
         val snapshotCollection = database.getCollection(collectionName)
         snapshotCollection.createTenantIdIndex()
+        snapshotCollection.createIndex(Indexes.hashed(Documents.ID_FIELD))
+            .toMono().asBlockable().block()
     }
 }
