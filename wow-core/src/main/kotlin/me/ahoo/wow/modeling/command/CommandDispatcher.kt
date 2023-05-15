@@ -36,7 +36,7 @@ import reactor.core.scheduler.Scheduler
 @Suppress("LongParameterList")
 class CommandDispatcher(
     override val name: String = CommandDispatcher::class.simpleName!!,
-    val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val commandBus: CommandBus,
     private val aggregateProcessorFactory: AggregateProcessorFactory,

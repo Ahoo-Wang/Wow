@@ -26,7 +26,7 @@ class ProjectionDispatcher(
      * named like `applicationName.ProjectionDispatcher`
      */
     override val name: String,
-    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val domainEventBus: DomainEventBus,
     override val functionRegistrar: ProjectionFunctionRegistrar,
     override val eventHandler: ProjectionHandler,

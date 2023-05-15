@@ -23,7 +23,7 @@ class DomainEventDispatcher(
      * named like `applicationName.DomainEventDispatcher`
      */
     override val name: String,
-    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val domainEventBus: DomainEventBus,
     override val functionRegistrar: DomainEventFunctionRegistrar,
     override val eventHandler: DomainEventHandler,

@@ -16,7 +16,6 @@ package me.ahoo.wow.messaging.dispatcher
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.messaging.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.isCreate
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import org.slf4j.LoggerFactory
@@ -31,7 +30,7 @@ abstract class AggregateMessageDispatcher<T : MessageExchange<*>> : MessageDispa
         private val log = LoggerFactory.getLogger(AggregateMessageDispatcher::class.java)
     }
 
-    abstract val parallelism: MessageParallelism
+    abstract val parallelism: Int
     abstract val scheduler: Scheduler
     abstract val messageFlux: Flux<T>
     override fun run() {
@@ -46,21 +45,14 @@ abstract class AggregateMessageDispatcher<T : MessageExchange<*>> : MessageDispa
             .subscribe(this)
     }
 
-    abstract fun T.asGroupKey(): AggregateGroupKey
+    abstract fun T.asGroupKey(): Int
 
-    private fun handleGroupedExchange(grouped: GroupedFlux<AggregateGroupKey, T>): Mono<Void> {
-        val metricsGroupedFlux = grouped.name(Wow.WOW_PREFIX + "dispatcher")
+    private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> {
+        return grouped.name(Wow.WOW_PREFIX + "dispatcher")
             .tag("dispatcher", name)
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
-            .tag("group.key", grouped.key().key.toString())
+            .tag("group.key", grouped.key().toString())
             .metrics()
-        if (grouped.key().isCreate) {
-            return metricsGroupedFlux
-                .parallel(parallelism.create).runOn(scheduler)
-                .flatMap { handleExchange(it) }
-                .then()
-        }
-        return metricsGroupedFlux
             .publishOn(scheduler)
             .concatMap { handleExchange(it) }
             .then()
