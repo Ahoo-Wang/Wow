@@ -53,7 +53,7 @@ data class CommandProperties(
 
     data class BloomFilter(
         val ttl: Duration = Duration.ofMinutes(1),
-        val expectedInsertions: Long = 1000000,
-        val fpp: Double = 0.0001,
+        val expectedInsertions: Long = 1000_000,
+        val fpp: Double = 0.00001,
     )
 }

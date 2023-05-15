@@ -26,6 +26,9 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
         private val log = LoggerFactory.getLogger(AbstractDispatcher::class.java)
     }
 
+    /**
+     * must be [me.ahoo.wow.modeling.MaterializedNamedAggregate]
+     */
     abstract val namedAggregates: Set<NamedAggregate>
 
     abstract fun receiveMessage(namedAggregate: NamedAggregate): Flux<T>

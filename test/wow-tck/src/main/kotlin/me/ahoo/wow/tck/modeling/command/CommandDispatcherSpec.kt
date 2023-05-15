@@ -72,7 +72,7 @@ abstract class CommandDispatcherSpec {
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1)
     ) {
-        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10)
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000000)
     }
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
