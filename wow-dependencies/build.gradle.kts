@@ -17,7 +17,7 @@ dependencies {
     api(platform("io.opentelemetry:opentelemetry-bom:1.26.0"))
     api(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:1.26.0"))
     api(platform("io.r2dbc:r2dbc-bom:Borca-RELEASE"))
-    api(platform("org.testcontainers:testcontainers-bom:1.18.0"))
+    api(platform("org.testcontainers:testcontainers-bom:1.18.1"))
     constraints {
         api("com.google.devtools.ksp:symbol-processing-api:1.8.21-1.0.11")
         api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
