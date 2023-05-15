@@ -17,10 +17,14 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
+import java.time.Duration
 
 @ConstructorBinding
 @ConfigurationProperties(prefix = CommandProperties.PREFIX)
-data class CommandProperties(val bus: Bus = Bus()) {
+data class CommandProperties(
+    val bus: Bus = Bus(),
+    val idempotency: Idempotency = Idempotency()
+) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}command"
     }
@@ -36,5 +40,20 @@ data class CommandProperties(val bus: Bus = Bus()) {
 
     data class LocalFirst(
         val enabled: Boolean = true,
+    )
+
+    data class Idempotency(
+        val enable: Boolean = false,
+        val bloomFilter: BloomFilter = BloomFilter(),
+    ) {
+        companion object {
+            const val PREFIX = "${CommandProperties.PREFIX}.idempotency"
+        }
+    }
+
+    data class BloomFilter(
+        val ttl: Duration = Duration.ofMinutes(1),
+        val expectedInsertions: Long = 1000_000,
+        val fpp: Double = 0.00001,
     )
 }
