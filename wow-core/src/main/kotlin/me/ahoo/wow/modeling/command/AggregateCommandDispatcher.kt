@@ -15,10 +15,9 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -36,7 +35,7 @@ import reactor.core.scheduler.Scheduler
 @Suppress("LongParameterList")
 class AggregateCommandDispatcher<C : Any, S : Any>(
     val aggregateMetadata: AggregateMetadata<C, S>,
-    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
     override val messageFlux: Flux<ServerCommandExchange<Any>>,
     override val name: String =
@@ -58,7 +57,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         return commandHandler.handle(exchange)
     }
 
-    override fun ServerCommandExchange<Any>.asGroupKey(): AggregateGroupKey {
-        return message.asGroupKey(parallelism.group)
+    override fun ServerCommandExchange<Any>.asGroupKey(): Int {
+        return message.asGroupKey(parallelism)
     }
 }

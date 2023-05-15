@@ -37,7 +37,7 @@ class SnapshotDispatcher(
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
     private val domainEventBus: DomainEventBus,
-    val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val schedulerSupplier: (NamedAggregate) -> Scheduler =
         AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
 ) : AbstractDispatcher<EventStreamExchange>(), MessageDispatcher {

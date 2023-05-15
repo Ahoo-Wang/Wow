@@ -15,10 +15,9 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey
-import me.ahoo.wow.messaging.dispatcher.AggregateGroupKey.Companion.asGroupKey
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
@@ -32,7 +31,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
     override val namedAggregate: NamedAggregate,
     override val name: String =
         "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
-    override val parallelism: MessageParallelism = MessageParallelism.DEFAULT,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val messageFlux: Flux<EventStreamExchange>,
     private val functionRegistrar: AbstractEventFunctionRegistrar<R>,
     private val eventHandler: EventHandler,
@@ -42,8 +41,8 @@ class AggregateEventDispatcher<R : Mono<*>>(
         private val log: Logger = LoggerFactory.getLogger(AggregateEventDispatcher::class.java)
     }
 
-    override fun EventStreamExchange.asGroupKey(): AggregateGroupKey {
-        return message.asGroupKey(parallelism.group)
+    override fun EventStreamExchange.asGroupKey(): Int {
+        return message.asGroupKey(parallelism)
     }
 
     override fun handleExchange(exchange: EventStreamExchange): Mono<Void> {
