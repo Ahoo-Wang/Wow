@@ -35,6 +35,22 @@ jobs:
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport --stacktrace
 
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2.7.0
+        if: always()
+        with:
+          files: |
+            wow-core/build/test-results/**/*.xml
+            wow-compiler/build/test-results/**/*.xml
+            wow-kafka/build/test-results/**/*.xml
+            wow-mongo/build/test-results/**/*.xml
+            wow-r2dbc/build/test-results/**/*.xml
+            wow-elasticsearch/build/test-results/**/*.xml
+            wow-spring/build/test-results/**/*.xml
+            wow-spring-boot-starter/build/test-results/**/*.xml
+            wow-opentelemetry/build/test-results/**/*.xml
+            example/example-domain/build/test-results/**/*.xml
+
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v3
         with:
