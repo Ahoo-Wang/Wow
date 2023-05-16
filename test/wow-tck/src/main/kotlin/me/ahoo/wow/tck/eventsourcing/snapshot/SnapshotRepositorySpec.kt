@@ -17,6 +17,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -43,7 +44,7 @@ abstract class SnapshotRepositorySpec {
 
     @Test
     fun load() {
-        val snapshotRepository = createSnapshotRepository()
+        val snapshotRepository = createSnapshotRepository().metrizable()
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
@@ -87,7 +88,7 @@ abstract class SnapshotRepositorySpec {
 
     @Test
     fun loadWhenNotFound() {
-        val snapshotRepository = createSnapshotRepository()
+        val snapshotRepository = createSnapshotRepository().metrizable()
 
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         snapshotRepository.load<MockAggregate>(aggregateId)
@@ -98,7 +99,7 @@ abstract class SnapshotRepositorySpec {
 
     @Test
     fun save() {
-        val snapshotRepository = createSnapshotRepository()
+        val snapshotRepository = createSnapshotRepository().metrizable()
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
         val snapshot: Snapshot<MockAggregate> =
@@ -110,7 +111,7 @@ abstract class SnapshotRepositorySpec {
 
     @Test
     open fun saveTwice() {
-        val snapshotRepository = createSnapshotRepository()
+        val snapshotRepository = createSnapshotRepository().metrizable()
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
@@ -164,7 +165,7 @@ abstract class SnapshotRepositorySpec {
 
     @Test
     open fun scrollAggregateId() {
-        val snapshotRepository = createSnapshotRepository()
+        val snapshotRepository = createSnapshotRepository().metrizable()
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
         val snapshot: Snapshot<MockAggregate> =
