@@ -13,15 +13,15 @@
 
 package me.ahoo.wow.elasticsearch
 
-import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.asNamedAggregateString
 
 interface SnapshotIndexNameConverter {
-    fun convert(aggregateId: AggregateId): String
+    fun convert(namedAggregate: NamedAggregate): String
 }
 
 object DefaultSnapshotIndexNameConverter : SnapshotIndexNameConverter {
-    override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.namedAggregate.asNamedAggregateString()}.snapshot"
+    override fun convert(namedAggregate: NamedAggregate): String {
+        return "${namedAggregate.asNamedAggregateString()}.snapshot"
     }
 }

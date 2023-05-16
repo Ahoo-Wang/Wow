@@ -40,9 +40,9 @@ class MetricSnapshotRepository(delegate: SnapshotRepository) :
             .metrics()
     }
 
-    override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.findAggregateId(namedAggregate = namedAggregate, cursorId = cursorId, limit = limit)
-            .name(Wow.WOW_PREFIX + "snapshot.findAggregateId")
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scrollAggregateId(namedAggregate = namedAggregate, cursorId = cursorId, limit = limit)
+            .name(Wow.WOW_PREFIX + "snapshot.scrollAggregateId")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()

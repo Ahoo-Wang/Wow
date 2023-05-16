@@ -23,4 +23,6 @@ internal class R2dbcSnapshotRepositoryTest : SnapshotRepositorySpec() {
             simpleSnapshotSchema,
         )
     }
+
+    override fun scrollAggregateId() = Unit
 }
