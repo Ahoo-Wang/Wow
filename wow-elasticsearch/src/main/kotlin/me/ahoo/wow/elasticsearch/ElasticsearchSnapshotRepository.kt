@@ -23,6 +23,7 @@ import me.ahoo.wow.serialization.asObject
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.action.support.WriteRequest
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 import org.elasticsearch.xcontent.XContentType
@@ -34,6 +35,7 @@ import reactor.core.publisher.Mono
 class ElasticsearchSnapshotRepository(
     private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
     private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val refreshPolicy: WriteRequest.RefreshPolicy = WriteRequest.RefreshPolicy.WAIT_UNTIL
 ) : SnapshotRepository {
 
     private fun NamedAggregate.asIndexName(): String {
@@ -55,8 +57,9 @@ class ElasticsearchSnapshotRepository(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         val indexRequest = IndexRequest(snapshot.aggregateId.asIndexName())
-        indexRequest.id(snapshot.aggregateId.id)
-        indexRequest.source(snapshot.asJsonString(), XContentType.JSON)
+            .id(snapshot.aggregateId.id)
+            .source(snapshot.asJsonString(), XContentType.JSON)
+            .setRefreshPolicy(refreshPolicy)
         return elasticsearchClient.index(indexRequest)
             .then()
     }
