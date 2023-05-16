@@ -39,7 +39,7 @@ abstract class AbstractKafkaBus<M, E>(
     private val sender: KafkaSender<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
+) : MessageBus, AutoCloseable where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }
@@ -110,5 +110,9 @@ abstract class AbstractKafkaBus<M, E>(
             }
             null
         }
+    }
+
+    override fun close() {
+        sender.close()
     }
 }
