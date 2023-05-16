@@ -44,6 +44,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2.7.0
         if: always()
         with:
+          ignore_runs: true
+          large_files: true
           files: |
             wow-core/build/test-results/**/*.xml
             wow-compiler/build/test-results/**/*.xml
