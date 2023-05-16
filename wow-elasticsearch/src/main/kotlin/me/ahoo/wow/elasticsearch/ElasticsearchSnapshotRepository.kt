@@ -69,7 +69,7 @@ class ElasticsearchSnapshotRepository(
             .fetchSource(MessageRecords.TENANT_ID, null)
             .searchAfter(arrayOf(cursorId))
             .size(limit)
-            .sort("_id", SortOrder.ASC)
+            .sort("${MessageRecords.AGGREGATE_ID}.keyword", SortOrder.ASC)
 
         val searchRequest = SearchRequest(arrayOf(namedAggregate.asIndexName()), searchSourceBuilder)
         return elasticsearchClient.search(searchRequest)
