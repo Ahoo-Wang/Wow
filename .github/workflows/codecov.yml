@@ -8,6 +8,11 @@ on:
     paths-ignore:
       - 'document/**'
       - 'wow-example/**'
+permissions:
+  contents: read
+  issues: read
+  checks: write
+  pull-requests: write
 env:
   CI: GITHUB_ACTIONS
 jobs:
