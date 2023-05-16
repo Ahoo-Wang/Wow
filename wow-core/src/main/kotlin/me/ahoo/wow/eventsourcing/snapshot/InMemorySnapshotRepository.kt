@@ -38,7 +38,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
         }
     }
 
-    override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return Flux.defer {
             aggregateIdMapSnapshot
                 .keys()

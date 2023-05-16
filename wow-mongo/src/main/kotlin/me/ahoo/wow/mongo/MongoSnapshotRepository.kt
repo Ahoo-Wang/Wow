@@ -49,7 +49,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             }
     }
 
-    override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         val snapshotCollectionName = namedAggregate.asSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.gt(Documents.ID_FIELD, cursorId))

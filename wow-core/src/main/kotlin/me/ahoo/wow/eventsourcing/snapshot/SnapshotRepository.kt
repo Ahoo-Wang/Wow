@@ -34,7 +34,7 @@ interface SnapshotRepository {
 
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
-    fun findAggregateId(
+    fun scrollAggregateId(
         namedAggregate: NamedAggregate,
         cursorId: String = FIRST_CURSOR_ID,
         limit: Int = 10
@@ -50,7 +50,7 @@ object NoOpSnapshotRepository : SnapshotRepository {
         return Mono.empty()
     }
 
-    override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return Flux.empty()
     }
 }

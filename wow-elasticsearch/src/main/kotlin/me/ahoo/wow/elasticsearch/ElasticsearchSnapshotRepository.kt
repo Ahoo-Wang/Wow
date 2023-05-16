@@ -61,7 +61,7 @@ class ElasticsearchSnapshotRepository(
             .then()
     }
 
-    override fun findAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         val searchSourceBuilder = SearchSourceBuilder()
             .fetchSource(MessageRecords.TENANT_ID, null)
             .searchAfter(arrayOf(cursorId))

@@ -163,7 +163,7 @@ abstract class SnapshotRepositorySpec {
     }
 
     @Test
-    open fun findAggregateId() {
+    open fun scrollAggregateId() {
         val snapshotRepository = createSnapshotRepository()
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
@@ -173,7 +173,7 @@ abstract class SnapshotRepositorySpec {
             .test()
             .verifyComplete()
 
-        snapshotRepository.findAggregateId(aggregateId, limit = 1)
+        snapshotRepository.scrollAggregateId(aggregateId, limit = 1)
             .test()
             .expectNextCount(1)
             .verifyComplete()
