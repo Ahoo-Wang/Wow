@@ -115,6 +115,9 @@ abstract class AbstractKafkaBus<M, E>(
     }
 
     override fun close() {
+        if (log.isInfoEnabled) {
+            log.info("[${this.javaClass.simpleName}] Close KafkaSender.")
+        }
         sender.close()
     }
 }
