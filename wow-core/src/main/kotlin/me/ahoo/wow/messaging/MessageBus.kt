@@ -21,7 +21,10 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import reactor.util.context.ContextView
 
-interface MessageBus
+interface MessageBus : AutoCloseable {
+    override fun close() = Unit
+}
+
 interface LocalMessageBus : MessageBus
 
 interface DistributedMessageBus : MessageBus

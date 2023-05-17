@@ -40,15 +40,16 @@ abstract class CommandBusSpec {
 
     @Test
     fun send() {
-        val commandBus = createCommandBus().metrizable()
-        val commandMessage = MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-        Schedulers.single().schedule {
-            commandBus
-                .receive(setOf(namedAggregateForSend)).subscribe()
+        createCommandBus().metrizable().use { commandBus ->
+            val commandMessage = MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+            Schedulers.single().schedule {
+                commandBus
+                    .receive(setOf(namedAggregateForSend)).subscribe()
+            }
+            commandBus.send(commandMessage)
+                .test()
+                .verifyComplete()
         }
-        commandBus.send(commandMessage)
-            .test()
-            .verifyComplete()
     }
 
     @Test

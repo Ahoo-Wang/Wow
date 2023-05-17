@@ -161,6 +161,7 @@ abstract class CommandDispatcherSpec {
             onCommandSeek().block()
             warmUp()
             orchestra()
+            commandBus.close()
         }
     }
 

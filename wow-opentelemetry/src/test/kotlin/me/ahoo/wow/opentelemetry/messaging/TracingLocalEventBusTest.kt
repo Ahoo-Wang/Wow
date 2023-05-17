@@ -25,9 +25,11 @@ class TracingLocalEventBusTest {
             every { aggregateId } returns MonoTraceTest.TEST_NAMED_AGGREGATE.asAggregateId()
             every { iterator() } returns listOf(event).iterator()
         }
-        InMemoryDomainEventBus().tracing()
-            .send(eventStream)
-            .test()
-            .verifyComplete()
+        InMemoryDomainEventBus().tracing().use {
+            it.send(eventStream)
+                .test()
+                .verifyComplete()
+        }
+
     }
 }

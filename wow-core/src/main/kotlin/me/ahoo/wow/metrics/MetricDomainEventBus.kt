@@ -42,4 +42,8 @@ class MetricDomainEventBus(delegate: DomainEventBus) :
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }
