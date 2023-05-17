@@ -22,15 +22,19 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
-import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
 
 class KafkaDomainEventBus(
-    sender: KafkaSender<String, String>,
+    senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
     private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : DomainEventBus, DistributedMessageBus,
-    AbstractKafkaBus<DomainEventStream, EventStreamExchange>(sender, receiverOptions, receiverOptionsCustomizer) {
+    AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
+        senderOptions,
+        receiverOptions,
+        receiverOptionsCustomizer
+    ) {
 
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java

@@ -30,7 +30,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
 
     override fun createCommandBus(): CommandBus {
         return KafkaCommandBus(
-            sender = KafkaLauncher.sender,
+            senderOptions = KafkaLauncher.senderOptions,
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }

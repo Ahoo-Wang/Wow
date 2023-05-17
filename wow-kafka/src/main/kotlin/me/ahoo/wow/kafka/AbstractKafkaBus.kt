@@ -32,11 +32,12 @@ import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
 import reactor.util.concurrent.Queues
 
 abstract class AbstractKafkaBus<M, E>(
-    private val sender: KafkaSender<String, String>,
+    private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
@@ -44,6 +45,7 @@ abstract class AbstractKafkaBus<M, E>(
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }
 
+    protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
     abstract val messageType: Class<M>
     protected fun sendMessage(message: M): Mono<Void> {
         if (log.isDebugEnabled) {

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeAll
 internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
     override fun createEventBus(): DomainEventBus {
         return KafkaDomainEventBus(
-            sender = KafkaLauncher.sender,
+            senderOptions = KafkaLauncher.senderOptions,
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
