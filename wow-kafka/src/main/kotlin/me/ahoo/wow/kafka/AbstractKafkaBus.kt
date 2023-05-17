@@ -32,18 +32,20 @@ import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
 import reactor.util.concurrent.Queues
 
 abstract class AbstractKafkaBus<M, E>(
-    private val sender: KafkaSender<String, String>,
+    private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : MessageBus, AutoCloseable where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
+) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }
 
+    protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
     abstract val messageType: Class<M>
     protected fun sendMessage(message: M): Mono<Void> {
         if (log.isDebugEnabled) {
@@ -113,6 +115,9 @@ abstract class AbstractKafkaBus<M, E>(
     }
 
     override fun close() {
+        if (log.isInfoEnabled) {
+            log.info("[${this.javaClass.simpleName}] Close KafkaSender.")
+        }
         sender.close()
     }
 }

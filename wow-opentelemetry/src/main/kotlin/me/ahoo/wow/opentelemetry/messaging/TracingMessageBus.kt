@@ -60,6 +60,10 @@ class TracingLocalCommandBus(override val delegate: CommandBus) :
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
         return delegate.receive(namedAggregates)
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }
 
 class TracingDistributedCommandBus(override val delegate: CommandBus) :
@@ -75,6 +79,10 @@ class TracingDistributedCommandBus(override val delegate: CommandBus) :
             .map {
                 it.setParentContext(Context.current())
             }
+    }
+
+    override fun close() {
+        delegate.close()
     }
 }
 
@@ -107,6 +115,10 @@ class TracingLocalEventBus(override val delegate: DomainEventBus) :
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
         return delegate.receive(namedAggregates)
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }
 
 class TracingDistributedEventBus(override val delegate: DomainEventBus) :
@@ -122,5 +134,9 @@ class TracingDistributedEventBus(override val delegate: DomainEventBus) :
             .map {
                 it.setParentContext(Context.current())
             }
+    }
+
+    override fun close() {
+        delegate.close()
     }
 }

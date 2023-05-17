@@ -22,7 +22,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
-import reactor.kafka.sender.KafkaSender
+import reactor.kafka.sender.SenderOptions
 import reactor.util.retry.Retry
 import reactor.util.retry.RetryBackoffSpec
 import java.time.Duration
@@ -30,12 +30,12 @@ import java.time.Duration
 internal val DEFAULT_RECEIVE_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(10))
 
 class KafkaCommandBus(
-    sender: KafkaSender<String, String>,
+    senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
     private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : CommandBus, DistributedMessageBus, AbstractKafkaBus<CommandMessage<Any>, ServerCommandExchange<Any>>(
-    sender,
+    senderOptions,
     receiverOptions,
     receiverOptionsCustomizer
 ) {

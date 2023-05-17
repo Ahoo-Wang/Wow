@@ -43,4 +43,8 @@ open class MetricCommandBus(delegate: CommandBus) :
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
     }
+
+    override fun close() {
+        delegate.close()
+    }
 }

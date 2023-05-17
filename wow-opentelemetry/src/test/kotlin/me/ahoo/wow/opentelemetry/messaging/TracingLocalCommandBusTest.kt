@@ -22,9 +22,11 @@ class TracingLocalCommandBusTest {
             every { aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { name } returns "test"
         }
-        InMemoryCommandBus().tracing()
-            .send(commandMessage)
-            .test()
-            .verifyComplete()
+        InMemoryCommandBus().tracing().use {
+            it.send(commandMessage)
+                .test()
+                .verifyComplete()
+        }
+
     }
 }

@@ -30,7 +30,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import reactor.kafka.sender.KafkaSender
 
 @AutoConfiguration(before = [CommandAutoConfiguration::class])
 @ConditionalOnWowEnabled
@@ -46,23 +45,16 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    fun kafkaSender(): KafkaSender<String, String> {
-        return KafkaSender.create(kafkaProperties.buildSenderOptions())
-    }
-
-    @Bean
     @ConditionalOnProperty(
         CommandProperties.Bus.TYPE,
         matchIfMissing = true,
         havingValue = MessageBusType.KAFKA_NAME,
     )
     fun kafkaCommandBus(
-        kafkaSender: KafkaSender<String, String>,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
     ): CommandBus {
         return KafkaCommandBus(
-            sender = kafkaSender,
+            senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             topicPrefix = kafkaProperties.topicPrefix,
             receiverOptionsCustomizer = receiverOptionsCustomizer
@@ -76,11 +68,10 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         havingValue = MessageBusType.KAFKA_NAME,
     )
     fun kafkaDomainEventBus(
-        kafkaSender: KafkaSender<String, String>,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
     ): DomainEventBus {
         return KafkaDomainEventBus(
-            sender = kafkaSender,
+            senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             topicPrefix = kafkaProperties.topicPrefix,
             receiverOptionsCustomizer = receiverOptionsCustomizer

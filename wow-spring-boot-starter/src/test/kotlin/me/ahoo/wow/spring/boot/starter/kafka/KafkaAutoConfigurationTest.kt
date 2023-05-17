@@ -22,7 +22,6 @@ import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import reactor.kafka.sender.KafkaSender
 
 internal class KafkaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -39,7 +38,6 @@ internal class KafkaAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(ReceiverOptionsCustomizer::class.java)
-                    .hasSingleBean(KafkaSender::class.java)
                     .hasSingleBean(CommandBus::class.java)
                     .hasSingleBean(DomainEventBus::class.java)
             }

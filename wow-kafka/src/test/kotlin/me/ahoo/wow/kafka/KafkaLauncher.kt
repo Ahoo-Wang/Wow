@@ -22,18 +22,15 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.testcontainers.containers.KafkaContainer
 import org.testcontainers.utility.DockerImageName
 import reactor.kafka.receiver.ReceiverOptions
-import reactor.kafka.sender.KafkaSender
 import reactor.kafka.sender.SenderOptions
 
 object KafkaLauncher {
     private val KAFKA_CONTAINER: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.5"))
         .withNetworkAliases("kafka")
         .withReuse(true)
-    val sender: KafkaSender<String, String>
 
     init {
         KAFKA_CONTAINER.start()
-        sender = KafkaSender.create(senderOptions)
     }
 
     val isRunning = KAFKA_CONTAINER.isRunning

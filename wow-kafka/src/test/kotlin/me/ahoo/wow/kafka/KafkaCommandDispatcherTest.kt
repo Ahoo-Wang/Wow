@@ -36,7 +36,7 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
 
     override fun createCommandBus(): CommandBus {
         return KafkaCommandBus(
-            sender = KafkaLauncher.sender,
+            senderOptions = KafkaLauncher.senderOptions,
             receiverOptions = KafkaLauncher.receiverOptions,
             receiverOptionsCustomizer = { options ->
                 options
@@ -52,7 +52,7 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
 
     override fun createEventBus(): DomainEventBus {
         return KafkaDomainEventBus(
-            sender = KafkaLauncher.sender,
+            senderOptions = KafkaLauncher.senderOptions,
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }

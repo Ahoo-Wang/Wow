@@ -39,16 +39,16 @@ abstract class DomainEventBusSpec {
 
     @Test
     fun send() {
-        val eventBus = createEventBus().metrizable()
-
-        val eventStream = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregateForSend.asAggregateId(GlobalIdGenerator.generateAsString()),
-            eventCount = 1,
-            createdEventSupplier = { MockDomainEventBusSendEvent(GlobalIdGenerator.generateAsString()) },
-        )
-        eventBus.send(eventStream)
-            .test()
-            .verifyComplete()
+        createEventBus().metrizable().use { eventBus ->
+            val eventStream = MockDomainEventStreams.generateEventStream(
+                aggregateId = namedAggregateForSend.asAggregateId(GlobalIdGenerator.generateAsString()),
+                eventCount = 1,
+                createdEventSupplier = { MockDomainEventBusSendEvent(GlobalIdGenerator.generateAsString()) },
+            )
+            eventBus.send(eventStream)
+                .test()
+                .verifyComplete()
+        }
     }
 
     @Test
