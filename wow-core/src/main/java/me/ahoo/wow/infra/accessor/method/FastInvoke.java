@@ -1,5 +1,5 @@
 /*
- * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com>].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -34,7 +34,8 @@ public final class FastInvoke {
 
     @SuppressWarnings("AvoidObjectArrays")
     public static <T> T newInstance(Constructor<T> constructor, Object[] args)
-            throws InvocationTargetException, InstantiationException, IllegalAccessException {
+            throws InvocationTargetException, InstantiationException,
+            IllegalAccessException {
         return constructor.newInstance(args);
     }
 }
