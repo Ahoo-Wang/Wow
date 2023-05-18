@@ -18,17 +18,23 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * <a href="https://detekt.dev/docs/rules/performance/#spreadoperator">SpreadOperator</a>
+ * <a href="https://detekt.dev/docs/rules/performance/#spreadoperator">
+ * SpreadOperator
+ * </a>
  */
 public final class FastInvoke {
     private FastInvoke() {
     }
 
-    public static Object invoke(Method method, Object target, Object[] args) throws InvocationTargetException, IllegalAccessException {
+    @SuppressWarnings("AvoidObjectArrays")
+    public static Object invoke(Method method, Object target, Object[] args)
+            throws InvocationTargetException, IllegalAccessException {
         return method.invoke(target, args);
     }
 
-    public static <T> T newInstance(Constructor<T> constructor, Object[] args) throws InvocationTargetException, InstantiationException, IllegalAccessException {
+    @SuppressWarnings("AvoidObjectArrays")
+    public static <T> T newInstance(Constructor<T> constructor, Object[] args)
+            throws InvocationTargetException, InstantiationException, IllegalAccessException {
         return constructor.newInstance(args);
     }
 }
