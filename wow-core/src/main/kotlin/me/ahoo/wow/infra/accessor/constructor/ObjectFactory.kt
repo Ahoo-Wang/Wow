@@ -41,6 +41,6 @@ class InjectableObjectFactory<T : Any> : ObjectFactory<T> {
             .map {
                 serviceProvider.getRequiredService(it)
             }.toTypedArray()
-        return constructorAccessor.invoke(*args)
+        return constructorAccessor.invoke(args)
     }
 }

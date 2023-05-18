@@ -22,9 +22,9 @@ data class SimpleMonoMethodAccessor<T, D>(override val method: Method) : MonoMet
         method.ensureAccessible()
     }
 
-    override fun invoke(target: T, vararg args: Any?): Mono<D> {
+    override fun invoke(target: T, args: Array<Any?>): Mono<D> {
         return Mono.defer {
-            super.invoke(target, *args)
+            super.invoke(target, args)
         }
     }
 }

@@ -40,7 +40,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         if (log.isDebugEnabled) {
             log.debug("Create {}.", aggregateId)
         }
-        val stateRoot = metadata.constructorAccessor.invoke(aggregateId.id)
+        val stateRoot = metadata.constructorAccessor.invoke(arrayOf(aggregateId.id))
         return SimpleStateAggregate(aggregateId, metadata, Version.UNINITIALIZED_VERSION, stateRoot)
     }
 

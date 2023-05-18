@@ -24,9 +24,9 @@ data class FluxMonoMethodAccessor<T, D>(override val method: Method) : MonoMetho
         method.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, vararg args: Any?): Mono<List<D>> {
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<List<D>> {
         return Mono.defer {
-            invoke<T, Flux<D>>(method, target, *args).collectList()
+            invoke<T, Flux<D>>(method, target, args).collectList()
         }
     }
 }

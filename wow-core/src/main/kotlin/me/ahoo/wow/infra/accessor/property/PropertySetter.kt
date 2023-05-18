@@ -28,6 +28,6 @@ class FieldPropertySetter<in T, in V>(private val fieldSetter: FieldSetter<T, V>
 
 class MethodPropertySetter<in T, in V>(private val methodAccessor: MethodAccessor<T, V>) : PropertySetter<T, V> {
     override fun set(target: T, value: V) {
-        methodAccessor.invoke(target, value)
+        methodAccessor.invoke(target, arrayOf(value))
     }
 }

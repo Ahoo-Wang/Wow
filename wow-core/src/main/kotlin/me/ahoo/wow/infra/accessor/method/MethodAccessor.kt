@@ -26,18 +26,18 @@ interface MethodAccessor<T, out R> {
         get() = method.declaringClass as Class<T>
     val method: Method
 
-    fun invoke(target: T, vararg args: Any?): R {
-        return Companion.invoke(method, target, *args)
+    fun invoke(target: T, args: Array<Any?> = emptyArray<Any?>()): R {
+        return Companion.invoke(method, target, args)
     }
 
     companion object {
 
         @Suppress("SwallowedException")
         @JvmStatic
-        fun <T, R> invoke(method: Method, target: T, vararg args: Any?): R {
+        fun <T, R> invoke(method: Method, target: T, args: Array<Any?> = emptyArray<Any?>()): R {
             try {
                 @Suppress("UNCHECKED_CAST")
-                return method.invoke(target, *args) as R
+                return FastInvoke.invoke(method, target, args) as R
             } catch (e: InvocationTargetException) {
                 if (e.targetException is RuntimeException) {
                     throw e.targetException
@@ -48,8 +48,8 @@ interface MethodAccessor<T, out R> {
         }
 
         @JvmStatic
-        fun <R> invokeStatic(method: Method, vararg args: Any?): R {
-            return invoke(method, Accessor.STATIC, *args)
+        fun <R> invokeStatic(method: Method, args: Array<Any?> = emptyArray<Any?>()): R {
+            return invoke(method, Accessor.STATIC, args)
         }
     }
 }
