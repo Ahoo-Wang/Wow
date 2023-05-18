@@ -24,7 +24,7 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*>, out R
 
     override fun handle(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
-        return metadata.accessor.invoke(processor, firstArgument)
+        return metadata.accessor.invoke(processor, arrayOf(firstArgument))
     }
 
     override fun toString(): String {
@@ -47,7 +47,7 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*>, o
             val serviceType = metadata.injectParameterTypes[i]
             args[i + 1] = exchange.extractObject(serviceType)
         }
-        return metadata.accessor.invoke(processor, *args)
+        return metadata.accessor.invoke(processor, args)
     }
 
     override fun toString(): String {

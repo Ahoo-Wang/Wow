@@ -25,9 +25,9 @@ data class PublisherMonoMethodAccessor<T, D>(override val method: Method) : Mono
         method.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, vararg args: Any?): Mono<D> {
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
         return Mono.defer {
-            invoke<T, Publisher<D>>(method, target, *args).toMono()
+            invoke<T, Publisher<D>>(method, target, args).toMono()
         }
     }
 }

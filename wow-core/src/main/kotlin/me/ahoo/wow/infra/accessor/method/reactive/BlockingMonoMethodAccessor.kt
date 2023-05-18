@@ -27,8 +27,8 @@ class BlockingMonoMethodAccessor<T, D>(
     override val method: Method
         get() = monoMethodAccessor.method
 
-    override operator fun invoke(target: T, vararg args: Any?): Mono<D> {
-        return monoMethodAccessor.invoke(target, *args).asBlockable(scheduler)
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
+        return monoMethodAccessor.invoke(target, args).asBlockable(scheduler)
     }
 }
 

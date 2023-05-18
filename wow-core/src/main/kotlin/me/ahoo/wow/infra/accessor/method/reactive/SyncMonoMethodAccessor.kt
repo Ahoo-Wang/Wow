@@ -24,7 +24,7 @@ data class SyncMonoMethodAccessor<T, D>(override val method: Method) :
         method.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, vararg args: Any?): Mono<D> {
-        return Mono.fromCallable { invoke<T, D>(method, target, *args) }
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
+        return Mono.fromCallable { invoke<T, D>(method, target, args) }
     }
 }

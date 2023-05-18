@@ -60,6 +60,17 @@ internal class SimpleMethodAccessorTest {
         invokeStatic<Any>(MockMethod.STATIC_METHOD)
     }
 
+
+    @Test
+    fun invokeWithArg() {
+        val methodAccessor = SimpleMethodAccessor<MockMethodWithArg, Unit>(MockMethodWithArg.METHOD)
+        val arrayArg: Array<Any?> = Array(2) {
+            "arg"
+        }
+        methodAccessor.invoke(MockMethodWithArg(), arrayArg)
+
+    }
+
     class MockMethod {
         private fun invoke() {}
 
@@ -98,6 +109,18 @@ internal class SimpleMethodAccessorTest {
 
         companion object {
             val METHOD: Method = MockMethodWhenError::class.java.getDeclaredMethod("invoke")
+        }
+    }
+
+    class MockMethodWithArg {
+        fun invoke(arg1: String, arg2: String) {
+
+        }
+
+
+        companion object {
+            val METHOD: Method =
+                MockMethodWithArg::class.java.getDeclaredMethod("invoke", String::class.java, String::class.java)
         }
     }
 }

@@ -13,15 +13,16 @@
 
 package me.ahoo.wow.infra.accessor.constructor
 
+import me.ahoo.wow.infra.accessor.method.FastInvoke
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
 
 interface ConstructorAccessor<T : Any> {
     val constructor: Constructor<T>
 
-    fun invoke(vararg args: Any): T {
+    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T {
         try {
-            return constructor.newInstance(*args)
+            return FastInvoke.newInstance(constructor, args)
         } catch (e: InvocationTargetException) {
             if (e.targetException is RuntimeException) {
                 throw e.targetException
