@@ -18,10 +18,10 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 
-interface MessageProcessor<P : Any, M : MessageExchange<*>, out R> : NamedBoundedContext {
+interface MessageProcessor<P : Any, M : MessageExchange<*, *>, out R> : NamedBoundedContext {
     fun process(exchange: M): R
 }
 
-interface ReactiveMessageProcessor<P : Any, M : MessageExchange<*>, out R : Publisher<*>> : MessageProcessor<P, M, R>
+interface ReactiveMessageProcessor<P : Any, M : MessageExchange<*, *>, out R : Publisher<*>> : MessageProcessor<P, M, R>
 
-interface MonoMessageProcessor<P : Any, M : MessageExchange<*>, out R : Mono<*>> : ReactiveMessageProcessor<P, M, R>
+interface MonoMessageProcessor<P : Any, M : MessageExchange<*, *>, out R : Mono<*>> : ReactiveMessageProcessor<P, M, R>

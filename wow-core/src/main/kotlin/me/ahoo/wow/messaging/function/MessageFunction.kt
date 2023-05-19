@@ -16,7 +16,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-interface MessageFunction<P : Any, in M : MessageExchange<*>, out R> {
+interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> {
     /**
      * Message body types supported by the message function.
      */
@@ -32,7 +32,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*>, out R> {
     fun handle(exchange: M): R
 }
 
-interface MethodMessageFunction<P : Any, in M : MessageExchange<*>, out R> : MessageFunction<P, M, R> {
+interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
     val metadata: MethodFunctionMetadata<P, R>
 
     @Suppress("UNCHECKED_CAST")
@@ -42,7 +42,7 @@ interface MethodMessageFunction<P : Any, in M : MessageExchange<*>, out R> : Mes
         }
 }
 
-fun <P : Any, M : MessageExchange<*>, R> MethodFunctionMetadata<P, R>.asMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
+fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.asMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
     return if (injectParameterLength == 0) {
         SimpleMethodMessageFunction(processor, this)
     } else {
@@ -50,7 +50,7 @@ fun <P : Any, M : MessageExchange<*>, R> MethodFunctionMetadata<P, R>.asMessageF
     }
 }
 
-val <P : Any, M : MessageExchange<*>, R> MessageFunction<P, M, R>.namedBoundedContext: NamedBoundedContext
+val <P : Any, M : MessageExchange<*, *>, R> MessageFunction<P, M, R>.namedBoundedContext: NamedBoundedContext
     get() {
         return processor.javaClass.asRequiredNamedBoundedContext()
     }

@@ -14,26 +14,47 @@
 package me.ahoo.wow.messaging.handler
 
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.ioc.ServiceProvider
 
 const val ERROR_KEY = "__ERROR__"
+const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
 
-interface MessageExchange<out M : Message<*>> {
+interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*>> {
     val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge() = Unit
-    var serviceProvider: ServiceProvider?
 
-    fun setError(throwable: Throwable) {
+    fun setAttribute(key: String, value: Any): SOURCE {
+        attributes[key] = value
+        @Suppress("UNCHECKED_CAST")
+        return this as SOURCE
+    }
+
+    fun <T> getAttribute(key: String): T? {
+        @Suppress("UNCHECKED_CAST")
+        return attributes[key] as T?
+    }
+
+    fun setError(throwable: Throwable): SOURCE {
         attributes[ERROR_KEY] = throwable
+        return setAttribute(ERROR_KEY, throwable)
     }
 
     fun getError(): Throwable? {
-        return attributes[ERROR_KEY] as Throwable?
+        return getAttribute(ERROR_KEY)
+    }
+
+    fun setServiceProvider(serviceProvider: ServiceProvider): SOURCE {
+        return setAttribute(SERVICE_PROVIDER_KEY, serviceProvider)
+    }
+
+    fun getServiceProvider(): ServiceProvider? {
+        return getAttribute(SERVICE_PROVIDER_KEY)
     }
 
     fun <T : Any> extractObject(type: Class<T>): T? {
-        return extractDeclared(type) ?: serviceProvider?.getService(type)
+        return extractDeclared(type) ?: getServiceProvider()?.getService(type)
     }
 
     @Suppress("ReturnCount")
@@ -41,15 +62,23 @@ interface MessageExchange<out M : Message<*>> {
         if (type.isInstance(this)) {
             return type.cast(this)
         }
-        if (type.isInstance(message)) {
-            return type.cast(message)
+        val exMessage = message
+        if (type.isInstance(exMessage)) {
+            return type.cast(exMessage)
         }
-        if (type.isInstance(message.header)) {
-            return type.cast(message.header)
+        if (type.isInstance(exMessage.header)) {
+            return type.cast(exMessage.header)
         }
+        if (exMessage is AggregateIdCapable) {
+            if (type.isInstance(exMessage.aggregateId)) {
+                return type.cast(exMessage.aggregateId)
+            }
+        }
+        val serviceProvider = getServiceProvider()
         if (type.isInstance(serviceProvider)) {
             return type.cast(serviceProvider)
         }
+
         return null
     }
 

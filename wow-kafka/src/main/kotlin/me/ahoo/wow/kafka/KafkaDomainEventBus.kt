@@ -47,8 +47,8 @@ class KafkaDomainEventBus(
         return KafkaEventStreamExchange(this, receiverOffset)
     }
 
-    override fun send(eventStream: DomainEventStream): Mono<Void> {
-        return super.sendMessage(eventStream)
+    override fun send(message: DomainEventStream): Mono<Void> {
+        return super.sendMessage(message)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {

@@ -47,7 +47,7 @@ class TypedFilterCondition(private val filterType: KClass<*>) :
     }
 }
 
-class FilterChainBuilder<T : MessageExchange<*>> {
+class FilterChainBuilder<T : MessageExchange<*, *>> {
     companion object {
         private val log = LoggerFactory.getLogger(FilterChainBuilder::class.java)
     }

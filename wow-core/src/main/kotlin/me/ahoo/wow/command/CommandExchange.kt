@@ -18,7 +18,6 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DomainEventException.Companion.asException
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import java.util.concurrent.ConcurrentHashMap
@@ -28,20 +27,20 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author ahoo wang
  */
-interface CommandExchange<C : Any> : MessageExchange<CommandMessage<C>>
+interface CommandExchange<SOURCE : CommandExchange<SOURCE, C>, C : Any> :
+    MessageExchange<SOURCE, CommandMessage<C>>
 
-interface ClientCommandExchange<C : Any> : CommandExchange<C> {
+interface ClientCommandExchange<C : Any> : CommandExchange<ClientCommandExchange<C>, C> {
     val waitStrategy: WaitStrategy
 }
 
 data class SimpleClientCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val waitStrategy: WaitStrategy,
-    override var serviceProvider: ServiceProvider? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : ClientCommandExchange<C>
 
-interface ServerCommandExchange<C : Any> : CommandExchange<C> {
+interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
     var aggregateProcessor: AggregateProcessor<Any>?
     var eventStream: DomainEventStream?
 
@@ -59,9 +58,6 @@ interface ServerCommandExchange<C : Any> : CommandExchange<C> {
         if (extracted != null) {
             return extracted
         }
-        if (type.isInstance(message.aggregateId)) {
-            return type.cast(message.aggregateId)
-        }
         if (type.isInstance(eventStream)) {
             return type.cast(eventStream)
         }
@@ -76,8 +72,6 @@ interface ServerCommandExchange<C : Any> : CommandExchange<C> {
 
 data class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
-    @Volatile
-    override var serviceProvider: ServiceProvider? = null,
     @Volatile
     override var aggregateProcessor: AggregateProcessor<Any>? = null,
     @Volatile

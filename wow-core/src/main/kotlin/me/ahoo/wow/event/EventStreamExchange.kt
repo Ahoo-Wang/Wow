@@ -13,26 +13,12 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.MessageExchange
 import java.util.concurrent.ConcurrentHashMap
 
-interface EventStreamExchange : MessageExchange<DomainEventStream> {
-    override fun <T : Any> extractDeclared(type: Class<T>): T? {
-        val extracted = super.extractDeclared(type)
-        if (extracted != null) {
-            return extracted
-        }
-        if (type.isInstance(message.aggregateId)) {
-            return type.cast(message.aggregateId)
-        }
-        return null
-    }
-}
+interface EventStreamExchange : MessageExchange<EventStreamExchange, DomainEventStream>
 
 data class SimpleEventStreamExchange(
     override val message: DomainEventStream,
-    @Volatile
-    override var serviceProvider: ServiceProvider? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : EventStreamExchange

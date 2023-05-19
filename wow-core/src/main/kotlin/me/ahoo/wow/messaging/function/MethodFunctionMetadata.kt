@@ -33,7 +33,7 @@ data class MethodFunctionMetadata<P, out R>(
     val processorType: Class<P>
         get() = accessor.targetType
 
-    fun extractFirstArgument(exchange: MessageExchange<*>): Any {
+    fun extractFirstArgument(exchange: MessageExchange<*, *>): Any {
         return when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE -> exchange
             FirstParameterKind.MESSAGE -> exchange.message

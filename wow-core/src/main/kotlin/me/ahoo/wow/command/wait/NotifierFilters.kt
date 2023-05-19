@@ -27,7 +27,7 @@ import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.projection.ProjectionDispatcher
 import reactor.core.publisher.Mono
 
-abstract class AbstractNotifierFilter<T : MessageExchange<*>>(
+abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
     private val processingStage: CommandStage,
     private val commandWaitNotifier: CommandWaitNotifier,
 ) : Filter<T> {

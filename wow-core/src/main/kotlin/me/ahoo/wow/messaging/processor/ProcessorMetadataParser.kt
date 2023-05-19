@@ -29,7 +29,7 @@ import java.lang.reflect.Method
 /**
  * sess [me.ahoo.wow.api.annotation.OnMessage]
  */
-open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*>>(
+open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*, *>>(
     private val onMessageType: Class<OM>,
     private val functionCondition: (Method) -> Boolean = { true },
 ) : CacheableMetadataParser<Class<*>, ProcessorMetadata<*, *>>() {
@@ -42,7 +42,7 @@ open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*>>(
     }
 }
 
-internal class ProcessorMetadataVisitor<P : Any, OM : Annotation, M : MessageExchange<*>>(
+internal class ProcessorMetadataVisitor<P : Any, OM : Annotation, M : MessageExchange<*, *>>(
     private val processorType: Class<P>,
     private val onMessageType: Class<OM>,
     private val functionCondition: (Method) -> Boolean,

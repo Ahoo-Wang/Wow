@@ -24,7 +24,7 @@ import me.ahoo.wow.opentelemetry.messaging.Tracing.getParentContext
 import reactor.core.publisher.Mono
 
 @Order(ORDER_FIRST)
-open class TraceFilter<T : MessageExchange<*>>(private val instrumenter: Instrumenter<T, Unit>) :
+open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Instrumenter<T, Unit>) :
     Filter<T> {
     override fun filter(
         exchange: T,

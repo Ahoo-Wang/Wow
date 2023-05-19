@@ -20,22 +20,22 @@ import reactor.core.publisher.Mono
  *
  * like [org.springframework.web.server.handler.WebFilterChain]
  */
-fun interface FilterChain<T : MessageExchange<*>> {
+fun interface FilterChain<T : MessageExchange<*, *>> {
     fun filter(exchange: T): Mono<Void>
 }
 
-object EmptyFilterChain : FilterChain<MessageExchange<*>> {
-    override fun filter(exchange: MessageExchange<*>): Mono<Void> {
+object EmptyFilterChain : FilterChain<MessageExchange<*, *>> {
+    override fun filter(exchange: MessageExchange<*, *>): Mono<Void> {
         return Mono.empty()
     }
 
-    fun <T : MessageExchange<*>> instance(): FilterChain<T> {
+    fun <T : MessageExchange<*, *>> instance(): FilterChain<T> {
         @Suppress("UNCHECKED_CAST")
         return this as FilterChain<T>
     }
 }
 
-abstract class AbstractFilterChain<T : MessageExchange<*>>(
+abstract class AbstractFilterChain<T : MessageExchange<*, *>>(
     val current: Filter<T>,
     val next: FilterChain<T>,
 ) : FilterChain<T> {
@@ -44,7 +44,7 @@ abstract class AbstractFilterChain<T : MessageExchange<*>>(
     }
 }
 
-open class SimpleFilterChain<T : MessageExchange<*>>(
+open class SimpleFilterChain<T : MessageExchange<*, *>>(
     current: Filter<T>,
     next: FilterChain<T>,
 ) : AbstractFilterChain<T>(current, next)
