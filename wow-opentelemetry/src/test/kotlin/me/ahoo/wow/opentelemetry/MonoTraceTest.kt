@@ -60,6 +60,7 @@ class MonoTraceTest {
             every { eventFunction } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
+                every { getError() } returns null
             }
         }
 
@@ -80,6 +81,7 @@ class MonoTraceTest {
             every { eventFunction } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
+                every { getError() } returns null
             }
         }
 
@@ -101,6 +103,7 @@ class MonoTraceTest {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
             }
+            every { getError() } returns null
         }
 
         MonoTrace(
@@ -118,6 +121,7 @@ class MonoTraceTest {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
+            every { getError() } returns null
         }
 
         MonoTrace(

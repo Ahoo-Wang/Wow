@@ -14,7 +14,7 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*>, out R>(
+data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
     override val metadata: MethodFunctionMetadata<P, R>,
 ) :
@@ -32,7 +32,7 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*>, out R
     }
 }
 
-data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*>, out R>(
+data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
     override val metadata: MethodFunctionMetadata<P, R>,
 ) :

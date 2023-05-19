@@ -21,7 +21,7 @@ import me.ahoo.wow.opentelemetry.messaging.Tracing.setParentContext
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.Mono
 
-class MonoLocalBusTrace<T : MessageExchange<*>>(
+class MonoLocalBusTrace<T : MessageExchange<*, *>>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val exchange: T,

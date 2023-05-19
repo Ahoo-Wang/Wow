@@ -16,15 +16,15 @@ package me.ahoo.wow.messaging.handler
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-fun interface Handler<T : MessageExchange<*>> {
+fun interface Handler<T : MessageExchange<*, *>> {
     fun handle(exchange: T): Mono<Void>
 }
 
-fun interface ErrorHandler<T : MessageExchange<*>> {
+fun interface ErrorHandler<T : MessageExchange<*, *>> {
     fun handle(exchange: T, throwable: Throwable): Mono<Void>
 }
 
-class LogErrorHandler<T : MessageExchange<*>> : ErrorHandler<T> {
+class LogErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
     companion object {
         private val log = LoggerFactory.getLogger(LogErrorHandler::class.java)
     }
@@ -37,7 +37,7 @@ class LogErrorHandler<T : MessageExchange<*>> : ErrorHandler<T> {
     }
 }
 
-class LogResumeErrorHandler<T : MessageExchange<*>> : ErrorHandler<T> {
+class LogResumeErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
     companion object {
         private val log = LoggerFactory.getLogger(LogResumeErrorHandler::class.java)
     }
@@ -50,7 +50,7 @@ class LogResumeErrorHandler<T : MessageExchange<*>> : ErrorHandler<T> {
     }
 }
 
-abstract class AbstractHandler<T : MessageExchange<*>>(
+abstract class AbstractHandler<T : MessageExchange<*, *>>(
     private val chain: FilterChain<T>,
     private val errorHandler: ErrorHandler<T>,
 ) :
@@ -58,6 +58,7 @@ abstract class AbstractHandler<T : MessageExchange<*>>(
     override fun handle(exchange: T): Mono<Void> {
         return chain.filter(exchange)
             .onErrorResume {
+                exchange.setError(it)
                 errorHandler.handle(exchange, it)
             }
     }

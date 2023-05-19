@@ -24,7 +24,7 @@ import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
-abstract class AggregateMessageDispatcher<T : MessageExchange<*>> : MessageDispatcher, NamedAggregateDecorator,
+abstract class AggregateMessageDispatcher<T : MessageExchange<*, *>> : MessageDispatcher, NamedAggregateDecorator,
     SafeSubscriber<Void>() {
     companion object {
         private val log = LoggerFactory.getLogger(AggregateMessageDispatcher::class.java)

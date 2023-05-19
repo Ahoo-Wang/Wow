@@ -20,7 +20,7 @@ import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.Mono
 
-class MonoTrace<T : MessageExchange<*>>(
+class MonoTrace<T : MessageExchange<*, *>>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val exchange: T,
@@ -38,7 +38,7 @@ class MonoTrace<T : MessageExchange<*>>(
     }
 }
 
-class TraceFilterSubscriber<T : MessageExchange<*>>(
+class TraceFilterSubscriber<T : MessageExchange<*, *>>(
     private val instrumenter: Instrumenter<T, Unit>,
     private val otelContext: Context,
     private val exchange: T,
@@ -60,7 +60,7 @@ class TraceFilterSubscriber<T : MessageExchange<*>>(
     }
 
     override fun onComplete() {
-        instrumenter.end(otelContext, exchange, null, null)
+        instrumenter.end(otelContext, exchange, null, exchange.getError())
         actual.onComplete()
     }
 }

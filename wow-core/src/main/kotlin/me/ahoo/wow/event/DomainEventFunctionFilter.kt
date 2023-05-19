@@ -29,7 +29,7 @@ open class DomainEventFunctionFilter(
     Filter<DomainEventExchange<Any>> {
 
     override fun filter(exchange: DomainEventExchange<Any>, next: FilterChain<DomainEventExchange<Any>>): Mono<Void> {
-        exchange.serviceProvider = serviceProvider
+        exchange.setServiceProvider(serviceProvider)
         return checkNotNull(exchange.eventFunction).handle(exchange).then(next.filter(exchange))
     }
 }

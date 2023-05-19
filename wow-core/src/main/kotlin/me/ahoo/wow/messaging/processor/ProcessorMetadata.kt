@@ -22,7 +22,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.Metadata
 import reactor.core.publisher.Mono
 
-data class ProcessorMetadata<P : Any, M : MessageExchange<*>>(
+data class ProcessorMetadata<P : Any, M : MessageExchange<*, *>>(
     private val namedBoundedContext: NamedBoundedContext,
     override val name: String,
     val processorType: Class<P>,

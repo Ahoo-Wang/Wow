@@ -16,8 +16,10 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.modeling.command.AggregateProcessor
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.instanceOf
 import org.junit.jupiter.api.Test
@@ -27,19 +29,24 @@ import reactor.kotlin.test.test
 internal class FilterChainBuilderTest {
     @Test
     fun build() {
-        val chain = FilterChainBuilder<MessageExchange<Message<Any>>>()
+        val chain = FilterChainBuilder<ServerCommandExchange<Any>>()
             .addFilter(MockLastFilter())
             .addFilter(MockFirstFilter())
             .build() as SimpleFilterChain
 
         assertThat(chain.current, instanceOf(MockFirstFilter::class.java))
         assertThat((chain.next as SimpleFilterChain).current, instanceOf(MockLastFilter::class.java))
-        val exchange: MessageExchange<Message<Any>> = object : MessageExchange<Message<Any>> {
+        val exchange: ServerCommandExchange<Any> = object : ServerCommandExchange<Any> {
+            override var aggregateProcessor: AggregateProcessor<Any>?
+                get() = throw UnsupportedOperationException()
+                set(value) {}
+            override var eventStream: DomainEventStream?
+                get() = throw UnsupportedOperationException()
+                set(value) {}
             override val attributes: MutableMap<String, Any>
                 get() = mutableMapOf()
-            override val message: Message<Any>
+            override val message: CommandMessage<Any>
                 get() = throw UnsupportedOperationException()
-            override var serviceProvider: ServiceProvider? = null
         }
         chain.filter(exchange)
             .test()
@@ -48,20 +55,20 @@ internal class FilterChainBuilderTest {
 }
 
 @Order(ORDER_FIRST)
-internal class MockFirstFilter : Filter<MessageExchange<Message<Any>>> {
+internal class MockFirstFilter : Filter<ServerCommandExchange<Any>> {
     override fun filter(
-        exchange: MessageExchange<Message<Any>>,
-        next: FilterChain<MessageExchange<Message<Any>>>,
+        exchange: ServerCommandExchange<Any>,
+        next: FilterChain<ServerCommandExchange<Any>>,
     ): Mono<Void> {
         return next.filter(exchange)
     }
 }
 
 @Order(ORDER_LAST)
-internal class MockLastFilter : Filter<MessageExchange<Message<Any>>> {
+internal class MockLastFilter : Filter<ServerCommandExchange<Any>> {
     override fun filter(
-        exchange: MessageExchange<Message<Any>>,
-        next: FilterChain<MessageExchange<Message<Any>>>,
+        exchange: ServerCommandExchange<Any>,
+        next: FilterChain<ServerCommandExchange<Any>>,
     ): Mono<Void> {
         return next.filter(exchange)
     }

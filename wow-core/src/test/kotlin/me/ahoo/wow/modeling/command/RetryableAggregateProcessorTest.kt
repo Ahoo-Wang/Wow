@@ -59,12 +59,12 @@ internal class RetryableAggregateProcessorTest {
         )
         val create = CreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
             .asCommandMessage()
-        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(create, serviceProvider = serviceProvider))
+        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(create).setServiceProvider(serviceProvider))
             .test()
             .expectNextCount(1)
             .verifyComplete()
 
-        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(create, serviceProvider = serviceProvider))
+        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(create).setServiceProvider(serviceProvider))
             .test()
             .consumeErrorWith {
                 assertThat(it, instanceOf(DuplicateAggregateIdException::class.java))
@@ -72,7 +72,7 @@ internal class RetryableAggregateProcessorTest {
             .verify()
 
         val change = ChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
-        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(change, serviceProvider = serviceProvider))
+        retryableAggregateCommandHandler.process(SimpleServerCommandExchange(change).setServiceProvider(serviceProvider))
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -86,8 +86,7 @@ internal class RetryableAggregateProcessorTest {
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(
                 change3,
-                serviceProvider = serviceProvider,
-            ),
+            ).setServiceProvider(serviceProvider),
         )
             .test()
             .expectNextCount(1)

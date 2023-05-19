@@ -34,11 +34,14 @@ interface SendMessageBus<M : Message<*>> : MessageBus {
     fun send(message: M): Mono<Void>
 }
 
-interface LocalSendMessageBus<M : Message<*>, E : MessageExchange<M>> : LocalMessageBus, MessageBus, SendMessageBus<M> {
+interface LocalSendMessageBus<M : Message<*>, E : MessageExchange<*, M>> :
+    LocalMessageBus,
+    MessageBus,
+    SendMessageBus<M> {
     fun sendExchange(exchange: E): Mono<Void>
 }
 
-interface ReceiveMessageBus<E : MessageExchange<*>> : MessageBus {
+interface ReceiveMessageBus<E : MessageExchange<*, *>> : MessageBus {
     fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
 }
 

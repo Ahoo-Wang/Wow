@@ -40,7 +40,7 @@ abstract class AbstractKafkaBus<M, E>(
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*> {
+) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, *> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }

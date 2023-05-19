@@ -51,7 +51,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     override fun handleExchange(exchange: ServerCommandExchange<Any>): Mono<Void> {
         val aggregateId = exchange.message.aggregateId
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
-        exchange.serviceProvider = serviceProvider
+        exchange.setServiceProvider(serviceProvider)
         @Suppress("UNCHECKED_CAST")
         exchange.aggregateProcessor = aggregateProcessor as AggregateProcessor<Any>
         return commandHandler.handle(exchange)

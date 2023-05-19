@@ -31,7 +31,7 @@ class MonoCommandWaitNotifier<M>(
     private val processingStage: CommandStage,
     private val messageExchange: M,
     private val source: Mono<Void>,
-) : Mono<Void>() where M : MessageExchange<*> {
+) : Mono<Void>() where M : MessageExchange<*, *> {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val message = messageExchange.message
         if (message !is CommandId) {
@@ -62,7 +62,7 @@ class CommandWaitNotifierSubscriber<M>(
     private val commandId: String,
     private val messageExchange: M,
     private val actual: CoreSubscriber<in Void>,
-) : BaseSubscriber<Void>() where M : MessageExchange<*> {
+) : BaseSubscriber<Void>() where M : MessageExchange<*, *> {
     private val message = messageExchange.message
     private val isLastProjection = if (message is DomainEvent<*>) {
         message.isLast
@@ -114,7 +114,7 @@ class CommandWaitNotifierSubscriber<M>(
     override fun hookOnComplete() {
         actual.onComplete()
         val errorInfo = if (messageExchange is ServerCommandExchange<*>) {
-            messageExchange.extractError()?.asErrorInfo()
+            messageExchange.getError()?.asErrorInfo()
         } else {
             null
         }
@@ -122,7 +122,7 @@ class CommandWaitNotifierSubscriber<M>(
     }
 }
 
-fun <M : MessageExchange<*>> Mono<Void>.thenNotifyAndForget(
+fun <M : MessageExchange<*, *>> Mono<Void>.thenNotifyAndForget(
     commandWaitNotifier: CommandWaitNotifier,
     processingStage: CommandStage,
     messageExchange: M,

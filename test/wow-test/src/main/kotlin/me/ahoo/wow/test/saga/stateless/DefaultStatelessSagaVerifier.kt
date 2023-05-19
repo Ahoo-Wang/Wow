@@ -63,9 +63,11 @@ internal class DefaultWhenStage<T : Any>(
         handlerRegistrar.registerStatelessSaga(processor, commandBus)
 
         val domainEvent = asDomainEvent(event)
+        val eventExchange = SimpleDomainEventExchange(message = domainEvent)
+        eventExchange.setServiceProvider(serviceProvider)
         val expectedResultMono = handlerRegistrar.getFunctions(domainEvent.body.javaClass)
             .first()
-            .handle(SimpleDomainEventExchange(message = domainEvent, serviceProvider = serviceProvider))
+            .handle(SimpleDomainEventExchange(message = domainEvent))
             .map {
                 ExpectedResult(
                     processor = processor,

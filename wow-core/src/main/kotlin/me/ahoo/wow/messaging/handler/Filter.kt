@@ -23,6 +23,6 @@ annotation class FilterType(
     vararg val value: KClass<*>,
 )
 
-fun interface Filter<T : MessageExchange<*>> {
+fun interface Filter<T : MessageExchange<*, *>> {
     fun filter(exchange: T, next: FilterChain<T>): Mono<Void>
 }

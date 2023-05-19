@@ -61,7 +61,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider,
 ) : WhenStage<S> {
-    @Suppress("ReactiveStreamsUnusedPublisher", "UseRequire", "LongMethod")
+    @Suppress("UseRequire", "LongMethod")
     override fun `when`(command: Any, header: Header): ExpectStage<S> {
         val commandMessage = command.asCommandMessage(
             aggregateId = aggregateId.id,
@@ -74,9 +74,9 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             throw IllegalArgumentException("Create aggregate command[$command] can not given sourcing event.")
         }
         val serverCommandExchange = SimpleServerCommandExchange(
-            message = commandMessage,
-            serviceProvider = serviceProvider,
+            message = commandMessage
         )
+        serverCommandExchange.setServiceProvider(serviceProvider)
         val commandAggregateId = commandMessage.aggregateId
         val expectedResultMono = stateAggregateFactory.create(
             metadata.state,
@@ -119,7 +119,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
                     domainEventStream = serverCommandExchange.eventStream,
-                    error = serverCommandExchange.extractError()
+                    error = serverCommandExchange.getError()
                 )
             }.onErrorResume {
                 expectedResult.copy(error = it).toMono()

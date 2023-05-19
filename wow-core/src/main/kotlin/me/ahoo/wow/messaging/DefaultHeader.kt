@@ -44,9 +44,7 @@ class DefaultHeader(private val delegate: Map<String, String> = emptyMap()) :
         if (this === other) return true
         if (other !is DefaultHeader) return false
 
-        if (delegate != other.delegate) return false
-
-        return true
+        return delegate == other.delegate
     }
 
     override fun hashCode(): Int {
