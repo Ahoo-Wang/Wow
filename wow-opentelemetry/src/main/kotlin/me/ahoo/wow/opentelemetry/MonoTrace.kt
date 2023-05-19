@@ -60,7 +60,7 @@ class TraceFilterSubscriber<T : MessageExchange<*>>(
     }
 
     override fun onComplete() {
-        instrumenter.end(otelContext, exchange, null, null)
+        instrumenter.end(otelContext, exchange, null, exchange.getError())
         actual.onComplete()
     }
 }

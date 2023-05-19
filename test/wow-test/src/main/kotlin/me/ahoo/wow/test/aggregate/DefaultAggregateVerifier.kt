@@ -119,7 +119,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
                     domainEventStream = serverCommandExchange.eventStream,
-                    error = serverCommandExchange.extractError()
+                    error = serverCommandExchange.getError()
                 )
             }.onErrorResume {
                 expectedResult.copy(error = it).toMono()

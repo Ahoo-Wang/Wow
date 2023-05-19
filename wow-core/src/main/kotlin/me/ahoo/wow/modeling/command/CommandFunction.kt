@@ -36,4 +36,8 @@ class CommandFunction<C : Any>(
                 it.asDomainEventStream(exchange.message, commandAggregate.version)
             }
     }
+
+    override fun toString(): String {
+        return "CommandFunction(delegate=$delegate)"
+    }
 }

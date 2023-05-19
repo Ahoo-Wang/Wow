@@ -114,7 +114,7 @@ class CommandWaitNotifierSubscriber<M>(
     override fun hookOnComplete() {
         actual.onComplete()
         val errorInfo = if (messageExchange is ServerCommandExchange<*>) {
-            messageExchange.extractError()?.asErrorInfo()
+            messageExchange.getError()?.asErrorInfo()
         } else {
             null
         }

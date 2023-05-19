@@ -30,8 +30,6 @@ data class KafkaServerCommandExchange<C : Any>(
     override var aggregateProcessor: AggregateProcessor<Any>? = null,
     @Volatile
     override var eventStream: DomainEventStream? = null,
-    @Volatile
-    override var error: Throwable? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ServerCommandExchange<C> {
     override fun acknowledge() {

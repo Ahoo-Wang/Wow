@@ -58,6 +58,7 @@ abstract class AbstractHandler<T : MessageExchange<*>>(
     override fun handle(exchange: T): Mono<Void> {
         return chain.filter(exchange)
             .onErrorResume {
+                exchange.setError(it)
                 errorHandler.handle(exchange, it)
             }
     }

@@ -44,12 +44,9 @@ data class SimpleClientCommandExchange<C : Any>(
 interface ServerCommandExchange<C : Any> : CommandExchange<C> {
     var aggregateProcessor: AggregateProcessor<Any>?
     var eventStream: DomainEventStream?
-    var error: Throwable?
 
-    fun extractError(): Throwable? {
-        if (error != null) {
-            return error
-        }
+    override fun getError(): Throwable? {
+        super.getError()?.let { return it }
         val errorEvent = eventStream?.firstOrNull {
             it.body is ErrorInfo
         } ?: return null
@@ -68,6 +65,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<C> {
         if (type.isInstance(eventStream)) {
             return type.cast(eventStream)
         }
+        val error = getError()
         if (type.isInstance(error)) {
             return type.cast(error)
         }
@@ -84,7 +82,5 @@ data class SimpleServerCommandExchange<C : Any>(
     override var aggregateProcessor: AggregateProcessor<Any>? = null,
     @Volatile
     override var eventStream: DomainEventStream? = null,
-    @Volatile
-    override var error: Throwable? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : ServerCommandExchange<C>

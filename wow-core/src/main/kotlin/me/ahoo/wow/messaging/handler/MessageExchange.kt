@@ -16,16 +16,27 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.ioc.ServiceProvider
 
+const val ERROR_KEY = "__ERROR__"
+
 interface MessageExchange<out M : Message<*>> {
     val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge() = Unit
     var serviceProvider: ServiceProvider?
 
+    fun setError(throwable: Throwable) {
+        attributes[ERROR_KEY] = throwable
+    }
+
+    fun getError(): Throwable? {
+        return attributes[ERROR_KEY] as Throwable?
+    }
+
     fun <T : Any> extractObject(type: Class<T>): T? {
         return extractDeclared(type) ?: serviceProvider?.getService(type)
     }
 
+    @Suppress("ReturnCount")
     fun <T : Any> extractDeclared(type: Class<T>): T? {
         if (type.isInstance(this)) {
             return type.cast(this)

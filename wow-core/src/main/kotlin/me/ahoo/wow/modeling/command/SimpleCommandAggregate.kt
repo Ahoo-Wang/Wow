@@ -93,7 +93,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                         .doOnError { commandState = CommandState.EXPIRED }
                         .thenReturn(eventStream)
                 }.onErrorResume {
-                    exchange.error = it
+                    exchange.setError(it)
                     val errorFunction = errorFunctionRegistry[commandType]
                     val errorMono = Mono.error<DomainEventStream>(it)
                     errorFunction?.handle(exchange)?.then(errorMono) ?: errorMono
