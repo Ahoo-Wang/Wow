@@ -36,6 +36,12 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         return attributes[key] as T?
     }
 
+    fun removeAttribute(key: String): SOURCE {
+        attributes.remove(key)
+        @Suppress("UNCHECKED_CAST")
+        return this as SOURCE
+    }
+
     fun setError(throwable: Throwable): SOURCE {
         attributes[ERROR_KEY] = throwable
         return setAttribute(ERROR_KEY, throwable)
@@ -43,6 +49,10 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
 
     fun getError(): Throwable? {
         return getAttribute(ERROR_KEY)
+    }
+
+    fun clearError(): SOURCE {
+        return removeAttribute(ERROR_KEY)
     }
 
     fun setServiceProvider(serviceProvider: ServiceProvider): SOURCE {
