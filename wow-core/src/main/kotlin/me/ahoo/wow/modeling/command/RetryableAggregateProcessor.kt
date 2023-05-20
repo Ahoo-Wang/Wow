@@ -36,7 +36,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
     private companion object {
         private val log = LoggerFactory.getLogger(RetryableAggregateProcessor::class.java)
         private const val MAX_RETRIES = 3L
-        private val MIN_BACKOFF = Duration.ofSeconds(2)
+        private val MIN_BACKOFF = Duration.ofSeconds(1)
     }
 
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
@@ -55,7 +55,13 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
             stateAggregateRepository.load(aggregateMetadata.state, aggregateId)
         }
         return stateAggregateMono.map { commandAggregateFactory.create(aggregateMetadata, it) }
-            .flatMap { it.process(exchange) }
+            .flatMap {
+                /**
+                 * remove error for retry.
+                 */
+                exchange.clearError()
+                it.process(exchange)
+            }
             .retryWhen(retryStrategy)
     }
 }

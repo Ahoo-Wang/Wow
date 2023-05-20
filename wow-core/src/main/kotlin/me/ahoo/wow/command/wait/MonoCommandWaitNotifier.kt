@@ -17,7 +17,6 @@ import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.asErrorInfo
-import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
@@ -88,10 +87,9 @@ class CommandWaitNotifierSubscriber<M>(
         } else {
             throwable
         }
-
-        actual.onError(exception)
         val errorInfo = exception.asErrorInfo()
         notifySignal(errorInfo)
+        actual.onError(exception)
     }
 
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
@@ -112,13 +110,9 @@ class CommandWaitNotifierSubscriber<M>(
     }
 
     override fun hookOnComplete() {
-        actual.onComplete()
-        val errorInfo = if (messageExchange is ServerCommandExchange<*>) {
-            messageExchange.getError()?.asErrorInfo()
-        } else {
-            null
-        }
+        val errorInfo = messageExchange.getError()?.asErrorInfo()
         notifySignal(errorInfo)
+        actual.onComplete()
     }
 }
 
