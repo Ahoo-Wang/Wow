@@ -5,7 +5,7 @@ metadata:
   labels:
     app: wow-example
 spec:
-  replicas: 2
+  replicas: 3
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -23,7 +23,7 @@ spec:
     spec:
       tolerations:
         - key: "test"
-          value: perf
+          value: service
           operator: "Equal"
           effect: "NoSchedule"
       containers:
@@ -34,6 +34,8 @@ spec:
               value: C.utf8
             - name: TZ
               value: Asia/Shanghai
+            - name: JAVA_OPTS
+              value: -Xms8192M  -Xmx8192M
           ports:
             - name: http
               protocol: TCP
@@ -69,11 +71,11 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "4"
-              memory: 2560Mi
+              cpu: "16"
+              memory: 10240Mi
             requests:
-              cpu: '2'
-              memory: 1792Mi
+              cpu: '8'
+              memory: 10240Mi
           volumeMounts:
             - mountPath: /etc/localtime
               name: volume-localtime
@@ -110,7 +112,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: wow-example
-  minReplicas: 2
+  minReplicas: 3
   maxReplicas: 10
   metrics:
   - type: Resource
