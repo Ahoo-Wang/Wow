@@ -36,7 +36,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
     private companion object {
         private val log = LoggerFactory.getLogger(RetryableAggregateProcessor::class.java)
         private const val MAX_RETRIES = 3L
-        private val MIN_BACKOFF = Duration.ofSeconds(1)
+        private val MIN_BACKOFF = Duration.ofMillis(500)
     }
 
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
