@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 class ProjectionDispatcher(
     /**
@@ -30,6 +29,6 @@ class ProjectionDispatcher(
     override val domainEventBus: DomainEventBus,
     override val functionRegistrar: ProjectionFunctionRegistrar,
     override val eventHandler: ProjectionHandler,
-    override val schedulerSupplier: (NamedAggregate) -> Scheduler =
-        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+    override val schedulerSupplier: AggregateSchedulerSupplier =
+        DefaultAggregateSchedulerSupplier("ProjectionDispatcher")
 ) : AbstractEventDispatcher<Mono<*>>()
