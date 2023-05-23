@@ -18,5 +18,5 @@ me.ahoo.wow.spring.boot.starter.webflux.WowWebClientAutoConfiguration
 me.ahoo.wow.spring.boot.starter.metrics.MetricsAutoConfiguration
 me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-
-
+me.ahoo.wow.spring.boot.starter.mock.MockEventStoreAutoConfiguration
+me.ahoo.wow.spring.boot.starter.mock.MockSnapshotAutoConfiguration

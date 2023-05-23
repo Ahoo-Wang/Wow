@@ -63,6 +63,7 @@ dependencies {
     implementation("io.netty:netty-all")
     implementation(project(":example-domain"))
     implementation(project(":wow-mongo"))
+    implementation(project(":wow-mock"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-webflux"))

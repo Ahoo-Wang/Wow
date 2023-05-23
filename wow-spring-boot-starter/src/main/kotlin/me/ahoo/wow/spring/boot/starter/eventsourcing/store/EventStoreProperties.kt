@@ -32,11 +32,13 @@ enum class EventStoreStorage {
     MONGO,
     R2DBC,
     IN_MEMORY,
+    DELAY,
     ;
 
     companion object {
         const val MONGO_NAME = "mongo"
         const val R2DBC_NAME = "r2dbc"
         const val IN_MEMORY_NAME = "in_memory"
+        const val DELAY_NAME = "delay"
     }
 }

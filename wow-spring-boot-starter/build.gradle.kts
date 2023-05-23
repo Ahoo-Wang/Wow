@@ -11,6 +11,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mongo-support", version.toString())
     }
+    registerFeature("mockSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mock-support", version.toString())
+    }
     registerFeature("kafkaSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "kafka-support", version.toString())
@@ -36,6 +40,7 @@ dependencies {
     api(project(":wow-spring"))
     "r2dbcSupportImplementation"(project(":wow-r2dbc"))
     "mongoSupportImplementation"(project(":wow-mongo"))
+    "mockSupportImplementation"(project(":wow-mock"))
     "kafkaSupportImplementation"(project(":wow-kafka"))
     "webfluxSupportImplementation"(project(":wow-webflux"))
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
