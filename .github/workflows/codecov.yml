@@ -51,6 +51,7 @@ jobs:
             wow-compiler/build/test-results/**/*.xml
             wow-kafka/build/test-results/**/*.xml
             wow-mongo/build/test-results/**/*.xml
+            test/wow-mock/build/test-results/**/*.xml
             wow-r2dbc/build/test-results/**/*.xml
             wow-elasticsearch/build/test-results/**/*.xml
             wow-spring/build/test-results/**/*.xml
