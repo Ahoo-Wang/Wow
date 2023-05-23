@@ -18,9 +18,9 @@ import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 abstract class AbstractEventDispatcher<R : Mono<*>> : AbstractDispatcher<EventStreamExchange>() {
     abstract val parallelism: Int
@@ -29,7 +29,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : AbstractDispatcher<EventSt
     abstract val eventHandler: EventHandler
     override val namedAggregates: Set<NamedAggregate>
         get() = functionRegistrar.namedAggregates
-    protected abstract val schedulerSupplier: (NamedAggregate) -> Scheduler
+    protected abstract val schedulerSupplier: AggregateSchedulerSupplier
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
         return domainEventBus
@@ -48,7 +48,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : AbstractDispatcher<EventSt
             messageFlux = messageFlux,
             eventHandler = eventHandler,
             functionRegistrar = functionRegistrar,
-            scheduler = schedulerSupplier(namedAggregate)
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate)
         )
     }
 }

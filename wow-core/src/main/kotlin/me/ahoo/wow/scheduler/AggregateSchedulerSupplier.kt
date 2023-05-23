@@ -13,24 +13,24 @@
 
 package me.ahoo.wow.scheduler
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
-object AggregateSchedulerRegistrar {
-    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
-    val DEFAULT_SCHEDULER_SUPPLIER: (NamedAggregate) -> Scheduler = {
-        getOrInitialize(it)
-    }
+fun interface AggregateSchedulerSupplier {
+    fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
+}
 
-    fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler {
+class DefaultAggregateSchedulerSupplier(override val name: String) : AggregateSchedulerSupplier, Named {
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler {
         return schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
             Schedulers.newParallel(
-                Wow.WOW_PREFIX + namedAggregate.aggregateName
+                name + namedAggregate.aggregateName
             )
         }
     }

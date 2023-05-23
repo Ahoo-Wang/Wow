@@ -23,9 +23,9 @@ import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
-import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
-import reactor.core.scheduler.Scheduler
 
 private const val SNAPSHOT_PROCESSOR_NAME = "snapshot"
 
@@ -38,8 +38,8 @@ class SnapshotDispatcher(
     private val snapshotHandler: SnapshotHandler,
     private val domainEventBus: DomainEventBus,
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    private val schedulerSupplier: (NamedAggregate) -> Scheduler =
-        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+    private val schedulerSupplier: AggregateSchedulerSupplier =
+        DefaultAggregateSchedulerSupplier("SnapshotDispatcher")
 ) : AbstractDispatcher<EventStreamExchange>(), MessageDispatcher {
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
@@ -60,7 +60,7 @@ class SnapshotDispatcher(
             snapshotHandler = snapshotHandler,
             namedAggregate = namedAggregate,
             parallelism = parallelism,
-            scheduler = schedulerSupplier(namedAggregate),
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             messageFlux = messageFlux
         )
     }

@@ -24,9 +24,9 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import me.ahoo.wow.scheduler.AggregateSchedulerRegistrar
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
-import reactor.core.scheduler.Scheduler
 
 /**
  * Aggregate Command Dispatcher .
@@ -42,8 +42,8 @@ class CommandDispatcher(
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider,
-    private val schedulerSupplier: (NamedAggregate) -> Scheduler =
-        AggregateSchedulerRegistrar.DEFAULT_SCHEDULER_SUPPLIER
+    private val schedulerSupplier: AggregateSchedulerSupplier =
+        DefaultAggregateSchedulerSupplier("CommandDispatcher")
 ) : AbstractDispatcher<ServerCommandExchange<Any>>() {
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<Any>> {
         return commandBus
@@ -61,7 +61,7 @@ class CommandDispatcher(
             .asAggregateMetadata<Any, Any>()
         return AggregateCommandDispatcher(
             aggregateMetadata = aggregateMetadata,
-            scheduler = schedulerSupplier(namedAggregate),
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             messageFlux = messageFlux,
             parallelism = parallelism,
             aggregateProcessorFactory = aggregateProcessorFactory,
