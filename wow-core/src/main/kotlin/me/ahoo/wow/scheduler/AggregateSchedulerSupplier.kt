@@ -29,9 +29,7 @@ class DefaultAggregateSchedulerSupplier(override val name: String) : AggregateSc
     private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler {
         return schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newParallel(
-                name + namedAggregate.aggregateName
-            )
+            Schedulers.newParallel("$name-${namedAggregate.aggregateName}")
         }
     }
 }
