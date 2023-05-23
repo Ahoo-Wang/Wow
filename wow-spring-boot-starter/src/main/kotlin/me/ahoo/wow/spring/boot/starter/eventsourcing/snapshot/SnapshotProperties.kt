@@ -55,6 +55,7 @@ enum class SnapshotStorage {
     R2DBC,
     ELASTICSEARCH,
     IN_MEMORY,
+    DELAY,
     ;
 
     companion object {
@@ -62,5 +63,6 @@ enum class SnapshotStorage {
         const val R2DBC_NAME = "r2dbc"
         const val ELASTICSEARCH_NAME = "elasticsearch"
         const val IN_MEMORY_NAME = "in_memory"
+        const val DELAY_NAME = "delay"
     }
 }
