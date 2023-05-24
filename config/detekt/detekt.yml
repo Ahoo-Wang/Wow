@@ -20,11 +20,14 @@ style:
     active: false
   UnnecessaryAbstractClass:
     active: false
+  LoopWithTooManyJumpStatements:
+    active: false
   WildcardImport:
     excludeImports:
       - java.util.*
       - org.hamcrest.Matchers.*
       - org.hamcrest.MatcherAssert.*
+      - org.junit.jupiter.api.Assertions.*
 naming:
   MemberNameEqualsClassName:
     active: false
