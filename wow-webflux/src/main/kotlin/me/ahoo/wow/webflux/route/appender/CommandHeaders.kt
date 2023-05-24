@@ -14,7 +14,8 @@
 package me.ahoo.wow.webflux.route.appender
 
 object CommandHeaders {
-    const val AGGREGATE_VERSION = "command-aggregate-version"
-    const val WAIT_STAGE = "command-wait-stage"
-    const val WAIT_TIME_OUT = "command-wait-timout"
+    const val AGGREGATE_VERSION = "Command-Aggregate-Version"
+    const val WAIT_STAGE = "Command-Wait-Stage"
+    const val WAIT_TIME_OUT = "Command-Wait-Timout"
+    const val REQUEST_ID = "Command-Request-Id"
 }

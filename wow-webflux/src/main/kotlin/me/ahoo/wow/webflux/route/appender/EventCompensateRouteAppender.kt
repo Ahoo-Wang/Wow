@@ -81,13 +81,13 @@ class EventCompensateRouteAppender(
                         .implementation(String::class.java),
                 ).parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
-                        .name(RoutePaths.COMPENSATE_HEAD_VERSION_KEY)
+                        .name(COMPENSATE_HEAD_VERSION_KEY)
                         .`in`(ParameterIn.PATH)
                         .implementation(Int::class.java)
                         .example(EventStore.DEFAULT_HEAD_VERSION.toString()),
                 ).parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
-                        .name(RoutePaths.COMPENSATE_TAIL_VERSION_KEY)
+                        .name(COMPENSATE_TAIL_VERSION_KEY)
                         .`in`(ParameterIn.PATH)
                         .implementation(Int::class.java)
                         .example(Int.MAX_VALUE.toString()),

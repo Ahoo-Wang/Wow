@@ -38,22 +38,26 @@ object CommandParser {
         commandBody: Any,
         aggregateId: String? = null
     ): Mono<CommandMessage<Any>> {
+        val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
+        val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID)
         return principal()
             .map {
                 val header = CommandOperator.withOperator(it.name)
                 commandBody.asCommandMessage(
+                    requestId = requestId,
                     namedAggregate = aggregateMetadata,
                     aggregateId = aggregateId,
-                    tenantId = getTenantId(aggregateMetadata),
+                    tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                     header = header,
                 )
             }.switchIfEmpty {
                 commandBody.asCommandMessage(
+                    requestId = requestId,
                     namedAggregate = aggregateMetadata,
                     aggregateId = aggregateId,
-                    tenantId = getTenantId(aggregateMetadata),
+                    tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                 ).toMono()
             }
