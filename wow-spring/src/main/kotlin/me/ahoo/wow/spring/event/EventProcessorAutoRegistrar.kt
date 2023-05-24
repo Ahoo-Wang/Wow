@@ -20,7 +20,7 @@ import org.springframework.context.ApplicationContext
 
 class EventProcessorAutoRegistrar(
     private val functionRegistrar: DomainEventFunctionRegistrar,
-    applicationContext: ApplicationContext,
+    applicationContext: ApplicationContext
 ) : AutoRegistrar<EventProcessor>(EventProcessor::class.java, applicationContext) {
 
     override fun register(component: Any) {

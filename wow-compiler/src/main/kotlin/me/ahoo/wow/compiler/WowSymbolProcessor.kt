@@ -81,7 +81,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 dependencies = dependencies,
                 packageName = "",
                 fileName = WOW_METADATA_RESOURCE_PATH,
-                extensionName = ""
+                extensionName = "",
             )
         file.write(wowMetadataMerger.metadata.asPrettyJson().toByteArray())
         file.close()

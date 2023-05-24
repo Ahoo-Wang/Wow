@@ -39,7 +39,7 @@ class DuplicateCommandException(val commandMessage: CommandMessage<*>) :
 
 class CommandNotValidException(
     val commandMessage: CommandMessage<*>,
-    val constraintViolations: Set<ConstraintViolation<*>>,
+    val constraintViolations: Set<ConstraintViolation<*>>
 ) : PreconditionFailedException,
     WowException(
         COMMAND_NOT_VALID,

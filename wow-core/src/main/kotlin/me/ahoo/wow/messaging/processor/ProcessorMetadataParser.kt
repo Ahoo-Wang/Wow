@@ -31,7 +31,7 @@ import java.lang.reflect.Method
  */
 open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*, *>>(
     private val onMessageType: Class<OM>,
-    private val functionCondition: (Method) -> Boolean = { true },
+    private val functionCondition: (Method) -> Boolean = { true }
 ) : CacheableMetadataParser<Class<*>, ProcessorMetadata<*, *>>() {
 
     override fun parseAsMetadata(type: Class<*>): ProcessorMetadata<*, *> {
@@ -45,7 +45,7 @@ open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*, *>>(
 internal class ProcessorMetadataVisitor<P : Any, OM : Annotation, M : MessageExchange<*, *>>(
     private val processorType: Class<P>,
     private val onMessageType: Class<OM>,
-    private val functionCondition: (Method) -> Boolean,
+    private val functionCondition: (Method) -> Boolean
 ) : ClassVisitor {
     private val onMessage: OnMessage = onMessageType.scan()!!
     private val functionRegistry: MutableSet<MethodFunctionMetadata<P, Mono<*>>> = mutableSetOf()

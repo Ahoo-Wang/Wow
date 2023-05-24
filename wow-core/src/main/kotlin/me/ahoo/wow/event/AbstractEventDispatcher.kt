@@ -48,7 +48,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : AbstractDispatcher<EventSt
             messageFlux = messageFlux,
             eventHandler = eventHandler,
             functionRegistrar = functionRegistrar,
-            scheduler = schedulerSupplier.getOrInitialize(namedAggregate)
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
 }

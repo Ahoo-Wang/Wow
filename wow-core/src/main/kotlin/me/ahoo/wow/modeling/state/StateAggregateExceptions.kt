@@ -26,7 +26,7 @@ object StateAggregateErrorCodes {
 
 class SourcingVersionConflictException(
     val eventStream: DomainEventStream,
-    val expectVersion: Int,
+    val expectVersion: Int
 ) : ConflictException,
     WowException(
         StateAggregateErrorCodes.SOURCING_VERSION_CONFLICT,

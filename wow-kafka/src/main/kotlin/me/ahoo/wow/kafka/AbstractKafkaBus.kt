@@ -93,11 +93,16 @@ abstract class AbstractKafkaBus<M, E>(
 
     protected fun encode(message: M): SenderRecord<String, String, Sinks.Empty<Void>> {
         val producerRecord = ProducerRecord(
-            /* topic = */ message.asTopic(),
-            /* partition = */ null,
-            /* timestamp = */ message.createTime,
-            /* key = */ message.aggregateId.id,
-            /* value = */ message.asJsonString(),
+            /* topic = */
+            message.asTopic(),
+            /* partition = */
+            null,
+            /* timestamp = */
+            message.createTime,
+            /* key = */
+            message.aggregateId.id,
+            /* value = */
+            message.asJsonString(),
         )
         return SenderRecord.create(producerRecord, Sinks.empty())
     }

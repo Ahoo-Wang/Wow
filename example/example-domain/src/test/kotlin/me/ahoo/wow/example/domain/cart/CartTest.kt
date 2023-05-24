@@ -24,15 +24,13 @@ import me.ahoo.wow.example.api.cart.InitializeCart
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.empty
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasSize
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CartTest {
     companion object {
-        val MOCK_CUSTOMER_ID = "customerId"
+        const val MOCK_CUSTOMER_ID = "customerId"
     }
 
     private fun mockInitializeCart(): VerifiedStage<CartState> {
@@ -104,7 +102,7 @@ class CartTest {
                             productId = "productId$i",
                             quantity = 1,
                         ),
-                    )
+                    ),
                 )
             }
         }.toTypedArray()
@@ -138,7 +136,7 @@ class CartTest {
         verifiedStage.then()
             .given(
                 CartItemAdded(
-                    added = added
+                    added = added,
                 ),
             )
             .`when`(removeCartItem)
@@ -164,7 +162,7 @@ class CartTest {
         verifiedStage.then()
             .given(
                 CartItemAdded(
-                    added = added
+                    added = added,
                 ),
             )
             .`when`(changeQuantity)

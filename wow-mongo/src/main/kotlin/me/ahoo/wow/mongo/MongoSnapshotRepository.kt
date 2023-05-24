@@ -60,14 +60,14 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             .map {
                 namedAggregate.asAggregateId(
                     id = it.getString(Documents.ID_FIELD),
-                    tenantId = it.getString(MessageRecords.TENANT_ID)
+                    tenantId = it.getString(MessageRecords.TENANT_ID),
                 )
             }
     }
 
     private fun <S : Any> mapSnapshot(
         aggregateId: AggregateId,
-        document: Document,
+        document: Document
     ): Snapshot<S> {
         val snapshot = document.asSnapshot<S>()
         require(aggregateId == snapshot.aggregateId) {

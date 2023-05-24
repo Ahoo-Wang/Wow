@@ -12,10 +12,4 @@
  */
 package me.ahoo.wow.modeling.command
 
-import org.junit.jupiter.api.Test
-
-internal class AggregateCommandSubscriberTest {
-    @Test
-    fun hookOnNext() {
-    }
-}
+internal class AggregateCommandSubscriberTest

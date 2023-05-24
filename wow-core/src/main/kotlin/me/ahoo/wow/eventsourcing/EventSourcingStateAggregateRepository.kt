@@ -30,7 +30,7 @@ import reactor.kotlin.core.publisher.cast
 class EventSourcingStateAggregateRepository(
     private val stateAggregateFactory: StateAggregateFactory,
     private val snapshotRepository: SnapshotRepository,
-    private val eventStore: EventStore,
+    private val eventStore: EventStore
 ) : StateAggregateRepository {
     companion object {
         private val log = LoggerFactory.getLogger(EventSourcingStateAggregateRepository::class.java)
@@ -38,7 +38,7 @@ class EventSourcingStateAggregateRepository(
 
     override fun <S : Any> load(
         metadata: StateAggregateMetadata<S>,
-        aggregateId: AggregateId,
+        aggregateId: AggregateId
     ): Mono<StateAggregate<S>> {
         if (log.isDebugEnabled) {
             log.debug("Load {}.", aggregateId)
@@ -50,7 +50,7 @@ class EventSourcingStateAggregateRepository(
                 eventStore
                     .load(
                         aggregateId = aggregateId,
-                        headVersion = stateAggregate.expectedNextVersion
+                        headVersion = stateAggregate.expectedNextVersion,
                     )
                     .map {
                         stateAggregate.onSourcing(it)

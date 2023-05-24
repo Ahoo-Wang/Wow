@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 
 class R2dbcEventStore(
     private val database: Database,
-    private val eventStreamSchema: EventStreamSchema,
+    private val eventStreamSchema: EventStreamSchema
 ) : AbstractEventStore() {
     public override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
         return Flux.usingWhen(
@@ -82,7 +82,7 @@ class R2dbcEventStore(
     public override fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
-        tailVersion: Int,
+        tailVersion: Int
     ): Flux<DomainEventStream> {
         return Flux.usingWhen(
             database.createConnection(aggregateId),
@@ -117,7 +117,7 @@ class R2dbcEventStore(
                     commandId = commandId,
                     requestId = requestId,
                     version = version,
-                    createTime = createTime
+                    createTime = createTime,
                 ).asDomainEventStream()
             }
         }

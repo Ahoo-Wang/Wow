@@ -24,7 +24,7 @@ interface ProjectionHandler : EventHandler
 
 class DefaultProjectionHandler(
     chain: FilterChain<DomainEventExchange<Any>>,
-    errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler(),
+    errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler()
 ) : ProjectionHandler,
     AbstractHandler<DomainEventExchange<Any>>(
         chain,

@@ -49,7 +49,7 @@ class EventDispatcherAutoConfiguration {
     @Bean
     fun eventProcessorAutoRegistrar(
         handlerRegistrar: DomainEventFunctionRegistrar,
-        applicationContext: ApplicationContext,
+        applicationContext: ApplicationContext
     ): EventProcessorAutoRegistrar {
         return EventProcessorAutoRegistrar(handlerRegistrar, applicationContext)
     }
@@ -61,7 +61,7 @@ class EventDispatcherAutoConfiguration {
 
     @Bean
     fun eventDispatcherFunctionFilter(
-        serviceProvider: ServiceProvider,
+        serviceProvider: ServiceProvider
     ): DomainEventFunctionFilter {
         return DomainEventFunctionFilter(serviceProvider)
     }
@@ -83,7 +83,7 @@ class EventDispatcherAutoConfiguration {
     @Bean
     fun eventDispatcherHandler(
         @Qualifier("eventDispatcherFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<Any>>,
+        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<Any>>
     ): DomainEventHandler {
         return DefaultDomainEventHandler(chain, eventProcessorErrorHandler)
     }
@@ -94,7 +94,7 @@ class EventDispatcherAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         domainEventBus: DomainEventBus,
         handlerRegistrar: DomainEventFunctionRegistrar,
-        eventDispatcherHandler: DomainEventHandler,
+        eventDispatcherHandler: DomainEventHandler
     ): DomainEventDispatcher {
         return DomainEventDispatcher(
             name = "${namedBoundedContext.contextName}.${DomainEventDispatcher::class.simpleName}",

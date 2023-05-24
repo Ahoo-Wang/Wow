@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConstructorBinding
 @ConstructorBinding
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
 data class WebFluxProperties(
-    val enabled: Boolean = true,
+    val enabled: Boolean = true
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"

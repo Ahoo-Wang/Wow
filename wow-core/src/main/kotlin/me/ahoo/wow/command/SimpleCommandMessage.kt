@@ -52,7 +52,7 @@ fun <C : Any> C.asCommandMessage(
     aggregateVersion: Int? = null,
     namedAggregate: NamedAggregate? = null,
     header: Header = DefaultHeader.EMPTY,
-    createTime: Long = System.currentTimeMillis(),
+    createTime: Long = System.currentTimeMillis()
 ): CommandMessage<C> {
     val metadata = javaClass.asCommandMetadata()
     val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)
@@ -78,6 +78,6 @@ fun <C : Any> C.asCommandMessage(
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = metadata.isCreate,
-        allowCreate = metadata.allowCreate
+        allowCreate = metadata.allowCreate,
     )
 }

@@ -29,7 +29,7 @@ class DefaultCommandGateway(
     private val commandBus: CommandBus,
     private val idempotencyChecker: IdempotencyChecker,
     private val waitStrategyRegistrar: WaitStrategyRegistrar,
-    private val validator: Validator,
+    private val validator: Validator
 ) : CommandGateway, CommandBus by commandBus {
 
     private fun validate(command: CommandMessage<*>): Mono<Boolean> {
@@ -56,7 +56,7 @@ class DefaultCommandGateway(
 
     override fun <C : Any> send(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy,
+        waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
         require(waitStrategy is WaitingFor) { "waitStrategy must be WaitingFor." }
         require(waitStrategy.stage != CommandStage.SENT) {

@@ -13,7 +13,7 @@ data class AddCartItem(
     @AggregateId
     val customerId: String,
     val productId: String,
-    val quantity: Int = 1,
+    val quantity: Int = 1
 )
 
 data class CartItemAdded(

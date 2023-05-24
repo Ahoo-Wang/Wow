@@ -22,7 +22,7 @@ import org.reactivestreams.Publisher
 interface ConnectionFactoryRegistrar : Map<String, ConnectionFactory>
 
 class SimpleConnectionFactoryRegistrar(
-    private val connectionFactories: Map<String, ConnectionFactory>,
+    private val connectionFactories: Map<String, ConnectionFactory>
 ) : ConnectionFactoryRegistrar, Map<String, ConnectionFactory> by connectionFactories
 
 interface Database {
@@ -42,7 +42,7 @@ interface SnapshotDatabase : Database
 
 class ShardingDatabase(
     private val registrar: ConnectionFactoryRegistrar,
-    private val aggregateIdSharding: AggregateIdSharding,
+    private val aggregateIdSharding: AggregateIdSharding
 ) : Database, EventStreamDatabase, SnapshotDatabase {
 
     override fun createConnection(aggregateId: AggregateId): Publisher<out Connection> {

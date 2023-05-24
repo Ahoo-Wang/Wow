@@ -28,5 +28,5 @@ data class SimpleWaitSignal(
     override val stage: CommandStage,
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG,
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG
 ) : WaitSignal

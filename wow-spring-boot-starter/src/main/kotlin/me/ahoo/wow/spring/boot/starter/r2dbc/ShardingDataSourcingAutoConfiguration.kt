@@ -47,7 +47,7 @@ import org.springframework.context.annotation.Bean
 )
 @EnableConfigurationProperties(ShardingProperties::class)
 class ShardingDataSourcingAutoConfiguration(
-    val shardingProperties: ShardingProperties,
+    val shardingProperties: ShardingProperties
 ) {
     companion object {
 
@@ -58,7 +58,7 @@ class ShardingDataSourcingAutoConfiguration(
         fun buildCompositeSharding(
             boundedContext: NamedBoundedContext,
             shardingRegistrar: ShardingRegistrar,
-            rules: Map<String, String>,
+            rules: Map<String, String>
         ): AggregateIdSharding {
             val shardingRule = rules.map {
                 asNamedAggregate(boundedContext, it.key) to shardingRegistrar[it.value]!!
@@ -67,7 +67,7 @@ class ShardingDataSourcingAutoConfiguration(
         }
 
         private fun buildShardingAlg(
-            shardingAlgorithm: ShardingProperties.ShardingAlgorithm,
+            shardingAlgorithm: ShardingProperties.ShardingAlgorithm
         ): AggregateIdSharding {
             return when (shardingAlgorithm.type) {
                 MOD_ALG -> {

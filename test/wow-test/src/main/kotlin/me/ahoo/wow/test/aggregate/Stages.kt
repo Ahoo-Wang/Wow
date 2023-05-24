@@ -18,12 +18,8 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.greaterThanOrEqualTo
-import org.hamcrest.Matchers.instanceOf
-import org.hamcrest.Matchers.notNullValue
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 
 interface GivenStage<S : Any> {
     fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S>
@@ -152,7 +148,7 @@ interface VerifiedStage<S : Any> {
 data class ExpectedResult<S : Any>(
     val stateAggregate: StateAggregate<S>,
     val domainEventStream: DomainEventStream? = null,
-    val error: Throwable? = null,
+    val error: Throwable? = null
 ) {
     val hasError = error != null
 }

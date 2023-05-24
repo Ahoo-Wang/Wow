@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.infra.accessor.field
 
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -61,6 +61,7 @@ internal class FieldAccessorTest {
     }
 
     class Entity {
+        @Suppress("UnusedPrivateMember")
         private val instance = "instance"
 
         companion object {
@@ -69,6 +70,7 @@ internal class FieldAccessorTest {
         }
     }
 
+    @Suppress("UnusedPrivateProperty")
     class FieldIllegalAccess {
         private val field: String? = null
 

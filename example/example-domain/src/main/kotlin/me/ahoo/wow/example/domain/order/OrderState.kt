@@ -34,7 +34,7 @@ class OrderState(
     /**
      * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
      */
-    val id: String,
+    val id: String
 ) {
 
     lateinit var customerId: String; private set

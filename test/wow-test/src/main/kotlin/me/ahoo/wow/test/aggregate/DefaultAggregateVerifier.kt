@@ -34,7 +34,7 @@ internal class DefaultGivenStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
     private val commandAggregateFactory: CommandAggregateFactory,
-    private val serviceProvider: ServiceProvider,
+    private val serviceProvider: ServiceProvider
 ) : GivenStage<S> {
     override fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
         serviceProvider.register(service)
@@ -59,7 +59,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
     private val commandAggregateFactory: CommandAggregateFactory,
-    private val serviceProvider: ServiceProvider,
+    private val serviceProvider: ServiceProvider
 ) : WhenStage<S> {
     @Suppress("UseRequire", "LongMethod")
     override fun `when`(command: Any, header: Header): ExpectStage<S> {
@@ -74,7 +74,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             throw IllegalArgumentException("Create aggregate command[$command] can not given sourcing event.")
         }
         val serverCommandExchange = SimpleServerCommandExchange(
-            message = commandMessage
+            message = commandMessage,
         )
         serverCommandExchange.setServiceProvider(serviceProvider)
         val commandAggregateId = commandMessage.aggregateId
@@ -119,7 +119,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
                     domainEventStream = serverCommandExchange.eventStream,
-                    error = serverCommandExchange.getError()
+                    error = serverCommandExchange.getError(),
                 )
             }.onErrorResume {
                 expectedResult.copy(error = it).toMono()
@@ -140,7 +140,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     override val verifiedResult: ExpectedResult<S>,
     private val metadata: AggregateMetadata<C, S>,
     private val commandAggregateFactory: CommandAggregateFactory,
-    private val serviceProvider: ServiceProvider,
+    private val serviceProvider: ServiceProvider
 ) : VerifiedStage<S>, GivenStage<S> {
     override fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
         serviceProvider.register(service)
@@ -155,7 +155,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             stateAggregateFactory = object : StateAggregateFactory {
                 override fun <S : Any> create(
                     metadata: StateAggregateMetadata<S>,
-                    aggregateId: AggregateId,
+                    aggregateId: AggregateId
                 ): Mono<StateAggregate<S>> {
                     @Suppress("UNCHECKED_CAST")
                     return Mono.just(verifiedResult.stateAggregate as StateAggregate<S>)
@@ -178,7 +178,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider,
-    private val expectedResultMono: Mono<ExpectedResult<S>>,
+    private val expectedResultMono: Mono<ExpectedResult<S>>
 ) : ExpectStage<S> {
 
     private val expectStates: MutableList<(ExpectedResult<S>) -> Unit> = mutableListOf()

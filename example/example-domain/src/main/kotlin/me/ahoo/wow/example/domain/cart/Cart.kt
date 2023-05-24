@@ -31,6 +31,7 @@ const val MAX_CART_ITEM_SIZE = 100
 @AggregateRoot
 class Cart(private val state: CartState) {
 
+    @Suppress("UnusedParameter")
     fun onCommand(command: InitializeCart): CartInitialized {
         return CartInitialized
     }
@@ -44,13 +45,13 @@ class Cart(private val state: CartState) {
             quantity = command.quantity,
         )
         return CartItemAdded(
-            added = added
+            added = added,
         )
     }
 
     fun onCommand(command: RemoveCartItem): CartItemRemoved {
         return CartItemRemoved(
-            productIds = command.productIds
+            productIds = command.productIds,
         )
     }
 
@@ -58,7 +59,7 @@ class Cart(private val state: CartState) {
         return CartQuantityChanged(
             changed = state.items.first {
                 it.productId == command.productId
-            }.copy(quantity = command.quantity)
+            }.copy(quantity = command.quantity),
         )
     }
 }

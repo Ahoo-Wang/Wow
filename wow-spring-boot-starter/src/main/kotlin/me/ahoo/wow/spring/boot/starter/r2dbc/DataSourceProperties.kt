@@ -26,7 +26,7 @@ data class DataSourceProperties(val type: Type = Type.SIMPLE) {
 
     enum class Type {
         SIMPLE,
-        SHARDING,
+        SHARDING
         ;
 
         companion object {

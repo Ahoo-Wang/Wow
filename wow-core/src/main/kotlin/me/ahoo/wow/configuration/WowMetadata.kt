@@ -16,7 +16,7 @@ data class WowMetadata(
     /**
      * `contextName` -> `BoundedContext`
      */
-    val contexts: Map<String, BoundedContext> = emptyMap(),
+    val contexts: Map<String, BoundedContext> = emptyMap()
 ) : Merge<WowMetadata> {
     override fun merge(other: WowMetadata): WowMetadata {
         val mergedContexts = contexts.merge(other.contexts)
@@ -31,7 +31,7 @@ data class BoundedContext(
     /**
      * `aggregateName` -> `Aggregate`
      */
-    val aggregates: Map<String, Aggregate> = emptyMap(),
+    val aggregates: Map<String, Aggregate> = emptyMap()
 ) : NamingScopes, Merge<BoundedContext> {
     override fun merge(other: BoundedContext): BoundedContext {
         if (alias.isNotBlank() && other.alias.isNotBlank()) {
@@ -58,7 +58,7 @@ data class Aggregate(
      */
     val id: String = "",
     val commands: Set<String> = emptySet(),
-    val events: Set<String> = emptySet(),
+    val events: Set<String> = emptySet()
 ) : NamingScopes, Merge<Aggregate> {
     override fun merge(other: Aggregate): Aggregate {
         val mergedScopes = scopes.plus(other.scopes)

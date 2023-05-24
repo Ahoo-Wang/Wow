@@ -16,7 +16,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 
 data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
-    override val metadata: MethodFunctionMetadata<P, R>,
+    override val metadata: MethodFunctionMetadata<P, R>
 ) :
     MethodMessageFunction<P, M, R> {
     override val supportedTopics: Set<Any>
@@ -34,7 +34,7 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, ou
 
 data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
-    override val metadata: MethodFunctionMetadata<P, R>,
+    override val metadata: MethodFunctionMetadata<P, R>
 ) :
     MethodMessageFunction<P, M, R> {
     override val supportedTopics: Set<Any>

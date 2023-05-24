@@ -35,7 +35,7 @@ class WowMetadataMerger {
         val contextAlias = matchedContext.second.alias
         val aggregateContext = BoundedContext(
             alias = contextAlias,
-            aggregates = mapOf(aggregateName to aggregate)
+            aggregates = mapOf(aggregateName to aggregate),
         )
 
         val aggregateMetadata = WowMetadata(contexts = mapOf(contextName to aggregateContext))
@@ -44,7 +44,7 @@ class WowMetadataMerger {
 }
 
 internal class BoundedContextSearcher(
-    private val source: SortedMap<String, Pair<String, BoundedContext>>,
+    private val source: SortedMap<String, Pair<String, BoundedContext>>
 ) : ScopeSearcher<Pair<String, BoundedContext>>, SortedMap<String, Pair<String, BoundedContext>> by source {
     companion object {
         fun WowMetadata.asBoundedContextSearcher(): BoundedContextSearcher {

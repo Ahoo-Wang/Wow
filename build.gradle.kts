@@ -13,8 +13,6 @@
 
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
-import io.gitlab.arturbosch.detekt.extensions.DetektExtension.Companion.DEFAULT_SRC_DIR_JAVA
-import io.gitlab.arturbosch.detekt.extensions.DetektExtension.Companion.DEFAULT_SRC_DIR_KOTLIN
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformJvmPlugin
@@ -50,7 +48,6 @@ allprojects {
         mavenLocal()
         mavenCentral()
     }
-
     tasks.withType<Jar> {
         manifest {
             attributes["Implementation-Title"] = project.name
@@ -67,11 +64,10 @@ configure(bomProjects) {
     }
 }
 
-configure(libraryProjects + exampleDomainProject) {
+configure(libraryProjects) {
     apply<DetektPlugin>()
     configure<DetektExtension> {
-        source = files(DEFAULT_SRC_DIR_JAVA, DEFAULT_SRC_DIR_KOTLIN)
-        config = files("${rootProject.rootDir}/config/detekt/detekt.yml")
+        config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
         buildUponDefaultConfig = true
         autoCorrect = true
     }
@@ -103,7 +99,7 @@ configure(libraryProjects + exampleDomainProject) {
         api(platform(dependenciesProject))
         detektPlugins(platform(dependenciesProject))
         implementation("org.slf4j:slf4j-api")
-//        testImplementation("ch.qos.logback:logback-classic")
+        testImplementation("ch.qos.logback:logback-classic")
         testImplementation("org.junit.jupiter:junit-jupiter-api")
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testImplementation("org.hamcrest:hamcrest")

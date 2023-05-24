@@ -20,7 +20,7 @@ import me.ahoo.wow.example.api.order.OrderService.ORDER_AGGREGATE_NAME
     OrderService.SERVICE_NAME,
     aggregates = [
         BoundedContext.Aggregate(ORDER_AGGREGATE_NAME, packageScopes = [CreateOrder::class]),
-    ]
+    ],
 )
 object OrderService {
     const val SERVICE_NAME = "order-example-service"

@@ -19,7 +19,7 @@ import me.ahoo.wow.api.naming.Materialized
 
 data class MaterializedNamedAggregate(
     override val contextName: String,
-    override val aggregateName: String,
+    override val aggregateName: String
 ) : NamedAggregate, Materialized
 
 fun NamedAggregate.materialize(): MaterializedNamedAggregate {

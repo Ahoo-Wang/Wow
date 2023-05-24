@@ -29,7 +29,7 @@ data class MetadataNamedAggregateGetter<T>(val namedAggregate: NamedAggregate) :
 
 class SimpleNamedAggregateGetter<T>(
     private val contextName: String?,
-    private val aggregateNameGetter: PropertyGetter<T, String>,
+    private val aggregateNameGetter: PropertyGetter<T, String>
 ) :
     NamedAggregateGetter<T> {
 

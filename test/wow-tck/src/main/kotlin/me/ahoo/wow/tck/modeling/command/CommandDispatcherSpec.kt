@@ -53,8 +53,8 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -70,7 +70,7 @@ abstract class CommandDispatcherSpec {
     protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
-        Duration.ofSeconds(1)
+        Duration.ofSeconds(1),
     ) {
         BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000000)
     }
@@ -125,13 +125,13 @@ abstract class CommandDispatcherSpec {
     protected fun createStateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,
         snapshotRepository: SnapshotRepository,
-        eventStore: EventStore,
+        eventStore: EventStore
     ): StateAggregateRepository {
         return EventSourcingStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
     }
 
     protected fun createCommandAggregateFactory(
-        eventStore: EventStore,
+        eventStore: EventStore
     ): CommandAggregateFactory {
         return SimpleCommandAggregateFactory(eventStore)
     }
@@ -168,7 +168,7 @@ abstract class CommandDispatcherSpec {
     private fun warmUp() {
         val createAggregate = CreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            state = GlobalIdGenerator.generateAsString()
+            state = GlobalIdGenerator.generateAsString(),
         )
         commandGateway
             .sendAndWaitForProcessed(createAggregate.asCommandMessage())
@@ -184,14 +184,14 @@ abstract class CommandDispatcherSpec {
                 add(
                     CreateAggregate(
                         id = GlobalIdGenerator.generateAsString(),
-                        state = GlobalIdGenerator.generateAsString()
-                    )
+                        state = GlobalIdGenerator.generateAsString(),
+                    ),
                 )
             }
         }
         assertThat(
             creates.distinctBy { it.id }.size,
-            equalTo(aggregateCount)
+            equalTo(aggregateCount),
         )
         println("------------- CreateAggregate -------------")
         val createdDuration = creates.toFlux()
@@ -210,7 +210,7 @@ abstract class CommandDispatcherSpec {
             .test()
             .verifyComplete()
         println(
-            "------------- Aggregate Created Duration:[$createdDuration] Throughput:[${creates.size.toDouble() / createdDuration.toMillis() * 1000}/s]-------------"
+            "------------- Aggregate Created Duration:[$createdDuration] Throughput:[${creates.size.toDouble() / createdDuration.toMillis() * 1000}/s]-------------",
         )
         LoggingMeterRegistryInitializer.publishMeters()
         /*
@@ -223,7 +223,7 @@ abstract class CommandDispatcherSpec {
                     ChangeAggregate(
                         randomCreate.id,
                         GlobalIdGenerator.generateAsString(),
-                    )
+                    ),
                 )
             }
         }.toFlux()
@@ -239,7 +239,7 @@ abstract class CommandDispatcherSpec {
             .test()
             .verifyComplete()
         println(
-            "------- Aggregate Changed Duration:[$changedDuration]  Throughput:[${concurrency.toDouble() / changedDuration.toMillis() * 1000}/s]-------"
+            "------- Aggregate Changed Duration:[$changedDuration]  Throughput:[${concurrency.toDouble() / changedDuration.toMillis() * 1000}/s]-------",
         )
         LoggingMeterRegistryInitializer.publishMeters()
     }

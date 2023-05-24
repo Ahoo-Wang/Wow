@@ -29,7 +29,7 @@ interface CreateOrderSpec {
  */
 class DefaultCreateOrderSpec(
     private val inventoryService: InventoryService,
-    private val pricingService: PricingService,
+    private val pricingService: PricingService
 ) : CreateOrderSpec {
 
     override fun require(orderItem: OrderItem): Mono<OrderItem> {
@@ -42,7 +42,7 @@ class DefaultCreateOrderSpec(
      */
     private fun checkInventory(orderItem: OrderItem): Mono<Int> {
         return inventoryService.getInventory(orderItem.productId)
-            .doOnNext() {
+            .doOnNext {
                 if (orderItem.quantity > it) {
                     throw InventoryShortageException(orderItem, it)
                 }

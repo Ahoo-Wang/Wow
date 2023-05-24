@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.route.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
@@ -45,17 +45,20 @@ class CommandRouteMetadataParserTest {
     fun decode() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory), mapOf(
-                "id" to "id", "name" to "name"
-            )
+            ObjectNode(JsonSerializer.nodeFactory),
+            mapOf(
+                "id" to "id",
+                "name" to "name",
+            ),
         )
         assertThat(command.id, equalTo("id"))
         assertThat(command.name, equalTo("name"))
 
         val commandWithDefault = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory), mapOf(
-                "id" to "id"
-            )
+            ObjectNode(JsonSerializer.nodeFactory),
+            mapOf(
+                "id" to "id",
+            ),
         )
         assertThat(commandWithDefault.id, equalTo("id"))
         assertThat(commandWithDefault.name, equalTo("otherName"))
@@ -70,9 +73,11 @@ class CommandRouteMetadataParserTest {
         assertThat(customerIdPathVariable.fieldName, equalTo("id"))
         assertThat(customerIdPathVariable.fieldPath, equalTo(listOf("customer", "id")))
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory), mapOf(
-                "id" to "id", "customerId" to "customerId"
-            )
+            ObjectNode(JsonSerializer.nodeFactory),
+            mapOf(
+                "id" to "id",
+                "customerId" to "customerId",
+            ),
         )
         assertThat(command.id, equalTo("id"))
         assertThat(command.customer.id, equalTo("customerId"))
@@ -85,7 +90,7 @@ data class MockCommandRoute(
     val id: String,
     @field:JsonProperty("customName")
     @CommandRoute.PathVariable(name = "name", required = false)
-    val name: String = "otherName",
+    val name: String = "otherName"
 )
 
 @CommandRoute("{customerId}/{id}")
@@ -93,7 +98,7 @@ data class NestedMockCommandRoute(
     @CommandRoute.PathVariable
     val id: String,
     @CommandRoute.PathVariable(name = "customerId", nestedPath = ["id"])
-    val customer: Customer,
+    val customer: Customer
 ) {
     data class Customer(val id: String)
 }

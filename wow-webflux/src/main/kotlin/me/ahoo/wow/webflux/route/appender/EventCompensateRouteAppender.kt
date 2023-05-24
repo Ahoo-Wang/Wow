@@ -39,7 +39,7 @@ class EventCompensateRouteAppender(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
     private val eventCompensator: EventCompensator,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath

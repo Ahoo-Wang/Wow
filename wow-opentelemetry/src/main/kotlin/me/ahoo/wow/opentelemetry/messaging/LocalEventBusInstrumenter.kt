@@ -54,6 +54,6 @@ object LocalEventBusAttributesExtractor : AttributesExtractor<EventStreamExchang
         context: Context,
         request: EventStreamExchange,
         response: Unit?,
-        error: Throwable?,
+        error: Throwable?
     ) = Unit
 }

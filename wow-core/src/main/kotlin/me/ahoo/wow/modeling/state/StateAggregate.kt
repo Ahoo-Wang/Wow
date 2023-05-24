@@ -65,7 +65,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
         fun <S : Any> AggregateMetadata<*, S>.asStateAggregate(
             stateRoot: S,
             version: Int,
-            deleted: Boolean = false,
+            deleted: Boolean = false
         ): StateAggregate<S> {
             val aggregateId = asAggregateId(state.aggregateIdAccessor[stateRoot])
             return state.asStateAggregate(aggregateId, stateRoot, version, deleted)
@@ -76,7 +76,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
             aggregateId: AggregateId,
             stateRoot: S,
             version: Int,
-            deleted: Boolean = false,
+            deleted: Boolean = false
         ): StateAggregate<S> {
             return SimpleStateAggregate(aggregateId, this, version, stateRoot, deleted)
         }

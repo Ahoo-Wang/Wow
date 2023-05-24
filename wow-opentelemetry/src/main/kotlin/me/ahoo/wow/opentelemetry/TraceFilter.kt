@@ -28,7 +28,7 @@ open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Inst
     Filter<T> {
     override fun filter(
         exchange: T,
-        next: FilterChain<T>,
+        next: FilterChain<T>
     ): Mono<Void> {
         val source = next.filter(exchange)
         val parentContext = exchange.getParentContext() ?: Context.current()

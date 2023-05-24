@@ -76,6 +76,6 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
 
     abstract fun createStateAggregate(
         stateRecord: JsonNode,
-        stateAggregate: StateAggregate<Any>,
+        stateAggregate: StateAggregate<Any>
     ): T
 }

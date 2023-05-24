@@ -45,7 +45,7 @@ class AggregateRouterFunctionAutoRegistrar(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val eventCompensator: EventCompensator,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     val routerFunction: RouterFunction<ServerResponse> by lazy {
         buildRouterFunction()

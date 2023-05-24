@@ -37,7 +37,7 @@ object EmptyFilterChain : FilterChain<MessageExchange<*, *>> {
 
 abstract class AbstractFilterChain<T : MessageExchange<*, *>>(
     val current: Filter<T>,
-    val next: FilterChain<T>,
+    val next: FilterChain<T>
 ) : FilterChain<T> {
     override fun filter(exchange: T): Mono<Void> {
         return current.filter(exchange, next)
@@ -46,5 +46,5 @@ abstract class AbstractFilterChain<T : MessageExchange<*, *>>(
 
 open class SimpleFilterChain<T : MessageExchange<*, *>>(
     current: Filter<T>,
-    next: FilterChain<T>,
+    next: FilterChain<T>
 ) : AbstractFilterChain<T>(current, next)

@@ -36,7 +36,7 @@ class WowWebClientAutoConfiguration {
     @ConditionalOnMissingBean
     fun commandWaitNotifier(
         waitStrategyRegistrar: WaitStrategyRegistrar,
-        webClientBuilder: WebClient.Builder,
+        webClientBuilder: WebClient.Builder
     ): CommandWaitNotifier {
         return WebClientCommandWaitNotifier(waitStrategyRegistrar, webClientBuilder.build())
     }

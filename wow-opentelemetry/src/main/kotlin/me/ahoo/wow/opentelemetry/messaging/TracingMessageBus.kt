@@ -53,7 +53,7 @@ class TracingLocalCommandBus(override val delegate: CommandBus) :
             parentContext = parentContext,
             instrumenter = LocalCommandBusInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = source
+            source = source,
         )
     }
 
@@ -108,7 +108,7 @@ class TracingLocalEventBus(override val delegate: DomainEventBus) :
             parentContext = parentContext,
             instrumenter = LocalEventBusInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = source
+            source = source,
         )
     }
 

@@ -36,7 +36,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
     override val messageFlux: Flux<EventStreamExchange>,
     private val functionRegistrar: AbstractEventFunctionRegistrar<R>,
     private val eventHandler: EventHandler,
-    override val scheduler: Scheduler,
+    override val scheduler: Scheduler
 ) : AggregateMessageDispatcher<EventStreamExchange>() {
     companion object {
         private val log: Logger = LoggerFactory.getLogger(AggregateEventDispatcher::class.java)
@@ -71,7 +71,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
                     "{} eventType[{}] not find any functions.Ignore this event:[{}].",
                     event.aggregateId,
                     eventType,
-                    event
+                    event,
                 )
             }
             return Mono.empty()
@@ -83,7 +83,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
                     SimpleDomainEventExchange(
                         message = event,
                         eventFunction = function,
-                        attributes = ConcurrentHashMap(exchange.attributes)
+                        attributes = ConcurrentHashMap(exchange.attributes),
                     ) as DomainEventExchange<Any>
                 eventHandler.handle(eventExchange)
             }.then()

@@ -36,21 +36,24 @@ class LoadAggregateRouteAppender(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath
         routerFunctionBuilder
             .GET(
-                /* pattern = */ "$aggregateIdPath/state",
-                /* predicate = */ RequestPredicates.accept(MediaType.APPLICATION_JSON),
+                /* pattern = */
+                "$aggregateIdPath/state",
+                /* predicate = */
+                RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 /* handlerFunction = */
                 LoadAggregateHandlerFunction(
                     aggregateMetadata = aggregateMetadata,
                     stateAggregateRepository = stateAggregateRepository,
                     exceptionHandler = exceptionHandler,
                 ),
-                /* operationsConsumer = */ loadAggregateOperation(),
+                /* operationsConsumer = */
+                loadAggregateOperation(),
             )
     }
 

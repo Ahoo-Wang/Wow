@@ -23,12 +23,12 @@ import reactor.kotlin.core.publisher.toMono
 
 class NotFoundResourceException(
     errorCode: String = ErrorCodes.NOT_FOUND,
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
 ) : WowException(errorCode, errorMsg), NotFoundException
 
 fun <T> Mono<T>.throwNotFoundIfEmpty(
     errorCode: String = ErrorCodes.NOT_FOUND,
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
 ): Mono<T> {
     return switchIfEmpty(
         Mono.defer {
@@ -39,18 +39,18 @@ fun <T> Mono<T>.throwNotFoundIfEmpty(
 
 fun <T> Flux<T>.throwNotFoundIfEmpty(
     errorCode: String = ErrorCodes.NOT_FOUND,
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
 ): Flux<T> {
     return switchIfEmpty(
         Flux.defer {
             NotFoundResourceException(errorCode, errorMsg).toFlux()
-        }
+        },
     )
 }
 
 fun <T> T?.throwNotFoundIfNull(
     errorCode: String = ErrorCodes.NOT_FOUND,
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
 ): T {
     return this ?: throw NotFoundResourceException(errorCode, errorMsg)
 }

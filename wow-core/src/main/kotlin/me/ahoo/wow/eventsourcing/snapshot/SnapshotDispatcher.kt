@@ -61,7 +61,7 @@ class SnapshotDispatcher(
             namedAggregate = namedAggregate,
             parallelism = parallelism,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
-            messageFlux = messageFlux
+            messageFlux = messageFlux,
         )
     }
 }

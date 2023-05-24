@@ -86,7 +86,7 @@ class R2dbcEventStoreAutoConfiguration {
             boundedContext: NamedBoundedContext,
             connectionFactoryRegistrar: ConnectionFactoryRegistrar,
             shardingRegistrar: ShardingRegistrar,
-            shardingProperties: ShardingProperties,
+            shardingProperties: ShardingProperties
         ): EventStreamDatabase {
             val shardingList = shardingProperties.eventStream.map {
                 it.key to it.value.databaseAlgorithm
@@ -103,7 +103,7 @@ class R2dbcEventStoreAutoConfiguration {
         fun eventStreamSchema(
             boundedContext: NamedBoundedContext,
             shardingRegistrar: ShardingRegistrar,
-            shardingProperties: ShardingProperties,
+            shardingProperties: ShardingProperties
         ): EventStreamSchema {
             val shardingList = shardingProperties.eventStream.map {
                 it.key to it.value.tableAlgorithm

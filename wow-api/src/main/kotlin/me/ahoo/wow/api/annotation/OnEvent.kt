@@ -30,5 +30,5 @@ annotation class OnEvent(
     /**
      * aggregate Names
      */
-    vararg val value: String,
+    vararg val value: String
 )

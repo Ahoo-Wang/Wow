@@ -34,13 +34,13 @@ interface CommandGateway : MessageGateway, CommandBus {
 
     fun <C : Any> send(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy,
+        waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>>
 
     @Throws(CommandResultException::class)
     fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy,
+        waitStrategy: WaitStrategy
     ): Mono<CommandResult> {
         return send(command, waitStrategy)
             .flatMap {
@@ -57,7 +57,7 @@ interface CommandGateway : MessageGateway, CommandBus {
     }
 
     fun <C : Any> sendAndWaitForSent(
-        command: CommandMessage<C>,
+        command: CommandMessage<C>
     ): Mono<CommandResult> {
         return send(command)
             .thenReturn(
@@ -66,8 +66,8 @@ interface CommandGateway : MessageGateway, CommandBus {
                     aggregateId = command.aggregateId.id,
                     tenantId = command.aggregateId.tenantId,
                     requestId = command.requestId,
-                    commandId = command.commandId
-                )
+                    commandId = command.commandId,
+                ),
             ).onErrorResume {
                 val errorInfo = it.asErrorInfo()
                 CommandResult(
@@ -83,17 +83,17 @@ interface CommandGateway : MessageGateway, CommandBus {
     }
 
     fun <C : Any> sendAndWaitForProcessed(
-        command: CommandMessage<C>,
+        command: CommandMessage<C>
     ): Mono<CommandResult> =
         sendAndWait(command, WaitingFor.processed())
 
     fun <C : Any> sendAndWaitForSnapshot(
-        command: CommandMessage<C>,
+        command: CommandMessage<C>
     ): Mono<CommandResult> =
         sendAndWait(command, WaitingFor.snapshot())
 
     fun <C : Any> sendAndWaitForProjected(
-        command: CommandMessage<C>,
+        command: CommandMessage<C>
     ): Mono<CommandResult> =
         sendAndWait(command, WaitingFor.projected())
 }

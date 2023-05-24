@@ -15,11 +15,8 @@ package me.ahoo.wow.infra.accessor.property
 
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertySetter
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.instanceOf
-import org.hamcrest.Matchers.`is`
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class PropertyDescriptorTest {
@@ -65,4 +62,5 @@ class PropertyDescriptorTest {
 
 data class MockProperty(val id: String)
 
+@Suppress("UnusedPrivateMember")
 class MockPropertyWithoutMethod(private val id: String)

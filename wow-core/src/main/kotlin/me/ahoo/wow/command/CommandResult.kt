@@ -29,7 +29,7 @@ data class CommandResult(
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG,
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG
 ) : CommandId, TenantId, RequestId, ErrorInfo
 
 fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {

@@ -36,7 +36,7 @@ object CommandParser {
     fun ServerRequest.parse(
         aggregateMetadata: AggregateMetadata<*, *>,
         commandBody: Any,
-        aggregateId: String? = null,
+        aggregateId: String? = null
     ): Mono<CommandMessage<Any>> {
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         return principal()
@@ -54,7 +54,7 @@ object CommandParser {
                     namedAggregate = aggregateMetadata,
                     aggregateId = aggregateId,
                     tenantId = getTenantId(aggregateMetadata),
-                    aggregateVersion = aggregateVersion
+                    aggregateVersion = aggregateVersion,
                 ).toMono()
             }
     }

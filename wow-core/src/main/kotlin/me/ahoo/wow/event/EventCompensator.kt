@@ -29,20 +29,20 @@ interface EventCompensator {
         aggregateId: AggregateId,
         targetProcessors: Set<String> = setOf(),
         headVersion: Int = EventStore.DEFAULT_HEAD_VERSION,
-        tailVersion: Int = Int.MAX_VALUE,
+        tailVersion: Int = Int.MAX_VALUE
     ): Mono<Long>
 }
 
 class DefaultEventCompensator(
     private val eventStore: EventStore,
-    private val eventBus: DomainEventBus,
+    private val eventBus: DomainEventBus
 ) :
     EventCompensator {
     override fun compensate(
         aggregateId: AggregateId,
         targetProcessors: Set<String>,
         headVersion: Int,
-        tailVersion: Int,
+        tailVersion: Int
     ): Mono<Long> {
         return eventStore.load(
             aggregateId = aggregateId,

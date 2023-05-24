@@ -31,7 +31,7 @@ data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWai
 
 fun Header.injectWaitStrategy(
     commandWaitEndpoint: String,
-    stage: CommandStage,
+    stage: CommandStage
 ): Header {
     return this.mergeWith(
         mapOf(
@@ -43,7 +43,7 @@ fun Header.injectWaitStrategy(
 
 fun <M : Message<*>> Message<*>.injectWaitStrategy(
     commandWaitEndpoint: String,
-    stage: CommandStage,
+    stage: CommandStage
 ): M {
     @Suppress("UNCHECKED_CAST")
     return this.mergeHeader(
@@ -53,7 +53,7 @@ fun <M : Message<*>> Message<*>.injectWaitStrategy(
 
 data class WaitStrategyInfo(
     val commandWaitEndpoint: String,
-    val stage: CommandStage,
+    val stage: CommandStage
 )
 
 fun Message<*>.extractWaitStrategy(): WaitStrategyInfo? {
@@ -77,7 +77,7 @@ interface CommandWaitNotifier {
 }
 
 class LocalCommandWaitNotifier(
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandWaitNotifier {
     companion object {
         private val log = LoggerFactory.getLogger(LocalCommandWaitNotifier::class.java)

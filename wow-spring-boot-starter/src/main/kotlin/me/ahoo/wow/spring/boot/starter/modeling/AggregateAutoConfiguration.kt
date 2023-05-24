@@ -60,7 +60,7 @@ class AggregateAutoConfiguration {
     fun stateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,
         snapshotRepository: SnapshotRepository,
-        eventStore: EventStore,
+        eventStore: EventStore
     ): StateAggregateRepository {
         return EventSourcingStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
     }
@@ -76,7 +76,7 @@ class AggregateAutoConfiguration {
     fun aggregateProcessorFactory(
         stateAggregateFactory: StateAggregateFactory,
         stateAggregateRepository: StateAggregateRepository,
-        commandAggregateFactory: CommandAggregateFactory,
+        commandAggregateFactory: CommandAggregateFactory
     ): AggregateProcessorFactory {
         return RetryableAggregateProcessorFactory(
             stateAggregateFactory = stateAggregateFactory,
@@ -94,7 +94,7 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun sendDomainEventStreamFilter(
-        domainEventBus: DomainEventBus,
+        domainEventBus: DomainEventBus
     ): SendDomainEventStreamFilter {
         return SendDomainEventStreamFilter(
             domainEventBus = domainEventBus,
@@ -103,7 +103,7 @@ class AggregateAutoConfiguration {
 
     @Bean
     fun commandFilterChain(
-        filters: List<Filter<ServerCommandExchange<Any>>>,
+        filters: List<Filter<ServerCommandExchange<Any>>>
     ): FilterChain<ServerCommandExchange<Any>> {
         return FilterChainBuilder<ServerCommandExchange<Any>>()
             .addFilters(filters)
@@ -121,7 +121,7 @@ class AggregateAutoConfiguration {
     @ConditionalOnMissingBean
     fun commandHandler(
         commandFilterChain: FilterChain<ServerCommandExchange<Any>>,
-        @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<Any>>,
+        @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<Any>>
     ): CommandHandler {
         return DefaultCommandHandler(
             chain = commandFilterChain,
@@ -136,7 +136,7 @@ class AggregateAutoConfiguration {
         commandBus: CommandBus,
         aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
-        serviceProvider: ServiceProvider,
+        serviceProvider: ServiceProvider
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",

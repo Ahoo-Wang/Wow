@@ -38,21 +38,24 @@ class DeleteAggregateRouteAppender(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
     private val commandGateway: CommandGateway,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath
         routerFunctionBuilder
             .DELETE(
-                /* pattern = */ aggregateIdPath,
-                /* predicate = */ RequestPredicates.accept(MediaType.APPLICATION_JSON),
+                /* pattern = */
+                aggregateIdPath,
+                /* predicate = */
+                RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 /* handlerFunction = */
                 DeleteAggregateHandlerFunction(
                     aggregateMetadata = aggregateMetadata,
                     commandGateway = commandGateway,
                     exceptionHandler = exceptionHandler,
                 ),
-                /* operationsConsumer = */ deleteOperation(),
+                /* operationsConsumer = */
+                deleteOperation(),
             )
     }
 

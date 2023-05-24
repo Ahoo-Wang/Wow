@@ -32,7 +32,9 @@ internal class MethodMessageFunctionTest {
             "onCommand",
             CreateAggregate::class.java,
         ).asFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(MockAggregate(GlobalIdGenerator.generateAsString()))
+            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
+                MockAggregate(GlobalIdGenerator.generateAsString()),
+            )
 
         assertThat(handler, notNullValue())
         assertThat(
@@ -56,7 +58,9 @@ internal class MethodMessageFunctionTest {
             ChangeAggregateDependExternalService::class.java,
             ExternalService::class.java,
         ).asFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(MockAggregate(GlobalIdGenerator.generateAsString()))
+            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
+                MockAggregate(GlobalIdGenerator.generateAsString()),
+            )
 
         assertThat(handler, notNullValue())
         assertThat(
@@ -79,7 +83,9 @@ internal class MethodMessageFunctionTest {
             "onCommand",
             CreateAggregate::class.java,
         ).asMonoFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(MockAggregate(GlobalIdGenerator.generateAsString()))
+            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
+                MockAggregate(GlobalIdGenerator.generateAsString()),
+            )
 
         assertThat(handler, notNullValue())
         assertThat(

@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.infra.reflection
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.hasItem
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -42,12 +42,12 @@ internal class ClassMetadataTest {
             MockClass::class.java,
             object :
                 ClassVisitor {
-                override fun start() {}
-                override fun visitClass(currentClass: Class<*>) {}
-                override fun visitField(field: Field) {}
-                override fun visitConstructor(constructor: Constructor<*>) {}
-                override fun visitMethod(method: Method) {}
-                override fun end() {}
+                override fun start() = Unit
+                override fun visitClass(currentClass: Class<*>) = Unit
+                override fun visitField(field: Field) = Unit
+                override fun visitConstructor(constructor: Constructor<*>) = Unit
+                override fun visitMethod(method: Method) = Unit
+                override fun end() = Unit
             },
         )
     }

@@ -60,7 +60,7 @@ class InMemoryCommandBus(
             @Suppress("UNCHECKED_CAST")
             sink.emitNext(
                 exchange as ServerCommandExchange<Any>,
-                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION)
+                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
     }

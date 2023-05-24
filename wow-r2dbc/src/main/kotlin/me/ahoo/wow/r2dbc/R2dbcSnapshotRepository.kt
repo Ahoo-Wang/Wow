@@ -29,11 +29,11 @@ import reactor.core.publisher.Mono
 
 class R2dbcSnapshotRepository(
     private val database: Database,
-    private val snapshotSchema: SnapshotSchema,
+    private val snapshotSchema: SnapshotSchema
 ) : SnapshotRepository {
 
     override fun <S : Any> load(
-        aggregateId: AggregateId,
+        aggregateId: AggregateId
     ): Mono<Snapshot<S>> {
         return Flux.usingWhen(
             /* resourceSupplier = */
@@ -61,7 +61,7 @@ class R2dbcSnapshotRepository(
     private fun <S : Any> mapSnapshot(
         aggregateId: AggregateId,
         expectedVersion: Int?,
-        readable: Readable,
+        readable: Readable
     ): Snapshot<S> {
         val actualAggregateId = checkNotNull(readable.get("aggregate_id", String::class.java))
         require(aggregateId.id == actualAggregateId)

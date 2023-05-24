@@ -50,7 +50,7 @@ class TracingBeanPostProcessor(private val localFirstEnabled: Boolean) : BeanPos
                     ) {
                         LocalFirstCommandBus(
                             distributedCommandBus = tracingCommandBus.metrizable(),
-                            localCommandBus = InMemoryCommandBus().tracing().metrizable()
+                            localCommandBus = InMemoryCommandBus().tracing().metrizable(),
                         )
                     } else {
                         tracingCommandBus

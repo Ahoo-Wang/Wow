@@ -25,7 +25,7 @@ data class OrderItem(
     val id: String,
     val productId: String,
     val price: BigDecimal,
-    val quantity: Int,
+    val quantity: Int
 ) {
     val totalPrice: BigDecimal
         get() {

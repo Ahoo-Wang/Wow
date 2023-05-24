@@ -59,7 +59,7 @@ class InMemoryEventStore : AbstractEventStore() {
     public override fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
-        tailVersion: Int,
+        tailVersion: Int
     ): Flux<DomainEventStream> {
         return Flux.defer {
             val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()

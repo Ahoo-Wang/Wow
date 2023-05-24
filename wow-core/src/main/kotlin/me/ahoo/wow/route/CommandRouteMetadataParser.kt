@@ -50,7 +50,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
             val pathVariableMetadata = PathVariableMetadata(
                 fieldPath = fieldPath,
                 pathVariableName = pathVariableName,
-                required = it.required
+                required = it.required,
             )
             pathVariables.add(pathVariableMetadata)
         }

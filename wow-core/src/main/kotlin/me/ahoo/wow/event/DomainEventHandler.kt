@@ -24,7 +24,7 @@ interface DomainEventHandler : EventHandler
 
 class DefaultDomainEventHandler(
     chain: FilterChain<DomainEventExchange<Any>>,
-    errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler(),
+    errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler()
 ) : DomainEventHandler,
     AbstractHandler<DomainEventExchange<Any>>(
         chain,

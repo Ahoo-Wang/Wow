@@ -26,7 +26,7 @@ data class EventProperties(val bus: Bus = Bus()) {
     }
 
     data class Bus(
-        val type: MessageBusType = MessageBusType.KAFKA,
+        val type: MessageBusType = MessageBusType.KAFKA
     ) {
         companion object {
             const val TYPE = "$PREFIX.bus.type"

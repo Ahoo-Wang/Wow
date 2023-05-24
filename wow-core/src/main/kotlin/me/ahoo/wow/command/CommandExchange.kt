@@ -37,7 +37,7 @@ interface ClientCommandExchange<C : Any> : CommandExchange<ClientCommandExchange
 data class SimpleClientCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val waitStrategy: WaitStrategy,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ClientCommandExchange<C>
 
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
@@ -76,5 +76,5 @@ data class SimpleServerCommandExchange<C : Any>(
     override var aggregateProcessor: AggregateProcessor<Any>? = null,
     @Volatile
     override var eventStream: DomainEventStream? = null,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ServerCommandExchange<C>

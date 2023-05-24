@@ -52,14 +52,14 @@ class StatelessSagaAutoConfiguration {
     fun statelessSagaProcessorAutoRegistrar(
         handlerRegistrar: StatelessSagaFunctionRegistrar,
         commandGateway: CommandGateway,
-        applicationContext: ApplicationContext,
+        applicationContext: ApplicationContext
     ): StatelessSagaProcessorAutoRegistrar {
         return StatelessSagaProcessorAutoRegistrar(handlerRegistrar, commandGateway, applicationContext)
     }
 
     @Bean
     fun statelessSagaFunctionFilter(
-        serviceProvider: ServiceProvider,
+        serviceProvider: ServiceProvider
     ): StatelessSagaFunctionFilter {
         return StatelessSagaFunctionFilter(serviceProvider)
     }
@@ -81,7 +81,7 @@ class StatelessSagaAutoConfiguration {
     @Bean
     fun statelessSagaHandler(
         @Qualifier("statelessSagaFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<Any>>,
+        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<Any>>
     ): StatelessSagaHandler {
         return DefaultStatelessSagaHandler(chain, statelessSagaErrorHandler)
     }
@@ -92,7 +92,7 @@ class StatelessSagaAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: StatelessSagaFunctionRegistrar,
         domainEventBus: DomainEventBus,
-        statelessSagaHandler: StatelessSagaHandler,
+        statelessSagaHandler: StatelessSagaHandler
     ): StatelessSagaDispatcher {
         return StatelessSagaDispatcher(
             name = "${namedBoundedContext.contextName}.${StatelessSagaDispatcher::class.simpleName}",

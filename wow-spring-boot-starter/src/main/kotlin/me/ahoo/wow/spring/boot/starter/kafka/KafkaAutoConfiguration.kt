@@ -57,7 +57,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             topicPrefix = kafkaProperties.topicPrefix,
-            receiverOptionsCustomizer = receiverOptionsCustomizer
+            receiverOptionsCustomizer = receiverOptionsCustomizer,
         )
     }
 
@@ -74,7 +74,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             topicPrefix = kafkaProperties.topicPrefix,
-            receiverOptionsCustomizer = receiverOptionsCustomizer
+            receiverOptionsCustomizer = receiverOptionsCustomizer,
         )
     }
 }

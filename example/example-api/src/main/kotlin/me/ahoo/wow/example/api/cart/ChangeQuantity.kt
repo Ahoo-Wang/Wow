@@ -11,7 +11,7 @@ data class ChangeQuantity(
     @AggregateId
     val customerId: String,
     val productId: String,
-    val quantity: Int,
+    val quantity: Int
 )
 
 data class CartQuantityChanged(

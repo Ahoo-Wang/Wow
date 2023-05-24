@@ -21,19 +21,19 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 interface AggregateProcessorFactory {
     fun <C : Any, S : Any> create(
         aggregateId: AggregateId,
-        aggregateMetadata: AggregateMetadata<C, S>,
+        aggregateMetadata: AggregateMetadata<C, S>
     ): AggregateProcessor<C>
 }
 
 class RetryableAggregateProcessorFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val commandAggregateFactory: CommandAggregateFactory,
+    private val commandAggregateFactory: CommandAggregateFactory
 ) :
     AggregateProcessorFactory {
     override fun <C : Any, S : Any> create(
         aggregateId: AggregateId,
-        aggregateMetadata: AggregateMetadata<C, S>,
+        aggregateMetadata: AggregateMetadata<C, S>
     ): AggregateProcessor<C> {
         return RetryableAggregateProcessor(
             aggregateId = aggregateId,

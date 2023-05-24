@@ -60,7 +60,7 @@ interface AggregateRoutePathSpec {
             return AggregateIdRoutePathSpec(
                 currentContext = currentContext,
                 namedAggregate = this.namedAggregate,
-                staticTenantId = staticTenantId
+                staticTenantId = staticTenantId,
             )
         }
 
@@ -72,7 +72,7 @@ interface AggregateRoutePathSpec {
                 currentContext = currentContext,
                 namedAggregate = aggregateMetadata.namedAggregate,
                 commandRouteMetadata = this,
-                staticTenantId = aggregateMetadata.staticTenantId
+                staticTenantId = aggregateMetadata.staticTenantId,
             )
         }
     }

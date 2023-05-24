@@ -55,6 +55,6 @@ object LocalCommandBusAttributesExtractor : AttributesExtractor<ServerCommandExc
         context: Context,
         request: ServerCommandExchange<*>,
         response: Unit?,
-        error: Throwable?,
+        error: Throwable?
     ) = Unit
 }

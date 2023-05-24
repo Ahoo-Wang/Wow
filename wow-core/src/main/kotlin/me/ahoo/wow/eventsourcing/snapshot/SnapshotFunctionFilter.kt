@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_LAST)
 class SnapshotFunctionFilter(
-    private val snapshotStrategy: SnapshotStrategy,
+    private val snapshotStrategy: SnapshotStrategy
 ) : Filter<EventStreamExchange> {
     override fun filter(exchange: EventStreamExchange, next: FilterChain<EventStreamExchange>): Mono<Void> {
         return snapshotStrategy.onEvent(exchange.message)

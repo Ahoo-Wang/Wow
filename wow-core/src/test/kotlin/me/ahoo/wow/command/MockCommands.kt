@@ -25,7 +25,7 @@ const val NAMED_COMMAND = "MockNamedCommand"
 
 data class MockCommandWithExpectedAggregateVersion(
     @AggregateId val id: String,
-    @AggregateVersion val version: Int?,
+    @AggregateVersion val version: Int?
 )
 
 @CreateAggregate

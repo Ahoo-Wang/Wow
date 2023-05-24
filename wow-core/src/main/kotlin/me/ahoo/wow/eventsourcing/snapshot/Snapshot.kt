@@ -21,7 +21,7 @@ interface Snapshot<S : Any> : StateAggregate<S> {
 
 data class SimpleSnapshot<S : Any>(
     override val delegate: StateAggregate<S>,
-    override val snapshotTime: Long = System.currentTimeMillis(),
+    override val snapshotTime: Long = System.currentTimeMillis()
 ) : Snapshot<S>,
     StateAggregate<S> by delegate,
     Decorator<StateAggregate<S>>

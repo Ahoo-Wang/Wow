@@ -47,7 +47,7 @@ data class SingleAggregateIdSharding(val node: String) : AggregateIdSharding {
 
 class CosIdShardingDecorator(
     private val hashFunction: (String) -> Long = DEFAULT_HASH_FUNCTION,
-    private val sharding: PreciseSharding<Long>,
+    private val sharding: PreciseSharding<Long>
 ) : AggregateIdSharding {
     override fun sharding(aggregateId: AggregateId): String {
         val hashed = hashFunction(aggregateId.id)
@@ -57,7 +57,7 @@ class CosIdShardingDecorator(
 
 @Deprecated("use CosIdShardingDecorator")
 class CosIdAggregateIdSharding(
-    private val shardingRule: Map<NamedAggregate, PreciseSharding<Long>>,
+    private val shardingRule: Map<NamedAggregate, PreciseSharding<Long>>
 ) :
     AggregateIdSharding {
     override fun sharding(aggregateId: AggregateId): String {

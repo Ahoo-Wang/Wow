@@ -45,7 +45,7 @@ class RequestIdIdempotencyException(val eventStream: DomainEventStream, cause: T
     )
 
 class DuplicateAggregateIdException(
-    val eventStream: DomainEventStream,
+    val eventStream: DomainEventStream
 ) : ConflictException,
     WowException(
         EventSourcingErrorCodes.DUPLICATE_AGGREGATE_ID,

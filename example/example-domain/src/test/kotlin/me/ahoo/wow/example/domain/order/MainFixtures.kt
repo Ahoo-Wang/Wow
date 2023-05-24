@@ -13,6 +13,4 @@
 
 package me.ahoo.wow.example.domain.order
 
-object MainFixtures {
-
-}
+object MainFixtures

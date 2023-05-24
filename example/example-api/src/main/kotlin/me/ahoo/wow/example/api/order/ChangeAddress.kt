@@ -19,9 +19,9 @@ package me.ahoo.wow.example.api.order
  */
 data class ChangeAddress(
     val id: String,
-    val shippingAddress: ShippingAddress,
+    val shippingAddress: ShippingAddress
 )
 
 data class AddressChanged(
-    val shippingAddress: ShippingAddress,
+    val shippingAddress: ShippingAddress
 )

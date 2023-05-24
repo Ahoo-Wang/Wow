@@ -33,7 +33,7 @@ import java.lang.reflect.Constructor
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
     private val serviceProvider: ServiceProvider,
-    private val commandBus: CommandBus,
+    private val commandBus: CommandBus
 ) : WhenStage<T> {
     companion object {
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"

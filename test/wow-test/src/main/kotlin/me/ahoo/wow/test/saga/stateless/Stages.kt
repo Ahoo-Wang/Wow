@@ -120,7 +120,7 @@ interface ExpectStage<T : Any> {
 data class ExpectedResult<T>(
     val processor: T,
     val commandStream: CommandStream?,
-    val error: Throwable? = null,
+    val error: Throwable? = null
 ) {
     val hasError = error != null
 }

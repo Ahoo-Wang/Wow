@@ -17,11 +17,11 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 
 class SimpleCommandAggregateFactory(
-    private val eventStore: EventStore,
+    private val eventStore: EventStore
 ) : CommandAggregateFactory {
     override fun <C : Any, S : Any> create(
         metadata: AggregateMetadata<C, S>,
-        stateAggregate: StateAggregate<S>,
+        stateAggregate: StateAggregate<S>
     ): CommandAggregate<C, S> {
         var commandRoot: Any = stateAggregate.stateRoot
         if (metadata.isAggregationPattern) {

@@ -24,7 +24,7 @@ class MonoTrace<T : MessageExchange<*, *>>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val exchange: T,
-    private val source: Mono<Void>,
+    private val source: Mono<Void>
 ) : Mono<Void>() {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         if (!instrumenter.shouldStart(parentContext, exchange)) {
@@ -42,7 +42,7 @@ class TraceFilterSubscriber<T : MessageExchange<*, *>>(
     private val instrumenter: Instrumenter<T, Unit>,
     private val otelContext: Context,
     private val exchange: T,
-    private val actual: CoreSubscriber<in Void>,
+    private val actual: CoreSubscriber<in Void>
 ) : CoreSubscriber<Void> {
     override fun currentContext(): reactor.util.context.Context {
         return actual.currentContext()

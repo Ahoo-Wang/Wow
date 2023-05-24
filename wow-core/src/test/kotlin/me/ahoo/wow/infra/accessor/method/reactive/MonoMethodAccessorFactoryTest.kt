@@ -26,7 +26,7 @@ internal class MonoMethodAccessorFactoryTest {
     fun createMono() {
         val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
             "onCommand",
-            ChangeStateReturnMono::class.java
+            ChangeStateReturnMono::class.java,
         ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
@@ -41,7 +41,7 @@ internal class MonoMethodAccessorFactoryTest {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
-                ChangeStateReturnFlux::class.java
+                ChangeStateReturnFlux::class.java,
             ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
@@ -56,7 +56,7 @@ internal class MonoMethodAccessorFactoryTest {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
-                ChangeStateReturnPublisher::class.java
+                ChangeStateReturnPublisher::class.java,
             ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
@@ -71,7 +71,7 @@ internal class MonoMethodAccessorFactoryTest {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
-                ChangeStateReturnSync::class.java
+                ChangeStateReturnSync::class.java,
             ).asMonoMethodAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
@@ -81,6 +81,7 @@ internal class MonoMethodAccessorFactoryTest {
         )
     }
 
+    @Suppress("FunctionOnlyReturningConstant")
     class MockAggregate(private val id: String) {
         private val state: String? = null
         fun id(): String {

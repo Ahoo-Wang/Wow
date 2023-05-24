@@ -23,7 +23,8 @@ import me.ahoo.wow.saga.annotation.asStatelessSagaMetadata
 import reactor.core.publisher.Mono
 
 class StatelessSagaFunctionRegistrar(
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> = SimpleMultipleMessageFunctionRegistrar(),
+    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
 
     fun registerStatelessSaga(statelessSaga: Any, commandBus: CommandBus) {

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
-class MockSnapshotAutoConfigurationTest{
+class MockSnapshotAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test

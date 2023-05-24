@@ -21,12 +21,12 @@ import java.lang.annotation.Inherited
 annotation class CommandRoute(
     val path: String,
     val enabled: Boolean = true,
-    val ignoreAggregateNamePrefix: Boolean = false,
+    val ignoreAggregateNamePrefix: Boolean = false
 ) {
     @Target(AnnotationTarget.FIELD)
     annotation class PathVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],
-        val required: Boolean = true,
+        val required: Boolean = true
     )
 }

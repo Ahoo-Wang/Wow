@@ -24,7 +24,7 @@ interface SnapshotHandler : Handler<EventStreamExchange>
 
 class DefaultSnapshotHandler(
     chain: FilterChain<EventStreamExchange>,
-    errorHandler: ErrorHandler<EventStreamExchange> = LogResumeErrorHandler(),
+    errorHandler: ErrorHandler<EventStreamExchange> = LogResumeErrorHandler()
 ) : SnapshotHandler, AbstractHandler<EventStreamExchange>(
     chain,
     errorHandler,

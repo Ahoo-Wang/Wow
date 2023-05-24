@@ -41,14 +41,16 @@ class RegenerateSnapshotRouteAppender(
     private val snapshotRepository: SnapshotRepository,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath
         routerFunctionBuilder
             .PUT(
-                /* pattern = */ "$aggregateIdPath/snapshot",
-                /* predicate = */ RequestPredicates.accept(MediaType.APPLICATION_JSON),
+                /* pattern = */
+                "$aggregateIdPath/snapshot",
+                /* predicate = */
+                RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 /* handlerFunction = */
                 RegenerateSnapshotHandlerFunction(
                     aggregateMetadata = aggregateMetadata,
@@ -57,7 +59,8 @@ class RegenerateSnapshotRouteAppender(
                     snapshotRepository = snapshotRepository,
                     exceptionHandler = exceptionHandler,
                 ),
-                /* operationsConsumer = */ regenerateSnapshotOperation(),
+                /* operationsConsumer = */
+                regenerateSnapshotOperation(),
             )
     }
 

@@ -44,7 +44,7 @@ class CommandRouteAppender(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
     private val commandGateway: CommandGateway,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         aggregateMetadata.command.commandFunctionRegistry
@@ -111,7 +111,7 @@ class CommandRouteAppender(
     @Suppress("LongMethod")
     private fun commandOperation(
         routePathSpec: CommandAggregateRoutePathSpec,
-        aggregateMetadata: AggregateMetadata<*, *>,
+        aggregateMetadata: AggregateMetadata<*, *>
     ): Consumer<Builder> {
         return Consumer<Builder> {
             val commandMetadata = routePathSpec.commandRouteMetadata.commandMetadata

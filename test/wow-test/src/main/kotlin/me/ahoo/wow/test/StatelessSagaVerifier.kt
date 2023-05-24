@@ -32,7 +32,7 @@ object StatelessSagaVerifier {
     @JvmStatic
     fun <T : Any> Class<T>.asSagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandBus: CommandBus = InMemoryCommandBus(),
+        commandBus: CommandBus = InMemoryCommandBus()
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = asEventProcessorMetadata()
         return DefaultWhenStage(
@@ -45,7 +45,7 @@ object StatelessSagaVerifier {
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandBus: CommandBus = InMemoryCommandBus(),
+        commandBus: CommandBus = InMemoryCommandBus()
     ): WhenStage<T> {
         return T::class.java.asSagaVerifier(serviceProvider, commandBus)
     }

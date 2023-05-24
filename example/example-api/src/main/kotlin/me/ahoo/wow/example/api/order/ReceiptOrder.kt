@@ -31,6 +31,6 @@ data class ReceiptOrder(
     val id: String,
     @field:NotBlank
     @CommandRoute.PathVariable
-    val customerId: String,
+    val customerId: String
 )
 object OrderReceived

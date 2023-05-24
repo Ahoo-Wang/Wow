@@ -41,7 +41,7 @@ abstract class StateAggregateRepositorySpec {
 
     protected abstract fun createStateAggregateRepository(
         aggregateFactory: StateAggregateFactory,
-        eventStore: EventStore,
+        eventStore: EventStore
     ): StateAggregateRepository
 
     @Suppress("UNCHECKED_CAST")
@@ -83,7 +83,7 @@ abstract class StateAggregateRepositorySpec {
             object : StateAggregateFactory {
                 override fun <S : Any> create(
                     metadata: StateAggregateMetadata<S>,
-                    aggregateId: AggregateId,
+                    aggregateId: AggregateId
                 ): Mono<StateAggregate<S>> {
                     val stateRoot = MockAggregate(aggregateId.id)
                     @Suppress("UNCHECKED_CAST")

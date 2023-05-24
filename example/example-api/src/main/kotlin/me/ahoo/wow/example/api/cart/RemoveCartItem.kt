@@ -12,7 +12,7 @@ data class RemoveCartItem(
     @CommandRoute.PathVariable
     @AggregateId
     val customerId: String,
-    val productIds: Set<String>,
+    val productIds: Set<String>
 )
 
 data class CartItemRemoved(

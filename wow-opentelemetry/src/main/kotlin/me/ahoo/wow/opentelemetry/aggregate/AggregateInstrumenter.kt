@@ -54,6 +54,6 @@ object AggregateAttributesExtractor : AttributesExtractor<ServerCommandExchange<
         context: Context,
         request: ServerCommandExchange<Any>,
         response: Unit?,
-        error: Throwable?,
+        error: Throwable?
     ) = Unit
 }

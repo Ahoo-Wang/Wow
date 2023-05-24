@@ -39,5 +39,4 @@ class DelaySnapshotRepository(
     override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return delegate.scrollAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
     }
-
 }

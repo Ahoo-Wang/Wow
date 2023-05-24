@@ -31,7 +31,7 @@ data class CommandProperties(
 
     data class Bus(
         val type: MessageBusType = MessageBusType.KAFKA,
-        val localFirst: LocalFirst = LocalFirst(),
+        val localFirst: LocalFirst = LocalFirst()
     ) {
         companion object {
             const val TYPE = "$PREFIX.bus.type"
@@ -39,12 +39,12 @@ data class CommandProperties(
     }
 
     data class LocalFirst(
-        val enabled: Boolean = true,
+        val enabled: Boolean = true
     )
 
     data class Idempotency(
         val enable: Boolean = false,
-        val bloomFilter: BloomFilter = BloomFilter(),
+        val bloomFilter: BloomFilter = BloomFilter()
     ) {
         companion object {
             const val PREFIX = "${CommandProperties.PREFIX}.idempotency"
@@ -54,6 +54,6 @@ data class CommandProperties(
     data class BloomFilter(
         val ttl: Duration = Duration.ofMinutes(1),
         val expectedInsertions: Long = 1000_000,
-        val fpp: Double = 0.00001,
+        val fpp: Double = 0.00001
     )
 }

@@ -30,7 +30,7 @@ interface NamingConverter {
 
 data class SimpleNamingConverter(
     private val tokenizer: Tokenizer,
-    private val namingStrategy: NamingStrategy,
+    private val namingStrategy: NamingStrategy
 ) : NamingConverter {
     override fun convert(phrase: String): String {
         val words = tokenizer.segment(phrase)
@@ -65,7 +65,7 @@ data class AppendSuffixNamingConverter(val suffix: String) : NamingConverter {
 data class CompositeNamingConverter(
     override val delegate: NamingConverter,
     private val tokenizer: Tokenizer,
-    private val converter: NamingStrategy,
+    private val converter: NamingStrategy
 ) : NamingConverter, Decorator<NamingConverter> {
     override fun convert(phrase: String): String {
         val convertedPhrase = delegate.convert(phrase)

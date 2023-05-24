@@ -28,7 +28,7 @@ class SimpleStateAggregate<S : Any>(
     val metadata: StateAggregateMetadata<S>,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override val stateRoot: S,
-    override var deleted: Boolean = false,
+    override var deleted: Boolean = false
 ) :
     StateAggregate<S>,
     TypedAggregate<S> by metadata {

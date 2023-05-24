@@ -27,8 +27,8 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -178,7 +178,7 @@ class MockCommandAggregate(private val id: String) {
 
     private fun onCommand(
         changeStateDependExternalService: ChangeStateDependExternalService,
-        externalService: ExternalService,
+        externalService: ExternalService
     ): OtherStateStateChanged {
         Preconditions.checkNotNull(externalService)
         return OtherStateStateChanged(
@@ -203,12 +203,12 @@ class ChangeState(@AggregateId val id: String, val state: String)
 class ChangeStateGivenExpectedVersion(
     @AggregateId val id: String,
     val state: String,
-    @AggregateVersion val version: Int,
+    @AggregateVersion val version: Int
 )
 
 class ChangeStateDependExternalService(
     @AggregateId val id: String,
-    val otherState: String,
+    val otherState: String
 )
 
 class StateChanged(@AggregateId val id: String, val state: String)

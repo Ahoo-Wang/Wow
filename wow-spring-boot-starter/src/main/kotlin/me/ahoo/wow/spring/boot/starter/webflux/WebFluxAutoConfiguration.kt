@@ -63,7 +63,7 @@ class WebFluxAutoConfiguration {
         stateAggregateFactory: StateAggregateFactory,
         eventCompensator: EventCompensator,
         eventStore: EventStore,
-        exceptionHandler: ExceptionHandler,
+        exceptionHandler: ExceptionHandler
     ): RouterFunction<ServerResponse> {
         return AggregateRouterFunctionAutoRegistrar(
             currentContext = boundedContext,

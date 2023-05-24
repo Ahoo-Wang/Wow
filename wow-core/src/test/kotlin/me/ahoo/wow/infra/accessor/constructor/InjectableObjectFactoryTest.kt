@@ -35,7 +35,10 @@ internal class InjectableObjectFactoryTest {
         serviceProvider.register(injectService)
 
         val injectableObjectFactory =
-            InjectableObjectFactory(MockServiceWithInject::class.java.getConstructor(InjectService::class.java), serviceProvider)
+            InjectableObjectFactory(
+                MockServiceWithInject::class.java.getConstructor(InjectService::class.java),
+                serviceProvider,
+            )
         val mockServiceWithInject = injectableObjectFactory.newInstance()
         assertThat(mockServiceWithInject, notNullValue())
         assertThat(mockServiceWithInject.injectService, equalTo(injectService))

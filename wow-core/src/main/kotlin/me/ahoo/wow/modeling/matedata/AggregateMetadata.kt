@@ -25,7 +25,7 @@ data class AggregateMetadata<C : Any, S : Any>(
     override val namedAggregate: NamedAggregate,
     val staticTenantId: String?,
     val state: StateAggregateMetadata<S>,
-    val command: CommandAggregateMetadata<C>,
+    val command: CommandAggregateMetadata<C>
 ) : NamedAggregateDecorator, Metadata {
 
     /**

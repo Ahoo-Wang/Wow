@@ -117,7 +117,9 @@ internal class SimpleStateAggregateTest {
         val changed = AggregateChanged("changed")
         val streamHeadVersion = stateAggregate.version + 1
         val domainEventStream = changed.asDomainEventStream(
-            command = GivenInitializationCommand(stateAggregate.aggregateId.asAggregateId(GlobalIdGenerator.generateAsString())),
+            command = GivenInitializationCommand(
+                stateAggregate.aggregateId.asAggregateId(GlobalIdGenerator.generateAsString()),
+            ),
             aggregateVersion = streamHeadVersion,
         )
         Assertions.assertThrows(IllegalArgumentException::class.java) {

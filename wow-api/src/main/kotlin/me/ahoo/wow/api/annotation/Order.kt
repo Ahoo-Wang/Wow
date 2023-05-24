@@ -27,5 +27,5 @@ const val ORDER_LAST = Int.MAX_VALUE
 annotation class Order(
     val value: Int = ORDER_DEFAULT,
     val before: Array<KClass<*>> = [],
-    val after: Array<KClass<*>> = [],
+    val after: Array<KClass<*>> = []
 )

@@ -52,7 +52,7 @@ class LogResumeErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
 
 abstract class AbstractHandler<T : MessageExchange<*, *>>(
     private val chain: FilterChain<T>,
-    private val errorHandler: ErrorHandler<T>,
+    private val errorHandler: ErrorHandler<T>
 ) :
     Handler<T> {
     override fun handle(exchange: T): Mono<Void> {

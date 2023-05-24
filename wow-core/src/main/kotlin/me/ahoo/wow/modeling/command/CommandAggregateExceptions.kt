@@ -29,14 +29,14 @@ object CommandAggregateErrorCodes {
 class IncompatibleVersionException(
     val command: CommandMessage<*>,
     val expectVersion: Int,
-    val actualVersion: Int,
+    val actualVersion: Int
 ) : ConflictException, WowException(
     CommandAggregateErrorCodes.INCOMPATIBLE_VERSION,
     "Failed to process command[${command.id}]: The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion].",
 )
 
 class IllegalAccessDeletedAggregateException(
-    val aggregateId: AggregateId,
+    val aggregateId: AggregateId
 ) : GoneException, WowException(
     CommandAggregateErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE,
     "Illegal access to a deleted aggregate[${aggregateId.id}].",

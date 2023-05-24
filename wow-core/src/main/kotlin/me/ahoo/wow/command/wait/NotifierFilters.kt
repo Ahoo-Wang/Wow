@@ -29,11 +29,11 @@ import reactor.core.publisher.Mono
 
 abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
     private val processingStage: CommandStage,
-    private val commandWaitNotifier: CommandWaitNotifier,
+    private val commandWaitNotifier: CommandWaitNotifier
 ) : Filter<T> {
     override fun filter(
         exchange: T,
-        next: FilterChain<T>,
+        next: FilterChain<T>
     ): Mono<Void> {
         return next.filter(exchange)
             .thenNotifyAndForget(commandWaitNotifier, processingStage, exchange)
@@ -43,17 +43,17 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
-    commandWaitNotifier: CommandWaitNotifier,
+    commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<ServerCommandExchange<Any>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_FIRST)
 class SnapshotNotifierFilter(
-    commandWaitNotifier: CommandWaitNotifier,
+    commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<EventStreamExchange>(CommandStage.SNAPSHOT, commandWaitNotifier)
 
 @FilterType(ProjectionDispatcher::class)
 @Order(ORDER_FIRST)
 class ProjectedNotifierFilter(
-    commandWaitNotifier: CommandWaitNotifier,
+    commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<DomainEventExchange<Any>>(CommandStage.PROJECTED, commandWaitNotifier)

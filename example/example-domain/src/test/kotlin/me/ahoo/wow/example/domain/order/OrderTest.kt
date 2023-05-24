@@ -39,9 +39,8 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -104,7 +103,6 @@ internal class OrderTest {
             .inject(mockk<CreateOrderSpec>())
             .given()
             .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
-
             .expectErrorType(IllegalArgumentException::class.java)
             .expectStateAggregate {
                 /*
@@ -257,7 +255,7 @@ internal class OrderTest {
         val payOrder = PayOrder(
             previousState.id,
             GlobalIdGenerator.generateAsString(),
-            previousState.totalAmount
+            previousState.totalAmount,
         )
         verifiedStage
             .then()
@@ -384,7 +382,7 @@ internal class OrderTest {
         val verifiedStage = mockCreateOrder()
         val changeAddress = ChangeAddress(
             id = verifiedStage.stateRoot.id,
-            shippingAddress = ShippingAddress("上海市", "上海市", "浦东新区", "张江高科", "")
+            shippingAddress = ShippingAddress("上海市", "上海市", "浦东新区", "张江高科", ""),
         )
         verifiedStage.then().given()
             .`when`(changeAddress)

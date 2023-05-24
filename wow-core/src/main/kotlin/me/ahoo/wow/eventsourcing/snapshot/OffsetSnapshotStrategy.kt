@@ -22,7 +22,7 @@ class VersionOffsetSnapshotStrategy(
     private val versionOffset: Int,
     snapshotRepository: SnapshotRepository,
     eventStore: EventStore,
-    stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+    stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
 ) : SimpleSnapshotStrategy(
     { snapshot, eventStream ->
         val currentVersionOffset = (eventStream.version - snapshot.version)
@@ -52,7 +52,7 @@ class TimeOffsetSnapshotStrategy(
     private val timeOffset: Long,
     snapshotRepository: SnapshotRepository,
     eventStore: EventStore,
-    stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+    stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
 ) : SimpleSnapshotStrategy(
     { snapshot, eventStream ->
         val currentTimeOffset = (eventStream.createTime - snapshot.snapshotTime)

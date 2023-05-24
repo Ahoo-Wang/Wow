@@ -24,5 +24,5 @@ import java.lang.annotation.Inherited
 @Inherited
 @MustBeDocumented
 annotation class Event(
-    val revision: String = DEFAULT_REVISION,
+    val revision: String = DEFAULT_REVISION
 )

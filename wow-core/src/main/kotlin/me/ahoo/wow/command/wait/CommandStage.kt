@@ -52,7 +52,7 @@ enum class CommandStage {
                 SENT == processingStage ||
                 PROCESSED == processingStage
         }
-    }, ;
+    };
 
     abstract fun shouldNotify(processingStage: CommandStage): Boolean
 }

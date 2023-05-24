@@ -34,7 +34,7 @@ internal class WowTest {
             .publishOn(Schedulers.boundedElastic())
             .doOnNext {
                 log.info("doOnNext:$it")
-            }.blockLast();
+            }.blockLast()
         Thread.sleep(1000)
     }
 }

@@ -46,7 +46,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
 
     override fun <S : Any> create(
         metadata: StateAggregateMetadata<S>,
-        aggregateId: AggregateId,
+        aggregateId: AggregateId
     ): Mono<StateAggregate<S>> {
         return Mono.fromCallable {
             createStateAggregate(metadata, aggregateId)

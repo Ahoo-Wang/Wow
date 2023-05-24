@@ -33,7 +33,7 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
 
         @JvmStatic
         @BeforeAll
-        fun waitLauncher(): Unit {
+        fun waitLauncher() {
             KafkaLauncher.isRunning
         }
     }
@@ -73,5 +73,4 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
-
 }

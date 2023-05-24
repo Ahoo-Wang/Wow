@@ -35,7 +35,7 @@ data class KafkaProperties(
      */
     val properties: Map<String, String> = mapOf(),
     val producer: Map<String, String> = mapOf(),
-    val consumer: Map<String, String> = mapOf(),
+    val consumer: Map<String, String> = mapOf()
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"

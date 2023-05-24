@@ -19,15 +19,14 @@ import me.ahoo.wow.api.annotation.OnEvent
 
 internal class Body
 internal class MockFunction {
-    fun onEvent(body: Body) {}
+    fun onEvent(body: Body) = Unit
 }
 
 internal class MockAnotherFunction {
-    fun onEvent(body: Body) {}
+    fun onEvent(body: Body) = Unit
 }
 
 internal class MockWithMultiAggregateNameFunction {
     @OnEvent("aggregate1", "aggregate2")
-    fun onEvent(body: Body) {
-    }
+    fun onEvent(body: Body) = Unit
 }

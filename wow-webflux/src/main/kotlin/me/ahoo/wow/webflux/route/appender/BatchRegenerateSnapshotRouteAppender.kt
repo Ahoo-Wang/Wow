@@ -43,7 +43,7 @@ class BatchRegenerateSnapshotRouteAppender(
     private val snapshotRepository: SnapshotRepository,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val routePrefix = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).aggregateNamePath

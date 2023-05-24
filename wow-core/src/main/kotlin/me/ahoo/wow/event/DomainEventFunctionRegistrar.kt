@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 
 abstract class AbstractEventFunctionRegistrar<R : Mono<*>>(
     override val delegate: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>> =
-        SimpleMultipleMessageFunctionRegistrar(),
+        SimpleMultipleMessageFunctionRegistrar()
 ) :
     MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>> by delegate,
     Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>>> {
@@ -38,7 +38,8 @@ abstract class AbstractEventFunctionRegistrar<R : Mono<*>>(
 }
 
 class DomainEventFunctionRegistrar(
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> = SimpleMultipleMessageFunctionRegistrar(),
+    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
 
     fun registerProcessor(processor: Any) {

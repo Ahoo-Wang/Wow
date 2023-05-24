@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
 
 class WebClientCommandWaitNotifier(
     private val waitStrategyRegistrar: WaitStrategyRegistrar,
-    private val webClient: WebClient,
+    private val webClient: WebClient
 ) : CommandWaitNotifier {
     companion object {
         private val log = LoggerFactory.getLogger(WebClientCommandWaitNotifier::class.java)

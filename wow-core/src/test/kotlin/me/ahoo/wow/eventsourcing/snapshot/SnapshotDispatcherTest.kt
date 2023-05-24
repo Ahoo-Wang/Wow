@@ -45,7 +45,7 @@ internal class SnapshotDispatcherTest {
         val waitForAppend = Sinks.empty<Void>()
         val snapshotRepository = object : SnapshotRepository {
             override fun <S : Any> load(
-                aggregateId: AggregateId,
+                aggregateId: AggregateId
             ): Mono<Snapshot<S>> {
                 return inMemorySnapshotRepository.load(aggregateId)
             }
@@ -85,7 +85,7 @@ internal class SnapshotDispatcherTest {
                 name = "test",
                 namedAggregates = setOf(aggregateMetadata.materialize()),
                 snapshotHandler = handler,
-                domainEventBus = domainEventBus
+                domainEventBus = domainEventBus,
             )
         snapshotDispatcher.run()
         val aggregateId = aggregateMetadata.asAggregateId()

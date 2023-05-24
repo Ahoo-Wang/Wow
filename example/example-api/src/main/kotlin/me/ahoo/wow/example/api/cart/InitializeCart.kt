@@ -11,7 +11,7 @@ import me.ahoo.wow.api.annotation.Summary
 data class InitializeCart(
     @CommandRoute.PathVariable
     @AggregateId
-    val customerId: String,
+    val customerId: String
 )
 
 object CartInitialized

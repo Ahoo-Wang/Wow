@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono
 object AggregateProcessorFilter : Filter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>,
+        next: FilterChain<ServerCommandExchange<Any>>
     ): Mono<Void> {
         return checkNotNull(exchange.aggregateProcessor)
             .process(exchange)

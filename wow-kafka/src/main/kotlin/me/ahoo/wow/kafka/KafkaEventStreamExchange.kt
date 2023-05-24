@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
 data class KafkaEventStreamExchange(
     override val message: DomainEventStream,
     private val receiverOffset: ReceiverOffset,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : EventStreamExchange {
     override fun acknowledge() {
         receiverOffset.acknowledge()

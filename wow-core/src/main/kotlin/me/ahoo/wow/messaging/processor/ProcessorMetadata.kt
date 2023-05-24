@@ -26,7 +26,7 @@ data class ProcessorMetadata<P : Any, M : MessageExchange<*, *>>(
     private val namedBoundedContext: NamedBoundedContext,
     override val name: String,
     val processorType: Class<P>,
-    val functionRegistry: Set<MethodFunctionMetadata<P, Mono<*>>>,
+    val functionRegistry: Set<MethodFunctionMetadata<P, Mono<*>>>
 ) : NamedBoundedContext by namedBoundedContext, Named, Metadata {
 
     fun asMessageFunctionRegistry(processor: P): Set<MessageFunction<P, M, Mono<*>>> {

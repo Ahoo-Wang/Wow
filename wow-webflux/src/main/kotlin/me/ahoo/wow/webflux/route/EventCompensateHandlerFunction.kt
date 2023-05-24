@@ -31,7 +31,7 @@ private val TARGET_PROCESSORS_TYPE = object : ParameterizedTypeReference<Set<Str
 class EventCompensateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventCompensator: EventCompensator,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {

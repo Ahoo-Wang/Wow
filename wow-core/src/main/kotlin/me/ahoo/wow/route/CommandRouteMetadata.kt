@@ -26,7 +26,7 @@ data class CommandRouteMetadata<C>(
     /**
      * filedName -> PathVariableMetadata
      */
-    val pathVariableMetadata: Set<PathVariableMetadata> = setOf(),
+    val pathVariableMetadata: Set<PathVariableMetadata> = setOf()
 ) : me.ahoo.wow.metadata.Metadata {
 
     private fun injectPathVariables(commandNode: ObjectNode, pathVariables: Map<String, String>): ObjectNode {

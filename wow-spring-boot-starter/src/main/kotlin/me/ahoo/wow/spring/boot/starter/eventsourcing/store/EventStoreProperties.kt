@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConstructorBinding
 @ConstructorBinding
 @ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
 data class EventStoreProperties(
-    val storage: EventStoreStorage = EventStoreStorage.MONGO,
+    val storage: EventStoreStorage = EventStoreStorage.MONGO
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
@@ -32,7 +32,7 @@ enum class EventStoreStorage {
     MONGO,
     R2DBC,
     IN_MEMORY,
-    DELAY,
+    DELAY
     ;
 
     companion object {

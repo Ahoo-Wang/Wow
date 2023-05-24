@@ -54,7 +54,7 @@ class R2dbcSnapshotAutoConfiguration {
     @Bean
     fun r2dbcSnapshotRepository(
         snapshotDatabase: SnapshotDatabase,
-        snapshotSchema: SnapshotSchema,
+        snapshotSchema: SnapshotSchema
     ): SnapshotRepository {
         return R2dbcSnapshotRepository(snapshotDatabase, snapshotSchema)
     }
@@ -91,7 +91,7 @@ class R2dbcSnapshotAutoConfiguration {
             boundedContext: NamedBoundedContext,
             connectionFactoryRegistrar: ConnectionFactoryRegistrar,
             shardingRegistrar: ShardingRegistrar,
-            shardingProperties: ShardingProperties,
+            shardingProperties: ShardingProperties
         ): SnapshotDatabase {
             val shardingList = shardingProperties.snapshot.map {
                 it.key to it.value.databaseAlgorithm
@@ -108,7 +108,7 @@ class R2dbcSnapshotAutoConfiguration {
         fun snapshotSchema(
             boundedContext: NamedBoundedContext,
             shardingRegistrar: ShardingRegistrar,
-            shardingProperties: ShardingProperties,
+            shardingProperties: ShardingProperties
         ): SnapshotSchema {
             val shardingList = shardingProperties.snapshot.map {
                 it.key to it.value.tableAlgorithm

@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.starter
 
 enum class MessageBusType {
     KAFKA,
-    IN_MEMORY,
+    IN_MEMORY
     ;
 
     companion object {

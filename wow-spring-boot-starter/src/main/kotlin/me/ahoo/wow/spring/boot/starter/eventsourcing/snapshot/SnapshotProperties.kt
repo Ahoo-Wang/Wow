@@ -28,7 +28,7 @@ data class SnapshotProperties(
     val strategy: Strategy = Strategy.ALL,
     val storage: SnapshotStorage = SnapshotStorage.MONGO,
     val versionOffset: Int = DEFAULT_VERSION_OFFSET,
-    val timeOffset: Duration = DEFAULT_TIME_OFFSET,
+    val timeOffset: Duration = DEFAULT_TIME_OFFSET
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
@@ -40,7 +40,7 @@ data class SnapshotProperties(
 enum class Strategy {
     ALL,
     VERSION,
-    TIME,
+    TIME
     ;
 
     companion object {
@@ -55,7 +55,7 @@ enum class SnapshotStorage {
     R2DBC,
     ELASTICSEARCH,
     IN_MEMORY,
-    DELAY,
+    DELAY
     ;
 
     companion object {

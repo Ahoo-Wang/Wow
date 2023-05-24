@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
 @FilterType(DomainEventDispatcher::class)
 @Order(ORDER_LAST)
 open class DomainEventFunctionFilter(
-    private val serviceProvider: ServiceProvider,
+    private val serviceProvider: ServiceProvider
 ) :
     Filter<DomainEventExchange<Any>> {
 

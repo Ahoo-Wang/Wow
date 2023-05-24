@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 private data class AnnotatedElementTargetAnnotationTypeKey<T : Annotation>(
     val annotatedElement: AnnotatedElement,
-    val targetAnnotationType: Class<T>,
+    val targetAnnotationType: Class<T>
 )
 
 object AnnotationScanner {
@@ -28,7 +28,7 @@ object AnnotationScanner {
     private fun <T : Annotation> scan(
         annotation: Annotation,
         targetAnnotationType: Class<T>,
-        scanned: MutableSet<Annotation> = mutableSetOf(),
+        scanned: MutableSet<Annotation> = mutableSetOf()
     ): T? {
         if (targetAnnotationType.isInstance(annotation)) {
             @Suppress("UNCHECKED_CAST")

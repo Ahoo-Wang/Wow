@@ -25,7 +25,7 @@ class MonoLocalBusTrace<T : MessageExchange<*, *>>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val exchange: T,
-    private val source: Mono<Void>,
+    private val source: Mono<Void>
 ) : Mono<Void>() {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         if (!instrumenter.shouldStart(parentContext, exchange)) {

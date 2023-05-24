@@ -24,7 +24,7 @@ import reactor.kotlin.core.publisher.toFlux
 
 class StatelessSagaFunction(
     val actual: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
-    private val commandBus: CommandBus,
+    private val commandBus: CommandBus
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
 

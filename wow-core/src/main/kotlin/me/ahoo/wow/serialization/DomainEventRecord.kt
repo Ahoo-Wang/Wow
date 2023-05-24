@@ -76,7 +76,7 @@ interface DomainEventRecord :
                 commandId = commandId,
                 name = name,
                 createTime = createTime,
-                cause = classNotFoundException
+                cause = classNotFoundException,
             ) as DomainEvent<Any>
         }
         return SimpleDomainEvent(

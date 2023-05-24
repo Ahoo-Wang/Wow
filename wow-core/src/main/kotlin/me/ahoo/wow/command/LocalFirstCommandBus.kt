@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono
 class LocalFirstCommandBus(
     private val distributedCommandBus: CommandBus,
     private val localCommandBus: CommandBus = InMemoryCommandBus().metrizable(),
-    private val localAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
+    private val localAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet()
 ) : CommandBus {
     private val localName = localCommandBus.getDelegate().javaClass.name
     private val distributedName = distributedCommandBus.getDelegate().javaClass.name

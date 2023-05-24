@@ -28,5 +28,5 @@ data class ShippingAddress(
     val province: String,
     val city: String,
     val district: String,
-    val detail: String,
+    val detail: String
 )

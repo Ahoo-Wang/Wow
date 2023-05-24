@@ -25,7 +25,7 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
     companion object {
         @JvmStatic
         @BeforeAll
-        fun waitLauncher(): Unit {
+        fun waitLauncher() {
             KafkaLauncher.isRunning
         }
     }

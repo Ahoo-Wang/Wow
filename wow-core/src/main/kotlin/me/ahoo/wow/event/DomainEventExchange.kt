@@ -26,5 +26,5 @@ interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>,
 data class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,
     override val eventFunction: MessageFunction<Any, DomainEventExchange<T>, Mono<*>>? = null,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : DomainEventExchange<T>

@@ -24,5 +24,5 @@ interface CommandHandler : Handler<ServerCommandExchange<Any>>
 
 class DefaultCommandHandler(
     chain: FilterChain<ServerCommandExchange<Any>>,
-    errorHandler: ErrorHandler<ServerCommandExchange<Any>> = LogResumeErrorHandler(),
+    errorHandler: ErrorHandler<ServerCommandExchange<Any>> = LogResumeErrorHandler()
 ) : CommandHandler, AbstractHandler<ServerCommandExchange<Any>>(chain, errorHandler)

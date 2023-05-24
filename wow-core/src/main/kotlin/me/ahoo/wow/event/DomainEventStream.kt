@@ -54,7 +54,7 @@ data class SimpleDomainEventStream(
     override val id: String = GlobalIdGenerator.generateAsString(),
     override val requestId: String,
     override val header: Header = DefaultHeader.EMPTY,
-    override val body: List<DomainEvent<*>>,
+    override val body: List<DomainEvent<*>>
 ) :
     DomainEventStream,
     Iterable<DomainEvent<*>> by body {
@@ -93,7 +93,7 @@ data class SimpleDomainEventStream(
 fun Any.asDomainEventStream(
     command: CommandMessage<*>,
     aggregateVersion: Int,
-    header: Header = DefaultHeader.EMPTY,
+    header: Header = DefaultHeader.EMPTY
 ): DomainEventStream {
     val awaitableHeader = command.extractWaitStrategy()?.let {
         header.injectWaitStrategy(it.commandWaitEndpoint, it.stage)
@@ -133,7 +133,7 @@ private fun Any.asDomainEvents(
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     header: Header,
-    createTime: Long,
+    createTime: Long
 ): List<DomainEvent<Any>> {
     val domainEvent = this.asDomainEvent(
         id = GlobalIdGenerator.generateAsString(),
@@ -151,7 +151,7 @@ private fun Array<*>.asDomainEvents(
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     header: Header,
-    createTime: Long,
+    createTime: Long
 ) = mapIndexed { index, event ->
     val sequence = (index + DEFAULT_EVENT_SEQUENCE)
     event!!.asDomainEvent(
@@ -171,7 +171,7 @@ private fun Iterable<*>.asDomainEvents(
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     header: Header,
-    createTime: Long,
+    createTime: Long
 ): List<DomainEvent<Any>> {
     val eventCount = count()
     return mapIndexed { index, event ->

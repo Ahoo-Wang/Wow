@@ -37,7 +37,7 @@ class KafkaCommandBus(
 ) : CommandBus, DistributedMessageBus, AbstractKafkaBus<CommandMessage<Any>, ServerCommandExchange<Any>>(
     senderOptions,
     receiverOptions,
-    receiverOptionsCustomizer
+    receiverOptionsCustomizer,
 ) {
 
     @Suppress("UNCHECKED_CAST")

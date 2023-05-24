@@ -22,11 +22,8 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.empty
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasSize
-import org.hamcrest.Matchers.instanceOf
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class EventUpgraderFactoryTest {
@@ -42,11 +39,11 @@ class EventUpgraderFactoryTest {
         assertThat(EventUpgraderFactory.get(MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE), hasSize(2))
         assertThat(
             EventUpgraderFactory.get(MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE).first(),
-            instanceOf(MockEventChangeRevisionUpgrader::class.java)
+            instanceOf(MockEventChangeRevisionUpgrader::class.java),
         )
         assertThat(
             EventUpgraderFactory.get(MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE).last(),
-            instanceOf(MockEventToDroppedUpgrader::class.java)
+            instanceOf(MockEventToDroppedUpgrader::class.java),
         )
     }
 
@@ -57,7 +54,7 @@ class EventUpgraderFactoryTest {
         val mockEventJson = MockNamedEvent()
             .asDomainEvent(
                 aggregateId = aggregateId,
-                commandId = GlobalIdGenerator.generateAsString()
+                commandId = GlobalIdGenerator.generateAsString(),
             )
             .asJsonString()
         val droppedEvent = mockEventJson.asObject<DomainEvent<Any>>()

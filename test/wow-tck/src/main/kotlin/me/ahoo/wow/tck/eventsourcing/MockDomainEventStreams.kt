@@ -16,7 +16,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import java.util.LinkedList
+import java.util.*
 
 const val DEFAULT_AGGREGATE_VERSION = 0
 const val DEFAULT_EVENT_COUNT = 10
@@ -30,7 +30,7 @@ object MockDomainEventStreams {
         eventCount: Int =
             DEFAULT_EVENT_COUNT,
         createdEventSupplier: (AggregateId) -> Any = { _ -> Created() },
-        changedEventSupplier: (AggregateId) -> Any = { _ -> Changed() },
+        changedEventSupplier: (AggregateId) -> Any = { _ -> Changed() }
     ): DomainEventStream {
         val events: MutableList<Any> = LinkedList()
         var eventCounter = 0

@@ -22,7 +22,7 @@ data class EventMetadata<E>(
     val namedAggregateGetter: NamedAggregateGetter<E>?,
     override val name: String,
     val revision: String,
-    val aggregateIdGetter: PropertyGetter<E, String>? = null,
+    val aggregateIdGetter: PropertyGetter<E, String>? = null
 ) : Named, Metadata {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -20,13 +20,14 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.command.AggregateProcessor
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.instanceOf
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 internal class FilterChainBuilderTest {
+    @Suppress("ThrowsCount")
     @Test
     fun build() {
         val chain = FilterChainBuilder<ServerCommandExchange<Any>>()
@@ -58,7 +59,7 @@ internal class FilterChainBuilderTest {
 internal class MockFirstFilter : Filter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>,
+        next: FilterChain<ServerCommandExchange<Any>>
     ): Mono<Void> {
         return next.filter(exchange)
     }
@@ -68,7 +69,7 @@ internal class MockFirstFilter : Filter<ServerCommandExchange<Any>> {
 internal class MockLastFilter : Filter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>,
+        next: FilterChain<ServerCommandExchange<Any>>
     ): Mono<Void> {
         return next.filter(exchange)
     }

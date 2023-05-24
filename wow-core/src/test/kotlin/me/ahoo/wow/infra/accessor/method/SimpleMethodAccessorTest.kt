@@ -14,8 +14,8 @@ package me.ahoo.wow.infra.accessor.method
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invokeStatic
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.InvocationTargetException
@@ -33,7 +33,11 @@ internal class SimpleMethodAccessorTest {
     fun invokeWhenIllegalAccessException() {
         val methodAccessor = SimpleMethodAccessor<MockMethodWhenIllegalAccess, Unit>(MockMethodWhenIllegalAccess.METHOD)
         MockMethodWhenIllegalAccess.METHOD.isAccessible = false
-        Assertions.assertThrows(IllegalAccessException::class.java) { methodAccessor.invoke(MockMethodWhenIllegalAccess()) }
+        Assertions.assertThrows(IllegalAccessException::class.java) {
+            methodAccessor.invoke(
+                MockMethodWhenIllegalAccess(),
+            )
+        }
     }
 
     @Test
@@ -60,7 +64,6 @@ internal class SimpleMethodAccessorTest {
         invokeStatic<Any>(MockMethod.STATIC_METHOD)
     }
 
-
     @Test
     fun invokeWithArg() {
         val methodAccessor = SimpleMethodAccessor<MockMethodWithArg, Unit>(MockMethodWithArg.METHOD)
@@ -68,24 +71,23 @@ internal class SimpleMethodAccessorTest {
             "arg"
         }
         methodAccessor.invoke(MockMethodWithArg(), arrayArg)
-
     }
 
     class MockMethod {
-        private fun invoke() {}
+        private fun invoke() = Unit
 
         companion object {
             val METHOD: Method = MockMethod::class.java.getDeclaredMethod("invoke")
             val STATIC_METHOD: Method = MockMethod::class.java.getDeclaredMethod("staticInvoke")
 
+            @Suppress("UnusedPrivateMember")
             @JvmStatic
-            private fun staticInvoke() {
-            }
+            private fun staticInvoke() = Unit
         }
     }
 
     class MockMethodWhenIllegalAccess {
-        private fun invoke() {}
+        private fun invoke() = Unit
 
         companion object {
             val METHOD: Method = MockMethodWhenIllegalAccess::class.java.getDeclaredMethod("invoke")
@@ -93,6 +95,7 @@ internal class SimpleMethodAccessorTest {
     }
 
     class MockMethodWhenIllegalStateException {
+        @Suppress("UseCheckOrError")
         private fun invoke() {
             throw IllegalStateException()
         }
@@ -103,6 +106,7 @@ internal class SimpleMethodAccessorTest {
     }
 
     class MockMethodWhenError {
+        @Suppress("TooGenericExceptionThrown")
         private fun invoke() {
             throw Error()
         }
@@ -113,10 +117,8 @@ internal class SimpleMethodAccessorTest {
     }
 
     class MockMethodWithArg {
-        fun invoke(arg1: String, arg2: String) {
-
-        }
-
+        @Suppress("UnusedPrivateMember")
+        fun invoke(arg1: String, arg2: String) = Unit
 
         companion object {
             val METHOD: Method =

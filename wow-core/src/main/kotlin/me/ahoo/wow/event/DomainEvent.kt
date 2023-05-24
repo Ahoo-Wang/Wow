@@ -37,7 +37,7 @@ data class SimpleDomainEvent<T : Any>(
     override val commandId: String,
     override val name: String = body.javaClass.asName(),
     override val isLast: Boolean = true,
-    override val createTime: Long = System.currentTimeMillis(),
+    override val createTime: Long = System.currentTimeMillis()
 ) : DomainEvent<T>, NamedAggregate by aggregateId {
     override fun mergeHeader(additionalSource: Map<String, String>): SimpleDomainEvent<T> =
         copy(header = header.mergeWith(additionalSource))
@@ -52,7 +52,7 @@ fun <T : Any> T.asDomainEvent(
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
     header: Header = DefaultHeader.EMPTY,
-    createTime: Long = System.currentTimeMillis(),
+    createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
     val metadata = javaClass.asEventMetadata()
 
@@ -81,7 +81,7 @@ fun <T : Any> T.asDomainEvent(
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
     header: Header = DefaultHeader.EMPTY,
-    createTime: Long = System.currentTimeMillis(),
+    createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
     val metadata = javaClass.asEventMetadata()
     checkNotNull(metadata.namedAggregateGetter)

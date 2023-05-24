@@ -6,5 +6,4 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
     override fun createCommandBus(): CommandBus {
         return LocalFirstCommandBus(distributedCommandBus = InMemoryCommandBus())
     }
-
 }

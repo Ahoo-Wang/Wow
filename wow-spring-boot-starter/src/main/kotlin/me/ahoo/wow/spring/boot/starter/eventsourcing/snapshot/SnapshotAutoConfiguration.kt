@@ -44,7 +44,7 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
 class SnapshotAutoConfiguration(
-    private val snapshotProperties: SnapshotProperties,
+    private val snapshotProperties: SnapshotProperties
 ) {
 
     @Bean
@@ -65,7 +65,7 @@ class SnapshotAutoConfiguration(
     fun snapshotStrategy(
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore,
-        stateAggregateFactory: StateAggregateFactory,
+        stateAggregateFactory: StateAggregateFactory
     ): SnapshotStrategy {
         return SimpleSnapshotStrategy(
             snapshotRepository = snapshotRepository,
@@ -82,7 +82,7 @@ class SnapshotAutoConfiguration(
     fun versionOffsetSnapshotStrategy(
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore,
-        stateAggregateFactory: StateAggregateFactory,
+        stateAggregateFactory: StateAggregateFactory
     ): SnapshotStrategy {
         return VersionOffsetSnapshotStrategy(
             versionOffset = snapshotProperties.versionOffset,
@@ -100,7 +100,7 @@ class SnapshotAutoConfiguration(
     fun timeOffsetSnapshotStrategy(
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore,
-        stateAggregateFactory: StateAggregateFactory,
+        stateAggregateFactory: StateAggregateFactory
     ): SnapshotStrategy {
         return TimeOffsetSnapshotStrategy(
             timeOffset = snapshotProperties.timeOffset.toMillis(),
@@ -112,7 +112,7 @@ class SnapshotAutoConfiguration(
 
     @Bean
     fun snapshotFunctionFilter(
-        snapshotStrategy: SnapshotStrategy,
+        snapshotStrategy: SnapshotStrategy
     ): SnapshotFunctionFilter {
         return SnapshotFunctionFilter(
             snapshotStrategy = snapshotStrategy,
@@ -129,7 +129,7 @@ class SnapshotAutoConfiguration(
 
     @Bean
     fun snapshotHandler(
-        @Qualifier("snapshotFilterChain") chain: FilterChain<EventStreamExchange>,
+        @Qualifier("snapshotFilterChain") chain: FilterChain<EventStreamExchange>
     ): SnapshotHandler {
         return DefaultSnapshotHandler(chain)
     }
@@ -138,7 +138,7 @@ class SnapshotAutoConfiguration(
     fun snapshotDispatcher(
         namedBoundedContext: NamedBoundedContext,
         snapshotHandler: SnapshotHandler,
-        domainEventBus: DomainEventBus,
+        domainEventBus: DomainEventBus
     ): SnapshotDispatcher {
         return SnapshotDispatcher(
             name = "${namedBoundedContext.contextName}.${SnapshotDispatcher::class.simpleName}",

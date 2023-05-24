@@ -20,7 +20,7 @@ class CommandAggregateRoutePathSpec(
     override val currentContext: NamedBoundedContext,
     override val namedAggregate: NamedAggregate,
     val commandRouteMetadata: CommandRouteMetadata<*>,
-    override val staticTenantId: String?,
+    override val staticTenantId: String?
 ) : AggregateRoutePathSpec {
 
     val appendedTenantId: Boolean

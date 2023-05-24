@@ -19,5 +19,5 @@ import java.lang.annotation.Inherited
 @Inherited
 @MustBeDocumented
 annotation class Summary(
-    val value: String,
+    val value: String
 )

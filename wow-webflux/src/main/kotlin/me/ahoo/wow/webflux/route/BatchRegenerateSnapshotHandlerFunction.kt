@@ -38,7 +38,7 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -51,7 +51,7 @@ class BatchRegenerateSnapshotHandlerFunction(
                     stateAggregateFactory = stateAggregateFactory,
                     eventStore = eventStore,
                     snapshotRepository = snapshotRepository,
-                    aggregateId = aggregateId
+                    aggregateId = aggregateId,
                 )
             }
             .reduce(BatchRegenerateSnapshotResult(cursorId, 0)) { acc, snapshot ->
@@ -83,7 +83,7 @@ class BatchRegenerateSnapshotHandlerFunction(
                     eventStore
                         .load(
                             aggregateId = aggregateId,
-                            headVersion = stateAggregate.expectedNextVersion
+                            headVersion = stateAggregate.expectedNextVersion,
                         )
                         .map {
                             stateAggregate.onSourcing(it)

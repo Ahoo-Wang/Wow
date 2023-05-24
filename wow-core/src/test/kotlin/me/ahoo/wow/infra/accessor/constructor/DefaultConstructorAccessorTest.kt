@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.infra.accessor.constructor
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Constructor
@@ -45,6 +45,7 @@ internal class DefaultConstructorAccessorTest {
         Assertions.assertThrows(InvocationTargetException::class.java) { constructorAccessor.invoke() }
     }
 
+    @Suppress("UtilityClassWithPublicConstructor")
     class MockConstructor {
         companion object {
             val CTOR: Constructor<MockConstructor> = MockConstructor::class.java.getConstructor()
@@ -53,21 +54,26 @@ internal class DefaultConstructorAccessorTest {
 
     class MockConstructorWhenIllegalAccess {
         private constructor()
+
         companion object {
-            val CTOR: Constructor<MockConstructorWhenIllegalAccess> = MockConstructorWhenIllegalAccess::class.java.getDeclaredConstructor()
+            val CTOR: Constructor<MockConstructorWhenIllegalAccess> =
+                MockConstructorWhenIllegalAccess::class.java.getDeclaredConstructor()
         }
     }
 
+    @Suppress("UtilityClassWithPublicConstructor")
     class MockConstructorWhenIllegalArgument {
         init {
             throw IllegalArgumentException()
         }
 
         companion object {
-            val CTOR: Constructor<MockConstructorWhenIllegalArgument> = MockConstructorWhenIllegalArgument::class.java.getConstructor()
+            val CTOR: Constructor<MockConstructorWhenIllegalArgument> =
+                MockConstructorWhenIllegalArgument::class.java.getConstructor()
         }
     }
 
+    @Suppress("UtilityClassWithPublicConstructor", "TooGenericExceptionThrown")
     class MockConstructorWhenError {
         init {
             throw Error()

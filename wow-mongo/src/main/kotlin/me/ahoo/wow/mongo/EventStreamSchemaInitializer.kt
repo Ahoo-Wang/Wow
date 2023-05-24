@@ -35,7 +35,7 @@ class EventStreamSchemaInitializer(
      * @see me.ahoo.wow.infra.idempotency.IdempotencyChecker
      * @see <a href="https://www.mongodb.com/docs/manual/core/sharding-shard-key/#unique-indexes">Shard Keys</a>
      */
-    private val enableRequestIdUniqueIndex: Boolean = false,
+    private val enableRequestIdUniqueIndex: Boolean = false
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(EventStreamSchemaInitializer::class.java)

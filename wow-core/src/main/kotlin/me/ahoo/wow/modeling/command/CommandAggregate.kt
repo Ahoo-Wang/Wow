@@ -46,7 +46,7 @@ enum class CommandState {
     STORED {
         override fun onSourcing(
             stateAggregate: StateAggregate<*>,
-            eventStream: DomainEventStream,
+            eventStream: DomainEventStream
         ): CommandState {
             stateAggregate.onSourcing(eventStream)
             return SOURCED
@@ -58,7 +58,7 @@ enum class CommandState {
                 .thenReturn(STORED)
         }
     },
-    EXPIRED,
+    EXPIRED
     ;
 
     open fun onSourcing(stateAggregate: StateAggregate<*>, eventStream: DomainEventStream): CommandState {

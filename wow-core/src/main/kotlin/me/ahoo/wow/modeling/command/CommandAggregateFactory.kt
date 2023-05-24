@@ -23,6 +23,6 @@ import me.ahoo.wow.modeling.state.StateAggregate
 interface CommandAggregateFactory {
     fun <C : Any, S : Any> create(
         metadata: AggregateMetadata<C, S>,
-        stateAggregate: StateAggregate<S>,
+        stateAggregate: StateAggregate<S>
     ): CommandAggregate<C, S>
 }

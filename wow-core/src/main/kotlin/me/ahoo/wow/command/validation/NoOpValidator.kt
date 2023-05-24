@@ -26,7 +26,7 @@ object NoOpValidator : Validator {
     override fun <T : Any> validateProperty(
         `object`: T,
         propertyName: String,
-        vararg groups: Class<*>,
+        vararg groups: Class<*>
     ): Set<ConstraintViolation<T>> {
         return emptySet()
     }
@@ -35,7 +35,7 @@ object NoOpValidator : Validator {
         beanType: Class<T>,
         propertyName: String,
         value: Any,
-        vararg groups: Class<*>,
+        vararg groups: Class<*>
     ): Set<ConstraintViolation<T>> {
         return emptySet()
     }

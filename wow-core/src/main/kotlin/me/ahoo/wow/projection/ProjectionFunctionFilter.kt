@@ -19,5 +19,5 @@ import me.ahoo.wow.messaging.handler.FilterType
 
 @FilterType(ProjectionDispatcher::class)
 class ProjectionFunctionFilter(
-    serviceProvider: ServiceProvider,
+    serviceProvider: ServiceProvider
 ) : DomainEventFunctionFilter(serviceProvider)

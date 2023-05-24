@@ -52,6 +52,6 @@ object SnapshotAttributesExtractor : AttributesExtractor<EventStreamExchange, Un
         context: Context,
         request: EventStreamExchange,
         response: Unit?,
-        error: Throwable?,
+        error: Throwable?
     ) = Unit
 }

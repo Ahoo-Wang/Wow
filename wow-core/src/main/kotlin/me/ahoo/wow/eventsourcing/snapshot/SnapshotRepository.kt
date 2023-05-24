@@ -26,7 +26,7 @@ const val FIRST_CURSOR_ID = "(0)"
 interface SnapshotRepository {
     @Deprecated(
         "use load(aggregateId: AggregateId): Mono<Snapshot<S>> instead.",
-        ReplaceWith("load(aggregateId)")
+        ReplaceWith("load(aggregateId)"),
     )
     fun <S : Any> load(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<Snapshot<S>> {
         return load(aggregateId)

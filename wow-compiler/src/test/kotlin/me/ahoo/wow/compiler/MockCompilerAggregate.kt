@@ -26,7 +26,7 @@ class ChangeAggregate(@AggregateId val targetId: String, val state: String, @Agg
 
 class ChangeAggregateDependExternalService(
     @AggregateId val targetId: String,
-    val state: String,
+    val state: String
 )
 
 data class AggregateCreated(val state: String)
@@ -51,10 +51,11 @@ class MockCompilerAggregate(val id: String) {
         return AggregateChanged(change.body.state)
     }
 
+    @Suppress("UnusedParameter")
     @OnCommand
     private fun onChangeAggregateDependExternalService(
         commandBody: ChangeAggregateDependExternalService,
-        externalService: ExternalService,
+        externalService: ExternalService
     ): AggregateChanged {
         return AggregateChanged(commandBody.state)
     }

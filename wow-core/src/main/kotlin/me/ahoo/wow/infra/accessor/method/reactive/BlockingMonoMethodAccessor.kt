@@ -20,7 +20,7 @@ import java.lang.reflect.Method
 
 class BlockingMonoMethodAccessor<T, D>(
     private val monoMethodAccessor: MonoMethodAccessor<T, Mono<D>>,
-    private val scheduler: Scheduler = Schedulers.boundedElastic(),
+    private val scheduler: Scheduler = Schedulers.boundedElastic()
 ) :
     MonoMethodAccessor<T, Mono<D>> {
 

@@ -30,7 +30,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.Locale
+import java.util.*
 
 val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
 
@@ -62,7 +62,7 @@ class CommandHandlerFunction(
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
     private val timeout: Duration = DEFAULT_TIME_OUT,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -74,12 +74,12 @@ class CommandHandlerFunction(
         } else {
             request.body(
                 bodyExtractor,
-                mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables())
+                mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables()),
             )
         }.flatMap {
             request.parse(
                 aggregateMetadata = aggregateMetadata,
-                commandBody = it
+                commandBody = it,
             )
         }
             .flatMap {

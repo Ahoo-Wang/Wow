@@ -38,7 +38,7 @@ class MonoTraceTest {
     companion object {
         val TEST_NAMED_AGGREGATE = MaterializedNamedAggregate(
             contextName = "MonoTraceTest",
-            aggregateName = "MonoTraceTest"
+            aggregateName = "MonoTraceTest",
         )
 
         init {
@@ -68,7 +68,7 @@ class MonoTraceTest {
             parentContext = Context.current(),
             instrumenter = EventProcessorInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = Mono.empty()
+            source = Mono.empty(),
         ).test()
             .verifyComplete()
     }
@@ -89,7 +89,7 @@ class MonoTraceTest {
             parentContext = Context.current(),
             instrumenter = StatelessSagaInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = Mono.empty()
+            source = Mono.empty(),
         ).test()
             .verifyComplete()
     }
@@ -110,7 +110,7 @@ class MonoTraceTest {
             parentContext = Context.current(),
             instrumenter = ProjectionInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = Mono.empty()
+            source = Mono.empty(),
         ).test()
             .verifyComplete()
     }
@@ -128,7 +128,7 @@ class MonoTraceTest {
             parentContext = Context.current(),
             instrumenter = SnapshotInstrumenter.INSTRUMENTER,
             exchange = exchange,
-            source = Mono.empty()
+            source = Mono.empty(),
         ).test()
             .verifyComplete()
     }

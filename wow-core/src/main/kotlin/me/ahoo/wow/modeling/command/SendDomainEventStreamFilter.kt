@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono
 class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : Filter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>,
+        next: FilterChain<ServerCommandExchange<Any>>
     ): Mono<Void> {
         return Mono.defer {
             val eventStream = exchange.eventStream ?: return@defer next.filter(exchange)

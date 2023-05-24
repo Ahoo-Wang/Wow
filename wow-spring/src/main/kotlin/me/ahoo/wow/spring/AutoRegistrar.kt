@@ -27,7 +27,7 @@ const val AUTO_REGISTRAR_PHASE = DEFAULT_PHASE - 100
 
 abstract class AutoRegistrar<CM : Annotation>(
     private val componentType: Class<CM>,
-    private val applicationContext: ApplicationContext,
+    private val applicationContext: ApplicationContext
 ) : SmartLifecycle {
     companion object {
         private val log = LoggerFactory.getLogger(AutoRegistrar::class.java)

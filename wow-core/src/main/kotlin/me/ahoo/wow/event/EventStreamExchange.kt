@@ -20,5 +20,5 @@ interface EventStreamExchange : MessageExchange<EventStreamExchange, DomainEvent
 
 data class SimpleEventStreamExchange(
     override val message: DomainEventStream,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : EventStreamExchange

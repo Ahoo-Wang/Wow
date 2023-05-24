@@ -29,7 +29,7 @@ class AggregateSnapshotDispatcher(
         "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
-    override val messageFlux: Flux<EventStreamExchange>,
+    override val messageFlux: Flux<EventStreamExchange>
 ) : AggregateMessageDispatcher<EventStreamExchange>() {
 
     override fun handleExchange(exchange: EventStreamExchange): Mono<Void> {

@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConstructorBinding
 @ConstructorBinding
 @ConfigurationProperties(prefix = R2dbcProperties.PREFIX)
 data class R2dbcProperties(
-    val enabled: Boolean = true,
+    val enabled: Boolean = true
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}r2dbc"

@@ -24,7 +24,7 @@ data class MongoProperties(
     val autoInitSchema: Boolean = true,
     val eventStreamDatabase: String?,
     val snapshotDatabase: String?,
-    val prepareDatabase: String?,
+    val prepareDatabase: String?
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}mongo"

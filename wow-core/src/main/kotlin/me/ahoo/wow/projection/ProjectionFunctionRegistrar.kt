@@ -22,7 +22,8 @@ import me.ahoo.wow.projection.annotation.asProjectionProcessorMetadata
 import reactor.core.publisher.Mono
 
 class ProjectionFunctionRegistrar(
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> = SimpleMultipleMessageFunctionRegistrar(),
+    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
 
     fun registerProcessor(processor: Any) {

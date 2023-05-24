@@ -38,7 +38,7 @@ import me.ahoo.wow.serialization.asObject
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
-import java.util.Date
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 const val VALUE_FIELD = "value"
@@ -46,7 +46,7 @@ const val VALUE_FIELD = "value"
 class MongoPrepareKey<V : Any>(
     override val name: String,
     private val valueType: Class<V>,
-    database: MongoDatabase,
+    database: MongoDatabase
 ) : PrepareKey<V> {
     companion object {
         val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = ReplaceOptions().upsert(true).bypassDocumentValidation(true)
@@ -59,7 +59,7 @@ class MongoPrepareKey<V : Any>(
         if (database.ensureCollection(prepareCollectionName)) {
             prepareCollection.createIndex(
                 Indexes.ascending(TTL_AT_FIELD),
-                IndexOptions().expireAfter(0, TimeUnit.SECONDS)
+                IndexOptions().expireAfter(0, TimeUnit.SECONDS),
             ).toMono().asBlockable().block()
         }
     }
@@ -102,7 +102,7 @@ class MongoPrepareKey<V : Any>(
                 Filters.and(
                     Filters.eq(Documents.ID_FIELD, key),
                     Filters.gt(TTL_AT_FIELD, Date()),
-                )
+                ),
             )
             .toMono()
             .map {
@@ -116,7 +116,7 @@ class MongoPrepareKey<V : Any>(
             Filters.and(
                 Filters.eq(Documents.ID_FIELD, key),
                 Filters.eq(VALUE_FIELD, document[VALUE_FIELD]),
-            )
+            ),
         )
             .toMono()
             .map {
@@ -131,8 +131,8 @@ class MongoPrepareKey<V : Any>(
                 Filters.eq(Documents.ID_FIELD, key),
                 Updates.combine(
                     Updates.set(VALUE_FIELD, valueDocument[VALUE_FIELD]),
-                    Updates.set(TTL_AT_FIELD, valueDocument[TTL_AT_FIELD])
-                )
+                    Updates.set(TTL_AT_FIELD, valueDocument[TTL_AT_FIELD]),
+                ),
             )
             .toMono()
             .map {
@@ -151,8 +151,8 @@ class MongoPrepareKey<V : Any>(
                 ),
                 Updates.combine(
                     Updates.set(VALUE_FIELD, newValueDocument[VALUE_FIELD]),
-                    Updates.set(TTL_AT_FIELD, newValueDocument[TTL_AT_FIELD])
-                )
+                    Updates.set(TTL_AT_FIELD, newValueDocument[TTL_AT_FIELD]),
+                ),
             )
             .toMono()
             .map {

@@ -34,7 +34,7 @@ data class CommandAggregateMetadata<C : Any>(
     override val namedAggregate: NamedAggregate,
     val constructorAccessor: ConstructorAccessor<C>,
     val commandFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>,
-    val errorFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>,
+    val errorFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>
 ) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata {
 
     val registeredDeleteAggregate: Boolean =

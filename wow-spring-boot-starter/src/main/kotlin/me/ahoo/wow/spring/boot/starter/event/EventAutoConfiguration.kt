@@ -41,7 +41,7 @@ class EventAutoConfiguration {
     @Bean
     fun eventCompensator(
         eventStore: EventStore,
-        eventBus: DomainEventBus,
+        eventBus: DomainEventBus
     ): EventCompensator {
         return DefaultEventCompensator(eventStore, eventBus)
     }

@@ -61,7 +61,7 @@ class Order(private val state: OrderState) {
      */
     fun onCommand(
         command: CommandMessage<CreateOrder>,
-        specification: CreateOrderSpec,
+        specification: CreateOrderSpec
     ): Mono<OrderCreated> {
         val createOrder = command.body
         require(createOrder.items.isNotEmpty()) {
@@ -77,7 +77,7 @@ class Order(private val state: OrderState) {
                         customerId = createOrder.customerId,
                         items = createOrder.items,
                         address = createOrder.address,
-                        fromCart = createOrder.fromCart
+                        fromCart = createOrder.fromCart,
                     ),
                 ),
             )
@@ -93,7 +93,9 @@ class Order(private val state: OrderState) {
      *
      */
     fun onCommand(changeAddress: ChangeAddress): AddressChanged {
-        check(OrderStatus.CREATED == state.status) { "The current order[${state.id}] status[${state.status}] cannot modify the address" }
+        check(OrderStatus.CREATED == state.status) {
+            "The current order[${state.id}] status[${state.status}] cannot modify the address"
+        }
         return AddressChanged(changeAddress.shippingAddress)
     }
 
@@ -103,7 +105,9 @@ class Order(private val state: OrderState) {
     }
 
     fun onCommand(receiptOrder: ReceiptOrder): OrderReceived {
-        check(OrderStatus.SHIPPED == state.status) { "The current order[${state.id}] status[${state.status}] cannot receipt order." }
+        check(OrderStatus.SHIPPED == state.status) {
+            "The current order[${state.id}] status[${state.status}] cannot receipt order."
+        }
         return OrderReceived
     }
 
@@ -123,8 +127,8 @@ class Order(private val state: OrderState) {
             return listOf(
                 OrderPayDuplicated(
                     paymentId = payOrder.paymentId,
-                    errorMsg = "The current order[${state.id}] status[${state.status}] cannot pay order."
-                )
+                    errorMsg = "The current order[${state.id}] status[${state.status}] cannot pay order.",
+                ),
             )
         }
 

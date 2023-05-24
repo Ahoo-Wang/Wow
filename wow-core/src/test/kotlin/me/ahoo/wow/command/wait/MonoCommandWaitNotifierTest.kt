@@ -31,7 +31,7 @@ internal class MonoCommandWaitNotifierTest {
             .thenNotifyAndForget(
                 commandWaitNotifier,
                 CommandStage.SENT,
-                SimpleServerCommandExchange(MockCreateCommand("").asCommandMessage())
+                SimpleServerCommandExchange(MockCreateCommand("").asCommandMessage()),
             )
             .test()
             .verifyComplete()

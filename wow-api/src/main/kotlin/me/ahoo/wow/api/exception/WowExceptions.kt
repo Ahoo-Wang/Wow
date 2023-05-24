@@ -18,7 +18,7 @@ import java.util.concurrent.TimeoutException
 open class WowException(
     final override val errorCode: String,
     errorMsg: String,
-    cause: Throwable? = null,
+    cause: Throwable? = null
 ) : RuntimeException(errorMsg, cause), ErrorInfo {
     override val errorMsg: String
         get() = message ?: ""
@@ -38,7 +38,7 @@ interface RetryableException
 open class WowTransientException(
     errorCode: String,
     errorMsg: String,
-    cause: Throwable? = null,
+    cause: Throwable? = null
 ) : WowException(errorCode, errorMsg, cause), RetryableException
 
 /**

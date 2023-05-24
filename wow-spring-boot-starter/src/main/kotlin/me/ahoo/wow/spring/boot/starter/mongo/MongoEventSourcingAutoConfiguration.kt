@@ -53,7 +53,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoEventStore(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): EventStore {
         val eventStoreDatabaseName = mongoProperties.eventStreamDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(eventStoreDatabaseName) {
@@ -75,7 +75,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoSnapshotRepository(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): SnapshotRepository {
         val snapshotDatabaseName = mongoProperties.snapshotDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(snapshotDatabaseName) {
@@ -93,7 +93,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnMissingBean
     fun mongoPrepareKeyFactory(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): PrepareKeyFactory {
         val prepareDatabaseName = mongoProperties.prepareDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(prepareDatabaseName) {

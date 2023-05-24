@@ -57,7 +57,7 @@ interface EventStreamRecord :
                 streamedCommandId = commandId,
                 sequence = sequence,
                 isLast = sequence == eventCount,
-                streamedCreateTime = createTime
+                streamedCreateTime = createTime,
             ).asDomainEvent()
         }.toList()
 
@@ -113,7 +113,7 @@ class StreamDomainEventRecord(
     private val streamedCommandId: String,
     override val sequence: Int,
     override val isLast: Boolean,
-    private val streamedCreateTime: Long,
+    private val streamedCreateTime: Long
 ) : DomainEventRecord {
     override val contextName: String
         get() = streamedAggregateId.contextName

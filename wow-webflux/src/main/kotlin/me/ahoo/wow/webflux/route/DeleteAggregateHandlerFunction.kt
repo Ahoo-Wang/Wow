@@ -30,7 +30,7 @@ class DeleteAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandGateway: CommandGateway,
     private val timeout: Duration = DEFAULT_TIME_OUT,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -38,7 +38,7 @@ class DeleteAggregateHandlerFunction(
         return request.parse(
             aggregateMetadata = aggregateMetadata,
             commandBody = DefaultDeleteAggregate,
-            aggregateId = id
+            aggregateId = id,
         )
             .flatMap {
                 request.sendCommand(commandGateway, it, timeout)

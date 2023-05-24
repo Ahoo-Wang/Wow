@@ -35,7 +35,7 @@ val EMPTY_OK = ServerResponse
 const val COMMAND_WAIT_HANDLER_PATH = "/${Wow.WOW}/command/wait"
 
 class CommandWaitHandlerFunction(
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : HandlerFunction<ServerResponse> {
 
     val routerFunction: RouterFunction<ServerResponse> by lazy {

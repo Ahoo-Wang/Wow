@@ -24,6 +24,7 @@ style:
     excludeImports:
       - java.util.*
       - org.hamcrest.Matchers.*
+      - org.hamcrest.MatcherAssert.*
 naming:
   MemberNameEqualsClassName:
     active: false
@@ -43,7 +44,7 @@ performance:
     active: false
 formatting:
   NoWildcardImports:
-    packagesToUseImportOnDemandProperty: "java.util.*,org.hamcrest.Matchers.*"
+    packagesToUseImportOnDemandProperty: "java.util.*,org.hamcrest.Matchers.*,org.hamcrest.MatcherAssert.*,org.junit.jupiter.api.Assertions.*"
   MaximumLineLength:
     active: false
   Filename:

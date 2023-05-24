@@ -33,7 +33,7 @@ class KafkaDomainEventBus(
     AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
         senderOptions,
         receiverOptions,
-        receiverOptionsCustomizer
+        receiverOptionsCustomizer,
     ) {
 
     override val messageType: Class<DomainEventStream>

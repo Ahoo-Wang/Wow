@@ -28,7 +28,7 @@ annotation class BoundedContext(
     val serviceId: String = "",
     val scopes: Array<String> = [],
     val packageScopes: Array<KClass<*>> = [],
-    val aggregates: Array<Aggregate> = [],
+    val aggregates: Array<Aggregate> = []
 ) {
     @Target(AnnotationTarget.CLASS)
     @Inherited
@@ -43,6 +43,6 @@ annotation class BoundedContext(
          */
         val id: String = "",
         val scopes: Array<String> = [],
-        val packageScopes: Array<KClass<*>> = [],
+        val packageScopes: Array<KClass<*>> = []
     )
 }

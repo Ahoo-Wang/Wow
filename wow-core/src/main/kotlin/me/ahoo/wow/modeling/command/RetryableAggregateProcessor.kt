@@ -31,7 +31,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
     private val aggregateMetadata: AggregateMetadata<C, S>,
     private val aggregateFactory: StateAggregateFactory,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val commandAggregateFactory: CommandAggregateFactory,
+    private val commandAggregateFactory: CommandAggregateFactory
 ) : AggregateProcessor<C>, NamedTypedAggregate<C> by aggregateMetadata.command {
     private companion object {
         private val log = LoggerFactory.getLogger(RetryableAggregateProcessor::class.java)

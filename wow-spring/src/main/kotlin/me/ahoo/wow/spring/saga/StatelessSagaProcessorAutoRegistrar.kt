@@ -22,7 +22,7 @@ import org.springframework.context.ApplicationContext
 class StatelessSagaProcessorAutoRegistrar(
     private val functionRegistrar: StatelessSagaFunctionRegistrar,
     private val commandGateway: CommandGateway,
-    applicationContext: ApplicationContext,
+    applicationContext: ApplicationContext
 ) : AutoRegistrar<StatelessSaga>(StatelessSaga::class.java, applicationContext) {
     override fun register(component: Any) {
         functionRegistrar.registerStatelessSaga(component, commandGateway)

@@ -25,7 +25,7 @@ data class MethodFunctionMetadata<P, out R>(
     val supportedType: Class<*>,
     val supportedTopics: Set<Any>,
     val firstParameterKind: FirstParameterKind,
-    val injectParameterTypes: Array<Class<*>>,
+    val injectParameterTypes: Array<Class<*>>
 ) {
     val injectParameterLength: Int
         get() = injectParameterTypes.size
@@ -62,7 +62,7 @@ data class MethodFunctionMetadata<P, out R>(
 enum class FirstParameterKind {
     MESSAGE_EXCHANGE,
     MESSAGE,
-    MESSAGE_BODY,
+    MESSAGE_BODY
 }
 
 fun <P, R> Method.asFunctionMetadata(): MethodFunctionMetadata<P, R> {

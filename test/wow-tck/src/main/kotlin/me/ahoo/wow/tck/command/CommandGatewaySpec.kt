@@ -30,8 +30,8 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.metrics.Metrics.metrizable
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -44,7 +44,7 @@ abstract class CommandGatewaySpec {
     protected val namedAggregate = MockSendCommand::class.java.asRequiredNamedAggregate()
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
-        Duration.ofSeconds(1)
+        Duration.ofSeconds(1),
     ) {
         BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 1000000)
     }
@@ -122,7 +122,7 @@ abstract class CommandGatewaySpec {
                             )
                         },
                         10,
-                        TimeUnit.MILLISECONDS
+                        TimeUnit.MILLISECONDS,
                     )
                 }
                 .subscribe()

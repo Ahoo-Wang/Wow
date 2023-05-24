@@ -34,7 +34,7 @@ data class CommandMetadata<C>(
      */
     val aggregateIdGetter: PropertyGetter<C, String>?,
     val tenantIdGetter: PropertyGetter<C, String>?,
-    val aggregateVersionGetter: PropertyGetter<C, Int?>?,
+    val aggregateVersionGetter: PropertyGetter<C, Int?>?
 ) : Named, Metadata {
 
     val isDelete: Boolean

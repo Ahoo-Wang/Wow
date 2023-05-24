@@ -13,11 +13,4 @@
 
 package me.ahoo.wow.reactor
 
-import org.junit.jupiter.api.Test
-
-class ReactorTest {
-    @Test
-    fun onCancel() {
-
-    }
-}
+class ReactorTest

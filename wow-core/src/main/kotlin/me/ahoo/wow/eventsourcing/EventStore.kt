@@ -49,7 +49,7 @@ interface EventStore {
     fun load(
         aggregateId: AggregateId,
         headVersion: Int = DEFAULT_HEAD_VERSION,
-        tailVersion: Int = Int.MAX_VALUE,
+        tailVersion: Int = Int.MAX_VALUE
     ): Flux<DomainEventStream>
 
     companion object {

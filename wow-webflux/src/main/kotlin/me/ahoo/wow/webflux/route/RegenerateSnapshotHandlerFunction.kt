@@ -33,7 +33,7 @@ class RegenerateSnapshotHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -45,7 +45,7 @@ class RegenerateSnapshotHandlerFunction(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             snapshotRepository = snapshotRepository,
-            aggregateId = aggregateId
+            aggregateId = aggregateId,
         ).flatMap {
             ServerResponse.ok().build()
         }.throwNotFoundIfEmpty()

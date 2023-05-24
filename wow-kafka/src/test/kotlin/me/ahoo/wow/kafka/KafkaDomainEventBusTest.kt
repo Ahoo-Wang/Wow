@@ -28,7 +28,7 @@ internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
     companion object {
         @JvmStatic
         @BeforeAll
-        fun waitLauncher(): Unit {
+        fun waitLauncher() {
             KafkaLauncher.isRunning
         }
     }

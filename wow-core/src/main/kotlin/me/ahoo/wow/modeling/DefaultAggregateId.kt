@@ -23,7 +23,7 @@ import me.ahoo.wow.id.generateId
 data class DefaultAggregateId(
     override val namedAggregate: NamedAggregate,
     override val id: String,
-    override val tenantId: String = TenantId.DEFAULT_TENANT_ID,
+    override val tenantId: String = TenantId.DEFAULT_TENANT_ID
 ) : AggregateId {
     override fun equals(other: Any?): Boolean = equalTo(other)
 
@@ -32,7 +32,7 @@ data class DefaultAggregateId(
 
 fun NamedAggregate.asAggregateId(
     id: String = generateId(),
-    tenantId: String = TenantId.DEFAULT_TENANT_ID,
+    tenantId: String = TenantId.DEFAULT_TENANT_ID
 ) =
     DefaultAggregateId(
         namedAggregate = materialize(),

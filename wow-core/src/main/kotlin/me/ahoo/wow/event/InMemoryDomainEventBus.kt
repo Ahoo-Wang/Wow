@@ -22,14 +22,14 @@ import reactor.core.publisher.Sinks.Many
 
 class InMemoryDomainEventBus(
     private val sink: Many<EventStreamExchange> = Sinks.many()
-        .multicast().onBackpressureBuffer(),
+        .multicast().onBackpressureBuffer()
 ) : DomainEventBus, LocalSendMessageBus<DomainEventStream, EventStreamExchange> {
 
     override fun sendExchange(exchange: EventStreamExchange): Mono<Void> {
         return Mono.fromRunnable {
             sink.emitNext(
                 exchange,
-                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION)
+                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
     }

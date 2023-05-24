@@ -22,7 +22,7 @@ import me.ahoo.wow.example.api.cart.CartService.SERVICE_NAME
     SERVICE_ALIAS,
     aggregates = [
         BoundedContext.Aggregate(CartService.CART_AGGREGATE_NAME, packageScopes = [InitializeCart::class]),
-    ]
+    ],
 )
 object CartService {
     const val SERVICE_NAME = "cart-example-service"

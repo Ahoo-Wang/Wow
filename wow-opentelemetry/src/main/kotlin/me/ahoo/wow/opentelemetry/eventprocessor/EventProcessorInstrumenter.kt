@@ -55,6 +55,6 @@ object EventProcessorAttributesExtractor : AttributesExtractor<DomainEventExchan
         context: Context,
         request: DomainEventExchange<Any>,
         response: Unit?,
-        error: Throwable?,
+        error: Throwable?
     ) = Unit
 }

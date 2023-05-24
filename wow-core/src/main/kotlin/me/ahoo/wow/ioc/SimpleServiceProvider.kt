@@ -15,7 +15,7 @@ package me.ahoo.wow.ioc
 import java.util.concurrent.ConcurrentHashMap
 
 class SimpleServiceProvider(
-    private val services: ConcurrentHashMap<Class<*>, Any> = ConcurrentHashMap<Class<*>, Any>(),
+    private val services: ConcurrentHashMap<Class<*>, Any> = ConcurrentHashMap<Class<*>, Any>()
 ) : ServiceProvider {
 
     @Suppress("UNCHECKED_CAST")

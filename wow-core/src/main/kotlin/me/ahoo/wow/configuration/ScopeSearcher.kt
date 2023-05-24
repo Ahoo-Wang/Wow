@@ -17,7 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import java.util.SortedMap
+import java.util.*
 
 /**
  * 包深度排序
@@ -63,7 +63,7 @@ interface ScopeSearcher<V : Any> : SortedMap<String, V> {
 }
 
 class ScopeContextSearcher(
-    private val source: SortedMap<String, NamedBoundedContext>,
+    private val source: SortedMap<String, NamedBoundedContext>
 ) : ScopeSearcher<NamedBoundedContext>, SortedMap<String, NamedBoundedContext> by source
 
 class ScopeNamedAggregateSearcher(private val source: SortedMap<String, NamedAggregate>) :

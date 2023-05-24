@@ -42,7 +42,7 @@ class ElasticsearchSnapshotAutoConfiguration {
     @Bean
     fun snapshotRepository(
         snapshotIndexNameConverter: SnapshotIndexNameConverter,
-        elasticsearchClient: ReactiveElasticsearchClient,
+        elasticsearchClient: ReactiveElasticsearchClient
     ): SnapshotRepository {
         return ElasticsearchSnapshotRepository(snapshotIndexNameConverter, elasticsearchClient)
     }

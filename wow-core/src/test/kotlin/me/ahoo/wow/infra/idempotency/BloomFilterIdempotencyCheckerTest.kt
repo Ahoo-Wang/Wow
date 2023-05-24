@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class BloomFilterIdempotencyCheckerTest {
-    private val idempotencyChecker = BloomFilterIdempotencyChecker(Duration.ofSeconds(1)
+    private val idempotencyChecker = BloomFilterIdempotencyChecker(
+        Duration.ofSeconds(1),
     ) {
         BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10)
     }

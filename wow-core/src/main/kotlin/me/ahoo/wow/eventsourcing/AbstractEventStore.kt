@@ -47,7 +47,7 @@ abstract class AbstractEventStore : EventStore {
     override fun load(
         aggregateId: AggregateId,
         headVersion: Int,
-        tailVersion: Int,
+        tailVersion: Int
     ): Flux<DomainEventStream> {
         if (log.isDebugEnabled) {
             log.debug(
@@ -69,6 +69,6 @@ abstract class AbstractEventStore : EventStore {
     protected abstract fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
-        tailVersion: Int,
+        tailVersion: Int
     ): Flux<DomainEventStream>
 }

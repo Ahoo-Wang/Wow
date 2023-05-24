@@ -19,9 +19,8 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.eventsourcing.Changed
 import me.ahoo.wow.tck.eventsourcing.Created
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.not
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 /**
@@ -36,7 +35,7 @@ abstract class DomainEventStreamSpec {
     protected abstract fun createDomainEventStream(
         events: List<*>,
         aggregateId: AggregateId,
-        aggregateVersion: Int,
+        aggregateVersion: Int
     ): DomainEventStream
 
     @Test

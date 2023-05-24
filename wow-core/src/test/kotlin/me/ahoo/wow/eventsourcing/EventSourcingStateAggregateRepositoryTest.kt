@@ -20,7 +20,7 @@ import me.ahoo.wow.tck.modeling.state.StateAggregateRepositorySpec
 internal class EventSourcingStateAggregateRepositoryTest : StateAggregateRepositorySpec() {
     override fun createStateAggregateRepository(
         aggregateFactory: StateAggregateFactory,
-        eventStore: EventStore,
+        eventStore: EventStore
     ): StateAggregateRepository {
         return EventSourcingStateAggregateRepository(
             aggregateFactory,

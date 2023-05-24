@@ -20,7 +20,7 @@ import org.springframework.context.ApplicationContext
 
 class ProjectionProcessorAutoRegistrar(
     private val functionRegistrar: ProjectionFunctionRegistrar,
-    applicationContext: ApplicationContext,
+    applicationContext: ApplicationContext
 ) : AutoRegistrar<ProjectionProcessor>(ProjectionProcessor::class.java, applicationContext) {
 
     override fun register(component: Any) {

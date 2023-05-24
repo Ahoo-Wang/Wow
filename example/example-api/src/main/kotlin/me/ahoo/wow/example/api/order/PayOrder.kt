@@ -24,7 +24,7 @@ import java.math.BigDecimal
 data class PayOrder(
     val id: String,
     val paymentId: String,
-    val amount: BigDecimal,
+    val amount: BigDecimal
 )
 
 data class OrderPaid(val amount: BigDecimal, val paid: Boolean)

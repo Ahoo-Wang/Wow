@@ -23,7 +23,7 @@ internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
     companion object {
         @JvmStatic
         @BeforeAll
-        fun waitLauncher(): Unit {
+        fun waitLauncher() {
             ElasticsearchLauncher.isRunning
         }
     }

@@ -74,7 +74,7 @@ class CommandGatewayAutoConfiguration {
             BloomFilter.create(
                 Funnels.stringFunnel(Charsets.UTF_8),
                 bloomFilter.expectedInsertions,
-                bloomFilter.fpp
+                bloomFilter.fpp,
             )
         }
     }
@@ -121,7 +121,7 @@ class CommandGatewayAutoConfiguration {
         commandBus: CommandBus,
         validator: Validator,
         idempotencyChecker: IdempotencyChecker,
-        waitStrategyRegistrar: WaitStrategyRegistrar,
+        waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,

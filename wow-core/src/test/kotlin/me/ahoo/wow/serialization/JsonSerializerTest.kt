@@ -31,10 +31,9 @@ import me.ahoo.wow.tck.command.MockSendCommand
 import me.ahoo.wow.tck.event.MockDomainEventBusSendEvent
 import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams
 import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.LocalDateTime
@@ -82,14 +81,13 @@ internal class JsonSerializerTest {
         assertThat(input, equalTo(domainEvent))
     }
 
-
     @Test
     fun asDomainEventWhenNotFoundClass() {
         val namedAggregateForSend = requiredNamedAggregate<MockDomainEventBusSendEvent>()
         val mockEvent = MockDomainEventBusSendEvent(GlobalIdGenerator.generateAsString())
             .asDomainEvent(
                 aggregateId = namedAggregateForSend.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
-                commandId = GlobalIdGenerator.generateAsString()
+                commandId = GlobalIdGenerator.generateAsString(),
             )
         val mockEventJson = mockEvent.asJsonString()
         val mutableDomainEventRecord =

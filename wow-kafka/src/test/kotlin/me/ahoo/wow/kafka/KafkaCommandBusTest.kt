@@ -17,13 +17,12 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.tck.command.CommandBusSpec
 import org.junit.jupiter.api.BeforeAll
 
-
 internal class KafkaCommandBusTest : CommandBusSpec() {
 
     companion object {
         @JvmStatic
         @BeforeAll
-        fun waitLauncher(): Unit {
+        fun waitLauncher() {
             KafkaLauncher.isRunning
         }
     }
@@ -34,6 +33,4 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
             receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
-
-
 }

@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
     private val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
-    private val commandAggregate: CommandAggregate<C, *>,
+    private val commandAggregate: CommandAggregate<C, *>
 ) :
     MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
     override val supportedType: Class<*>

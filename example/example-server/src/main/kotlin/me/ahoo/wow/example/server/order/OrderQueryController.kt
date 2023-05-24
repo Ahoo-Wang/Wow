@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
-    private val stateAggregateRepository: StateAggregateRepository,
+    private val stateAggregateRepository: StateAggregateRepository
 ) {
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {

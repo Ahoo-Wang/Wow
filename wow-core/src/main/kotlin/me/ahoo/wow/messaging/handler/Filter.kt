@@ -20,7 +20,7 @@ import kotlin.reflect.KClass
 @Target(AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.CLASS)
 @Inherited
 annotation class FilterType(
-    vararg val value: KClass<*>,
+    vararg val value: KClass<*>
 )
 
 fun interface Filter<T : MessageExchange<*, *>> {

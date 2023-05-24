@@ -50,7 +50,7 @@ class ProjectionDispatcherAutoConfiguration {
     @ConditionalOnMissingBean
     fun projectionProcessorAutoRegistrar(
         handlerRegistrar: ProjectionFunctionRegistrar,
-        applicationContext: ApplicationContext,
+        applicationContext: ApplicationContext
     ): ProjectionProcessorAutoRegistrar {
         return ProjectionProcessorAutoRegistrar(handlerRegistrar, applicationContext)
     }
@@ -58,7 +58,7 @@ class ProjectionDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun projectionFunctionFilter(
-        serviceProvider: ServiceProvider,
+        serviceProvider: ServiceProvider
     ): ProjectionFunctionFilter {
         return ProjectionFunctionFilter(serviceProvider)
     }
@@ -80,7 +80,7 @@ class ProjectionDispatcherAutoConfiguration {
     @Bean
     fun projectionHandler(
         @Qualifier("projectionFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<Any>>,
+        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<Any>>
     ): ProjectionHandler {
         return DefaultProjectionHandler(chain, projectionErrorHandler)
     }
@@ -91,7 +91,7 @@ class ProjectionDispatcherAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,
-        projectionHandler: ProjectionHandler,
+        projectionHandler: ProjectionHandler
     ): ProjectionDispatcher {
         return ProjectionDispatcher(
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",

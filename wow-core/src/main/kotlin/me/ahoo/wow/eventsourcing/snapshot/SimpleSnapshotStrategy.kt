@@ -34,7 +34,7 @@ open class SimpleSnapshotStrategy(
     private val matcher: (Snapshot<Any>, DomainEventStream) -> Boolean = MATCH_ALL,
     private val snapshotRepository: SnapshotRepository,
     private val eventStore: EventStore,
-    private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+    private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
 ) : SnapshotStrategy {
     companion object {
         private val log = LoggerFactory.getLogger(SimpleSnapshotStrategy::class.java)
@@ -68,7 +68,7 @@ open class SimpleSnapshotStrategy(
     private fun sourcing(
         snapshot: Snapshot<Any>,
         eventStream: DomainEventStream,
-        aggregateId: AggregateId,
+        aggregateId: AggregateId
     ): Mono<Snapshot<Any>> {
         if (snapshot.version >= eventStream.version) {
             if (log.isWarnEnabled) {
@@ -95,7 +95,7 @@ open class SimpleSnapshotStrategy(
             .switchIfEmpty(
                 IllegalStateException(
                     "$aggregateId No event streams found - headVersion:[${snapshot.expectedNextVersion}] - tailVersion:[${eventStream.version - 1}]",
-                ).toMono()
+                ).toMono(),
             )
             .last().map {
                 snapshot.onSourcing(eventStream)

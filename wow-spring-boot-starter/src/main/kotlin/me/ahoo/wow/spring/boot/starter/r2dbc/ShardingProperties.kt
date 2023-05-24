@@ -25,7 +25,7 @@ data class ShardingProperties(
     val databases: Map<String, Database> = mapOf(),
     val eventStream: Map<String, ShardingRule> = mapOf(),
     val snapshot: Map<String, ShardingRule> = mapOf(),
-    val algorithms: Map<String, ShardingAlgorithm> = mapOf(),
+    val algorithms: Map<String, ShardingAlgorithm> = mapOf()
 ) {
     companion object {
         const val PREFIX = "${DataSourceProperties.PREFIX}.sharding"

@@ -42,7 +42,7 @@ object AggregateVerifier {
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
         stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
         eventStore: EventStore = InMemoryEventStore(),
-        serviceProvider: ServiceProvider = SimpleServiceProvider(),
+        serviceProvider: ServiceProvider = SimpleServiceProvider()
     ): GivenStage<S> {
         val metadata: AggregateMetadata<C, S> = asAggregateMetadata()
         return DefaultGivenStage(
@@ -60,7 +60,7 @@ object AggregateVerifier {
 
 inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = GlobalIdGenerator.generateAsString(),
-    tenantId: String = TenantId.DEFAULT_TENANT_ID,
+    tenantId: String = TenantId.DEFAULT_TENANT_ID
 ): GivenStage<S> {
     return C::class.java.asAggregateVerifier(
         aggregateId = aggregateId,
@@ -71,7 +71,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
 inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = GlobalIdGenerator.generateAsString(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID,
-    serviceProvider: ServiceProvider,
+    serviceProvider: ServiceProvider
 ): GivenStage<S> {
     return C::class.java.asAggregateVerifier(
         aggregateId = aggregateId,
@@ -84,7 +84,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = GlobalIdGenerator.generateAsString(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID,
     eventStore: EventStore = InMemoryEventStore(),
-    serviceProvider: ServiceProvider = SimpleServiceProvider(),
+    serviceProvider: ServiceProvider = SimpleServiceProvider()
 ): GivenStage<S> {
     return C::class.java.asAggregateVerifier(
         aggregateId = aggregateId,

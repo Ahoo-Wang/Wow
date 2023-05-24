@@ -34,7 +34,7 @@ val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2
     ],
 )
 class RetryableFilter<T : MessageExchange<*, *>>(
-    private val retrySpec: Retry = DEFAULT_RETRY_SPEC,
+    private val retrySpec: Retry = DEFAULT_RETRY_SPEC
 ) : Filter<T> {
     override fun filter(exchange: T, next: FilterChain<T>): Mono<Void> {
         return next.filter(exchange)

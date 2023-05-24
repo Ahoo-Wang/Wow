@@ -66,7 +66,7 @@ class CommandDispatcher(
             parallelism = parallelism,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
-            serviceProvider = serviceProvider
+            serviceProvider = serviceProvider,
         )
     }
 }

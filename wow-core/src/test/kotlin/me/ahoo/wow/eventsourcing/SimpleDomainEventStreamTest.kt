@@ -22,7 +22,7 @@ internal class SimpleDomainEventStreamTest : DomainEventStreamSpec() {
     override fun createDomainEventStream(
         events: List<*>,
         aggregateId: AggregateId,
-        aggregateVersion: Int,
+        aggregateVersion: Int
     ): DomainEventStream {
         return events.asDomainEventStream(
             command = GivenInitializationCommand(aggregateId),

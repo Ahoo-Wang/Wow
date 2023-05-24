@@ -27,6 +27,5 @@ class TracingLocalCommandBusTest {
                 .test()
                 .verifyComplete()
         }
-
     }
 }

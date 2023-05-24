@@ -27,7 +27,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override val state: StateAggregate<S>,
     override val commandRoot: C,
     private val eventStore: EventStore,
-    private val metadata: CommandAggregateMetadata<C>,
+    private val metadata: CommandAggregateMetadata<C>
 ) : CommandAggregate<C, S>,
     NamedTypedAggregate<C> by metadata {
     private companion object {
