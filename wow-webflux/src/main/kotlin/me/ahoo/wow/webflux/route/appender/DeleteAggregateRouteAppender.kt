@@ -95,6 +95,13 @@ class DeleteAggregateRouteAppender(
                         .required(false)
                         .implementation(Int::class.java),
                 )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.REQUEST_ID)
+                        .`in`(ParameterIn.HEADER)
+                        .required(false)
+                        .implementation(String::class.java),
+                )
                 .response(
                     org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder()
                         .responseCode(HttpStatus.OK.value().toString())

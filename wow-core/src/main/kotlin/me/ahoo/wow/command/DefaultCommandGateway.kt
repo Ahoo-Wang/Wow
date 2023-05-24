@@ -37,7 +37,7 @@ class DefaultCommandGateway(
         if (constraintViolations.isNotEmpty()) {
             return Mono.error(CommandNotValidException(command, constraintViolations))
         }
-        return idempotencyChecker.check(command.id)
+        return idempotencyChecker.check(command.requestId)
             .doOnNext {
                 /*
                  * 检查命令幂等性，如果该命令通过幂等性检查则返回 {@code true},表示该命令不重复.

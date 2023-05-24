@@ -46,6 +46,7 @@ object AggregateAttributesExtractor : AttributesExtractor<ServerCommandExchange<
 
     override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: ServerCommandExchange<Any>) {
         WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
+        WowInstrumenter.appendRequestIdAttributes(attributes, request.message)
         WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
     }
 

@@ -16,6 +16,7 @@ package me.ahoo.wow.opentelemetry
 import io.opentelemetry.api.common.AttributeKey.stringKey
 import io.opentelemetry.api.common.AttributesBuilder
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.serialization.MessageRecords
@@ -27,8 +28,13 @@ object WowInstrumenter {
 
     private const val MESSAGE_PREFIX = Wow.WOW_PREFIX + "message."
     private val MESSAGE_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}${MessageRecords.ID}")
+    private val REQUEST_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}request_id")
     fun appendMessageIdAttributes(attributesBuilder: AttributesBuilder, message: Message<*>) {
         attributesBuilder.put(MESSAGE_ID_ATTRIBUTE_KEY, message.id)
+    }
+
+    fun appendRequestIdAttributes(attributesBuilder: AttributesBuilder, message: CommandMessage<*>) {
+        attributesBuilder.put(REQUEST_ID_ATTRIBUTE_KEY, message.requestId)
     }
 
     private const val AGGREGATE_PREFIX = Wow.WOW_PREFIX + "aggregate."

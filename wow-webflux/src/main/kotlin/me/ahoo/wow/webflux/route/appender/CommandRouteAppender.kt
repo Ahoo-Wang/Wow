@@ -158,6 +158,13 @@ class CommandRouteAppender(
                         .required(false)
                         .implementation(Int::class.java),
                 )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.REQUEST_ID)
+                        .`in`(ParameterIn.HEADER)
+                        .required(false)
+                        .implementation(String::class.java),
+                )
                 .requestBody(
                     org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuilder()
                         .required(true)
