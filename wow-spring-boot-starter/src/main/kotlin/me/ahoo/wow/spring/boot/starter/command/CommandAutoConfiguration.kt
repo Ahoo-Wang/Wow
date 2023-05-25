@@ -20,6 +20,7 @@ import me.ahoo.wow.command.LocalFirstCommandBus
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -45,6 +46,7 @@ class CommandAutoConfiguration(val commandProperties: CommandProperties) {
     @ConditionalOnProperty(
         CommandProperties.LocalFirst.ENABLED_KEY,
         havingValue = "true",
+        matchIfMissing = true
     )
     fun localCommandBus(): LocalCommandBus {
         return InMemoryCommandBus()
@@ -52,10 +54,11 @@ class CommandAutoConfiguration(val commandProperties: CommandProperties) {
 
     @Bean
     @Primary
-    @ConditionalOnMissingBean(value = [LocalCommandBus::class, DistributedCommandBus::class])
+    @ConditionalOnBean(value = [LocalCommandBus::class, DistributedCommandBus::class])
     @ConditionalOnProperty(
         CommandProperties.LocalFirst.ENABLED_KEY,
         havingValue = "true",
+        matchIfMissing = true
     )
     fun localFirstCommandBus(
         localCommandBus: LocalCommandBus,
