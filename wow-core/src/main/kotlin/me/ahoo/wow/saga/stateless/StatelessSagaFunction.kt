@@ -53,23 +53,26 @@ class StatelessSagaFunction(
     private fun asCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
         if (handleResult !is Iterable<*>) {
             return DefaultCommandStream(
-                domainEvent.id,
-                listOf(asCommand(domainEvent, handleResult)),
+                domainEventId = domainEvent.id,
+                commands = listOf(asCommand(domainEvent, handleResult)),
             )
         }
         val commands = mutableListOf<CommandMessage<*>>()
-        handleResult.forEach {
-            requireNotNull(it)
-            commands.add(asCommand(domainEvent, it))
+        handleResult.forEachIndexed { index, singleResult ->
+            requireNotNull(singleResult)
+            commands.add(asCommand(domainEvent, singleResult, index))
         }
         return DefaultCommandStream(domainEvent.id, commands)
     }
 
-    private fun asCommand(domainEvent: DomainEvent<*>, singleResult: Any): CommandMessage<*> {
+    private fun asCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
         if (singleResult is CommandMessage<*>) {
             return singleResult
         }
-        return singleResult.asCommandMessage(requestId = domainEvent.id, tenantId = domainEvent.aggregateId.tenantId)
+        return singleResult.asCommandMessage(
+            requestId = "${domainEvent.id}-$index",
+            tenantId = domainEvent.aggregateId.tenantId
+        )
     }
 
     override fun toString(): String {
