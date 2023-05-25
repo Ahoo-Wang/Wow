@@ -36,10 +36,6 @@ naming:
 exceptions:
   SwallowedException:
     active: false
-  TooGenericExceptionCaught:
-    active: false
-    excludes:
-      - me.ahoo.wow.messaging.dispatcher.SafeSubscriber.kt
   ThrowingExceptionsWithoutMessageOrCause:
     active: false
 performance:
