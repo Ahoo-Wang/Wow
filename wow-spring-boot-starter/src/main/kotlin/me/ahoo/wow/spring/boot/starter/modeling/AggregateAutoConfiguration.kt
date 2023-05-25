@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.modeling
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
@@ -103,9 +103,9 @@ class AggregateAutoConfiguration {
 
     @Bean
     fun commandFilterChain(
-        filters: List<Filter<ServerCommandExchange<Any>>>
-    ): FilterChain<ServerCommandExchange<Any>> {
-        return FilterChainBuilder<ServerCommandExchange<Any>>()
+        filters: List<Filter<ServerCommandExchange<*>>>
+    ): FilterChain<ServerCommandExchange<*>> {
+        return FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilters(filters)
             .filterCondition(CommandDispatcher::class)
             .build()
@@ -113,15 +113,15 @@ class AggregateAutoConfiguration {
 
     @Bean("commandErrorHandler")
     @ConditionalOnMissingBean(name = ["commandErrorHandler"])
-    fun commandErrorHandler(): ErrorHandler<ServerCommandExchange<Any>> {
+    fun commandErrorHandler(): ErrorHandler<ServerCommandExchange<*>> {
         return LogResumeErrorHandler()
     }
 
     @Bean
     @ConditionalOnMissingBean
     fun commandHandler(
-        commandFilterChain: FilterChain<ServerCommandExchange<Any>>,
-        @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<Any>>
+        commandFilterChain: FilterChain<ServerCommandExchange<*>>,
+        @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<*>>
     ): CommandHandler {
         return DefaultCommandHandler(
             chain = commandFilterChain,
@@ -133,7 +133,7 @@ class AggregateAutoConfiguration {
     @ConditionalOnMissingBean
     fun aggregateDispatcher(
         namedBoundedContext: NamedBoundedContext,
-        commandBus: CommandBus,
+        commandBus: CommandGateway,
         aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
         serviceProvider: ServiceProvider

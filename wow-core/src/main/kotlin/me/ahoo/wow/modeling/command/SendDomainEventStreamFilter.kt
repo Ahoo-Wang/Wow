@@ -25,10 +25,10 @@ import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
-class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : Filter<ServerCommandExchange<Any>> {
+class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : Filter<ServerCommandExchange<*>> {
     override fun filter(
-        exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>
+        exchange: ServerCommandExchange<*>,
+        next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return Mono.defer {
             val eventStream = exchange.eventStream ?: return@defer next.filter(exchange)

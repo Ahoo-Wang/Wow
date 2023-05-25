@@ -13,26 +13,57 @@
 
 package me.ahoo.wow.spring.boot.starter.command
 
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.command.LocalFirstCommandBus
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(CommandProperties::class)
-class CommandAutoConfiguration {
+class CommandAutoConfiguration(val commandProperties: CommandProperties) {
 
     @Bean
     @ConditionalOnProperty(
         CommandProperties.Bus.TYPE,
         havingValue = MessageBusType.IN_MEMORY_NAME,
     )
-    fun inMemoryCommandBus(): CommandBus {
+    fun inMemoryCommandBus(): LocalCommandBus {
         return InMemoryCommandBus()
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LocalCommandBus::class)
+    @ConditionalOnProperty(
+        CommandProperties.LocalFirst.ENABLED_KEY,
+        havingValue = "true",
+        matchIfMissing = true
+    )
+    fun localCommandBus(): LocalCommandBus {
+        return InMemoryCommandBus()
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnBean(value = [LocalCommandBus::class, DistributedCommandBus::class])
+    @ConditionalOnProperty(
+        CommandProperties.LocalFirst.ENABLED_KEY,
+        havingValue = "true",
+        matchIfMissing = true
+    )
+    fun localFirstCommandBus(
+        localCommandBus: LocalCommandBus,
+        distributedCommandBus: DistributedCommandBus
+    ): LocalFirstCommandBus {
+        return LocalFirstCommandBus(distributedCommandBus, commandProperties.bus.localFirst.doubleSend, localCommandBus)
     }
 }

@@ -16,7 +16,7 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.getReceiverGroup
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.asJsonString
@@ -40,7 +40,8 @@ abstract class AbstractKafkaBus<M, E>(
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : MessageBus where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, *> {
+) : DistributedMessageBus<M, E>
+    where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }

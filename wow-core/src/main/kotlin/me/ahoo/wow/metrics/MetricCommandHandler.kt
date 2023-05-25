@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.command.CommandHandler
 import reactor.core.publisher.Mono
 
 class MetricCommandHandler(override val delegate: CommandHandler) : CommandHandler, Decorator<CommandHandler> {
-    override fun handle(exchange: ServerCommandExchange<Any>): Mono<Void> {
+    override fun handle(exchange: ServerCommandExchange<*>): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "command.handle")
             .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)

@@ -12,8 +12,9 @@
  */
 package me.ahoo.wow.event
 
-import me.ahoo.wow.messaging.ReceiveMessageBus
-import me.ahoo.wow.messaging.SendMessageBus
+import me.ahoo.wow.messaging.DistributedMessageBus
+import me.ahoo.wow.messaging.LocalMessageBus
+import me.ahoo.wow.messaging.MessageBus
 
 /**
  * Domain Event Bus.
@@ -22,4 +23,8 @@ import me.ahoo.wow.messaging.SendMessageBus
  * 2. 领域事件处理有序性
  *
  */
-interface DomainEventBus : SendMessageBus<DomainEventStream>, ReceiveMessageBus<EventStreamExchange>
+interface DomainEventBus : MessageBus<DomainEventStream, EventStreamExchange>
+
+interface LocalDomainEventBus : DomainEventBus, LocalMessageBus<DomainEventStream, EventStreamExchange>
+
+interface DistributedDomainEventBus : DomainEventBus, DistributedMessageBus<DomainEventStream, EventStreamExchange>

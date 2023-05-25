@@ -18,7 +18,6 @@ import me.ahoo.wow.api.exception.asErrorInfo
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.messaging.MessageGateway
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -30,7 +29,7 @@ import reactor.kotlin.core.publisher.toMono
  * @see CommandBus
  *
  */
-interface CommandGateway : MessageGateway, CommandBus {
+interface CommandGateway : CommandBus {
 
     fun <C : Any> send(
         command: CommandMessage<C>,

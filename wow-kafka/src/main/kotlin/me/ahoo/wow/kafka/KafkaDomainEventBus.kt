@@ -14,10 +14,9 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.messaging.DistributedMessageBus
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
@@ -29,7 +28,7 @@ class KafkaDomainEventBus(
     receiverOptions: ReceiverOptions<String, String>,
     private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : DomainEventBus, DistributedMessageBus,
+) : DistributedDomainEventBus,
     AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
         senderOptions,
         receiverOptions,

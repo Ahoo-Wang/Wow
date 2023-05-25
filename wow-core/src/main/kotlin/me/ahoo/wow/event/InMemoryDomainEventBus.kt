@@ -14,7 +14,6 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.BUSY_LOOPING_DURATION
-import me.ahoo.wow.messaging.LocalSendMessageBus
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -23,7 +22,7 @@ import reactor.core.publisher.Sinks.Many
 class InMemoryDomainEventBus(
     private val sink: Many<EventStreamExchange> = Sinks.many()
         .multicast().onBackpressureBuffer()
-) : DomainEventBus, LocalSendMessageBus<DomainEventStream, EventStreamExchange> {
+) : LocalDomainEventBus {
 
     override fun sendExchange(exchange: EventStreamExchange): Mono<Void> {
         return Mono.fromRunnable {

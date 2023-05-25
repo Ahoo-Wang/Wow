@@ -14,7 +14,6 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.LocalSendMessageBus
 import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -37,17 +36,17 @@ class InMemoryCommandBus(
      *
      * @see Sinks.UnicastSpec
      */
-    private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<Any>> = {
+    private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<*>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
-) : CommandBus, LocalSendMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
+) : LocalCommandBus {
     companion object {
         private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
     }
 
-    private val sinks: MutableMap<NamedAggregate, Many<ServerCommandExchange<Any>>> = ConcurrentHashMap()
+    private val sinks: MutableMap<NamedAggregate, Many<ServerCommandExchange<*>>> = ConcurrentHashMap()
 
-    private fun computeSink(namedAggregate: NamedAggregate): Many<ServerCommandExchange<Any>> {
+    private fun computeSink(namedAggregate: NamedAggregate): Many<ServerCommandExchange<*>> {
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
@@ -70,7 +69,7 @@ class InMemoryCommandBus(
         return sendExchange(exchange)
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
         val sources = namedAggregates.map {
             computeSink(it).asFlux()
         }

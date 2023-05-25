@@ -16,31 +16,47 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.infra.Decorator.Companion.getDelegate
-import me.ahoo.wow.metrics.AbstractMetricDecorator.Companion.tagSource
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+const val COMMAND_LOAD_FIRST = "command_load_first"
+fun CommandMessage<*>.withLoadFirst(): CommandMessage<*> {
+    return mergeHeader(mapOf(COMMAND_LOAD_FIRST to "true"))
+}
+
+fun CommandMessage<*>.isLoadFirst(): Boolean {
+    return header[COMMAND_LOAD_FIRST]?.toBoolean() ?: false
+}
+
 class LocalFirstCommandBus(
-    private val distributedCommandBus: CommandBus,
-    private val localCommandBus: CommandBus = InMemoryCommandBus().metrizable(),
+    private val distributedCommandBus: DistributedCommandBus,
+    private val doubleSend: Boolean = false,
+    private val localCommandBus: LocalCommandBus = InMemoryCommandBus().metrizable(),
     private val localAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet()
 ) : CommandBus {
-    private val localName = localCommandBus.getDelegate().javaClass.name
-    private val distributedName = distributedCommandBus.getDelegate().javaClass.name
+
+    @Suppress("ReturnCount")
     override fun send(message: CommandMessage<*>): Mono<Void> {
         if (localAggregates.contains(message.materialize())) {
-            return localCommandBus.send(message).tagSource(localName)
+            val commandMessage = message.withLoadFirst()
+            val localSend = localCommandBus.send(commandMessage)
+            if (!doubleSend) {
+                return localSend
+            }
+            val distributedSend = distributedCommandBus.send(commandMessage)
+            return localSend.then(distributedSend)
         }
-        return distributedCommandBus.send(message).tagSource(distributedName)
+        return distributedCommandBus.send(message)
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
-        val localFlux = localCommandBus.receive(namedAggregates).tagSource(localName)
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
+        val localFlux = localCommandBus.receive(namedAggregates)
         val distributedFlux =
-            distributedCommandBus.receive(namedAggregates).tagSource(distributedName)
+            distributedCommandBus.receive(namedAggregates).filter {
+                !it.message.isLoadFirst()
+            }
         return Flux.merge(localFlux, distributedFlux)
     }
 }

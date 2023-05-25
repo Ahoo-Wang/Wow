@@ -29,9 +29,9 @@ internal class ProcessedNotifierFilterTest {
     fun filter() {
         val processedNotifierFilter = ProcessedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val command = CreateAggregate("", "")
-            .asCommandMessage() as CommandMessage<Any>
+            .asCommandMessage() as CommandMessage<*>
         val exchange = SimpleServerCommandExchange(command)
-        val chain = FilterChainBuilder<ServerCommandExchange<Any>>().build()
+        val chain = FilterChainBuilder<ServerCommandExchange<*>>().build()
         processedNotifierFilter.filter(exchange, chain)
             .test()
             .verifyComplete()

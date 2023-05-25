@@ -44,7 +44,7 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<ServerCommandExchange<Any>>(CommandStage.PROCESSED, commandWaitNotifier)
+) : AbstractNotifierFilter<ServerCommandExchange<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_FIRST)

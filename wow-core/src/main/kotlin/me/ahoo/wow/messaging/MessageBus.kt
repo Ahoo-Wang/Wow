@@ -21,29 +21,17 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import reactor.util.context.ContextView
 
-interface MessageBus : AutoCloseable {
+interface MessageBus<M : Message<*>, E : MessageExchange<*, M>> : AutoCloseable {
     override fun close() = Unit
-}
-
-interface LocalMessageBus : MessageBus
-
-interface DistributedMessageBus : MessageBus
-
-interface MessageGateway : MessageBus
-interface SendMessageBus<M : Message<*>> : MessageBus {
     fun send(message: M): Mono<Void>
+    fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
 }
 
-interface LocalSendMessageBus<M : Message<*>, E : MessageExchange<*, M>> :
-    LocalMessageBus,
-    MessageBus,
-    SendMessageBus<M> {
+interface LocalMessageBus<M : Message<*>, E : MessageExchange<*, M>> : MessageBus<M, E> {
     fun sendExchange(exchange: E): Mono<Void>
 }
 
-interface ReceiveMessageBus<E : MessageExchange<*, *>> : MessageBus {
-    fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
-}
+interface DistributedMessageBus<M : Message<*>, E : MessageExchange<*, M>> : MessageBus<M, E>
 
 const val RECEIVER_GROUP = "(ReceiverGroup)"
 

@@ -15,16 +15,18 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricDomainEventBus(delegate: DomainEventBus) :
+open class MetricDomainEventBus<T : DomainEventBus>(delegate: T) :
     DomainEventBus,
-    AbstractMetricDecorator<DomainEventBus>(delegate),
+    AbstractMetricDecorator<T>(delegate),
     Metrizable {
 
     override fun send(message: DomainEventStream): Mono<Void> {
@@ -47,3 +49,15 @@ class MetricDomainEventBus(delegate: DomainEventBus) :
         delegate.close()
     }
 }
+
+class MetricLocalDomainEventBus(delegate: LocalDomainEventBus) :
+    LocalDomainEventBus,
+    MetricDomainEventBus<LocalDomainEventBus>(delegate) {
+    override fun sendExchange(exchange: EventStreamExchange): Mono<Void> {
+        return delegate.sendExchange(exchange)
+    }
+}
+
+class MetricDistributedDomainEventBus(delegate: DistributedDomainEventBus) :
+    DistributedDomainEventBus,
+    MetricDomainEventBus<DistributedDomainEventBus>(delegate)

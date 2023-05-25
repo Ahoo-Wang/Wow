@@ -15,9 +15,8 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.messaging.DistributedMessageBus
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
@@ -34,21 +33,21 @@ class KafkaCommandBus(
     receiverOptions: ReceiverOptions<String, String>,
     private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
-) : CommandBus, DistributedMessageBus, AbstractKafkaBus<CommandMessage<Any>, ServerCommandExchange<Any>>(
+) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
     senderOptions,
     receiverOptions,
     receiverOptionsCustomizer,
 ) {
 
     @Suppress("UNCHECKED_CAST")
-    override val messageType: Class<CommandMessage<Any>>
-        get() = CommandMessage::class.java as Class<CommandMessage<Any>>
+    override val messageType: Class<CommandMessage<*>>
+        get() = CommandMessage::class.java
 
     override fun NamedAggregate.asTopic(): String {
         return asCommandTopic(topicPrefix)
     }
 
-    override fun CommandMessage<Any>.asExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<Any> {
+    override fun CommandMessage<*>.asExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
         return KafkaServerCommandExchange(this, receiverOffset)
     }
 
@@ -57,7 +56,7 @@ class KafkaCommandBus(
         return super.sendMessage(message as CommandMessage<Any>)
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
         return super.receiveMessage(namedAggregates)
     }
 }

@@ -37,18 +37,18 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     val aggregateMetadata: AggregateMetadata<C, S>,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
-    override val messageFlux: Flux<ServerCommandExchange<Any>>,
+    override val messageFlux: Flux<ServerCommandExchange<*>>,
     override val name: String =
         "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider
-) : AggregateMessageDispatcher<ServerCommandExchange<Any>>() {
+) : AggregateMessageDispatcher<ServerCommandExchange<*>>() {
 
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate
 
-    override fun handleExchange(exchange: ServerCommandExchange<Any>): Mono<Void> {
+    override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
         val aggregateId = exchange.message.aggregateId
         val aggregateProcessor = aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
         exchange.setServiceProvider(serviceProvider)
@@ -57,7 +57,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         return commandHandler.handle(exchange)
     }
 
-    override fun ServerCommandExchange<Any>.asGroupKey(): Int {
+    override fun ServerCommandExchange<*>.asGroupKey(): Int {
         return message.asGroupKey(parallelism)
     }
 }
