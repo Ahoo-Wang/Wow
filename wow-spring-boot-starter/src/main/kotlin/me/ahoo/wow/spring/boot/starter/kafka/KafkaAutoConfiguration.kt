@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.kafka
 
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
@@ -52,7 +52,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     )
     fun kafkaCommandBus(
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
-    ): CommandBus {
+    ): DistributedCommandBus {
         return KafkaCommandBus(
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
@@ -69,7 +69,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     )
     fun kafkaDomainEventBus(
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
-    ): DomainEventBus {
+    ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),

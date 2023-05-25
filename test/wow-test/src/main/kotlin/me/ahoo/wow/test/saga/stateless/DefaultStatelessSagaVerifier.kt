@@ -15,7 +15,7 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.TenantId
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.asDomainEvent
@@ -33,7 +33,7 @@ import java.lang.reflect.Constructor
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
     private val serviceProvider: ServiceProvider,
-    private val commandBus: CommandBus
+    private val commandGateway: CommandGateway
 ) : WhenStage<T> {
     companion object {
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"
@@ -60,7 +60,7 @@ internal class DefaultWhenStage<T : Any>(
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
         val handlerRegistrar = StatelessSagaFunctionRegistrar()
-        handlerRegistrar.registerStatelessSaga(processor, commandBus)
+        handlerRegistrar.registerStatelessSaga(processor, commandGateway)
 
         val domainEvent = asDomainEvent(event)
         val eventExchange = SimpleDomainEventExchange(message = domainEvent).setServiceProvider(serviceProvider)

@@ -14,8 +14,9 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.messaging.ReceiveMessageBus
-import me.ahoo.wow.messaging.SendMessageBus
+import me.ahoo.wow.messaging.DistributedMessageBus
+import me.ahoo.wow.messaging.LocalMessageBus
+import me.ahoo.wow.messaging.MessageBus
 
 /**
  * Command Bus .
@@ -24,4 +25,8 @@ import me.ahoo.wow.messaging.SendMessageBus
  * @see InMemoryCommandBus
  *
  */
-interface CommandBus : SendMessageBus<CommandMessage<*>>, ReceiveMessageBus<ServerCommandExchange<Any>>
+interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+
+interface LocalCommandBus : CommandBus, LocalMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+
+interface DistributedCommandBus : CommandBus, DistributedMessageBus<CommandMessage<*>, ServerCommandExchange<*>>

@@ -14,9 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import io.mockk.mockk
-import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventCompensator
@@ -32,6 +30,7 @@ import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
+import me.ahoo.wow.test.StatelessSagaVerifier
 import me.ahoo.wow.webflux.ExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -47,12 +46,11 @@ internal class WebFluxAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
-            .withBean(CommandGateway::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { StatelessSagaVerifier.TEST_COMMAND_GATEWAY })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(CommandBus::class.java, { InMemoryCommandBus() })
             .withBean(EventCompensator::class.java, { mockk() })
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,

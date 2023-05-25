@@ -14,16 +14,16 @@
 package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.context.Context
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.infra.Decorator.Companion.getDelegate
-import me.ahoo.wow.messaging.LocalSendMessageBus
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.event.DistributedDomainEventBus
+import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 @Suppress("MemberNameEqualsClassName")
 object Tracing {
 
-    const val PARENT_CONTEXT_KEY = "__TRACING_PARENT_CONTEXT__"
+    private const val PARENT_CONTEXT_KEY = "__TRACING_PARENT_CONTEXT__"
     fun <E : MessageExchange<*, *>> E.setParentContext(parentContext: Context): E {
         attributes[PARENT_CONTEXT_KEY] = parentContext
         return this
@@ -33,23 +33,44 @@ object Tracing {
         return attributes[PARENT_CONTEXT_KEY] as Context?
     }
 
-    fun CommandBus.tracing(): CommandBus {
-        if (this is TracingMessageBus<*>) {
-            return this
+    fun LocalCommandBus.tracing(): LocalCommandBus {
+        return tracing {
+            TracingLocalCommandBus(this)
         }
-        if (this.getDelegate() is LocalSendMessageBus<*, *>) {
-            return TracingLocalCommandBus(this)
-        }
-        return TracingDistributedCommandBus(this)
     }
 
-    fun DomainEventBus.tracing(): DomainEventBus {
+    fun DistributedCommandBus.tracing(): DistributedCommandBus {
+        return tracing {
+            TracingDistributedCommandBus(this)
+        }
+    }
+
+    fun LocalDomainEventBus.tracing(): LocalDomainEventBus {
+        return tracing {
+            TracingLocalEventBus(this)
+        }
+    }
+
+    fun DistributedDomainEventBus.tracing(): DistributedDomainEventBus {
+        return tracing {
+            TracingDistributedEventBus(this)
+        }
+    }
+
+    fun <T : Any> T.tracing(): Any {
+        return when (this) {
+            is LocalCommandBus -> tracing()
+            is DistributedCommandBus -> tracing()
+            is LocalDomainEventBus -> tracing()
+            is DistributedDomainEventBus -> tracing()
+            else -> this
+        }
+    }
+
+    inline fun <T> T.tracing(block: (T) -> T): T {
         if (this is TracingMessageBus<*>) {
             return this
         }
-        if (this.getDelegate() is LocalSendMessageBus<*, *>) {
-            return TracingLocalEventBus(this)
-        }
-        return TracingDistributedEventBus(this)
+        return block(this)
     }
 }

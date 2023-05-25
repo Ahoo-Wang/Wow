@@ -39,8 +39,14 @@ data class CommandProperties(
     }
 
     data class LocalFirst(
-        val enabled: Boolean = true
-    )
+        val enabled: Boolean = true,
+        val doubleSend: Boolean = false
+    ) {
+        companion object {
+            const val PREFIX = "${CommandProperties.PREFIX}.local-first"
+            const val ENABLED_KEY = "$PREFIX.enabled"
+        }
+    }
 
     data class Idempotency(
         val enable: Boolean = false,

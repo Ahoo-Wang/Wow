@@ -18,7 +18,6 @@ import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
 import me.ahoo.wow.opentelemetry.snapshot.TraceSnapshotFilter
-import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -33,7 +32,6 @@ internal class WowOpenTelemetryAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withUserConfiguration(
-                CommandAutoConfiguration::class.java,
                 WowOpenTelemetryAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->

@@ -23,10 +23,10 @@ import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST)
-object AggregateProcessorFilter : Filter<ServerCommandExchange<Any>> {
+object AggregateProcessorFilter : Filter<ServerCommandExchange<*>> {
     override fun filter(
-        exchange: ServerCommandExchange<Any>,
-        next: FilterChain<ServerCommandExchange<Any>>
+        exchange: ServerCommandExchange<*>,
+        next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return checkNotNull(exchange.aggregateProcessor)
             .process(exchange)

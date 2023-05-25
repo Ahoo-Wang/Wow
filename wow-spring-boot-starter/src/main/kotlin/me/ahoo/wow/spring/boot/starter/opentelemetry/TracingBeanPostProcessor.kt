@@ -13,53 +13,18 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.InMemoryCommandBus
-import me.ahoo.wow.command.LocalFirstCommandBus
-import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.infra.Decorator.Companion.getDelegate
-import me.ahoo.wow.messaging.DistributedMessageBus
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.opentelemetry.messaging.Tracing.tracing
-import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
-class TracingBeanPostProcessor(private val localFirstEnabled: Boolean) : BeanPostProcessor, Ordered {
+class TracingBeanPostProcessor : BeanPostProcessor, Ordered {
     companion object {
         private val log = LoggerFactory.getLogger(TracingBeanPostProcessor::class.java)
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        if (bean is TracingMessageBus<*>) {
-            return bean
-        }
-        val tracingBean =
-            when (bean) {
-                is CommandGateway -> bean
-                is DomainEventBus -> {
-                    bean.tracing()
-                }
-
-                is CommandBus -> {
-                    val tracingCommandBus = bean.tracing()
-                    if (localFirstEnabled &&
-                        bean.getDelegate() is DistributedMessageBus
-                    ) {
-                        LocalFirstCommandBus(
-                            distributedCommandBus = tracingCommandBus.metrizable(),
-                            localCommandBus = InMemoryCommandBus().tracing().metrizable(),
-                        )
-                    } else {
-                        tracingCommandBus
-                    }
-                }
-
-                else -> bean
-            }
-
+        val tracingBean = bean.tracing()
         if (tracingBean !== bean && log.isInfoEnabled) {
             log.info("Tracing bean [{}] [{}] -> [{}]", beanName, bean.javaClass.name, tracingBean.javaClass.name)
         }

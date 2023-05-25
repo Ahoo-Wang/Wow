@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -27,12 +27,12 @@ class StatelessSagaFunctionRegistrar(
         SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
 
-    fun registerStatelessSaga(statelessSaga: Any, commandBus: CommandBus) {
+    fun registerStatelessSaga(statelessSaga: Any, commandGateway: CommandGateway) {
         statelessSaga.javaClass
             .asStatelessSagaMetadata()
             .asMessageFunctionRegistry(statelessSaga)
             .forEach {
-                val statelessSagaHandler = StatelessSagaFunction(it, commandBus)
+                val statelessSagaHandler = StatelessSagaFunction(it, commandGateway)
                 register(statelessSagaHandler)
             }
     }

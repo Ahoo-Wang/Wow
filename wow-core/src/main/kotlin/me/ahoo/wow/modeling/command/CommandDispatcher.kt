@@ -44,8 +44,8 @@ class CommandDispatcher(
     private val serviceProvider: ServiceProvider,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
-) : AbstractDispatcher<ServerCommandExchange<Any>>() {
-    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<Any>> {
+) : AbstractDispatcher<ServerCommandExchange<*>>() {
+    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<*>> {
         return commandBus
             .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
@@ -54,7 +54,7 @@ class CommandDispatcher(
 
     override fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,
-        messageFlux: Flux<ServerCommandExchange<Any>>
+        messageFlux: Flux<ServerCommandExchange<*>>
     ): MessageDispatcher {
         val aggregateMetadata = namedAggregate
             .asRequiredAggregateType<Any>()

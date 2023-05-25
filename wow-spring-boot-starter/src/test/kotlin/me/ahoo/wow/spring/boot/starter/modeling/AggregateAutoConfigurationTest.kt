@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.modeling
 
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
@@ -33,6 +32,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
+import me.ahoo.wow.test.StatelessSagaVerifier.TEST_COMMAND_GATEWAY
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -50,7 +50,7 @@ internal class AggregateAutoConfigurationTest {
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(CommandBus::class.java, { InMemoryCommandBus() })
+            .withBean(CommandGateway::class.java, { TEST_COMMAND_GATEWAY })
             .withUserConfiguration(
                 WowOpenTelemetryAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,

@@ -15,7 +15,7 @@ package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -24,7 +24,7 @@ import reactor.kotlin.core.publisher.toFlux
 
 class StatelessSagaFunction(
     val actual: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
-    private val commandBus: CommandBus
+    private val commandGateway: CommandGateway
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
 
@@ -44,7 +44,7 @@ class StatelessSagaFunction(
                 commandStream
                     .toFlux()
                     .concatMap {
-                        commandBus.send(it)
+                        commandGateway.send(it)
                     }
                     .then(Mono.just(commandStream))
             }

@@ -17,6 +17,7 @@ import me.ahoo.wow.event.DefaultEventCompensator
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
@@ -34,7 +35,7 @@ class EventAutoConfiguration {
         EventProperties.Bus.TYPE,
         havingValue = MessageBusType.IN_MEMORY_NAME,
     )
-    fun inMemoryDomainEventBus(): DomainEventBus {
+    fun inMemoryDomainEventBus(): LocalDomainEventBus {
         return InMemoryDomainEventBus()
     }
 

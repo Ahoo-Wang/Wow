@@ -12,10 +12,15 @@
  */
 package me.ahoo.wow.test
 
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
+import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.asEventProcessorMetadata
+import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
@@ -28,25 +33,32 @@ import me.ahoo.wow.test.saga.stateless.WhenStage
  * @author ahoo wang
  */
 object StatelessSagaVerifier {
+    val TEST_COMMAND_GATEWAY: CommandGateway = DefaultCommandGateway(
+        SimpleCommandWaitEndpoint("test"),
+        InMemoryCommandBus(),
+        NoOpIdempotencyChecker,
+        SimpleWaitStrategyRegistrar,
+        NoOpValidator
+    )
 
     @JvmStatic
     fun <T : Any> Class<T>.asSagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandBus: CommandBus = InMemoryCommandBus()
+        commandGateway: CommandGateway = TEST_COMMAND_GATEWAY
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = asEventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
-            commandBus = commandBus,
+            commandGateway = commandGateway,
         )
     }
 
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandBus: CommandBus = InMemoryCommandBus()
+        commandGateway: CommandGateway = TEST_COMMAND_GATEWAY
     ): WhenStage<T> {
-        return T::class.java.asSagaVerifier(serviceProvider, commandBus)
+        return T::class.java.asSagaVerifier(serviceProvider, commandGateway)
     }
 }

@@ -17,14 +17,16 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-open class MetricCommandBus(delegate: CommandBus) :
+open class MetricCommandBus<T : CommandBus>(delegate: T) :
     CommandBus,
-    AbstractMetricDecorator<CommandBus>(delegate),
+    AbstractMetricDecorator<T>(delegate),
     Metrizable {
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
@@ -36,7 +38,7 @@ open class MetricCommandBus(delegate: CommandBus) :
             .metrics()
     }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<Any>> {
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
         return delegate.receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "command.receive")
             .tagSource()
@@ -48,3 +50,15 @@ open class MetricCommandBus(delegate: CommandBus) :
         delegate.close()
     }
 }
+
+class MetricLocalCommandBus(delegate: LocalCommandBus) :
+    LocalCommandBus,
+    MetricCommandBus<LocalCommandBus>(delegate) {
+    override fun sendExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
+        return delegate.sendExchange(exchange)
+    }
+}
+
+class MetricDistributedCommandBus(delegate: DistributedCommandBus) :
+    DistributedCommandBus,
+    MetricCommandBus<DistributedCommandBus>(delegate)

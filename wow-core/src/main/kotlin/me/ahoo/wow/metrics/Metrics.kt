@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.metrics
 
-import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
-import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -62,15 +64,27 @@ object Metrics {
         }
     }
 
-    fun CommandBus.metrizable(): CommandBus {
+    fun LocalCommandBus.metrizable(): LocalCommandBus {
         return metrizable {
-            MetricCommandBus(this)
+            MetricLocalCommandBus(this)
         }
     }
 
-    fun DomainEventBus.metrizable(): DomainEventBus {
+    fun DistributedCommandBus.metrizable(): DistributedCommandBus {
         return metrizable {
-            MetricDomainEventBus(this)
+            MetricDistributedCommandBus(this)
+        }
+    }
+
+    fun LocalDomainEventBus.metrizable(): LocalDomainEventBus {
+        return metrizable {
+            MetricLocalDomainEventBus(this)
+        }
+    }
+
+    fun DistributedDomainEventBus.metrizable(): DistributedDomainEventBus {
+        return metrizable {
+            MetricDistributedDomainEventBus(this)
         }
     }
 
@@ -122,12 +136,15 @@ object Metrics {
         }
     }
 
-    fun <T : Any> T.metrizable(): Any {
-        return when (this) {
+    @Suppress("CyclomaticComplexMethod")
+    fun <T : Any> T.metrizable(): T {
+        val metrizableBean = when (this) {
             is LocalFirstCommandBus -> this
             is CommandGateway -> this
-            is CommandBus -> metrizable()
-            is DomainEventBus -> metrizable()
+            is LocalCommandBus -> metrizable()
+            is DistributedCommandBus -> metrizable()
+            is LocalDomainEventBus -> metrizable()
+            is DistributedDomainEventBus -> metrizable()
             is EventStore -> metrizable()
             is SnapshotStrategy -> metrizable()
             is SnapshotRepository -> metrizable()
@@ -138,8 +155,11 @@ object Metrics {
             is ProjectionHandler -> metrizable()
             else -> this
         }
+
+        return metrizableBean as T
     }
 
+    @Suppress("ReturnCount")
     inline fun <T> T.metrizable(block: (T) -> T): T {
         if (!enabled) {
             return this
