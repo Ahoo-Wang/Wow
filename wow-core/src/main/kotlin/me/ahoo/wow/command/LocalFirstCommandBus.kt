@@ -55,10 +55,11 @@ class LocalFirstCommandBus(
         val localFlux = localCommandBus.receive(namedAggregates)
         val distributedFlux =
             distributedCommandBus.receive(namedAggregates).filter {
-                if (it.message.isLoadFirst()) {
+                val isLoadFirst = it.message.isLoadFirst()
+                if (isLoadFirst) {
                     it.acknowledge()
                 }
-                !it.message.isLoadFirst()
+                !isLoadFirst
             }
         return Flux.merge(localFlux, distributedFlux)
     }

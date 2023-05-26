@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.EventStreamExchange
 import reactor.core.publisher.Mono
 
 /**
@@ -21,10 +21,10 @@ import reactor.core.publisher.Mono
  * @author ahoo wang
  */
 interface SnapshotStrategy {
-    fun onEvent(eventStream: DomainEventStream): Mono<Void>
+    fun onEvent(eventStreamExchange: EventStreamExchange): Mono<Void>
 
     companion object NoOp : SnapshotStrategy {
-        override fun onEvent(eventStream: DomainEventStream): Mono<Void> {
+        override fun onEvent(eventStreamExchange: EventStreamExchange): Mono<Void> {
             return Mono.empty()
         }
     }

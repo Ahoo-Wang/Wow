@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.api.annotation.ORDER_DEFAULT_STEP
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.event.EventStreamExchange
@@ -22,15 +21,25 @@ import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
 import reactor.core.publisher.Mono
 
+fun interface SnapshotSink {
+    fun sink(snapshot: Snapshot<*>): Mono<Void>
+}
+
+object NoOpSnapshotSink : SnapshotSink {
+    override fun sink(snapshot: Snapshot<*>): Mono<Void> {
+        return Mono.empty()
+    }
+}
+
 @FilterType(SnapshotDispatcher::class)
-@Order(ORDER_LAST - ORDER_DEFAULT_STEP)
-class SnapshotFunctionFilter(
-    private val snapshotStrategy: SnapshotStrategy
+@Order(ORDER_LAST)
+class SnapshotSinkFilter(
+    private val snapshotSink: SnapshotSink
 ) : Filter<EventStreamExchange> {
     override fun filter(exchange: EventStreamExchange, next: FilterChain<EventStreamExchange>): Mono<Void> {
-        return snapshotStrategy.onEvent(exchange)
-            .doFinally {
-                exchange.acknowledge()
-            }.then(next.filter(exchange))
+        return Mono.defer {
+            val snapshot = exchange.getSnapshot() ?: return@defer Mono.empty<Void>()
+            snapshotSink.sink(snapshot)
+        }
     }
 }

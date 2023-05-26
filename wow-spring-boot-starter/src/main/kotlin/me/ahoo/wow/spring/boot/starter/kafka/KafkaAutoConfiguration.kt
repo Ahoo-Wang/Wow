@@ -15,8 +15,10 @@ package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
+import me.ahoo.wow.kafka.KafkaSnapshotSink
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -24,6 +26,8 @@ import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotSinkType
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -75,6 +79,19 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             topicPrefix = kafkaProperties.topicPrefix,
             receiverOptionsCustomizer = receiverOptionsCustomizer,
+        )
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = [SnapshotProperties.SINK],
+        havingValue = SnapshotSinkType.KAFKA_NAME,
+        matchIfMissing = true,
+    )
+    fun kafkaSnapshotSink(): SnapshotSink {
+        return KafkaSnapshotSink(
+            senderOptions = kafkaProperties.buildSenderOptions(),
+            topicPrefix = kafkaProperties.topicPrefix,
         )
     }
 }
