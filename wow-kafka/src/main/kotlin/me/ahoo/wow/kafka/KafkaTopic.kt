@@ -28,3 +28,10 @@ fun NamedAggregate.asEventStreamTopic(topicPrefix: String): String {
     return "${topicPrefix}$contextName.$aggregateName$EVENT_TOPIC_SUFFIX"
 }
 //endregion
+
+//region asEventStreamTopic
+const val SNAPSHOT_TOPIC_SUFFIX = ".snapshot"
+fun NamedAggregate.asSnapshotTopic(topicPrefix: String): String {
+    return "${topicPrefix}$contextName.$aggregateName$SNAPSHOT_TOPIC_SUFFIX"
+}
+//endregion

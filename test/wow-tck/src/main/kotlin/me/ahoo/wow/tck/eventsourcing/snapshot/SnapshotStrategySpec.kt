@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.eventsourcing.snapshot
 
+import me.ahoo.wow.event.SimpleEventStreamExchange
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -52,18 +53,20 @@ abstract class SnapshotStrategySpec {
         val createdEventStream = AggregateCreated("")
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 0)
         eventStore.append(createdEventStream).block()
-        snapshotStrategy.onEvent(createdEventStream)
+        val createdEventStreamExchange = SimpleEventStreamExchange(createdEventStream)
+        snapshotStrategy.onEvent(createdEventStreamExchange)
             .test()
             .verifyComplete()
 
         val changedEventStream = AggregateChanged("")
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 1)
+        val changedEventStreamExchange = SimpleEventStreamExchange(changedEventStream)
         eventStore.append(changedEventStream).block()
-        snapshotStrategy.onEvent(changedEventStream)
+        snapshotStrategy.onEvent(changedEventStreamExchange)
             .test()
             .verifyComplete()
 
-        snapshotStrategy.onEvent(changedEventStream)
+        snapshotStrategy.onEvent(changedEventStreamExchange)
             .test()
             .verifyComplete()
 
@@ -73,8 +76,9 @@ abstract class SnapshotStrategySpec {
 
         val changedEventStream3 = AggregateChanged("")
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 3)
+        val changedEventStreamExchange3 = SimpleEventStreamExchange(changedEventStream3)
         eventStore.append(changedEventStream3).block()
-        snapshotStrategy.onEvent(changedEventStream3)
+        snapshotStrategy.onEvent(changedEventStreamExchange3)
             .test()
             .verifyComplete()
     }
