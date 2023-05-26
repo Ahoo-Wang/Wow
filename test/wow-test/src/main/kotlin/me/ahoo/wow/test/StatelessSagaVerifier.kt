@@ -33,18 +33,21 @@ import me.ahoo.wow.test.saga.stateless.WhenStage
  * @author ahoo wang
  */
 object StatelessSagaVerifier {
-    val TEST_COMMAND_GATEWAY: CommandGateway = DefaultCommandGateway(
-        SimpleCommandWaitEndpoint("test"),
-        InMemoryCommandBus(),
-        NoOpIdempotencyChecker,
-        SimpleWaitStrategyRegistrar,
-        NoOpValidator
-    )
+    @JvmStatic
+    fun defaultCommandGateway(): CommandGateway {
+        return DefaultCommandGateway(
+            SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
+            InMemoryCommandBus(),
+            NoOpIdempotencyChecker,
+            SimpleWaitStrategyRegistrar,
+            NoOpValidator
+        )
+    }
 
     @JvmStatic
     fun <T : Any> Class<T>.asSagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = TEST_COMMAND_GATEWAY
+        commandGateway: CommandGateway = defaultCommandGateway()
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = asEventProcessorMetadata()
         return DefaultWhenStage(
@@ -57,7 +60,7 @@ object StatelessSagaVerifier {
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = TEST_COMMAND_GATEWAY
+        commandGateway: CommandGateway = defaultCommandGateway()
     ): WhenStage<T> {
         return T::class.java.asSagaVerifier(serviceProvider, commandGateway)
     }
