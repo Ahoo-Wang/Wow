@@ -13,101 +13,25 @@
 
 package me.ahoo.wow.tck.event
 
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams
-import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
-import reactor.core.scheduler.Schedulers
-import reactor.kotlin.test.test
-import java.time.Duration
+import me.ahoo.wow.tck.messaging.MessageBusSpec
 
-abstract class DomainEventBusSpec {
-    companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(DomainEventBusSpec::class.java)
-    }
+abstract class DomainEventBusSpec : MessageBusSpec<DomainEventStream, EventStreamExchange, DomainEventBus>() {
 
-    protected val namedAggregateForSend = MockDomainEventBusSendEvent::class.java.asRequiredNamedAggregate()
-    protected val namedAggregateForReceive = MockDomainEventBusReceiveEvent::class.java.asRequiredNamedAggregate()
+    override val namedAggregate: NamedAggregate
+        get() = requiredNamedAggregate<MockEventForEventBus>()
 
-    protected abstract fun createEventBus(): DomainEventBus
-
-    @Test
-    fun send() {
-        createEventBus().metrizable().use { eventBus ->
-            val eventStream = MockDomainEventStreams.generateEventStream(
-                aggregateId = namedAggregateForSend.asAggregateId(GlobalIdGenerator.generateAsString()),
-                eventCount = 1,
-                createdEventSupplier = { MockDomainEventBusSendEvent(GlobalIdGenerator.generateAsString()) },
-            )
-            eventBus.send(eventStream)
-                .test()
-                .verifyComplete()
-        }
-    }
-
-    @Test
-    fun receive() {
-        val eventBus = createEventBus().metrizable()
-        eventBus.receive(setOf(namedAggregateForReceive))
-            .writeReceiverGroup(GlobalIdGenerator.generateAsString())
-            .test()
-            .consumeSubscriptionWith {
-                Flux.range(0, 10)
-                    .flatMap {
-                        val eventStream = MockDomainEventStreams.generateEventStream(
-                            aggregateId = namedAggregateForReceive.asAggregateId(GlobalIdGenerator.generateAsString()),
-                            eventCount = 1,
-                            createdEventSupplier = {
-                                MockDomainEventBusReceiveEvent(
-                                    GlobalIdGenerator.generateAsString(),
-                                )
-                            },
-                        )
-                        eventBus.send(eventStream)
-                    }
-                    .delaySubscription(Duration.ofSeconds(1))
-                    .subscribe()
-            }
-            .expectNextCount(10)
-            .verifyTimeout(Duration.ofSeconds(2))
-    }
-
-    @Test
-    fun sendPerformance() {
-        val eventBus = createEventBus().metrizable()
-        val maxTimes = 20000
-        val duration = Flux.generate<DomainEventStream, Int>({ 0 }) { state, sink ->
-            if (state < maxTimes) {
-                val eventStream = MockDomainEventStreams.generateEventStream(
-                    aggregateId = namedAggregateForReceive.asAggregateId(GlobalIdGenerator.generateAsString()),
-                    eventCount = 1,
-                    createdEventSupplier = {
-                        MockDomainEventBusReceiveEvent(
-                            GlobalIdGenerator.generateAsString(),
-                        )
-                    },
-                )
-                sink.next(eventStream)
-            } else {
-                sink.complete()
-            }
-            state + 1
-        }.subscribeOn(Schedulers.boundedElastic())
-            .flatMap {
-                eventBus.send(it)
-            }
-            .test()
-            .verifyComplete()
-
-        log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+    override fun createMessage(): DomainEventStream {
+        return MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.asAggregateId(GlobalIdGenerator.generateAsString()),
+            eventCount = 1,
+            createdEventSupplier = { MockEventForEventBus(GlobalIdGenerator.generateAsString()) },
+        )
     }
 }
-
-data class MockDomainEventBusSendEvent(val state: String)
-data class MockDomainEventBusReceiveEvent(val state: String)

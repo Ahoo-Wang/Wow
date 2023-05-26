@@ -20,7 +20,7 @@ import me.ahoo.wow.tck.command.CommandBusSpec
  * @author ahoo wang
  */
 internal class InMemoryCommandBusTest : CommandBusSpec() {
-    override fun createCommandBus(): CommandBus {
+    override fun createMessageBus(): CommandBus {
         return InMemoryCommandBus()
     }
 }

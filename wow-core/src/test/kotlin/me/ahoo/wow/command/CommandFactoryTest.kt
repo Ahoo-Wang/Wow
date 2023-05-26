@@ -13,11 +13,8 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.tck.command.MockSendCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.greaterThan
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -25,7 +22,7 @@ internal class CommandFactoryTest {
 
     @Test
     fun create() {
-        val command = MockSendCommand(GlobalIdGenerator.generateAsString())
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
         val commandMessage = command.asCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))

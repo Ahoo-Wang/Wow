@@ -10,11 +10,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.tck.eventsourcing
+package me.ahoo.wow.tck.event
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.tck.eventsourcing.Changed
+import me.ahoo.wow.tck.eventsourcing.Created
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import java.util.*
 

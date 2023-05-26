@@ -55,6 +55,9 @@ class CosIdShardingDecorator(
     }
 }
 
+/**
+ * TODO remove in 1.12.0
+ */
 @Deprecated("use CosIdShardingDecorator")
 class CosIdAggregateIdSharding(
     private val shardingRule: Map<NamedAggregate, PreciseSharding<Long>>

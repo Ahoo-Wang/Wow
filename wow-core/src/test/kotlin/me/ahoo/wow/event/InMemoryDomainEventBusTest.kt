@@ -16,5 +16,5 @@ package me.ahoo.wow.event
 import me.ahoo.wow.tck.event.DomainEventBusSpec
 
 internal class InMemoryDomainEventBusTest : DomainEventBusSpec() {
-    override fun createEventBus(): DomainEventBus = InMemoryDomainEventBus()
+    override fun createMessageBus(): DomainEventBus = InMemoryDomainEventBus()
 }

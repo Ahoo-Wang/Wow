@@ -17,8 +17,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
@@ -44,13 +42,5 @@ class KafkaDomainEventBus(
 
     override fun DomainEventStream.asExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
         return KafkaEventStreamExchange(this, receiverOffset)
-    }
-
-    override fun send(message: DomainEventStream): Mono<Void> {
-        return super.sendMessage(message)
-    }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
-        return super.receiveMessage(namedAggregates)
     }
 }

@@ -17,8 +17,6 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
@@ -49,14 +47,5 @@ class KafkaCommandBus(
 
     override fun CommandMessage<*>.asExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
         return KafkaServerCommandExchange(this, receiverOffset)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        return super.sendMessage(message as CommandMessage<Any>)
-    }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        return super.receiveMessage(namedAggregates)
     }
 }

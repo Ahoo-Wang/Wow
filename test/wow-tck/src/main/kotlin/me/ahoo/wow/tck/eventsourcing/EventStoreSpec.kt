@@ -24,12 +24,12 @@ import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.eventsourcing.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.instanceOf
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -37,7 +37,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
-import reactor.test.StepVerifier
 
 /**
  * Provides tests for verifying `EventStore` specification rules.
@@ -206,7 +205,8 @@ abstract class EventStoreSpec {
             .parallel(DEFAULT_PARALLELISM)
             .runOn(Schedulers.parallel())
             .flatMap { eventStore.append(generateEventStream()) }
-            .`as` { StepVerifier.create(it) }
+            .sequential()
+            .test()
             .expectSubscription()
             .expectNextCount(0)
             .verifyComplete()
@@ -223,7 +223,8 @@ abstract class EventStoreSpec {
             .parallel(DEFAULT_PARALLELISM)
             .runOn(Schedulers.parallel())
             .flatMap { eventStore.load(eventStream.aggregateId) }
-            .`as` { StepVerifier.create(it) }
+            .sequential()
+            .test()
             .expectSubscription()
             .expectNextCount(TIMES.toLong())
             .verifyComplete()

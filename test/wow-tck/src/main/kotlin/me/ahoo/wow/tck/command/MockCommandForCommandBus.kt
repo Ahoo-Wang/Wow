@@ -10,5 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.tck.event
-data class MockEvent(val state: String)
+package me.ahoo.wow.tck.command
+
+import me.ahoo.wow.api.annotation.AggregateId
+
+data class MockCommandForCommandBus(@AggregateId val id: String)

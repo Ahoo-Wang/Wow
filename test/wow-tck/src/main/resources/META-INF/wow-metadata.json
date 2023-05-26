@@ -1,38 +1,13 @@
 {
   "contexts": {
-    "wow-test-spec": {
+    "wow-test-tck": {
       "scopes": [
         "me.ahoo.wow.tck"
       ],
       "aggregates": {
-        "command_send_mock_aggregate": {
+        "wow_tck_aggregate": {
           "scopes": [
-            "me.ahoo.wow.tck.command.MockSendCommand"
-          ]
-        },
-        "command_receive_mock_aggregate": {
-          "scopes": [
-            "me.ahoo.wow.tck.command.MockReceiveCommand"
-          ]
-        },
-        "event_mock_aggregate": {
-          "scopes": [
-            "me.ahoo.wow.tck.event"
-          ]
-        },
-        "event_bus_send_mock_aggregate": {
-          "scopes": [
-            "me.ahoo.wow.tck.event.MockDomainEventBusSendEvent"
-          ]
-        },
-        "event_bus_receive_mock_aggregate": {
-          "scopes": [
-            "me.ahoo.wow.tck.event.MockDomainEventBusReceiveEvent"
-          ]
-        },
-        "eventsourcing_mock_aggregate": {
-          "scopes": [
-            "me.ahoo.wow.tck.eventsourcing"
+            "me.ahoo.wow.tck"
           ]
         },
         "modeling_mock_aggregate": {
@@ -43,7 +18,9 @@
         },
         "modeling_command_mock_aggregate": {
           "type": "me.ahoo.wow.tck.modeling.command.MockAggregate",
-          "scopes": ["me.ahoo.wow.tck.modeling.command"]
+          "scopes": [
+            "me.ahoo.wow.tck.modeling.command"
+          ]
         }
       }
     }

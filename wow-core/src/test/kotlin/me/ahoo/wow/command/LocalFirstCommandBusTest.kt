@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 class LocalFirstCommandBusTest : CommandBusSpec() {
-    override fun createCommandBus(): CommandBus {
+    override fun createMessageBus(): CommandBus {
         return LocalFirstCommandBus(distributedCommandBus = MockDistributedCommandBus(), true)
     }
 }

@@ -32,6 +32,6 @@ fun ContextView.getReceiverOptionsCustomizer(): ReceiverOptionsCustomizer? {
     return getOrEmpty<ReceiverOptionsCustomizer>(ReceiverOptionsCustomizer::class.java.name).getOrNull()
 }
 
-fun Context.setReceiverOptionsCustomizer(receiverOptionsCustomizer: ReceiverOptionsCustomizer): Context {
+fun Context.writeReceiverOptionsCustomizer(receiverOptionsCustomizer: ReceiverOptionsCustomizer): Context {
     return this.put(ReceiverOptionsCustomizer::class.java.name, receiverOptionsCustomizer)
 }

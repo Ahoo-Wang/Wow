@@ -29,6 +29,7 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
             KafkaLauncher.isRunning
         }
     }
+
     private val onCommandSeekSink = Sinks.empty<Void>()
     override fun onCommandSeek(): Mono<Void> {
         return onCommandSeekSink.asMono()
@@ -43,8 +44,8 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
                     .addAssignListener { partitions ->
                         partitions.forEach {
                             it.seekToEnd()
-                            onCommandSeekSink.emitEmpty(Sinks.EmitFailureHandler.FAIL_FAST)
                         }
+                        onCommandSeekSink.emitEmpty(Sinks.EmitFailureHandler.FAIL_FAST)
                     }
             },
         )

@@ -13,16 +13,15 @@
 package me.ahoo.wow.command.metadata
 
 import me.ahoo.wow.command.annotation.commandMetadata
-import me.ahoo.wow.tck.command.MockSendCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.not
+import me.ahoo.wow.tck.command.MockCommandForCommandBus
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class CommandMetadataTest {
     @Test
     fun whenEquals() {
-        val commandMetadata = commandMetadata<MockSendCommand>()
+        val commandMetadata = commandMetadata<MockCommandForCommandBus>()
         assertThat(commandMetadata, equalTo(commandMetadata))
         assertThat(commandMetadata, not(Any()))
         val otherCommandMetadata = commandMetadata.copy()
