@@ -12,4 +12,4 @@
  */
 package me.ahoo.wow.tck.event
 
-data class MockEventForEventBus(val state: String)
+data class MockEvent(val state: String)

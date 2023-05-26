@@ -46,7 +46,7 @@ internal class WebFluxAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
-            .withBean(CommandGateway::class.java, { StatelessSagaVerifier.TEST_COMMAND_GATEWAY })
+            .withBean(CommandGateway::class.java, { StatelessSagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
