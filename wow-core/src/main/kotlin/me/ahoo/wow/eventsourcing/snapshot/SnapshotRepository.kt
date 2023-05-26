@@ -14,7 +14,6 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -24,14 +23,6 @@ const val FIRST_CURSOR_ID = "(0)"
  * Snapshot Repository.
  */
 interface SnapshotRepository {
-    @Deprecated(
-        "use load(aggregateId: AggregateId): Mono<Snapshot<S>> instead.",
-        ReplaceWith("load(aggregateId)"),
-    )
-    fun <S : Any> load(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<Snapshot<S>> {
-        return load(aggregateId)
-    }
-
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun scrollAggregateId(
