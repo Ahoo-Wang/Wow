@@ -132,7 +132,7 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                 }
                 .test()
                 .expectNextCount(maxCount)
-                .verifyTimeout(Duration.ofSeconds(8))
+                .verifyTimeout(Duration.ofSeconds(10))
             log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
         }
     }
