@@ -17,8 +17,9 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.tck.modeling.CreateAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -28,7 +29,7 @@ internal class ProcessedNotifierFilterTest {
     @Test
     fun filter() {
         val processedNotifierFilter = ProcessedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
-        val command = CreateAggregate("", "")
+        val command = MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
             .asCommandMessage() as CommandMessage<*>
         val exchange = SimpleServerCommandExchange(command)
         val chain = FilterChainBuilder<ServerCommandExchange<*>>().build()

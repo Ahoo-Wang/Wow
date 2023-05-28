@@ -12,100 +12,27 @@
  */
 package me.ahoo.wow.tck.command
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.metrics.Metrics.metrizable
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
-import reactor.kotlin.test.test
-import java.time.Duration
+import me.ahoo.wow.tck.messaging.MessageBusSpec
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 
 /**
  * Command Bus Implementation Specification.
  */
-abstract class CommandBusSpec {
-    companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(CommandBusSpec::class.java)
-    }
+abstract class CommandBusSpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandBus>() {
+    override val namedAggregate: NamedAggregate
+        get() = requiredNamedAggregate<MockCreateAggregate>()
 
-    protected val namedAggregateForSend = MockSendCommand::class.java.asRequiredNamedAggregate()
-    protected val namedAggregateForReceive = MockReceiveCommand::class.java.asRequiredNamedAggregate()
-    protected abstract fun createCommandBus(): CommandBus
-
-    @Test
-    fun send() {
-        createCommandBus().metrizable().use { commandBus ->
-            val commandMessage = MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-            Schedulers.single().schedule {
-                commandBus
-                    .receive(setOf(namedAggregateForSend)).subscribe()
-            }
-            commandBus.send(commandMessage)
-                .test()
-                .verifyComplete()
-        }
-    }
-
-    @Test
-    fun receive() {
-        val commandBus = createCommandBus().metrizable()
-        commandBus.receive(setOf(namedAggregateForReceive))
-            .writeReceiverGroup(GlobalIdGenerator.generateAsString())
-            .test()
-            .consumeSubscriptionWith {
-                Flux.range(0, 10)
-                    .publishOn(Schedulers.boundedElastic())
-                    .map {
-                        val commandMessage = MockReceiveCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-                        commandBus.send(commandMessage).subscribe()
-                    }
-                    .delaySubscription(Duration.ofSeconds(1))
-                    .subscribe()
-            }
-            .expectNextCount(10)
-            .verifyTimeout(Duration.ofSeconds(2))
-    }
-
-    @Test
-    fun sendPerformance() {
-        val commandBus = createCommandBus().metrizable()
-        val duration = sendLoop(commandBus = commandBus)
-            .test()
-            .verifyComplete()
-        log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
-    }
-
-    private fun sendLoop(commandBus: CommandBus, maxCount: Int = 2000): Mono<Void> {
-        return Flux.range(0, maxCount)
-            .publishOn(Schedulers.boundedElastic())
-            .map {
-                MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-            }.flatMap {
-                commandBus.send(it)
-            }.then()
-    }
-
-    @DisabledIfEnvironmentVariable(named = "CI", matches = ".*")
-    @Test
-    fun receivePerformance() {
-        val commandBus = createCommandBus().metrizable()
-        val maxCount: Long = 2000
-        val duration = commandBus.receive(setOf(namedAggregateForSend))
-            .writeReceiverGroup(GlobalIdGenerator.generateAsString())
-            .test()
-            .consumeSubscriptionWith {
-                sendLoop(commandBus = commandBus, maxCount = maxCount.toInt())
-                    .delaySubscription(Duration.ofSeconds(1))
-                    .subscribe()
-            }
-            .expectNextCount(maxCount)
-            .verifyTimeout(Duration.ofSeconds(2))
-        log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
+    override fun createMessage(): CommandMessage<*> {
+        return MockCreateAggregate(
+            id = GlobalIdGenerator.generateAsString(),
+            data = GlobalIdGenerator.generateAsString()
+        ).asCommandMessage()
     }
 }

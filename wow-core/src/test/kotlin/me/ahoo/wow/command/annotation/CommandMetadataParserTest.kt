@@ -13,6 +13,7 @@
 package me.ahoo.wow.command.annotation
 
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.command.MockCommandWithAllowCreate
 import me.ahoo.wow.command.MockCommandWithDefaultNamedId
 import me.ahoo.wow.command.MockCommandWithExpectedAggregateVersion
 import me.ahoo.wow.command.MockCommandWithoutTargetAggregateId
@@ -22,12 +23,8 @@ import me.ahoo.wow.command.MockInheritStaticCommand
 import me.ahoo.wow.command.MockNamedCommand
 import me.ahoo.wow.command.MockStaticCommand
 import me.ahoo.wow.command.NAMED_COMMAND
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.tck.command.MockSendCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 /**
@@ -36,27 +33,6 @@ import org.junit.jupiter.api.Test
  * @author ahoo wang
  */
 internal class CommandMetadataParserTest {
-    @Test
-    fun parse() {
-        val metadata = commandMetadata<MockSendCommand>()
-        assertThat(metadata, notNullValue())
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockSendCommand::class.java,
-            ),
-        )
-        assertThat(metadata.isCreate, equalTo(false))
-        assertThat(metadata.aggregateIdGetter, notNullValue())
-        assertThat(metadata.aggregateVersionGetter, equalTo(null))
-        val command = MockSendCommand("1")
-        assertThat(metadata.aggregateIdGetter!![command], equalTo("1"))
-        checkNotNull(metadata.namedAggregateGetter)
-        assertThat(
-            metadata.namedAggregateGetter!!.getNamedAggregate(command),
-            equalTo(MaterializedNamedAggregate("wow-test-spec", "command_send_mock_aggregate")),
-        )
-    }
 
     @Test
     fun parseCreateWithoutTargetAggregateId() {
@@ -67,6 +43,13 @@ internal class CommandMetadataParserTest {
     fun parseWithDefaultNamedId() {
         val metadata = commandMetadata<MockCommandWithDefaultNamedId>()
         assertThat(metadata.isCreate, equalTo(false))
+        assertThat(metadata.aggregateIdGetter, notNullValue())
+    }
+
+    @Test
+    fun parseWithAllowCreate() {
+        val metadata = commandMetadata<MockCommandWithAllowCreate>()
+        assertThat(metadata.allowCreate, equalTo(true))
         assertThat(metadata.aggregateIdGetter, notNullValue())
     }
 

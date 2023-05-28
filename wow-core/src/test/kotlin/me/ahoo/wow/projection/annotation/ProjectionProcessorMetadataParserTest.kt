@@ -17,15 +17,13 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasItems
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ProjectionProcessorMetadataParserTest {
@@ -39,40 +37,40 @@ internal class ProjectionProcessorMetadataParserTest {
         assertThat(metadata.functionRegistry.size, equalTo(3))
         assertThat(
             metadata.functionRegistry.map { it.supportedType }.toSet(),
-            hasItems(AggregateCreated::class.java, AggregateChanged::class.java),
+            hasItems(MockAggregateCreated::class.java, MockAggregateChanged::class.java),
         )
     }
 
     @Test
     fun asTarget() {
-        val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+        val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val mockProjector = MockProjector()
         val eventHandlerRegistry = projectionProcessorMetadata<MockProjector>().asMessageFunctionRegistry(mockProjector)
         val createdState = GlobalIdGenerator.generateAsString()
-        val created = AggregateChanged(createdState).asDomainEventStream(
+        val created = MockAggregateChanged(createdState).asDomainEventStream(
             command = GivenInitializationCommand(aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 0,
         ).first()
         eventHandlerRegistry.first {
             it.supportedType == created.body.javaClass
         }.handle(SimpleDomainEventExchange(created)).block()
-        assertThat(mockProjector.state, equalTo(createdState))
+        assertThat(mockProjector.data, equalTo(createdState))
     }
 }
 
 internal class MockProjector {
-    lateinit var state: String
+    lateinit var data: String
 
-    fun onEvent(created: AggregateCreated) {
-        state = created.state
+    fun onEvent(created: MockAggregateCreated) {
+        data = created.data
     }
 
-    fun onEvent(changed: AggregateChanged) {
-        state = changed.state
+    fun onEvent(changed: MockAggregateChanged) {
+        data = changed.data
     }
 
     @OnEvent
-    fun onAggregateChanged(changed: AggregateChanged) {
-        state = changed.state
+    fun onAggregateChanged(changed: MockAggregateChanged) {
+        data = changed.data
     }
 }

@@ -15,33 +15,42 @@ package me.ahoo.wow.tck.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandErrorCodes
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
-import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.tck.messaging.MessageBusSpec
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
-import reactor.core.scheduler.Schedulers
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 
-abstract class CommandGatewaySpec {
-    protected val namedAggregate = MockSendCommand::class.java.asRequiredNamedAggregate()
+abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
+    override val namedAggregate: NamedAggregate
+        get() = requiredNamedAggregate<MockCreateAggregate>()
+
+    override fun createMessage(): CommandMessage<*> {
+        return MockCreateAggregate(
+            id = GlobalIdGenerator.generateAsString(),
+            data = GlobalIdGenerator.generateAsString()
+        ).asCommandMessage()
+    }
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
@@ -49,16 +58,12 @@ abstract class CommandGatewaySpec {
         BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 1000000)
     }
 
-    protected lateinit var commandBus: CommandBus
-    protected lateinit var commandGateway: CommandGateway
     protected abstract fun createCommandBus(): CommandBus
 
-    @BeforeEach
-    fun setup() {
-        commandBus = createCommandBus().metrizable()
-        commandGateway = DefaultCommandGateway(
+    override fun createMessageBus(): CommandGateway {
+        return DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
-            commandBus = commandBus,
+            commandBus = createCommandBus(),
             idempotencyChecker = idempotencyChecker,
             waitStrategyRegistrar = waitStrategyRegistrar,
             NoOpValidator,
@@ -66,92 +71,63 @@ abstract class CommandGatewaySpec {
     }
 
     @Test
-    fun send() {
-        Schedulers.single().schedule {
-            commandGateway
-                .receive(setOf(namedAggregate)).subscribe()
+    fun sendAndWaitForSent() {
+        val message = createMessage()
+        verify {
+            sendAndWaitForSent(message)
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
         }
-        commandGateway.sendAndWaitForSent(MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage())
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
     }
 
     @Test
-    fun sendGivenTimeout() {
-        commandGateway.sendAndWaitForProcessed(MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage())
-            .timeout(Duration.ofMillis(100))
-            .test()
-            .verifyTimeout(Duration.ofMillis(150))
+    fun sendAndWaitForProcessed() {
+        val message = createMessage()
+        verify {
+            sendAndWaitForProcessed(message)
+                .timeout(Duration.ofMillis(100))
+                .test()
+                .verifyTimeout(Duration.ofMillis(150))
+        }
     }
 
     @Test
     fun sendGivenDuplicate() {
-        val commandMessage = MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-        Schedulers.single().schedule {
-            commandBus
-                .receive(setOf(namedAggregate)).subscribe()
+        val message = createMessage()
+        verify {
+            sendAndWaitForSent(message)
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
+            sendAndWaitForSent(message)
+                .test()
+                .consumeNextWith {
+                    assertThat(it.stage, equalTo(CommandStage.SENT))
+                    assertThat(it.errorCode, equalTo(CommandErrorCodes.COMMAND_DUPLICATE))
+                }
+                .verifyComplete()
         }
-        commandGateway.sendAndWaitForSent(commandMessage)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-
-        commandGateway.sendAndWaitForSent(commandMessage)
-            .test()
-            .consumeNextWith {
-                assertThat(it.stage, equalTo(CommandStage.SENT))
-                assertThat(it.errorCode, equalTo(CommandErrorCodes.COMMAND_DUPLICATE))
-            }
-            .verifyComplete()
     }
 
     @Test
     fun sendThenWaitingForAggregate() {
-        Schedulers.single().schedule {
-            commandGateway
-                .receive(setOf(namedAggregate))
-                .doOnNext {
-                    Schedulers.boundedElastic().schedule(
-                        {
-                            waitStrategyRegistrar.next(
-                                SimpleWaitSignal(
-                                    it.message.commandId,
-                                    CommandStage.PROCESSED,
-                                ),
-                            )
-                        },
-                        10,
-                        TimeUnit.MILLISECONDS,
-                    )
+        val message = createMessage()
+        verify {
+            sendAndWaitForProcessed(message)
+                .doOnRequest {
+                    Mono.fromCallable {
+                        waitStrategyRegistrar.next(
+                            SimpleWaitSignal(
+                                message.commandId,
+                                CommandStage.PROCESSED,
+                            ),
+                        )
+                    }.delaySubscription(Duration.ofMillis(10)).subscribe()
                 }
-                .subscribe()
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
         }
-        commandGateway.sendAndWaitForProcessed(MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage())
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun receive() {
-        commandGateway.receive(setOf(namedAggregate))
-            .test()
-            .consumeSubscriptionWith {
-                Schedulers.single().schedule(
-                    {
-                        Flux.range(0, 10)
-                            .flatMap {
-                                commandGateway.sendAndWaitForSent(
-                                    MockSendCommand(GlobalIdGenerator.generateAsString()).asCommandMessage(),
-                                )
-                            }.subscribe()
-                    },
-                    10,
-                    TimeUnit.MILLISECONDS,
-                )
-            }
-            .expectNextCount(10)
-            .verifyTimeout(Duration.ofSeconds(2))
     }
 }

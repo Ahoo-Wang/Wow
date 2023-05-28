@@ -15,16 +15,14 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.MockCommandAggregate
-import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.greaterThan
-import org.hamcrest.Matchers.not
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class AggregateIdTest {
-    private val namedTypedAggregate = aggregateMetadata<MockAggregate, MockAggregate>()
+    private val namedTypedAggregate = MOCK_AGGREGATE_METADATA
 
     @Test
     fun equalTo() {

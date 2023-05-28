@@ -27,14 +27,15 @@ import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 
 abstract class ProjectionDispatcherSpec {
     private val handlerRegistrar = ProjectionFunctionRegistrar()
-    protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+    protected val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
     protected val domainEventBus: DomainEventBus
 
     init {
@@ -53,14 +54,14 @@ abstract class ProjectionDispatcherSpec {
             .build()
         val projectionDispatcher =
             ProjectionDispatcher(
-                name = "test-spec.ProjectionDispatcher",
+                name = "wow-tck.ProjectionDispatcher",
                 domainEventBus = domainEventBus,
                 functionRegistrar = handlerRegistrar,
                 eventHandler = DefaultProjectionHandler(chain).metrizable(),
             )
         projectionDispatcher.run()
 
-        val eventStream = AggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
+        val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
             command = GivenInitializationCommand(aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 1,
         )

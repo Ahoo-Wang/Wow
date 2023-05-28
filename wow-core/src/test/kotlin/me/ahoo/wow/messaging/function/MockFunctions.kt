@@ -16,17 +16,28 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.event.DomainEvent
 
-internal class Body
+internal class MockEventBody
 internal class MockFunction {
-    fun onEvent(body: Body) = Unit
+    fun onEvent(mockEventBody: MockEventBody) = Unit
+}
+
+internal class MockWithWrappedFunction {
+    fun onEvent(event: DomainEvent<MockEventBody>) = Unit
 }
 
 internal class MockAnotherFunction {
-    fun onEvent(body: Body) = Unit
+    fun onEvent(mockEventBody: MockEventBody) = Unit
 }
 
 internal class MockWithMultiAggregateNameFunction {
     @OnEvent("aggregate1", "aggregate2")
-    fun onEvent(body: Body) = Unit
+    fun onEvent(mockEventBody: MockEventBody) = Unit
+}
+
+interface ExternalService
+
+internal class MockWithInjectableFunction {
+    fun onEvent(mockEventBody: MockEventBody, externalService: ExternalService) = Unit
 }

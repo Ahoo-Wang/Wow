@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.api.Wow
-import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -43,7 +42,7 @@ data class KafkaProperties(
 
     fun buildSenderOptions(): SenderOptions<String, String> {
         val senderProperties = buildMap {
-            put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
+            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
             put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
             put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
             putAll(properties)
@@ -54,7 +53,7 @@ data class KafkaProperties(
 
     fun buildReceiverOptions(): ReceiverOptions<String, String> {
         val receiverProperties = buildMap {
-            put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
+            put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
             put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
             put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
             putAll(properties)

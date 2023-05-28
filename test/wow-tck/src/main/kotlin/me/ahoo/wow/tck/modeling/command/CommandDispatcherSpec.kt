@@ -53,6 +53,10 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
+import me.ahoo.wow.tck.mock.MockChangeAggregate
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.BeforeEach
@@ -67,7 +71,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 @ExtendWith(LoggingMeterRegistryInitializer::class)
 abstract class CommandDispatcherSpec {
-    protected val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+    protected val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
@@ -166,12 +170,12 @@ abstract class CommandDispatcherSpec {
     }
 
     private fun warmUp() {
-        val createAggregate = CreateAggregate(
+        val mockCreateAggregate = MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            state = GlobalIdGenerator.generateAsString(),
+            data = GlobalIdGenerator.generateAsString(),
         )
         commandGateway
-            .sendAndWaitForProcessed(createAggregate.asCommandMessage())
+            .sendAndWaitForProcessed(mockCreateAggregate.asCommandMessage())
             .then()
             .test()
             .verifyComplete()
@@ -182,9 +186,9 @@ abstract class CommandDispatcherSpec {
         val creates = buildList {
             repeat(aggregateCount) {
                 add(
-                    CreateAggregate(
+                    MockCreateAggregate(
                         id = GlobalIdGenerator.generateAsString(),
-                        state = GlobalIdGenerator.generateAsString(),
+                        data = GlobalIdGenerator.generateAsString(),
                     ),
                 )
             }
@@ -220,7 +224,7 @@ abstract class CommandDispatcherSpec {
             repeat(concurrency) {
                 val randomCreate = creates[ThreadLocalRandom.current().nextInt(0, aggregateCount)]
                 add(
-                    ChangeAggregate(
+                    MockChangeAggregate(
                         randomCreate.id,
                         GlobalIdGenerator.generateAsString(),
                     ),

@@ -14,15 +14,31 @@
 package me.ahoo.wow.kafka
 
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.tck.event.DomainEventBusSpec
 import org.junit.jupiter.api.BeforeAll
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Sinks
 
 internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
-    override fun createEventBus(): DomainEventBus {
+    override fun createMessageBus(): DomainEventBus {
         return KafkaDomainEventBus(
             senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            receiverOptions = KafkaLauncher.receiverOptions
         )
+    }
+
+    override fun Flux<EventStreamExchange>.onReceive(onReady: Sinks.Empty<Void>): Flux<EventStreamExchange> {
+        return contextWrite {
+            it.writeReceiverOptionsCustomizer { receiverOptions ->
+                receiverOptions.addAssignListener {
+                    it.forEach { receiverPartition ->
+                        receiverPartition.seekToEnd()
+                    }
+                    onReady.tryEmitEmpty()
+                }
+            }
+        }
     }
 
     companion object {

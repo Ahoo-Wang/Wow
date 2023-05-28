@@ -14,8 +14,11 @@
 package me.ahoo.wow.kafka
 
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.tck.command.CommandBusSpec
 import org.junit.jupiter.api.BeforeAll
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Sinks
 
 internal class KafkaCommandBusTest : CommandBusSpec() {
 
@@ -27,10 +30,23 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         }
     }
 
-    override fun createCommandBus(): CommandBus {
+    override fun createMessageBus(): CommandBus {
         return KafkaCommandBus(
             senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            receiverOptions = KafkaLauncher.receiverOptions
         )
+    }
+
+    override fun Flux<ServerCommandExchange<*>>.onReceive(onReady: Sinks.Empty<Void>): Flux<ServerCommandExchange<*>> {
+        return contextWrite {
+            it.writeReceiverOptionsCustomizer { receiverOptions ->
+                receiverOptions.addAssignListener {
+                    it.forEach { receiverPartition ->
+                        receiverPartition.seekToEnd()
+                    }
+                    onReady.tryEmitEmpty()
+                }
+            }
+        }
     }
 }

@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
+import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.StaticAggregateId
@@ -38,6 +39,9 @@ class MockCreateCommandWithoutAggregateId
 
 @Name(NAMED_COMMAND)
 data class MockNamedCommand(@AggregateId val id: String)
+
+@AllowCreate
+data class MockCommandWithAllowCreate(val id: String)
 
 data class MockCommandWithDefaultNamedId(val id: String)
 

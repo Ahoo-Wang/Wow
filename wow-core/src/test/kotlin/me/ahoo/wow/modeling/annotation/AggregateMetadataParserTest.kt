@@ -12,9 +12,8 @@
  */
 package me.ahoo.wow.modeling.annotation
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -40,7 +39,7 @@ internal class AggregateMetadataParserTest {
 
     @Test
     fun parseCombined() {
-        val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
+        val aggregateMetadata = aggregateMetadata<MockCommandAggregate, me.ahoo.wow.tck.mock.MockStateAggregate>()
         assertThat(aggregateMetadata, notNullValue())
         assertThat(
             aggregateMetadata.command.aggregateType,

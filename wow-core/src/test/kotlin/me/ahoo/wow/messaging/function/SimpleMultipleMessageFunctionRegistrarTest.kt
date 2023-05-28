@@ -13,11 +13,8 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.event.DomainEventExchange
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.empty
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasItem
-import org.hamcrest.Matchers.hasItems
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleMultipleMessageFunctionRegistrarTest {
@@ -25,7 +22,7 @@ internal class SimpleMultipleMessageFunctionRegistrarTest {
     @Test
     fun register() {
         val handler =
-            MockFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+            MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
                 .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         val registrar = SimpleMultipleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
@@ -39,7 +36,7 @@ internal class SimpleMultipleMessageFunctionRegistrarTest {
         actual = registrar.getFunctions(handler.supportedType)
         assertThat(actual.size, equalTo(1))
         assertThat(actual, hasItem(handler))
-        val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+        val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .asFunctionMetadata<Any, Any>()
             .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         registrar.register(anotherHandler)
@@ -50,7 +47,7 @@ internal class SimpleMultipleMessageFunctionRegistrarTest {
 
     @Test
     fun unregister() {
-        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .asFunctionMetadata<Any, Any>()
             .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         val registrar = SimpleMultipleMessageFunctionRegistrar<MessageFunction<*, *, *>>()

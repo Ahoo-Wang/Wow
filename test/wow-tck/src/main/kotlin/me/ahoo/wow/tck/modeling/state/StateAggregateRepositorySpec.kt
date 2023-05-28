@@ -26,18 +26,18 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 abstract class StateAggregateRepositorySpec {
-    private val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+    private val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
     protected abstract fun createStateAggregateRepository(
         aggregateFactory: StateAggregateFactory,
@@ -51,17 +51,17 @@ abstract class StateAggregateRepositorySpec {
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
 
         val command = GivenInitializationCommand(aggregateId)
-        val stateChanged = AggregateChanged(GlobalIdGenerator.generateAsString())
+        val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
         val eventStream = stateChanged.asDomainEventStream(command = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateMetadata.state, aggregateId).block()!!
         assertThat(stateAggregate, notNullValue())
         assertThat(stateAggregate.aggregateId, equalTo(aggregateId))
-        val domainEventMessage = eventStream.iterator().next() as DomainEvent<AggregateChanged>
+        val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
         assertThat(stateAggregate.version, equalTo(domainEventMessage.version))
         assertThat(
-            stateAggregate.stateRoot.state(),
-            equalTo(domainEventMessage.body.state),
+            stateAggregate.stateRoot.data,
+            equalTo(domainEventMessage.body.data),
         )
     }
 
@@ -85,7 +85,7 @@ abstract class StateAggregateRepositorySpec {
                     metadata: StateAggregateMetadata<S>,
                     aggregateId: AggregateId
                 ): Mono<StateAggregate<S>> {
-                    val stateRoot = MockAggregate(aggregateId.id)
+                    val stateRoot = MockStateAggregate(aggregateId.id)
                     @Suppress("UNCHECKED_CAST")
                     return Mono.just(aggregateMetadata.asStateAggregate(stateRoot, 1) as StateAggregate<S>)
                 }
@@ -95,7 +95,7 @@ abstract class StateAggregateRepositorySpec {
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         aggregateRepository.load(aggregateMetadata.state, aggregateId)
             .test()
-            .assertNext { stateAggregate: StateAggregate<MockAggregate> ->
+            .assertNext { stateAggregate: StateAggregate<MockStateAggregate> ->
                 assertThat(stateAggregate.initialized, equalTo(true))
                 assertThat(stateAggregate.version, equalTo(1))
             }

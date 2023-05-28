@@ -48,7 +48,7 @@ abstract class AbstractKafkaBus<M, E>(
 
     protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
     abstract val messageType: Class<M>
-    protected fun sendMessage(message: M): Mono<Void> {
+    override fun send(message: M): Mono<Void> {
         if (log.isDebugEnabled) {
             log.debug("Send {}.", message)
         }
@@ -72,7 +72,7 @@ abstract class AbstractKafkaBus<M, E>(
     abstract fun NamedAggregate.asTopic(): String
     abstract fun M.asExchange(receiverOffset: ReceiverOffset): E
 
-    protected fun receiveMessage(namedAggregates: Set<NamedAggregate>): Flux<E> {
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(receiverOptions)
                 .consumerProperty(
@@ -80,7 +80,6 @@ abstract class AbstractKafkaBus<M, E>(
                     contextView.getReceiverGroup(),
                 )
                 .subscription(namedAggregates.map { it.asTopic() }.toSet())
-
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
             KafkaReceiver.create(customizedOptions)
                 .receive(Queues.SMALL_BUFFER_SIZE)

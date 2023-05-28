@@ -12,19 +12,14 @@
  */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.tck.modeling.ChangeAggregate
-import me.ahoo.wow.tck.modeling.CreateAggregate
-import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.arrayWithSize
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasItem
-import org.hamcrest.Matchers.hasSize
-import org.hamcrest.Matchers.instanceOf
-import org.hamcrest.Matchers.notNullValue
+import me.ahoo.wow.modeling.annotation.MockAggregate
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -32,15 +27,15 @@ internal class MethodFunctionMetadataTest {
 
     @Test
     fun asHandlerMetadata() {
-        val metadata = MockAggregate::class.java.getDeclaredMethod(
+        val metadata = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
-            CreateAggregate::class.java,
+            MockCreateAggregate::class.java,
         ).asFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
             equalTo(
-                CreateAggregate::class.java,
+                MockCreateAggregate::class.java,
             ),
         )
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
@@ -57,7 +52,7 @@ internal class MethodFunctionMetadataTest {
     @Test
     fun asEventHandlerMetadata() {
         val metadata =
-            MockFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+            MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
@@ -68,22 +63,27 @@ internal class MethodFunctionMetadataTest {
     @Test
     fun asEventHandlerMetadataWithMultiAggregate() {
         val metadata =
-            MockWithMultiAggregateNameFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+            MockWithMultiAggregateNameFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
-        assertThat(metadata.supportedTopics, hasItem(MaterializedNamedAggregate("wow-core-test", "aggregate1")))
-        assertThat(metadata.supportedTopics, hasItem(MaterializedNamedAggregate("wow-core-test", "aggregate2")))
+        assertThat(
+            metadata.supportedTopics,
+            hasItems(
+                MaterializedNamedAggregate("wow-core-test", "aggregate1"),
+                MaterializedNamedAggregate("wow-core-test", "aggregate2")
+            )
+        )
     }
 
     @Test
     fun asHandlerMetadataWhenWrapped() {
         val metadata =
-            MockAggregate::class.java.getDeclaredMethod("onCommand", CommandMessage::class.java)
+            MockWithWrappedFunction::class.java.getDeclaredMethod("onEvent", DomainEvent::class.java)
                 .asFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
             equalTo(
-                ChangeAggregate::class.java,
+                MockEventBody::class.java,
             ),
         )
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
