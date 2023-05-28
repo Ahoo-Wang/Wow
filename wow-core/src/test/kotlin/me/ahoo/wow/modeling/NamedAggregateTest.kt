@@ -14,14 +14,13 @@
 package me.ahoo.wow.modeling
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.sameInstance
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-internal class NamedAggregateKtTest {
-    private val namedTypedAggregate = aggregateMetadata<MockAggregate, MockAggregate>()
+internal class NamedAggregateTest {
+    private val namedTypedAggregate = MOCK_AGGREGATE_METADATA
 
     @Test
     fun materialize() {

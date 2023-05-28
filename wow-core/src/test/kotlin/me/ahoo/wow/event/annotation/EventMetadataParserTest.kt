@@ -18,7 +18,7 @@ import me.ahoo.wow.event.MockNamedEmptyEvent
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.NAMED_EVENT
 import me.ahoo.wow.event.REVISED_EVENT
-import me.ahoo.wow.tck.event.MockEventForEventBus
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -26,12 +26,12 @@ import org.junit.jupiter.api.Test
 internal class EventMetadataParserTest {
     @Test
     fun parse() {
-        val eventMetadata = eventMetadata<MockEventForEventBus>()
+        val eventMetadata = eventMetadata<MockAggregateCreated>()
         assertThat(eventMetadata, notNullValue())
         assertThat(
             eventMetadata.eventType,
             equalTo(
-                MockEventForEventBus::class.java,
+                MockAggregateCreated::class.java,
             ),
         )
         assertThat(eventMetadata.revision, equalTo(DEFAULT_REVISION))

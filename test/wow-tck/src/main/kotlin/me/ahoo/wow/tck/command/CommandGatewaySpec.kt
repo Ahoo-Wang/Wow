@@ -33,6 +33,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.tck.messaging.MessageBusSpec
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -42,7 +43,14 @@ import java.time.Duration
 
 abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
     override val namedAggregate: NamedAggregate
-        get() = requiredNamedAggregate<MockCommandForCommandBus>()
+        get() = requiredNamedAggregate<MockCreateAggregate>()
+
+    override fun createMessage(): CommandMessage<*> {
+        return MockCreateAggregate(
+            id = GlobalIdGenerator.generateAsString(),
+            data = GlobalIdGenerator.generateAsString()
+        ).asCommandMessage()
+    }
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
@@ -51,9 +59,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     }
 
     protected abstract fun createCommandBus(): CommandBus
-    override fun createMessage(): CommandMessage<*> {
-        return MockCommandForCommandBus(GlobalIdGenerator.generateAsString()).asCommandMessage()
-    }
 
     override fun createMessageBus(): CommandGateway {
         return DefaultCommandGateway(

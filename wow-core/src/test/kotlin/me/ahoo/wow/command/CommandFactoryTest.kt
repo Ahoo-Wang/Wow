@@ -22,7 +22,7 @@ internal class CommandFactoryTest {
 
     @Test
     fun create() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
+        val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
         val commandMessage = command.asCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))

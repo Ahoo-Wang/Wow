@@ -5,21 +5,10 @@
         "me.ahoo.wow.tck"
       ],
       "aggregates": {
-        "wow_tck_aggregate": {
+        "mock_aggregate": {
+          "type": "me.ahoo.wow.tck.mock.MockCommandAggregate",
           "scopes": [
             "me.ahoo.wow.tck"
-          ]
-        },
-        "modeling_mock_aggregate": {
-          "type": "me.ahoo.wow.tck.modeling.MockAggregate",
-          "scopes": [
-            "me.ahoo.wow.tck.modeling"
-          ]
-        },
-        "modeling_command_mock_aggregate": {
-          "type": "me.ahoo.wow.tck.modeling.command.MockAggregate",
-          "scopes": [
-            "me.ahoo.wow.tck.modeling.command"
           ]
         }
       }

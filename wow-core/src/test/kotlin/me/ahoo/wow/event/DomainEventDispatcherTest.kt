@@ -14,12 +14,13 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.eventsourcing.Created
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -36,7 +37,7 @@ internal class DomainEventDispatcherTest {
         val sink = Sinks.empty<Void>()
         handlerRegistrar.register(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
             override val supportedType: Class<*>
-                get() = Created::class.java
+                get() = MockAggregateCreated::class.java
             override val processor: Any
                 get() = Any()
             override val supportedTopics: Set<Any>
@@ -61,7 +62,9 @@ internal class DomainEventDispatcherTest {
         domainEventProcessor.run()
         val aggregateId = namedAggregate.asAggregateId()
         val eventStream =
-            Created().asDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
+            MockAggregateCreated(
+                GlobalIdGenerator.generateAsString()
+            ).asDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
         domainEventBus.send(eventStream).block()
 
         sink.asMono().block(Duration.ofSeconds(1))

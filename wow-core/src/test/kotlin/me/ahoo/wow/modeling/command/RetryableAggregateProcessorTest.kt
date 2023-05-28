@@ -23,20 +23,19 @@ import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.ChangeAggregate
-import me.ahoo.wow.tck.modeling.CreateAggregate
-import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.instanceOf
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockChangeAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 internal class RetryableAggregateProcessorTest {
-    private val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+    private val aggregateMetadata = MOCK_AGGREGATE_METADATA
     private val serviceProvider: ServiceProvider = SimpleServiceProvider()
     private val eventStore = InMemoryEventStore()
     private val stateAggregateRepository =
@@ -57,7 +56,7 @@ internal class RetryableAggregateProcessorTest {
             stateAggregateRepository = stateAggregateRepository,
             commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
         )
-        val create = CreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
+        val create = MockCreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
             .asCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(create).setServiceProvider(serviceProvider),
@@ -75,7 +74,7 @@ internal class RetryableAggregateProcessorTest {
             }
             .verify()
 
-        val change = ChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val change = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(change).setServiceProvider(serviceProvider),
         )
@@ -83,12 +82,12 @@ internal class RetryableAggregateProcessorTest {
             .expectNextCount(1)
             .verifyComplete()
 
-        val change2 = ChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
-        val eventStream = AggregateChanged(change2.body.state)
+        val change2 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val eventStream = MockAggregateChanged(change2.body.data)
             .asDomainEventStream(change2, aggregateVersion = 2)
         eventStore.append(eventStream).block()
 
-        val change3 = ChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val change3 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(
                 change3,

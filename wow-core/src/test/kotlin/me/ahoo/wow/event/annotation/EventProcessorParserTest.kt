@@ -14,11 +14,10 @@
 
 package me.ahoo.wow.event.annotation
 
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasItems
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class EventProcessorParserTest {
@@ -30,12 +29,12 @@ internal class EventProcessorParserTest {
         assertThat(eventProcessorMetadata.processorType, equalTo(MockEventProcessor::class.java))
         assertThat(
             eventProcessorMetadata.functionRegistry.map { it.supportedType }.toSet(),
-            hasItems(AggregateCreated::class.java, AggregateChanged::class.java),
+            hasItems(MockAggregateCreated::class.java, MockAggregateChanged::class.java),
         )
     }
 }
 
 internal class MockEventProcessor {
-    fun onEvent(created: AggregateCreated) = Unit
-    fun onEvent(changed: AggregateChanged) = Unit
+    fun onEvent(created: MockAggregateCreated) = Unit
+    fun onEvent(changed: MockAggregateChanged) = Unit
 }

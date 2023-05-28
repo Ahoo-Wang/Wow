@@ -13,7 +13,7 @@
 package me.ahoo.wow.command.metadata
 
 import me.ahoo.wow.command.annotation.commandMetadata
-import me.ahoo.wow.tck.command.MockCommandForCommandBus
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 internal class CommandMetadataTest {
     @Test
     fun whenEquals() {
-        val commandMetadata = commandMetadata<MockCommandForCommandBus>()
+        val commandMetadata = commandMetadata<MockCreateAggregate>()
         assertThat(commandMetadata, equalTo(commandMetadata))
         assertThat(commandMetadata, not(Any()))
         val otherCommandMetadata = commandMetadata.copy()

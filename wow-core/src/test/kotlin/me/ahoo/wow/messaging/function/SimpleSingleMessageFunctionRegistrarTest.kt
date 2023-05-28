@@ -14,9 +14,8 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.event.DomainEventExchange
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleSingleMessageFunctionRegistrarTest {
@@ -24,7 +23,7 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
     @Test
     fun register() {
         val registrar = SimpleSingleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
-        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .asFunctionMetadata<Any, Any>()
             .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
@@ -35,7 +34,7 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
         actual = registrar.getFunction(handler.supportedType)
         assertThat(actual, equalTo(handler))
 
-        val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+        val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .asFunctionMetadata<Any, Any>()
             .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
@@ -48,7 +47,7 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
     fun unregister() {
         val registrar = SimpleSingleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
         val handler =
-            MockFunction::class.java.getDeclaredMethod("onEvent", Body::class.java)
+            MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
                 .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 

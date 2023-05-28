@@ -13,12 +13,12 @@
 package me.ahoo.wow.tck.event
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.eventsourcing.Changed
-import me.ahoo.wow.tck.eventsourcing.Created
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -29,9 +29,13 @@ import org.junit.jupiter.api.Test
  * @author ahoo wang
  */
 abstract class DomainEventStreamSpec {
-    protected val namedAggregate = DomainEventStreamSpec::class.java.asRequiredNamedAggregate()
+    protected val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
     private val testAggregateId = namedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
-    protected val testEvents: List<*> = listOf(Created(), Changed())
+    protected val testEvents: List<*> = listOf(
+        MockAggregateCreated(GlobalIdGenerator.generateAsString()),
+        MockAggregateChanged(GlobalIdGenerator.generateAsString())
+    )
+
     protected abstract fun createDomainEventStream(
         events: List<*>,
         aggregateId: AggregateId,

@@ -13,27 +13,25 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
-import me.ahoo.wow.tck.modeling.ChangeAggregateDependExternalService
-import me.ahoo.wow.tck.modeling.CreateAggregate
-import me.ahoo.wow.tck.modeling.ExternalService
-import me.ahoo.wow.tck.modeling.MockAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.instanceOf
-import org.hamcrest.Matchers.notNullValue
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class MethodMessageFunctionTest {
     @Test
     fun asMessageHandler() {
-        val handler = MockAggregate::class.java.getDeclaredMethod(
+        val handler = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
-            CreateAggregate::class.java,
-        ).asFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
-                MockAggregate(GlobalIdGenerator.generateAsString()),
+            MockCreateAggregate::class.java,
+        ).asFunctionMetadata<MockCommandAggregate, Any>()
+            .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, Any>(
+                MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString())))
             )
 
         assertThat(handler, notNullValue())
@@ -46,20 +44,20 @@ internal class MethodMessageFunctionTest {
         assertThat(
             handler.supportedType,
             equalTo(
-                CreateAggregate::class.java,
+                MockCreateAggregate::class.java,
             ),
         )
     }
 
     @Test
     fun asMessageHandlerWhenInjectable() {
-        val handler = MockAggregate::class.java.getDeclaredMethod(
-            "onCommand",
-            ChangeAggregateDependExternalService::class.java,
+        val handler = MockWithInjectableFunction::class.java.getDeclaredMethod(
+            "onEvent",
+            MockEventBody::class.java,
             ExternalService::class.java,
-        ).asFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
-                MockAggregate(GlobalIdGenerator.generateAsString()),
+        ).asFunctionMetadata<MockWithInjectableFunction, Any>()
+            .asMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
+                MockWithInjectableFunction()
             )
 
         assertThat(handler, notNullValue())
@@ -72,19 +70,19 @@ internal class MethodMessageFunctionTest {
         assertThat(
             handler.supportedType,
             equalTo(
-                ChangeAggregateDependExternalService::class.java,
+                MockEventBody::class.java,
             ),
         )
     }
 
     @Test
     fun asMonoMessageHandler() {
-        val handler = MockAggregate::class.java.getDeclaredMethod(
-            "onCommand",
-            CreateAggregate::class.java,
-        ).asMonoFunctionMetadata<MockAggregate, Any>()
-            .asMessageFunction<MockAggregate, ServerCommandExchange<*>, Any>(
-                MockAggregate(GlobalIdGenerator.generateAsString()),
+        val handler = MockFunction::class.java.getDeclaredMethod(
+            "onEvent",
+            MockEventBody::class.java,
+        ).asMonoFunctionMetadata<MockFunction, Any>()
+            .asMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
+                MockFunction(),
             )
 
         assertThat(handler, notNullValue())
@@ -97,7 +95,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             handler.supportedType,
             equalTo(
-                CreateAggregate::class.java,
+                MockEventBody::class.java,
             ),
         )
         assertThat(

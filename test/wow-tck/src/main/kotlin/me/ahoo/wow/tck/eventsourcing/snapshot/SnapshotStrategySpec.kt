@@ -18,20 +18,19 @@ import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 abstract class SnapshotStrategySpec {
 
-    protected val aggregateMetadata =
-        aggregateMetadata<MockAggregate, MockAggregate>()
+    protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     val eventStore: EventStore
     private val snapshotStrategy: SnapshotStrategy
@@ -50,15 +49,16 @@ abstract class SnapshotStrategySpec {
     @Test
     fun onEvent() {
         val aggregateId = aggregateMetadata.asAggregateId()
-        val createdEventStream = AggregateCreated("")
-            .asDomainEventStream(GivenInitializationCommand(aggregateId), 0)
+        val createdEventStream =
+            MockAggregateCreated(GlobalIdGenerator.generateAsString())
+                .asDomainEventStream(GivenInitializationCommand(aggregateId), 0)
         eventStore.append(createdEventStream).block()
         val createdEventStreamExchange = SimpleEventStreamExchange(createdEventStream)
         snapshotStrategy.onEvent(createdEventStreamExchange)
             .test()
             .verifyComplete()
 
-        val changedEventStream = AggregateChanged("")
+        val changedEventStream = MockAggregateChanged(GlobalIdGenerator.generateAsString())
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 1)
         val changedEventStreamExchange = SimpleEventStreamExchange(changedEventStream)
         eventStore.append(changedEventStream).block()
@@ -70,11 +70,11 @@ abstract class SnapshotStrategySpec {
             .test()
             .verifyComplete()
 
-        val changedEventStream2 = AggregateChanged("")
+        val changedEventStream2 = MockAggregateChanged(GlobalIdGenerator.generateAsString())
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 2)
         eventStore.append(changedEventStream2).block()
 
-        val changedEventStream3 = AggregateChanged("")
+        val changedEventStream3 = MockAggregateChanged(GlobalIdGenerator.generateAsString())
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 3)
         val changedEventStreamExchange3 = SimpleEventStreamExchange(changedEventStream3)
         eventStore.append(changedEventStream3).block()

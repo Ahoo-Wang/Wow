@@ -14,11 +14,10 @@
 package me.ahoo.wow.projection
 
 import me.ahoo.wow.configuration.asNamedAggregate
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.hasItem
-import org.hamcrest.Matchers.hasSize
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ProjectionProcessorRegistrarTest {
@@ -26,31 +25,31 @@ internal class ProjectionProcessorRegistrarTest {
     @Test
     fun registerProjectionProcessor() {
         val handlerRegistrar = ProjectionFunctionRegistrar()
-        val namedAggregate = AggregateCreated::class.java.asNamedAggregate()
+        val namedAggregate = MockAggregateCreated::class.java.asNamedAggregate()
         val mockProjector = MockProjector()
         handlerRegistrar.registerProcessor(mockProjector)
         assertThat(handlerRegistrar.namedAggregates, hasSize(1))
         assertThat(handlerRegistrar.namedAggregates, hasItem(namedAggregate))
 
         assertThat(
-            handlerRegistrar.getFunctions(AggregateCreated::class.java),
+            handlerRegistrar.getFunctions(MockAggregateCreated::class.java),
             hasSize(1),
         )
         assertThat(
-            handlerRegistrar.getFunctions(AggregateChanged::class.java),
+            handlerRegistrar.getFunctions(MockAggregateChanged::class.java),
             hasSize(1),
         )
     }
 }
 
 internal class MockProjector {
-    lateinit var state: String
+    lateinit var data: String
 
-    fun onEvent(created: AggregateCreated) {
-        state = created.state
+    fun onEvent(created: MockAggregateCreated) {
+        data = created.data
     }
 
-    fun onEvent(changed: AggregateChanged) {
-        state = changed.state
+    fun onEvent(changed: MockAggregateChanged) {
+        data = changed.data
     }
 }

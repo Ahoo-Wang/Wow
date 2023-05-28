@@ -49,7 +49,7 @@ internal class CommandMetadataParserTest {
     @Test
     fun parseWithAllowCreate() {
         val metadata = commandMetadata<MockCommandWithAllowCreate>()
-        assertThat(metadata.isCreate, equalTo(true))
+        assertThat(metadata.allowCreate, equalTo(true))
         assertThat(metadata.aggregateIdGetter, notNullValue())
     }
 

@@ -18,25 +18,23 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
 
 abstract class SnapshotRepositorySpec {
 
-    protected val aggregateMetadata =
-        aggregateMetadata<MockAggregate, MockAggregate>()
+    protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
 
@@ -53,21 +51,21 @@ abstract class SnapshotRepositorySpec {
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
-        val aggregateCreated = AggregateCreated(GlobalIdGenerator.generateAsString())
-        val changed = AggregateChanged(GlobalIdGenerator.generateAsString())
+        val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
+        val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
         val eventStream = listOf(aggregateCreated, changed).asDomainEventStream(
             command = command,
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(eventStream)
-        val snapshot: SimpleSnapshot<MockAggregate> =
+        val snapshot: SimpleSnapshot<MockStateAggregate> =
             SimpleSnapshot(delegate = stateAggregate, snapshotTime = Clock.systemUTC().millis())
 
         snapshotRepository.save(snapshot)
             .test()
             .verifyComplete()
 
-        snapshotRepository.load<MockAggregate>(stateAggregate.aggregateId)
+        snapshotRepository.load<MockStateAggregate>(stateAggregate.aggregateId)
             .test()
             .consumeNextWith {
                 assertThat(
@@ -79,8 +77,8 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.version),
                 )
                 assertThat(
-                    it.stateRoot.state(),
-                    equalTo(stateAggregate.stateRoot.state()),
+                    it.stateRoot.data,
+                    equalTo(stateAggregate.stateRoot.data),
                 )
             }
             .verifyComplete()
@@ -91,7 +89,7 @@ abstract class SnapshotRepositorySpec {
         val snapshotRepository = createSnapshotRepository().metrizable()
 
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
-        snapshotRepository.load<MockAggregate>(aggregateId)
+        snapshotRepository.load<MockStateAggregate>(aggregateId)
             .test()
             .expectNextCount(0)
             .verifyComplete()
@@ -102,7 +100,7 @@ abstract class SnapshotRepositorySpec {
         val snapshotRepository = createSnapshotRepository().metrizable()
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
-        val snapshot: Snapshot<MockAggregate> =
+        val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)
             .test()
@@ -120,14 +118,14 @@ abstract class SnapshotRepositorySpec {
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
-        val aggregateCreated = AggregateCreated(GlobalIdGenerator.generateAsString())
-        val changed = AggregateChanged(GlobalIdGenerator.generateAsString())
+        val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
+        val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
         val eventStream = listOf(aggregateCreated, changed).asDomainEventStream(
             command = command,
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(eventStream)
-        val snapshot: SimpleSnapshot<MockAggregate> =
+        val snapshot: SimpleSnapshot<MockStateAggregate> =
             SimpleSnapshot(delegate = stateAggregate, snapshotTime = Clock.systemUTC().millis())
 
         snapshotRepository.save(snapshot)
@@ -144,7 +142,7 @@ abstract class SnapshotRepositorySpec {
             .test()
             .verifyComplete()
 
-        snapshotRepository.load<MockAggregate>(stateAggregate.aggregateId)
+        snapshotRepository.load<MockStateAggregate>(stateAggregate.aggregateId)
             .test()
             .consumeNextWith {
                 assertThat(
@@ -156,8 +154,8 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.version),
                 )
                 assertThat(
-                    it.stateRoot.state(),
-                    equalTo(stateAggregate.stateRoot.state()),
+                    it.stateRoot.data,
+                    equalTo(stateAggregate.stateRoot.data),
                 )
             }
             .verifyComplete()
@@ -168,7 +166,7 @@ abstract class SnapshotRepositorySpec {
         val snapshotRepository = createSnapshotRepository().metrizable()
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
-        val snapshot: Snapshot<MockAggregate> =
+        val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)
             .test()

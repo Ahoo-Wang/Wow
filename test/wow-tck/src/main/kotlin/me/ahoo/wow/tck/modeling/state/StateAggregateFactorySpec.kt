@@ -17,24 +17,24 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 abstract class StateAggregateFactorySpec {
-    private val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+    private val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
     protected abstract fun createStateAggregateFactory(): StateAggregateFactory
 
     @Test
     fun create() {
         val aggregateFactory = createStateAggregateFactory()
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.asAggregateId(id = GlobalIdGenerator.generateAsString())
         aggregateFactory.create(aggregateMetadata.state, aggregateId)
             .test()
-            .consumeNextWith { stateAggregate: StateAggregate<MockAggregate> ->
+            .consumeNextWith { stateAggregate: StateAggregate<MockStateAggregate> ->
                 MatcherAssert.assertThat(stateAggregate, notNullValue())
                 MatcherAssert.assertThat(stateAggregate.aggregateId.id, equalTo(aggregateId.id))
             }

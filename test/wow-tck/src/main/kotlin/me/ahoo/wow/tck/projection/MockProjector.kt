@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.tck.projection
 
-import me.ahoo.wow.tck.modeling.AggregateChanged
-import me.ahoo.wow.tck.modeling.AggregateCreated
+import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.slf4j.LoggerFactory
 
 class MockProjector {
@@ -22,11 +22,11 @@ class MockProjector {
         private val log = LoggerFactory.getLogger(MockProjector::class.java)
     }
 
-    fun onEvent(created: AggregateCreated) {
+    fun onEvent(created: MockAggregateCreated) {
         log.info(created.toString())
     }
 
-    fun onEvent(changed: AggregateChanged) {
+    fun onEvent(changed: MockAggregateChanged) {
         log.info(changed.toString())
     }
 }

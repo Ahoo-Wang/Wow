@@ -24,15 +24,14 @@ import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDo
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.tck.command.MockCommandForCommandBus
 import me.ahoo.wow.tck.event.MockDomainEventStreams
-import me.ahoo.wow.tck.event.MockEventForEventBus
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -43,7 +42,7 @@ internal class JsonSerializerTest {
     @Test
     fun command() {
         val command =
-            MockCommandForCommandBus(GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
                 .asCommandMessage(tenantId = GlobalIdGenerator.generateAsString())
         val output = command.asJsonString()
         assertThat(output, notNullValue())
@@ -53,11 +52,10 @@ internal class JsonSerializerTest {
 
     @Test
     fun eventStream() {
-        val namedAggregateForSend = requiredNamedAggregate<MockEventForEventBus>()
+        val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregateForSend.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
+            aggregateId = namedAggregate.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
             eventCount = 1,
-            createdEventSupplier = { MockEventForEventBus(GlobalIdGenerator.generateAsString()) },
         )
 
         val output = eventStream.asJsonString()
@@ -68,11 +66,11 @@ internal class JsonSerializerTest {
 
     @Test
     fun domainEvent() {
-        val namedAggregateForSend = requiredNamedAggregate<MockEventForEventBus>()
+        val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
         val domainEvent = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregateForSend.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
+            aggregateId = namedAggregate.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
             eventCount = 1,
-            createdEventSupplier = { MockEventForEventBus(GlobalIdGenerator.generateAsString()) },
+            createdEventSupplier = { MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
         ).first()
 
         val output = domainEvent.asJsonString()
@@ -83,10 +81,10 @@ internal class JsonSerializerTest {
 
     @Test
     fun asDomainEventWhenNotFoundClass() {
-        val namedAggregateForSend = requiredNamedAggregate<MockEventForEventBus>()
-        val mockEvent = MockEventForEventBus(GlobalIdGenerator.generateAsString())
+        val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
+        val mockEvent = MockAggregateCreated(GlobalIdGenerator.generateAsString())
             .asDomainEvent(
-                aggregateId = namedAggregateForSend.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
+                aggregateId = namedAggregate.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
                 commandId = GlobalIdGenerator.generateAsString(),
             )
         val mockEventJson = mockEvent.asJsonString()
@@ -97,26 +95,26 @@ internal class JsonSerializerTest {
         assertThat(mockEvent.id, equalTo(failedDomainEvent.id))
         assertThat(failedDomainEvent.aggregateId, equalTo(failedDomainEvent.aggregateId))
         assertThat(failedDomainEvent.revision, equalTo(failedDomainEvent.revision))
-        assertThat(failedDomainEvent, Matchers.instanceOf(BodyTypeNotFoundDomainEvent::class.java))
+        assertThat(failedDomainEvent, instanceOf(BodyTypeNotFoundDomainEvent::class.java))
 
         val failedDomainEventJson = failedDomainEvent.asJsonString()
         val failedDomainEventRecord =
             failedDomainEventJson.asJsonNode<ObjectNode>().asDomainEventRecord().asMutableDomainEventRecord()
-        failedDomainEventRecord.bodyType = MockEventForEventBus::class.java.name
+        failedDomainEventRecord.bodyType = MockAggregateCreated::class.java.name
         val mockEvent2 = failedDomainEventRecord.asDomainEvent()
         assertThat(mockEvent2, equalTo(mockEvent))
     }
 
     @Test
     fun snapshot() {
-        val aggregateMetadata = aggregateMetadata<MockAggregate, MockAggregate>()
+        val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val aggregateId =
             aggregateMetadata.asAggregateId(
                 GlobalIdGenerator.generateAsString(),
                 tenantId = GlobalIdGenerator.generateAsString(),
             )
         val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
-        val snapshot: Snapshot<MockAggregate> =
+        val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         val output = snapshot.asJsonString()
         assertThat(output, notNullValue())

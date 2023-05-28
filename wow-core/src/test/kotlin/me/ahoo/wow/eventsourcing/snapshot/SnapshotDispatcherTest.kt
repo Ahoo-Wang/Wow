@@ -19,13 +19,14 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.tck.modeling.AggregateCreated
-import me.ahoo.wow.tck.modeling.MockAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -34,8 +35,7 @@ import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 
 internal class SnapshotDispatcherTest {
-    protected val aggregateMetadata =
-        aggregateMetadata<MockAggregate, MockAggregate>()
+    protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
     fun start() {
@@ -89,12 +89,12 @@ internal class SnapshotDispatcherTest {
             )
         snapshotDispatcher.run()
         val aggregateId = aggregateMetadata.asAggregateId()
-        val createdEventStream = AggregateCreated("")
+        val createdEventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 0)
         eventStore.append(createdEventStream).block()
         domainEventBus.send(createdEventStream).block()
         waitForAppend.asMono().block()
-        snapshotRepository.load<MockAggregate>(aggregateId)
+        snapshotRepository.load<MockStateAggregate>(aggregateId)
             .test()
             .expectNextCount(1)
             .verifyComplete()

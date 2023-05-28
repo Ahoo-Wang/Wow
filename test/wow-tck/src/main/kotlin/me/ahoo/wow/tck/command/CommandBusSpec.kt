@@ -20,15 +20,19 @@ import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.messaging.MessageBusSpec
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 
 /**
  * Command Bus Implementation Specification.
  */
 abstract class CommandBusSpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandBus>() {
     override val namedAggregate: NamedAggregate
-        get() = requiredNamedAggregate<MockCommandForCommandBus>()
+        get() = requiredNamedAggregate<MockCreateAggregate>()
 
     override fun createMessage(): CommandMessage<*> {
-        return MockCommandForCommandBus(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        return MockCreateAggregate(
+            id = GlobalIdGenerator.generateAsString(),
+            data = GlobalIdGenerator.generateAsString()
+        ).asCommandMessage()
     }
 }

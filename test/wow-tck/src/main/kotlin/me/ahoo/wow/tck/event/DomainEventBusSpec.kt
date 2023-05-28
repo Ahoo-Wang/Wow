@@ -21,17 +21,18 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.tck.messaging.MessageBusSpec
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 
 abstract class DomainEventBusSpec : MessageBusSpec<DomainEventStream, EventStreamExchange, DomainEventBus>() {
 
     override val namedAggregate: NamedAggregate
-        get() = requiredNamedAggregate<MockEventForEventBus>()
+        get() = requiredNamedAggregate<MockAggregateCreated>()
 
     override fun createMessage(): DomainEventStream {
         return MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.asAggregateId(GlobalIdGenerator.generateAsString()),
             eventCount = 1,
-            createdEventSupplier = { MockEventForEventBus(GlobalIdGenerator.generateAsString()) },
+            createdEventSupplier = { MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
         )
     }
 }
