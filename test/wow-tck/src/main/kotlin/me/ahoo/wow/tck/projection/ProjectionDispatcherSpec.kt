@@ -54,7 +54,7 @@ abstract class ProjectionDispatcherSpec {
             .build()
         val projectionDispatcher =
             ProjectionDispatcher(
-                name = "test-spec.ProjectionDispatcher",
+                name = "wow-tck.ProjectionDispatcher",
                 domainEventBus = domainEventBus,
                 functionRegistrar = handlerRegistrar,
                 eventHandler = DefaultProjectionHandler(chain).metrizable(),

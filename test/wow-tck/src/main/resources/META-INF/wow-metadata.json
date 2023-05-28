@@ -1,6 +1,6 @@
 {
   "contexts": {
-    "wow-test-tck": {
+    "wow-tck": {
       "scopes": [
         "me.ahoo.wow.tck"
       ],

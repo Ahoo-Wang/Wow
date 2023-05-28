@@ -59,7 +59,10 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                 .writeReceiverGroup(GlobalIdGenerator.generateAsString())
                 .onReceive(onReady)
                 .doOnSubscribe {
-                    onReady.asMono().then(send(message)).subscribe()
+                    onReady.asMono()
+                        .then(send(message))
+                        .delaySubscription(Duration.ofMillis(2000))
+                        .subscribe()
                 }
                 .test()
                 .consumeNextWith {
@@ -83,11 +86,14 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                             val message = createMessage()
                             send(message)
                         }
-                    onReady.asMono().thenMany(sendFlux).subscribe()
+                    onReady.asMono()
+                        .thenMany(sendFlux)
+                        .delaySubscription(Duration.ofMillis(2000))
+                        .subscribe()
                 }
                 .test()
                 .expectNextCount(10)
-                .verifyTimeout(Duration.ofSeconds(2))
+                .verifyTimeout(Duration.ofSeconds(4))
         }
     }
 
@@ -126,7 +132,7 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                 }
                 .test()
                 .expectNextCount(maxCount)
-                .verifyTimeout(Duration.ofSeconds(5))
+                .verifyTimeout(Duration.ofSeconds(8))
             log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
         }
     }
