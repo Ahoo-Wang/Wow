@@ -21,7 +21,7 @@ dependencies {
     constraints {
         api("com.google.devtools.ksp:symbol-processing-api:1.8.21-1.0.11")
         api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
-        api("com.google.guava:guava:31.1-jre")
+        api("com.google.guava:guava:32.0.0-jre")
         api("io.opentelemetry:opentelemetry-semconv:1.22.0-alpha")
         api("org.springdoc:springdoc-openapi-kotlin:1.7.0")
         api("org.springdoc:springdoc-openapi-webflux-core:1.7.0")
