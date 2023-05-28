@@ -41,7 +41,7 @@ create table aggregate_snapshot
 # ----- schema template -----
 
 # Test
-create table modeling_mock_aggregate_event_stream_0
+create table mock_aggregate_event_stream_0
 (
     id           char(15)        not null comment 'event stream id' primary key,
     aggregate_id char(15)        not null,
@@ -61,7 +61,7 @@ create table modeling_mock_aggregate_event_stream_0
 )
     collate = utf8mb4_bin;
 
-create table modeling_mock_aggregate_event_stream_1
+create table mock_aggregate_event_stream_1
 (
     id           char(15)        not null comment 'event stream id' primary key,
     aggregate_id char(15)        not null,
@@ -81,7 +81,7 @@ create table modeling_mock_aggregate_event_stream_1
 )
     collate = utf8mb4_bin;
 
-create table modeling_mock_aggregate_event_stream_2
+create table mock_aggregate_event_stream_2
 (
     id           char(15)        not null comment 'event stream id' primary key,
     aggregate_id char(15)        not null,
@@ -101,7 +101,7 @@ create table modeling_mock_aggregate_event_stream_2
 )
     collate = utf8mb4_bin;
 
-create table modeling_mock_aggregate_event_stream_3
+create table mock_aggregate_event_stream_3
 (
     id           char(15)        not null comment 'event stream id' primary key,
     aggregate_id char(15)        not null,
@@ -121,7 +121,7 @@ create table modeling_mock_aggregate_event_stream_3
 )
     collate = utf8mb4_bin;
 
-create table modeling_mock_aggregate_snapshot
+create table mock_aggregate_snapshot
 (
     aggregate_id char(15)        not null primary key,
     tenant_id    char(15)        not null,
