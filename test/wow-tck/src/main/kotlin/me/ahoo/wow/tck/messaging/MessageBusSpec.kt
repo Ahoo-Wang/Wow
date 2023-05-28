@@ -22,7 +22,6 @@ import me.ahoo.wow.metrics.Metrics.metrizable
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -116,7 +115,6 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
             }.then()
     }
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = ".*")
     @Test
     fun receivePerformance() {
         verify {
@@ -134,7 +132,7 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                 }
                 .test()
                 .expectNextCount(maxCount)
-                .verifyTimeout(Duration.ofSeconds(8))
+                .verifyTimeout(Duration.ofSeconds(12))
             log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
         }
     }
