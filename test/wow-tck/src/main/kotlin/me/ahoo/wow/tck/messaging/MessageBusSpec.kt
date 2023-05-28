@@ -121,7 +121,7 @@ abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : M
                     val sendFlux = sendLoop(messageBus = this, maxCount = maxCount.toInt())
                     onReady.asMono()
                         .thenMany(sendFlux)
-                        .delaySubscription(Duration.ofMillis(1000))
+                        .delaySubscription(Duration.ofMillis(2000))
                         .subscribe()
                 }
                 .test()
