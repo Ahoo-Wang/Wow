@@ -52,6 +52,18 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
      * 状态聚合是否已删除
      */
     val deleted: Boolean
+    //region DomainEventStream State
+    /**
+     * 最近一次领域事件的Id
+     */
+    val lastEventId: String
+    val firstEventTime: Long
+
+    /**
+     * 最近一次领域事件的时间
+     */
+    val lastEventTime: Long
+    //endregion
 
     /**
      * 当聚合未找到匹配的 `onSourcing` 方法时，不会认为产生的故障，忽略该事件，但更新聚合版本号为该领域事件的版本号.
@@ -65,10 +77,21 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
         fun <S : Any> AggregateMetadata<*, S>.asStateAggregate(
             stateRoot: S,
             version: Int,
+            lastEventId: String = "",
+            firstEventTime: Long = 0,
+            lastEventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
             val aggregateId = asAggregateId(state.aggregateIdAccessor[stateRoot])
-            return state.asStateAggregate(aggregateId, stateRoot, version, deleted)
+            return state.asStateAggregate(
+                aggregateId = aggregateId,
+                stateRoot = stateRoot,
+                version = version,
+                lastEventId = lastEventId,
+                firstEventTime = firstEventTime,
+                lastEventTime = lastEventTime,
+                deleted = deleted
+            )
         }
 
         @JvmStatic
@@ -76,9 +99,21 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
             aggregateId: AggregateId,
             stateRoot: S,
             version: Int,
+            lastEventId: String = "",
+            firstEventTime: Long = 0,
+            lastEventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
-            return SimpleStateAggregate(aggregateId, this, version, stateRoot, deleted)
+            return SimpleStateAggregate(
+                aggregateId = aggregateId,
+                metadata = this,
+                stateRoot = stateRoot,
+                version = version,
+                lastEventId = lastEventId,
+                firstEventTime = firstEventTime,
+                lastEventTime = lastEventTime,
+                deleted = deleted
+            )
         }
     }
 }
