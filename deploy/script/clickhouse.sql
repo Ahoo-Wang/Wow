@@ -76,9 +76,9 @@ CREATE TABLE bi_db.order_order_snapshot_local on cluster '{cluster}'
     tenantId       String,
     version        UInt32,
     state          String,
-    lastEventId    String,
+    eventId        String,
     firstEventTime DateTime('Asia/Shanghai'),
-    lastEventTime  DateTime('Asia/Shanghai'),
+    eventTime      DateTime('Asia/Shanghai'),
     snapshotTime   DateTime('Asia/Shanghai'),
     deleted        Bool
 ) ENGINE = ReplicatedReplacingMergeTree(
@@ -108,9 +108,9 @@ SELECT JSONExtractString(data, 'contextName')                                   
        JSONExtractString(data, 'tenantId')                                                AS tenantId,
        JSONExtractUInt(data, 'version')                                                   AS version,
        JSONExtractString(data, 'state')                                                   AS state,
-       JSONExtractString(data, 'lastEventId')                                             AS lastEventId,
+       JSONExtractString(data, 'eventId')                                                 AS eventId,
        toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS firstEventTime,
-       toDateTime64(JSONExtractUInt(data, 'lastEventTime') / 1000.0, 3, 'Asia/Shanghai')  AS lastEventTime,
+       toDateTime64(JSONExtractUInt(data, 'eventTime') / 1000.0, 3, 'Asia/Shanghai')      AS eventTime,
        toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai')   AS snapshotTime,
        JSONExtractBool(data, 'deleted')                                                   AS deleted
 FROM bi_db_consumer.order_order_snapshot_queue

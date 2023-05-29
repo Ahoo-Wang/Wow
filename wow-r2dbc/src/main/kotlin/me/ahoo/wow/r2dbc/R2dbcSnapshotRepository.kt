@@ -87,9 +87,9 @@ class R2dbcSnapshotRepository(
                 aggregateId = aggregateId,
                 stateRoot = stateRoot,
                 version = actualVersion,
-                lastEventId = lastEventId,
+                eventId = lastEventId,
                 firstEventTime = firstEventTime,
-                lastEventTime = lastEventTime,
+                eventTime = lastEventTime,
                 deleted = deleted
             ),
             snapshotTime = snapshotTime,
@@ -106,9 +106,9 @@ class R2dbcSnapshotRepository(
                     .bind(2, snapshot.version)
                     .bind(3, snapshot.stateRoot.javaClass.name)
                     .bind(4, snapshot.stateRoot.asJsonString())
-                    .bind(5, snapshot.lastEventId)
+                    .bind(5, snapshot.eventId)
                     .bind(6, snapshot.firstEventTime)
-                    .bind(7, snapshot.lastEventTime)
+                    .bind(7, snapshot.eventTime)
                     .bind(8, snapshot.snapshotTime)
                     .bind(9, snapshot.deleted)
                     .execute()

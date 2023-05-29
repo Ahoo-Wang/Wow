@@ -28,9 +28,9 @@ class SimpleStateAggregate<S : Any>(
     val metadata: StateAggregateMetadata<S>,
     override val stateRoot: S,
     override var version: Int = Version.UNINITIALIZED_VERSION,
-    override var lastEventId: String = "",
+    override var eventId: String = "",
     override var firstEventTime: Long = 0,
-    override var lastEventTime: Long = 0,
+    override var eventTime: Long = 0,
     override var deleted: Boolean = false
 ) :
     StateAggregate<S>,
@@ -62,11 +62,11 @@ class SimpleStateAggregate<S : Any>(
             sourcing(domainEvent)
         }
         version = eventStream.version
-        lastEventId = eventStream.id
+        eventId = eventStream.id
+        eventTime = eventStream.createTime
         if (isInitialVersion) {
             firstEventTime = eventStream.createTime
         }
-        lastEventTime = eventStream.createTime
         return this
     }
 
