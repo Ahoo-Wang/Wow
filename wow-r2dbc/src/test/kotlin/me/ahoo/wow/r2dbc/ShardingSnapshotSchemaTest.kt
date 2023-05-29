@@ -17,8 +17,8 @@ import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.sharding.CosIdAggregateIdSharding
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ShardingSnapshotSchemaTest {
@@ -53,9 +53,9 @@ internal class ShardingSnapshotSchemaTest {
             equalTo(
                 """
      replace into test_snapshot_3
-     (aggregate_id,tenant_id,version,state_type,state,create_time,deleted)
+     (aggregate_id,tenant_id,version,state_type,state,last_event_id,last_event_time,snapshot_time,deleted)
      values 
-     (?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?)
      """.trim(),
             ),
         )
