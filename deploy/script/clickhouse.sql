@@ -99,13 +99,16 @@ CREATE MATERIALIZED VIEW bi_db_consumer.order_order_snapshot_consumer
             on cluster '{cluster}'
             TO bi_db.order_order_snapshot
 AS
-SELECT JSONExtractString(data, 'contextName')                                           AS contextName,
-       JSONExtractString(data, 'aggregateName')                                         AS aggregateName,
-       JSONExtractString(data, 'aggregateId')                                           AS aggregateId,
-       JSONExtractString(data, 'tenantId')                                              AS tenantId,
-       JSONExtractUInt(data, 'version')                                                 AS version,
-       JSONExtractString(data, 'state')                                                 AS state,
-       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai') AS snapshotTime,
-       JSONExtractBool(data, 'deleted')                                                 AS deleted
+SELECT JSONExtractString(data, 'contextName')                                            AS contextName,
+       JSONExtractString(data, 'aggregateName')                                          AS aggregateName,
+       JSONExtractString(data, 'aggregateId')                                            AS aggregateId,
+       JSONExtractString(data, 'tenantId')                                               AS tenantId,
+       JSONExtractUInt(data, 'version')                                                  AS version,
+       JSONExtractString(data, 'state')                                                  AS state,
+       JSONExtractString(data, 'lastEventId')                                            AS lastEventId,
+       toDateTime64(JSONExtractUInt(data, 'lastEventTime') / 1000.0, 3, 'Asia/Shanghai') AS lastEventTime,
+       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai')  AS snapshotTime,
+       JSONExtractBool(data, 'deleted')                                                  AS deleted
 FROM bi_db_consumer.order_order_snapshot_queue
 ;
+
