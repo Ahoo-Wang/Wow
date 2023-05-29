@@ -105,10 +105,8 @@ SELECT JSONExtractString(data, 'contextName')                                   
        JSONExtractString(data, 'aggregateId')                                           AS aggregateId,
        JSONExtractString(data, 'tenantId')                                              AS tenantId,
        JSONExtractUInt(data, 'version')                                                 AS version,
-       JSONExtractString(data, 'state')                                                 AS body,
-       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai') AS createTime,
+       JSONExtractString(data, 'state')                                                 AS state,
+       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai') AS snapshotTime,
        JSONExtractBool(data, 'deleted')                                                 AS deleted
 FROM bi_db_consumer.order_order_snapshot_queue
 ;
-
-select JSONExtractBool('{"deleted": false}', 'deleted')
