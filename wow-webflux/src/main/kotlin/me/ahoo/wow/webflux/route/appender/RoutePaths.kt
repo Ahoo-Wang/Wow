@@ -21,6 +21,6 @@ object RoutePaths {
     const val COMPENSATE_HEAD_VERSION_KEY = "headVersion"
     const val COMPENSATE_TAIL_VERSION_KEY = "tailVersion"
 
-    const val BATCH_REGENERATE_SNAPSHOT_CURSOR_ID = "cursorId"
-    const val BATCH_REGENERATE_SNAPSHOT_LIMIT = "limit"
+    const val BATCH_CURSOR_ID = "cursorId"
+    const val BATCH_LIMIT = "limit"
 }

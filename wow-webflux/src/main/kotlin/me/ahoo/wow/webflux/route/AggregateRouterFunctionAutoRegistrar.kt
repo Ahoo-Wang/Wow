@@ -19,6 +19,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -30,6 +31,7 @@ import me.ahoo.wow.webflux.route.appender.DeleteAggregateRouteAppender
 import me.ahoo.wow.webflux.route.appender.EventCompensateRouteAppender
 import me.ahoo.wow.webflux.route.appender.LoadAggregateRouteAppender
 import me.ahoo.wow.webflux.route.appender.RegenerateSnapshotRouteAppender
+import me.ahoo.wow.webflux.route.appender.SnapshotSinkRouteAppender
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -44,6 +46,7 @@ class AggregateRouterFunctionAutoRegistrar(
     private val snapshotRepository: SnapshotRepository,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
+    private val snapshotSink: SnapshotSink,
     private val eventCompensator: EventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) {
@@ -84,6 +87,16 @@ class AggregateRouterFunctionAutoRegistrar(
                 snapshotRepository = snapshotRepository,
                 stateAggregateFactory = stateAggregateFactory,
                 eventStore = eventStore,
+                exceptionHandler = exceptionHandler,
+            ).append()
+            SnapshotSinkRouteAppender(
+                currentContext = currentContext,
+                aggregateMetadata = aggregateMetadata,
+                routerFunctionBuilder = routerFunctionBuilder,
+                snapshotRepository = snapshotRepository,
+                stateAggregateFactory = stateAggregateFactory,
+                eventStore = eventStore,
+                snapshotSink = snapshotSink,
                 exceptionHandler = exceptionHandler,
             ).append()
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
