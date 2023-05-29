@@ -73,14 +73,23 @@ class R2dbcSnapshotRepository(
         expectedVersion?.let {
             check(actualVersion == expectedVersion)
         }
-        val snapshotTime = checkNotNull(readable.get("create_time", Long::class.java))
+        val lastEventId = readable.get("last_event_id", String::class.java).orEmpty()
+        val lastEventTime = readable.get("snapshot_time", Long::class.java) ?: 0L
+        val snapshotTime = checkNotNull(readable.get("snapshot_time", Long::class.java))
         val metadata = checkNotNull(readable.get("state_type", String::class.java)).asType<S>()
             .asStateAggregateMetadata()
         val state = checkNotNull(readable.get("state", String::class.java))
         val stateRoot = state.asObject(metadata.aggregateType)
         val deleted = checkNotNull(readable.get("deleted", Boolean::class.java))
         return SimpleSnapshot(
-            delegate = metadata.asStateAggregate(aggregateId, stateRoot, actualVersion, deleted),
+            delegate = metadata.asStateAggregate(
+                aggregateId,
+                stateRoot,
+                actualVersion,
+                lastEventId,
+                lastEventTime,
+                deleted
+            ),
             snapshotTime = snapshotTime,
         )
     }
@@ -95,8 +104,10 @@ class R2dbcSnapshotRepository(
                     .bind(2, snapshot.version)
                     .bind(3, snapshot.stateRoot.javaClass.name)
                     .bind(4, snapshot.stateRoot.asJsonString())
-                    .bind(5, snapshot.snapshotTime)
-                    .bind(6, snapshot.deleted)
+                    .bind(5, snapshot.lastEventId)
+                    .bind(6, snapshot.lastEventTime)
+                    .bind(7, snapshot.snapshotTime)
+                    .bind(8, snapshot.deleted)
                     .execute()
             },
             Connection::close,

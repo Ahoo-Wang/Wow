@@ -26,8 +26,10 @@ import org.slf4j.LoggerFactory
 class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     val metadata: StateAggregateMetadata<S>,
-    override var version: Int = Version.UNINITIALIZED_VERSION,
     override val stateRoot: S,
+    override var version: Int = Version.UNINITIALIZED_VERSION,
+    override var lastEventId: String = "",
+    override var lastEventTime: Long = 0,
     override var deleted: Boolean = false
 ) :
     StateAggregate<S>,
@@ -59,6 +61,8 @@ class SimpleStateAggregate<S : Any>(
             sourcing(domainEvent)
         }
         version = eventStream.version
+        lastEventId = eventStream.id
+        lastEventTime = eventStream.createTime
         return this
     }
 

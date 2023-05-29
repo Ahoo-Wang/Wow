@@ -41,7 +41,12 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             log.debug("Create {}.", aggregateId)
         }
         val stateRoot = metadata.constructorAccessor.invoke(arrayOf(aggregateId.id))
-        return SimpleStateAggregate(aggregateId, metadata, Version.UNINITIALIZED_VERSION, stateRoot)
+        return SimpleStateAggregate(
+            aggregateId = aggregateId,
+            metadata = metadata,
+            version = Version.UNINITIALIZED_VERSION,
+            stateRoot = stateRoot
+        )
     }
 
     override fun <S : Any> create(

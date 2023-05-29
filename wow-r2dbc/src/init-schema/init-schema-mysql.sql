@@ -28,13 +28,15 @@ create table aggregate_event_stream
 
 create table aggregate_snapshot
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
@@ -123,13 +125,15 @@ create table mock_aggregate_event_stream_3
 
 create table mock_aggregate_snapshot
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
@@ -298,13 +302,15 @@ create table modeling_command_mock_aggregate_event_stream_3
 
 create table modeling_command_mock_aggregate_snapshot
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    create_time     bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
@@ -412,65 +418,75 @@ create table order_event_stream_3
 
 create table order_snapshot
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
 
 create table order_snapshot_0
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
 
 create table order_snapshot_1
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
 
 create table order_snapshot_2
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
 
 create table order_snapshot_3
 (
-    aggregate_id char(15)        not null primary key,
-    tenant_id    char(15)        not null,
-    version      int unsigned    not null comment 'aggregate version',
-    state_type   varchar(255)    not null comment 'aggregate state type',
-    state        longtext        not null comment 'aggregate state',
-    create_time  bigint unsigned not null,
-    deleted      tinyint(1)      not null default 0,
+    aggregate_id    char(15)        not null primary key,
+    tenant_id       char(15)        not null,
+    version         int unsigned    not null comment 'aggregate version',
+    state_type      varchar(255)    not null comment 'aggregate state type',
+    state           longtext        not null comment 'aggregate state',
+    last_event_id   char(15)        not null default '',
+    last_event_time bigint unsigned not null default 0,
+    snapshot_time   bigint unsigned not null,
+    deleted         tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
     collate = utf8mb4_bin;
