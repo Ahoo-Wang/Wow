@@ -18,6 +18,7 @@ import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -63,6 +64,7 @@ class WebFluxAutoConfiguration {
         stateAggregateFactory: StateAggregateFactory,
         eventCompensator: EventCompensator,
         eventStore: EventStore,
+        snapshotSink: SnapshotSink,
         exceptionHandler: ExceptionHandler
     ): RouterFunction<ServerResponse> {
         return AggregateRouterFunctionAutoRegistrar(
@@ -72,6 +74,7 @@ class WebFluxAutoConfiguration {
             snapshotRepository = snapshotRepository,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
+            snapshotSink = snapshotSink,
             eventCompensator = eventCompensator,
             exceptionHandler = exceptionHandler,
         ).routerFunction

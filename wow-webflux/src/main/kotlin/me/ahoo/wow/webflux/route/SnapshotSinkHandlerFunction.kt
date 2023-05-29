@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.ExceptionHandler
@@ -28,17 +27,13 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-data class BatchResult(
-    val cursorId: String,
-    val size: Int
-)
-
-class BatchRegenerateSnapshotHandlerFunction(
+class SnapshotSinkHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val snapshotSink: SnapshotSink,
+    private val exceptionHandler: ExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -46,13 +41,20 @@ class BatchRegenerateSnapshotHandlerFunction(
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
         return snapshotRepository.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap { aggregateId ->
-                regenerateSnapshot(
-                    aggregateMetadata = aggregateMetadata,
-                    stateAggregateFactory = stateAggregateFactory,
-                    eventStore = eventStore,
-                    snapshotRepository = snapshotRepository,
-                    aggregateId = aggregateId,
-                )
+                stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+                    .flatMapMany { stateAggregate ->
+                        eventStore
+                            .load(
+                                aggregateId = aggregateId,
+                                headVersion = stateAggregate.expectedNextVersion,
+                            )
+                            .map {
+                                stateAggregate.onSourcing(it)
+                            }.flatMap {
+                                val snapshot = SimpleSnapshot(it)
+                                snapshotSink.sink(snapshot).thenReturn(snapshot)
+                            }
+                    }
             }
             .reduce(BatchResult(cursorId, 0)) { acc, snapshot ->
                 val nextCursorId = if (snapshot.aggregateId.id > acc.cursorId) {
@@ -68,32 +70,5 @@ class BatchRegenerateSnapshotHandlerFunction(
             .onErrorResume {
                 exceptionHandler.handle(it)
             }
-    }
-
-    companion object {
-        fun regenerateSnapshot(
-            aggregateMetadata: AggregateMetadata<*, *>,
-            stateAggregateFactory: StateAggregateFactory,
-            eventStore: EventStore,
-            snapshotRepository: SnapshotRepository,
-            aggregateId: AggregateId
-        ): Mono<Snapshot<*>> =
-            stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-                .flatMap { stateAggregate ->
-                    eventStore
-                        .load(
-                            aggregateId = aggregateId,
-                            headVersion = stateAggregate.expectedNextVersion,
-                        )
-                        .map {
-                            stateAggregate.onSourcing(it)
-                        }
-                        .then(Mono.just(stateAggregate))
-                }.filter {
-                    it.initialized
-                }.flatMap {
-                    val snapshot = SimpleSnapshot(it)
-                    snapshotRepository.save(snapshot).thenReturn(snapshot)
-                }
     }
 }
