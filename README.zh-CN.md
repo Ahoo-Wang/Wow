@@ -24,6 +24,12 @@ Domain-Driven | Event-Driven | Test-Driven | Annotation-Driven | Declarative-Des
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
+### 可观测性
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
+</p>
+
 ## 前置条件
 
 - 理解 **领域驱动设计**：《实现领域驱动设计》、《领域驱动设计：软件核心复杂性应对之道》

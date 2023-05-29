@@ -24,6 +24,12 @@ Domain-Driven | Event-Driven | Test-Driven | Annotation-Driven | Declarative-Des
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
+### Observability
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
+</p>
+
 ## Preconditions
 
 - Understanding **Domain Driven Design**：《Implementing Domain-Driven Design》,《Domain-Driven Design: Tackling Complexity
