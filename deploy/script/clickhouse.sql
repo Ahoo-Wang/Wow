@@ -70,14 +70,17 @@ FROM bi_db_consumer.order_order_event_stream_queue
 
 CREATE TABLE bi_db.order_order_snapshot_local on cluster '{cluster}'
 (
-    contextName   String,
-    aggregateName String,
-    aggregateId   String,
-    tenantId      String,
-    version       UInt32,
-    state         String,
-    snapshotTime  DateTime('Asia/Shanghai'),
-    deleted       Bool
+    contextName    String,
+    aggregateName  String,
+    aggregateId    String,
+    tenantId       String,
+    version        UInt32,
+    state          String,
+    lastEventId    String,
+    firstEventTime DateTime('Asia/Shanghai'),
+    lastEventTime  DateTime('Asia/Shanghai'),
+    snapshotTime   DateTime('Asia/Shanghai'),
+    deleted        Bool
 ) ENGINE = ReplicatedReplacingMergeTree(
            '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_snapshot_local', '{replica}',
            version)
@@ -99,16 +102,17 @@ CREATE MATERIALIZED VIEW bi_db_consumer.order_order_snapshot_consumer
             on cluster '{cluster}'
             TO bi_db.order_order_snapshot
 AS
-SELECT JSONExtractString(data, 'contextName')                                            AS contextName,
-       JSONExtractString(data, 'aggregateName')                                          AS aggregateName,
-       JSONExtractString(data, 'aggregateId')                                            AS aggregateId,
-       JSONExtractString(data, 'tenantId')                                               AS tenantId,
-       JSONExtractUInt(data, 'version')                                                  AS version,
-       JSONExtractString(data, 'state')                                                  AS state,
-       JSONExtractString(data, 'lastEventId')                                            AS lastEventId,
-       toDateTime64(JSONExtractUInt(data, 'lastEventTime') / 1000.0, 3, 'Asia/Shanghai') AS lastEventTime,
-       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai')  AS snapshotTime,
-       JSONExtractBool(data, 'deleted')                                                  AS deleted
+SELECT JSONExtractString(data, 'contextName')                                             AS contextName,
+       JSONExtractString(data, 'aggregateName')                                           AS aggregateName,
+       JSONExtractString(data, 'aggregateId')                                             AS aggregateId,
+       JSONExtractString(data, 'tenantId')                                                AS tenantId,
+       JSONExtractUInt(data, 'version')                                                   AS version,
+       JSONExtractString(data, 'state')                                                   AS state,
+       JSONExtractString(data, 'lastEventId')                                             AS lastEventId,
+       toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS firstEventTime,
+       toDateTime64(JSONExtractUInt(data, 'lastEventTime') / 1000.0, 3, 'Asia/Shanghai')  AS lastEventTime,
+       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai')   AS snapshotTime,
+       JSONExtractBool(data, 'deleted')                                                   AS deleted
 FROM bi_db_consumer.order_order_snapshot_queue
 ;
 

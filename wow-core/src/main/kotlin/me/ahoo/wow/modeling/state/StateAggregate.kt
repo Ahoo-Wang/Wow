@@ -57,6 +57,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
      * 最近一次领域事件的Id
      */
     val lastEventId: String
+    val firstEventTime: Long
 
     /**
      * 最近一次领域事件的时间
@@ -77,6 +78,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
             stateRoot: S,
             version: Int,
             lastEventId: String = "",
+            firstEventTime: Long = 0,
             lastEventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
@@ -86,6 +88,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
                 stateRoot = stateRoot,
                 version = version,
                 lastEventId = lastEventId,
+                firstEventTime = firstEventTime,
                 lastEventTime = lastEventTime,
                 deleted = deleted
             )
@@ -97,6 +100,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
             stateRoot: S,
             version: Int,
             lastEventId: String = "",
+            firstEventTime: Long = 0,
             lastEventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
@@ -106,6 +110,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
                 stateRoot = stateRoot,
                 version = version,
                 lastEventId = lastEventId,
+                firstEventTime = firstEventTime,
                 lastEventTime = lastEventTime,
                 deleted = deleted
             )

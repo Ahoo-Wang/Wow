@@ -46,9 +46,9 @@ internal class SimpleSnapshotSchemaTest {
             equalTo(
                 """
      replace into test_snapshot
-     (aggregate_id,tenant_id,version,state_type,state,last_event_id,last_event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,version,state_type,state,last_event_id,first_event_time,last_event_time,snapshot_time,deleted)
      values 
-     (?,?,?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?,?)
      """.trim(),
             ),
         )
