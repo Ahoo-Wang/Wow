@@ -31,9 +31,9 @@ import me.ahoo.wow.serialization.StateAggregateRecords.STATE
 
 object StateAggregateRecords {
     const val STATE: String = "state"
-    const val LAST_EVENT_ID: String = "lastEventId"
+    const val EVENT_ID: String = "eventId"
     const val FIRST_EVENT_TIME: String = "firstEventTime"
-    const val LAST_EVENT_TIME: String = "lastEventTime"
+    const val EVENT_TIME: String = "eventTime"
     const val DELETED: String = "deleted"
 }
 
@@ -46,9 +46,9 @@ abstract class AbstractStateAggregateSerializer<T : StateAggregate<*>>(stateAggr
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
-        generator.writeStringField(StateAggregateRecords.LAST_EVENT_ID, value.lastEventId)
+        generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
         generator.writeNumberField(StateAggregateRecords.FIRST_EVENT_TIME, value.firstEventTime)
-        generator.writeNumberField(StateAggregateRecords.LAST_EVENT_TIME, value.lastEventTime)
+        generator.writeNumberField(StateAggregateRecords.EVENT_TIME, value.eventTime)
         generator.writePOJOField(STATE, value.stateRoot)
         writeExtend(value, generator, provider)
         generator.writeBooleanField(DELETED, value.deleted)
@@ -69,9 +69,9 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
         val metadata = namedAggregate.asRequiredAggregateType<Any>()
             .asAggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
-        val lastEventId = stateRecord.get(StateAggregateRecords.LAST_EVENT_ID)?.asText().orEmpty()
+        val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
         val firstEventTime = stateRecord.get(StateAggregateRecords.FIRST_EVENT_TIME)?.asLong() ?: 0L
-        val lastEventTime = stateRecord.get(StateAggregateRecords.LAST_EVENT_TIME)?.asLong() ?: 0L
+        val eventTime = stateRecord.get(StateAggregateRecords.EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateRecord[DELETED].asBoolean()
         val stateRoot = stateRecord[STATE].asObject(metadata.aggregateType)
 
@@ -84,9 +84,9 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
                 aggregateId = aggregateId,
                 stateRoot = stateRoot,
                 version = version,
-                lastEventId = lastEventId,
+                eventId = eventId,
                 firstEventTime = firstEventTime,
-                lastEventTime = lastEventTime,
+                eventTime = eventTime,
                 deleted = deleted
             )
         return createStateAggregate(stateRecord, stateAggregate)

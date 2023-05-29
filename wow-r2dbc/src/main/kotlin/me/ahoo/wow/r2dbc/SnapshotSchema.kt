@@ -36,7 +36,7 @@ object SnapshotStatementGenerator {
             val loadByVersionStatement = "select * from $tableName where aggregate_id=? and version=?"
             val saveStatement = """
      replace into $tableName
-     (aggregate_id,tenant_id,version,state_type,state,last_event_id,first_event_time,last_event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,version,state_type,state,event_id,first_event_time,event_time,snapshot_time,deleted)
      values 
      (?,?,?,?,?,?,?,?,?,?)
      """.trim()
