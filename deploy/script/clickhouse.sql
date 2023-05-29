@@ -32,7 +32,7 @@ CREATE TABLE bi_db.order_order_event_stream_local on cluster '{cluster}'
 ) ENGINE = ReplicatedReplacingMergeTree(
            '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_event_stream_local', '{replica}',
            version)
-      PARTITION BY toYYYYMMDD(createTime)
+      PARTITION BY toYYYYMM(createTime)
       ORDER BY (aggregateId, version)
 ;
 
@@ -81,7 +81,6 @@ CREATE TABLE bi_db.order_order_snapshot_local on cluster '{cluster}'
 ) ENGINE = ReplicatedReplacingMergeTree(
            '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_snapshot_local', '{replica}',
            version)
-      PARTITION BY toYYYYMMDD(snapshotTime)
       ORDER BY (aggregateId, version)
 ;
 
