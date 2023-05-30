@@ -56,7 +56,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             .projection(Projections.include(Documents.ID_FIELD, MessageRecords.TENANT_ID))
             .sort(Sorts.ascending(Documents.ID_FIELD))
             .limit(limit)
-            .noCursorTimeout(true)
+            .batchSize(limit)
             .toFlux()
             .map {
                 namedAggregate.asAggregateId(
