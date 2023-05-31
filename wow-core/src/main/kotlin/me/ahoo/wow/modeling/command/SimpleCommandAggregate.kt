@@ -16,6 +16,7 @@ import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import org.slf4j.Logger
@@ -55,11 +56,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     actualVersion = version,
                 ).toMono()
             }
-
-            if (!message.isCreate && !message.allowCreate && !initialized) {
-                return@defer IllegalArgumentException(
-                    "Failed to process command[${message.id}]: The current StateAggregate[$aggregateId] is not initialized.",
-                ).toMono()
+            if (!initialized && !message.isCreate && !message.allowCreate) {
+                return@defer NotFoundResourceException("$aggregateId is not initialized.").toMono()
             }
             check(commandState == CommandState.STORED) {
                 "Failed to process command[${message.id}]: The current StateAggregate[$aggregateId] is not stored."
