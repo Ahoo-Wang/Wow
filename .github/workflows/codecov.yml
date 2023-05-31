@@ -55,6 +55,7 @@ jobs:
             wow-r2dbc/build/test-results/**/*.xml
             wow-elasticsearch/build/test-results/**/*.xml
             wow-spring/build/test-results/**/*.xml
+            wow-webflux/build/test-results/**/*.xml
             wow-spring-boot-starter/build/test-results/**/*.xml
             wow-opentelemetry/build/test-results/**/*.xml
             example/example-domain/build/test-results/**/*.xml

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.server.order
+package me.ahoo.wow.example.domain.order
 
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
