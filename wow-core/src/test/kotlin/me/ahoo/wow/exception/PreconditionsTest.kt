@@ -10,8 +10,7 @@ class PreconditionsTest {
     @Test
     fun check() {
         val exception = Assertions.assertThrows(WowException::class.java) {
-            Preconditions.check(false, "errorCode")
-            {
+            Preconditions.check(false, "errorCode") {
                 "error message"
             }
         }
