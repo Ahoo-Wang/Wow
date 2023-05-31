@@ -50,7 +50,7 @@ class SnapshotSinkHandlerFunction(
                             )
                             .map {
                                 stateAggregate.onSourcing(it)
-                            }.flatMap {
+                            }.flatMapSequential {
                                 val snapshot = SimpleSnapshot(it)
                                 snapshotSink.sink(snapshot).thenReturn(snapshot)
                             }
