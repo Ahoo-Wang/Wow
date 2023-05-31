@@ -14,6 +14,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -30,7 +31,7 @@ interface EventStore {
     @Throws(
         EventVersionConflictException::class,
         DuplicateAggregateIdException::class,
-        RequestIdIdempotencyException::class,
+        DuplicateRequestIdException::class,
     )
     fun append(eventStream: DomainEventStream): Mono<Void>
 

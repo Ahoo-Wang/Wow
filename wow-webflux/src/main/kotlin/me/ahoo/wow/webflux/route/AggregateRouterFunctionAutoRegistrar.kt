@@ -23,7 +23,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.appender.AggregateTracingRouteAppender
 import me.ahoo.wow.webflux.route.appender.BatchRegenerateSnapshotRouteAppender
 import me.ahoo.wow.webflux.route.appender.CommandRouteAppender

@@ -16,11 +16,11 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
-import me.ahoo.wow.api.exception.ErrorCodes
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.exception.ErrorCodes
 
 data class CommandResult(
     val stage: CommandStage,
@@ -29,7 +29,7 @@ data class CommandResult(
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
 ) : CommandId, TenantId, RequestId, ErrorInfo
 
 fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {

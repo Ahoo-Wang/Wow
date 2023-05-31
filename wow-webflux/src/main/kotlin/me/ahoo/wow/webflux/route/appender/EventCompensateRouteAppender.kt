@@ -23,7 +23,7 @@ import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.EventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.appender.RoutePaths.COMPENSATE_HEAD_VERSION_KEY
 import me.ahoo.wow.webflux.route.appender.RoutePaths.COMPENSATE_TAIL_VERSION_KEY

@@ -13,39 +13,28 @@
 
 package me.ahoo.wow.api.exception
 
-interface ErrorInfo {
-    val succeeded: Boolean get() = ErrorCodes.SUCCEEDED == errorCode
+import me.ahoo.wow.api.naming.Materialized
 
-    /**
-     * Spec: App-Component-Code
-     *
-     * Core: Component-Code
-     *
-     * Such as : `USER-LOGIN-404`
-     *
-     * Code: Try to use common exception codes, such as HTTPStatus
-     */
+interface ErrorInfo {
+    val succeeded: Boolean get() = SUCCEEDED == errorCode
+
     val errorCode: String
 
-    /**
-     * Spec: because/reason --- document link – Solutions
-     *
-     * Such as :
-     *
-     * Failed to log in system with email and password(Email login failed): can not find account with email {}
-     * --- Please refer https://example.com/login/byemail
-     * --- Solutions: 1. check your email  2. check your password
-     */
     val errorMsg: String
 
     companion object {
-        fun of(errorCode: String, errorMsg: String): ErrorInfo = DefaultErrorInfo(errorCode, errorMsg)
-        fun of(throwable: Throwable): ErrorInfo = DefaultErrorInfo(throwable.errorCode, throwable.message ?: "")
+        const val SUCCEEDED = "Ok"
+        const val SUCCEEDED_MESSAGE = "Ok"
+        val OK = DefaultErrorInfo(SUCCEEDED, SUCCEEDED_MESSAGE)
+        fun ErrorInfo.materialize(): ErrorInfo {
+            if (this is Materialized) {
+                return this
+            }
+            return DefaultErrorInfo(errorCode = errorCode, errorMsg = errorMsg)
+        }
+
+        fun of(errorCode: String, errorMsg: String?): ErrorInfo = DefaultErrorInfo(errorCode, errorMsg ?: "")
     }
 }
 
-data class DefaultErrorInfo(override val errorCode: String, override val errorMsg: String) : ErrorInfo
-
-fun Throwable.asErrorInfo(): ErrorInfo {
-    return ErrorInfo.of(this)
-}
+data class DefaultErrorInfo(override val errorCode: String, override val errorMsg: String) : ErrorInfo, Materialized

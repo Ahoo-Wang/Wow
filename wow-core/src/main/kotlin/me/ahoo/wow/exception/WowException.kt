@@ -11,8 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.exception
+package me.ahoo.wow.exception
 
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import java.util.concurrent.TimeoutException
 
 open class WowException(
@@ -24,25 +26,13 @@ open class WowException(
         get() = message ?: ""
 }
 
-interface NotFoundException
-interface ConflictException
-interface GoneException
-interface PreconditionFailedException
-interface PreconditionRequiredException
-
+/**
+ *  RetryableException can be recovered by retrying.
+ */
 interface RetryableException
 
 /**
- *  Transient exception, which can be recovered by retrying.
- */
-open class WowTransientException(
-    errorCode: String,
-    errorMsg: String,
-    cause: Throwable? = null
-) : WowException(errorCode, errorMsg, cause), RetryableException
-
-/**
- * @see WowTransientException
+ * @see RetryableException
  */
 val Throwable.retryable: Boolean
     get() = when (this) {
@@ -51,15 +41,27 @@ val Throwable.retryable: Boolean
         else -> false
     }
 
-val Throwable.errorCode: String
-    get() = when (this) {
-        is WowException -> errorCode
-        is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
-        is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
-        is NotFoundException -> ErrorCodes.NOT_FOUND
-        is ConflictException -> ErrorCodes.CONFLICT
-        is GoneException -> ErrorCodes.GONE
-        is PreconditionFailedException -> ErrorCodes.ILLEGAL_ARGUMENT
-        is PreconditionRequiredException -> ErrorCodes.ILLEGAL_STATE
-        else -> ErrorCodes.UNDEFINED
+fun Throwable.asErrorInfo(): ErrorInfo {
+    return when (this) {
+        is ErrorInfo -> this.materialize()
+        is IllegalArgumentException -> ErrorInfo.of(
+            ErrorCodes.ILLEGAL_ARGUMENT,
+            message
+        )
+
+        is IllegalStateException -> ErrorInfo.of(
+            ErrorCodes.ILLEGAL_STATE,
+            message
+        )
+
+        is TimeoutException -> ErrorInfo.of(
+            ErrorCodes.REQUEST_TIMEOUT,
+            message
+        )
+
+        else -> ErrorInfo.of(
+            ErrorCodes.BAD_REQUEST,
+            message
+        )
     }
+}

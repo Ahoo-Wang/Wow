@@ -11,56 +11,40 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux
+package me.ahoo.wow.webflux.exception
 
-import me.ahoo.wow.api.exception.ConflictException
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.exception.GoneException
-import me.ahoo.wow.api.exception.NotFoundException
-import me.ahoo.wow.api.exception.PreconditionFailedException
-import me.ahoo.wow.api.exception.PreconditionRequiredException
-import me.ahoo.wow.api.exception.asErrorInfo
 import me.ahoo.wow.command.CommandResultException
+import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
 import me.ahoo.wow.webflux.route.asServerResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import java.util.concurrent.TimeoutException
 
 interface ExceptionHandler {
     fun handle(throwable: Throwable): Mono<ServerResponse>
 }
 
 object DefaultExceptionHandler : ExceptionHandler {
-    fun Throwable.asHttpStatus(): HttpStatus {
-        return when (this) {
-            is IllegalArgumentException -> HttpStatus.PRECONDITION_FAILED
-            is IllegalStateException -> HttpStatus.PRECONDITION_REQUIRED
-            is NotFoundException -> HttpStatus.NOT_FOUND
-            is ConflictException -> HttpStatus.CONFLICT
-            is GoneException -> HttpStatus.GONE
-            is PreconditionFailedException -> HttpStatus.PRECONDITION_FAILED
-            is PreconditionRequiredException -> HttpStatus.PRECONDITION_REQUIRED
-            is TimeoutException -> HttpStatus.GATEWAY_TIMEOUT
-            else -> HttpStatus.BAD_REQUEST
-        }
-    }
 
     fun Throwable.asResponseEntity(): ResponseEntity<ErrorInfo> {
-        return ResponseEntity.status(asHttpStatus())
+        val errorInfo = asErrorInfo()
+        return ResponseEntity.status(errorInfo.asHttpStatus())
             .contentType(MediaType.APPLICATION_JSON)
-            .body(asErrorInfo())
+            .body(errorInfo)
     }
 
     override fun handle(throwable: Throwable): Mono<ServerResponse> {
         if (throwable is CommandResultException) {
             return throwable.commandResult.asServerResponse()
         }
-        val status: HttpStatus = throwable.asHttpStatus()
+        val errorInfo = throwable.asErrorInfo()
+        val status: HttpStatus = errorInfo.asHttpStatus()
         return ServerResponse.status(status)
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(throwable.asErrorInfo())
+            .bodyValue(errorInfo)
     }
 }

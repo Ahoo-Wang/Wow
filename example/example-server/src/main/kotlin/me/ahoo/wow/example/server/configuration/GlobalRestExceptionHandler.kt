@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.server.configuration
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.webflux.DefaultExceptionHandler.asResponseEntity
+import me.ahoo.wow.webflux.exception.DefaultExceptionHandler.asResponseEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.ExceptionHandler

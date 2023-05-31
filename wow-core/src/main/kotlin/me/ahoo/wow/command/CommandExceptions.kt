@@ -14,35 +14,27 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.exception.ConflictException
-import me.ahoo.wow.api.exception.ErrorCodes
-import me.ahoo.wow.api.exception.PreconditionFailedException
-import me.ahoo.wow.api.exception.WowException
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.CommandErrorCodes.COMMAND_DUPLICATE
-import me.ahoo.wow.command.CommandErrorCodes.COMMAND_NOT_VALID
+import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
+import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
+import me.ahoo.wow.exception.WowException
 import javax.validation.ConstraintViolation
 
-object CommandErrorCodes {
-    const val PREFIX = "${ErrorCodes.PREFIX}CMD-"
-    const val COMMAND_DUPLICATE = PREFIX + ErrorCodes.CONFLICT
-    const val COMMAND_NOT_VALID = PREFIX + ErrorCodes.ILLEGAL_ARGUMENT
-}
-
-class DuplicateCommandException(val commandMessage: CommandMessage<*>) :
-    ConflictException,
+class DuplicateRequestIdException(val aggregateId: AggregateId, val requestId: String, cause: Throwable? = null) :
     WowException(
-        COMMAND_DUPLICATE,
-        "Failed to send command[${commandMessage.id}]: Duplicate request ID[${commandMessage.requestId}].",
+        errorCode = DUPLICATE_REQUEST_ID,
+        errorMsg = "Duplicate request ID[$requestId].",
+        cause = cause
     ),
-    NamedAggregate by commandMessage
+    NamedAggregate by aggregateId
 
-class CommandNotValidException(
+class CommandValidationException(
     val commandMessage: CommandMessage<*>,
     val constraintViolations: Set<ConstraintViolation<*>>
-) : PreconditionFailedException,
+) :
     WowException(
-        COMMAND_NOT_VALID,
+        COMMAND_VALIDATION,
         commandMessage.asErrorMessage(constraintViolations),
     ),
     NamedAggregate by commandMessage {
@@ -65,5 +57,4 @@ class CommandNotValidException(
 }
 
 class CommandResultException(val commandResult: CommandResult) :
-    PreconditionFailedException,
     WowException(errorCode = commandResult.errorCode, errorMsg = commandResult.errorMsg)

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.exception.ErrorCodes
+import me.ahoo.wow.exception.ErrorCodes
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration

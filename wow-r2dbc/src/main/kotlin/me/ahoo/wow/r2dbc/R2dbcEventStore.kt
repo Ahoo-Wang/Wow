@@ -16,10 +16,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import io.r2dbc.spi.Connection
 import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.serialization.FlatEventStreamRecord
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.asEventStreamRecord
@@ -60,15 +60,16 @@ class R2dbcEventStore(
                 return@onErrorMap when {
                     it.message!!.contains(eventStreamSchema.aggregateIdVersionUniqueIndexName) -> {
                         EventVersionConflictException(
-                            eventStream,
-                            it,
+                            eventStream = eventStream,
+                            cause = it,
                         )
                     }
 
                     it.message!!.contains(eventStreamSchema.requestIdUniqueIndexName) -> {
-                        RequestIdIdempotencyException(
-                            eventStream,
-                            it,
+                        DuplicateRequestIdException(
+                            aggregateId = eventStream.aggregateId,
+                            requestId = eventStream.requestId,
+                            cause = it,
                         )
                     }
 

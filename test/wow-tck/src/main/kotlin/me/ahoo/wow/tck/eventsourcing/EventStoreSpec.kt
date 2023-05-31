@@ -14,13 +14,13 @@ package me.ahoo.wow.tck.eventsourcing
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asAggregateId
@@ -183,11 +183,11 @@ abstract class EventStoreSpec {
                 assertThat(
                     it,
                     instanceOf(
-                        RequestIdIdempotencyException::class.java,
+                        DuplicateRequestIdException::class.java,
                     ),
                 )
-                val conflictException = it as RequestIdIdempotencyException
-                assertThat(conflictException.eventStream, equalTo(conflictingStream))
+                val duplicateRequestIdException = it as DuplicateRequestIdException
+                assertThat(duplicateRequestIdException.requestId, equalTo(conflictingStream.requestId))
                 true
             }
             .verify()

@@ -24,7 +24,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.RegenerateSnapshotHandlerFunction
 import org.springdoc.core.fn.builders.operation.Builder
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder

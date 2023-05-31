@@ -49,7 +49,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             if (message.aggregateVersion != null &&
                 message.aggregateVersion != version
             ) {
-                return@defer IncompatibleVersionException(
+                return@defer CommandExpectVersionConflictException(
                     command = message,
                     expectVersion = message.aggregateVersion!!,
                     actualVersion = version,

@@ -29,7 +29,7 @@ import me.ahoo.wow.route.CommandAggregateRoutePathSpec
 import me.ahoo.wow.route.CommandRouteMetadata
 import me.ahoo.wow.route.asCommandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.CommandHandlerFunction
 import me.ahoo.wow.webflux.route.DEFAULT_TIME_OUT
 import org.springdoc.core.fn.builders.operation.Builder

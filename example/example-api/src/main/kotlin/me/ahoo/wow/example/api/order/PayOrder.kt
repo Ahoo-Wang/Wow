@@ -12,9 +12,10 @@
  */
 package me.ahoo.wow.example.api.order
 
-import me.ahoo.wow.api.exception.ErrorCodes
 import me.ahoo.wow.api.exception.ErrorInfo
 import java.math.BigDecimal
+import javax.validation.constraints.NotBlank
+import javax.validation.constraints.Positive
 
 /**
  * PayOrder .
@@ -23,7 +24,9 @@ import java.math.BigDecimal
  */
 data class PayOrder(
     val id: String,
+    @field:NotBlank
     val paymentId: String,
+    @field:Positive
     val amount: BigDecimal
 )
 
@@ -32,5 +35,5 @@ data class OrderOverPaid(val paymentId: String, val overPay: BigDecimal)
 data class OrderPayDuplicated(val paymentId: String, override val errorMsg: String) :
     ErrorInfo {
     override val errorCode: String
-        get() = ErrorCodes.ILLEGAL_STATE
+        get() = "OrderPayDuplicated"
 }

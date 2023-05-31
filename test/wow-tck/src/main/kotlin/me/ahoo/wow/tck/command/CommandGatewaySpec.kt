@@ -18,7 +18,6 @@ import com.google.common.hash.Funnels
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.CommandErrorCodes
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
@@ -29,6 +28,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.configuration.requiredNamedAggregate
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
@@ -104,7 +104,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .test()
                 .consumeNextWith {
                     assertThat(it.stage, equalTo(CommandStage.SENT))
-                    assertThat(it.errorCode, equalTo(CommandErrorCodes.COMMAND_DUPLICATE))
+                    assertThat(it.errorCode, equalTo(ErrorCodes.DUPLICATE_REQUEST_ID))
                 }
                 .verifyComplete()
         }

@@ -23,8 +23,8 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
-import me.ahoo.wow.webflux.DefaultExceptionHandler
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouterFunctionAutoRegistrar
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunction
 import org.springframework.boot.autoconfigure.AutoConfiguration

@@ -30,6 +30,6 @@ interface AggregateProcessor<C : Any> :
     /**
      * Processing of commands must be serial.
      */
-    @Throws(IncompatibleVersionException::class)
+    @Throws(CommandExpectVersionConflictException::class)
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream>
 }
