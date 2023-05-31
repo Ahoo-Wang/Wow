@@ -30,6 +30,7 @@ internal class AggregateIdTest {
         val unCreatedAggregateId = aggregateId.copy()
         assertThat(aggregateId, equalTo(unCreatedAggregateId))
         assertThat(aggregateId.hashCode(), equalTo(unCreatedAggregateId.hashCode()))
+        assertThat(aggregateId.toString(), equalTo(unCreatedAggregateId.toString()))
     }
 
     @Test

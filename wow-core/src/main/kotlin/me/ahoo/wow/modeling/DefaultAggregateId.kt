@@ -28,6 +28,9 @@ data class DefaultAggregateId(
     override fun equals(other: Any?): Boolean = equalTo(other)
 
     override fun hashCode(): Int = hash()
+    override fun toString(): String {
+        return "AggregateId(contextName=$contextName, aggregateName=$aggregateName, tenantId=$tenantId, id=$id)"
+    }
 }
 
 fun NamedAggregate.asAggregateId(
