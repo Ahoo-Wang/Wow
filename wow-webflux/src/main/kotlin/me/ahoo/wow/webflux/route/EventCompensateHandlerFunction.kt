@@ -26,7 +26,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-private val TARGET_PROCESSORS_TYPE = object : ParameterizedTypeReference<Set<String>>() {}
+internal val TARGET_PROCESSORS_TYPE = object : ParameterizedTypeReference<Set<String>>() {}
 
 class EventCompensateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
