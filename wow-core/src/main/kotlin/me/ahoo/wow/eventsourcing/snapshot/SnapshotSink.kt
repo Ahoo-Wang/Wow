@@ -21,8 +21,9 @@ import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
 import reactor.core.publisher.Mono
 
-fun interface SnapshotSink {
+interface SnapshotSink : AutoCloseable {
     fun sink(snapshot: Snapshot<*>): Mono<Void>
+    override fun close() = Unit
 }
 
 object NoOpSnapshotSink : SnapshotSink {
