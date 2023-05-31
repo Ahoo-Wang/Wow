@@ -24,7 +24,7 @@ interface ErrorInfo {
 
     companion object {
         const val SUCCEEDED = "Ok"
-        const val SUCCEEDED_MESSAGE = "Ok"
+        const val SUCCEEDED_MESSAGE = ""
         val OK = DefaultErrorInfo(SUCCEEDED, SUCCEEDED_MESSAGE)
         fun ErrorInfo.materialize(): ErrorInfo {
             if (this is Materialized) {

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.asErrorInfo
 
 data class CommandResult(
     val stage: CommandStage,
@@ -41,5 +42,18 @@ fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {
         commandId = commandMessage.commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
+    )
+}
+
+fun Throwable.asResult(commandMessage: CommandMessage<*>, stage: CommandStage = CommandStage.SENT): CommandResult {
+    val errorInfo = asErrorInfo()
+    return CommandResult(
+        stage = stage,
+        aggregateId = commandMessage.aggregateId.id,
+        tenantId = commandMessage.aggregateId.tenantId,
+        requestId = commandMessage.requestId,
+        commandId = commandMessage.commandId,
+        errorCode = errorInfo.errorCode,
+        errorMsg = errorInfo.errorMsg,
     )
 }

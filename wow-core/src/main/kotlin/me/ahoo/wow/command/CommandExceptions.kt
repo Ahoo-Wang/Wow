@@ -35,21 +35,20 @@ class CommandValidationException(
 ) :
     WowException(
         COMMAND_VALIDATION,
-        commandMessage.asErrorMessage(constraintViolations),
+        constraintViolations.asErrorMessage(),
     ),
     NamedAggregate by commandMessage {
 
     companion object {
-        private fun CommandMessage<*>.asErrorMessage(constraintViolations: Set<ConstraintViolation<*>>): String {
-            val commandId = commandId
+        private fun Set<ConstraintViolation<*>>.asErrorMessage(): String {
+            val constraintViolations = this
             return buildString {
-                append("Failed to send command[$commandId]: Command validation failed:")
                 constraintViolations.forEach {
-                    appendLine()
                     append("[")
                     append(it.propertyPath)
                     append("]:")
                     append(it.message)
+                    appendLine()
                 }
             }
         }

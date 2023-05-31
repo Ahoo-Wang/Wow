@@ -13,14 +13,8 @@
 
 package me.ahoo.wow.webflux.exception
 
-import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.exception.asErrorInfo
-import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
-import me.ahoo.wow.webflux.route.asServerResponse
-import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
-import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
@@ -30,21 +24,10 @@ interface ExceptionHandler {
 
 object DefaultExceptionHandler : ExceptionHandler {
 
-    fun Throwable.asResponseEntity(): ResponseEntity<ErrorInfo> {
-        val errorInfo = asErrorInfo()
-        return ResponseEntity.status(errorInfo.asHttpStatus())
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(errorInfo)
-    }
-
     override fun handle(throwable: Throwable): Mono<ServerResponse> {
         if (throwable is CommandResultException) {
             return throwable.commandResult.asServerResponse()
         }
-        val errorInfo = throwable.asErrorInfo()
-        val status: HttpStatus = errorInfo.asHttpStatus()
-        return ServerResponse.status(status)
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(errorInfo)
+        return throwable.asErrorInfo().asServerResponse()
     }
 }

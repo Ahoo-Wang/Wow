@@ -21,9 +21,9 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandParser.parse
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
-import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,24 +33,6 @@ import java.time.Duration
 import java.util.*
 
 val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
-
-fun CommandResult.asServerResponse(): Mono<ServerResponse> {
-    return if (succeeded) {
-        ServerResponse.ok()
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(this)
-    } else {
-        ServerResponse.badRequest()
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(this)
-    }
-}
-
-fun Mono<CommandResult>.asServerResponse(): Mono<ServerResponse> {
-    return flatMap {
-        it.asServerResponse()
-    }
-}
 
 /**
  * [org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping]

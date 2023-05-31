@@ -42,6 +42,9 @@ interface CommandGateway : CommandBus {
         waitStrategy: WaitStrategy
     ): Mono<CommandResult> {
         return send(command, waitStrategy)
+            .onErrorMap {
+                CommandResultException(it.asResult(command))
+            }
             .flatMap {
                 waitStrategy.waiting()
                     .map { waitSignal ->

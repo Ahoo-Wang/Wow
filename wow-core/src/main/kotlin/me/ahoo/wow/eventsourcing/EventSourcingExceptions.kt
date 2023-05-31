@@ -23,7 +23,7 @@ class EventVersionConflictException(val eventStream: DomainEventStream, cause: T
     RetryableException,
     WowException(
         EVENT_VERSION_CONFLICT,
-        "Failed to append eventStream[${eventStream.id}]: Version[${eventStream.version}] conflict.",
+        "Event Version[${eventStream.version}] conflict.",
         cause,
     )
 
@@ -32,5 +32,5 @@ class DuplicateAggregateIdException(
 ) :
     WowException(
         DUPLICATE_AGGREGATE_ID,
-        "Failed to append eventStream[${eventStream.id}]: Duplicate ${eventStream.aggregateId}.",
+        "Duplicate ${eventStream.aggregateId}.",
     )
