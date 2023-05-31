@@ -47,7 +47,7 @@ class ResponsesKtTest {
             requestId = GlobalIdGenerator.generateAsString(),
             commandId = GlobalIdGenerator.generateAsString()
         ).toMono()
-            .asServerResponse()
+            .asServerResponse(DefaultExceptionHandler)
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.OK))
