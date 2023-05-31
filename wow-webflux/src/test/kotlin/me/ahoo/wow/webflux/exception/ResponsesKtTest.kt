@@ -24,7 +24,6 @@ class ResponsesKtTest {
         assertThat(responseEntity.headers.getFirst(WOW_ERROR_CODE_HEADER), equalTo(ErrorCodes.ILLEGAL_ARGUMENT))
     }
 
-
     @Test
     fun asServerResponse() {
         IllegalArgumentException()

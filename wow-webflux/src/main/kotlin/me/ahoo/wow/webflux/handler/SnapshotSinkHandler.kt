@@ -11,46 +11,41 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route
+package me.ahoo.wow.webflux.handler
 
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
-import me.ahoo.wow.webflux.handler.RegenerateSnapshotHandler
-import me.ahoo.wow.webflux.route.appender.RoutePaths
-import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
+import me.ahoo.wow.webflux.route.BatchResult
 import reactor.core.publisher.Mono
 
-data class BatchResult(
-    val cursorId: String,
-    val size: Int
-)
-
-class BatchRegenerateSnapshotHandlerFunction(
+class SnapshotSinkHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
-) : HandlerFunction<ServerResponse> {
-    private val handler = RegenerateSnapshotHandler(
-        aggregateMetadata,
-        stateAggregateFactory,
-        eventStore,
-        snapshotRepository
-    )
-
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
-        val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
+    private val snapshotSink: SnapshotSink,
+) {
+    fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
         return snapshotRepository.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap({ aggregateId ->
-                handler.handle(aggregateId)
+                stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+                    .flatMapMany { stateAggregate ->
+                        eventStore
+                            .load(
+                                aggregateId = aggregateId,
+                                headVersion = stateAggregate.expectedNextVersion,
+                            )
+                            .map {
+                                stateAggregate.onSourcing(it)
+                            }.flatMapSequential {
+                                val snapshot = SimpleSnapshot(it)
+                                snapshotSink.sink(snapshot).thenReturn(snapshot)
+                            }
+                    }
             }, limit)
             .reduce(BatchResult(cursorId, 0)) { acc, snapshot ->
                 val nextCursorId = if (snapshot.aggregateId.id > acc.cursorId) {
@@ -60,6 +55,5 @@ class BatchRegenerateSnapshotHandlerFunction(
                 }
                 BatchResult(nextCursorId, acc.size + 1)
             }
-            .asServerResponse(exceptionHandler)
     }
 }

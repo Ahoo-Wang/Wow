@@ -17,10 +17,10 @@ import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.core.ParameterizedTypeReference
-import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -51,10 +51,6 @@ class EventCompensateHandlerFunction(
                     headVersion = headVersion,
                     tailVersion = tailVersion,
                 )
-            }.flatMap {
-                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(it)
-            }.onErrorResume {
-                exceptionHandler.handle(it)
-            }
+            }.asServerResponse(exceptionHandler)
     }
 }

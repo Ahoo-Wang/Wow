@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.route.BatchRegenerateSnapshotHandlerFunction.Companion.regenerateSnapshot
+import me.ahoo.wow.webflux.handler.RegenerateSnapshotHandler
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -35,20 +35,21 @@ class RegenerateSnapshotHandlerFunction(
     private val snapshotRepository: SnapshotRepository,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
+    private val handler = RegenerateSnapshotHandler(
+        aggregateMetadata,
+        stateAggregateFactory,
+        eventStore,
+        snapshotRepository
+    )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
-        return regenerateSnapshot(
-            aggregateMetadata = aggregateMetadata,
-            stateAggregateFactory = stateAggregateFactory,
-            eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
-            aggregateId = aggregateId,
-        ).flatMap {
-            ServerResponse.ok().build()
-        }.throwNotFoundIfEmpty()
+        return handler.handle(aggregateId)
+            .flatMap {
+                ServerResponse.ok().build()
+            }.throwNotFoundIfEmpty()
             .onErrorResume {
                 exceptionHandler.handle(it)
             }

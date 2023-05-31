@@ -22,10 +22,10 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.EventAggregateState.Companion.trace
 import me.ahoo.wow.webflux.route.appender.RoutePaths
-import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -48,13 +48,7 @@ class AggregateTracingHandlerFunction(
             ).collectList()
             .map {
                 aggregateMetadata.state.trace(it)
-            }.flatMap {
-                ServerResponse.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(it)
-            }.onErrorResume {
-                exceptionHandler.handle(it)
-            }
+            }.asServerResponse(exceptionHandler)
     }
 }
 
