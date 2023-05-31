@@ -13,6 +13,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -46,8 +47,9 @@ class InMemoryEventStore : AbstractEventStore() {
                     it.requestId == eventStream.requestId
                 }
                 if (requestRepeated) {
-                    throw RequestIdIdempotencyException(
-                        eventStream,
+                    throw DuplicateRequestIdException(
+                        eventStream.aggregateId,
+                        eventStream.requestId,
                     )
                 }
                 aggregateStream.add(eventStream)

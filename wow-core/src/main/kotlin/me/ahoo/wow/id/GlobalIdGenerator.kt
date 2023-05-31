@@ -16,10 +16,10 @@ import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.cosid.CosIdIdStateParser
 import me.ahoo.cosid.cosid.CosIdState
 import me.ahoo.wow.annotation.OrderComparator
-import me.ahoo.wow.api.exception.WowException
+import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.infra.Decorator
 import org.slf4j.LoggerFactory
-import java.util.ServiceLoader
+import java.util.*
 
 /**
  * Global Id Generator
@@ -70,4 +70,4 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
 }
 
 class NotInitializedGlobalIdGeneratorError :
-    WowException("Id-428", "GlobalIdGenerator is not initialized.")
+    WowException("NotInitializedGlobalIdGenerator", "GlobalIdGenerator is not initialized.")

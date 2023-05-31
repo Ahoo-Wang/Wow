@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.exception.retryable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.exception.retryable
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository

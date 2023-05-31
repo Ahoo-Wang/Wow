@@ -16,11 +16,12 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
-import me.ahoo.wow.api.exception.ErrorCodes
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.asErrorInfo
 
 data class CommandResult(
     val stage: CommandStage,
@@ -29,7 +30,7 @@ data class CommandResult(
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
 ) : CommandId, TenantId, RequestId, ErrorInfo
 
 fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {
@@ -41,5 +42,18 @@ fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {
         commandId = commandMessage.commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
+    )
+}
+
+fun Throwable.asResult(commandMessage: CommandMessage<*>, stage: CommandStage = CommandStage.SENT): CommandResult {
+    val errorInfo = asErrorInfo()
+    return CommandResult(
+        stage = stage,
+        aggregateId = commandMessage.aggregateId.id,
+        tenantId = commandMessage.aggregateId.tenantId,
+        requestId = commandMessage.requestId,
+        commandId = commandMessage.commandId,
+        errorCode = errorInfo.errorCode,
+        errorMsg = errorInfo.errorMsg,
     )
 }

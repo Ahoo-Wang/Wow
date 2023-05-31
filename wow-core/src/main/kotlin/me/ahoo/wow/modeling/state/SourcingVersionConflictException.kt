@@ -13,23 +13,17 @@
 
 package me.ahoo.wow.modeling.state
 
-import me.ahoo.wow.api.exception.ConflictException
-import me.ahoo.wow.api.exception.ErrorCodes
-import me.ahoo.wow.api.exception.WowException
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
-
-object StateAggregateErrorCodes {
-    const val PREFIX = "${ErrorCodes.PREFIX}MS-"
-    const val SOURCING_VERSION_CONFLICT = PREFIX + ErrorCodes.CONFLICT
-}
+import me.ahoo.wow.exception.ErrorCodes.SOURCING_VERSION_CONFLICT
+import me.ahoo.wow.exception.WowException
 
 class SourcingVersionConflictException(
     val eventStream: DomainEventStream,
     val expectVersion: Int
-) : ConflictException,
+) :
     WowException(
-        StateAggregateErrorCodes.SOURCING_VERSION_CONFLICT,
-        "Failed to Sourcing eventStream[${eventStream.id}]: Expected EventStream version[$expectVersion] does not match the actual version:[${eventStream.version}].",
+        SOURCING_VERSION_CONFLICT,
+        "Expected EventStream version[$expectVersion] does not match the actual version:[${eventStream.version}].",
     ),
     NamedAggregate by eventStream

@@ -13,41 +13,24 @@
 
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.api.exception.ConflictException
-import me.ahoo.wow.api.exception.ErrorCodes
-import me.ahoo.wow.api.exception.PreconditionFailedException
-import me.ahoo.wow.api.exception.WowException
-import me.ahoo.wow.api.exception.WowTransientException
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.command.CommandAggregateErrorCodes
-
-object EventSourcingErrorCodes {
-    private const val PREFIX = "${ErrorCodes.PREFIX}ES-"
-    const val EVENT_VERSION_CONFLICT = PREFIX + ErrorCodes.CONFLICT
-    const val REQUEST_ID_IDEMPOTENCY = PREFIX + ErrorCodes.ILLEGAL_ARGUMENT
-    const val DUPLICATE_AGGREGATE_ID = CommandAggregateErrorCodes.PREFIX + "409-0"
-}
+import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_AGGREGATE_ID
+import me.ahoo.wow.exception.ErrorCodes.EVENT_VERSION_CONFLICT
+import me.ahoo.wow.exception.RetryableException
+import me.ahoo.wow.exception.WowException
 
 class EventVersionConflictException(val eventStream: DomainEventStream, cause: Throwable? = null) :
-    ConflictException,
-    WowTransientException(
-        EventSourcingErrorCodes.EVENT_VERSION_CONFLICT,
-        "Failed to append eventStream[${eventStream.id}]: Version[${eventStream.version}] conflict.",
-        cause,
-    )
-
-class RequestIdIdempotencyException(val eventStream: DomainEventStream, cause: Throwable? = null) :
-    PreconditionFailedException,
+    RetryableException,
     WowException(
-        EventSourcingErrorCodes.REQUEST_ID_IDEMPOTENCY,
-        "Failed to append eventStream[${eventStream.id}]: Duplicate request ID[${eventStream.requestId}].",
+        EVENT_VERSION_CONFLICT,
+        "Event Version[${eventStream.version}] conflict.",
         cause,
     )
 
 class DuplicateAggregateIdException(
     val eventStream: DomainEventStream
-) : ConflictException,
+) :
     WowException(
-        EventSourcingErrorCodes.DUPLICATE_AGGREGATE_ID,
-        "Failed to append eventStream[${eventStream.id}]: Duplicate ${eventStream.aggregateId}.",
+        DUPLICATE_AGGREGATE_ID,
+        "Duplicate ${eventStream.aggregateId}.",
     )

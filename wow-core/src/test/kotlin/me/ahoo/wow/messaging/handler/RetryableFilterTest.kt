@@ -15,8 +15,8 @@ package me.ahoo.wow.messaging.handler
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.api.exception.retryable
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.exception.retryable
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test

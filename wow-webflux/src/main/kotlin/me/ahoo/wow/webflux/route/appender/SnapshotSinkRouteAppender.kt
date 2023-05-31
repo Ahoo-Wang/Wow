@@ -24,7 +24,7 @@ import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.BatchResult
 import me.ahoo.wow.webflux.route.SnapshotSinkHandlerFunction
 import me.ahoo.wow.webflux.route.appender.RoutePaths.BATCH_CURSOR_ID

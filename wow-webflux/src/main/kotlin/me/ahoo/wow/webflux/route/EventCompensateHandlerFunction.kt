@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.core.ParameterizedTypeReference

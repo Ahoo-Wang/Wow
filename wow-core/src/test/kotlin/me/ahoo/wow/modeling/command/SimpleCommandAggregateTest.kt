@@ -101,7 +101,7 @@ internal class SimpleCommandAggregateTest {
         try {
             commandAggregate.process(SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider))
                 .block()
-        } catch (exception: IncompatibleVersionException) {
+        } catch (exception: CommandExpectVersionConflictException) {
             thrown = true
             assertThat(exception.command, equalTo(commandMessage))
             assertThat(

@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.exception
 
-import me.ahoo.wow.api.exception.ErrorCodes
-import me.ahoo.wow.api.exception.NotFoundException
-import me.ahoo.wow.api.exception.WowException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -24,7 +21,7 @@ import reactor.kotlin.core.publisher.toMono
 class NotFoundResourceException(
     errorCode: String = ErrorCodes.NOT_FOUND,
     errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
-) : WowException(errorCode, errorMsg), NotFoundException
+) : WowException(errorCode, errorMsg)
 
 fun <T> Mono<T>.throwNotFoundIfEmpty(
     errorCode: String = ErrorCodes.NOT_FOUND,

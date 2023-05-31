@@ -11,30 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.exception
+package me.ahoo.wow.webflux.exception
 
-/**
- * 参考：https://www.rfc-editor.org/rfc/rfc7231#section-6
- */
-object ErrorCodes {
-    const val PREFIX = "WOW-"
-    const val SUCCEEDED = "0"
-    const val SUCCEEDED_MSG = ""
-    const val UNDEFINED = "-1"
+import me.ahoo.wow.command.CommandResultException
+import me.ahoo.wow.exception.asErrorInfo
+import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Mono
 
-    const val UNDEFINED_CLIENT_ERROR = "400"
-    const val NOT_FOUND = "404"
-    const val NOT_FOUND_MESSAGE = "Not Found Resource!"
-    const val CONFLICT = "409"
-    const val GONE = "410"
+interface ExceptionHandler {
+    fun handle(throwable: Throwable): Mono<ServerResponse>
+}
 
-    /**
-     * Precondition Failed
-     */
-    const val ILLEGAL_ARGUMENT = "412"
+object DefaultExceptionHandler : ExceptionHandler {
 
-    /**
-     * Precondition Required
-     */
-    const val ILLEGAL_STATE = "428"
+    override fun handle(throwable: Throwable): Mono<ServerResponse> {
+        if (throwable is CommandResultException) {
+            return throwable.commandResult.asServerResponse()
+        }
+        return throwable.asErrorInfo().asServerResponse()
+    }
 }

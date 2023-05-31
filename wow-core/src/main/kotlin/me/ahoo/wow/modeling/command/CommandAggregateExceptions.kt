@@ -14,30 +14,23 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.exception.ConflictException
-import me.ahoo.wow.api.exception.ErrorCodes
-import me.ahoo.wow.api.exception.GoneException
-import me.ahoo.wow.api.exception.WowException
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.exception.ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT
+import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE
+import me.ahoo.wow.exception.WowException
 
-object CommandAggregateErrorCodes {
-    const val PREFIX = "${ErrorCodes.PREFIX}MC-"
-    const val INCOMPATIBLE_VERSION = PREFIX + ErrorCodes.CONFLICT
-    const val ILLEGAL_ACCESS_DELETED_AGGREGATE = PREFIX + ErrorCodes.GONE
-}
-
-class IncompatibleVersionException(
+class CommandExpectVersionConflictException(
     val command: CommandMessage<*>,
     val expectVersion: Int,
     val actualVersion: Int
-) : ConflictException, WowException(
-    CommandAggregateErrorCodes.INCOMPATIBLE_VERSION,
-    "Failed to process command[${command.id}]: The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion].",
+) : WowException(
+    COMMAND_EXPECT_VERSION_CONFLICT,
+    "The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion].",
 )
 
 class IllegalAccessDeletedAggregateException(
     val aggregateId: AggregateId
-) : GoneException, WowException(
-    CommandAggregateErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE,
+) : WowException(
+    ILLEGAL_ACCESS_DELETED_AGGREGATE,
     "Illegal access to a deleted aggregate[${aggregateId.id}].",
 )

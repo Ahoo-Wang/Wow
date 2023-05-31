@@ -18,10 +18,10 @@ import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.eventsourcing.RequestIdIdempotencyException
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.asEventStreamCollectionName
@@ -64,9 +64,10 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                     )
                 }
                 if (it.message!!.contains(REQUEST_ID_UNIQUE_INDEX_NAME)) {
-                    return@onErrorMap RequestIdIdempotencyException(
-                        eventStream,
-                        it,
+                    return@onErrorMap DuplicateRequestIdException(
+                        aggregateId = eventStream.aggregateId,
+                        requestId = eventStream.requestId,
+                        cause = it,
                     )
                 }
                 it

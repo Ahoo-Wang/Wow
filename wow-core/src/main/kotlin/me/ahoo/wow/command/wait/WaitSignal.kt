@@ -14,8 +14,8 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.exception.ErrorCodes
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.exception.ErrorCodes
 
 interface WaitSignal : CommandId, ErrorInfo {
     val stage: CommandStage
@@ -28,5 +28,5 @@ data class SimpleWaitSignal(
     override val stage: CommandStage,
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MSG
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
 ) : WaitSignal

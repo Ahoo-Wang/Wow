@@ -15,7 +15,7 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.exception.WowException
+import me.ahoo.wow.exception.WowException
 
 class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
     WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {

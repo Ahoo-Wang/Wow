@@ -38,7 +38,7 @@ data class CreateOrder(
     @field:Size(min = 1)
     val items: List<OrderItem>,
     @field:NotNull
-    @Valid
+    @field:Valid
     val address: ShippingAddress,
     val fromCart: Boolean
 )

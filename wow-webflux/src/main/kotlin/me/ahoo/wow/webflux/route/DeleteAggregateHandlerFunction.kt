@@ -16,7 +16,8 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.webflux.ExceptionHandler
+import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandHandlerFunction.Companion.sendCommand
 import me.ahoo.wow.webflux.route.CommandParser.parse
 import me.ahoo.wow.webflux.route.appender.RoutePaths
