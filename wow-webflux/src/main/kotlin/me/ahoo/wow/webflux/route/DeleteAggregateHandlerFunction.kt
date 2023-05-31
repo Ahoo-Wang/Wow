@@ -44,9 +44,6 @@ class DeleteAggregateHandlerFunction(
             .flatMap {
                 request.sendCommand(commandGateway, it, timeout)
             }
-            .asServerResponse()
-            .onErrorResume {
-                exceptionHandler.handle(it)
-            }
+            .asServerResponse(exceptionHandler)
     }
 }

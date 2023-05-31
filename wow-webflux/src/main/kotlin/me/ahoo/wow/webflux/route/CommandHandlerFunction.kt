@@ -67,10 +67,7 @@ class CommandHandlerFunction(
             .flatMap {
                 request.sendCommand(commandGateway, it, commandWaitTimeout)
             }
-            .asServerResponse()
-            .onErrorResume {
-                exceptionHandler.handle(it)
-            }
+            .asServerResponse(exceptionHandler)
     }
 
     companion object {

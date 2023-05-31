@@ -18,9 +18,9 @@ import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.appender.RoutePaths
-import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -41,14 +41,8 @@ class LoadAggregateHandlerFunction(
             .filter {
                 it.initialized && !it.deleted
             }
-            .flatMap {
-                ServerResponse
-                    .ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(it.stateRoot)
-            }.throwNotFoundIfEmpty()
-            .onErrorResume {
-                exceptionHandler.handle(it)
-            }
+            .map { it.stateRoot }
+            .throwNotFoundIfEmpty()
+            .asServerResponse(exceptionHandler)
     }
 }
