@@ -45,7 +45,7 @@ class BatchRegenerateSnapshotHandlerFunction(
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
         return snapshotRepository.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
-            .flatMap { aggregateId ->
+            .flatMap({ aggregateId ->
                 regenerateSnapshot(
                     aggregateMetadata = aggregateMetadata,
                     stateAggregateFactory = stateAggregateFactory,
@@ -53,7 +53,7 @@ class BatchRegenerateSnapshotHandlerFunction(
                     snapshotRepository = snapshotRepository,
                     aggregateId = aggregateId,
                 )
-            }
+            }, limit)
             .reduce(BatchResult(cursorId, 0)) { acc, snapshot ->
                 val nextCursorId = if (snapshot.aggregateId.id > acc.cursorId) {
                     snapshot.aggregateId.id
