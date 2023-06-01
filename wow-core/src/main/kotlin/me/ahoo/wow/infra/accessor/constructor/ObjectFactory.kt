@@ -27,7 +27,8 @@ class InjectableObjectFactory<T : Any>(
     constructor(constructor: Constructor<T>, serviceProvider: ServiceProvider) : this(
         DefaultConstructorAccessor(
             constructor
-        ), serviceProvider
+        ),
+        serviceProvider
     )
 
     override fun newInstance(): T {
