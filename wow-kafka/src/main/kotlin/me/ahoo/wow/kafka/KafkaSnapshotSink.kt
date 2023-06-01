@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.serialization.asJsonString
@@ -26,8 +25,8 @@ import reactor.kafka.sender.SenderOptions
 import reactor.kafka.sender.SenderRecord
 
 class KafkaSnapshotSink(
+    private val topicConverter: SnapshotTopicConverter = DefaultSnapshotTopicConverter(),
     senderOptions: SenderOptions<String, String>,
-    private val topicPrefix: String = Wow.WOW_PREFIX,
 ) : SnapshotSink {
     companion object {
         private val log = LoggerFactory.getLogger(KafkaSnapshotSink::class.java)
@@ -55,7 +54,7 @@ class KafkaSnapshotSink(
     private fun encode(snapshot: Snapshot<*>): SenderRecord<String, String, String> {
         val producerRecord = ProducerRecord(
             /* topic = */
-            snapshot.aggregateId.asSnapshotTopic(topicPrefix),
+            topicConverter.convert(snapshot.aggregateId),
             /* partition = */
             null,
             /* timestamp = */

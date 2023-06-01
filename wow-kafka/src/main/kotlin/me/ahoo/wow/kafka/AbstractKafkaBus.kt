@@ -37,6 +37,7 @@ import reactor.kafka.sender.SenderRecord
 import reactor.util.concurrent.Queues
 
 abstract class AbstractKafkaBus<M, E>(
+    private val topicConverter: AggregateTopicConverter,
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
@@ -69,7 +70,6 @@ abstract class AbstractKafkaBus<M, E>(
             .next()
     }
 
-    abstract fun NamedAggregate.asTopic(): String
     abstract fun M.asExchange(receiverOffset: ReceiverOffset): E
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
@@ -79,7 +79,7 @@ abstract class AbstractKafkaBus<M, E>(
                     ConsumerConfig.GROUP_ID_CONFIG,
                     contextView.getReceiverGroup(),
                 )
-                .subscription(namedAggregates.map { it.asTopic() }.toSet())
+                .subscription(namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
             KafkaReceiver.create(customizedOptions)
                 .receive(Queues.SMALL_BUFFER_SIZE)
@@ -94,7 +94,7 @@ abstract class AbstractKafkaBus<M, E>(
     protected fun encode(message: M): SenderRecord<String, String, Sinks.Empty<Void>> {
         val producerRecord = ProducerRecord(
             /* topic = */
-            message.asTopic(),
+            topicConverter.convert(message),
             /* partition = */
             null,
             /* timestamp = */
