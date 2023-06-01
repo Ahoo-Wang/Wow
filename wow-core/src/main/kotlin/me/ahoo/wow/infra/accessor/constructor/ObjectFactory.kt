@@ -19,20 +19,16 @@ interface ObjectFactory<T : Any> {
     fun newInstance(): T
 }
 
-class InjectableObjectFactory<T : Any> : ObjectFactory<T> {
-
-    private val constructorAccessor: ConstructorAccessor<T>
+class InjectableObjectFactory<T : Any>(
+    private val constructorAccessor: ConstructorAccessor<T>,
     private val serviceProvider: ServiceProvider
+) : ObjectFactory<T> {
 
-    constructor(constructorAccessor: ConstructorAccessor<T>, serviceProvider: ServiceProvider) {
-        this.constructorAccessor = constructorAccessor
-        this.serviceProvider = serviceProvider
-    }
-
-    constructor(constructor: Constructor<T>, serviceProvider: ServiceProvider) {
-        this.constructorAccessor = DefaultConstructorAccessor(constructor)
-        this.serviceProvider = serviceProvider
-    }
+    constructor(constructor: Constructor<T>, serviceProvider: ServiceProvider) : this(
+        DefaultConstructorAccessor(
+            constructor
+        ), serviceProvider
+    )
 
     override fun newInstance(): T {
         val args = constructorAccessor
