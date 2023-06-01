@@ -50,7 +50,7 @@ abstract class EventStoreSpec {
     lateinit var eventStore: EventStore
 
     @BeforeEach
-    fun setup() {
+    open fun setup() {
         eventStore = createEventStore().metrizable()
     }
 
