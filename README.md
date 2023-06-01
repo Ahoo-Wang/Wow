@@ -14,19 +14,19 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 
 ## Architecture
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ### Event Sourcing
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
 ### Observability
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
@@ -408,30 +408,30 @@ internal class OrderTest {
 
 ### Load Aggregate
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate"/>
 </p>
 
 ### Aggregate State Flow
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow"/>
 </p>
 
 ### Send Command
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Send-Command.svg" alt="Send Command"/>
 </p>
 
 ### Command And Event Flow
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
 ### Saga - OrderProcessManager (Demo)
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>

@@ -408,30 +408,30 @@ internal class OrderTest {
 
 ### 加载聚合
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate"/>
 </p>
 
 ### 聚合状态流
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow"/>
 </p>
 
 ### 发送命令
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Send-Command.svg" alt="Send Command"/>
 </p>
 
 ### 命令与事件流
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
 ### Saga - OrderProcessManager (Demo)
 
-<p style="text-align:center">
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
