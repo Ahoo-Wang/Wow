@@ -136,7 +136,7 @@ object Metrics {
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "IMPLICIT_CAST_TO_ANY")
     fun <T : Any> T.metrizable(): T {
         val metrizableBean = when (this) {
             is LocalFirstCommandBus -> this

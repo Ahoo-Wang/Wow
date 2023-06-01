@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
@@ -30,9 +31,7 @@ object AggregateProcessorFilter : Filter<ServerCommandExchange<*>> {
     ): Mono<Void> {
         return checkNotNull(exchange.aggregateProcessor)
             .process(exchange)
-            .doFinally {
-                exchange.acknowledge()
-            }
+            .finallyAck(exchange)
             .then(next.filter(exchange))
     }
 }

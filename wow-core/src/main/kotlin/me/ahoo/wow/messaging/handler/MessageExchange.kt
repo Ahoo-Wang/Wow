@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.ioc.ServiceProvider
+import reactor.core.publisher.Mono
 
 const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
@@ -24,7 +25,7 @@ const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
 interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*>> {
     val attributes: MutableMap<String, Any>
     val message: M
-    fun acknowledge() = Unit
+    fun acknowledge(): Mono<Void> = Mono.empty()
 
     fun setAttribute(key: String, value: Any): SOURCE {
         attributes[key] = value

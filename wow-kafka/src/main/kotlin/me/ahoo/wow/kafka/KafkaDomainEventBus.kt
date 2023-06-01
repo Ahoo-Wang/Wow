@@ -12,8 +12,6 @@
  */
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
@@ -22,12 +20,13 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 class KafkaDomainEventBus(
+    topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter(),
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : DistributedDomainEventBus,
     AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
+        topicConverter,
         senderOptions,
         receiverOptions,
         receiverOptionsCustomizer,
@@ -35,10 +34,6 @@ class KafkaDomainEventBus(
 
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
-
-    override fun NamedAggregate.asTopic(): String {
-        return asEventStreamTopic(topicPrefix)
-    }
 
     override fun DomainEventStream.asExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
         return KafkaEventStreamExchange(this, receiverOffset)

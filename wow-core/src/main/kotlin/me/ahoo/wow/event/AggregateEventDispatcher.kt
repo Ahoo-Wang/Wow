@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
+import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
@@ -49,8 +50,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
     override fun handleExchange(exchange: EventStreamExchange): Mono<Void> {
         return Flux.fromIterable(exchange.message)
             .concatMap { handleEvent(exchange, it) }
-            .doFinally { exchange.acknowledge() }
-            .then()
+            .finallyAck(exchange)
     }
 
     private fun handleEvent(

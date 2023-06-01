@@ -54,12 +54,12 @@ class LocalFirstCommandBus(
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
         val localFlux = localCommandBus.receive(namedAggregates)
         val distributedFlux =
-            distributedCommandBus.receive(namedAggregates).filter {
+            distributedCommandBus.receive(namedAggregates).filterWhen {
                 val isLoadFirst = it.message.isLoadFirst()
                 if (isLoadFirst) {
-                    it.acknowledge()
+                    return@filterWhen it.acknowledge().thenReturn(false)
                 }
-                !isLoadFirst
+                Mono.just(true)
             }
         return Flux.merge(localFlux, distributedFlux)
     }

@@ -16,11 +16,17 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.kafka.CommandTopicConverter
+import me.ahoo.wow.kafka.DefaultCommandTopicConverter
+import me.ahoo.wow.kafka.DefaultEventStreamTopicConverter
+import me.ahoo.wow.kafka.DefaultSnapshotTopicConverter
+import me.ahoo.wow.kafka.EventStreamTopicConverter
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.kafka.KafkaSnapshotSink
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
+import me.ahoo.wow.kafka.SnapshotTopicConverter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -49,20 +55,33 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    fun defaultCommandTopicConverter(): CommandTopicConverter {
+        return DefaultCommandTopicConverter(kafkaProperties.topicPrefix)
+    }
+
+    @Bean
     @ConditionalOnProperty(
         CommandProperties.Bus.TYPE,
         matchIfMissing = true,
         havingValue = MessageBusType.KAFKA_NAME,
     )
     fun kafkaCommandBus(
+        topicConverter: CommandTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
     ): DistributedCommandBus {
         return KafkaCommandBus(
+            topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
-            topicPrefix = kafkaProperties.topicPrefix,
             receiverOptionsCustomizer = receiverOptionsCustomizer,
         )
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun defaultEventStreamTopicConverter(): EventStreamTopicConverter {
+        return DefaultEventStreamTopicConverter(kafkaProperties.topicPrefix)
     }
 
     @Bean
@@ -72,26 +91,32 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         havingValue = MessageBusType.KAFKA_NAME,
     )
     fun kafkaDomainEventBus(
+        topicConverter: EventStreamTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
     ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
+            topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
-            topicPrefix = kafkaProperties.topicPrefix,
             receiverOptionsCustomizer = receiverOptionsCustomizer,
         )
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun snapshotTopicConverter(): SnapshotTopicConverter {
+        return DefaultSnapshotTopicConverter(kafkaProperties.topicPrefix)
     }
 
     @Bean
     @ConditionalOnProperty(
         value = [SnapshotProperties.SINK],
         havingValue = SnapshotSinkType.KAFKA_NAME,
-        matchIfMissing = true,
     )
-    fun kafkaSnapshotSink(): SnapshotSink {
+    fun kafkaSnapshotSink(topicConverter: SnapshotTopicConverter): SnapshotSink {
         return KafkaSnapshotSink(
+            topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
-            topicPrefix = kafkaProperties.topicPrefix,
         )
     }
 }

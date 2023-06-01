@@ -12,9 +12,7 @@
  */
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import reactor.kafka.receiver.ReceiverOffset
@@ -27,23 +25,19 @@ import java.time.Duration
 internal val DEFAULT_RECEIVE_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(10))
 
 class KafkaCommandBus(
+    topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
     senderOptions: SenderOptions<String, String>,
     receiverOptions: ReceiverOptions<String, String>,
-    private val topicPrefix: String = Wow.WOW_PREFIX,
     receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
+    topicConverter,
     senderOptions,
     receiverOptions,
     receiverOptionsCustomizer,
 ) {
 
-    @Suppress("UNCHECKED_CAST")
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
-
-    override fun NamedAggregate.asTopic(): String {
-        return asCommandTopic(topicPrefix)
-    }
 
     override fun CommandMessage<*>.asExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
         return KafkaServerCommandExchange(this, receiverOffset)
