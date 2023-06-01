@@ -42,7 +42,6 @@ class RedisEventStore(private val redisTemplate: ReactiveStringRedisTemplate) : 
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        ClassPathResource("event_stream.lua")
         val key = eventStream.aggregateId.asEventStreamKey()
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
