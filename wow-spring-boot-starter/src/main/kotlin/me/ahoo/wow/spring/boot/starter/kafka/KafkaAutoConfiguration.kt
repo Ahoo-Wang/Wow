@@ -112,7 +112,6 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     @ConditionalOnProperty(
         value = [SnapshotProperties.SINK],
         havingValue = SnapshotSinkType.KAFKA_NAME,
-        matchIfMissing = true,
     )
     fun kafkaSnapshotSink(topicConverter: SnapshotTopicConverter): SnapshotSink {
         return KafkaSnapshotSink(
