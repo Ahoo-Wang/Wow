@@ -10,23 +10,23 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 [![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
 [![Awesome Kotlin Badge](https://kotlin.link/awesome-kotlin.svg)](https://github.com/KotlinBy/awesome-kotlin)
 
-Domain-Driven | Event-Driven | Test-Driven | Annotation-Driven | Declarative-Design ｜ Reactor-First
+**Domain-Driven** | **Event-Driven** | **Test-Driven** | **Declarative-Design** ｜ **Reactive Programming** ｜ **Command Query Responsibility Segregation** ｜ **Event Sourcing**
 
 ## Architecture
 
-<p align="center" style="text-align:center">
+<p style="text-align:center">
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ### Event Sourcing
 
-<p align="center" style="text-align:center">
+<p style="text-align:center">
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
 ### Observability
 
-<p align="center" style="text-align:center">
+<p style="text-align:center">
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
@@ -408,20 +408,30 @@ internal class OrderTest {
 
 ### Load Aggregate
 
-![Aggregate State Flow](./document/design/assets/Load-Aggregate.svg)
+<p style="text-align:center">
+  <img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate"/>
+</p>
 
 ### Aggregate State Flow
 
-![Aggregate State Flow](./document/design/assets/Aggregate-State-Flow.svg)
+<p style="text-align:center">
+  <img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow"/>
+</p>
 
 ### Send Command
 
-![Send Command](./document/design/assets/Send-Command.svg)
+<p style="text-align:center">
+  <img src="./document/design/assets/Send-Command.svg" alt="Send Command"/>
+</p>
 
 ### Command And Event Flow
 
-![Command And Event Flow](./document/design/assets/Command-Event-Flow.svg)
+<p style="text-align:center">
+  <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
+</p>
 
 ### Saga - OrderProcessManager (Demo)
 
-![Command flow and command processing](./document/design/assets/Saga-Order.svg)
+<p style="text-align:center">
+  <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
+</p>
