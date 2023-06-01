@@ -85,6 +85,10 @@ object AggregateAnnotationParser {
         }
     }
 
+    inline fun <reified T> staticAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+        return T::class.java.asStaticAggregateIdGetterIfAnnotated()
+    }
+
     fun <T> Field.asTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<TenantId>()?.let {
             this.asStringGetter()
@@ -95,6 +99,10 @@ object AggregateAnnotationParser {
         return this.scan<StaticTenantId>()?.let { staticTenantId ->
             PropertyGetter { staticTenantId.tenantId }
         }
+    }
+
+    inline fun <reified T> staticTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+        return T::class.java.asStaticTenantIdGetterIfAnnotated()
     }
 
     fun <T> Method.asTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
