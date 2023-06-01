@@ -16,17 +16,16 @@ package me.ahoo.wow.sharding
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 
-internal class CosIdAggregateIdShardingTest {
+internal class CosIdShardingDecoratorTest {
     private val namedAggregate = MaterializedNamedAggregate("test", "test")
 
     private val divisor = 4
-    private val sharding =
-        CosIdAggregateIdSharding(mapOf(namedAggregate to ModCycle(divisor, "sharding_")))
+    private val sharding = CosIdShardingDecorator(ModCycle(divisor, "sharding_"))
 
     @ParameterizedTest
     @CsvSource(

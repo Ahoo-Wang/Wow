@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.ORDER_DEFAULT_STEP
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
@@ -29,8 +30,7 @@ class SnapshotFunctionFilter(
 ) : Filter<EventStreamExchange> {
     override fun filter(exchange: EventStreamExchange, next: FilterChain<EventStreamExchange>): Mono<Void> {
         return snapshotStrategy.onEvent(exchange)
-            .doFinally {
-                exchange.acknowledge()
-            }.then(next.filter(exchange))
+            .finallyAck(exchange)
+            .then(next.filter(exchange))
     }
 }

@@ -11,22 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kafka
+package me.ahoo.wow.messaging.handler
 
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.EventStreamExchange
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kafka.receiver.ReceiverOffset
-import java.util.concurrent.ConcurrentHashMap
 
-data class KafkaEventStreamExchange(
-    override val message: DomainEventStream,
-    private val receiverOffset: ReceiverOffset,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : EventStreamExchange {
-    override fun acknowledge(): Mono<Void> {
-        return Mono.fromRunnable {
-            receiverOffset.acknowledge()
-        }
+object ExchangeAck {
+    fun Mono<*>.finallyAck(exchange: MessageExchange<*, *>): Mono<Void> {
+        return onErrorResume {
+            exchange.acknowledge()
+                .then(Mono.error(it))
+        }.then(exchange.acknowledge())
+    }
+
+    fun Flux<*>.finallyAck(exchange: MessageExchange<*, *>): Mono<Void> {
+        return onErrorResume {
+            exchange.acknowledge()
+                .then(Mono.error(it))
+        }.then(exchange.acknowledge())
     }
 }

@@ -15,7 +15,7 @@ package me.ahoo.wow.r2dbc
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.sharding.CosIdAggregateIdSharding
+import me.ahoo.wow.sharding.CosIdShardingDecorator
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 internal class R2dbcEventStoreTest : EventStoreSpec() {
@@ -23,14 +23,7 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
         return R2dbcEventStore(
             SimpleDatabase(ConnectionFactoryProviders.create(2)),
             ShardingEventStreamSchema(
-                CosIdAggregateIdSharding(
-                    mapOf(
-                        namedAggregate to ModCycle(
-                            4,
-                            namedAggregate.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX,
-                        ),
-                    ),
-                ),
+                CosIdShardingDecorator(ModCycle(4, namedAggregate.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX))
             ),
         ).metrizable()
     }
