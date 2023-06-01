@@ -16,18 +16,17 @@ package me.ahoo.wow.r2dbc
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.sharding.CosIdAggregateIdSharding
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.wow.sharding.CosIdShardingDecorator
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ShardingEventStreamSchemaTest {
 
     private val namedAggregate = MaterializedNamedAggregate("test", "ShardingEventStreamSchemaTest")
     private val eventStreamSharding =
-        CosIdAggregateIdSharding(
-            mapOf(namedAggregate to ModCycle(4, "test_event_stream_")),
-        )
+        CosIdShardingDecorator(ModCycle(4, "test_event_stream_"))
+
     private val eventStreamSchema = ShardingEventStreamSchema(eventStreamSharding)
 
     @Test

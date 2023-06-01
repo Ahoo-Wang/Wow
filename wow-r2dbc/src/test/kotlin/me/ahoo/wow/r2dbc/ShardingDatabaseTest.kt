@@ -16,7 +16,7 @@ package me.ahoo.wow.r2dbc
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.sharding.CosIdAggregateIdSharding
+import me.ahoo.wow.sharding.CosIdShardingDecorator
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -27,9 +27,8 @@ internal class ShardingDatabaseTest {
     private val database2 = ConnectionFactoryProviders.create(1)
     private val divisor = 2
     private val databaseSharding =
-        CosIdAggregateIdSharding(
-            mapOf(namedAggregate to ModCycle(divisor, "database_")),
-        )
+        CosIdShardingDecorator(ModCycle(divisor, "database_"))
+
     private val shardingDatabase = ShardingDatabase(
         SimpleConnectionFactoryRegistrar(
             mutableMapOf(

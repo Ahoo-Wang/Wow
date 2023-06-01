@@ -46,30 +46,11 @@ data class SingleAggregateIdSharding(val node: String) : AggregateIdSharding {
 }
 
 class CosIdShardingDecorator(
+    private val sharding: PreciseSharding<Long>,
     private val hashFunction: (String) -> Long = DEFAULT_HASH_FUNCTION,
-    private val sharding: PreciseSharding<Long>
 ) : AggregateIdSharding {
     override fun sharding(aggregateId: AggregateId): String {
         val hashed = hashFunction(aggregateId.id)
-        return sharding.sharding(hashed)
-    }
-}
-
-/**
- * TODO remove in 1.12.0
- */
-@Deprecated("use CosIdShardingDecorator")
-class CosIdAggregateIdSharding(
-    private val shardingRule: Map<NamedAggregate, PreciseSharding<Long>>
-) :
-    AggregateIdSharding {
-    override fun sharding(aggregateId: AggregateId): String {
-        val namedAggregate = aggregateId.materialize()
-        val sharding: PreciseSharding<Long>? = shardingRule[namedAggregate]
-        checkNotNull(sharding) {
-            "AggregateIdSharding not found for $namedAggregate"
-        }
-        val hashed = GlobalIdGenerator.stateParser.asState(aggregateId.id).sequence.toLong()
         return sharding.sharding(hashed)
     }
 }
