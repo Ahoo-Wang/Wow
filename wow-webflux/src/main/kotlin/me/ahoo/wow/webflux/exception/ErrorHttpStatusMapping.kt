@@ -15,10 +15,12 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import java.util.concurrent.ConcurrentHashMap
 
 object ErrorHttpStatusMapping {
+    private val log = LoggerFactory.getLogger(ErrorHttpStatusMapping::class.java)
     private val registrar = ConcurrentHashMap<String, HttpStatus>()
 
     init {
@@ -40,10 +42,16 @@ object ErrorHttpStatusMapping {
     }
 
     fun register(errorCode: String, httpStatus: HttpStatus) {
+        if (log.isInfoEnabled) {
+            log.info("Register - errorCode:[{}],httpStatus:[{}].", errorCode, httpStatus)
+        }
         registrar[errorCode] = httpStatus
     }
 
     fun unregister(errorCode: String) {
+        if (log.isInfoEnabled) {
+            log.info("Unregister - errorCode:[{}].", errorCode)
+        }
         registrar.remove(errorCode)
     }
 
