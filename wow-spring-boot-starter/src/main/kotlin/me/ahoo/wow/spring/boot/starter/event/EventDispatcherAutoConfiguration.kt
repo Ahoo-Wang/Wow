@@ -67,8 +67,8 @@ class EventDispatcherAutoConfiguration {
     }
 
     @Bean
-    fun eventDispatcherFilterChain(filters: List<Filter<DomainEventExchange<Any>>>): FilterChain<DomainEventExchange<Any>> {
-        return FilterChainBuilder<DomainEventExchange<Any>>()
+    fun eventDispatcherFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+        return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(DomainEventDispatcher::class)
             .build()
@@ -76,14 +76,14 @@ class EventDispatcherAutoConfiguration {
 
     @Bean("eventProcessorErrorHandler")
     @ConditionalOnMissingBean(name = ["eventProcessorErrorHandler"])
-    fun eventProcessorErrorHandler(): ErrorHandler<DomainEventExchange<Any>> {
+    fun eventProcessorErrorHandler(): ErrorHandler<DomainEventExchange<*>> {
         return LogResumeErrorHandler()
     }
 
     @Bean
     fun eventDispatcherHandler(
-        @Qualifier("eventDispatcherFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<Any>>
+        @Qualifier("eventDispatcherFilterChain") chain: FilterChain<DomainEventExchange<*>>,
+        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<*>>
     ): DomainEventHandler {
         return DefaultDomainEventHandler(chain, eventProcessorErrorHandler)
     }

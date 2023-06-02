@@ -15,6 +15,7 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import reactor.core.publisher.Mono
@@ -23,12 +24,12 @@ class MetricStatelessSagaHandler(override val delegate: StatelessSagaHandler) :
     StatelessSagaHandler,
     Decorator<StatelessSagaHandler> {
 
-    override fun handle(exchange: DomainEventExchange<Any>): Mono<Void> {
+    override fun handle(exchange: DomainEventExchange<*>): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "saga.handle")
             .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
             .tag(Metrics.EVENT_KEY, exchange.message.name)
-            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.eventFunction).processor.javaClass.simpleName)
+            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.getEventFunction()).processor.javaClass.simpleName)
             .metrics()
     }
 }

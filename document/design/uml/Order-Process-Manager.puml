@@ -1,7 +1,5 @@
 @startuml OrderProcessManager
-
 !include layout.puml
-
 title
 OrderProcessManager
 (Saga)
@@ -9,51 +7,68 @@ Eventual Consistency
 end title
 hide footbox
 
-actor User
-participant Order
-participant "OrderProcessManager" as OPM
+actor Buyer
+participant  Order
+participant OrderSaga
 participant Inventory
 participant Payment
+actor ShopManager
 autonumber "[0]"
 
-User ++
+Buyer++
 
-User -> Order ++  : CreateOrder
-Order -> Inventory ++: CheckInventory
+Buyer -> Order --++ : CreateOrder \n(创建订单)
+Order -> Inventory ++: CheckInventory \n(校验库存)
 Order <-- Inventory -- : OK
-User --
-Order --> OPM ++-- : OrderCreated
+Order --> OrderSaga ++-- : OrderCreated \n(订单已创建)
 
-OPM->OPM --: wait for payment
+OrderSaga->OrderSaga-- : wait for payment \n(等待支付)
+Buyer++
+Buyer -> Payment ++ :Pay \n(支付)
+OrderSaga <-- Payment --++: PaymentPaid \n(已支付)
+Order <- OrderSaga--++: PayOrder \n(支付订单)
+Order --> OrderSaga++--: OrderPaid \n(订单已支付)
 
-User ++
-User -> Payment ++-- :Pay
-OPM <-- Payment ++--: PaymentPaid
+OrderSaga -> Inventory ++-- : PrepareInventory \n (准备库存)
+alt success：库存准备/锁定成功
+    OrderSaga <-- Inventory--++: InventoryPrepared \n(库存已准备)
+    Order <- OrderSaga--++: ConfirmInventoryPrepared \n (确认订单项库存已准备/锁定)
+    Order --> OrderSaga++--: InventoryPreparedConfirmed \n(订单项库存已确认)
+    OrderSaga->OrderSaga-- : wait for Ship \n(等待发货)
 
-Order <- OPM++--: Pay Order
+    ShopManager++
 
-Order --> OPM--++: OrderPaid
+    Order <- ShopManager--++: ShipOrder \n(订单发货)
+    Order -> OrderSaga--++: OrderShipped \n(订单已发货)
+    ShopManager--
 
-OPM -> Inventory ++-- : PrepareInventory \n (Lock Inventory)
-alt success
-    OPM <-- Inventory++--: InventoryPrepared
-    Order <- OPM++--: ConfirmOrder \n (Mark Inventory Prepared)
-    Order --> OPM++--: OrderConfirmed
-    OPM -> Inventory++--: Ship
-    OPM <-- Inventory++--: Shipped
-    Order <- OPM++--: ShipOrder
-    Order --> OPM++--: OrderShipped
-    OPM--
-else fail
-    Inventory++
-    OPM <-- Inventory++-- : InventoryNotPrepared
-    Order <- OPM++--: CancelOrder
-    Order --> OPM++--: OrderCancelled
-    OPM -> Payment++--: Refund
-    OPM <-- Payment++--: Refunded
-    Order <- OPM++--: RefundOrder
-    OPM <-- Order++--: OrderRefunded
+    OrderSaga -> Inventory--++: Ship
+    OrderSaga <-- Inventory++: InventoryShipped
+    Inventory--
+    OrderSaga--
+else fail： 库存分配/锁定失败
+
+    OrderSaga <-- Inventory++ : InventoryPrepareFailed \n(库存准备失败)
+    OrderSaga->OrderSaga-- : wait \n(等待店铺管理员处理)
+    alt 确认无法供货
+        ShopManager++
+        Order <- ShopManager++--: ConfirmCannotSupplied \n(确认无法供货)
+        Order --> OrderSaga++--: OrderCancelled \n (cancelType=CANNOT_SUPPLIED)
+        OrderSaga -> Inventory++: CancelInventoryPrepare \n(取消库存分配)\n(可能存在部分商品锁定成功)
+        Inventory--
+        OrderSaga -> Payment++--: Refund \n(退款)
+        OrderSaga <-- Payment++--: Refunded \n(已退款)
+        OrderSaga--
+    else 可以供货，补货
+        ShopManager++
+        Inventory <- ShopManager++--: Replenishment \n(编辑库存/补货)
+        Inventory --> Inventory--:
+        ShopManager++
+        Inventory <- ShopManager++--: PrepareInventory \n(订单库存分配重试)\n(回到步骤[10])
+    end
 end
-
+Order--
+Inventory--
+Payment--
 @enduml
 

@@ -11,22 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.command.ServerCommandExchange
 
-interface ProjectionHandler : EventHandler
+const val COMMAND_AGGREGATE_KEY = "__COMMAND_AGGREGATE__"
+fun ServerCommandExchange<*>.setCommandAggregate(commandAggregate: CommandAggregate<*, *>): ServerCommandExchange<*> {
+    return setAttribute(COMMAND_AGGREGATE_KEY, commandAggregate)
+}
 
-class DefaultProjectionHandler(
-    chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : ProjectionHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+fun <C : Any, S : Any> ServerCommandExchange<*>.getCommandAggregate(): CommandAggregate<C, S>? {
+    return getAttribute<CommandAggregate<C, S>>(COMMAND_AGGREGATE_KEY)
+}

@@ -10,7 +10,7 @@
 [![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
 [![Awesome Kotlin Badge](https://kotlin.link/awesome-kotlin.svg)](https://github.com/KotlinBy/awesome-kotlin)
 
-Domain-Driven | Event-Driven | Test-Driven | Annotation-Driven | Declarative-Design ｜ Reactor-First
+**领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** ｜ **响应式编程** ｜ **命令查询职责分离** ｜ **事件源**
 
 ## 架构图
 
@@ -65,6 +65,7 @@ Domain-Driven | Event-Driven | Test-Driven | Annotation-Driven | Declarative-Des
 - [x] Kafka 集成
     - [x] `CommandBus`
     - [x] `DomainEventBus`
+    - [x] `KafkaSnapshotSink`
 - [x] Spring 集成
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`
@@ -407,20 +408,30 @@ internal class OrderTest {
 
 ### 加载聚合
 
-![Aggregate State Flow](./document/design/assets/Load-Aggregate.svg)
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate"/>
+</p>
 
 ### 聚合状态流
 
-![Aggregate State Flow](./document/design/assets/Aggregate-State-Flow.svg)
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow"/>
+</p>
 
 ### 发送命令
 
-![Send Command](./document/design/assets/Send-Command.svg)
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Send-Command.svg" alt="Send Command"/>
+</p>
 
 ### 命令与事件流
 
-![Command And Event Flow](./document/design/assets/Command-Event-Flow.svg)
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
+</p>
 
 ### Saga - OrderProcessManager (Demo)
 
-![Command flow and command processing](./document/design/assets/Saga-Order.svg)
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
+</p>

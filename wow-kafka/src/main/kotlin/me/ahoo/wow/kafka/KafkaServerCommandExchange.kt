@@ -15,8 +15,6 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.command.AggregateProcessor
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import java.util.concurrent.ConcurrentHashMap
@@ -24,10 +22,6 @@ import java.util.concurrent.ConcurrentHashMap
 data class KafkaServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     private val receiverOffset: ReceiverOffset,
-    @Volatile
-    override var aggregateProcessor: AggregateProcessor<Any>? = null,
-    @Volatile
-    override var eventStream: DomainEventStream? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ServerCommandExchange<C> {
     override fun acknowledge(): Mono<Void> {

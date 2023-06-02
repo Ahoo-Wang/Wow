@@ -118,7 +118,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             val commandAggregate = commandAggregateFactory.create(metadata, expectedResult.stateAggregate)
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
-                    domainEventStream = serverCommandExchange.eventStream,
+                    domainEventStream = serverCommandExchange.getEventStream(),
                     error = serverCommandExchange.getError(),
                 )
             }.onErrorResume {

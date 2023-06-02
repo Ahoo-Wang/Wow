@@ -20,6 +20,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 
@@ -37,7 +38,7 @@ object EventProcessorInstrumenter {
 
 object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<Any>> {
     override fun extract(request: DomainEventExchange<Any>): String {
-        val function = checkNotNull(request.eventFunction)
+        val function = checkNotNull(request.getEventFunction())
         val processorName = function.processor.javaClass.simpleName
         return "$processorName.${function.supportedType.simpleName}"
     }

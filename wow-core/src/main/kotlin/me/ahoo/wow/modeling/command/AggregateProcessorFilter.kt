@@ -29,7 +29,7 @@ object AggregateProcessorFilter : Filter<ServerCommandExchange<*>> {
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
-        return checkNotNull(exchange.aggregateProcessor)
+        return checkNotNull(exchange.getAggregateProcessor())
             .process(exchange)
             .finallyAck(exchange)
             .then(next.filter(exchange))

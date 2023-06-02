@@ -65,8 +65,8 @@ class StatelessSagaAutoConfiguration {
     }
 
     @Bean
-    fun statelessSagaFilterChain(filters: List<Filter<DomainEventExchange<Any>>>): FilterChain<DomainEventExchange<Any>> {
-        return FilterChainBuilder<DomainEventExchange<Any>>()
+    fun statelessSagaFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+        return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(StatelessSagaDispatcher::class)
             .build()
@@ -74,14 +74,14 @@ class StatelessSagaAutoConfiguration {
 
     @Bean("statelessSagaErrorHandler")
     @ConditionalOnMissingBean(name = ["statelessSagaErrorHandler"])
-    fun statelessSagaErrorHandler(): ErrorHandler<DomainEventExchange<Any>> {
+    fun statelessSagaErrorHandler(): ErrorHandler<DomainEventExchange<*>> {
         return LogResumeErrorHandler()
     }
 
     @Bean
     fun statelessSagaHandler(
-        @Qualifier("statelessSagaFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<Any>>
+        @Qualifier("statelessSagaFilterChain") chain: FilterChain<DomainEventExchange<*>>,
+        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<*>>
     ): StatelessSagaHandler {
         return DefaultStatelessSagaHandler(chain, statelessSagaErrorHandler)
     }

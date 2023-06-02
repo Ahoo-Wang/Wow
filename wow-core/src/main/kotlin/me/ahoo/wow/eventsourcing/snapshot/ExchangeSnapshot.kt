@@ -11,22 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.event.EventStreamExchange
 
-interface ProjectionHandler : EventHandler
+const val SNAPSHOT_KEY = "__SNAPSHOT__"
+fun EventStreamExchange.setSnapshot(snapshot: Snapshot<*>): EventStreamExchange {
+    return setAttribute(SNAPSHOT_KEY, snapshot)
+}
 
-class DefaultProjectionHandler(
-    chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : ProjectionHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+fun <S : Any> EventStreamExchange.getSnapshot(): Snapshot<S>? {
+    return getAttribute<Snapshot<S>>(SNAPSHOT_KEY)
+}
