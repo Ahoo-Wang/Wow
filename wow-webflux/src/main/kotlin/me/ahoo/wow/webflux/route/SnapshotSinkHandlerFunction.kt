@@ -14,7 +14,6 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -31,12 +30,11 @@ class SnapshotSinkHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
     private val snapshotSink: SnapshotSink,
     private val exceptionHandler: ExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        SnapshotSinkHandler(aggregateMetadata, stateAggregateFactory, eventStore, snapshotRepository, snapshotSink)
+        SnapshotSinkHandler(aggregateMetadata, stateAggregateFactory, eventStore, snapshotSink)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)

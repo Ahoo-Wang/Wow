@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.handler
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -26,11 +25,10 @@ class SnapshotSinkHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
     private val snapshotSink: SnapshotSink,
 ) {
     fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
-        return snapshotRepository.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
+        return eventStore.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap({ aggregateId ->
                 stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
                     .flatMapMany { stateAggregate ->

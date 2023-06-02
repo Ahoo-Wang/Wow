@@ -93,7 +93,6 @@ class AggregateRouterFunctionAutoRegistrar(
                 currentContext = currentContext,
                 aggregateMetadata = aggregateMetadata,
                 routerFunctionBuilder = routerFunctionBuilder,
-                snapshotRepository = snapshotRepository,
                 stateAggregateFactory = stateAggregateFactory,
                 eventStore = eventStore,
                 snapshotSink = snapshotSink,

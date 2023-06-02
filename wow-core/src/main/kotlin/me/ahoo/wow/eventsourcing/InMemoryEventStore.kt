@@ -13,6 +13,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
@@ -69,5 +70,13 @@ class InMemoryEventStore : AbstractEventStore() {
                 .filter { it.version in headVersion..tailVersion }
                 .toFlux()
         }
+    }
+
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return events.keys()
+            .asSequence()
+            .filter { it.isSameAggregateName(namedAggregate) && it.id > cursorId }
+            .sorted()
+            .take(limit).toFlux()
     }
 }

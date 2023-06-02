@@ -2,9 +2,8 @@ package me.ahoo.wow.webflux.route
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.eventsourcing.EventStore.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.FIRST_CURSOR_ID
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotSink
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -25,7 +24,6 @@ class SnapshotSinkHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             ConstructorStateAggregateFactory,
             InMemoryEventStore(),
-            NoOpSnapshotRepository,
             NoOpSnapshotSink,
             DefaultExceptionHandler
         )

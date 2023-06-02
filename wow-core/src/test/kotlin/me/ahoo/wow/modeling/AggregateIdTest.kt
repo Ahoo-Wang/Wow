@@ -49,6 +49,15 @@ internal class AggregateIdTest {
     }
 
     @Test
+    fun sort() {
+        val aggregateId = namedTypedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId2 = namedTypedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
+        val sorted = listOf(aggregateId2, aggregateId).asSequence().sorted().toList()
+        assertThat(sorted[0], equalTo(aggregateId))
+        assertThat(sorted[1], equalTo(aggregateId2))
+    }
+
+    @Test
     fun compareToWhenNotAggregateName() {
         val aggregateId = namedTypedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
         val aggregateId2 = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()

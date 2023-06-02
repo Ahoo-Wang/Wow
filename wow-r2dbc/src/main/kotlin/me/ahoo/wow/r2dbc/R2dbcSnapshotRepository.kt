@@ -15,7 +15,6 @@ package me.ahoo.wow.r2dbc
 import io.r2dbc.spi.Connection
 import io.r2dbc.spi.Readable
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -117,12 +116,5 @@ class R2dbcSnapshotRepository(
         )
             .flatMap { it.rowsUpdated }
             .then()
-    }
-
-    /**
-     * TODO
-     */
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        throw UnsupportedOperationException()
     }
 }

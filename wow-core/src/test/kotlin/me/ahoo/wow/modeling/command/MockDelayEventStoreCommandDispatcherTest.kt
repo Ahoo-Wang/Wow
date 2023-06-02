@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -35,5 +36,9 @@ internal class MockDelayEventStoreCommandDispatcherTest : CommandDispatcherSpec(
 
     override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return delegate.load(aggregateId, headVersion, tailVersion).delaySubscription(delayDuration)
+    }
+
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scrollAggregateId(namedAggregate, cursorId, limit).delaySubscription(delayDuration)
     }
 }

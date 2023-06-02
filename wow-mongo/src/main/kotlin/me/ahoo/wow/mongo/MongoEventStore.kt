@@ -15,13 +15,18 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.ErrorCategory
 import com.mongodb.MongoWriteException
+import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.BsonField
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.asEventStreamCollectionName
@@ -92,6 +97,31 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 }
 
                 domainEventStream
+            }
+    }
+
+    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        val eventStreamCollectionName = namedAggregate.asEventStreamCollectionName()
+        return database.getCollection(eventStreamCollectionName)
+            .aggregate(
+                listOf(
+                    Aggregates.match(
+                        Filters.gt(MessageRecords.AGGREGATE_ID, cursorId)
+                    ),
+                    Aggregates.group(
+                        "\$${MessageRecords.AGGREGATE_ID}",
+                        BsonField(MessageRecords.TENANT_ID, Document("\$first", "\$${MessageRecords.TENANT_ID}"))
+                    ),
+                    Aggregates.sort(Sorts.ascending(Documents.ID_FIELD)),
+                    Aggregates.limit(limit)
+                )
+            )
+            .toFlux()
+            .map {
+                namedAggregate.asAggregateId(
+                    id = it.getString(Documents.ID_FIELD),
+                    tenantId = it.getString(MessageRecords.TENANT_ID),
+                )
             }
     }
 }
