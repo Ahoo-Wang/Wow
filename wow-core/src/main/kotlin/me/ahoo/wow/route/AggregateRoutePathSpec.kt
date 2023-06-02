@@ -15,7 +15,7 @@ package me.ahoo.wow.route
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.getContextAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -39,9 +39,7 @@ interface AggregateRoutePathSpec {
             if (currentContext.isSameBoundedContext(namedAggregate)) {
                 return aggregateNamePath
             }
-            val context = MetadataSearcher.metadata.contexts[namedAggregate.contextName]
-            requireNotNull(context) { "NamedBoundedContext[${namedAggregate.contextName}] not found!" }
-            val contextAlias = context.alias.ifBlank { namedAggregate.contextName }
+            val contextAlias = namedAggregate.getContextAlias()
             return "$contextAlias/$aggregateNamePath"
         }
 

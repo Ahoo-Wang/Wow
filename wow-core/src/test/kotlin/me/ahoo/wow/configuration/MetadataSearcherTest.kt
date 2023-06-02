@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.configuration
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.notNullValue
+import me.ahoo.wow.naming.asNamedBoundedContext
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class MetadataSearcherTest {
@@ -22,5 +25,49 @@ internal class MetadataSearcherTest {
     fun getMetadata() {
         val metadata = MetadataSearcher.metadata
         assertThat(metadata, notNullValue())
+    }
+
+    @Test
+    fun getContextAlias() {
+        assertThat(MOCK_AGGREGATE_METADATA.getContextAlias(), equalTo("tck"))
+    }
+
+    @Test
+    fun getContextAliasIfNofFound() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            "not-found".asNamedBoundedContext().getContextAlias()
+        }
+    }
+
+    @Test
+    fun aliasConflictDetection() {
+        WowMetadata(
+            mapOf(
+                "cart-service" to BoundedContext(alias = "cart"),
+                "order-service" to BoundedContext(alias = "order")
+            )
+        )
+    }
+
+    @Test
+    fun aliasConflictDetectionIfEmpty() {
+        WowMetadata(
+            mapOf(
+                "cart-service" to BoundedContext(),
+                "order-service" to BoundedContext()
+            )
+        )
+    }
+
+    @Test
+    fun aliasConflictDetectionIfDuplicate() {
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            WowMetadata(
+                mapOf(
+                    "cart-service" to BoundedContext(alias = "order"),
+                    "order-service" to BoundedContext(alias = "order")
+                )
+            )
+        }
     }
 }

@@ -28,7 +28,6 @@ object BoundedContextResolver {
         val contextAnnotation = requireNotNull(getAnnotation(BoundedContext::class))
         val contextName = contextAnnotation.getName()
         val contextAlias = contextAnnotation.getAlias()
-        val contextServiceId = contextAnnotation.getServiceId()
         val contextScopes = contextAnnotation.getScopes()
         val contextPackageScopes = contextAnnotation.getPackageScopes()
         val mergedContextScopes = contextPackageScopes.plus(contextScopes).ifEmpty {
@@ -42,7 +41,6 @@ object BoundedContextResolver {
         }
         val boundedContext = me.ahoo.wow.configuration.BoundedContext(
             alias = contextAlias,
-            serviceId = contextServiceId,
             scopes = mergedContextScopes,
             aggregates = contextAggregates,
         )
@@ -69,10 +67,6 @@ object BoundedContextResolver {
 
     private fun KSAnnotation.getAlias(): String {
         return getArgumentValue(BoundedContext::alias.name)
-    }
-
-    private fun KSAnnotation.getServiceId(): String {
-        return getArgumentValue(BoundedContext::serviceId.name)
     }
 
     @Suppress("UNCHECKED_CAST")

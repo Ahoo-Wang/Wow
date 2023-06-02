@@ -1,6 +1,7 @@
 {
   "contexts": {
     "wow-tck": {
+      "alias": "tck",
       "scopes": [
         "me.ahoo.wow.tck"
       ],
