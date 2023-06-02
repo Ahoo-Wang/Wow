@@ -11,22 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kafka
+package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.ServerCommandExchange
-import reactor.core.publisher.Mono
-import reactor.kafka.receiver.ReceiverOffset
-import java.util.concurrent.ConcurrentHashMap
+import me.ahoo.wow.event.EventStreamExchange
 
-data class KafkaServerCommandExchange<C : Any>(
-    override val message: CommandMessage<C>,
-    private val receiverOffset: ReceiverOffset,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ServerCommandExchange<C> {
-    override fun acknowledge(): Mono<Void> {
-        return Mono.fromRunnable {
-            receiverOffset.acknowledge()
-        }
-    }
+const val SNAPSHOT_KEY = "__SNAPSHOT__"
+fun EventStreamExchange.setSnapshot(snapshot: Snapshot<*>): EventStreamExchange {
+    return setAttribute(SNAPSHOT_KEY, snapshot)
+}
+
+fun <S : Any> EventStreamExchange.getSnapshot(): Snapshot<S>? {
+    return getAttribute<Snapshot<S>>(SNAPSHOT_KEY)
 }

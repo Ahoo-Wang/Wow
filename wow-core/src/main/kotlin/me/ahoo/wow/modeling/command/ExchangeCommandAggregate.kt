@@ -11,22 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kafka
+package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
-import reactor.core.publisher.Mono
-import reactor.kafka.receiver.ReceiverOffset
-import java.util.concurrent.ConcurrentHashMap
 
-data class KafkaServerCommandExchange<C : Any>(
-    override val message: CommandMessage<C>,
-    private val receiverOffset: ReceiverOffset,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ServerCommandExchange<C> {
-    override fun acknowledge(): Mono<Void> {
-        return Mono.fromRunnable {
-            receiverOffset.acknowledge()
-        }
-    }
+const val COMMAND_AGGREGATE_KEY = "__COMMAND_AGGREGATE__"
+fun ServerCommandExchange<*>.setCommandAggregate(commandAggregate: CommandAggregate<*, *>): ServerCommandExchange<*> {
+    return setAttribute(COMMAND_AGGREGATE_KEY, commandAggregate)
+}
+
+fun <C : Any, S : Any> ServerCommandExchange<*>.getCommandAggregate(): CommandAggregate<C, S>? {
+    return getAttribute<CommandAggregate<C, S>>(COMMAND_AGGREGATE_KEY)
 }

@@ -40,13 +40,30 @@ data class SimpleClientCommandExchange<C : Any>(
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ClientCommandExchange<C>
 
+const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
+const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
+
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
-    var aggregateProcessor: AggregateProcessor<Any>?
-    var eventStream: DomainEventStream?
+
+    fun setAggregateProcessor(aggregateProcessor: AggregateProcessor<*>): ServerCommandExchange<C> {
+        return setAttribute(AGGREGATE_PROCESSOR_KEY, aggregateProcessor)
+    }
+
+    fun getAggregateProcessor(): AggregateProcessor<C>? {
+        return getAttribute(AGGREGATE_PROCESSOR_KEY)
+    }
+
+    fun setEventStream(eventStream: DomainEventStream): ServerCommandExchange<C> {
+        return setAttribute(EVENT_STREAM_KEY, eventStream)
+    }
+
+    fun getEventStream(): DomainEventStream? {
+        return getAttribute(EVENT_STREAM_KEY)
+    }
 
     override fun getError(): Throwable? {
         super.getError()?.let { return it }
-        val errorEvent = eventStream?.firstOrNull {
+        val errorEvent = getEventStream()?.firstOrNull {
             it.body is ErrorInfo
         } ?: return null
         @Suppress("UNCHECKED_CAST")
@@ -58,6 +75,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
         if (extracted != null) {
             return extracted
         }
+        val eventStream = getEventStream()
         if (type.isInstance(eventStream)) {
             return type.cast(eventStream)
         }
@@ -72,9 +90,5 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
 
 data class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
-    @Volatile
-    override var aggregateProcessor: AggregateProcessor<Any>? = null,
-    @Volatile
-    override var eventStream: DomainEventStream? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ServerCommandExchange<C>

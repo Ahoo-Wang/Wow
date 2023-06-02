@@ -31,7 +31,7 @@ class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : 
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return Mono.defer {
-            val eventStream = exchange.eventStream ?: return@defer next.filter(exchange)
+            val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
             domainEventBus.send(eventStream)
                 .logErrorResume()
                 .then(next.filter(exchange))
