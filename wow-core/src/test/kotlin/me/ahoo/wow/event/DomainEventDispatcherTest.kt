@@ -48,7 +48,7 @@ internal class DomainEventDispatcherTest {
             }
         })
 
-        val chain = FilterChainBuilder<DomainEventExchange<Any>>()
+        val chain = FilterChainBuilder<DomainEventExchange<*>>()
             .addFilter(DomainEventFunctionFilter(SimpleServiceProvider()))
             .build()
 

@@ -11,22 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.event
 
-import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.function.MessageFunction
+import reactor.core.publisher.Mono
 
-interface ProjectionHandler : EventHandler
+const val EVENT_FUNCTION_KEY = "__EVENT_FUNCTION__"
 
-class DefaultProjectionHandler(
-    chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : ProjectionHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+fun DomainEventExchange<*>.setEventFunction(eventFunction: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>): DomainEventExchange<*> {
+    return setAttribute(EVENT_FUNCTION_KEY, eventFunction)
+}
+
+fun DomainEventExchange<*>.getEventFunction(): MessageFunction<Any, DomainEventExchange<*>, Mono<*>>? {
+    return getAttribute<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>(EVENT_FUNCTION_KEY)
+}

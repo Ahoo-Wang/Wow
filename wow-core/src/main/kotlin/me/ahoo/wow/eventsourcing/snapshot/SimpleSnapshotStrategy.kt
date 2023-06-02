@@ -26,15 +26,6 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-const val SNAPSHOT_KEY = "__SNAPSHOT__"
-fun EventStreamExchange.setSnapshot(snapshot: Snapshot<Any>): EventStreamExchange {
-    return setAttribute(SNAPSHOT_KEY, snapshot)
-}
-
-fun EventStreamExchange.getSnapshot(): Snapshot<Any>? {
-    return getAttribute<Snapshot<Any>>(SNAPSHOT_KEY)
-}
-
 val MATCH_ALL: (Snapshot<Any>, DomainEventStream) -> Boolean =
     { _, _ ->
         true

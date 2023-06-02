@@ -14,17 +14,12 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
-interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>> {
-    val eventFunction: MessageFunction<Any, DomainEventExchange<T>, Mono<*>>?
-}
+interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>>
 
 data class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,
-    override val eventFunction: MessageFunction<Any, DomainEventExchange<T>, Mono<*>>? = null,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : DomainEventExchange<T>

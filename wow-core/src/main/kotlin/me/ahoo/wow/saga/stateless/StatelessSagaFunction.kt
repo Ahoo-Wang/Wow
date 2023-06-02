@@ -41,6 +41,7 @@ class StatelessSagaFunction(
                 asCommandStream(exchange.message, it)
             }
             .flatMap { commandStream ->
+                exchange.setCommandStream(commandStream)
                 commandStream
                     .toFlux()
                     .concatMap {

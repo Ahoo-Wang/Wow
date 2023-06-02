@@ -23,10 +23,10 @@ import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 interface StatelessSagaHandler : EventHandler
 
 class DefaultStatelessSagaHandler(
-    chain: FilterChain<DomainEventExchange<Any>>,
-    errorHandler: ErrorHandler<DomainEventExchange<Any>> = LogResumeErrorHandler()
+    chain: FilterChain<DomainEventExchange<*>>,
+    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
 ) : StatelessSagaHandler,
-    AbstractHandler<DomainEventExchange<Any>>(
+    AbstractHandler<DomainEventExchange<*>>(
         chain,
         errorHandler,
     )

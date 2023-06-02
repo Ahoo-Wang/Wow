@@ -39,7 +39,7 @@ class SnapshotSinkFilter(
 ) : Filter<EventStreamExchange> {
     override fun filter(exchange: EventStreamExchange, next: FilterChain<EventStreamExchange>): Mono<Void> {
         return Mono.defer {
-            val snapshot = exchange.getSnapshot() ?: return@defer Mono.empty<Void>()
+            val snapshot = exchange.getSnapshot<Any>() ?: return@defer Mono.empty<Void>()
             snapshotSink.sink(snapshot)
         }
     }

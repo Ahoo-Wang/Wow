@@ -18,8 +18,6 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.command.AggregateProcessor
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -38,12 +36,6 @@ internal class FilterChainBuilderTest {
         assertThat(chain.current, instanceOf(MockFirstFilter::class.java))
         assertThat((chain.next as SimpleFilterChain).current, instanceOf(MockLastFilter::class.java))
         val exchange: ServerCommandExchange<Any> = object : ServerCommandExchange<Any> {
-            override var aggregateProcessor: AggregateProcessor<Any>?
-                get() = throw UnsupportedOperationException()
-                set(value) {}
-            override var eventStream: DomainEventStream?
-                get() = throw UnsupportedOperationException()
-                set(value) {}
             override val attributes: MutableMap<String, Any>
                 get() = mutableMapOf()
             override val message: CommandMessage<Any>

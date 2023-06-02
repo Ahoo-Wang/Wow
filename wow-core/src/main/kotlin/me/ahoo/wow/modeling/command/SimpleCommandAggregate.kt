@@ -43,6 +43,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return Mono.defer {
+            exchange.setCommandAggregate(this)
             val message = exchange.message
             if (log.isDebugEnabled) {
                 log.debug("Process {}.", message)
@@ -76,7 +77,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             commandFunction
                 .handle(exchange)
                 .doOnNext {
-                    exchange.eventStream = it
+                    exchange.setEventStream(it)
                     /**
                      * 将领域事件朔源到当前状态聚合根.
                      */
