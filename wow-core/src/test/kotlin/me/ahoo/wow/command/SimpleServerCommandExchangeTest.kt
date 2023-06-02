@@ -1,6 +1,7 @@
 package me.ahoo.wow.command
 
 import io.mockk.mockk
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
@@ -15,6 +16,13 @@ class SimpleServerCommandExchangeTest {
         val commandExchange = SimpleServerCommandExchange(command)
         assertThat(commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor(), notNullValue())
         assertThat(commandExchange.setEventStream(mockk()).getEventStream(), notNullValue())
+    }
+
+    @Test
+    fun extractDeclaredCommand() {
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val commandExchange = SimpleServerCommandExchange(command)
+        assertThat(commandExchange.extractDeclared(CommandMessage::class.java), notNullValue())
     }
 
     @Test
