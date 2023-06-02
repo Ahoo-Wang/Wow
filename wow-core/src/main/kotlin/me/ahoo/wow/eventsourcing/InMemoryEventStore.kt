@@ -72,7 +72,7 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return events.keys()
             .asSequence()
             .filter { it.isSameAggregateName(namedAggregate) && it.id > cursorId }

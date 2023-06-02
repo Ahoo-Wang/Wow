@@ -10,6 +10,6 @@ class DefaultEventStreamTopicConverterTest {
     @Test
     fun convert() {
         val topic = DefaultEventStreamTopicConverter().convert(MOCK_AGGREGATE_METADATA)
-        assertThat(topic, equalTo("wow.wow-tck.mock_aggregate.event"))
+        assertThat(topic, equalTo("wow.tck.mock_aggregate.event"))
     }
 }

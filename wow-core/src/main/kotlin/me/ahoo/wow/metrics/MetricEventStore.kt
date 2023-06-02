@@ -38,9 +38,9 @@ class MetricEventStore(delegate: EventStore) : EventStore, AbstractMetricDecorat
             .metrics()
     }
 
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scrollAggregateId(namedAggregate, cursorId, limit)
-            .name(Wow.WOW_PREFIX + "eventstore.scrollAggregateId")
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, cursorId, limit)
+            .name(Wow.WOW_PREFIX + "eventstore.scanAggregateId")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()

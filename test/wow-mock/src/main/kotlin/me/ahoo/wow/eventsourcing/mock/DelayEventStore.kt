@@ -36,7 +36,7 @@ class DelayEventStore(
         return delegate.load(aggregateId, headVersion, tailVersion).delaySubscription(delaySupplier())
     }
 
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scrollAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
     }
 }

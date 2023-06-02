@@ -38,7 +38,7 @@ internal class MockDelayEventStoreCommandDispatcherTest : CommandDispatcherSpec(
         return delegate.load(aggregateId, headVersion, tailVersion).delaySubscription(delayDuration)
     }
 
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scrollAggregateId(namedAggregate, cursorId, limit).delaySubscription(delayDuration)
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, cursorId, limit).delaySubscription(delayDuration)
     }
 }

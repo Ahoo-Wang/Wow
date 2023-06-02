@@ -19,7 +19,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
-import me.ahoo.wow.modeling.asNamedAggregateString
+import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
@@ -66,9 +66,9 @@ class SnapshotSinkRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asNamedAggregateString())
+                .tag(aggregateMetadata.asStringWithAlias())
                 .summary("Re-sink aggregate snapshot")
-                .operationId("${aggregateMetadata.asNamedAggregateString()}.snapshotSink")
+                .operationId("${aggregateMetadata.asStringWithAlias()}.snapshotSink")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(BATCH_CURSOR_ID)

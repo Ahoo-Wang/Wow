@@ -128,7 +128,7 @@ class R2dbcEventStore(
     /**
      * TODO
      */
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         throw UnsupportedOperationException()
     }
 }
