@@ -12,10 +12,16 @@ class ErrorHttpStatusMappingTest {
 
     @Test
     fun register() {
-        ErrorHttpStatusMapping.register("test", HttpStatus.BAD_REQUEST)
-        assertThat(ErrorHttpStatusMapping.getHttpStatus("test"), equalTo(HttpStatus.BAD_REQUEST))
+        ErrorHttpStatusMapping.register("register", HttpStatus.BAD_REQUEST)
+        assertThat(ErrorHttpStatusMapping.getHttpStatus("register"), equalTo(HttpStatus.BAD_REQUEST))
     }
-
+    @Test
+    fun unregister() {
+        ErrorHttpStatusMapping.register("unregister", HttpStatus.BAD_REQUEST)
+        assertThat(ErrorHttpStatusMapping.getHttpStatus("unregister"), equalTo(HttpStatus.BAD_REQUEST))
+        ErrorHttpStatusMapping.unregister("unregister")
+        assertThat(ErrorHttpStatusMapping.getHttpStatus("unregister"), nullValue())
+    }
     @Test
     fun asHttpStatus() {
         IllegalArgumentException().asErrorInfo().asHttpStatus().let {
@@ -25,7 +31,7 @@ class ErrorHttpStatusMappingTest {
 
     @Test
     fun asHttpStatusIfMissing() {
-        ErrorInfo.of("missing", "").asHttpStatus().let {
+        ErrorInfo.of("asHttpStatusIfMissing", "").asHttpStatus().let {
             assertThat(it, equalTo(HttpStatus.BAD_REQUEST))
         }
     }
