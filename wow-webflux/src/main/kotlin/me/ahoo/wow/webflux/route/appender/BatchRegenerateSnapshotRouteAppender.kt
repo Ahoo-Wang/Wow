@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.FIRST_CURSOR_ID
+import me.ahoo.wow.eventsourcing.EventStore.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata

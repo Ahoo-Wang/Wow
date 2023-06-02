@@ -160,21 +160,4 @@ abstract class SnapshotRepositorySpec {
             }
             .verifyComplete()
     }
-
-    @Test
-    open fun scrollAggregateId() {
-        val snapshotRepository = createSnapshotRepository().metrizable()
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
-        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
-        val snapshot: Snapshot<MockStateAggregate> =
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotRepository.save(snapshot)
-            .test()
-            .verifyComplete()
-
-        snapshotRepository.scrollAggregateId(aggregateId, limit = 1)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
 }

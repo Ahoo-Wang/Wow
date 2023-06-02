@@ -14,12 +14,10 @@
 package me.ahoo.wow.eventsourcing.mock
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.infra.Decorator
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -34,9 +32,5 @@ class DelaySnapshotRepository(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return delegate.save(snapshot).delaySubscription(delaySupplier())
-    }
-
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scrollAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
     }
 }

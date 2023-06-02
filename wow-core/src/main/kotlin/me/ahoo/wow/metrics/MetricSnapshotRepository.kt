@@ -15,10 +15,8 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class MetricSnapshotRepository(delegate: SnapshotRepository) :
@@ -37,14 +35,6 @@ class MetricSnapshotRepository(delegate: SnapshotRepository) :
             .name(Wow.WOW_PREFIX + "snapshot.save")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
-            .metrics()
-    }
-
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scrollAggregateId(namedAggregate = namedAggregate, cursorId = cursorId, limit = limit)
-            .name(Wow.WOW_PREFIX + "snapshot.scrollAggregateId")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
     }
 }

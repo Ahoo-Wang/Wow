@@ -17,8 +17,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.FIRST_CURSOR_ID
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.EventStore.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
 import me.ahoo.wow.modeling.asNamedAggregateString
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -41,7 +40,6 @@ class SnapshotSinkRouteAppender(
     private val currentContext: NamedBoundedContext,
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
-    private val snapshotRepository: SnapshotRepository,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotSink: SnapshotSink,
@@ -57,7 +55,6 @@ class SnapshotSinkRouteAppender(
                     aggregateMetadata = aggregateMetadata,
                     stateAggregateFactory = stateAggregateFactory,
                     eventStore = eventStore,
-                    snapshotRepository = snapshotRepository,
                     snapshotSink = snapshotSink,
                     exceptionHandler = exceptionHandler,
                 ),
