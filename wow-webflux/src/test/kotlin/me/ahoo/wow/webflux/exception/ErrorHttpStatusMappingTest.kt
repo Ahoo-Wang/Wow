@@ -15,6 +15,7 @@ class ErrorHttpStatusMappingTest {
         ErrorHttpStatusMapping.register("register", HttpStatus.BAD_REQUEST)
         assertThat(ErrorHttpStatusMapping.getHttpStatus("register"), equalTo(HttpStatus.BAD_REQUEST))
     }
+
     @Test
     fun unregister() {
         ErrorHttpStatusMapping.register("unregister", HttpStatus.BAD_REQUEST)
@@ -22,6 +23,7 @@ class ErrorHttpStatusMappingTest {
         ErrorHttpStatusMapping.unregister("unregister")
         assertThat(ErrorHttpStatusMapping.getHttpStatus("unregister"), nullValue())
     }
+
     @Test
     fun asHttpStatus() {
         IllegalArgumentException().asErrorInfo().asHttpStatus().let {
