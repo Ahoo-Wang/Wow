@@ -54,7 +54,7 @@ interface EventStore {
         tailVersion: Int = Int.MAX_VALUE
     ): Flux<DomainEventStream>
 
-    fun scrollAggregateId(
+    fun scanAggregateId(
         namedAggregate: NamedAggregate,
         cursorId: String = FIRST_CURSOR_ID,
         limit: Int = 10

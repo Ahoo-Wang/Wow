@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asNamedAggregateString
+import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
@@ -61,9 +61,9 @@ class LoadAggregateRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asNamedAggregateString())
+                .tag(aggregateMetadata.asStringWithAlias())
                 .summary("Load state aggregate")
-                .operationId("${aggregateMetadata.asNamedAggregateString()}.loadStateAggregate")
+                .operationId("${aggregateMetadata.asStringWithAlias()}.loadStateAggregate")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)

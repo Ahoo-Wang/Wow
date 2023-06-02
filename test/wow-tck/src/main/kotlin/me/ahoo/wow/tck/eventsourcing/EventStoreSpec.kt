@@ -282,7 +282,7 @@ abstract class EventStoreSpec {
     }
 
     @Test
-    open fun scrollAggregateId() {
+    open fun scanAggregateId() {
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
             .test()
@@ -292,11 +292,11 @@ abstract class EventStoreSpec {
             .test()
             .verifyComplete()
 
-        eventStore.scrollAggregateId(eventStream.aggregateId, cursorId = eventStream.aggregateId.id, limit = 1)
+        eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream.aggregateId.id, limit = 1)
             .test()
             .expectNextCount(1)
             .verifyComplete()
-        eventStore.scrollAggregateId(eventStream.aggregateId, cursorId = eventStream1.aggregateId.id, limit = 1)
+        eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream1.aggregateId.id, limit = 1)
             .test()
             .expectNextCount(0)
             .verifyComplete()

@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.configuration
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.serialization.asJsonString
 
 data class WowMetadata(
@@ -125,10 +124,4 @@ internal fun <K, V : Merge<V>> Map<K, V>.merge(other: Map<K, V>): Map<K, V> {
             }
         }
     }
-}
-
-fun NamedBoundedContext.getContextAlias(): String {
-    val context = MetadataSearcher.metadata.contexts[contextName]
-    requireNotNull(context) { "MetadataSearcher[$contextName] not found!" }
-    return context.alias.ifBlank { contextName }
 }

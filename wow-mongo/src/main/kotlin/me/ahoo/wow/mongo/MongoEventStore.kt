@@ -100,7 +100,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             }
     }
 
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         val eventStreamCollectionName = namedAggregate.asEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
             .aggregate(

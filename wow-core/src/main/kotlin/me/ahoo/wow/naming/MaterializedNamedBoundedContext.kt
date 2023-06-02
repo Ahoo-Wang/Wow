@@ -15,7 +15,13 @@ package me.ahoo.wow.naming
 
 import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.configuration.MetadataSearcher
 
 data class MaterializedNamedBoundedContext(override val contextName: String) : NamedBoundedContext, Materialized
 
 fun String.asNamedBoundedContext(): NamedBoundedContext = MaterializedNamedBoundedContext(this)
+
+fun NamedBoundedContext.getContextAlias(): String {
+    val context = MetadataSearcher.metadata.contexts[contextName] ?: return contextName
+    return context.alias.ifBlank { contextName }
+}

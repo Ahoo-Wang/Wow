@@ -15,8 +15,8 @@ package me.ahoo.wow.route
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.configuration.getContextAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.serialization.MessageRecords
 
 interface AggregateRoutePathSpec {

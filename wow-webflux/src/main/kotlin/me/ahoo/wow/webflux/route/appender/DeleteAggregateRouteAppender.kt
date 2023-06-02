@@ -20,7 +20,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.modeling.asNamedAggregateString
+import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
@@ -63,10 +63,10 @@ class DeleteAggregateRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asNamedAggregateString())
+                .tag(aggregateMetadata.asStringWithAlias())
                 .summary("Delete aggregate")
                 .operationId(
-                    "${aggregateMetadata.asNamedAggregateString()}.deleteAggregate",
+                    "${aggregateMetadata.asStringWithAlias()}.deleteAggregate",
                 )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()

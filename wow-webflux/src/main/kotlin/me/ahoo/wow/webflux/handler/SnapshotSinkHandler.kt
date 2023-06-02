@@ -28,7 +28,7 @@ class SnapshotSinkHandler(
     private val snapshotSink: SnapshotSink,
 ) {
     fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
-        return eventStore.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
+        return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap({ aggregateId ->
                 stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
                     .flatMapMany { stateAggregate ->

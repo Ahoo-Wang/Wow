@@ -28,5 +28,5 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
         ).metrizable()
     }
 
-    override fun scrollAggregateId() = Unit
+    override fun scanAggregateId() = Unit
 }
