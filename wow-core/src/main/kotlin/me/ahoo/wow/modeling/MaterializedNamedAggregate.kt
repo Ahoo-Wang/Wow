@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.naming.getContextAlias
 import java.util.*
 
 data class MaterializedNamedAggregate(
@@ -59,4 +60,8 @@ fun String.asNamedAggregate(contextName: String? = null): MaterializedNamedAggre
 
 fun NamedAggregate.asNamedAggregateString(): String {
     return "$contextName$NAMED_AGGREGATE_DELIMITER$aggregateName"
+}
+
+fun NamedAggregate.asStringWithAlias(): String {
+    return "${getContextAlias()}$NAMED_AGGREGATE_DELIMITER$aggregateName"
 }

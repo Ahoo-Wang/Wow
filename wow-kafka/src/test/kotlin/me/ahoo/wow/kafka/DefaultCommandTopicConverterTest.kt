@@ -10,6 +10,6 @@ class DefaultCommandTopicConverterTest {
     @Test
     fun convert() {
         val topic = DefaultCommandTopicConverter().convert(MOCK_AGGREGATE_METADATA)
-        assertThat(topic, equalTo("wow.wow-tck.mock_aggregate.command"))
+        assertThat(topic, equalTo("wow.tck.mock_aggregate.command"))
     }
 }

@@ -14,12 +14,9 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemorySnapshotRepository : SnapshotRepository {
@@ -31,21 +28,9 @@ class InMemorySnapshotRepository : SnapshotRepository {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.fromRunnable {
             aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.asJsonString()
-        }
-    }
-
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return Flux.defer {
-            aggregateIdMapSnapshot
-                .keys()
-                .asSequence()
-                .filter { it.isSameAggregateName(namedAggregate) && it.id > cursorId }
-                .sorted()
-                .take(limit).toFlux()
         }
     }
 }

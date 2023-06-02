@@ -12,21 +12,38 @@
  */
 package me.ahoo.wow.configuration
 
+import me.ahoo.wow.serialization.asJsonString
+
 data class WowMetadata(
     /**
      * `contextName` -> `BoundedContext`
      */
     val contexts: Map<String, BoundedContext> = emptyMap()
 ) : Merge<WowMetadata> {
+    init {
+        aliasConflictDetection()
+    }
+
     override fun merge(other: WowMetadata): WowMetadata {
         val mergedContexts = contexts.merge(other.contexts)
         return WowMetadata(mergedContexts)
+    }
+
+    private fun aliasConflictDetection() {
+        contexts.keys.groupBy {
+            contexts[it]!!.alias
+        }.filter {
+            it.key.isNotBlank()
+        }.forEach { (alias, contextNames) ->
+            check(contextNames.size == 1) {
+                "The alias[$alias] conflicts with the bounded contexts${contextNames.asJsonString()}."
+            }
+        }
     }
 }
 
 data class BoundedContext(
     val alias: String = "",
-    val serviceId: String = "",
     override val scopes: Set<String> = setOf(),
     /**
      * `aggregateName` -> `Aggregate`
@@ -40,10 +57,9 @@ data class BoundedContext(
             }
         }
         val mergedAlias = alias.ifBlank { other.alias }
-        val mergedServiceId = serviceId.ifBlank { other.serviceId }
         val mergedScopes = scopes.plus(other.scopes)
         val mergedAggregates = aggregates.merge(other.aggregates)
-        return BoundedContext(mergedAlias, mergedServiceId, mergedScopes, mergedAggregates)
+        return BoundedContext(alias = mergedAlias, scopes = mergedScopes, aggregates = mergedAggregates)
     }
 }
 

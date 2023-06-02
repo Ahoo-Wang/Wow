@@ -10,6 +10,6 @@ class DefaultSnapshotTopicConverterTest {
     @Test
     fun convert() {
         val topic = DefaultSnapshotTopicConverter().convert(MOCK_AGGREGATE_METADATA)
-        assertThat(topic, equalTo("wow.wow-tck.mock_aggregate.snapshot"))
+        assertThat(topic, equalTo("wow.tck.mock_aggregate.snapshot"))
     }
 }

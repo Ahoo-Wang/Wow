@@ -27,4 +27,6 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
             ),
         ).metrizable()
     }
+
+    override fun scanAggregateId() = Unit
 }

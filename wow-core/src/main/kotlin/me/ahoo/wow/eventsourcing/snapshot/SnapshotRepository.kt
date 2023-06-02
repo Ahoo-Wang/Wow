@@ -13,11 +13,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-
-const val FIRST_CURSOR_ID = "(0)"
 
 /**
  * Snapshot Repository.
@@ -25,11 +21,6 @@ const val FIRST_CURSOR_ID = "(0)"
 interface SnapshotRepository {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
-    fun scrollAggregateId(
-        namedAggregate: NamedAggregate,
-        cursorId: String = FIRST_CURSOR_ID,
-        limit: Int = 10
-    ): Flux<AggregateId>
 }
 
 object NoOpSnapshotRepository : SnapshotRepository {
@@ -39,9 +30,5 @@ object NoOpSnapshotRepository : SnapshotRepository {
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.empty()
-    }
-
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return Flux.empty()
     }
 }

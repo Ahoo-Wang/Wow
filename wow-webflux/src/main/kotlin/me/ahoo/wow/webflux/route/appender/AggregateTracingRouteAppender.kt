@@ -18,7 +18,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.asNamedAggregateString
+import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
@@ -59,9 +59,9 @@ class AggregateTracingRouteAppender(
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
-                .tag(aggregateMetadata.asNamedAggregateString())
+                .tag(aggregateMetadata.asStringWithAlias())
                 .summary("Aggregate Tracing")
-                .operationId("${aggregateMetadata.asNamedAggregateString()}.aggregateTracing")
+                .operationId("${aggregateMetadata.asStringWithAlias()}.aggregateTracing")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)

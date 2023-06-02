@@ -281,6 +281,27 @@ abstract class EventStoreSpec {
         }
     }
 
+    @Test
+    open fun scanAggregateId() {
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream)
+            .test()
+            .verifyComplete()
+        val eventStream1 = generateEventStream()
+        eventStore.append(eventStream1)
+            .test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream.aggregateId.id, limit = 1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+        eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream1.aggregateId.id, limit = 1)
+            .test()
+            .expectNextCount(0)
+            .verifyComplete()
+    }
+
     companion object {
         const val TIMES = 4000
         const val DEFAULT_PARALLELISM = 16

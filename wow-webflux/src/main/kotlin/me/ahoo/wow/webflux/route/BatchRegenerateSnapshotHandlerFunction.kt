@@ -48,7 +48,11 @@ class BatchRegenerateSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return snapshotRepository.scrollAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
+        return eventStore.scanAggregateId(
+            namedAggregate = aggregateMetadata.namedAggregate,
+            cursorId = cursorId,
+            limit = limit
+        )
             .flatMap({ aggregateId ->
                 handler.handle(aggregateId)
             }, limit)

@@ -15,6 +15,7 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import reactor.core.publisher.Flux
@@ -34,6 +35,14 @@ class MetricEventStore(delegate: EventStore) : EventStore, AbstractMetricDecorat
             .name(Wow.WOW_PREFIX + "eventstore.load")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
+
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, cursorId, limit)
+            .name(Wow.WOW_PREFIX + "eventstore.scanAggregateId")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
     }
 }
