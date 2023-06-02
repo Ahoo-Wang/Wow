@@ -22,6 +22,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
@@ -57,7 +58,7 @@ class MonoTraceTest {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
-            every { eventFunction } returns mockk {
+            every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
                 every { getError() } returns null
@@ -78,7 +79,7 @@ class MonoTraceTest {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
-            every { eventFunction } returns mockk {
+            every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
                 every { getError() } returns null
@@ -99,7 +100,7 @@ class MonoTraceTest {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
-            every { eventFunction } returns mockk {
+            every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
                 every { supportedType } returns MonoTraceTest::class.java
             }

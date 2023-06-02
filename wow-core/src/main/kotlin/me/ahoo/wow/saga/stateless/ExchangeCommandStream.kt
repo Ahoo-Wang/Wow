@@ -11,22 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-interface ProjectionHandler : EventHandler
+const val COMMAND_STREAM_KEY = "__COMMAND_STREAM__"
+fun DomainEventExchange<*>.setCommandStream(commandStream: CommandStream): DomainEventExchange<*> {
+    return setAttribute(COMMAND_STREAM_KEY, commandStream)
+}
 
-class DefaultProjectionHandler(
-    chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : ProjectionHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+fun DomainEventExchange<*>.getCommandStream(): CommandStream? {
+    return getAttribute<CommandStream>(COMMAND_STREAM_KEY)
+}

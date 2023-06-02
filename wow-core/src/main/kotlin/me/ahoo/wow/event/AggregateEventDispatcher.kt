@@ -78,13 +78,11 @@ class AggregateEventDispatcher<R : Mono<*>>(
         }
         return Flux.fromIterable(functions)
             .flatMap { function ->
-                @Suppress("UNCHECKED_CAST")
-                val eventExchange: DomainEventExchange<Any> =
+                val eventExchange =
                     SimpleDomainEventExchange(
                         message = event,
-                        eventFunction = function,
                         attributes = ConcurrentHashMap(exchange.attributes),
-                    ) as DomainEventExchange<Any>
+                    ).setEventFunction(function)
                 eventHandler.handle(eventExchange)
             }.then()
     }

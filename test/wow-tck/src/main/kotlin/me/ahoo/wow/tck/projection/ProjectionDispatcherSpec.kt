@@ -49,7 +49,7 @@ abstract class ProjectionDispatcherSpec {
 
     @Test
     fun run() {
-        val chain = FilterChainBuilder<DomainEventExchange<Any>>()
+        val chain = FilterChainBuilder<DomainEventExchange<*>>()
             .addFilter(ProjectionFunctionFilter(SimpleServiceProvider()))
             .build()
         val projectionDispatcher =

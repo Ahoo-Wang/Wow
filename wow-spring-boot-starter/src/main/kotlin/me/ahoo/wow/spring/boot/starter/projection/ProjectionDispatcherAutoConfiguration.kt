@@ -64,8 +64,8 @@ class ProjectionDispatcherAutoConfiguration {
     }
 
     @Bean
-    fun projectionFilterChain(filters: List<Filter<DomainEventExchange<Any>>>): FilterChain<DomainEventExchange<Any>> {
-        return FilterChainBuilder<DomainEventExchange<Any>>()
+    fun projectionFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+        return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(ProjectionDispatcher::class)
             .build()
@@ -73,14 +73,14 @@ class ProjectionDispatcherAutoConfiguration {
 
     @Bean("projectionErrorHandler")
     @ConditionalOnMissingBean(name = ["projectionErrorHandler"])
-    fun projectionErrorHandler(): ErrorHandler<DomainEventExchange<Any>> {
+    fun projectionErrorHandler(): ErrorHandler<DomainEventExchange<*>> {
         return LogResumeErrorHandler()
     }
 
     @Bean
     fun projectionHandler(
-        @Qualifier("projectionFilterChain") chain: FilterChain<DomainEventExchange<Any>>,
-        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<Any>>
+        @Qualifier("projectionFilterChain") chain: FilterChain<DomainEventExchange<*>>,
+        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<*>>
     ): ProjectionHandler {
         return DefaultProjectionHandler(chain, projectionErrorHandler)
     }

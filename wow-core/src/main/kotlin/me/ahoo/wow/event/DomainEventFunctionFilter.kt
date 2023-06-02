@@ -26,10 +26,10 @@ import reactor.core.publisher.Mono
 open class DomainEventFunctionFilter(
     private val serviceProvider: ServiceProvider
 ) :
-    Filter<DomainEventExchange<Any>> {
+    Filter<DomainEventExchange<*>> {
 
-    override fun filter(exchange: DomainEventExchange<Any>, next: FilterChain<DomainEventExchange<Any>>): Mono<Void> {
+    override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
         exchange.setServiceProvider(serviceProvider)
-        return checkNotNull(exchange.eventFunction).handle(exchange).then(next.filter(exchange))
+        return checkNotNull(exchange.getEventFunction()).handle(exchange).then(next.filter(exchange))
     }
 }
