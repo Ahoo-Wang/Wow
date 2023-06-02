@@ -25,9 +25,10 @@ data class DefaultAggregateId(
     override val id: String,
     override val tenantId: String = TenantId.DEFAULT_TENANT_ID
 ) : AggregateId {
+    private val hashCode: Int = hash()
     override fun equals(other: Any?): Boolean = equalTo(other)
 
-    override fun hashCode(): Int = hash()
+    override fun hashCode(): Int = hashCode
     override fun toString(): String {
         return "AggregateId(contextName=$contextName, aggregateName=$aggregateName, tenantId=$tenantId, id=$id)"
     }

@@ -16,11 +16,24 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.naming.Materialized
+import java.util.*
 
 data class MaterializedNamedAggregate(
     override val contextName: String,
     override val aggregateName: String
-) : NamedAggregate, Materialized
+) : NamedAggregate, Materialized {
+    private val hashCode = Objects.hash(contextName, aggregateName)
+    override fun hashCode(): Int = hashCode
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MaterializedNamedAggregate
+
+        if (contextName != other.contextName) return false
+        return aggregateName == other.aggregateName
+    }
+}
 
 fun NamedAggregate.materialize(): MaterializedNamedAggregate {
     if (this is MaterializedNamedAggregate) {

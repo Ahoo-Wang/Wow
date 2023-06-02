@@ -16,9 +16,10 @@ package me.ahoo.wow.webflux.exception
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import org.springframework.http.HttpStatus
+import java.util.concurrent.ConcurrentHashMap
 
 object ErrorHttpStatusMapping {
-    private val registrar = mutableMapOf<String, HttpStatus>()
+    private val registrar = ConcurrentHashMap<String, HttpStatus>()
 
     init {
         register(ErrorCodes.SUCCEEDED, HttpStatus.OK)
@@ -40,6 +41,10 @@ object ErrorHttpStatusMapping {
 
     fun register(errorCode: String, httpStatus: HttpStatus) {
         registrar[errorCode] = httpStatus
+    }
+
+    fun unregister(errorCode: String) {
+        registrar.remove(errorCode)
     }
 
     fun getHttpStatus(errorCode: String): HttpStatus? {
