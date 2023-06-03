@@ -20,6 +20,8 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.redis.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
 import org.springframework.core.io.ClassPathResource
@@ -33,8 +35,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class RedisEventStore(
-    private val redisTemplate: ReactiveStringRedisTemplate,
-    private val keyConverter: EventStreamKeyConverter = DefaultEventStreamKeyConverter
+    private val redisTemplate: ReactiveStringRedisTemplate
 ) : AbstractEventStore() {
     companion object {
         private val RESOURCE_EVENT_STEAM_APPEND: Resource = ClassPathResource("event_steam_append.lua")
@@ -43,11 +44,17 @@ class RedisEventStore(
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val key = keyConverter.converter(eventStream.aggregateId)
+        val aggregateKey = EventStreamKeyConverter.toAggregateIdKey(eventStream.aggregateId)
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
-            listOf(key),
-            listOf(eventStream.requestId, eventStream.version.toString(), eventStream.asJsonString()),
+            listOf(aggregateKey),
+            listOf(
+                eventStream.getContextAlias(),
+                eventStream.aggregateName,
+                eventStream.requestId,
+                eventStream.version.toString(),
+                eventStream.asJsonString()
+            ),
         ).doOnNext {
             when (it) {
                 ErrorCodes.EVENT_VERSION_CONFLICT -> throw EventVersionConflictException(eventStream)
@@ -60,7 +67,7 @@ class RedisEventStore(
     }
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        val key = keyConverter.converter(aggregateId)
+        val key = EventStreamKeyConverter.converter(aggregateId)
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
         return redisTemplate.opsForZSet().rangeByScore(key, range, RedisZSetCommands.Limit.unlimited())
             .map {
@@ -73,12 +80,12 @@ class RedisEventStore(
         cursorId: String,
         limit: Int
     ): Flux<AggregateId> {
-        val keyPrefix = keyConverter.toKeyPrefix(namedAggregate)
+        val keyPrefix = namedAggregate.toKeyPrefix()
         val keyPattern = "$keyPrefix*"
         val options = ScanOptions.scanOptions().match(keyPattern).count(limit.toLong()).build()
         return redisTemplate.scan(options)
             .map {
-                keyConverter.toAggregateId(namedAggregate, it)
+                EventStreamKeyConverter.toAggregateId(namedAggregate, it)
             }
     }
 }

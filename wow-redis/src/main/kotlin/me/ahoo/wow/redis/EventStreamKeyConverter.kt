@@ -18,26 +18,27 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.naming.getContextAlias
 
-interface EventStreamKeyConverter : AggregateKeyConverter {
-    fun toKeyPrefix(namedAggregate: NamedAggregate): String
-    fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId
-}
-
-object DefaultEventStreamKeyConverter : EventStreamKeyConverter {
+object EventStreamKeyConverter : AggregateKeyConverter {
     private const val ID_DELIMITER = "@"
-    override fun toKeyPrefix(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.getContextAlias()}$DELIMITER${namedAggregate.aggregateName}${DELIMITER}event$DELIMITER"
+    private const val ID_PREFIX = "{"
+    private const val ID_SUFFIX = "}"
+    fun NamedAggregate.toKeyPrefix(): String {
+        return "${getContextAlias()}$DELIMITER${aggregateName}${DELIMITER}event$DELIMITER"
     }
 
-    override fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
-        val prefix = toKeyPrefix(namedAggregate)
-        val idWithTenantId = key.removePrefix(prefix)
+    fun toAggregateIdKey(aggregateId: AggregateId): String {
+        return "$ID_PREFIX${aggregateId.id}${ID_DELIMITER}${aggregateId.tenantId}$ID_SUFFIX"
+    }
+
+    fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
+        val prefix = namedAggregate.toKeyPrefix()
+        val idWithTenantId = key.removePrefix(prefix).removePrefix(ID_PREFIX).removeSuffix(ID_SUFFIX)
         idWithTenantId.split(ID_DELIMITER).let {
             return namedAggregate.asAggregateId(it[0], it[1])
         }
     }
 
     override fun converter(aggregateId: AggregateId): String {
-        return "${toKeyPrefix(aggregateId)}${aggregateId.id}${ID_DELIMITER}${aggregateId.tenantId}}"
+        return "${aggregateId.toKeyPrefix()}${toAggregateIdKey(aggregateId)}"
     }
 }
