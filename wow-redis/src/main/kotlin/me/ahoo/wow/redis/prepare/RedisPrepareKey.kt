@@ -16,8 +16,8 @@ package me.ahoo.wow.redis.prepare
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.redis.RedisWrappedKey.wrap
 import me.ahoo.wow.redis.prepare.PrepareKeyConverter.asKey
-import me.ahoo.wow.redis.prepare.PrepareKeyConverter.asWrappedKey
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
 import org.springframework.core.io.ClassPathResource
@@ -68,7 +68,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.asWrappedKey()
+        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_PREPARE,
             listOf(wrappedKey),
@@ -90,7 +90,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String): Mono<Boolean> {
-        val wrappedKey = key.asWrappedKey()
+        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_ROLLBACK,
             listOf(wrappedKey),
@@ -101,7 +101,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.asWrappedKey()
+        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_REPREPARE,
             listOf(wrappedKey),
@@ -113,7 +113,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, oldValue: V, newValue: PreparedValue<V>): Mono<Boolean> {
-        val wrappedKey = key.asWrappedKey()
+        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_REPREPARE_WITH_OLD_VALUE,
             listOf(wrappedKey),
@@ -126,7 +126,7 @@ class RedisPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String, value: V): Mono<Boolean> {
-        val wrappedKey = key.asWrappedKey()
+        val wrappedKey = key.wrap()
         return redisTemplate.execute(
             SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE,
             listOf(wrappedKey),
