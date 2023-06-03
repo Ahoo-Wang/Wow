@@ -13,6 +13,7 @@
             <option value="$PROJECT_DIR$/example/example-server" />
             <option value="$PROJECT_DIR$/test/code-coverage-report" />
             <option value="$PROJECT_DIR$/test/wow-it" />
+            <option value="$PROJECT_DIR$/test/wow-mock" />
             <option value="$PROJECT_DIR$/test/wow-tck" />
             <option value="$PROJECT_DIR$/test/wow-test" />
             <option value="$PROJECT_DIR$/wow-api" />
@@ -25,6 +26,7 @@
             <option value="$PROJECT_DIR$/wow-mongo" />
             <option value="$PROJECT_DIR$/wow-opentelemetry" />
             <option value="$PROJECT_DIR$/wow-r2dbc" />
+            <option value="$PROJECT_DIR$/wow-redis" />
             <option value="$PROJECT_DIR$/wow-spring" />
             <option value="$PROJECT_DIR$/wow-spring-boot-starter" />
             <option value="$PROJECT_DIR$/wow-webflux" />

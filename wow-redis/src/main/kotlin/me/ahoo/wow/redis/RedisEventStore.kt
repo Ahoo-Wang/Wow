@@ -14,6 +14,7 @@
 package me.ahoo.wow.redis
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
@@ -26,23 +27,23 @@ import org.springframework.core.io.Resource
 import org.springframework.data.domain.Range
 import org.springframework.data.redis.connection.RedisZSetCommands
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import org.springframework.data.redis.core.ScanOptions
 import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class RedisEventStore(private val redisTemplate: ReactiveStringRedisTemplate) : AbstractEventStore() {
+class RedisEventStore(
+    private val redisTemplate: ReactiveStringRedisTemplate,
+    private val keyConverter: EventStreamKeyConverter = DefaultEventStreamKeyConverter
+) : AbstractEventStore() {
     companion object {
         private val RESOURCE_EVENT_STEAM_APPEND: Resource = ClassPathResource("event_steam_append.lua")
         val SCRIPT_EVENT_STEAM_APPEND: RedisScript<String> =
             RedisScript.of(RESOURCE_EVENT_STEAM_APPEND, String::class.java)
     }
 
-    private fun AggregateId.asEventStreamKey(): String {
-        return "event_steam:${contextName}:${aggregateName}:${id}"
-    }
-
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val key = eventStream.aggregateId.asEventStreamKey()
+        val key = keyConverter.converter(eventStream.aggregateId)
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
             listOf(key),
@@ -55,16 +56,29 @@ class RedisEventStore(private val redisTemplate: ReactiveStringRedisTemplate) : 
                     eventStream.requestId
                 )
             }
-        }
-            .then()
+        }.then()
     }
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        val key = aggregateId.asEventStreamKey()
+        val key = keyConverter.converter(aggregateId)
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
         return redisTemplate.opsForZSet().rangeByScore(key, range, RedisZSetCommands.Limit.unlimited())
             .map {
                 it.asObject<DomainEventStream>()
+            }
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        val keyPrefix = keyConverter.toKeyPrefix(namedAggregate)
+        val keyPattern = "$keyPrefix*"
+        val options = ScanOptions.scanOptions().match(keyPattern).count(limit.toLong()).build()
+        return redisTemplate.scan(options)
+            .map {
+                keyConverter.toAggregateId(namedAggregate, it)
             }
     }
 }

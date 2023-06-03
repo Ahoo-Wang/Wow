@@ -57,12 +57,14 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
         - [x] R2dbc
             - [x] Database Sharding
             - [x] Table Sharding
+        - [x] Redis
     - Snapshot
-        - [x] MongoDB (Recommend)
+        - [x] MongoDB
         - [x] R2dbc
             - [x] Database Sharding
             - [x] Table Sharding
         - [x] ElasticSearch
+        - [x] Redis (Recommend)
 - [x] Kafka Integration
     - [x] `CommandBus`
     - [x] `DomainEventBus`

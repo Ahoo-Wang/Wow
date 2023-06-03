@@ -14,37 +14,29 @@
 package me.ahoo.wow.redis
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class RedisSnapshotRepository(private val redisTemplate: ReactiveStringRedisTemplate) : SnapshotRepository {
-    private fun AggregateId.asSnapshotKey(): String {
-        return "snapshot:${contextName}:${aggregateName}:${id}"
-    }
+class RedisSnapshotRepository(
+    private val redisTemplate: ReactiveStringRedisTemplate,
+    private val keyConverter: SnapshotKeyConverter = DefaultSnapshotKeyConverter
+) : SnapshotRepository {
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
+        val snapshotKey = keyConverter.converter(aggregateId)
         return redisTemplate.opsForValue()
-            .get(aggregateId.asSnapshotKey())
+            .get(snapshotKey)
             .map { it.asObject<Snapshot<S>>() }
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
+        val snapshotKey = keyConverter.converter(snapshot.aggregateId)
         return redisTemplate.opsForValue()
-            .set(snapshot.aggregateId.asSnapshotKey(), snapshot.asJsonString())
+            .set(snapshotKey, snapshot.asJsonString())
             .then()
-    }
-
-    override fun scrollAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        TODO()
-//        redisTemplate.scan(ScanOptionsBuilder()
-//            .match("${namedAggregate.contextName}:${namedAggregate.aggregateName}:*")
-//                .count(limit.toLong())
-//                .build())
     }
 }

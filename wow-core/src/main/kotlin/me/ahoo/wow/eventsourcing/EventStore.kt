@@ -14,7 +14,6 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
@@ -24,7 +23,7 @@ import reactor.core.publisher.Mono
  * EventStore .
  * @author ahoo wang
  */
-interface EventStore {
+interface EventStore : AggregateIdScanner {
     /**
      * Append event stream to EventStore.
      * Ensure transaction consistency.
@@ -54,14 +53,7 @@ interface EventStore {
         tailVersion: Int = Int.MAX_VALUE
     ): Flux<DomainEventStream>
 
-    fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        cursorId: String = FIRST_CURSOR_ID,
-        limit: Int = 10
-    ): Flux<AggregateId>
-
     companion object {
         const val DEFAULT_HEAD_VERSION: Int = 1
-        const val FIRST_CURSOR_ID = "(0)"
     }
 }

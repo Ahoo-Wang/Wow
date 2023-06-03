@@ -14,24 +14,9 @@
 package me.ahoo.wow.redis
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
-
-fun interface AggregateTopicConverter {
-    fun toTopic(namedAggregate: NamedAggregate): String
-}
-
-interface AggregateKeyConverter : AggregateTopicConverter {
-    fun toKey(aggregateId: AggregateId): String
-}
 
 const val DELIMITER = ":"
 
-class SnapshotKeyConverter : AggregateKeyConverter {
-    override fun toKey(aggregateId: AggregateId): String {
-        return "${aggregateId.contextName}$DELIMITER${aggregateId.aggregateName}"
-    }
-
-    override fun toTopic(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.contextName}$DELIMITER${namedAggregate.aggregateName}"
-    }
+fun interface AggregateKeyConverter {
+    fun converter(aggregateId: AggregateId): String
 }

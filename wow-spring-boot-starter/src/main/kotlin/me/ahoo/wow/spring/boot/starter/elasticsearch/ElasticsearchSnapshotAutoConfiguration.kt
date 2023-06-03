@@ -41,9 +41,10 @@ class ElasticsearchSnapshotAutoConfiguration {
 
     @Bean
     fun snapshotRepository(
-        snapshotIndexNameConverter: SnapshotIndexNameConverter,
-        elasticsearchClient: ReactiveElasticsearchClient
+        elasticsearchClient: ReactiveElasticsearchClient,
+        snapshotIndexNameConverter: SnapshotIndexNameConverter
+
     ): SnapshotRepository {
-        return ElasticsearchSnapshotRepository(snapshotIndexNameConverter, elasticsearchClient)
+        return ElasticsearchSnapshotRepository(elasticsearchClient, snapshotIndexNameConverter)
     }
 }

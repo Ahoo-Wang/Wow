@@ -11,18 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.eventsourcing
 
-import com.mongodb.reactivestreams.client.MongoClients
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
+import reactor.core.publisher.Flux
 
-class MongoEventStoreTest : EventStoreSpec() {
-    override fun createEventStore(): EventStore {
-        val client = MongoClients.create(MongoLauncher.getConnectionString())
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
-        EventStreamSchemaInitializer(database, true).initSchema(namedAggregate)
-        return MongoEventStore(database).metrizable()
+interface AggregateIdScanner {
+    companion object {
+        const val FIRST_CURSOR_ID = "(0)"
     }
+
+    fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String = FIRST_CURSOR_ID,
+        limit: Int = 10
+    ): Flux<AggregateId>
 }
