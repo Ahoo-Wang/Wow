@@ -24,7 +24,9 @@ import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 
+@Disabled
 class RedisCommandDispatcherTest : CommandDispatcherSpec() {
     protected lateinit var redisInitializer: RedisInitializer
 

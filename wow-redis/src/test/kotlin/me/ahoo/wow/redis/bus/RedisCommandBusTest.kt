@@ -9,7 +9,7 @@ class RedisCommandBusTest : CommandBusSpec() {
     protected lateinit var redisInitializer: RedisInitializer
 
     @BeforeEach
-     fun setup() {
+    fun setup() {
         redisInitializer = RedisInitializer()
     }
 
