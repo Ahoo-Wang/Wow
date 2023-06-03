@@ -90,7 +90,7 @@ abstract class CommandDispatcherSpec {
     protected lateinit var domainEventBus: DomainEventBus
 
     @BeforeEach
-    fun setup() {
+    open fun setup() {
 //        Schedulers.enableMetrics()
         commandBus = createCommandBus().metrizable()
         commandGateway = DefaultCommandGateway(
