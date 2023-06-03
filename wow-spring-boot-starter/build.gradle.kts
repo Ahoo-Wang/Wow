@@ -3,13 +3,17 @@ plugins {
     kotlin("kapt")
 }
 java {
+    registerFeature("mongoSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mongo-support", version.toString())
+    }
     registerFeature("r2dbcSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "r2dbc-support", version.toString())
     }
-    registerFeature("mongoSupport") {
+    registerFeature("redisSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "mongo-support", version.toString())
+        capability(group.toString(), "redis-support", version.toString())
     }
     registerFeature("mockSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
@@ -38,8 +42,9 @@ dependencies {
     kapt(platform(project(":wow-dependencies")))
     api(project(":wow-core"))
     api(project(":wow-spring"))
-    "r2dbcSupportImplementation"(project(":wow-r2dbc"))
     "mongoSupportImplementation"(project(":wow-mongo"))
+    "redisSupportImplementation"(project(":wow-redis"))
+    "r2dbcSupportImplementation"(project(":wow-r2dbc"))
     "mockSupportImplementation"(project(":wow-mock"))
     "kafkaSupportImplementation"(project(":wow-kafka"))
     "webfluxSupportImplementation"(project(":wow-webflux"))

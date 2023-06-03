@@ -54,6 +54,7 @@ enum class Strategy {
 
 enum class SnapshotStorage {
     MONGO,
+    REDIS,
     R2DBC,
     ELASTICSEARCH,
     IN_MEMORY,
@@ -62,6 +63,7 @@ enum class SnapshotStorage {
 
     companion object {
         const val MONGO_NAME = "mongo"
+        const val REDIS_NAME = "redis"
         const val R2DBC_NAME = "r2dbc"
         const val ELASTICSEARCH_NAME = "elasticsearch"
         const val IN_MEMORY_NAME = "in_memory"
