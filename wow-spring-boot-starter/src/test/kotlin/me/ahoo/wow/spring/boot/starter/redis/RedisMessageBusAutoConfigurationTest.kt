@@ -26,7 +26,7 @@ class RedisMessageBusAutoConfigurationTest {
                 "${EventProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
             )
             .withBean(ReactiveStringRedisTemplate::class.java, {
-                mockk<ReactiveStringRedisTemplate>() {
+                mockk<ReactiveStringRedisTemplate> {
                     every { opsForStream<String, String>() } returns mockk()
                 }
             })
