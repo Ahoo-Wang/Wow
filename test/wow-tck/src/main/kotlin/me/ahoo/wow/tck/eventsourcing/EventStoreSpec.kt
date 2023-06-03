@@ -161,13 +161,13 @@ abstract class EventStoreSpec {
     }
 
     @Test
-    open fun givenDuplicateRequestIdWhenAppendExpectDuplicateRequestIdException() {
+    open fun appendEventStreamWhenDuplicateRequestIdException() {
         val requestId = GlobalIdGenerator.generateAsString()
         val aggregateId = namedAggregate.asAggregateId()
         val eventStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
-                Version.INITIAL_VERSION,
+                Version.UNINITIALIZED_VERSION,
             )
         eventStore.append(eventStream)
             .test()
@@ -175,7 +175,7 @@ abstract class EventStoreSpec {
         val conflictingStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
-                Version.INITIAL_VERSION + 1,
+                Version.UNINITIALIZED_VERSION + 1,
             )
         eventStore.append(conflictingStream)
             .test()

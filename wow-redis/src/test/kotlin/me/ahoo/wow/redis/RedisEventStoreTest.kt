@@ -23,7 +23,5 @@ class RedisEventStoreTest : EventStoreSpec() {
         return RedisEventStore(redisInitializer.redisTemplate)
     }
 
-    override fun givenDuplicateRequestIdWhenAppendExpectDuplicateRequestIdException() = Unit
-
     override fun scanAggregateId() = Unit
 }

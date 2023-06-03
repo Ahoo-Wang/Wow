@@ -20,6 +20,6 @@ fun interface SnapshotKeyConverter : AggregateKeyConverter
 
 object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
     override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id}"
+        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:{${aggregateId.id}}"
     }
 }
