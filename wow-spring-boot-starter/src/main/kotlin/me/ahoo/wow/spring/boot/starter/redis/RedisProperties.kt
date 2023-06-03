@@ -11,36 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.eventsourcing.store
+package me.ahoo.wow.spring.boot.starter.redis
 
-import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
+import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
 
 @ConstructorBinding
-@ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
-data class EventStoreProperties(
-    val storage: EventStoreStorage = EventStoreStorage.MONGO
-) {
+@ConfigurationProperties(prefix = RedisProperties.PREFIX)
+data class RedisProperties(val enabled: Boolean = true) {
     companion object {
-        const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
-        const val STORAGE = "$PREFIX.storage"
-    }
-}
-
-enum class EventStoreStorage {
-    MONGO,
-    REDIS,
-    R2DBC,
-    IN_MEMORY,
-    DELAY
-    ;
-
-    companion object {
-        const val MONGO_NAME = "mongo"
-        const val REDIS_NAME = "redis"
-        const val R2DBC_NAME = "r2dbc"
-        const val IN_MEMORY_NAME = "in_memory"
-        const val DELAY_NAME = "delay"
+        const val PREFIX = "${Wow.WOW_PREFIX}redis"
     }
 }
