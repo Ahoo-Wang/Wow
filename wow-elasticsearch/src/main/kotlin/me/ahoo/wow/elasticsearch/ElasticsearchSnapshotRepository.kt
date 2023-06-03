@@ -27,8 +27,8 @@ import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsea
 import reactor.core.publisher.Mono
 
 class ElasticsearchSnapshotRepository(
-    private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
     private val elasticsearchClient: ReactiveElasticsearchClient,
+    private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
     private val refreshPolicy: WriteRequest.RefreshPolicy = WriteRequest.RefreshPolicy.WAIT_UNTIL
 ) : SnapshotRepository {
 

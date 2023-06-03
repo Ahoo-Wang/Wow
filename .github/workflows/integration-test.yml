@@ -119,6 +119,35 @@ jobs:
       - name: Test Wow-Mongo
         run: gradle wow-mongo:clean wow-mongo:check --stacktrace
 
+  wow-redis-test:
+    name: Wow Redis Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Redis
+        run: gradle wow-redis:clean wow-redis:check --stacktrace
+
   wow-it-test:
     name: Wow IT Test
     needs: [ wow-core-test ]

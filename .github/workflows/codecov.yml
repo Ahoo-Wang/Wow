@@ -19,6 +19,16 @@ jobs:
   codecov:
     name: Codecov
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start
@@ -53,6 +63,7 @@ jobs:
             wow-mongo/build/test-results/**/*.xml
             test/wow-mock/build/test-results/**/*.xml
             wow-r2dbc/build/test-results/**/*.xml
+            wow-redis/build/test-results/**/*.xml
             wow-elasticsearch/build/test-results/**/*.xml
             wow-spring/build/test-results/**/*.xml
             wow-webflux/build/test-results/**/*.xml

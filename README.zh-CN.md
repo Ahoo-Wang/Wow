@@ -56,12 +56,14 @@
         - [x] R2dbc
             - [x] Database Sharding
             - [x] Table Sharding
+        - [x] Redis
     - Snapshot
         - [x] MongoDB (Recommend)
         - [x] R2dbc
             - [x] Database Sharding
             - [x] Table Sharding
         - [x] ElasticSearch
+        - [x] Redis
 - [x] Kafka 集成
     - [x] `CommandBus`
     - [x] `DomainEventBus`

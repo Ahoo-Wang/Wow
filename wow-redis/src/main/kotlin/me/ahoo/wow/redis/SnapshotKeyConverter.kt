@@ -11,18 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.redis
 
-import com.mongodb.reactivestreams.client.MongoClients
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.naming.getContextAlias
 
-class MongoEventStoreTest : EventStoreSpec() {
-    override fun createEventStore(): EventStore {
-        val client = MongoClients.create(MongoLauncher.getConnectionString())
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
-        EventStreamSchemaInitializer(database, true).initSchema(namedAggregate)
-        return MongoEventStore(database).metrizable()
+fun interface SnapshotKeyConverter : AggregateKeyConverter
+
+object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
+    override fun converter(aggregateId: AggregateId): String {
+        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id}"
     }
 }

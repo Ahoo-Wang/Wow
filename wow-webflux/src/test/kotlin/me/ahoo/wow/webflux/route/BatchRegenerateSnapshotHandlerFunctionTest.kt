@@ -2,7 +2,7 @@ package me.ahoo.wow.webflux.route
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.eventsourcing.EventStore.Companion.FIRST_CURSOR_ID
+import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory

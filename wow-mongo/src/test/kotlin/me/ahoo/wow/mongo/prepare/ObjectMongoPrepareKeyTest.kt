@@ -16,7 +16,13 @@ package me.ahoo.wow.mongo.prepare
 import me.ahoo.wow.id.GlobalIdGenerator
 
 class ObjectMongoPrepareKeyTest :
-    MongoPrepareKeySpec<ObjectMongoPrepareKeyTest.ObjectedValue>("object", ObjectedValue::class.java) {
+    MongoPrepareKeySpec<ObjectMongoPrepareKeyTest.ObjectedValue>() {
+
+    override val name: String
+        get() = "object"
+    override val valueType: Class<ObjectedValue>
+        get() = ObjectedValue::class.java
+
     override fun generateValue(): ObjectedValue {
         return ObjectedValue(GlobalIdGenerator.generateAsString())
     }
