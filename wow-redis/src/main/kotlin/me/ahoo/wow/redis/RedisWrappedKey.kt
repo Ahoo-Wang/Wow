@@ -13,14 +13,25 @@
 
 package me.ahoo.wow.redis
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
+internal object RedisWrappedKey {
+    const val KEY_PREFIX = "{"
+    const val KEY_SUFFIX = "}"
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
+    fun String.isWrapped(): Boolean {
+        if (!startsWith(KEY_PREFIX)) {
+            return false
+        }
+        return endsWith(KEY_SUFFIX)
+    }
 
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id.wrap()}"
+    fun String.wrap(): String {
+        return "$KEY_PREFIX$this$KEY_SUFFIX"
+    }
+
+    fun String.unwrap(): String {
+        if (!isWrapped()) {
+            return this
+        }
+        return removePrefix(KEY_PREFIX).removeSuffix(KEY_SUFFIX)
     }
 }

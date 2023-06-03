@@ -13,14 +13,11 @@
 
 package me.ahoo.wow.redis.prepare
 
-import me.ahoo.wow.redis.EventStreamKeyConverter
+import me.ahoo.wow.redis.RedisWrappedKey.wrap
 
 object PrepareKeyConverter {
-    fun String.asWrappedKey(): String {
-        return "${EventStreamKeyConverter.KEY_PREFIX}${this}${EventStreamKeyConverter.KEY_SUFFIX}"
-    }
 
     fun String.asKey(): String {
-        return "prepare:${asWrappedKey()}"
+        return "prepare:${wrap()}"
     }
 }

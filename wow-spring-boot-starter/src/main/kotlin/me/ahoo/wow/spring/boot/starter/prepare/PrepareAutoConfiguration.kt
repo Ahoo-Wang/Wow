@@ -10,17 +10,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.spring.boot.starter.prepare
 
-package me.ahoo.wow.redis
+import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
-
-fun interface SnapshotKeyConverter : AggregateKeyConverter
-
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id.wrap()}"
-    }
-}
+@AutoConfiguration
+@ConditionalOnWowEnabled
+@ConditionalOnPrepareEnabled
+@EnableConfigurationProperties(PrepareProperties::class)
+class PrepareAutoConfiguration

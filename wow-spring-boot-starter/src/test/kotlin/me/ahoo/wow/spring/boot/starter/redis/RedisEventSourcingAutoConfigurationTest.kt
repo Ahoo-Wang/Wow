@@ -16,11 +16,14 @@ package me.ahoo.wow.spring.boot.starter.redis
 import io.mockk.mockk
 import me.ahoo.wow.redis.RedisEventStore
 import me.ahoo.wow.redis.RedisSnapshotRepository
+import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -37,6 +40,7 @@ class RedisEventSourcingAutoConfigurationTest {
             .withPropertyValues(
                 "${SnapshotProperties.STORAGE}=${SnapshotStorage.REDIS_NAME}",
                 "${EventStoreProperties.STORAGE}=${EventStoreStorage.REDIS_NAME}",
+                "${PrepareProperties.STORAGE}=${PrepareStorage.REDIS_NAME}",
             )
             .withBean(ReactiveStringRedisTemplate::class.java, {
                 mockk<ReactiveStringRedisTemplate>()
@@ -48,6 +52,7 @@ class RedisEventSourcingAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(RedisEventStore::class.java)
                     .hasSingleBean(RedisSnapshotRepository::class.java)
+                    .hasSingleBean(RedisPrepareKeyFactory::class.java)
             }
     }
 }

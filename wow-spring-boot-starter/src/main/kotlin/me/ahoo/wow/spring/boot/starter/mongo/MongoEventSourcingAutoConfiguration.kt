@@ -28,6 +28,9 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
+import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -90,6 +93,12 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
 
     @Bean
     @ConditionalOnBean(MongoClient::class)
+    @ConditionalOnProperty(
+        PrepareProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = PrepareStorage.MONGO_NAME,
+    )
+    @ConditionalOnPrepareEnabled
     @ConditionalOnMissingBean
     fun mongoPrepareKeyFactory(
         mongoClient: MongoClient,

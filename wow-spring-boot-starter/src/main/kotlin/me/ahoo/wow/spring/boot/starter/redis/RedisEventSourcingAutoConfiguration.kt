@@ -15,16 +15,22 @@ package me.ahoo.wow.spring.boot.starter.redis
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.redis.RedisEventStore
 import me.ahoo.wow.redis.RedisSnapshotRepository
+import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
+import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
+import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -55,5 +61,16 @@ class RedisEventSourcingAutoConfiguration {
     )
     fun redisSnapshotRepository(redisTemplate: ReactiveStringRedisTemplate): SnapshotRepository {
         return RedisSnapshotRepository(redisTemplate)
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        PrepareProperties.STORAGE,
+        havingValue = PrepareStorage.REDIS_NAME,
+    )
+    @ConditionalOnPrepareEnabled
+    @ConditionalOnMissingBean
+    fun redisPrepareKeyFactory(redisTemplate: ReactiveStringRedisTemplate): PrepareKeyFactory {
+        return RedisPrepareKeyFactory(redisTemplate)
     }
 }

@@ -11,16 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.spring.boot.starter.prepare
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
+const val ENABLED_KEY: String = PrepareProperties.PREFIX + ENABLED_SUFFIX_KEY
 
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id.wrap()}"
-    }
-}
+@ConditionalOnProperty(value = [ENABLED_KEY], matchIfMissing = true, havingValue = "true")
+annotation class ConditionalOnPrepareEnabled
