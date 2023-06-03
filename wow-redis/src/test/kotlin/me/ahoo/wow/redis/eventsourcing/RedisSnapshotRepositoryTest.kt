@@ -11,12 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import org.junit.jupiter.api.BeforeEach
 
-const val DELIMITER = ":"
+class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
+    protected lateinit var redisInitializer: RedisInitializer
 
-fun interface AggregateKeyConverter {
-    fun converter(aggregateId: AggregateId): String
+    @BeforeEach
+    fun setup() {
+        redisInitializer = RedisInitializer()
+    }
+
+    override fun createSnapshotRepository(): SnapshotRepository {
+        return RedisSnapshotRepository(redisInitializer.redisTemplate)
+    }
 }

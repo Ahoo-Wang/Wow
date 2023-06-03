@@ -9,7 +9,7 @@ local requestId = ARGV[3];
 local version = tonumber(ARGV[4]);
 local value = ARGV[5];
 
-local eventStreamKey = contextAlias .. ":" .. aggregateName .. ":event:" .. aggregateIdKey
+local eventStreamKey = contextAlias .. "." .. aggregateName .. ":es:" .. aggregateIdKey
 
 local count = redis.call("ZCARD", eventStreamKey)
 if count ~= (version - 1) then

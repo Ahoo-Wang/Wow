@@ -11,13 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.prepare
+package me.ahoo.wow.redis.eventsourcing
 
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
-object PrepareKeyConverter {
+fun interface SnapshotKeyConverter : AggregateKeyConverter
 
-    fun String.asKey(): String {
-        return "prepare:${wrap()}"
+object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
+    override fun converter(aggregateId: AggregateId): String {
+        return "${aggregateId.asStringWithAlias()}:snapshot:${aggregateId.id.wrap()}"
     }
 }

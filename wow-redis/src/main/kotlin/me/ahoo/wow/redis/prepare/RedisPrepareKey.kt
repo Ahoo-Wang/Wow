@@ -16,7 +16,7 @@ package me.ahoo.wow.redis.prepare
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 import me.ahoo.wow.redis.prepare.PrepareKeyConverter.asKey
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.asObject

@@ -9,6 +9,7 @@ me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
 me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotAutoConfiguration
 me.ahoo.wow.spring.boot.starter.mongo.MongoEventSourcingAutoConfiguration
 me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
+me.ahoo.wow.spring.boot.starter.redis.RedisMessageBusAutoConfiguration
 me.ahoo.wow.spring.boot.starter.r2dbc.R2dbcAutoConfiguration
 me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchSnapshotAutoConfiguration
 me.ahoo.wow.spring.boot.starter.kafka.KafkaAutoConfiguration

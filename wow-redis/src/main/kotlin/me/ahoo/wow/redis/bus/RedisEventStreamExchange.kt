@@ -11,16 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.EventStreamExchange
+import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
-
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:${aggregateId.id.wrap()}"
+data class RedisEventStreamExchange(
+    override val message: DomainEventStream,
+    private val acknowledge: Mono<Void>,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+) : EventStreamExchange {
+    override fun acknowledge(): Mono<Void> {
+        return acknowledge
     }
 }

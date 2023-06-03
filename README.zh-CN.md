@@ -64,10 +64,13 @@
             - [x] Table Sharding
         - [x] ElasticSearch
         - [x] Redis
-- [x] Kafka 集成
-    - [x] `CommandBus`
-    - [x] `DomainEventBus`
-    - [x] `KafkaSnapshotSink`
+        - [x] `KafkaSnapshotSink`
+- [x] CommandBus
+    - [x] `KafkaCommandBus`
+    - [x] `RedisCommandBus`
+- [x] DomainEventBus
+    - [x] `KafkaDomainEventBus`
+    - [x] `RedisDomainEventBus`
 - [x] Spring 集成
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`

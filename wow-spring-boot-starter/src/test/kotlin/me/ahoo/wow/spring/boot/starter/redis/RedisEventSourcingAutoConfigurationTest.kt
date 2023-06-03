@@ -14,8 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.redis
 
 import io.mockk.mockk
-import me.ahoo.wow.redis.RedisEventStore
-import me.ahoo.wow.redis.RedisSnapshotRepository
+import me.ahoo.wow.redis.eventsourcing.RedisEventStore
+import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
