@@ -15,11 +15,13 @@ package me.ahoo.wow.spring.boot.starter
 
 enum class MessageBusType {
     KAFKA,
+    REDIS,
     IN_MEMORY
     ;
 
     companion object {
         const val KAFKA_NAME = "kafka"
+        const val REDIS_NAME = "redis"
         const val IN_MEMORY_NAME = "in_memory"
     }
 }
