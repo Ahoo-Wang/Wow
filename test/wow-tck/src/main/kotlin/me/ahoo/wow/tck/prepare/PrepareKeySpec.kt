@@ -33,7 +33,7 @@ abstract class PrepareKeySpec<V : Any> {
     private lateinit var prepareKey: PrepareKey<V>
 
     @BeforeEach
-    fun setup() {
+    open fun setup() {
         prepareKey = createPrepareKeyFactory().create(name, valueType)
     }
 

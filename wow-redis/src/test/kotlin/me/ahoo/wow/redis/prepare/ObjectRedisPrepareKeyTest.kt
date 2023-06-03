@@ -11,17 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.prepare
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_PREFIX
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_SUFFIX
+import me.ahoo.wow.id.GlobalIdGenerator
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
+class ObjectRedisPrepareKeyTest :
+    RedisPrepareKeySpec<ObjectRedisPrepareKeyTest.ObjectedValue>() {
 
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:$KEY_PREFIX${aggregateId.id}$KEY_SUFFIX"
+    override val name: String
+        get() = "object"
+    override val valueType: Class<ObjectedValue>
+        get() = ObjectedValue::class.java
+
+    override fun generateValue(): ObjectedValue {
+        return ObjectedValue(GlobalIdGenerator.generateAsString())
     }
+
+    data class ObjectedValue(val value: String, val prepareTime: Long = System.currentTimeMillis())
 }

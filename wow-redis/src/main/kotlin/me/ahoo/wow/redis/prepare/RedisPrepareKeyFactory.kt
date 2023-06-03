@@ -11,17 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.prepare
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_PREFIX
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_SUFFIX
+import me.ahoo.wow.infra.prepare.PrepareKey
+import me.ahoo.wow.infra.prepare.PrepareKeyFactory
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
-
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:$KEY_PREFIX${aggregateId.id}$KEY_SUFFIX"
+class RedisPrepareKeyFactory(private val redisTemplate: ReactiveStringRedisTemplate) : PrepareKeyFactory {
+    override fun <V : Any> create(name: String, valueClass: Class<V>): PrepareKey<V> {
+        return RedisPrepareKey(name, valueClass, redisTemplate)
     }
 }
