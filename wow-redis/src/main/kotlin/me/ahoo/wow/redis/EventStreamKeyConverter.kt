@@ -20,19 +20,19 @@ import me.ahoo.wow.naming.getContextAlias
 
 object EventStreamKeyConverter : AggregateKeyConverter {
     private const val ID_DELIMITER = "@"
-    private const val ID_PREFIX = "{"
-    private const val ID_SUFFIX = "}"
+    const val KEY_PREFIX = "{"
+    const val KEY_SUFFIX = "}"
     fun NamedAggregate.toKeyPrefix(): String {
         return "${getContextAlias()}$DELIMITER${aggregateName}${DELIMITER}event$DELIMITER"
     }
 
     fun toAggregateIdKey(aggregateId: AggregateId): String {
-        return "$ID_PREFIX${aggregateId.id}${ID_DELIMITER}${aggregateId.tenantId}$ID_SUFFIX"
+        return "$KEY_PREFIX${aggregateId.id}${ID_DELIMITER}${aggregateId.tenantId}$KEY_SUFFIX"
     }
 
     fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
         val prefix = namedAggregate.toKeyPrefix()
-        val idWithTenantId = key.removePrefix(prefix).removePrefix(ID_PREFIX).removeSuffix(ID_SUFFIX)
+        val idWithTenantId = key.removePrefix(prefix).removePrefix(KEY_PREFIX).removeSuffix(KEY_SUFFIX)
         idWithTenantId.split(ID_DELIMITER).let {
             return namedAggregate.asAggregateId(it[0], it[1])
         }

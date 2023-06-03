@@ -11,17 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.prepare
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_PREFIX
-import me.ahoo.wow.redis.EventStreamKeyConverter.KEY_SUFFIX
+import me.ahoo.wow.redis.EventStreamKeyConverter
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
+object PrepareKeyConverter {
+    fun String.asWrappedKey(): String {
+        return "${EventStreamKeyConverter.KEY_PREFIX}${this}${EventStreamKeyConverter.KEY_SUFFIX}"
+    }
 
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
-        return "${aggregateId.getContextAlias()}:${aggregateId.aggregateName}:snapshot:$KEY_PREFIX${aggregateId.id}$KEY_SUFFIX"
+    fun String.asKey(): String {
+        return "prepare:${asWrappedKey()}"
     }
 }

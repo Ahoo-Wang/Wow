@@ -15,6 +15,10 @@ package me.ahoo.wow.infra.prepare
 
 interface PreparedValue<V> {
     val value: V
+
+    /**
+     * unit :[java.time.temporal.ChronoUnit.MILLIS]
+     */
     val ttlAt: Long
 
     val isForever: Boolean
