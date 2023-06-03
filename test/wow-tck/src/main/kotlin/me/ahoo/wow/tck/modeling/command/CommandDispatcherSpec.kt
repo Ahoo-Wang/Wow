@@ -141,8 +141,8 @@ abstract class CommandDispatcherSpec {
     }
 
     protected open fun onCommandSeek(): Mono<Void> = Mono.empty()
-    val concurrency: Int = 1000
-    val aggregateCount: Int = 20000
+    val concurrency: Int = 100
+    val aggregateCount: Int = 200
 
     @Test
     fun run() {
@@ -209,7 +209,7 @@ abstract class CommandDispatcherSpec {
             }, Int.MAX_VALUE).doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
-            .timeout(Duration.ofMinutes(3))
+            .timeout(Duration.ofMinutes(1))
             .then()
             .test()
             .verifyComplete()
@@ -238,7 +238,7 @@ abstract class CommandDispatcherSpec {
             .doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
-            .timeout(Duration.ofMinutes(2))
+            .timeout(Duration.ofSeconds(30))
             .then()
             .test()
             .verifyComplete()

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.redis.bus
 
+import io.lettuce.core.RedisBusyException
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -40,7 +41,7 @@ abstract class AbstractRedisMessageBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val pollTimeout: Duration = Duration.ofSeconds(2)
 ) : DistributedMessageBus<M, E>
-    where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+        where M : Message<*>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     private val streamOps = redisTemplate.opsForStream<String, String>()
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
@@ -56,7 +57,7 @@ abstract class AbstractRedisMessageBus<M, E>(
             val group = contextView.getReceiverGroup()
             val topics = namedAggregates.map(topicConverter::convert)
             val createGroupPublisher = topics.map { topic ->
-                streamOps.createGroup(topic, ReadOffset.latest(), group)
+                createGroup(topic, group)
             }.let { publishers ->
                 Mono.zip(publishers) {
                     it
@@ -70,6 +71,15 @@ abstract class AbstractRedisMessageBus<M, E>(
             createGroupPublisher.thenMany(readPublisher)
         }
     }
+
+    private fun createGroup(topic: String, group: String) = streamOps.createGroup(topic, ReadOffset.latest(), group)
+        .onErrorResume {
+            if (it.cause is RedisBusyException) {
+                Mono.empty()
+            } else {
+                Mono.error(it)
+            }
+        }
 
     private fun receive(
         topic: String,
