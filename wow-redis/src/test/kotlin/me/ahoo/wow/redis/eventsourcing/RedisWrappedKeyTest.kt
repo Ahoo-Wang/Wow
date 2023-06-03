@@ -1,8 +1,8 @@
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.redis.RedisWrappedKey.isWrapped
-import me.ahoo.wow.redis.RedisWrappedKey.unwrap
-import me.ahoo.wow.redis.RedisWrappedKey.wrap
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.isWrapped
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

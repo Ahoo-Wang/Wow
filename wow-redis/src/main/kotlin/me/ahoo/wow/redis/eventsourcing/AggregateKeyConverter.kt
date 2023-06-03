@@ -11,13 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.prepare
+package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
+import me.ahoo.wow.api.modeling.AggregateId
 
-object PrepareKeyConverter {
+const val DELIMITER = ":"
 
-    fun String.asKey(): String {
-        return "prepare:${wrap()}"
-    }
+fun interface AggregateKeyConverter {
+    fun converter(aggregateId: AggregateId): String
 }

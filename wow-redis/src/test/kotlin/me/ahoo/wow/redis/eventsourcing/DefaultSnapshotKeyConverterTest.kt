@@ -11,27 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.eventsourcing
 
-internal object RedisWrappedKey {
-    const val KEY_PREFIX = "{"
-    const val KEY_SUFFIX = "}"
+import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Test
 
-    fun String.isWrapped(): Boolean {
-        if (!startsWith(KEY_PREFIX)) {
-            return false
-        }
-        return endsWith(KEY_SUFFIX)
-    }
+class DefaultSnapshotKeyConverterTest {
 
-    fun String.wrap(): String {
-        return "$KEY_PREFIX$this$KEY_SUFFIX"
-    }
-
-    fun String.unwrap(): String {
-        if (!isWrapped()) {
-            return this
-        }
-        return removePrefix(KEY_PREFIX).removeSuffix(KEY_SUFFIX)
+    @Test
+    fun converter() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.asAggregateId("id", "tenantId")
+        val actual = DefaultSnapshotKeyConverter.converter(aggregateId)
+        assertThat(actual, equalTo("tck.mock_aggregate:snapshot:{id}"))
     }
 }

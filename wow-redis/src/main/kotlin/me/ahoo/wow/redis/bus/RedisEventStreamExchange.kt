@@ -11,13 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.prepare
+package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.EventStreamExchange
+import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
-object PrepareKeyConverter {
-
-    fun String.asKey(): String {
-        return "prepare:${wrap()}"
+data class RedisEventStreamExchange(
+    override val message: DomainEventStream,
+    private val acknowledge: Mono<Void>,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+) : EventStreamExchange {
+    override fun acknowledge(): Mono<Void> {
+        return acknowledge
     }
 }

@@ -11,21 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.redis.bus.RedisCommandBus
-import me.ahoo.wow.redis.bus.RedisDomainEventBus
-import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
-import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
+import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 
-class RedisCommandDispatcherTest : CommandDispatcherSpec() {
+class RedisEventStoreTest : EventStoreSpec() {
     protected lateinit var redisInitializer: RedisInitializer
 
     @BeforeEach
@@ -34,19 +28,14 @@ class RedisCommandDispatcherTest : CommandDispatcherSpec() {
         super.setup()
     }
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redisInitializer.redisTemplate).metrizable()
+    @AfterEach
+    fun destroy() {
+        redisInitializer.close()
     }
 
     override fun createEventStore(): EventStore {
         return RedisEventStore(redisInitializer.redisTemplate)
     }
 
-    override fun createCommandBus(): CommandBus {
-        return RedisCommandBus(redisInitializer.redisTemplate)
-    }
-
-    override fun createEventBus(): DomainEventBus {
-        return RedisDomainEventBus(redisInitializer.redisTemplate)
-    }
+    override fun scanAggregateId() = Unit
 }
