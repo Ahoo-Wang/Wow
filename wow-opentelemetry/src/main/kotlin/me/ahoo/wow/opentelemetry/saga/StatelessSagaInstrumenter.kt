@@ -16,9 +16,9 @@ package me.ahoo.wow.opentelemetry.saga
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorAttributesExtractor
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorSpanNameExtractor
 import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
@@ -29,7 +29,7 @@ object StatelessSagaInstrumenter {
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             EventProcessorSpanNameExtractor,
-        ).addAttributesExtractor(EventProcessorAttributesExtractor)
+        ).addAttributesExtractor(ExchangeAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }

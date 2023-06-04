@@ -14,13 +14,10 @@
 package me.ahoo.wow.opentelemetry.aggregate
 
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.common.AttributesBuilder
-import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.opentelemetry.WowInstrumenter
+import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_VERSION
 import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
@@ -32,7 +29,7 @@ object AggregateInstrumenter {
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             AggregateSpanNameExtractor,
-        ).addAttributesExtractor(AggregateAttributesExtractor)
+        ).addAttributesExtractor(ExchangeAttributesExtractor())
             .setInstrumentationVersion(INSTRUMENTATION_VERSION)
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
@@ -41,21 +38,4 @@ object AggregateSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<Any>
     override fun extract(request: ServerCommandExchange<Any>): String {
         return "${request.message.aggregateName}.${request.message.name}"
     }
-}
-
-object AggregateAttributesExtractor : AttributesExtractor<ServerCommandExchange<Any>, Unit> {
-
-    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: ServerCommandExchange<Any>) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
-        WowInstrumenter.appendRequestIdAttributes(attributes, request.message)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
-    }
-
-    override fun onEnd(
-        attributes: AttributesBuilder,
-        context: Context,
-        request: ServerCommandExchange<Any>,
-        response: Unit?,
-        error: Throwable?
-    ) = Unit
 }

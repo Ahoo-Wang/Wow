@@ -17,6 +17,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 
@@ -34,6 +35,6 @@ object CommandProducerInstrumenter {
 
 object CommandProducerSpanNameExtractor : SpanNameExtractor<CommandMessage<*>> {
     override fun extract(request: CommandMessage<*>): String {
-        return "${request.aggregateName}.command send"
+        return "${request.aggregateName}.${request.name}.command send"
     }
 }

@@ -14,12 +14,10 @@
 package me.ahoo.wow.opentelemetry.snapshot
 
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.common.AttributesBuilder
-import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
@@ -31,7 +29,7 @@ object SnapshotInstrumenter {
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             SnapshotSpanNameExtractor,
-        ).addAttributesExtractor(SnapshotAttributesExtractor)
+        ).addAttributesExtractor(ExchangeAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
@@ -40,19 +38,4 @@ object SnapshotSpanNameExtractor : SpanNameExtractor<EventStreamExchange> {
     override fun extract(request: EventStreamExchange): String {
         return "${request.message.aggregateName}.snapshot"
     }
-}
-
-object SnapshotAttributesExtractor : AttributesExtractor<EventStreamExchange, Unit> {
-    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: EventStreamExchange) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
-    }
-
-    override fun onEnd(
-        attributes: AttributesBuilder,
-        context: Context,
-        request: EventStreamExchange,
-        response: Unit?,
-        error: Throwable?
-    ) = Unit
 }

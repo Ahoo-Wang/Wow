@@ -11,19 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry.messaging
+package me.ahoo.wow.opentelemetry
 
 import io.opentelemetry.api.common.AttributesBuilder
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.opentelemetry.WowInstrumenter
+import me.ahoo.wow.opentelemetry.WowInstrumenter.appendMessageAttributes
 
-class MessageAttributesExtractor<M> : AttributesExtractor<M, Unit> where M : Message<*, *>, M : AggregateIdCapable {
+class MessageAttributesExtractor<M> :
+    AttributesExtractor<M, Unit> where M : Message<*, *> {
     override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: M) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.aggregateId)
+        attributes.appendMessageAttributes(request)
     }
 
     override fun onEnd(
