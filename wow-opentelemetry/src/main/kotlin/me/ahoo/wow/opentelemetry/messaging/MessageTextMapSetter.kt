@@ -15,7 +15,6 @@ package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.context.propagation.TextMapSetter
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.messaging.handler.MessageExchange
 
 class MessageTextMapSetter<M : Message<*, *>> : TextMapSetter<M> {
 

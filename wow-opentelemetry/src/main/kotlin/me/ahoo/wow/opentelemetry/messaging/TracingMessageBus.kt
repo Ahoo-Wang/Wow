@@ -13,33 +13,21 @@
 
 package me.ahoo.wow.opentelemetry.messaging
 
-import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.DistributedCommandBus
-import me.ahoo.wow.command.LocalCommandBus
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.event.DistributedDomainEventBus
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.event.LocalDomainEventBus
-import me.ahoo.wow.event.SimpleEventStreamExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.opentelemetry.ExchangeTraceMono
 import me.ahoo.wow.opentelemetry.TraceMono
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : MessageBus<M, E>> : MessageBus<M, E>,
+interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : MessageBus<M, E>> :
+    MessageBus<M, E>,
     Decorator<B> {
     val producerInstrumenter: Instrumenter<M, Unit>
-    val consumerInstrumenter: Instrumenter<E, Unit>
     override fun send(message: M): Mono<Void> {
         val source = delegate.send(message)
         val parentContext = Context.current()
@@ -59,4 +47,3 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
         delegate.close()
     }
 }
-

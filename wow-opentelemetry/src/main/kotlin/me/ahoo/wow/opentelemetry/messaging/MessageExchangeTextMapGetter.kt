@@ -28,5 +28,4 @@ class MessageExchangeTextMapGetter<E : MessageExchange<*, Message<*, *>>> : Text
         }
         return carrier.message.header.get(key)
     }
-
 }

@@ -22,14 +22,12 @@ import me.ahoo.wow.command.ServerCommandExchange
 class TracingLocalCommandBus(
     override val delegate: LocalCommandBus,
     override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER,
-    override val consumerInstrumenter: Instrumenter<ServerCommandExchange<*>, Unit> = CommandConsumerInstrumenter.INSTRUMENTER
 ) : TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, LocalCommandBus>,
     LocalCommandBus
 
 class TracingDistributedCommandBus(
     override val delegate: DistributedCommandBus,
     override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER,
-    override val consumerInstrumenter: Instrumenter<ServerCommandExchange<*>, Unit> = CommandConsumerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, DistributedCommandBus>,
     DistributedCommandBus

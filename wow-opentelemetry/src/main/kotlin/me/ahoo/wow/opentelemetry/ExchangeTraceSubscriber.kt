@@ -16,7 +16,6 @@ package me.ahoo.wow.opentelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.messaging.handler.MessageExchange
-import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 
 class ExchangeTraceSubscriber<T : MessageExchange<*, *>>(

@@ -13,13 +13,10 @@
 
 package me.ahoo.wow.opentelemetry.messaging
 
-import io.opentelemetry.context.Context
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
-import me.ahoo.wow.messaging.handler.MessageExchange
-
 
 object Tracing {
 

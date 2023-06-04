@@ -41,7 +41,7 @@ abstract class AbstractRedisMessageBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val pollTimeout: Duration = Duration.ofSeconds(2)
 ) : DistributedMessageBus<M, E>
-        where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+    where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     private val streamOps = redisTemplate.opsForStream<String, String>()
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {

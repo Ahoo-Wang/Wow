@@ -19,11 +19,9 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
 
-
 class TracingLocalEventBus(
     override val delegate: LocalDomainEventBus,
     override val producerInstrumenter: Instrumenter<DomainEventStream, Unit> = EventProducerInstrumenter.INSTRUMENTER,
-    override val consumerInstrumenter: Instrumenter<EventStreamExchange, Unit> = EventConsumerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<DomainEventStream, EventStreamExchange, LocalDomainEventBus>,
     LocalDomainEventBus
@@ -31,7 +29,6 @@ class TracingLocalEventBus(
 class TracingDistributedEventBus(
     override val delegate: DistributedDomainEventBus,
     override val producerInstrumenter: Instrumenter<DomainEventStream, Unit> = EventProducerInstrumenter.INSTRUMENTER,
-    override val consumerInstrumenter: Instrumenter<EventStreamExchange, Unit> = EventConsumerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<DomainEventStream, EventStreamExchange, DistributedDomainEventBus>,
     DistributedDomainEventBus
