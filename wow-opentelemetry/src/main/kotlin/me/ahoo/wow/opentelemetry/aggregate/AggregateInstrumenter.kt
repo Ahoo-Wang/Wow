@@ -23,6 +23,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_VERSION
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object AggregateInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}aggregate"
@@ -33,7 +34,7 @@ object AggregateInstrumenter {
             AggregateSpanNameExtractor,
         ).addAttributesExtractor(AggregateAttributesExtractor)
             .setInstrumentationVersion(INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
 object AggregateSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<Any>> {

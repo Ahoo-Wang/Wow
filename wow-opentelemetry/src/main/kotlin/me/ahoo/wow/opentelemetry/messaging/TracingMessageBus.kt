@@ -33,7 +33,6 @@ import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.ExchangeTraceMono
 import me.ahoo.wow.opentelemetry.TraceMono
-import me.ahoo.wow.opentelemetry.messaging.Tracing.setParentContext
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -53,17 +52,7 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
-        return delegate.receive(namedAggregates).map {
-            val parentContext = Context.current()
-            if (!consumerInstrumenter.shouldStart(parentContext, it)) {
-                it.setParentContext(parentContext)
-                return@map it
-            }
-            val otelContext = consumerInstrumenter.start(parentContext, it)
-            it.setParentContext(otelContext)
-            consumerInstrumenter.end(otelContext, it, null, null)
-            it
-        }
+        return delegate.receive(namedAggregates)
     }
 
     override fun close() {

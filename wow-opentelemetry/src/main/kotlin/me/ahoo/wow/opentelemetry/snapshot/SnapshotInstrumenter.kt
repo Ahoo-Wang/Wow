@@ -22,6 +22,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object SnapshotInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}snapshot"
@@ -32,7 +33,7 @@ object SnapshotInstrumenter {
             SnapshotSpanNameExtractor,
         ).addAttributesExtractor(SnapshotAttributesExtractor)
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
 object SnapshotSpanNameExtractor : SpanNameExtractor<EventStreamExchange> {

@@ -20,6 +20,7 @@ import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorAttributesExtractor
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorSpanNameExtractor
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object StatelessSagaInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}statelessSaga"
@@ -30,5 +31,5 @@ object StatelessSagaInstrumenter {
             EventProcessorSpanNameExtractor,
         ).addAttributesExtractor(EventProcessorAttributesExtractor)
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }

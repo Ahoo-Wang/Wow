@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry
+package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
@@ -20,10 +20,11 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.opentelemetry.ExchangeTraceMono
 import reactor.core.publisher.Mono
 
 @Order(ORDER_FIRST)
-open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Instrumenter<T, Unit>) :
+open class ConsumerTraceFilter<T : MessageExchange<*, *>>(private val consumerInstrumenter: Instrumenter<T, Unit>) :
     Filter<T> {
     override fun filter(
         exchange: T,
@@ -31,6 +32,6 @@ open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Inst
     ): Mono<Void> {
         val source = next.filter(exchange)
         val parentContext = Context.current()
-        return ExchangeTraceMono(parentContext, instrumenter, exchange, source)
+        return ExchangeTraceMono(parentContext, consumerInstrumenter, exchange, source)
     }
 }

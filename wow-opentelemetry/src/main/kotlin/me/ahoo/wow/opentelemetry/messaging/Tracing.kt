@@ -20,18 +20,8 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-@Suppress("MemberNameEqualsClassName")
+
 object Tracing {
-
-    private const val PARENT_CONTEXT_KEY = "__TRACING_PARENT_CONTEXT__"
-    fun <E : MessageExchange<*, *>> E.setParentContext(parentContext: Context): E {
-        attributes[PARENT_CONTEXT_KEY] = parentContext
-        return this
-    }
-
-    fun <E : MessageExchange<*, *>> E.getParentContext(): Context? {
-        return attributes[PARENT_CONTEXT_KEY] as Context?
-    }
 
     fun LocalCommandBus.tracing(): LocalCommandBus {
         return tracing {

@@ -23,6 +23,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object EventProcessorInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}eventProcessor"
@@ -33,7 +34,7 @@ object EventProcessorInstrumenter {
             EventProcessorSpanNameExtractor,
         ).addAttributesExtractor(EventProcessorAttributesExtractor)
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
 object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<Any>> {
