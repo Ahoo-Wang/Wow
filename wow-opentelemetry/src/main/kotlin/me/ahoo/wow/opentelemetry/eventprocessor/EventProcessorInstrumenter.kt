@@ -14,15 +14,14 @@
 package me.ahoo.wow.opentelemetry.eventprocessor
 
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.api.common.AttributesBuilder
-import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.getEventFunction
+import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object EventProcessorInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}eventProcessor"
@@ -31,9 +30,9 @@ object EventProcessorInstrumenter {
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             EventProcessorSpanNameExtractor,
-        ).addAttributesExtractor(EventProcessorAttributesExtractor)
+        ).addAttributesExtractor(ExchangeAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
 object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<Any>> {
@@ -42,20 +41,4 @@ object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<A
         val processorName = function.processor.javaClass.simpleName
         return "$processorName.${function.supportedType.simpleName}"
     }
-}
-
-object EventProcessorAttributesExtractor : AttributesExtractor<DomainEventExchange<Any>, Unit> {
-
-    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: DomainEventExchange<Any>) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
-    }
-
-    override fun onEnd(
-        attributes: AttributesBuilder,
-        context: Context,
-        request: DomainEventExchange<Any>,
-        response: Unit?,
-        error: Throwable?
-    ) = Unit
 }

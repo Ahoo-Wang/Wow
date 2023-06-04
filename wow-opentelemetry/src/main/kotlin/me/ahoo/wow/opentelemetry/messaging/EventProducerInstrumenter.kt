@@ -11,25 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry.projection
+package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
+import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorSpanNameExtractor
-import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
-object ProjectionInstrumenter {
-    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}projection"
-    val INSTRUMENTER: Instrumenter<DomainEventExchange<Any>, Unit> =
-        Instrumenter.builder<DomainEventExchange<Any>, Unit>(
+object EventProducerInstrumenter {
+    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}eventProducer"
+    val INSTRUMENTER: Instrumenter<DomainEventStream, Unit> =
+        Instrumenter.builder<DomainEventStream, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
-            EventProcessorSpanNameExtractor,
-        ).addAttributesExtractor(ExchangeAttributesExtractor())
+            EventProducerSpanNameExtractor,
+        ).addAttributesExtractor(MessageAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
+            .buildProducerInstrumenter(MessageTextMapSetter())
+}
+
+object EventProducerSpanNameExtractor : SpanNameExtractor<DomainEventStream> {
+    override fun extract(request: DomainEventStream): String {
+        val firstEvent = request.first()
+        return "${request.aggregateName}.${firstEvent.name}.event send"
+    }
 }

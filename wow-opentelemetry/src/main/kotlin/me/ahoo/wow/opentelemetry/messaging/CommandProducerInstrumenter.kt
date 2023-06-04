@@ -11,25 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry.projection
+package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
+import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorSpanNameExtractor
-import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
-object ProjectionInstrumenter {
-    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}projection"
-    val INSTRUMENTER: Instrumenter<DomainEventExchange<Any>, Unit> =
-        Instrumenter.builder<DomainEventExchange<Any>, Unit>(
+object CommandProducerInstrumenter {
+    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}commandProducer"
+    val INSTRUMENTER: Instrumenter<CommandMessage<*>, Unit> =
+        Instrumenter.builder<CommandMessage<*>, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
-            EventProcessorSpanNameExtractor,
-        ).addAttributesExtractor(ExchangeAttributesExtractor())
+            CommandProducerSpanNameExtractor,
+        ).addAttributesExtractor(MessageAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
+            .buildProducerInstrumenter(MessageTextMapSetter())
+}
+
+object CommandProducerSpanNameExtractor : SpanNameExtractor<CommandMessage<*>> {
+    override fun extract(request: CommandMessage<*>): String {
+        return "${request.aggregateName}.${request.name}.command send"
+    }
 }

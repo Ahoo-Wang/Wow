@@ -24,17 +24,13 @@ class InMemoryDomainEventBus(
         .multicast().onBackpressureBuffer()
 ) : LocalDomainEventBus {
 
-    override fun sendExchange(exchange: EventStreamExchange): Mono<Void> {
+    override fun send(message: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {
             sink.emitNext(
-                exchange,
+                SimpleEventStreamExchange(message),
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
-    }
-
-    override fun send(message: DomainEventStream): Mono<Void> {
-        return sendExchange(SimpleEventStreamExchange(message))
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {

@@ -52,11 +52,7 @@ open class MetricDomainEventBus<T : DomainEventBus>(delegate: T) :
 
 class MetricLocalDomainEventBus(delegate: LocalDomainEventBus) :
     LocalDomainEventBus,
-    MetricDomainEventBus<LocalDomainEventBus>(delegate) {
-    override fun sendExchange(exchange: EventStreamExchange): Mono<Void> {
-        return delegate.sendExchange(exchange)
-    }
-}
+    MetricDomainEventBus<LocalDomainEventBus>(delegate)
 
 class MetricDistributedDomainEventBus(delegate: DistributedDomainEventBus) :
     DistributedDomainEventBus,

@@ -13,24 +13,24 @@
 
 package me.ahoo.wow.opentelemetry
 
+import io.opentelemetry.api.common.AttributesBuilder
 import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
+import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.publisher.Mono
+import me.ahoo.wow.opentelemetry.WowInstrumenter.appendMessageAttributes
 
-@Order(ORDER_FIRST)
-open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Instrumenter<T, Unit>) :
-    Filter<T> {
-    override fun filter(
-        exchange: T,
-        next: FilterChain<T>
-    ): Mono<Void> {
-        val source = next.filter(exchange)
-        val parentContext = Context.current()
-        return ExchangeTraceMono(parentContext, instrumenter, exchange, source)
+class ExchangeAttributesExtractor<M, E : MessageExchange<*, M>> :
+    AttributesExtractor<E, Unit> where M : Message<*, *> {
+    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: E) {
+        attributes.appendMessageAttributes(request.message)
     }
+
+    override fun onEnd(
+        attributes: AttributesBuilder,
+        context: Context,
+        request: E,
+        response: Unit?,
+        error: Throwable?
+    ) = Unit
 }

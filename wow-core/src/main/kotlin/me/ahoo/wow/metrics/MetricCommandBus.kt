@@ -53,11 +53,7 @@ open class MetricCommandBus<T : CommandBus>(delegate: T) :
 
 class MetricLocalCommandBus(delegate: LocalCommandBus) :
     LocalCommandBus,
-    MetricCommandBus<LocalCommandBus>(delegate) {
-    override fun sendExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
-        return delegate.sendExchange(exchange)
-    }
-}
+    MetricCommandBus<LocalCommandBus>(delegate)
 
 class MetricDistributedCommandBus(delegate: DistributedCommandBus) :
     DistributedCommandBus,

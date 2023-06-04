@@ -24,6 +24,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorInstrumenter
@@ -34,7 +35,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
-class MonoTraceTest {
+class ExchangeTraceMonoTest {
 
     companion object {
         val TEST_NAMED_AGGREGATE = MaterializedNamedAggregate(
@@ -57,18 +58,20 @@ class MonoTraceTest {
     fun traceEventProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
                 every { getError() } returns null
             }
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = EventProcessorInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -78,18 +81,19 @@ class MonoTraceTest {
     fun traceSagaProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
                 every { getError() } returns null
             }
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = StatelessSagaInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -99,18 +103,19 @@ class MonoTraceTest {
     fun traceProjectionProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
             }
             every { getError() } returns null
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = ProjectionInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -120,15 +125,17 @@ class MonoTraceTest {
     fun traceSnapshotProcessor() {
         val exchange = mockk<EventStreamExchange> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.requestId } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getError() } returns null
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = SnapshotInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()

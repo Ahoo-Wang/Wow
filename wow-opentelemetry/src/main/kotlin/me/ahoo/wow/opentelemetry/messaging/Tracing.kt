@@ -13,25 +13,12 @@
 
 package me.ahoo.wow.opentelemetry.messaging
 
-import io.opentelemetry.context.Context
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
-import me.ahoo.wow.messaging.handler.MessageExchange
 
-@Suppress("MemberNameEqualsClassName")
 object Tracing {
-
-    private const val PARENT_CONTEXT_KEY = "__TRACING_PARENT_CONTEXT__"
-    fun <E : MessageExchange<*, *>> E.setParentContext(parentContext: Context): E {
-        attributes[PARENT_CONTEXT_KEY] = parentContext
-        return this
-    }
-
-    fun <E : MessageExchange<*, *>> E.getParentContext(): Context? {
-        return attributes[PARENT_CONTEXT_KEY] as Context?
-    }
 
     fun LocalCommandBus.tracing(): LocalCommandBus {
         return tracing {
@@ -68,7 +55,7 @@ object Tracing {
     }
 
     inline fun <T> T.tracing(block: (T) -> T): T {
-        if (this is TracingMessageBus<*>) {
+        if (this is TracingMessageBus<*, *, *>) {
             return this
         }
         return block(this)

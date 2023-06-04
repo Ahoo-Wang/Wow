@@ -11,32 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry.messaging
+package me.ahoo.wow.opentelemetry
 
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.opentelemetry.TraceFilterSubscriber
-import me.ahoo.wow.opentelemetry.messaging.Tracing.setParentContext
 import reactor.core.CoreSubscriber
-import reactor.core.publisher.Mono
 
-class MonoLocalBusTrace<T : MessageExchange<*, *>>(
-    private val parentContext: Context,
+class ExchangeTraceSubscriber<T : MessageExchange<*, *>>(
     private val instrumenter: Instrumenter<T, Unit>,
+    private val otelContext: Context,
     private val exchange: T,
-    private val source: Mono<Void>
-) : Mono<Void>() {
-    override fun subscribe(actual: CoreSubscriber<in Void>) {
-        if (!instrumenter.shouldStart(parentContext, exchange)) {
-            exchange.setParentContext(parentContext)
-            source.subscribe(actual)
-            return
-        }
-        val otelContext = instrumenter.start(parentContext, exchange)
-        otelContext.makeCurrent().use {
-            exchange.setParentContext(otelContext)
-            source.subscribe(TraceFilterSubscriber(instrumenter, otelContext, exchange, actual))
-        }
+    private val actual: CoreSubscriber<in Void>
+) : TraceSubscriber<T>(instrumenter, otelContext, exchange, actual) {
+
+    override fun onComplete() {
+        instrumenter.end(otelContext, exchange, null, exchange.getError())
+        actual.onComplete()
     }
 }
