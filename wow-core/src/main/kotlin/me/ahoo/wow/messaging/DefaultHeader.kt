@@ -19,31 +19,17 @@ import me.ahoo.wow.api.messaging.Header
  *
  * @author ahoo wang
  */
-class DefaultHeader(private val delegate: Map<String, String> = emptyMap()) :
-    Header, Map<String, String> by delegate {
+class DefaultHeader(private val delegate: MutableMap<String, String> = mutableMapOf<String, String>()) :
+    Header, MutableMap<String, String> by delegate {
     companion object {
-        val EMPTY = DefaultHeader()
-    }
-
-    override fun mergeWith(additionalSource: Map<String, String>): Header {
-        if (additionalSource.isEmpty()) {
-            return this
+        fun empty(): Header {
+            return DefaultHeader()
         }
-        if (this.isEmpty()) {
-            return additionalSource.asHeader()
-        }
-        val merged = buildMap {
-            putAll(additionalSource)
-            putAll(delegate)
-        }
-
-        return DefaultHeader(merged)
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DefaultHeader) return false
-
         return delegate == other.delegate
     }
 
@@ -58,11 +44,13 @@ class DefaultHeader(private val delegate: Map<String, String> = emptyMap()) :
 
 fun Map<String, String>?.asHeader(): Header {
     if (isNullOrEmpty()) {
-        return DefaultHeader.EMPTY
+        return DefaultHeader.empty()
     }
-    return if (this is Header) {
-        this
-    } else {
-        DefaultHeader(this)
+    if (this is Header) {
+        return this
     }
+    if (this is MutableMap<*, *>) {
+        return DefaultHeader(this as MutableMap<String, String>)
+    }
+    return DefaultHeader(this.toMutableMap())
 }

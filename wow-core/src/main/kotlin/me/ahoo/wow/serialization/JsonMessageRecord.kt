@@ -70,12 +70,11 @@ interface HeaderRecord : JsonRecord {
         }
 
     fun asMessageHeader(): Header {
-        val headerValues = buildMap<String, String> {
-            header.fields().forEach {
-                put(it.key, it.value.asText())
-            }
+        val messageHeader = DefaultHeader.empty()
+        header.fields().forEach {
+            messageHeader.put(it.key, it.value.asText())
         }
-        return DefaultHeader(headerValues)
+        return messageHeader
     }
 }
 

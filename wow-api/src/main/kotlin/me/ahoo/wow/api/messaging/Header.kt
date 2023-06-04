@@ -18,6 +18,14 @@ package me.ahoo.wow.api.messaging
  *
  * @author ahoo wang
  */
-interface Header : Map<String, String> {
-    fun mergeWith(additionalSource: Map<String, String>): Header
+interface Header : MutableMap<String, String> {
+    fun with(key: String, value: String): Header {
+        this[key] = value
+        return this
+    }
+
+    fun with(additional: Map<String, String>): Header {
+        putAll(additional)
+        return this
+    }
 }

@@ -22,10 +22,16 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
  *
  * @author ahoo wang
  */
-interface Message<out T> : Identifier {
+interface Message<SOURCE : Message<SOURCE, T>, out T> : Identifier {
     val header: Header
     val body: T
     val createTime: Long
+
+    @Suppress("UNCHECKED_CAST")
+    fun withHeader(key: String, value: String): SOURCE {
+        header[key] = value
+        return this as SOURCE
+    }
 
     /**
      *
@@ -34,9 +40,15 @@ interface Message<out T> : Identifier {
      * @param additionalSource additional Source
      * @return new message instance
      */
-    fun mergeHeader(additionalSource: Map<String, String>): Message<T>
+    @Suppress("UNCHECKED_CAST")
+    fun withHeader(additionalSource: Map<String, String>): SOURCE {
+        header.putAll(additionalSource)
+        return this as SOURCE
+    }
 }
 
-interface NamedBoundedContextMessage<out T> : Message<T>, NamedBoundedContext
+interface NamedBoundedContextMessage<SOURCE : NamedBoundedContextMessage<SOURCE, T>, out T> :
+    Message<SOURCE, T>,
+    NamedBoundedContext
 
-interface NamedMessage<out T> : NamedBoundedContextMessage<T>, Named
+interface NamedMessage<SOURCE : NamedMessage<SOURCE, T>, out T> : NamedBoundedContextMessage<SOURCE, T>, Named

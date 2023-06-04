@@ -63,17 +63,17 @@ class DefaultCommandGateway(
             "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
         }
         return validate(command).flatMap {
-            val awaitableCommand = command.injectWaitStrategy<CommandMessage<C>>(
+            command.header.injectWaitStrategy(
                 commandWaitEndpoint = commandWaitEndpoint.endpoint,
                 stage = waitStrategy.stage,
             )
             if (waitStrategy.stage != CommandStage.SENT) {
-                waitStrategyRegistrar.register(awaitableCommand.commandId, waitStrategy)
+                waitStrategyRegistrar.register(command.commandId, waitStrategy)
             }
-            val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(awaitableCommand, waitStrategy)
-            commandBus.send(awaitableCommand)
+            val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
+            commandBus.send(command)
                 .doOnError {
-                    waitStrategyRegistrar.unregister(awaitableCommand.commandId)
+                    waitStrategyRegistrar.unregister(command.commandId)
                 }
                 .thenReturn(commandExchange)
         }

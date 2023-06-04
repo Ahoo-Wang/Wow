@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 
 const val COMMAND_LOAD_FIRST = "command_load_first"
 fun CommandMessage<*>.withLoadFirst(): CommandMessage<*> {
-    return mergeHeader(mapOf(COMMAND_LOAD_FIRST to "true"))
+    return withHeader(mapOf(COMMAND_LOAD_FIRST to "true"))
 }
 
 fun CommandMessage<*>.isLoadFirst(): Boolean {
@@ -40,12 +40,12 @@ class LocalFirstCommandBus(
     @Suppress("ReturnCount")
     override fun send(message: CommandMessage<*>): Mono<Void> {
         if (localAggregates.contains(message.materialize())) {
-            val commandMessage = message.withLoadFirst()
-            val localSend = localCommandBus.send(commandMessage)
+            message.withLoadFirst()
+            val localSend = localCommandBus.send(message)
             if (!doubleSend) {
                 return localSend
             }
-            val distributedSend = distributedCommandBus.send(commandMessage)
+            val distributedSend = distributedCommandBus.send(message)
             return localSend.then(distributedSend)
         }
         return distributedCommandBus.send(message)

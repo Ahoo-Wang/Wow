@@ -49,7 +49,7 @@ class DefaultEventCompensator(
             headVersion = headVersion,
             tailVersion = tailVersion,
         ).concatMap {
-            val eventStream = it.mergeHeader(
+            val eventStream = it.withHeader(
                 mapOf(
                     COMPENSATE_TARGET_PROCESSOR_KEY to targetProcessors.joinToString(
                         COMPENSATE_TARGET_PROCESSOR_SEPARATOR,
@@ -61,7 +61,7 @@ class DefaultEventCompensator(
     }
 }
 
-val <T> Message<T>.compensateTargetProcessors: Set<String>?
+val <T> Message<*, T>.compensateTargetProcessors: Set<String>?
     get() {
         val targetProcessorsString = header[COMPENSATE_TARGET_PROCESSOR_KEY] ?: return null
         if (targetProcessorsString.isBlank()) {
@@ -73,7 +73,7 @@ val <T> Message<T>.compensateTargetProcessors: Set<String>?
             .toSet()
     }
 
-fun <T> Message<T>.shouldHandle(processorName: String, defaultIfNull: Boolean = true): Boolean {
+fun <T> Message<*, T>.shouldHandle(processorName: String, defaultIfNull: Boolean = true): Boolean {
     val targetProcessors = this.compensateTargetProcessors ?: return defaultIfNull
     return targetProcessors.isEmpty() || targetProcessors.contains(processorName)
 }

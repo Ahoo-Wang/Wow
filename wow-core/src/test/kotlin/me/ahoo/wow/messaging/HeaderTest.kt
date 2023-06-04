@@ -20,12 +20,12 @@ import org.junit.jupiter.api.Test
 internal class HeaderTest {
     @Test
     fun ofWhenNull() {
-        assertThat(null.asHeader(), equalTo(DefaultHeader.EMPTY))
+        assertThat(null.asHeader(), equalTo(DefaultHeader.empty()))
     }
 
     @Test
     fun ofWhenEmpty() {
-        assertThat(HashMap<String, String>().asHeader(), equalTo(DefaultHeader.EMPTY))
+        assertThat(HashMap<String, String>().asHeader(), equalTo(DefaultHeader.empty()))
     }
 
     @Test

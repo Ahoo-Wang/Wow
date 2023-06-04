@@ -32,8 +32,4 @@ data class BodyTypeNotFoundDomainEvent(
     override val isLast: Boolean = true,
     override val createTime: Long = System.currentTimeMillis(),
     override val cause: Throwable
-) : DomainEvent<JsonNode>, NamedAggregate by aggregateId, IllegalStateException(cause) {
-    override fun mergeHeader(additionalSource: Map<String, String>): BodyTypeNotFoundDomainEvent {
-        return copy(header = header.mergeWith(additionalSource))
-    }
-}
+) : DomainEvent<JsonNode>, NamedAggregate by aggregateId, IllegalStateException(cause)

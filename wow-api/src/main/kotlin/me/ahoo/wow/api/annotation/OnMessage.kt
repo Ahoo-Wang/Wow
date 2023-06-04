@@ -26,6 +26,6 @@ import kotlin.reflect.KClass
 @Inherited
 @MustBeDocumented
 annotation class OnMessage(
-    val messageType: KClass<out Message<*>>,
+    val messageType: KClass<out Message<*, *>>,
     val defaultHandlerName: String
 )

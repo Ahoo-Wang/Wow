@@ -28,7 +28,7 @@ import me.ahoo.wow.naming.annotation.asName
 
 data class SimpleCommandMessage<C : Any>(
     override val id: String = GlobalIdGenerator.generateAsString(),
-    override val header: Header = DefaultHeader.EMPTY,
+    override val header: Header = DefaultHeader.empty(),
     override val body: C,
     override val aggregateId: AggregateId,
     override val requestId: String = id,
@@ -37,11 +37,7 @@ data class SimpleCommandMessage<C : Any>(
     override val isCreate: Boolean = false,
     override val allowCreate: Boolean = false,
     override val createTime: Long = System.currentTimeMillis()
-) : CommandMessage<C>, NamedAggregate by aggregateId {
-
-    override fun mergeHeader(additionalSource: Map<String, String>): CommandMessage<C> =
-        copy(header = header.mergeWith(additionalSource))
-}
+) : CommandMessage<C>, NamedAggregate by aggregateId
 
 @Suppress("LongParameterList")
 fun <C : Any> C.asCommandMessage(
@@ -51,7 +47,7 @@ fun <C : Any> C.asCommandMessage(
     tenantId: String? = null,
     aggregateVersion: Int? = null,
     namedAggregate: NamedAggregate? = null,
-    header: Header = DefaultHeader.EMPTY,
+    header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): CommandMessage<C> {
     val metadata = javaClass.asCommandMetadata()

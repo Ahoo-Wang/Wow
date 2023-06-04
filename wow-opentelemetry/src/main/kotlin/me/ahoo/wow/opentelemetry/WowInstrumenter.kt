@@ -29,7 +29,7 @@ object WowInstrumenter {
     private const val MESSAGE_PREFIX = Wow.WOW_PREFIX + "message."
     private val MESSAGE_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}${MessageRecords.ID}")
     private val REQUEST_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}request_id")
-    fun appendMessageIdAttributes(attributesBuilder: AttributesBuilder, message: Message<*>) {
+    fun appendMessageIdAttributes(attributesBuilder: AttributesBuilder, message: Message<*, *>) {
         attributesBuilder.put(MESSAGE_ID_ATTRIBUTE_KEY, message.id)
     }
 

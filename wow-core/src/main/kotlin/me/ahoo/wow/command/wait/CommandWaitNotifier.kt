@@ -14,7 +14,6 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
@@ -33,22 +32,8 @@ fun Header.injectWaitStrategy(
     commandWaitEndpoint: String,
     stage: CommandStage
 ): Header {
-    return this.mergeWith(
-        mapOf(
-            COMMAND_WAIT_ENDPOINT to commandWaitEndpoint,
-            COMMAND_WAIT_STAGE to stage.name,
-        ),
-    )
-}
-
-fun <M : Message<*>> Message<*>.injectWaitStrategy(
-    commandWaitEndpoint: String,
-    stage: CommandStage
-): M {
-    @Suppress("UNCHECKED_CAST")
-    return this.mergeHeader(
-        header.injectWaitStrategy(commandWaitEndpoint, stage),
-    ) as M
+    return with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
+        .with(COMMAND_WAIT_STAGE, stage.name)
 }
 
 data class WaitStrategyInfo(
@@ -56,9 +41,9 @@ data class WaitStrategyInfo(
     val stage: CommandStage
 )
 
-fun Message<*>.extractWaitStrategy(): WaitStrategyInfo? {
-    val commandWaitEndpoint = header[COMMAND_WAIT_ENDPOINT] ?: return null
-    val stage = header[COMMAND_WAIT_STAGE]!!
+fun Header.extractWaitStrategy(): WaitStrategyInfo? {
+    val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
+    val stage = this[COMMAND_WAIT_STAGE]!!
     return WaitStrategyInfo(commandWaitEndpoint, CommandStage.valueOf(stage))
 }
 

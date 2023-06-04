@@ -13,26 +13,26 @@ class CommandOperatorTest {
 
     @Test
     fun getOperator() {
-        val header = DefaultHeader.EMPTY
+        val header = DefaultHeader.empty()
         assertThat(header.operator, nullValue())
     }
 
     @Test
     fun getRequiredOperator() {
         Assertions.assertThrows(IllegalStateException::class.java) {
-            DefaultHeader.EMPTY.requiredOperator
+            DefaultHeader.empty().requiredOperator
         }
     }
 
     @Test
     fun withOperator() {
-        val header = DefaultHeader.EMPTY.withOperator("test")
+        val header = DefaultHeader.empty().withOperator("test")
         assertThat(header.operator, equalTo("test"))
     }
 
     @Test
     fun testWithOperator() {
-        val header = withOperator("test")
+        val header = DefaultHeader.empty().withOperator("test")
         assertThat(header.operator, equalTo("test"))
     }
 }

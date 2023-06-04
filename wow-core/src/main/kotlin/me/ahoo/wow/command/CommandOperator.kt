@@ -14,7 +14,6 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.messaging.DefaultHeader
 
 object CommandOperator {
     private const val COMMAND_OPERATOR = "command_operator"
@@ -27,19 +26,7 @@ object CommandOperator {
             return checkNotNull(operator) { "operator is required!" }
         }
 
-    fun withOperator(operator: String): Header {
-        return DefaultHeader(
-            mapOf(
-                COMMAND_OPERATOR to operator,
-            ),
-        )
-    }
-
     fun Header.withOperator(operator: String): Header {
-        return this.mergeWith(
-            mapOf(
-                COMMAND_OPERATOR to operator,
-            ),
-        )
+        return this.with(COMMAND_OPERATOR, operator)
     }
 }

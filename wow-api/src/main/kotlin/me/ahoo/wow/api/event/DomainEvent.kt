@@ -34,7 +34,13 @@ const val DEFAULT_EVENT_SEQUENCE = 1
  * 事件朔源将可以不需要显式定义朔源函数。
  * @author ahoo wang
  */
-interface DomainEvent<T : Any> : NamedMessage<T>, AggregateIdCapable, CommandId, NamedAggregate, Version, Revision {
+interface DomainEvent<T : Any> :
+    NamedMessage<DomainEvent<T>, T>,
+    AggregateIdCapable,
+    CommandId,
+    NamedAggregate,
+    Version,
+    Revision {
     override val aggregateId: AggregateId
     val sequence: Int
         get() = DEFAULT_EVENT_SEQUENCE
@@ -46,6 +52,4 @@ interface DomainEvent<T : Any> : NamedMessage<T>, AggregateIdCapable, CommandId,
      */
     val isLast: Boolean
         get() = true
-
-    override fun mergeHeader(additionalSource: Map<String, String>): DomainEvent<T>
 }
