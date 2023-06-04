@@ -24,6 +24,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorInstrumenter
@@ -57,6 +58,7 @@ class ExchangeTraceMonoTest {
     fun traceEventProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
@@ -78,6 +80,7 @@ class ExchangeTraceMonoTest {
     fun traceSagaProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
@@ -99,6 +102,7 @@ class ExchangeTraceMonoTest {
     fun traceProjectionProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
@@ -120,6 +124,7 @@ class ExchangeTraceMonoTest {
     fun traceSnapshotProcessor() {
         val exchange = mockk<EventStreamExchange> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.header } returns DefaultHeader.empty()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getError() } returns null

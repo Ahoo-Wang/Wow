@@ -22,6 +22,6 @@ class MessageTextMapSetter<M : Message<*, *>> : TextMapSetter<M> {
         if (carrier == null) {
             return
         }
-        carrier.withHeader(key, value)
+        carrier.header.set(key, value)
     }
 }
