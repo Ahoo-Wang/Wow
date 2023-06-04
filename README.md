@@ -52,7 +52,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
     - [x] `AggregateVerifier`
     - [x] `StatelessSagaVerifier`
 - [x] EventSourcing
-    - EventStream
+    - EventStore
         - [x] MongoDB (Recommend)
         - [x] R2dbc
             - [x] Database Sharding
