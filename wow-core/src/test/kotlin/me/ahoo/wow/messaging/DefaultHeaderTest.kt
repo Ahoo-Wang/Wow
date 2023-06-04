@@ -97,13 +97,13 @@ internal class DefaultHeaderTest {
 
     @Test
     fun entrySet() {
-        assertThat(DefaultHeader.EMPTY, aMapWithSize(0))
+        assertThat(DefaultHeader.empty(), aMapWithSize(0))
     }
 
     @Test
     fun testEquals() {
-        assertThat(DefaultHeader.EMPTY, equalTo(DefaultHeader.EMPTY))
-        assertThat(DefaultHeader.EMPTY, not(Any()))
+        assertThat(DefaultHeader.empty(), equalTo(DefaultHeader.empty()))
+        assertThat(DefaultHeader.empty(), not(Any()))
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = DefaultHeader(values)
@@ -115,7 +115,7 @@ internal class DefaultHeaderTest {
 
     @Test
     fun testHashCode() {
-        assertThat(DefaultHeader.EMPTY.hashCode(), equalTo(0))
+        assertThat(DefaultHeader.empty().hashCode(), equalTo(0))
     }
 
     @Test
@@ -127,23 +127,23 @@ internal class DefaultHeaderTest {
         val additionalValue = "additionalValue"
         val additionalSource = HashMap<String, String>()
         additionalSource[additionalKey] = additionalValue
-        val mergedHeader = header.mergeWith(additionalSource)
+        val mergedHeader = header.with(additionalSource)
         assertThat(mergedHeader[KEY], equalTo(VALUE))
         assertThat(mergedHeader[additionalKey], equalTo(additionalValue))
     }
 
     @Test
     fun mergeWithWhenEmpty() {
-        val mergedHeader = DefaultHeader.EMPTY.mergeWith(HashMap())
-        assertThat(mergedHeader, equalTo(DefaultHeader.EMPTY))
+        val mergedHeader = DefaultHeader.empty().with(HashMap())
+        assertThat(mergedHeader, equalTo(DefaultHeader.empty()))
     }
 
     @Test
     fun mergeWithWhenThisIsEmpty() {
         val additionalSource = HashMap<String, String>()
         additionalSource[KEY] = VALUE
-        val mergedHeader = DefaultHeader.EMPTY.mergeWith(additionalSource)
-        assertThat(mergedHeader, not(DefaultHeader.EMPTY))
+        val mergedHeader = DefaultHeader.empty().with(additionalSource)
+        assertThat(mergedHeader, not(DefaultHeader.empty()))
         assertThat(mergedHeader[KEY], equalTo(VALUE))
     }
 

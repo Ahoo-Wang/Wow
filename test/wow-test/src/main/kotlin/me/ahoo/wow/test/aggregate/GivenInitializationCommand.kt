@@ -32,10 +32,6 @@ data class GivenInitializationCommand(
     override val body: GivenInitialization = GivenInitialization
     override val aggregateVersion: Int? = null
     override val name: String = GivenInitializationCommand::javaClass.name
-    override val header: Header = DefaultHeader.EMPTY
+    override val header: Header = DefaultHeader.empty()
     override val createTime: Long = System.currentTimeMillis()
-
-    override fun mergeHeader(additionalSource: Map<String, String>): CommandMessage<GivenInitialization> {
-        return this
-    }
 }

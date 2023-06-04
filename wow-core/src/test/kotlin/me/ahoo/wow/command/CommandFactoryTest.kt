@@ -15,7 +15,6 @@ package me.ahoo.wow.command
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class CommandFactoryTest {
@@ -50,15 +49,6 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
         assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 1000))
-    }
-
-    @Test
-    fun createWhenMergeHeader() {
-        val command = MockNamedCommand(GlobalIdGenerator.generateAsString())
-        val commandMessage = command.asCommandMessage()
-        val additionalSource = HashMap<String, String>()
-        val mergedMessage = commandMessage.mergeHeader(additionalSource)
-        Assertions.assertNotSame(commandMessage, mergedMessage)
     }
 
     @Test

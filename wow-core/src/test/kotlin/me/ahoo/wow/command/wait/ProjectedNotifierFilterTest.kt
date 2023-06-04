@@ -30,7 +30,7 @@ internal class ProjectedNotifierFilterTest {
     fun filter() {
         val projectedNotifierFilter = ProjectedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val domainEvent = mockk<DomainEvent<Any>>()
-        every { domainEvent.header } returns DefaultHeader.EMPTY
+        every { domainEvent.header } returns DefaultHeader.empty()
         every { domainEvent.commandId } returns GlobalIdGenerator.generateAsString()
         every { domainEvent.isLast } returns true
         val exchange = SimpleDomainEventExchange(domainEvent, mockk())

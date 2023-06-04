@@ -22,7 +22,7 @@ const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
 
 @Suppress("TooManyFunctions")
-interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*>> {
+interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> {
     val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge(): Mono<Void> = Mono.empty()

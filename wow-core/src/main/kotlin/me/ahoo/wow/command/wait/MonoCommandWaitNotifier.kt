@@ -36,7 +36,7 @@ class MonoCommandWaitNotifier<M>(
         if (message !is CommandId) {
             return source.subscribe(actual)
         }
-        val waitStrategy = message.extractWaitStrategy() ?: return source.subscribe(actual)
+        val waitStrategy = message.header.extractWaitStrategy() ?: return source.subscribe(actual)
         if (!waitStrategy.stage.shouldNotify(processingStage)) {
             return source.subscribe(actual)
         }

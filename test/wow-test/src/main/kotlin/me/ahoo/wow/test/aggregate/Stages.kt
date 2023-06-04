@@ -34,7 +34,7 @@ interface WhenStage<S : Any> {
     /**
      * 2. 接收并执行命令.
      */
-    fun `when`(command: Any, header: Header = DefaultHeader.EMPTY): ExpectStage<S>
+    fun `when`(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S>
 }
 
 interface ExpectStage<S : Any> {

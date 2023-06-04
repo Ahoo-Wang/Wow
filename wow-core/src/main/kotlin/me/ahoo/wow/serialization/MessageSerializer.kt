@@ -22,7 +22,7 @@ import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 
-abstract class MessageSerializer<M : Message<*>>(messageType: Class<M>) : StdSerializer<M>(messageType) {
+abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : StdSerializer<M>(messageType) {
 
     override fun serialize(value: M, generator: JsonGenerator, provider: SerializerProvider) {
         generator.writeStartObject()
@@ -33,7 +33,7 @@ abstract class MessageSerializer<M : Message<*>>(messageType: Class<M>) : StdSer
         if (value is NamedAggregate) {
             generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateName)
         }
-        if (value is NamedMessage<*>) {
+        if (value is NamedMessage<*, *>) {
             generator.writeStringField(MessageRecords.NAME, value.name)
         }
         writeHeader(generator, value.header)

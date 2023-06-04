@@ -23,7 +23,12 @@ import me.ahoo.wow.api.modeling.NamedAggregate
  *
  * @author ahoo wang
  */
-interface CommandMessage<C : Any> : NamedMessage<C>, AggregateIdCapable, NamedAggregate, CommandId, RequestId {
+interface CommandMessage<C : Any> :
+    NamedMessage<CommandMessage<C>, C>,
+    AggregateIdCapable,
+    NamedAggregate,
+    CommandId,
+    RequestId {
     override val commandId: String
         get() = id
 
@@ -43,6 +48,4 @@ interface CommandMessage<C : Any> : NamedMessage<C>, AggregateIdCapable, NamedAg
     val isCreate: Boolean
 
     val allowCreate: Boolean
-
-    override fun mergeHeader(additionalSource: Map<String, String>): CommandMessage<C>
 }

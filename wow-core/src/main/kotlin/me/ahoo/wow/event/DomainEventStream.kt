@@ -38,7 +38,7 @@ import me.ahoo.wow.messaging.DefaultHeader
  * @author ahoo wang
  */
 interface DomainEventStream :
-    NamedBoundedContextMessage<List<DomainEvent<*>>>,
+    NamedBoundedContextMessage<DomainEventStream, List<DomainEvent<*>>>,
     RequestId,
     CommandId,
     NamedAggregate,
@@ -47,13 +47,12 @@ interface DomainEventStream :
     AggregateIdCapable {
     override val aggregateId: AggregateId
     val size: Int
-    override fun mergeHeader(additionalSource: Map<String, String>): DomainEventStream
 }
 
 data class SimpleDomainEventStream(
     override val id: String = GlobalIdGenerator.generateAsString(),
     override val requestId: String,
-    override val header: Header = DefaultHeader.EMPTY,
+    override val header: Header = DefaultHeader.empty(),
     override val body: List<DomainEvent<*>>
 ) :
     DomainEventStream,
@@ -69,14 +68,6 @@ data class SimpleDomainEventStream(
     override val version: Int
     override val size: Int
     override val createTime: Long
-    override fun mergeHeader(additionalSource: Map<String, String>): DomainEventStream {
-        return copy(
-            header = header.mergeWith(additionalSource),
-            body = body.map {
-                it.mergeHeader(additionalSource)
-            },
-        )
-    }
 
     init {
         require(body.isNotEmpty()) { "events can not be empty." }
@@ -93,14 +84,14 @@ data class SimpleDomainEventStream(
 fun Any.asDomainEventStream(
     command: CommandMessage<*>,
     aggregateVersion: Int,
-    header: Header = DefaultHeader.EMPTY
+    header: Header = DefaultHeader.empty()
 ): DomainEventStream {
-    val awaitableHeader = command.extractWaitStrategy()?.let {
+    command.header.extractWaitStrategy()?.let {
         header.injectWaitStrategy(it.commandWaitEndpoint, it.stage)
-    } ?: header
-    val eventHeader = command.header.operator?.let {
-        awaitableHeader.withOperator(it)
-    } ?: awaitableHeader
+    }
+    command.header.operator?.let {
+        header.withOperator(it)
+    }
     val eventStreamId = GlobalIdGenerator.generateAsString()
     val aggregateId = command.aggregateId
     val streamVersion = aggregateVersion + 1
@@ -108,22 +99,22 @@ fun Any.asDomainEventStream(
 
     val events = when (this) {
         is Iterable<*> -> {
-            asDomainEvents(streamVersion, aggregateId, command, eventHeader, createTime)
+            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
 
         is Array<*> -> {
-            asDomainEvents(streamVersion, aggregateId, command, eventHeader, createTime)
+            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
 
         else -> {
-            asDomainEvents(streamVersion, aggregateId, command, eventHeader, createTime)
+            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
     }
 
     return SimpleDomainEventStream(
         id = eventStreamId,
         requestId = command.requestId,
-        header = eventHeader,
+        header = header,
         body = events,
     )
 }
@@ -140,7 +131,7 @@ private fun Any.asDomainEvents(
         version = streamVersion,
         aggregateId = aggregateId,
         commandId = command.commandId,
-        header = header,
+        header = DefaultHeader.empty().with(header),
         createTime = createTime,
     )
     return listOf(domainEvent)
@@ -150,7 +141,7 @@ private fun Array<*>.asDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
-    header: Header,
+    eventStreamHeader: Header,
     createTime: Long
 ) = mapIndexed { index, event ->
     val sequence = (index + DEFAULT_EVENT_SEQUENCE)
@@ -161,7 +152,7 @@ private fun Array<*>.asDomainEvents(
         isLast = sequence == this.size,
         aggregateId = aggregateId,
         commandId = command.commandId,
-        header = header,
+        header = DefaultHeader.empty().with(eventStreamHeader),
         createTime = createTime,
     )
 }.toList()
@@ -170,7 +161,7 @@ private fun Iterable<*>.asDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
-    header: Header,
+    eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
     val eventCount = count()
@@ -183,7 +174,7 @@ private fun Iterable<*>.asDomainEvents(
             isLast = sequence == eventCount,
             aggregateId = aggregateId,
             commandId = command.commandId,
-            header = header,
+            header = DefaultHeader.empty().with(eventStreamHeader),
             createTime = createTime,
         )
     }.toList()

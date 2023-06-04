@@ -32,7 +32,7 @@ import java.time.Duration
 /**
  * Message Bus Implementation Specification.
  */
-abstract class MessageBusSpec<M : Message<*>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> {
+abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(MessageBusSpec::class.java)
     }
