@@ -19,41 +19,30 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+import me.ahoo.wow.opentelemetry.messaging.MessageAttributesExtractor
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeAttributesExtractor
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
+import me.ahoo.wow.opentelemetry.messaging.MessageTextMapSetter
 
-object LocalEventBusInstrumenter {
-    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}loadEventBus"
+object EventConsumerInstrumenter {
+    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}eventConsumer"
     val INSTRUMENTER: Instrumenter<EventStreamExchange, Unit> =
         Instrumenter.builder<EventStreamExchange, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
-            LocalEventBusSpanNameExtractor,
-        ).addAttributesExtractor(LocalEventBusAttributesExtractor)
+            EventConsumerSpanNameExtractor,
+        ).addAttributesExtractor(MessageExchangeAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
-object LocalEventBusSpanNameExtractor : SpanNameExtractor<EventStreamExchange> {
+object EventConsumerSpanNameExtractor : SpanNameExtractor<EventStreamExchange> {
     override fun extract(request: EventStreamExchange): String {
-        val firstEvent = request.message.first()
-        return "${request.message.aggregateName}.${firstEvent.name}.event send"
+        return "${request.message.aggregateName}.event process"
     }
-}
-
-object LocalEventBusAttributesExtractor : AttributesExtractor<EventStreamExchange, Unit> {
-
-    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: EventStreamExchange) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
-    }
-
-    override fun onEnd(
-        attributes: AttributesBuilder,
-        context: Context,
-        request: EventStreamExchange,
-        response: Unit?,
-        error: Throwable?
-    ) = Unit
 }

@@ -6,7 +6,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.opentelemetry.MonoTraceTest.Companion.TEST_NAMED_AGGREGATE
+import me.ahoo.wow.opentelemetry.ExchangeTraceMonoTest.Companion.TEST_NAMED_AGGREGATE
 import me.ahoo.wow.opentelemetry.messaging.Tracing.tracing
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test

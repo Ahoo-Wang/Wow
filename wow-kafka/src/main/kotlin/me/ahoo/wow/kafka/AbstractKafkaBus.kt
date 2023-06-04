@@ -42,7 +42,7 @@ abstract class AbstractKafkaBus<M, E>(
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer
 ) : DistributedMessageBus<M, E>
-    where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+        where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     companion object {
         private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
     }
@@ -50,24 +50,27 @@ abstract class AbstractKafkaBus<M, E>(
     protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
-        if (log.isDebugEnabled) {
-            log.debug("Send {}.", message)
-        }
-        val senderRecord = encode(message)
-        return sender.send(Mono.just(senderRecord))
-            .doOnNext {
-                @Suppress("ThrowingExceptionsWithoutMessageOrCause")
-                val error = it.exception()
-                if (error != null) {
-                    it.correlationMetadata().tryEmitError(error)
-                } else {
-                    it.correlationMetadata().tryEmitEmpty()
+        return Mono.defer {
+            if (log.isDebugEnabled) {
+                log.debug("Send {}.", message)
+            }
+            val senderRecord = encode(message)
+            sender.send(Mono.just(senderRecord))
+                .doOnNext {
+                    @Suppress("ThrowingExceptionsWithoutMessageOrCause")
+                    val error = it.exception()
+                    if (error != null) {
+                        it.correlationMetadata().tryEmitError(error)
+                    } else {
+                        it.correlationMetadata().tryEmitEmpty()
+                    }
                 }
-            }
-            .flatMap {
-                it.correlationMetadata().asMono()
-            }
-            .next()
+                .flatMap {
+                    it.correlationMetadata().asMono()
+                }
+                .next()
+        }
+
     }
 
     abstract fun M.asExchange(receiverOffset: ReceiverOffset): E

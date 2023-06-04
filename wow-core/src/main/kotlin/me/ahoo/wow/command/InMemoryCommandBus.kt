@@ -50,23 +50,18 @@ class InMemoryCommandBus(
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
-    override fun sendExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
+    override fun send(message: CommandMessage<*>): Mono<Void> {
         return Mono.fromRunnable {
             if (log.isDebugEnabled) {
-                log.debug("Send {}.", exchange.message)
+                log.debug("Send {}.", message)
             }
-            val sink = computeSink(exchange.message)
+            val sink = computeSink(message)
             @Suppress("UNCHECKED_CAST")
             sink.emitNext(
-                exchange as ServerCommandExchange<Any>,
+                SimpleServerCommandExchange(message),
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
-    }
-
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        val exchange = SimpleServerCommandExchange(message)
-        return sendExchange(exchange)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {

@@ -21,40 +21,28 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+import me.ahoo.wow.opentelemetry.messaging.MessageAttributesExtractor
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeAttributesExtractor
+import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
+import me.ahoo.wow.opentelemetry.messaging.MessageTextMapSetter
 
-object LocalCommandBusInstrumenter {
-    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}loadCommandBus"
+object CommandConsumerInstrumenter {
+    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}commandConsumer"
     val INSTRUMENTER: Instrumenter<ServerCommandExchange<*>, Unit> =
         Instrumenter.builder<ServerCommandExchange<*>, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
-            LocalCommandBusSpanNameExtractor,
-        ).addAttributesExtractor(LocalCommandBusAttributesExtractor)
+            CommandConsumerSpanNameExtractor,
+        ).addAttributesExtractor(MessageExchangeAttributesExtractor())
             .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
-            .buildInstrumenter()
+            .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
-object LocalCommandBusSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<*>> {
+object CommandConsumerSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<*>> {
     override fun extract(request: ServerCommandExchange<*>): String {
-        val commandMessage = request.message as CommandMessage<*>
-        return "${commandMessage.aggregateName}.${commandMessage.name}.command send"
+        return "${request.message.aggregateName}.command process"
     }
-}
-
-object LocalCommandBusAttributesExtractor : AttributesExtractor<ServerCommandExchange<*>, Unit> {
-
-    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: ServerCommandExchange<*>) {
-        WowInstrumenter.appendMessageIdAttributes(attributes, request.message)
-        WowInstrumenter.appendAggregateAttributes(attributes, request.message.aggregateId)
-    }
-
-    override fun onEnd(
-        attributes: AttributesBuilder,
-        context: Context,
-        request: ServerCommandExchange<*>,
-        response: Unit?,
-        error: Throwable?
-    ) = Unit
 }

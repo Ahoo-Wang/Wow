@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
-class MonoTraceTest {
+class ExchangeTraceMonoTest {
 
     companion object {
         val TEST_NAMED_AGGREGATE = MaterializedNamedAggregate(
@@ -60,15 +60,15 @@ class MonoTraceTest {
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
                 every { getError() } returns null
             }
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = EventProcessorInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -81,15 +81,15 @@ class MonoTraceTest {
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
                 every { getError() } returns null
             }
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = StatelessSagaInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -102,15 +102,15 @@ class MonoTraceTest {
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { supportedType } returns MonoTraceTest::class.java
+                every { supportedType } returns ExchangeTraceMonoTest::class.java
             }
             every { getError() } returns null
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = ProjectionInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()
@@ -125,10 +125,10 @@ class MonoTraceTest {
             every { getError() } returns null
         }
 
-        MonoTrace(
+        ExchangeTraceMono(
             parentContext = Context.current(),
             instrumenter = SnapshotInstrumenter.INSTRUMENTER,
-            exchange = exchange,
+            request = exchange,
             source = Mono.empty(),
         ).test()
             .verifyComplete()

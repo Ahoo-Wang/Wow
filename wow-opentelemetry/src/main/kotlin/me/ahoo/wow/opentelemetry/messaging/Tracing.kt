@@ -68,7 +68,7 @@ object Tracing {
     }
 
     inline fun <T> T.tracing(block: (T) -> T): T {
-        if (this is TracingMessageBus<*>) {
+        if (this is TracingMessageBus<*, *, *>) {
             return this
         }
         return block(this)

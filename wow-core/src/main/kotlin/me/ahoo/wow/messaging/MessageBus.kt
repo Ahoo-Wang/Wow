@@ -27,9 +27,7 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
     fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
 }
 
-interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : MessageBus<M, E> {
-    fun sendExchange(exchange: E): Mono<Void>
-}
+interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : MessageBus<M, E>
 
 interface DistributedMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : MessageBus<M, E>
 

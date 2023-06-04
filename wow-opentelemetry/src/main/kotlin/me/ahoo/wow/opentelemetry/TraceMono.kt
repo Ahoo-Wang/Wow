@@ -15,23 +15,24 @@ package me.ahoo.wow.opentelemetry
 
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.api.annotation.ORDER_FIRST
-import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.opentelemetry.messaging.Tracing.getParentContext
+import reactor.core.CoreSubscriber
 import reactor.core.publisher.Mono
 
-@Order(ORDER_FIRST)
-open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Instrumenter<T, Unit>) :
-    Filter<T> {
-    override fun filter(
-        exchange: T,
-        next: FilterChain<T>
-    ): Mono<Void> {
-        val source = next.filter(exchange)
-        val parentContext = exchange.getParentContext() ?: Context.current()
-        return ExchangeTraceMono(parentContext, instrumenter, exchange, source)
+class TraceMono<T : Any>(
+    private val parentContext: Context,
+    private val instrumenter: Instrumenter<T, Unit>,
+    private val request: T,
+    private val source: Mono<Void>,
+) : Mono<Void>() {
+    override fun subscribe(actual: CoreSubscriber<in Void>) {
+        if (!instrumenter.shouldStart(parentContext, request)) {
+            source.subscribe(actual)
+            return
+        }
+        val otelContext = instrumenter.start(parentContext, request)
+        otelContext.makeCurrent().use {
+            source.subscribe(TraceSubscriber(instrumenter, otelContext, request, actual))
+        }
     }
 }
+
