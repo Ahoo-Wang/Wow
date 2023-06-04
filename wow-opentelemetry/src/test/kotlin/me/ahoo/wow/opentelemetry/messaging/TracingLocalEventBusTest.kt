@@ -22,6 +22,7 @@ class TracingLocalEventBusTest {
         }
         val eventStream = mockk<DomainEventStream> {
             every { id } returns GlobalIdGenerator.generateAsString()
+            every { requestId } returns GlobalIdGenerator.generateAsString()
             every { header } returns DefaultHeader.empty()
             every { aggregateName } returns ExchangeTraceMonoTest.TEST_NAMED_AGGREGATE.aggregateName
             every { aggregateId } returns ExchangeTraceMonoTest.TEST_NAMED_AGGREGATE.asAggregateId()

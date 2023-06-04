@@ -18,6 +18,7 @@ class TracingLocalCommandBusTest {
     fun send() {
         val commandMessage = mockk<CommandMessage<*>> {
             every { id } returns GlobalIdGenerator.generateAsString()
+            every { requestId } returns GlobalIdGenerator.generateAsString()
             every { header } returns DefaultHeader.empty()
             every { contextName } returns TEST_NAMED_AGGREGATE.contextName
             every { aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName

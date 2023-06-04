@@ -58,6 +58,7 @@ class ExchangeTraceMonoTest {
     fun traceEventProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
             every { getEventFunction() } returns mockk {
@@ -124,6 +125,7 @@ class ExchangeTraceMonoTest {
     fun traceSnapshotProcessor() {
         val exchange = mockk<EventStreamExchange> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.requestId } returns GlobalIdGenerator.generateAsString()
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
