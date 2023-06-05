@@ -19,7 +19,11 @@ import me.ahoo.wow.api.messaging.Header
  *
  * @author ahoo wang
  */
-class DefaultHeader(private val delegate: MutableMap<String, String> = mutableMapOf()) :
+class DefaultHeader(
+    private val delegate: MutableMap<String, String> = mutableMapOf(),
+    @Volatile
+    override var isReadOnly: Boolean = false
+) :
     Header, MutableMap<String, String> by delegate {
     companion object {
         fun empty(): Header {
@@ -27,8 +31,50 @@ class DefaultHeader(private val delegate: MutableMap<String, String> = mutableMa
         }
     }
 
+    override fun withReadOnly(): Header {
+        isReadOnly = true
+        return this
+    }
+
     override fun copy(): Header {
         return empty().with(this)
+    }
+
+    private inline fun <T> write(block: () -> T): T {
+        if (isReadOnly) {
+            throw UnsupportedOperationException("Header is read only.")
+        }
+        return block()
+    }
+
+    override fun put(key: String, value: String): String? {
+        return write {
+            delegate.put(key, value)
+        }
+    }
+
+    override fun remove(key: String): String? {
+        return write {
+            delegate.remove(key)
+        }
+    }
+
+    override fun remove(key: String, value: String): Boolean {
+        return write {
+            delegate.remove(key, value)
+        }
+    }
+
+    override fun putAll(from: Map<out String, String>) {
+        write {
+            delegate.putAll(from)
+        }
+    }
+
+    override fun clear() {
+        write {
+            delegate.clear()
+        }
     }
 
     override fun equals(other: Any?): Boolean {

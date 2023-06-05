@@ -46,6 +46,7 @@ abstract class AbstractRedisMessageBus<M, E>(
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
         return Mono.defer {
+            message.withReadOnly()
             val topic = topicConverter.convert(message)
             streamOps.add(topic, mapOf(MESSAGE_FIELD to message.asJsonString())).then()
         }
@@ -93,6 +94,7 @@ abstract class AbstractRedisMessageBus<M, E>(
         return StreamReceiver.create(redisTemplate.connectionFactory, options)
             .receive(consumer, streamOffset).map {
                 val message = requireNotNull(it.value[MESSAGE_FIELD]).asObject(messageType)
+                message.withReadOnly()
                 val acknowledgePublisher = streamOps.acknowledge(topic, group, it.id).then()
                 message.asExchange(acknowledgePublisher)
             }

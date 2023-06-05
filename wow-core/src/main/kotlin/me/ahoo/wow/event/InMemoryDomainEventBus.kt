@@ -26,6 +26,7 @@ class InMemoryDomainEventBus(
 
     override fun send(message: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {
+            message.withReadOnly()
             sink.emitNext(
                 message,
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),

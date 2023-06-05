@@ -22,12 +22,19 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
  *
  * @author ahoo wang
  */
+@Suppress("UNCHECKED_CAST")
 interface Message<SOURCE : Message<SOURCE, T>, out T> : Identifier {
     val header: Header
     val body: T
     val createTime: Long
+    val isReadOnly: Boolean
+        get() = header.isReadOnly
 
-    @Suppress("UNCHECKED_CAST")
+    fun withReadOnly(): SOURCE {
+        header.withReadOnly()
+        return this as SOURCE
+    }
+
     fun withHeader(key: String, value: String): SOURCE {
         header[key] = value
         return this as SOURCE
@@ -40,7 +47,6 @@ interface Message<SOURCE : Message<SOURCE, T>, out T> : Identifier {
      * @param additionalSource additional Source
      * @return new message instance
      */
-    @Suppress("UNCHECKED_CAST")
     fun withHeader(additionalSource: Map<String, String>): SOURCE {
         header.putAll(additionalSource)
         return this as SOURCE

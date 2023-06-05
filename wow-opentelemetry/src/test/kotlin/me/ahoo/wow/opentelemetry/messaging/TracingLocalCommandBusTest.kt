@@ -20,6 +20,8 @@ class TracingLocalCommandBusTest {
             every { id } returns GlobalIdGenerator.generateAsString()
             every { requestId } returns GlobalIdGenerator.generateAsString()
             every { header } returns DefaultHeader.empty()
+            every { isReadOnly } returns false
+            every { withReadOnly() } returns this
             every { contextName } returns TEST_NAMED_AGGREGATE.contextName
             every { aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
