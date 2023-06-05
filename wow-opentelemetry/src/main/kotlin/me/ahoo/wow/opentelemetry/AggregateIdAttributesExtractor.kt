@@ -13,20 +13,23 @@
 
 package me.ahoo.wow.opentelemetry
 
+import io.opentelemetry.api.common.AttributesBuilder
 import io.opentelemetry.context.Context
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.CoreSubscriber
+import io.opentelemetry.instrumentation.api.instrumenter.AttributesExtractor
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.opentelemetry.WowInstrumenter.appendAggregateIdAttributes
 
-class ExchangeTraceSubscriber<T : MessageExchange<*, *>>(
-    private val instrumenter: Instrumenter<T, Unit>,
-    private val otelContext: Context,
-    private val exchange: T,
-    private val actual: CoreSubscriber<in Void>
-) : TraceSubscriber<T, Void>(instrumenter, otelContext, exchange, actual) {
-
-    override fun onComplete() {
-        instrumenter.end(otelContext, exchange, null, exchange.getError())
-        actual.onComplete()
+object AggregateIdAttributesExtractor :
+    AttributesExtractor<AggregateId, Unit> {
+    override fun onStart(attributes: AttributesBuilder, parentContext: Context, request: AggregateId) {
+        attributes.appendAggregateIdAttributes(request)
     }
+
+    override fun onEnd(
+        attributes: AttributesBuilder,
+        context: Context,
+        request: AggregateId,
+        response: Unit?,
+        error: Throwable?
+    ) = Unit
 }

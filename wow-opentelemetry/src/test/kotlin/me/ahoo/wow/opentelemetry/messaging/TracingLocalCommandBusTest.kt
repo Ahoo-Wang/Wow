@@ -8,7 +8,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.opentelemetry.ExchangeTraceMonoTest.Companion.TEST_NAMED_AGGREGATE
-import me.ahoo.wow.opentelemetry.messaging.Tracing.tracing
+import me.ahoo.wow.opentelemetry.Tracing.tracing
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 

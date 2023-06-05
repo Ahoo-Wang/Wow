@@ -18,6 +18,7 @@ import io.opentelemetry.api.common.AttributesBuilder
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -39,18 +40,21 @@ object WowInstrumenter {
     private val AGGREGATE_TENANT_ID_ATTRIBUTE_KEY =
         stringKey("${AGGREGATE_PREFIX}tenant_id")
 
+    fun AttributesBuilder.appendAggregateIdAttributes(aggregateId: AggregateId) {
+        put(AGGREGATE_CONTEXT_NAME_ATTRIBUTE_KEY, aggregateId.contextName)
+        put(AGGREGATE_NAME_ATTRIBUTE_KEY, aggregateId.aggregateName)
+        put(AGGREGATE_ID_ATTRIBUTE_KEY, aggregateId.id)
+        put(AGGREGATE_TENANT_ID_ATTRIBUTE_KEY, aggregateId.tenantId)
+    }
+
     fun <M> AttributesBuilder.appendMessageAttributes(message: M)
         where M : Message<*, *> {
-        put(WowInstrumenter.MESSAGE_ID_ATTRIBUTE_KEY, message.id)
+        put(MESSAGE_ID_ATTRIBUTE_KEY, message.id)
         if (message is RequestId) {
             put(REQUEST_ID_ATTRIBUTE_KEY, message.requestId)
         }
         if (message is AggregateIdCapable) {
-            val aggregateId = message.aggregateId
-            put(AGGREGATE_CONTEXT_NAME_ATTRIBUTE_KEY, aggregateId.contextName)
-            put(AGGREGATE_NAME_ATTRIBUTE_KEY, aggregateId.aggregateName)
-            put(AGGREGATE_ID_ATTRIBUTE_KEY, aggregateId.id)
-            put(AGGREGATE_TENANT_ID_ATTRIBUTE_KEY, aggregateId.tenantId)
+            appendAggregateIdAttributes(message.aggregateId)
         }
     }
 }
