@@ -13,17 +13,12 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.TenantId
-import me.ahoo.wow.command.annotation.asCommandMetadata
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.naming.annotation.asName
 
 data class SimpleCommandMessage<C : Any>(
@@ -41,43 +36,4 @@ data class SimpleCommandMessage<C : Any>(
     override fun copy(): CommandMessage<C> {
         return copy(header = header.copy())
     }
-}
-
-@Suppress("LongParameterList")
-fun <C : Any> C.asCommandMessage(
-    id: String = GlobalIdGenerator.generateAsString(),
-    requestId: String? = null,
-    aggregateId: String? = null,
-    tenantId: String? = null,
-    aggregateVersion: Int? = null,
-    namedAggregate: NamedAggregate? = null,
-    header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
-): CommandMessage<C> {
-    val metadata = javaClass.asCommandMetadata()
-    val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)
-    requireNotNull(commandNamedAggregate) {
-        "The command[$javaClass] must be associated with a named aggregate!"
-    }
-    val commandAggregateId = metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
-    val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId ?: TenantId.DEFAULT_TENANT_ID
-    val targetAggregateId = commandNamedAggregate.asAggregateId(id = commandAggregateId, tenantId = commandTenantId)
-    val expectedAggregateVersion = if (metadata.isCreate) {
-        Version.UNINITIALIZED_VERSION
-    } else {
-        metadata.aggregateVersionGetter?.get(this) ?: aggregateVersion
-    }
-
-    return SimpleCommandMessage(
-        id = id,
-        requestId = requestId ?: id,
-        header = header,
-        body = this,
-        createTime = createTime,
-        aggregateId = targetAggregateId,
-        aggregateVersion = expectedAggregateVersion,
-        name = metadata.name,
-        isCreate = metadata.isCreate,
-        allowCreate = metadata.allowCreate,
-    )
 }

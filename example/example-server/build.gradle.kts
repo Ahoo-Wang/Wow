@@ -75,6 +75,7 @@ dependencies {
 //    implementation(project(":wow-elasticsearch"))
 //    implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
     implementation("me.ahoo.cosid:cosid-mongo")
+    implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
