@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
-import me.ahoo.wow.opentelemetry.messaging.Tracing.tracing
+import me.ahoo.wow.opentelemetry.Tracing.tracing
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered

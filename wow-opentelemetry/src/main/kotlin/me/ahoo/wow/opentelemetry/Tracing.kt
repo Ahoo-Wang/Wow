@@ -11,12 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.opentelemetry.messaging
+package me.ahoo.wow.opentelemetry
 
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.opentelemetry.eventsourcing.TracingEventStore
+import me.ahoo.wow.opentelemetry.messaging.TracingDistributedCommandBus
+import me.ahoo.wow.opentelemetry.messaging.TracingDistributedEventBus
+import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
+import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
+import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
+import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotRepository
 
 object Tracing {
 
@@ -44,12 +53,26 @@ object Tracing {
         }
     }
 
+    fun EventStore.tracing(): EventStore {
+        return tracing {
+            TracingEventStore(this)
+        }
+    }
+
+    fun SnapshotRepository.tracing(): SnapshotRepository {
+        return tracing {
+            TracingSnapshotRepository(this)
+        }
+    }
+
     fun <T : Any> T.tracing(): Any {
         return when (this) {
             is LocalCommandBus -> tracing()
             is DistributedCommandBus -> tracing()
             is LocalDomainEventBus -> tracing()
             is DistributedDomainEventBus -> tracing()
+            is EventStore -> tracing()
+            is SnapshotRepository -> tracing()
             else -> this
         }
     }

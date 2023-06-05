@@ -18,13 +18,13 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.Mono
 
-class TraceMono<T : Any>(
+class TraceMono<T : Any, O>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val request: T,
-    private val source: Mono<Void>,
-) : Mono<Void>() {
-    override fun subscribe(actual: CoreSubscriber<in Void>) {
+    private val source: Mono<O>,
+) : Mono<O>() {
+    override fun subscribe(actual: CoreSubscriber<in O>) {
         if (!instrumenter.shouldStart(parentContext, request)) {
             source.subscribe(actual)
             return

@@ -263,7 +263,7 @@ abstract class EventStoreSpec {
     }
 
     @Test
-    fun loadEventStreamGivenWrongVersion() {
+    open fun loadEventStreamGivenWrongVersion() {
         val eventStore = createEventStore().metrizable()
         val eventStream = generateEventStream()
         Assertions.assertThrows(IllegalArgumentException::class.java) {

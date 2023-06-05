@@ -15,34 +15,23 @@ package me.ahoo.wow.opentelemetry
 
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
+import reactor.core.publisher.Flux
 
-open class TraceSubscriber<T : Any, O>(
+class TraceFlux<T : Any, O>(
+    private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
-    private val otelContext: Context,
     private val request: T,
-    private val actual: CoreSubscriber<in O>
-) : CoreSubscriber<O> {
-    override fun currentContext(): reactor.util.context.Context {
-        return actual.currentContext()
-    }
-
-    override fun onSubscribe(subscription: Subscription) {
-        actual.onSubscribe(subscription)
-    }
-
-    override fun onNext(signal: O) {
-        actual.onNext(signal)
-    }
-
-    override fun onError(throwable: Throwable) {
-        instrumenter.end(otelContext, request, null, throwable)
-        actual.onError(throwable)
-    }
-
-    override fun onComplete() {
-        instrumenter.end(otelContext, request, null, null)
-        actual.onComplete()
+    private val source: Flux<O>,
+) : Flux<O>() {
+    override fun subscribe(actual: CoreSubscriber<in O>) {
+        if (!instrumenter.shouldStart(parentContext, request)) {
+            source.subscribe(actual)
+            return
+        }
+        val otelContext = instrumenter.start(parentContext, request)
+        otelContext.makeCurrent().use {
+            source.subscribe(TraceSubscriber(instrumenter, otelContext, request, actual))
+        }
     }
 }
