@@ -45,7 +45,8 @@ class LocalFirstCommandBus(
             if (!doubleSend) {
                 return localSend
             }
-            val distributedSend = distributedCommandBus.send(message)
+            val distributedMessage = message.copy()
+            val distributedSend = distributedCommandBus.send(distributedMessage)
             return localSend.then(distributedSend)
         }
         return distributedCommandBus.send(message)

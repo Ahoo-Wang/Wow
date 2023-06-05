@@ -20,14 +20,14 @@ import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
 class InMemoryDomainEventBus(
-    private val sink: Many<EventStreamExchange> = Sinks.many()
+    private val sink: Many<DomainEventStream> = Sinks.many()
         .multicast().onBackpressureBuffer()
 ) : LocalDomainEventBus {
 
     override fun send(message: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {
             sink.emitNext(
-                SimpleEventStreamExchange(message),
+                message,
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
@@ -37,8 +37,10 @@ class InMemoryDomainEventBus(
         return sink.asFlux()
             .filter { eventStream ->
                 namedAggregates.any {
-                    it.isSameAggregateName(eventStream.message)
+                    it.isSameAggregateName(eventStream)
                 }
+            }.map {
+                SimpleEventStreamExchange(it)
             }
     }
 }

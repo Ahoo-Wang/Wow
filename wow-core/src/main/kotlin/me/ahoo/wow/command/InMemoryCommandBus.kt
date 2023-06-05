@@ -36,7 +36,7 @@ class InMemoryCommandBus(
      *
      * @see Sinks.UnicastSpec
      */
-    private val sinkSupplier: (NamedAggregate) -> Many<ServerCommandExchange<*>> = {
+    private val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
 ) : LocalCommandBus {
@@ -44,9 +44,9 @@ class InMemoryCommandBus(
         private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
     }
 
-    private val sinks: MutableMap<NamedAggregate, Many<ServerCommandExchange<*>>> = ConcurrentHashMap()
+    private val sinks: MutableMap<NamedAggregate, Many<CommandMessage<*>>> = ConcurrentHashMap()
 
-    private fun computeSink(namedAggregate: NamedAggregate): Many<ServerCommandExchange<*>> {
+    private fun computeSink(namedAggregate: NamedAggregate): Many<CommandMessage<*>> {
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
@@ -56,9 +56,8 @@ class InMemoryCommandBus(
                 log.debug("Send {}.", message)
             }
             val sink = computeSink(message)
-            @Suppress("UNCHECKED_CAST")
             sink.emitNext(
-                SimpleServerCommandExchange(message),
+                message,
                 Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
             )
         }
@@ -69,6 +68,8 @@ class InMemoryCommandBus(
             computeSink(it).asFlux()
         }
 
-        return Flux.merge(sources)
+        return Flux.merge(sources).map {
+            SimpleServerCommandExchange(it)
+        }
     }
 }

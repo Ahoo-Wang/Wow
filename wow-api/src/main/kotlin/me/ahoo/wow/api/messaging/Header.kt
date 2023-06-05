@@ -19,6 +19,7 @@ package me.ahoo.wow.api.messaging
  * @author ahoo wang
  */
 interface Header : MutableMap<String, String> {
+
     fun with(key: String, value: String): Header {
         this[key] = value
         return this
@@ -28,4 +29,6 @@ interface Header : MutableMap<String, String> {
         putAll(additional)
         return this
     }
+
+    fun copy(): Header
 }

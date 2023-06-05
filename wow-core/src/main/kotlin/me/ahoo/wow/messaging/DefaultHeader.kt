@@ -19,12 +19,16 @@ import me.ahoo.wow.api.messaging.Header
  *
  * @author ahoo wang
  */
-class DefaultHeader(private val delegate: MutableMap<String, String> = mutableMapOf<String, String>()) :
+class DefaultHeader(private val delegate: MutableMap<String, String> = mutableMapOf()) :
     Header, MutableMap<String, String> by delegate {
     companion object {
         fun empty(): Header {
             return DefaultHeader()
         }
+    }
+
+    override fun copy(): Header {
+        return empty().with(this)
     }
 
     override fun equals(other: Any?): Boolean {

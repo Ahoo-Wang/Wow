@@ -48,4 +48,6 @@ interface CommandMessage<C : Any> :
     val isCreate: Boolean
 
     val allowCreate: Boolean
+
+    fun copy(): CommandMessage<C>
 }

@@ -13,11 +13,9 @@
 package me.ahoo.wow.messaging
 
 import me.ahoo.cosid.test.MockIdGenerator
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.aMapWithSize
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.not
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class DefaultHeaderTest {
@@ -145,6 +143,12 @@ internal class DefaultHeaderTest {
         val mergedHeader = DefaultHeader.empty().with(additionalSource)
         assertThat(mergedHeader, not(DefaultHeader.empty()))
         assertThat(mergedHeader[KEY], equalTo(VALUE))
+    }
+
+    @Test
+    fun createWhenCopyHeader() {
+        val sourceHeader = DefaultHeader.empty()
+        Assertions.assertNotSame(sourceHeader, sourceHeader.copy())
     }
 
     companion object {

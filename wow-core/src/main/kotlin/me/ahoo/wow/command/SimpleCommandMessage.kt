@@ -37,7 +37,11 @@ data class SimpleCommandMessage<C : Any>(
     override val isCreate: Boolean = false,
     override val allowCreate: Boolean = false,
     override val createTime: Long = System.currentTimeMillis()
-) : CommandMessage<C>, NamedAggregate by aggregateId
+) : CommandMessage<C>, NamedAggregate by aggregateId {
+    override fun copy(): CommandMessage<C> {
+        return copy(header = header.copy())
+    }
+}
 
 @Suppress("LongParameterList")
 fun <C : Any> C.asCommandMessage(

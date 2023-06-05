@@ -27,11 +27,14 @@ data class GivenInitializationCommand(
     override val id: String = GlobalIdGenerator.generateAsString(),
     override val requestId: String = GlobalIdGenerator.generateAsString(),
     override val isCreate: Boolean = true,
-    override val allowCreate: Boolean = false
+    override val allowCreate: Boolean = false,
+    override val header: Header = DefaultHeader.empty()
 ) : CommandMessage<GivenInitialization>, NamedAggregate by aggregateId {
     override val body: GivenInitialization = GivenInitialization
     override val aggregateVersion: Int? = null
     override val name: String = GivenInitializationCommand::javaClass.name
-    override val header: Header = DefaultHeader.empty()
     override val createTime: Long = System.currentTimeMillis()
+    override fun copy(): CommandMessage<GivenInitialization> {
+        return copy(header = header.copy())
+    }
 }

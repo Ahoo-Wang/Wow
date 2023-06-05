@@ -26,6 +26,6 @@ class MessageExchangeTextMapGetter<E : MessageExchange<*, Message<*, *>>> : Text
         if (carrier == null) {
             return null
         }
-        return carrier.message.header.get(key)
+        return carrier.message.header[key]
     }
 }
