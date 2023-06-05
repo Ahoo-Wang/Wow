@@ -54,6 +54,7 @@ abstract class AbstractKafkaBus<M, E>(
             if (log.isDebugEnabled) {
                 log.debug("Send {}.", message)
             }
+            message.withReadOnly()
             val senderRecord = encode(message)
             sender.send(Mono.just(senderRecord))
                 .doOnNext {

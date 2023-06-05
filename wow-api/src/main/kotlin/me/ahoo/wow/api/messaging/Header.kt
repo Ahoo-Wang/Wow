@@ -19,7 +19,8 @@ package me.ahoo.wow.api.messaging
  * @author ahoo wang
  */
 interface Header : MutableMap<String, String> {
-
+    val isReadOnly: Boolean
+    fun withReadOnly(): Header
     fun with(key: String, value: String): Header {
         this[key] = value
         return this

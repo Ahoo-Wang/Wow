@@ -15,11 +15,21 @@ package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.context.propagation.TextMapSetter
 import me.ahoo.wow.api.messaging.Message
+import org.slf4j.LoggerFactory
 
 class MessageTextMapSetter<M : Message<*, *>> : TextMapSetter<M> {
+    companion object {
+        private val log = LoggerFactory.getLogger(MessageTextMapSetter::class.java)
+    }
 
     override fun set(carrier: M?, key: String, value: String) {
         if (carrier == null) {
+            return
+        }
+        if (carrier.isReadOnly) {
+            if (log.isWarnEnabled) {
+                log.warn("carrier is read only. key:[{}],value:[{}]", key, value)
+            }
             return
         }
         carrier.header[key] = value

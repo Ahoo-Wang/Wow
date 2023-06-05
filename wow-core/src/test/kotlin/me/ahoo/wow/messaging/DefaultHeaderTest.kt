@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 
 internal class DefaultHeaderTest {
     @Test
-    fun of() {
+    fun asHeader() {
         val values = HashMap<String, String>()
         val header = values.asHeader()
         assertThat(header, notNullValue())
@@ -33,13 +33,12 @@ internal class DefaultHeaderTest {
         assertThat(header.size, equalTo(0))
     }
 
-    @get:Test
-    val isEmpty: Unit
-        get() {
-            val values = HashMap<String, String>()
-            val header = values.asHeader()
-            assertThat(header.isEmpty(), equalTo(true))
-        }
+    @Test
+    fun isEmpty() {
+        val values = HashMap<String, String>()
+        val header = values.asHeader()
+        assertThat(header.isEmpty(), equalTo(true))
+    }
 
     @Test
     fun containsKey() {
@@ -149,6 +148,30 @@ internal class DefaultHeaderTest {
     fun createWhenCopyHeader() {
         val sourceHeader = DefaultHeader.empty()
         Assertions.assertNotSame(sourceHeader, sourceHeader.copy())
+    }
+
+    @Test
+    fun empty() {
+        val header = DefaultHeader.empty()
+        assertThat(header.isReadOnly, equalTo(false))
+    }
+
+    @Test
+    fun withReadonly() {
+        val header = DefaultHeader.empty().withReadOnly()
+        assertThat(header.isReadOnly, equalTo(true))
+        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            header[KEY] = VALUE
+        }
+        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            header.remove(KEY)
+        }
+        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            header.remove(KEY, VALUE)
+        }
+        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            header.putAll(mapOf(KEY to VALUE))
+        }
     }
 
     companion object {

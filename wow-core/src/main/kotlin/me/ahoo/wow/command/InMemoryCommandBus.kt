@@ -55,6 +55,7 @@ class InMemoryCommandBus(
             if (log.isDebugEnabled) {
                 log.debug("Send {}.", message)
             }
+            message.withReadOnly()
             val sink = computeSink(message)
             sink.emitNext(
                 message,
