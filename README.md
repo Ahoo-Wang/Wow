@@ -30,6 +30,14 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
+### Spring WebFlux Integration
+
+> Automatically register the `Command` routing processing function (`HandlerFunction`), and developers only need to write the domain model to complete the service development.
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Spring-WebFlux-Integration.png" alt="Wow-Spring-WebFlux-Integration"/>
+</p>
+
 ## Preconditions
 
 - Understanding **Domain Driven Design**：《Implementing Domain-Driven Design》,《Domain-Driven Design: Tackling Complexity
