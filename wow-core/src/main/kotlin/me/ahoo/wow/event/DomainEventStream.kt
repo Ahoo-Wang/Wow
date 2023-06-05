@@ -123,7 +123,7 @@ private fun Any.asDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
-    header: Header,
+    eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
     val domainEvent = this.asDomainEvent(
@@ -131,7 +131,7 @@ private fun Any.asDomainEvents(
         version = streamVersion,
         aggregateId = aggregateId,
         commandId = command.commandId,
-        header = DefaultHeader.empty().with(header),
+        header = eventStreamHeader.copy(),
         createTime = createTime,
     )
     return listOf(domainEvent)
@@ -152,7 +152,7 @@ private fun Array<*>.asDomainEvents(
         isLast = sequence == this.size,
         aggregateId = aggregateId,
         commandId = command.commandId,
-        header = DefaultHeader.empty().with(eventStreamHeader),
+        header = eventStreamHeader.copy(),
         createTime = createTime,
     )
 }.toList()
@@ -174,7 +174,7 @@ private fun Iterable<*>.asDomainEvents(
             isLast = sequence == eventCount,
             aggregateId = aggregateId,
             commandId = command.commandId,
-            header = DefaultHeader.empty().with(eventStreamHeader),
+            header = eventStreamHeader.copy(),
             createTime = createTime,
         )
     }.toList()
