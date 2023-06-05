@@ -13,18 +13,25 @@
 
 package me.ahoo.wow.messaging
 
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+import reactor.util.context.Context
+import reactor.util.context.ContextView
 
-interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseable {
-    override fun close() = Unit
-    fun send(message: M): Mono<Void>
-    fun receive(namedAggregates: Set<NamedAggregate>): Flux<E>
+const val RECEIVER_GROUP = "(ReceiverGroup)"
+
+fun ContextView.getReceiverGroup(): String {
+    return get(RECEIVER_GROUP)
 }
 
-interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : MessageBus<M, E>
+fun Context.setReceiverGroup(receiverGroup: String): Context {
+    return this.put(RECEIVER_GROUP, receiverGroup)
+}
 
-interface DistributedMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : MessageBus<M, E>
+/**
+ * Write Receiver Group.
+ */
+fun <T> Flux<T>.writeReceiverGroup(receiverGroup: String): Flux<T> {
+    return contextWrite {
+        it.setReceiverGroup(receiverGroup)
+    }
+}
