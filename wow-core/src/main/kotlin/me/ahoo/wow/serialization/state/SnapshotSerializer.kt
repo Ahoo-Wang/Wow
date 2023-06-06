@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 object SnapshotRecords {
     const val SNAPSHOT_TIME: String = "snapshotTime"
@@ -33,7 +33,7 @@ object SnapshotSerializer : AbstractStateAggregateSerializer<Snapshot<*>>(Snapsh
 
 object SnapshotDeserializer : AbstractStateAggregateDeserializer<Snapshot<*>>(Snapshot::class.java) {
 
-    override fun createStateAggregate(stateRecord: JsonNode, stateAggregate: StateAggregate<Any>): Snapshot<*> {
+    override fun createStateAggregate(stateRecord: JsonNode, stateAggregate: ReadOnlyStateAggregate<Any>): Snapshot<*> {
         val snapshotTime = stateRecord[SnapshotRecords.SNAPSHOT_TIME].asLong()
         return SimpleSnapshot(delegate = stateAggregate, snapshotTime = snapshotTime)
     }

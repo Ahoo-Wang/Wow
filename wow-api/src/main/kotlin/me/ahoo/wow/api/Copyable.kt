@@ -11,16 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing.snapshot
+package me.ahoo.wow.api
 
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStrategySpec
-
-internal class TimeOffsetSnapshotStrategyTest : SnapshotStrategySpec() {
-    override fun createSnapshotStrategy(): SnapshotStrategy {
-        return TimeOffsetSnapshotStrategy(
-            timeOffset = 0,
-            snapshotRepository = InMemorySnapshotRepository(),
-            eventStore = eventStore,
-        )
-    }
+interface Copyable<SOURCE> {
+    fun copy(): SOURCE
 }

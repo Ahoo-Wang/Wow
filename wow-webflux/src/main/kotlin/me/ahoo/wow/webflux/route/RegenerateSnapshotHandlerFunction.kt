@@ -37,10 +37,10 @@ class RegenerateSnapshotHandlerFunction(
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
-        aggregateMetadata,
-        stateAggregateFactory,
-        eventStore,
-        snapshotRepository
+        aggregateMetadata = aggregateMetadata,
+        stateAggregateFactory = stateAggregateFactory,
+        eventStore = eventStore,
+        snapshotRepository = snapshotRepository
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.command
 
+import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
@@ -28,7 +29,8 @@ interface CommandMessage<C : Any> :
     AggregateIdCapable,
     NamedAggregate,
     CommandId,
-    RequestId {
+    RequestId,
+    Copyable<CommandMessage<C>> {
     override val commandId: String
         get() = id
 
@@ -48,6 +50,4 @@ interface CommandMessage<C : Any> :
     val isCreate: Boolean
 
     val allowCreate: Boolean
-
-    fun copy(): CommandMessage<C>
 }

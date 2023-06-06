@@ -27,11 +27,11 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
 
     companion object {
         fun <S : Any> DomainEventStream.asStateEvent(
-            stateRoot: S,
+            state: S,
             firstEventTime: Long = createTime,
             deleted: Boolean = false
         ): StateEvent<S> {
-            return StateEventData(this, stateRoot, firstEventTime, deleted)
+            return StateEventData(this, state, firstEventTime, deleted)
         }
 
         fun <S : Any> DomainEventStream.asStateEvent(stateAggregate: ReadOnlyStateAggregate<S>): StateEvent<S> {

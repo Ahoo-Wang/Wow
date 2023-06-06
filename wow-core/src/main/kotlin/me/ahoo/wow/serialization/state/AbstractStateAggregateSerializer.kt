@@ -24,7 +24,7 @@ import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.asObject
@@ -39,7 +39,7 @@ object StateAggregateRecords {
     const val DELETED: String = "deleted"
 }
 
-abstract class AbstractStateAggregateSerializer<T : StateAggregate<*>>(stateAggregateType: Class<T>) :
+abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdSerializer<T>(stateAggregateType) {
     override fun serialize(value: T, generator: JsonGenerator, provider: SerializerProvider) {
         generator.writeStartObject()
@@ -60,7 +60,7 @@ abstract class AbstractStateAggregateSerializer<T : StateAggregate<*>>(stateAggr
     protected open fun writeExtend(value: T, generator: JsonGenerator, provider: SerializerProvider) = Unit
 }
 
-abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAggregateType: Class<T>) :
+abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdDeserializer<T>(stateAggregateType) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): T {
         val stateRecord = p.codec.readTree<JsonNode>(p)
@@ -96,6 +96,6 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
 
     abstract fun createStateAggregate(
         stateRecord: JsonNode,
-        stateAggregate: StateAggregate<Any>
+        stateAggregate: ReadOnlyStateAggregate<Any>
     ): T
 }

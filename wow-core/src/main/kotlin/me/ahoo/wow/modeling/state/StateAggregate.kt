@@ -13,7 +13,9 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -70,6 +72,21 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
             return SimpleStateAggregate(
                 aggregateId = aggregateId,
                 metadata = this,
+                state = state,
+                version = version,
+                eventId = eventId,
+                firstEventTime = firstEventTime,
+                eventTime = eventTime,
+                deleted = deleted
+            )
+        }
+
+        @JvmStatic
+        fun <S : Any> ReadOnlyStateAggregate<S>.asStateAggregate(): StateAggregate<S> {
+            val metadata = aggregateId.asRequiredAggregateType<Any>()
+                .asAggregateMetadata<Any, S>().state
+            return metadata.asStateAggregate(
+                aggregateId = aggregateId,
                 state = state,
                 version = version,
                 eventId = eventId,

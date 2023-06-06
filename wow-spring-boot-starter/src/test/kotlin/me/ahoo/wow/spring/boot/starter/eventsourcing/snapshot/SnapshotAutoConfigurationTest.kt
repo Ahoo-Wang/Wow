@@ -18,6 +18,8 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.MessageBusType
@@ -42,6 +44,7 @@ internal class SnapshotAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withPropertyValues(
                 "${EventStoreProperties.STORAGE}=${EventStoreStorage.IN_MEMORY_NAME}",
                 "${SnapshotProperties.STORAGE}=${SnapshotStorage.IN_MEMORY_NAME}",

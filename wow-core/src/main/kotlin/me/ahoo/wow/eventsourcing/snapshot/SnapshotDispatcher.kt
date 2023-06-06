@@ -15,9 +15,9 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.shouldHandle
+import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
@@ -36,14 +36,14 @@ class SnapshotDispatcher(
     override val name: String,
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
-    private val domainEventBus: DomainEventBus,
+    private val stateEventBus: StateEventBus,
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("SnapshotDispatcher")
-) : AbstractDispatcher<EventStreamExchange>(), MessageDispatcher {
+) : AbstractDispatcher<StateEventExchange<*>>(), MessageDispatcher {
 
-    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
-        return domainEventBus
+    override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
+        return stateEventBus
             .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
@@ -54,7 +54,7 @@ class SnapshotDispatcher(
 
     override fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,
-        messageFlux: Flux<EventStreamExchange>
+        messageFlux: Flux<StateEventExchange<*>>
     ): MessageDispatcher {
         return AggregateSnapshotDispatcher(
             snapshotHandler = snapshotHandler,

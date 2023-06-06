@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
@@ -44,7 +45,8 @@ interface DomainEventStream :
     NamedAggregate,
     Version,
     Iterable<DomainEvent<*>>,
-    AggregateIdCapable {
+    AggregateIdCapable,
+    Copyable<DomainEventStream> {
     override val aggregateId: AggregateId
     val size: Int
 }
@@ -66,6 +68,10 @@ data class SimpleDomainEventStream(
 
     override val commandId: String
     override val version: Int
+    override fun copy(): DomainEventStream {
+        return copy(header = header.copy())
+    }
+
     override val size: Int
     override val createTime: Long
 

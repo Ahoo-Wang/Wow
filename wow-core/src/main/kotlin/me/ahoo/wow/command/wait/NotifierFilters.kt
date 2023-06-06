@@ -17,8 +17,8 @@ import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterType
@@ -50,7 +50,7 @@ class ProcessedNotifierFilter(
 @Order(ORDER_FIRST)
 class SnapshotNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<EventStreamExchange>(CommandStage.SNAPSHOT, commandWaitNotifier)
+) : AbstractNotifierFilter<StateEventExchange<*>>(CommandStage.SNAPSHOT, commandWaitNotifier)
 
 @FilterType(ProjectionDispatcher::class)
 @Order(ORDER_FIRST)

@@ -16,7 +16,7 @@ package me.ahoo.wow.opentelemetry.snapshot
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
-import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
@@ -24,8 +24,8 @@ import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object SnapshotInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}snapshot"
-    val INSTRUMENTER: Instrumenter<EventStreamExchange, Unit> =
-        Instrumenter.builder<EventStreamExchange, Unit>(
+    val INSTRUMENTER: Instrumenter<StateEventExchange<*>, Unit> =
+        Instrumenter.builder<StateEventExchange<*>, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             SnapshotSpanNameExtractor,
@@ -34,8 +34,8 @@ object SnapshotInstrumenter {
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
-object SnapshotSpanNameExtractor : SpanNameExtractor<EventStreamExchange> {
-    override fun extract(request: EventStreamExchange): String {
+object SnapshotSpanNameExtractor : SpanNameExtractor<StateEventExchange<*>> {
+    override fun extract(request: StateEventExchange<*>): String {
         return "${request.message.aggregateName}.snapshot"
     }
 }

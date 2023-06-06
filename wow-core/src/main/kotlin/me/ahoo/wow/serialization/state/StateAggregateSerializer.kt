@@ -14,13 +14,21 @@
 package me.ahoo.wow.serialization.state
 
 import com.fasterxml.jackson.databind.JsonNode
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 
 object StateAggregateSerializer : AbstractStateAggregateSerializer<StateAggregate<*>>(StateAggregate::class.java)
 
 object StateAggregateDeserializer : AbstractStateAggregateDeserializer<StateAggregate<*>>(StateAggregate::class.java) {
 
-    override fun createStateAggregate(stateRecord: JsonNode, stateAggregate: StateAggregate<Any>): StateAggregate<*> {
-        return stateAggregate
+    override fun createStateAggregate(
+        stateRecord: JsonNode,
+        stateAggregate: ReadOnlyStateAggregate<Any>
+    ): StateAggregate<*> {
+        if (stateAggregate is StateAggregate<Any>) {
+            return stateAggregate
+        }
+        return stateAggregate.asStateAggregate()
     }
 }

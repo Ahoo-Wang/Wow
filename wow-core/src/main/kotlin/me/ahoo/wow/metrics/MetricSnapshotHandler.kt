@@ -14,13 +14,13 @@
 package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
 class MetricSnapshotHandler(override val delegate: SnapshotHandler) : SnapshotHandler, Decorator<SnapshotHandler> {
-    override fun handle(exchange: EventStreamExchange): Mono<Void> {
+    override fun handle(exchange: StateEventExchange<*>): Mono<Void> {
         return delegate.handle(exchange)
             .name(Wow.WOW_PREFIX + "snapshot.handle")
             .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
