@@ -58,6 +58,14 @@ object MetadataSearcher {
     val scopeNamedAggregate: ScopeNamedAggregateSearcher by lazy {
         metadata.asScopeNamedAggregateSearcher()
     }
+
+    val localAggregates: Set<NamedAggregate> by lazy {
+        namedAggregateType.keys.map { it.materialize() }.toSet()
+    }
+
+    fun NamedAggregate.isLocal(): Boolean {
+        return localAggregates.contains(this.materialize())
+    }
 }
 
 fun <T> Class<T>.asNamedBoundedContext(): NamedBoundedContext? {

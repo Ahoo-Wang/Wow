@@ -15,9 +15,8 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -34,12 +33,11 @@ class LocalFirstCommandBus(
     private val distributedCommandBus: DistributedCommandBus,
     private val doubleSend: Boolean = false,
     private val localCommandBus: LocalCommandBus = InMemoryCommandBus().metrizable(),
-    private val localAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet()
 ) : CommandBus {
 
     @Suppress("ReturnCount")
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        if (localAggregates.contains(message.materialize())) {
+        if (message.isLocal()) {
             message.withLoadFirst()
             val localSend = localCommandBus.send(message)
             if (!doubleSend) {

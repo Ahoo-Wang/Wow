@@ -37,7 +37,7 @@ import reactor.core.publisher.Flux
 class CommandDispatcher(
     override val name: String = CommandDispatcher::class.simpleName!!,
     val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
+    override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.localAggregates,
     private val commandBus: CommandBus,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
