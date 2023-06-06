@@ -45,7 +45,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             aggregateId = aggregateId,
             metadata = metadata,
             version = Version.UNINITIALIZED_VERSION,
-            stateRoot = stateRoot
+            state = stateRoot
         )
     }
 

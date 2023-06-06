@@ -18,13 +18,13 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateTracingHandlerFunction
-import me.ahoo.wow.webflux.route.EventAggregateState
 import org.springdoc.core.fn.builders.operation.Builder
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder
 import org.springframework.http.HttpStatus
@@ -79,7 +79,7 @@ class AggregateTracingRouteAppender(
                     org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder()
                         .responseCode(HttpStatus.OK.value().toString())
                         .description(HttpStatus.OK.reasonPhrase)
-                        .implementationArray(EventAggregateState::class.java),
+                        .implementationArray(StateEvent::class.java),
                 )
         }
     }

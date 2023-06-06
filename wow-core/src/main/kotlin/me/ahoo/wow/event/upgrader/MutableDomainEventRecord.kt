@@ -14,11 +14,11 @@
 package me.ahoo.wow.event.upgrader
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.serialization.DomainEventRecord
-import me.ahoo.wow.serialization.DomainEventRecords.REVISION
 import me.ahoo.wow.serialization.MessageRecords.BODY
 import me.ahoo.wow.serialization.MessageRecords.BODY_TYPE
 import me.ahoo.wow.serialization.MessageRecords.NAME
+import me.ahoo.wow.serialization.event.DomainEventRecord
+import me.ahoo.wow.serialization.event.DomainEventRecords.REVISION
 
 class MutableDomainEventRecord(override val actual: ObjectNode) : DomainEventRecord {
     override var bodyType: String

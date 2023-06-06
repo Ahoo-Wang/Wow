@@ -21,11 +21,11 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.serialization.FlatEventStreamRecord
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.asEventStreamRecord
 import me.ahoo.wow.serialization.asJsonNode
 import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.event.FlatEventStreamRecord
+import me.ahoo.wow.serialization.event.asEventStreamRecord
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 

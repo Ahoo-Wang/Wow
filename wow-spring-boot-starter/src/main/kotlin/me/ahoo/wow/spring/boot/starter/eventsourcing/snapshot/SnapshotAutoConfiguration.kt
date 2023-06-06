@@ -19,14 +19,11 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotSink
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSinkFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.TimeOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
@@ -121,21 +118,6 @@ class SnapshotAutoConfiguration(
         return SnapshotFunctionFilter(
             snapshotStrategy = snapshotStrategy,
         )
-    }
-
-    @Bean
-    @ConditionalOnProperty(
-        value = [SnapshotProperties.SINK],
-        havingValue = SnapshotSinkType.NO_OP_NAME,
-        matchIfMissing = true,
-    )
-    fun noOpSnapshotSink(): SnapshotSink {
-        return NoOpSnapshotSink
-    }
-
-    @Bean
-    fun snapshotSinkFilter(snapshotSink: SnapshotSink): SnapshotSinkFilter {
-        return SnapshotSinkFilter(snapshotSink = snapshotSink)
     }
 
     @Bean

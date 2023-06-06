@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DomainEvent
@@ -21,6 +21,16 @@ import me.ahoo.wow.event.upgrader.EventUpgraderFactory
 import me.ahoo.wow.infra.TypeNameMapper.asType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.serialization.MessageAggregateIdRecord
+import me.ahoo.wow.serialization.MessageAggregateNameRecord
+import me.ahoo.wow.serialization.MessageBodyRecord
+import me.ahoo.wow.serialization.MessageBodyTypeRecord
+import me.ahoo.wow.serialization.MessageCommandIdRecord
+import me.ahoo.wow.serialization.MessageIdRecord
+import me.ahoo.wow.serialization.MessageNameRecord
+import me.ahoo.wow.serialization.MessageVersionRecord
+import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.asObject
 
 object DomainEventRecords {
     const val SEQUENCE = "sequence"

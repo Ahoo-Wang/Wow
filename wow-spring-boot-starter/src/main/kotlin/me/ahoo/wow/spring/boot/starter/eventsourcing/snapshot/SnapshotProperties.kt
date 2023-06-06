@@ -28,8 +28,7 @@ data class SnapshotProperties(
     val strategy: Strategy = Strategy.ALL,
     val storage: SnapshotStorage = SnapshotStorage.MONGO,
     val versionOffset: Int = DEFAULT_VERSION_OFFSET,
-    val timeOffset: Duration = DEFAULT_TIME_OFFSET,
-    val sink: SnapshotSinkType = SnapshotSinkType.NO_OP
+    val timeOffset: Duration = DEFAULT_TIME_OFFSET
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
@@ -68,16 +67,5 @@ enum class SnapshotStorage {
         const val ELASTICSEARCH_NAME = "elasticsearch"
         const val IN_MEMORY_NAME = "in_memory"
         const val DELAY_NAME = "delay"
-    }
-}
-
-enum class SnapshotSinkType {
-    NO_OP,
-    KAFKA,
-    ;
-
-    companion object {
-        const val NO_OP_NAME = "no_op"
-        const val KAFKA_NAME = "kafka"
     }
 }

@@ -11,9 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.command
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import me.ahoo.wow.serialization.MessageAggregateIdRecord
+import me.ahoo.wow.serialization.MessageAggregateNameRecord
+import me.ahoo.wow.serialization.MessageBodyTypeRecord
+import me.ahoo.wow.serialization.MessageNameRecord
+import me.ahoo.wow.serialization.MessageRequestIdRecord
+import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 
 object CommandRecords {
     const val AGGREGATE_VERSION = "aggregateVersion"

@@ -14,18 +14,18 @@
 package me.ahoo.wow.webflux.handler
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.route.BatchResult
 import reactor.core.publisher.Mono
 
-class SnapshotSinkHandler(
+class RegenerateStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotSink: SnapshotSink,
+    private val stateEventBus: StateEventBus,
 ) {
     fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
@@ -39,15 +39,15 @@ class SnapshotSinkHandler(
                             )
                             .map {
                                 stateAggregate.onSourcing(it)
-                            }.flatMapSequential {
-                                val snapshot = SimpleSnapshot(it)
-                                snapshotSink.sink(snapshot).thenReturn(snapshot)
+                                it.asStateEvent(stateAggregate)
+                            }.concatMap {
+                                stateEventBus.send(it).thenReturn(it.aggregateId)
                             }
                     }
             }, limit)
-            .reduce(BatchResult(cursorId, 0)) { acc, snapshot ->
-                val nextCursorId = if (snapshot.aggregateId.id > acc.cursorId) {
-                    snapshot.aggregateId.id
+            .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
+                val nextCursorId = if (aggregateId.id > acc.cursorId) {
+                    aggregateId.id
                 } else {
                     acc.cursorId
                 }

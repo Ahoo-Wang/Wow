@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
@@ -19,6 +19,8 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.MessageSerializer
 
 object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent::class.java) {
 

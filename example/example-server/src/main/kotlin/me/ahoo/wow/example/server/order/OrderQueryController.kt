@@ -41,7 +41,7 @@ class OrderQueryController(
                 it.initialized
             }
             .map {
-                it.stateRoot
+                it.state
             }.throwNotFoundIfEmpty()
     }
 }

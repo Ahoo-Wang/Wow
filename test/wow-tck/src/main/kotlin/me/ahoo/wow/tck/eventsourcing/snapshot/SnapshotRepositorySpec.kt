@@ -77,8 +77,8 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.version),
                 )
                 assertThat(
-                    it.stateRoot.data,
-                    equalTo(stateAggregate.stateRoot.data),
+                    it.state.data,
+                    equalTo(stateAggregate.state.data),
                 )
             }
             .verifyComplete()
@@ -154,8 +154,8 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.version),
                 )
                 assertThat(
-                    it.stateRoot.data,
-                    equalTo(stateAggregate.stateRoot.data),
+                    it.state.data,
+                    equalTo(stateAggregate.state.data),
                 )
             }
             .verifyComplete()

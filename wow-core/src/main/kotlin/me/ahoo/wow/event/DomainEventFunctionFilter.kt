@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.annotation.ORDER_LAST
+import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.Filter
@@ -22,7 +22,7 @@ import me.ahoo.wow.messaging.handler.FilterType
 import reactor.core.publisher.Mono
 
 @FilterType(DomainEventDispatcher::class)
-@Order(ORDER_LAST)
+@Order(ORDER_DEFAULT)
 open class DomainEventFunctionFilter(
     private val serviceProvider: ServiceProvider
 ) :

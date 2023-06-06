@@ -23,7 +23,8 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -53,7 +54,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(EventCompensator::class.java, { mockk() })
-            .withBean(SnapshotSink::class.java, { mockk() })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,

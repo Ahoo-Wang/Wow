@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -22,6 +22,12 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.serialization.MessageAggregateIdRecord
+import me.ahoo.wow.serialization.MessageAggregateNameRecord
+import me.ahoo.wow.serialization.MessageCommandIdRecord
+import me.ahoo.wow.serialization.MessageRequestIdRecord
+import me.ahoo.wow.serialization.MessageVersionRecord
+import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 
 interface EventStreamRecord :
     NamedBoundedContextMessageRecord,

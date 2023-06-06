@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.state
 
 import com.fasterxml.jackson.databind.JsonNode
 import me.ahoo.wow.modeling.state.StateAggregate

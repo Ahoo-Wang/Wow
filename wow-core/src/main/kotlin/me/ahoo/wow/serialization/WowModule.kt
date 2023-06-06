@@ -18,7 +18,20 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.serialization.command.CommandJsonDeserializer
+import me.ahoo.wow.serialization.command.CommandJsonSerializer
+import me.ahoo.wow.serialization.event.DomainEventJsonDeserializer
+import me.ahoo.wow.serialization.event.DomainEventJsonSerializer
+import me.ahoo.wow.serialization.event.EventStreamJsonDeserializer
+import me.ahoo.wow.serialization.event.EventStreamJsonSerializer
+import me.ahoo.wow.serialization.event.StateEventJsonDeserializer
+import me.ahoo.wow.serialization.event.StateEventJsonSerializer
+import me.ahoo.wow.serialization.state.SnapshotDeserializer
+import me.ahoo.wow.serialization.state.SnapshotSerializer
+import me.ahoo.wow.serialization.state.StateAggregateDeserializer
+import me.ahoo.wow.serialization.state.StateAggregateSerializer
 
 class WowModule : SimpleModule() {
     init {
@@ -36,5 +49,8 @@ class WowModule : SimpleModule() {
 
         addSerializer(Snapshot::class.java, SnapshotSerializer)
         addDeserializer(Snapshot::class.java, SnapshotDeserializer)
+
+        addSerializer(StateEvent::class.java, StateEventJsonSerializer)
+        addDeserializer(StateEvent::class.java, StateEventJsonDeserializer)
     }
 }

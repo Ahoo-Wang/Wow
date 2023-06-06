@@ -6,6 +6,7 @@ me.ahoo.wow.spring.boot.starter.event.EventDispatcherAutoConfiguration
 me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
+me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateAutoConfiguration
 me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotAutoConfiguration
 me.ahoo.wow.spring.boot.starter.mongo.MongoEventSourcingAutoConfiguration
 me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration

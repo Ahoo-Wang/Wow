@@ -48,7 +48,7 @@ interface ExpectStage<S : Any> {
     }
 
     fun expectState(expected: (S) -> Unit): ExpectStage<S> {
-        return expectStateAggregate { expected(it.stateRoot) }
+        return expectStateAggregate { expected(it.state) }
     }
 
     /**
@@ -140,7 +140,7 @@ interface VerifiedStage<S : Any> {
     val stateAggregate: StateAggregate<S>
         get() = verifiedResult.stateAggregate
     val stateRoot: S
-        get() = stateAggregate.stateRoot
+        get() = stateAggregate.state
 
     fun then(): GivenStage<S>
 }

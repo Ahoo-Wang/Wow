@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 interface EventStreamExchange : MessageExchange<EventStreamExchange, DomainEventStream>
 
-data class SimpleEventStreamExchange(
+class SimpleEventStreamExchange(
     override val message: DomainEventStream,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : EventStreamExchange

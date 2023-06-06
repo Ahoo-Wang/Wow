@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.state
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
@@ -26,8 +26,10 @@ import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
-import me.ahoo.wow.serialization.StateAggregateRecords.DELETED
-import me.ahoo.wow.serialization.StateAggregateRecords.STATE
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
+import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
 
 object StateAggregateRecords {
     const val STATE: String = "state"
@@ -49,7 +51,7 @@ abstract class AbstractStateAggregateSerializer<T : StateAggregate<*>>(stateAggr
         generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
         generator.writeNumberField(StateAggregateRecords.FIRST_EVENT_TIME, value.firstEventTime)
         generator.writeNumberField(StateAggregateRecords.EVENT_TIME, value.eventTime)
-        generator.writePOJOField(STATE, value.stateRoot)
+        generator.writePOJOField(STATE, value.state)
         writeExtend(value, generator, provider)
         generator.writeBooleanField(DELETED, value.deleted)
         generator.writeEndObject()
@@ -82,7 +84,7 @@ abstract class AbstractStateAggregateDeserializer<T : StateAggregate<*>>(stateAg
         val stateAggregate =
             metadata.asStateAggregate(
                 aggregateId = aggregateId,
-                stateRoot = stateRoot,
+                state = stateRoot,
                 version = version,
                 eventId = eventId,
                 firstEventTime = firstEventTime,

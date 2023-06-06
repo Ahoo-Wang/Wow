@@ -16,7 +16,7 @@ package me.ahoo.wow.event.upgrader
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.serialization.DomainEventRecord
+import me.ahoo.wow.serialization.event.DomainEventRecord
 
 /**
  * @see me.ahoo.wow.api.annotation.Order

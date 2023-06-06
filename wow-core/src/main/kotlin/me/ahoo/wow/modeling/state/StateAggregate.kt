@@ -12,10 +12,7 @@
  */
 package me.ahoo.wow.modeling.state
 
-import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -30,35 +27,7 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
  *
  * @author ahoo wang
  */
-interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<S> {
-    override val aggregateId: AggregateId
-
-    val stateRoot: S
-
-    /**
-     * State Aggregation Type
-     */
-    override val aggregateType: Class<S>
-
-    /**
-     * 用于生成领域事件版本号.
-     */
-    override val version: Int
-
-    val expectedNextVersion: Int
-        get() = version + 1
-
-    /**
-     * 状态聚合是否已删除
-     */
-    val deleted: Boolean
-
-    //region DomainEventStream State
-    val eventId: String
-    val firstEventTime: Long
-    val eventTime: Long
-    //endregion
-
+interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
     /**
      * 当聚合未找到匹配的 `onSourcing` 方法时，不会认为产生的故障，忽略该事件，但更新聚合版本号为该领域事件的版本号.
      */
@@ -69,17 +38,17 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
 
         @JvmStatic
         fun <S : Any> AggregateMetadata<*, S>.asStateAggregate(
-            stateRoot: S,
+            state: S,
             version: Int,
             eventId: String = "",
             firstEventTime: Long = 0,
             eventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
-            val aggregateId = asAggregateId(state.aggregateIdAccessor[stateRoot])
-            return state.asStateAggregate(
+            val aggregateId = asAggregateId(this.state.aggregateIdAccessor[state])
+            return this.state.asStateAggregate(
                 aggregateId = aggregateId,
-                stateRoot = stateRoot,
+                state = state,
                 version = version,
                 eventId = eventId,
                 firstEventTime = firstEventTime,
@@ -91,7 +60,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
         @JvmStatic
         fun <S : Any> StateAggregateMetadata<S>.asStateAggregate(
             aggregateId: AggregateId,
-            stateRoot: S,
+            state: S,
             version: Int,
             eventId: String = "",
             firstEventTime: Long = 0,
@@ -101,7 +70,7 @@ interface StateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<
             return SimpleStateAggregate(
                 aggregateId = aggregateId,
                 metadata = this,
-                stateRoot = stateRoot,
+                state = state,
                 version = version,
                 eventId = eventId,
                 firstEventTime = firstEventTime,

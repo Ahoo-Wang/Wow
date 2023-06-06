@@ -18,7 +18,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
-data class RedisServerCommandExchange<C : Any>(
+class RedisServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     private val acknowledge: Mono<Void>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()

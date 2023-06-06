@@ -43,7 +43,7 @@ internal class SimpleStateAggregateTest {
             SimpleStateAggregate(
                 aggregateId = aggregateMetadata.asAggregateId(mockAggregate.id),
                 version = 0,
-                stateRoot = mockAggregate,
+                state = mockAggregate,
                 metadata = aggregateMetadata.state,
             )
         assertThat(stateAggregate, notNullValue())
@@ -60,7 +60,7 @@ internal class SimpleStateAggregateTest {
     fun aggregateRoot() {
         val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
         val stateAggregate = aggregateMetadata.asStateAggregate(mockAggregate, 1)
-        assertThat(stateAggregate.stateRoot, equalTo(mockAggregate))
+        assertThat(stateAggregate.state, equalTo(mockAggregate))
     }
 
     @Test

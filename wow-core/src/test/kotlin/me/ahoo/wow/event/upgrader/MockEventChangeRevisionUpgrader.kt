@@ -16,7 +16,7 @@ package me.ahoo.wow.event.upgrader
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
-import me.ahoo.wow.serialization.DomainEventRecord
+import me.ahoo.wow.serialization.event.DomainEventRecord
 
 @Order(ORDER_FIRST)
 class MockEventChangeRevisionUpgrader : EventUpgrader {

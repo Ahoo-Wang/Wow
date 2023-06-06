@@ -23,7 +23,7 @@ fun interface AggregateTopicConverter {
 
 interface CommandTopicConverter : AggregateTopicConverter
 interface EventStreamTopicConverter : AggregateTopicConverter
-interface SnapshotTopicConverter : AggregateTopicConverter
+interface StateEventTopicConverter : AggregateTopicConverter
 
 class DefaultCommandTopicConverter(private val topicPrefix: String = Wow.WOW_PREFIX) : CommandTopicConverter {
     companion object {
@@ -45,12 +45,12 @@ class DefaultEventStreamTopicConverter(private val topicPrefix: String = Wow.WOW
     }
 }
 
-class DefaultSnapshotTopicConverter(private val topicPrefix: String = Wow.WOW_PREFIX) : SnapshotTopicConverter {
+class DefaultStateEventTopicConverter(private val topicPrefix: String = Wow.WOW_PREFIX) : StateEventTopicConverter {
     companion object {
-        const val SNAPSHOT_TOPIC_SUFFIX = "snapshot"
+        const val STATE_EVENT_TOPIC_SUFFIX = "state"
     }
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${topicPrefix}${namedAggregate.asStringWithAlias()}.$SNAPSHOT_TOPIC_SUFFIX"
+        return "${topicPrefix}${namedAggregate.asStringWithAlias()}.$STATE_EVENT_TOPIC_SUFFIX"
     }
 }

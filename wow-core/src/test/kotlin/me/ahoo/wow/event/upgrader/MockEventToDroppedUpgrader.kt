@@ -20,7 +20,7 @@ import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.annotation.eventMetadata
 import me.ahoo.wow.event.upgrader.DroppedEvent.asDroppedEventRecord
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
-import me.ahoo.wow.serialization.DomainEventRecord
+import me.ahoo.wow.serialization.event.DomainEventRecord
 
 @Order(ORDER_LAST)
 class MockEventToDroppedUpgrader : EventUpgrader {

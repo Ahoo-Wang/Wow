@@ -14,9 +14,11 @@
 package me.ahoo.wow.example.server.order
 
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
+import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.spring.stereotype.ProjectionProcessor
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
@@ -28,7 +30,7 @@ class OrderProjector {
     }
 
     @Blocking
-    fun onEvent(orderCreated: OrderCreated) {
+    fun onEvent(orderCreated: OrderCreated, state: Snapshot<OrderState>) {
         if (log.isInfoEnabled) {
             log.info(orderCreated.toString())
         }

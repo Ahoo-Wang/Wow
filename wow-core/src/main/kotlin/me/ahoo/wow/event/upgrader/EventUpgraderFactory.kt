@@ -17,7 +17,7 @@ import me.ahoo.wow.annotation.OrderComparator
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.serialization.DomainEventRecord
+import me.ahoo.wow.serialization.event.DomainEventRecord
 import org.slf4j.LoggerFactory
 import java.util.ServiceLoader
 import java.util.SortedSet

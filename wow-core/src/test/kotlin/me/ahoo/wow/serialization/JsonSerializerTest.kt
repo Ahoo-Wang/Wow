@@ -23,9 +23,13 @@ import me.ahoo.wow.event.asDomainEvent
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.serialization.event.BodyTypeNotFoundDomainEvent
+import me.ahoo.wow.serialization.event.asDomainEventRecord
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -35,7 +39,6 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
-import java.time.LocalDateTime
 
 internal class JsonSerializerTest {
 
@@ -123,11 +126,18 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun localDateTime() {
-        val now = LocalDateTime.now()
-        val output = now.asJsonString()
-        val input = output.asObject<LocalDateTime>()
-        assertThat(input, equalTo(now))
+    fun stateEventStream() {
+        val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
+        val eventStream = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.asAggregateId(tenantId = GlobalIdGenerator.generateAsString()),
+            eventCount = 1,
+        )
+        val stateRoot = MockStateAggregate(eventStream.aggregateId.id)
+        val stateEvent = eventStream.asStateEvent(stateRoot)
+        val output = stateEvent.asJsonString()
+        assertThat(output, notNullValue())
+        val input = output.asObject<StateEvent<*>>()
+        assertThat(input, equalTo(stateEvent))
     }
 }
 

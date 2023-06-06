@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>>
 
-data class SimpleDomainEventExchange<T : Any>(
+class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : DomainEventExchange<T>
