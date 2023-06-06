@@ -19,11 +19,15 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.opentelemetry.eventsourcing.TracingEventStore
 import me.ahoo.wow.opentelemetry.messaging.TracingDistributedCommandBus
 import me.ahoo.wow.opentelemetry.messaging.TracingDistributedEventBus
+import me.ahoo.wow.opentelemetry.messaging.TracingDistributedStateEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
+import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotRepository
 
@@ -65,6 +69,18 @@ object Tracing {
         }
     }
 
+    fun LocalStateEventBus.tracing(): LocalStateEventBus {
+        return tracing {
+            TracingLocalStateEventBus(this)
+        }
+    }
+
+    fun DistributedStateEventBus.tracing(): DistributedStateEventBus {
+        return tracing {
+            TracingDistributedStateEventBus(this)
+        }
+    }
+
     fun <T : Any> T.tracing(): Any {
         return when (this) {
             is LocalCommandBus -> tracing()
@@ -73,6 +89,8 @@ object Tracing {
             is DistributedDomainEventBus -> tracing()
             is EventStore -> tracing()
             is SnapshotRepository -> tracing()
+            is LocalStateEventBus -> tracing()
+            is DistributedStateEventBus -> tracing()
             else -> this
         }
     }

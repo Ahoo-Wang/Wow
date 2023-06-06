@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
 import me.ahoo.wow.spring.boot.starter.MessageBusType
-import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
@@ -33,7 +32,7 @@ data class StateProperties(
         val type: MessageBusType = MessageBusType.KAFKA
     ) {
         companion object {
-            const val TYPE = "${CommandProperties.PREFIX}.bus.type"
+            const val TYPE = "$PREFIX.bus.type"
         }
     }
 }
