@@ -16,15 +16,15 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
-import me.ahoo.wow.webflux.route.EventAggregateState.Companion.trace
 import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -50,24 +50,23 @@ class AggregateTracingHandlerFunction(
                 aggregateMetadata.state.trace(it)
             }.asServerResponse(exceptionHandler)
     }
-}
 
-data class EventAggregateState<S : Any>(val eventStream: DomainEventStream, val state: StateAggregate<S>) {
     companion object {
+
         private fun <S : Any> StateAggregateMetadata<S>.sourcing(
             aggregateId: AggregateId,
             eventStreams: List<DomainEventStream>
-        ): EventAggregateState<S> {
+        ): StateEvent<S> {
             val stateAggregate = ConstructorStateAggregateFactory.createStateAggregate(this, aggregateId)
             eventStreams.forEach {
                 stateAggregate.onSourcing(it)
             }
-            return EventAggregateState(eventStream = eventStreams.last(), state = stateAggregate)
+            return eventStreams.last().asStateEvent(stateAggregate)
         }
 
         fun <S : Any> StateAggregateMetadata<S>.trace(
             eventStreams: List<DomainEventStream>
-        ): List<EventAggregateState<S>> {
+        ): List<StateEvent<S>> {
             if (eventStreams.isEmpty()) {
                 return listOf()
             }

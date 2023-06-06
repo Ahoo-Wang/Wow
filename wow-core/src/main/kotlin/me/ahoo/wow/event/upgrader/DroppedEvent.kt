@@ -15,8 +15,8 @@ package me.ahoo.wow.event.upgrader
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
-import me.ahoo.wow.serialization.DomainEventRecord
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.event.DomainEventRecord
 
 object DroppedEvent {
     private val TYPE: String = DroppedEvent::class.java.name

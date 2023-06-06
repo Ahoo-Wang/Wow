@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.command
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
@@ -23,9 +23,12 @@ import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.infra.TypeNameMapper.asType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.serialization.CommandRecords.AGGREGATE_VERSION
-import me.ahoo.wow.serialization.CommandRecords.ALLOW_CREATE
-import me.ahoo.wow.serialization.CommandRecords.IS_CREATE
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.MessageSerializer
+import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.command.CommandRecords.AGGREGATE_VERSION
+import me.ahoo.wow.serialization.command.CommandRecords.ALLOW_CREATE
+import me.ahoo.wow.serialization.command.CommandRecords.IS_CREATE
 
 object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessage::class.java) {
 

@@ -53,7 +53,7 @@ fun <S : Any> Document.asSnapshot(): Snapshot<S> {
 }
 
 fun <S : Any> Document.asSnapshotState(): S {
-    return asSnapshot<S>().stateRoot
+    return asSnapshot<S>().state
 }
 
 fun <S : Any> Mono<Document>.toSnapshot(): Mono<Snapshot<S>> {

@@ -19,7 +19,7 @@ import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset
 import java.util.concurrent.ConcurrentHashMap
 
-data class KafkaServerCommandExchange<C : Any>(
+class KafkaServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     private val receiverOffset: ReceiverOffset,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()

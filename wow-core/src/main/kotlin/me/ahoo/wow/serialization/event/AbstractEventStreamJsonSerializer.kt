@@ -11,18 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.MessageSerializer
 
-object EventStreamJsonSerializer : MessageSerializer<DomainEventStream>(DomainEventStream::class.java) {
+abstract class AbstractEventStreamJsonSerializer<M : DomainEventStream>(messageType: Class<M>) :
+    MessageSerializer<M>(messageType) {
 
-    override fun writeExtendedInfo(generator: JsonGenerator, value: DomainEventStream) {
+    override fun writeExtendedInfo(generator: JsonGenerator, value: M) {
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
@@ -30,9 +29,9 @@ object EventStreamJsonSerializer : MessageSerializer<DomainEventStream>(DomainEv
         generator.writeNumberField(MessageRecords.VERSION, value.version)
     }
 
-    override fun writeBodyType(generator: JsonGenerator, value: DomainEventStream) = Unit
+    override fun writeBodyType(generator: JsonGenerator, value: M) = Unit
 
-    override fun writeBody(generator: JsonGenerator, value: DomainEventStream) {
+    override fun writeBody(generator: JsonGenerator, value: M) {
         generator.writeFieldName(MessageRecords.BODY)
         generator.writeStartArray()
         value.body.forEach {
@@ -45,11 +44,5 @@ object EventStreamJsonSerializer : MessageSerializer<DomainEventStream>(DomainEv
             generator.writeEndObject()
         }
         generator.writeEndArray()
-    }
-}
-
-object EventStreamJsonDeserializer : StdDeserializer<DomainEventStream>(DomainEventStream::class.java) {
-    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DomainEventStream {
-        return p.codec.readTree<ObjectNode>(p).asEventStreamRecord().asDomainEventStream()
     }
 }

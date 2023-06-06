@@ -14,27 +14,27 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
-import me.ahoo.wow.webflux.handler.SnapshotSinkHandler
+import me.ahoo.wow.webflux.handler.RegenerateStateEventHandler
 import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class SnapshotSinkHandlerFunction(
+class RegenerateStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotSink: SnapshotSink,
+    private val stateEventBus: StateEventBus,
     private val exceptionHandler: ExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        SnapshotSinkHandler(aggregateMetadata, stateAggregateFactory, eventStore, snapshotSink)
+        RegenerateStateEventHandler(aggregateMetadata, stateAggregateFactory, eventStore, stateEventBus)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)

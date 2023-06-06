@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory
 class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     val metadata: StateAggregateMetadata<S>,
-    override val stateRoot: S,
+    override val state: S,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override var eventId: String = "",
     override var firstEventTime: Long = 0,
@@ -36,7 +36,7 @@ class SimpleStateAggregate<S : Any>(
     StateAggregate<S>,
     TypedAggregate<S> by metadata {
 
-    private val sourcingRegistry = metadata.asMessageFunctionRegistry(stateRoot)
+    private val sourcingRegistry = metadata.asMessageFunctionRegistry(state)
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(SimpleStateAggregate::class.java)
@@ -92,9 +92,7 @@ class SimpleStateAggregate<S : Any>(
         if (other !is SimpleStateAggregate<*>) return false
 
         if (aggregateId != other.aggregateId) return false
-        if (version != other.version) return false
-
-        return true
+        return version == other.version
     }
 
     override fun hashCode(): Int {

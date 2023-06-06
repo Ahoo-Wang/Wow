@@ -15,25 +15,24 @@ package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.kafka.CommandTopicConverter
 import me.ahoo.wow.kafka.DefaultCommandTopicConverter
 import me.ahoo.wow.kafka.DefaultEventStreamTopicConverter
-import me.ahoo.wow.kafka.DefaultSnapshotTopicConverter
+import me.ahoo.wow.kafka.DefaultStateEventTopicConverter
 import me.ahoo.wow.kafka.EventStreamTopicConverter
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
-import me.ahoo.wow.kafka.KafkaSnapshotSink
+import me.ahoo.wow.kafka.KafkaStateEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
-import me.ahoo.wow.kafka.SnapshotTopicConverter
+import me.ahoo.wow.kafka.StateEventTopicConverter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotSinkType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -104,19 +103,25 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnMissingBean
-    fun snapshotTopicConverter(): SnapshotTopicConverter {
-        return DefaultSnapshotTopicConverter(kafkaProperties.topicPrefix)
+    fun stateEventTopicConverter(): StateEventTopicConverter {
+        return DefaultStateEventTopicConverter(kafkaProperties.topicPrefix)
     }
 
     @Bean
     @ConditionalOnProperty(
-        value = [SnapshotProperties.SINK],
-        havingValue = SnapshotSinkType.KAFKA_NAME,
+        value = [StateProperties.Bus.TYPE],
+        matchIfMissing = true,
+        havingValue = MessageBusType.KAFKA_NAME,
     )
-    fun kafkaSnapshotSink(topicConverter: SnapshotTopicConverter): SnapshotSink {
-        return KafkaSnapshotSink(
+    fun kafkaStateEventBus(
+        topicConverter: StateEventTopicConverter,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer
+    ): StateEventBus {
+        return KafkaStateEventBus(
             topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),
+            receiverOptions = kafkaProperties.buildReceiverOptions(),
+            receiverOptionsCustomizer = receiverOptionsCustomizer,
         )
     }
 }

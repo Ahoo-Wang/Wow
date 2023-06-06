@@ -60,7 +60,7 @@ abstract class StateAggregateRepositorySpec {
         val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
         assertThat(stateAggregate.version, equalTo(domainEventMessage.version))
         assertThat(
-            stateAggregate.stateRoot.data,
+            stateAggregate.state.data,
             equalTo(domainEventMessage.body.data),
         )
     }

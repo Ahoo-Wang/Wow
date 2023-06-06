@@ -18,14 +18,14 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotSink
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.BatchResult
-import me.ahoo.wow.webflux.route.SnapshotSinkHandlerFunction
+import me.ahoo.wow.webflux.route.RegenerateStateEventFunction
 import me.ahoo.wow.webflux.route.appender.RoutePaths.BATCH_CURSOR_ID
 import me.ahoo.wow.webflux.route.appender.RoutePaths.BATCH_LIMIT
 import org.springdoc.core.fn.builders.operation.Builder
@@ -36,26 +36,26 @@ import org.springframework.web.reactive.function.server.RequestPredicates
 import java.util.function.Consumer
 
 @Suppress("LongParameterList")
-class SnapshotSinkRouteAppender(
+class RegenerateStateEventRouteAppender(
     private val currentContext: NamedBoundedContext,
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotSink: SnapshotSink,
+    private val stateEventBus: StateEventBus,
     private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
         val routePrefix = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).aggregateNamePath
         routerFunctionBuilder
             .POST(
-                "$routePrefix/snapshot/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}/sink",
+                "$routePrefix/state/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}",
                 RequestPredicates.accept(MediaType.APPLICATION_JSON),
-                SnapshotSinkHandlerFunction(
+                RegenerateStateEventFunction(
                     aggregateMetadata = aggregateMetadata,
                     stateAggregateFactory = stateAggregateFactory,
                     eventStore = eventStore,
-                    snapshotSink = snapshotSink,
+                    stateEventBus = stateEventBus,
                     exceptionHandler = exceptionHandler,
                 ),
                 batchRegenerateSnapshotOperation(),
@@ -67,8 +67,8 @@ class SnapshotSinkRouteAppender(
             it
                 .tag(Wow.WOW)
                 .tag(aggregateMetadata.asStringWithAlias())
-                .summary("Re-sink aggregate snapshot")
-                .operationId("${aggregateMetadata.asStringWithAlias()}.snapshotSink")
+                .summary("Regenerate State Event")
+                .operationId("${aggregateMetadata.asStringWithAlias()}.regenerateStateEvent")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(BATCH_CURSOR_ID)

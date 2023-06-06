@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.databind.JsonNode
 import me.ahoo.wow.api.event.DomainEvent

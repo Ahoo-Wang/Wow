@@ -41,7 +41,7 @@ class LoadAggregateHandlerFunction(
             .filter {
                 it.initialized && !it.deleted
             }
-            .map { it.stateRoot }
+            .map { it.state }
             .throwNotFoundIfEmpty()
             .asServerResponse(exceptionHandler)
     }

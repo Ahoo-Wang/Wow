@@ -4,7 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotSink
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
@@ -16,15 +16,15 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.test.test
 
-class SnapshotSinkHandlerFunctionTest {
+class RegenerateStateEventHandlerFunctionTest {
 
     @Test
     fun handle() {
-        val handlerFunction = SnapshotSinkHandlerFunction(
+        val handlerFunction = RegenerateStateEventFunction(
             MOCK_AGGREGATE_METADATA,
             ConstructorStateAggregateFactory,
             InMemoryEventStore(),
-            NoOpSnapshotSink,
+            InMemoryStateEventBus(),
             DefaultExceptionHandler
         )
         val request = mockk<ServerRequest> {

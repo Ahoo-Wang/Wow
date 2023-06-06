@@ -51,9 +51,8 @@
     - [x] Single Class
     - [x] Inheritance Pattern
     - [x] Aggregation Pattern
-- [ ] Saga Modeling
+- [x] Saga Modeling
     - [x] `StatelessSaga`
-    - [ ] `StatefulSaga`
 - [x] Test Suite
     - [x] Test Specification
     - [x] `AggregateVerifier`

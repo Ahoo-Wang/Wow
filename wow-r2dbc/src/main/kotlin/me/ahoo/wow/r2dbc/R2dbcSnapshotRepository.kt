@@ -84,7 +84,7 @@ class R2dbcSnapshotRepository(
         return SimpleSnapshot(
             delegate = metadata.asStateAggregate(
                 aggregateId = aggregateId,
-                stateRoot = stateRoot,
+                state = stateRoot,
                 version = actualVersion,
                 eventId = eventId,
                 firstEventTime = firstEventTime,
@@ -103,8 +103,8 @@ class R2dbcSnapshotRepository(
                     .bind(0, snapshot.aggregateId.id)
                     .bind(1, snapshot.aggregateId.tenantId)
                     .bind(2, snapshot.version)
-                    .bind(3, snapshot.stateRoot.javaClass.name)
-                    .bind(4, snapshot.stateRoot.asJsonString())
+                    .bind(3, snapshot.state.javaClass.name)
+                    .bind(4, snapshot.state.asJsonString())
                     .bind(5, snapshot.eventId)
                     .bind(6, snapshot.firstEventTime)
                     .bind(7, snapshot.eventTime)

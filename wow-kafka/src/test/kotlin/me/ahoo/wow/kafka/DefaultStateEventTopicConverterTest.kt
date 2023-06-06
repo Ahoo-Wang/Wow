@@ -5,11 +5,11 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-class DefaultSnapshotTopicConverterTest {
+class DefaultStateEventTopicConverterTest {
 
     @Test
     fun convert() {
-        val topic = DefaultSnapshotTopicConverter().convert(MOCK_AGGREGATE_METADATA)
-        assertThat(topic, equalTo("wow.tck.mock_aggregate.snapshot"))
+        val topic = DefaultStateEventTopicConverter().convert(MOCK_AGGREGATE_METADATA)
+        assertThat(topic, equalTo("wow.tck.mock_aggregate.state"))
     }
 }

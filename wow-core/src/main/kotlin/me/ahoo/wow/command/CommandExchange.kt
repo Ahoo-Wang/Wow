@@ -34,7 +34,7 @@ interface ClientCommandExchange<C : Any> : CommandExchange<ClientCommandExchange
     val waitStrategy: WaitStrategy
 }
 
-data class SimpleClientCommandExchange<C : Any>(
+class SimpleClientCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val waitStrategy: WaitStrategy,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
@@ -88,7 +88,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
     }
 }
 
-data class SimpleServerCommandExchange<C : Any>(
+class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ServerCommandExchange<C>
