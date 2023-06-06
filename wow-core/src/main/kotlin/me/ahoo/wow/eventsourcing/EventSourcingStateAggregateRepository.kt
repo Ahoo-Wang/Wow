@@ -16,11 +16,11 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.cast
 
 /**
  * Event Sourcing State Aggregate Repository .
@@ -44,7 +44,9 @@ class EventSourcingStateAggregateRepository(
             log.debug("Load {}.", aggregateId)
         }
         return snapshotRepository.load<S>(aggregateId)
-            .cast<StateAggregate<S>>()
+            .map {
+                it.asStateAggregate()
+            }
             .switchIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
             .flatMap { stateAggregate ->
                 eventStore

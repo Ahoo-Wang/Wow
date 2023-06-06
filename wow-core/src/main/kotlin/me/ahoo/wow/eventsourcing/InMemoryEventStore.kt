@@ -68,6 +68,7 @@ class InMemoryEventStore : AbstractEventStore() {
             val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
             eventsOfAgg
                 .filter { it.version in headVersion..tailVersion }
+                .map { it.copy() }
                 .toFlux()
         }
     }

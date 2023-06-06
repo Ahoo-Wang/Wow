@@ -14,7 +14,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
@@ -29,14 +29,14 @@ class AggregateSnapshotDispatcher(
         "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
-    override val messageFlux: Flux<EventStreamExchange>
-) : AggregateMessageDispatcher<EventStreamExchange>() {
+    override val messageFlux: Flux<StateEventExchange<*>>
+) : AggregateMessageDispatcher<StateEventExchange<*>>() {
 
-    override fun handleExchange(exchange: EventStreamExchange): Mono<Void> {
+    override fun handleExchange(exchange: StateEventExchange<*>): Mono<Void> {
         return snapshotHandler.handle(exchange)
     }
 
-    override fun EventStreamExchange.asGroupKey(): Int {
+    override fun StateEventExchange<*>.asGroupKey(): Int {
         return message.asGroupKey(parallelism)
     }
 }

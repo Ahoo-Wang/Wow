@@ -36,7 +36,7 @@ class SendStateEventFilter(private val stateEventBus: StateEventBus) : Filter<Se
         return Mono.defer {
             val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
             val state = exchange.getCommandAggregate<Any, Any>()?.state ?: return@defer next.filter(exchange)
-            val stateEvent = eventStream.asStateEvent(state)
+            val stateEvent = eventStream.copy().asStateEvent(state)
             stateEventBus.send(stateEvent)
                 .logErrorResume()
                 .then(next.filter(exchange))

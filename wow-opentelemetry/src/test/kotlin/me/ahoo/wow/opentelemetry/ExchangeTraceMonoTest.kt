@@ -21,8 +21,8 @@ import io.opentelemetry.context.propagation.ContextPropagators
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.getEventFunction
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -123,7 +123,7 @@ class ExchangeTraceMonoTest {
 
     @Test
     fun traceSnapshotProcessor() {
-        val exchange = mockk<EventStreamExchange> {
+        val exchange = mockk<StateEventExchange<*>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.requestId } returns GlobalIdGenerator.generateAsString()
             every { message.header } returns DefaultHeader.empty()

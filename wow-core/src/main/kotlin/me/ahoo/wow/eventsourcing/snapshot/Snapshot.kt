@@ -13,15 +13,15 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
-interface Snapshot<S : Any> : StateAggregate<S> {
+interface Snapshot<S : Any> : ReadOnlyStateAggregate<S> {
     val snapshotTime: Long
 }
 
 data class SimpleSnapshot<S : Any>(
-    override val delegate: StateAggregate<S>,
+    override val delegate: ReadOnlyStateAggregate<S>,
     override val snapshotTime: Long = System.currentTimeMillis()
 ) : Snapshot<S>,
-    StateAggregate<S> by delegate,
-    Decorator<StateAggregate<S>>
+    ReadOnlyStateAggregate<S> by delegate,
+    Decorator<ReadOnlyStateAggregate<S>>

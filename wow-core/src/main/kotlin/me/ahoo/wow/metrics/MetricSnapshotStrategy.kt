@@ -14,16 +14,16 @@
 package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
 class MetricSnapshotStrategy(override val delegate: SnapshotStrategy) : SnapshotStrategy, Decorator<SnapshotStrategy> {
-    override fun onEvent(eventStreamExchange: EventStreamExchange): Mono<Void> {
-        return delegate.onEvent(eventStreamExchange)
+    override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
+        return delegate.onEvent(stateEventExchange)
             .name(Wow.WOW_PREFIX + "snapshot.event")
-            .tag(Metrics.AGGREGATE_KEY, eventStreamExchange.message.aggregateName)
+            .tag(Metrics.AGGREGATE_KEY, stateEventExchange.message.aggregateName)
             .metrics()
     }
 }

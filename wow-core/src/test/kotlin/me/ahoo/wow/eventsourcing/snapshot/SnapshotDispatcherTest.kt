@@ -14,10 +14,10 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.asDomainEventStream
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
@@ -37,8 +37,7 @@ internal class SnapshotDispatcherTest {
 
     @Test
     fun start() {
-        val eventStore = InMemoryEventStore()
-        val domainEventBus = InMemoryDomainEventBus()
+        val stateEventBus = InMemoryStateEventBus()
         val inMemorySnapshotRepository = InMemorySnapshotRepository()
         val waitForAppend = Sinks.empty<Void>()
         val snapshotRepository = object : SnapshotRepository {
@@ -58,14 +57,12 @@ internal class SnapshotDispatcherTest {
             }
         }
         val snapshotStrategy = SimpleSnapshotStrategy(
-            matcher = MATCH_ALL,
             snapshotRepository = snapshotRepository,
-            eventStore = eventStore,
         )
         val snapshotFunctionFilter = SnapshotFunctionFilter(
             snapshotStrategy = snapshotStrategy,
         )
-        val chain = FilterChainBuilder<EventStreamExchange>()
+        val chain = FilterChainBuilder<StateEventExchange<*>>()
             .addFilter(snapshotFunctionFilter)
             .filterCondition(SnapshotDispatcher::class)
             .build()
@@ -75,14 +72,15 @@ internal class SnapshotDispatcherTest {
                 name = "test",
                 namedAggregates = setOf(aggregateMetadata.materialize()),
                 snapshotHandler = handler,
-                domainEventBus = domainEventBus,
+                stateEventBus = stateEventBus,
             )
         snapshotDispatcher.run()
         val aggregateId = aggregateMetadata.asAggregateId()
         val createdEventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
             .asDomainEventStream(GivenInitializationCommand(aggregateId), 0)
-        eventStore.append(createdEventStream).block()
-        domainEventBus.send(createdEventStream).block()
+        val state = MockStateAggregate(createdEventStream.aggregateId.id)
+        val stateEvent = createdEventStream.asStateEvent(state)
+        stateEventBus.send(stateEvent).block()
         waitForAppend.asMono().block()
         snapshotRepository.load<MockStateAggregate>(aggregateId)
             .test()

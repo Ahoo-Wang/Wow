@@ -18,9 +18,7 @@ import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStrategySpec
 internal class SimpleSnapshotStrategyTest : SnapshotStrategySpec() {
     override fun createSnapshotStrategy(): SnapshotStrategy {
         return SimpleSnapshotStrategy(
-            matcher = MATCH_ALL,
             snapshotRepository = InMemorySnapshotRepository(),
-            eventStore = eventStore,
         )
     }
 }

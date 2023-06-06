@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.AbstractHandler
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.Handler
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-interface SnapshotHandler : Handler<EventStreamExchange>
+interface SnapshotHandler : Handler<StateEventExchange<*>>
 
 class DefaultSnapshotHandler(
-    chain: FilterChain<EventStreamExchange>,
-    errorHandler: ErrorHandler<EventStreamExchange> = LogResumeErrorHandler()
-) : SnapshotHandler, AbstractHandler<EventStreamExchange>(
+    chain: FilterChain<StateEventExchange<*>>,
+    errorHandler: ErrorHandler<StateEventExchange<*>> = LogResumeErrorHandler()
+) : SnapshotHandler, AbstractHandler<StateEventExchange<*>>(
     chain,
     errorHandler,
 )

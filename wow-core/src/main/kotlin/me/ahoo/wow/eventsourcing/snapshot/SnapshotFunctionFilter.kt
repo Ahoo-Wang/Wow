@@ -15,7 +15,7 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
@@ -24,10 +24,8 @@ import reactor.core.publisher.Mono
 
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_DEFAULT)
-class SnapshotFunctionFilter(
-    private val snapshotStrategy: SnapshotStrategy
-) : Filter<EventStreamExchange> {
-    override fun filter(exchange: EventStreamExchange, next: FilterChain<EventStreamExchange>): Mono<Void> {
+class SnapshotFunctionFilter(private val snapshotStrategy: SnapshotStrategy) : Filter<StateEventExchange<*>> {
+    override fun filter(exchange: StateEventExchange<*>, next: FilterChain<StateEventExchange<*>>): Mono<Void> {
         return snapshotStrategy.onEvent(exchange)
             .finallyAck(exchange)
             .then(next.filter(exchange))
