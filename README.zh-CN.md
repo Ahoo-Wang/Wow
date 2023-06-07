@@ -71,7 +71,6 @@
             - [x] Table Sharding
         - [x] ElasticSearch
         - [x] Redis (Recommend)
-        - [x] `KafkaSnapshotSink`
 - [x] CommandBus
     - [x] `InMemoryCommandBus`
     - [x] `KafkaCommandBus` (Recommend)
@@ -81,6 +80,9 @@
     - [x] `InMemoryDomainEventBus` 
     - [x] `KafkaDomainEventBus` (Recommend)
     - [x] `RedisDomainEventBus`
+- [x] StateEventBus
+    - [x] `InMemoryStateEventBus` 
+    - [x] `KafkaStateEventBus` (Recommend)
 - [x] Spring 集成
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`

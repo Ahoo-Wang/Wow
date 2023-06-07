@@ -72,7 +72,6 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
             - [x] Table Sharding
         - [x] ElasticSearch
         - [x] Redis (Recommend)
-        - [x] `KafkaSnapshotSink`
 - [x] CommandBus
     - [x] `InMemoryCommandBus`
     - [x] `KafkaCommandBus` (Recommend)
@@ -82,6 +81,9 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
     - [x] `InMemoryDomainEventBus` 
     - [x] `KafkaDomainEventBus` (Recommend)
     - [x] `RedisDomainEventBus`
+- [x] StateEventBus
+    - [x] `InMemoryStateEventBus` 
+    - [x] `KafkaStateEventBus` (Recommend)
 - [x] Spring Integration
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`
