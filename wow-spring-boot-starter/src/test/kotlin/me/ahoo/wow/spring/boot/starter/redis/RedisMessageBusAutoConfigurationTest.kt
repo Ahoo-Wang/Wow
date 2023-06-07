@@ -9,6 +9,7 @@ import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -25,6 +26,7 @@ class RedisMessageBusAutoConfigurationTest {
             .withPropertyValues(
                 "${CommandProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
                 "${EventProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
+                "${StateProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
             )
             .withBean(ReactiveStringRedisTemplate::class.java, {
                 mockk<ReactiveStringRedisTemplate> {
