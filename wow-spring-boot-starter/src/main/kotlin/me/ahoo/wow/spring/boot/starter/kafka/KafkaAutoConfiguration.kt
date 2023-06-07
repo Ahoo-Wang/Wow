@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
-import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.kafka.CommandTopicConverter
 import me.ahoo.wow.kafka.DefaultCommandTopicConverter
 import me.ahoo.wow.kafka.DefaultEventStreamTopicConverter
@@ -116,7 +116,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     fun kafkaStateEventBus(
         topicConverter: StateEventTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer
-    ): StateEventBus {
+    ): DistributedStateEventBus {
         return KafkaStateEventBus(
             topicConverter = topicConverter,
             senderOptions = kafkaProperties.buildSenderOptions(),

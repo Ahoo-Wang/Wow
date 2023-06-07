@@ -11,12 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.eventsourcing
+package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
-const val DELIMITER = ":"
-
-fun interface AggregateKeyConverter {
-    fun convert(aggregateId: AggregateId): String
+class RedisStateEventExchange<C : Any>(
+    override val message: StateEvent<C>,
+    private val acknowledge: Mono<Void>,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+) : StateEventExchange<C> {
+    override fun acknowledge(): Mono<Void> {
+        return acknowledge
+    }
 }

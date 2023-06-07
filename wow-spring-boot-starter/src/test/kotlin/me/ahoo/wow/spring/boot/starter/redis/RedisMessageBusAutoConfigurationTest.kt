@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
+import me.ahoo.wow.redis.bus.RedisStateEventBus
 import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -37,6 +38,7 @@ class RedisMessageBusAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(RedisCommandBus::class.java)
                     .hasSingleBean(RedisDomainEventBus::class.java)
+                    .hasSingleBean(RedisStateEventBus::class.java)
             }
     }
 }

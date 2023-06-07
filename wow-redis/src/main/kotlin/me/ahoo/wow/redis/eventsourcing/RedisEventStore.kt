@@ -67,7 +67,7 @@ class RedisEventStore(
     }
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        val key = EventStreamKeyConverter.converter(aggregateId)
+        val key = EventStreamKeyConverter.convert(aggregateId)
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
         return redisTemplate.opsForZSet().rangeByScore(key, range, RedisZSetCommands.Limit.unlimited())
             .map {

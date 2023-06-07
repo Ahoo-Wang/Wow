@@ -38,7 +38,7 @@ object EventStreamKeyConverter : AggregateKeyConverter {
         }
     }
 
-    override fun converter(aggregateId: AggregateId): String {
+    override fun convert(aggregateId: AggregateId): String {
         return "${aggregateId.toKeyPrefix()}${toAggregateIdKey(aggregateId)}"
     }
 }

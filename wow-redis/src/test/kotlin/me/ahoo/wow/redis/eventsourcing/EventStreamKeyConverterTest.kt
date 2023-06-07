@@ -43,7 +43,7 @@ class EventStreamKeyConverterTest {
 
     @Test
     fun converter() {
-        val actual = EventStreamKeyConverter.converter(aggregateId)
+        val actual = EventStreamKeyConverter.convert(aggregateId)
         assertThat(actual, equalTo("tck.mock_aggregate:es:{id@tenantId}"))
     }
 }

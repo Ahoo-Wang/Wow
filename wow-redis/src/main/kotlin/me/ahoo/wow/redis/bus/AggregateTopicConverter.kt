@@ -22,6 +22,7 @@ fun interface AggregateTopicConverter {
 
 interface CommandTopicConverter : AggregateTopicConverter
 interface EventStreamTopicConverter : AggregateTopicConverter
+interface StateEventTopicConverter : AggregateTopicConverter
 
 object DefaultCommandTopicConverter : CommandTopicConverter {
     const val COMMAND_TOPIC_SUFFIX = "command"
@@ -36,5 +37,13 @@ object DefaultEventStreamTopicConverter : EventStreamTopicConverter {
 
     override fun convert(namedAggregate: NamedAggregate): String {
         return "${namedAggregate.asStringWithAlias()}:$EVENT_TOPIC_SUFFIX"
+    }
+}
+
+object DefaultStateEventTopicConverter : StateEventTopicConverter {
+    const val STATE_EVENT_TOPIC_SUFFIX = "state"
+
+    override fun convert(namedAggregate: NamedAggregate): String {
+        return "${namedAggregate.asStringWithAlias()}:$STATE_EVENT_TOPIC_SUFFIX"
     }
 }
