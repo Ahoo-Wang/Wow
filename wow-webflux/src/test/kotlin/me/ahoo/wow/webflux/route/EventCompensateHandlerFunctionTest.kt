@@ -6,6 +6,7 @@ import me.ahoo.wow.event.DefaultEventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
@@ -35,7 +36,7 @@ class EventCompensateHandlerFunctionTest {
             every { pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY) } returns "0"
             every { pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
-            every { bodyToMono(TARGET_PROCESSORS_TYPE) } returns setOf<String>().toMono()
+            every { bodyToMono(CompensationConfig::class.java) } returns CompensationConfig.EMPTY.toMono()
         }
         handlerFunction.handle(request)
             .test()

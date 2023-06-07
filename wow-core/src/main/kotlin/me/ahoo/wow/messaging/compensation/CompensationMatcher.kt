@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.compensation
 
+import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 
 const val COMPENSATION_PREFIX = "compensation."
@@ -36,22 +37,38 @@ object CompensationMatcher {
     }
 
     fun <M : Message<out M, *>> M.withCompensation(config: CompensationConfig = CompensationConfig.EMPTY): M {
-        return this.withCompensation(config.exclude, config.include)
+        return this.withCompensation(include = config.include, exclude = config.exclude)
     }
 
     fun <M : Message<out M, *>> M.withCompensation(
         include: Set<String> = emptySet(),
         exclude: Set<String> = emptySet()
     ): M {
-        val excludeString = exclude.joinToString { COMPENSATE_PROCESSOR_SEPARATOR }
-        val includeString = include.joinToString { COMPENSATE_PROCESSOR_SEPARATOR }
-        return withHeader(COMPENSATION_EXCLUDE_HEADER, excludeString)
-            .withHeader(COMPENSATION_INCLUDE_HEADER, includeString)
+        header.withCompensation(include, exclude)
+        return this
+    }
+
+    fun Header.withCompensation(
+        include: Set<String> = emptySet(),
+        exclude: Set<String> = emptySet()
+    ): Header {
+        val excludeString = exclude.joinToString(COMPENSATE_PROCESSOR_SEPARATOR) {
+            it.trim()
+        }
+        val includeString = include.joinToString(COMPENSATE_PROCESSOR_SEPARATOR) {
+            it.trim()
+        }
+        return with(COMPENSATION_EXCLUDE_HEADER, excludeString)
+            .with(COMPENSATION_INCLUDE_HEADER, includeString)
     }
 
     fun Message<*, *>.match(processor: String): Boolean {
-        val excludeString = header[COMPENSATION_EXCLUDE_HEADER]
-        val includeString = header[COMPENSATION_INCLUDE_HEADER]
+        return header.match(processor)
+    }
+
+    fun Header.match(processor: String): Boolean {
+        val excludeString = this[COMPENSATION_EXCLUDE_HEADER]
+        val includeString = this[COMPENSATION_INCLUDE_HEADER]
         if (excludeString == null && includeString == null) {
             return true
         }
