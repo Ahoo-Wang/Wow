@@ -15,12 +15,12 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -63,7 +63,7 @@ class AggregateEventDispatcher<R : Mono<*>>(
                 if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
                     return@filter false
                 }
-                return@filter event.shouldHandle(it.processor.javaClass.asName())
+                return@filter event.match(it.processor.javaClass.name)
             }
         if (functions.isEmpty()) {
             if (log.isDebugEnabled) {

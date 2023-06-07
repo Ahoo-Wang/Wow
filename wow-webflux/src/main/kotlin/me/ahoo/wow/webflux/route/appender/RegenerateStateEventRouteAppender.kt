@@ -19,6 +19,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -82,6 +83,11 @@ class RegenerateStateEventRouteAppender(
                         .`in`(ParameterIn.PATH)
                         .implementation(Int::class.java)
                         .example(Int.MAX_VALUE.toString()),
+                )
+                .requestBody(
+                    org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuilder()
+                        .required(true)
+                        .implementation(CompensationConfig::class.java),
                 )
                 .response(
                     org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder()

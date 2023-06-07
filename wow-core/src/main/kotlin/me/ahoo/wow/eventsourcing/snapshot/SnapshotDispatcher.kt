@@ -15,10 +15,10 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.event.shouldHandle
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -27,7 +27,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 
-private const val SNAPSHOT_PROCESSOR_NAME = "snapshot"
+private const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
 
 class SnapshotDispatcher(
     /**
@@ -48,7 +48,7 @@ class SnapshotDispatcher(
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
             .filter {
-                it.message.shouldHandle(SNAPSHOT_PROCESSOR_NAME)
+                it.message.match(SNAPSHOT_PROCESSOR_NAME)
             }
     }
 
