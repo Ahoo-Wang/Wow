@@ -39,8 +39,7 @@ data class CommandProperties(
     }
 
     data class LocalFirst(
-        val enabled: Boolean = true,
-        val doubleSend: Boolean = false
+        val enabled: Boolean = true
     ) {
         companion object {
             const val PREFIX = "${CommandProperties.PREFIX}.local-first"

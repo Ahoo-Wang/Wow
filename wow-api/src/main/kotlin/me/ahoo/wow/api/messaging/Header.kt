@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.api.messaging
 
+import me.ahoo.wow.api.Copyable
+
 /**
  * Message Header .
  *
  * @author ahoo wang
  */
-interface Header : MutableMap<String, String> {
+interface Header : MutableMap<String, String>, Copyable<Header> {
     val isReadOnly: Boolean
     fun withReadOnly(): Header
     fun with(key: String, value: String): Header {
@@ -30,6 +32,4 @@ interface Header : MutableMap<String, String> {
         putAll(additional)
         return this
     }
-
-    fun copy(): Header
 }

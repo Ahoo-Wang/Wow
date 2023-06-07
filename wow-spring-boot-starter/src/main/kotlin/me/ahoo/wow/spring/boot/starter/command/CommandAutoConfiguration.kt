@@ -64,6 +64,6 @@ class CommandAutoConfiguration(val commandProperties: CommandProperties) {
         localCommandBus: LocalCommandBus,
         distributedCommandBus: DistributedCommandBus
     ): LocalFirstCommandBus {
-        return LocalFirstCommandBus(distributedCommandBus, commandProperties.bus.localFirst.doubleSend, localCommandBus)
+        return LocalFirstCommandBus(distributedCommandBus, localCommandBus)
     }
 }

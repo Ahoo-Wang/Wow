@@ -14,52 +14,9 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.configuration.MetadataSearcher.isLocal
-import me.ahoo.wow.metrics.Metrics.metrizable
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-
-const val COMMAND_LOAD_FIRST = "command_load_first"
-fun CommandMessage<*>.withLoadFirst(): CommandMessage<*> {
-    return withHeader(mapOf(COMMAND_LOAD_FIRST to "true"))
-}
-
-fun CommandMessage<*>.isLoadFirst(): Boolean {
-    return header[COMMAND_LOAD_FIRST]?.toBoolean() ?: false
-}
+import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 class LocalFirstCommandBus(
-    private val distributedCommandBus: DistributedCommandBus,
-    private val doubleSend: Boolean = false,
-    private val localCommandBus: LocalCommandBus = InMemoryCommandBus().metrizable(),
-) : CommandBus {
-
-    @Suppress("ReturnCount")
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        if (message.isLocal()) {
-            message.withLoadFirst()
-            val localSend = localCommandBus.send(message)
-            if (!doubleSend) {
-                return localSend
-            }
-            val distributedMessage = message.copy()
-            val distributedSend = distributedCommandBus.send(distributedMessage)
-            return localSend.then(distributedSend)
-        }
-        return distributedCommandBus.send(message)
-    }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        val localFlux = localCommandBus.receive(namedAggregates)
-        val distributedFlux =
-            distributedCommandBus.receive(namedAggregates).filterWhen {
-                val isLoadFirst = it.message.isLoadFirst()
-                if (isLoadFirst) {
-                    return@filterWhen it.acknowledge().thenReturn(false)
-                }
-                Mono.just(true)
-            }
-        return Flux.merge(localFlux, distributedFlux)
-    }
-}
+    override val distributedBus: DistributedCommandBus,
+    override val localBus: LocalCommandBus = InMemoryCommandBus(),
+) : CommandBus, LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
