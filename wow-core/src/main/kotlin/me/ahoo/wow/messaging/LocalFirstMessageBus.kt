@@ -24,9 +24,8 @@ import reactor.core.publisher.Mono
 const val LOCAL_FIRST_HEADER = "local.first"
 const val LOCAL_FIRST_HEADER_VALUE = "true"
 
-@Suppress("UNCHECKED_CAST")
-fun <M : Message<*, *>> M.withLoadFirst(): M {
-    return withHeader(LOCAL_FIRST_HEADER, LOCAL_FIRST_HEADER_VALUE) as M
+fun <M : Message<out M, *>> M.withLoadFirst(): M {
+    return withHeader(LOCAL_FIRST_HEADER, LOCAL_FIRST_HEADER_VALUE)
 }
 
 fun <M : Message<*, *>> M.isLoadFirst(): Boolean {

@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import reactor.core.publisher.Mono
-
-const val COMPENSATE_TARGET_PROCESSOR_KEY = "compensate"
-const val COMPENSATE_TARGET_PROCESSOR_SEPARATOR = ","
 
 /**
  * 事件补偿器
@@ -27,7 +25,7 @@ const val COMPENSATE_TARGET_PROCESSOR_SEPARATOR = ","
 interface EventCompensator {
     fun compensate(
         aggregateId: AggregateId,
-        targetProcessors: Set<String> = setOf(),
+        config: CompensationConfig = CompensationConfig.EMPTY,
         headVersion: Int = EventStore.DEFAULT_HEAD_VERSION,
         tailVersion: Int = Int.MAX_VALUE
     ): Mono<Long>
@@ -40,7 +38,7 @@ class DefaultEventCompensator(
     EventCompensator {
     override fun compensate(
         aggregateId: AggregateId,
-        targetProcessors: Set<String>,
+        config: CompensationConfig,
         headVersion: Int,
         tailVersion: Int
     ): Mono<Long> {
@@ -49,31 +47,8 @@ class DefaultEventCompensator(
             headVersion = headVersion,
             tailVersion = tailVersion,
         ).concatMap {
-            val eventStream = it.withHeader(
-                mapOf(
-                    COMPENSATE_TARGET_PROCESSOR_KEY to targetProcessors.joinToString(
-                        COMPENSATE_TARGET_PROCESSOR_SEPARATOR,
-                    ),
-                ),
-            )
+            val eventStream = it.withCompensation(config)
             eventBus.send(eventStream).thenReturn(it)
         }.count()
     }
-}
-
-val <T> Message<*, T>.compensateTargetProcessors: Set<String>?
-    get() {
-        val targetProcessorsString = header[COMPENSATE_TARGET_PROCESSOR_KEY] ?: return null
-        if (targetProcessorsString.isBlank()) {
-            return emptySet()
-        }
-        return targetProcessorsString
-            .split(COMPENSATE_TARGET_PROCESSOR_SEPARATOR)
-            .filter { it.isNotBlank() }
-            .toSet()
-    }
-
-fun <T> Message<*, T>.shouldHandle(processorName: String, defaultIfNull: Boolean = true): Boolean {
-    val targetProcessors = this.compensateTargetProcessors ?: return defaultIfNull
-    return targetProcessors.isEmpty() || targetProcessors.contains(processorName)
 }

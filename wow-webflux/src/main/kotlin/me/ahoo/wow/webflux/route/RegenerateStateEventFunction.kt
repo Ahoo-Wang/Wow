@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.ExceptionHandler
@@ -39,7 +40,10 @@ class RegenerateStateEventFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return handler.handle(cursorId, limit)
+        return request.bodyToMono(CompensationConfig::class.java)
+            .flatMap {
+                handler.handle(it, cursorId, limit)
+            }
             .asServerResponse(exceptionHandler)
     }
 }

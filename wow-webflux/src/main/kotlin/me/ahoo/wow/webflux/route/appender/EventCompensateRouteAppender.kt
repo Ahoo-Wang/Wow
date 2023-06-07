@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
@@ -91,28 +92,11 @@ class EventCompensateRouteAppender(
                         .`in`(ParameterIn.PATH)
                         .implementation(Int::class.java)
                         .example(Int.MAX_VALUE.toString()),
-                ).requestBody(
+                )
+                .requestBody(
                     org.springdoc.core.fn.builders.requestbody.Builder.requestBodyBuilder()
                         .required(true)
-                        .description("target processors")
-                        .content(
-                            org.springdoc.core.fn.builders.content.Builder.contentBuilder()
-                                .mediaType(
-                                    MediaType.APPLICATION_JSON_VALUE,
-                                )
-                                .array(
-                                    org.springdoc.core.fn.builders.arrayschema.Builder.arraySchemaBuilder()
-                                        .schema(
-                                            org.springdoc.core.fn.builders.schema.Builder.schemaBuilder()
-                                                .implementation(String::class.java),
-                                        )
-                                        .minItems(0)
-                                        .uniqueItems(true),
-                                ).example(
-                                    org.springdoc.core.fn.builders.exampleobject.Builder.exampleOjectBuilder()
-                                        .value("[]"),
-                                ),
-                        ),
+                        .implementation(CompensationConfig::class.java),
                 )
                 .response(
                     org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder()

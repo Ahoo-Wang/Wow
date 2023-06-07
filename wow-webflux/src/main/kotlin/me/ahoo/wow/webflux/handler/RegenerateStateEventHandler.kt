@@ -16,6 +16,8 @@ package me.ahoo.wow.webflux.handler
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.route.BatchResult
@@ -27,7 +29,7 @@ class RegenerateStateEventHandler(
     private val eventStore: EventStore,
     private val stateEventBus: StateEventBus,
 ) {
-    fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
+    fun handle(config: CompensationConfig, cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap({ aggregateId ->
                 stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
@@ -41,6 +43,7 @@ class RegenerateStateEventHandler(
                                 stateAggregate.onSourcing(it)
                                 it.asStateEvent(stateAggregate)
                             }.concatMap {
+                                it.withCompensation(config)
                                 stateEventBus.send(it).thenReturn(it.aggregateId)
                             }
                     }
