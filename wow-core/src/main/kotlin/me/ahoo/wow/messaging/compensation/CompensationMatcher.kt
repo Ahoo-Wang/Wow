@@ -16,7 +16,7 @@ package me.ahoo.wow.messaging.compensation
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 
-const val COMPENSATION_PREFIX = "compensation."
+const val COMPENSATION_PREFIX = "compensate."
 const val COMPENSATE_PROCESSOR_SEPARATOR = ","
 const val COMPENSATION_EXCLUDE_HEADER = "${COMPENSATION_PREFIX}exclude"
 const val COMPENSATION_INCLUDE_HEADER = "${COMPENSATION_PREFIX}include"
