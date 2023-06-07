@@ -16,10 +16,10 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.messaging.Header
 
 object CommandOperator {
-    private const val COMMAND_OPERATOR = "command_operator"
+    private const val OPERATOR_HEADER = "command.operator"
     val Header.operator: String?
         get() {
-            return this[COMMAND_OPERATOR]
+            return this[OPERATOR_HEADER]
         }
     val Header.requiredOperator: String
         get() {
@@ -27,6 +27,6 @@ object CommandOperator {
         }
 
     fun Header.withOperator(operator: String): Header {
-        return this.with(COMMAND_OPERATOR, operator)
+        return this.with(OPERATOR_HEADER, operator)
     }
 }
