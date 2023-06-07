@@ -30,4 +30,15 @@ object ExchangeAck {
                 .then(Mono.error(it))
         }.then(exchange.acknowledge())
     }
+
+    inline fun <T : MessageExchange<*, *>> Flux<T>.filterThenAck(crossinline predicate: (T) -> Boolean): Flux<T> {
+        return filterWhen {
+            val matched = predicate(it)
+            if (matched) {
+                Mono.just(true)
+            } else {
+                it.acknowledge().thenReturn(false)
+            }
+        }
+    }
 }

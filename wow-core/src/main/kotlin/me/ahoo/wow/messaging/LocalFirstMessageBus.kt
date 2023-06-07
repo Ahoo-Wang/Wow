@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
+import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -59,13 +60,10 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
         }.toSet()
         val localFlux = localBus.receive(localTopics)
         val distributedFlux =
-            distributedBus.receive(namedAggregates).filterWhen {
-                val islocalHandled = it.message.islocalHandled()
-                if (islocalHandled) {
-                    return@filterWhen it.acknowledge().thenReturn(false)
+            distributedBus.receive(namedAggregates)
+                .filterThenAck {
+                    !it.message.islocalHandled()
                 }
-                Mono.just(true)
-            }
         return Flux.merge(localFlux, distributedFlux)
     }
 }

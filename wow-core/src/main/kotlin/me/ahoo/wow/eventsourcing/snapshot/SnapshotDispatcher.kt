@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -47,7 +48,7 @@ class SnapshotDispatcher(
             .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
-            .filter {
+            .filterThenAck {
                 it.message.match(SNAPSHOT_PROCESSOR_NAME)
             }
     }
