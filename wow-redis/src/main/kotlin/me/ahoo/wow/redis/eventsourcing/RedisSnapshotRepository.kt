@@ -27,14 +27,14 @@ class RedisSnapshotRepository(
 ) : SnapshotRepository {
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        val snapshotKey = keyConverter.converter(aggregateId)
+        val snapshotKey = keyConverter.convert(aggregateId)
         return redisTemplate.opsForValue()
             .get(snapshotKey)
             .map { it.asObject<Snapshot<S>>() }
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        val snapshotKey = keyConverter.converter(snapshot.aggregateId)
+        val snapshotKey = keyConverter.convert(snapshot.aggregateId)
         return redisTemplate.opsForValue()
             .set(snapshotKey, snapshot.asJsonString())
             .then()

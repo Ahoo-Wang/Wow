@@ -83,6 +83,7 @@
 - [x] StateEventBus
     - [x] `InMemoryStateEventBus` 
     - [x] `KafkaStateEventBus` (Recommend)
+    - [x] `RedisStateEventBus`
 - [x] Spring 集成
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`

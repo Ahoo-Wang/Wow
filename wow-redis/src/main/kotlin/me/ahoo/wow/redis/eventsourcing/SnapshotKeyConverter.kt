@@ -20,7 +20,7 @@ import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 fun interface SnapshotKeyConverter : AggregateKeyConverter
 
 object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
-    override fun converter(aggregateId: AggregateId): String {
+    override fun convert(aggregateId: AggregateId): String {
         return "${aggregateId.asStringWithAlias()}:snapshot:${aggregateId.id.wrap()}"
     }
 }
