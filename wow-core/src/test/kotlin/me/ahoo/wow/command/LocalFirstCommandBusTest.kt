@@ -2,6 +2,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.DEFAULT_BUSY_LOOPING_DURATION
 import me.ahoo.wow.tck.command.CommandBusSpec
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -22,7 +23,7 @@ class MockDistributedCommandBus : DistributedCommandBus {
             @Suppress("UNCHECKED_CAST")
             sink.emitNext(
                 exchange as ServerCommandExchange<Any>,
-                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
+                Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION),
             )
         }
     }

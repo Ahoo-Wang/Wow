@@ -13,35 +13,17 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.BUSY_LOOPING_DURATION
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
 class InMemoryDomainEventBus(
-    private val sink: Many<DomainEventStream> = Sinks.many()
-        .multicast().onBackpressureBuffer()
-) : LocalDomainEventBus {
-
-    override fun send(message: DomainEventStream): Mono<Void> {
-        return Mono.fromRunnable {
-            message.withReadOnly()
-            sink.emitNext(
-                message,
-                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
-            )
-        }
+    override val sinkSupplier: (NamedAggregate) -> Many<DomainEventStream> = {
+        Sinks.many().multicast().onBackpressureBuffer()
     }
+) : LocalDomainEventBus, InMemoryMessageBus<DomainEventStream, EventStreamExchange>() {
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
-        return sink.asFlux()
-            .filter { eventStream ->
-                namedAggregates.any {
-                    it.isSameAggregateName(eventStream)
-                }
-            }.map {
-                SimpleEventStreamExchange(it)
-            }
+    override fun DomainEventStream.createExchange(): EventStreamExchange {
+        return SimpleEventStreamExchange(this)
     }
 }

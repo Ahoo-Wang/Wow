@@ -19,8 +19,9 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
-const val COMMAND_WAIT_ENDPOINT = "command_wait_endpoint"
-const val COMMAND_WAIT_STAGE = "command_wait_stage"
+const val COMMAND_WAIT_PREFIX = "command.wait."
+const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
+const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
 
 interface CommandWaitEndpoint {
     val endpoint: String

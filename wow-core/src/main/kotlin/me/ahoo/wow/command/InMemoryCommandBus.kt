@@ -14,16 +14,9 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
-import java.time.Duration
-import java.util.concurrent.ConcurrentHashMap
-
-val BUSY_LOOPING_DURATION: Duration = Duration.ofSeconds(1)
 
 /**
  * InMemoryCommandBus .
@@ -36,41 +29,11 @@ class InMemoryCommandBus(
      *
      * @see Sinks.UnicastSpec
      */
-    private val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
+    override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
-) : LocalCommandBus {
-    companion object {
-        private val log = LoggerFactory.getLogger(InMemoryCommandBus::class.java)
-    }
-
-    private val sinks: MutableMap<NamedAggregate, Many<CommandMessage<*>>> = ConcurrentHashMap()
-
-    private fun computeSink(namedAggregate: NamedAggregate): Many<CommandMessage<*>> {
-        return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
-    }
-
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        return Mono.fromRunnable {
-            if (log.isDebugEnabled) {
-                log.debug("Send {}.", message)
-            }
-            message.withReadOnly()
-            val sink = computeSink(message)
-            sink.emitNext(
-                message,
-                Sinks.EmitFailureHandler.busyLooping(BUSY_LOOPING_DURATION),
-            )
-        }
-    }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        val sources = namedAggregates.map {
-            computeSink(it).asFlux()
-        }
-
-        return Flux.merge(sources).map {
-            SimpleServerCommandExchange(it)
-        }
+) : LocalCommandBus, InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>() {
+    override fun CommandMessage<*>.createExchange(): ServerCommandExchange<*> {
+        return SimpleServerCommandExchange(this)
     }
 }
