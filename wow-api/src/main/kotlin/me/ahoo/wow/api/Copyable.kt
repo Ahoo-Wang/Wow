@@ -13,6 +13,6 @@
 
 package me.ahoo.wow.api
 
-interface Copyable<SOURCE> {
+interface Copyable<out SOURCE> {
     fun copy(): SOURCE
 }
