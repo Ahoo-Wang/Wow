@@ -11,46 +11,48 @@
  * limitations under the License.
  */
 
-select *
-from system.macros;
-create database bi_db on cluster '{cluster}';
-create database bi_db_consumer on cluster '{cluster}';
--- event_stream --
-CREATE TABLE bi_db.order_order_event_stream_local on cluster '{cluster}'
+-- select * from system.macros;
+
+create database if not exists bi_db on cluster '{cluster}';
+create database if not exists bi_db_consumer on cluster '{cluster}';
+
+CREATE TABLE bi_db.order_order_state_local on cluster '{cluster}'
 (
-    id            String,
-    contextName   String,
-    aggregateName String,
-    header        String,
-    aggregateId   String,
-    tenantId      String,
-    commandId     String,
-    requestId     String,
-    version       UInt32,
-    body          String,
-    createTime    DateTime('Asia/Shanghai')
+    id             String,
+    contextName    String,
+    aggregateName  String,
+    header         String,
+    aggregateId    String,
+    tenantId       String,
+    commandId      String,
+    requestId      String,
+    version        UInt32,
+    state          String,
+    body           String,
+    firstEventTime DateTime('Asia/Shanghai'),
+    createTime     DateTime('Asia/Shanghai'),
+    deleted        Bool
 ) ENGINE = ReplicatedReplacingMergeTree(
-           '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_event_stream_local', '{replica}',
+           '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_state_local', '{replica}',
            version)
       PARTITION BY toYYYYMM(createTime)
       ORDER BY (aggregateId, version)
 ;
 
-create table bi_db.order_order_event_stream on cluster '{cluster}'
-    as bi_db.order_order_event_stream_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_event_stream_local);
+create table bi_db.order_order_state on cluster '{cluster}'
+    as bi_db.order_order_state_local
+        ENGINE = Distributed('{cluster}', bi_db, order_order_state_local);
 
 
-CREATE TABLE bi_db_consumer.order_order_event_stream_queue on cluster '{cluster}'
+CREATE TABLE bi_db_consumer.order_order_state_queue on cluster '{cluster}'
 (
     data String
-) ENGINE = Kafka('kafka-bootstrap-servers:9092', 'wow.order-service.order.event',
-           'clickhouse_order_order_event_stream_consumer', 'JSONAsString');
+) ENGINE = Kafka('kafka-bootstrap-servers:9092', 'wow.order-service.order.state',
+           'clickhouse_order_order_state_consumer', 'JSONAsString');
 
-
-CREATE MATERIALIZED VIEW bi_db_consumer.order_order_event_stream_consumer
+CREATE MATERIALIZED VIEW bi_db_consumer.order_order_state_consumer
             on cluster '{cluster}'
-            TO bi_db.order_order_event_stream
+            TO bi_db.order_order_state
 AS
 SELECT JSONExtractString(data, 'id')                                                  AS id,
        JSONExtractString(data, 'contextName')                                         AS contextName,
@@ -61,58 +63,10 @@ SELECT JSONExtractString(data, 'id')                                            
        JSONExtractString(data, 'commandId')                                           AS commandId,
        JSONExtractString(data, 'requestId')                                           AS requestId,
        JSONExtractUInt(data, 'version')                                               AS version,
+       JSONExtractString(data, 'state')                                               AS state,
        JSONExtractString(data, 'body')                                                AS body,
-       toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS createTime
-FROM bi_db_consumer.order_order_event_stream_queue
-;
-
--- snapshot --
-
-CREATE TABLE bi_db.order_order_snapshot_local on cluster '{cluster}'
-(
-    contextName    String,
-    aggregateName  String,
-    aggregateId    String,
-    tenantId       String,
-    version        UInt32,
-    state          String,
-    eventId        String,
-    firstEventTime DateTime('Asia/Shanghai'),
-    eventTime      DateTime('Asia/Shanghai'),
-    snapshotTime   DateTime('Asia/Shanghai'),
-    deleted        Bool
-) ENGINE = ReplicatedReplacingMergeTree(
-           '/clickhouse/{installation}/{cluster}/tables/{shard}/bi_db/order_order_snapshot_local', '{replica}',
-           version)
-      ORDER BY (aggregateId, version)
-;
-
-create table bi_db.order_order_snapshot on cluster '{cluster}'
-    as bi_db.order_order_snapshot_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_snapshot_local);
-
-CREATE TABLE bi_db_consumer.order_order_snapshot_queue on cluster '{cluster}'
-(
-    data String
-) ENGINE = Kafka('kafka-bootstrap-servers:9092', 'wow.order-service.order.snapshot',
-           'clickhouse_order_order_snapshot_consumer', 'JSONAsString');
-
-
-CREATE MATERIALIZED VIEW bi_db_consumer.order_order_snapshot_consumer
-            on cluster '{cluster}'
-            TO bi_db.order_order_snapshot
-AS
-SELECT JSONExtractString(data, 'contextName')                                             AS contextName,
-       JSONExtractString(data, 'aggregateName')                                           AS aggregateName,
-       JSONExtractString(data, 'aggregateId')                                             AS aggregateId,
-       JSONExtractString(data, 'tenantId')                                                AS tenantId,
-       JSONExtractUInt(data, 'version')                                                   AS version,
-       JSONExtractString(data, 'state')                                                   AS state,
-       JSONExtractString(data, 'eventId')                                                 AS eventId,
        toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS firstEventTime,
-       toDateTime64(JSONExtractUInt(data, 'eventTime') / 1000.0, 3, 'Asia/Shanghai')      AS eventTime,
-       toDateTime64(JSONExtractUInt(data, 'snapshotTime') / 1000.0, 3, 'Asia/Shanghai')   AS snapshotTime,
-       JSONExtractBool(data, 'deleted')                                                   AS deleted
-FROM bi_db_consumer.order_order_snapshot_queue
+       toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS createTime,
+       JSONExtractBool(data, 'deleted')                                               AS deleted
+FROM bi_db_consumer.order_order_state_queue
 ;
-
