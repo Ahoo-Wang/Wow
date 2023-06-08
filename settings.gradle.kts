@@ -52,7 +52,7 @@ project(":example-server").projectDir = file("example/example-server")
 //endregion
 pluginManagement {
     plugins {
-        id("com.google.devtools.ksp") version "1.8.21-1.0.11" apply false
+        id("com.google.devtools.ksp") version "1.8.22-1.0.11" apply false
         id("io.gitlab.arturbosch.detekt") version "1.23.0" apply false
         kotlin("jvm") version "1.8.22" apply false
         kotlin("plugin.spring") version "1.8.22" apply false
