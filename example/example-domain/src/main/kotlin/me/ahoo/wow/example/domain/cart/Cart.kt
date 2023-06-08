@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartInitialized
@@ -36,9 +37,17 @@ class Cart(private val state: CartState) {
         return CartInitialized
     }
 
-    fun onCommand(command: AddCartItem): CartItemAdded {
+    @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
+    fun onCommand(command: AddCartItem): Any {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
             "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
+        }
+        state.items.firstOrNull {
+            it.productId == command.productId
+        }?.let {
+            return CartQuantityChanged(
+                changed = it.copy(quantity = it.quantity + command.quantity),
+            )
         }
         val added = CartItem(
             productId = command.productId,
