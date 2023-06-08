@@ -47,7 +47,7 @@ class RegenerateStateEventHandler(
                                 stateEventBus.send(it).thenReturn(it.aggregateId)
                             }
                     }
-            }, limit)
+            }, limit, limit)
             .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
                 val nextCursorId = if (aggregateId.id > acc.cursorId) {
                     aggregateId.id

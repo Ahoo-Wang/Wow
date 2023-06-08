@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
+import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asIgnoreTenantAggregateRoutePathSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.BatchRegenerateSnapshotHandlerFunction
 import me.ahoo.wow.webflux.route.BatchResult
@@ -46,7 +46,7 @@ class BatchRegenerateSnapshotRouteAppender(
     private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
-        val routePrefix = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).aggregateNamePath
+        val routePrefix = aggregateMetadata.asIgnoreTenantAggregateRoutePathSpec(currentContext).aggregateNamePath
         routerFunctionBuilder
             .PUT(
                 "$routePrefix/snapshot/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}",
