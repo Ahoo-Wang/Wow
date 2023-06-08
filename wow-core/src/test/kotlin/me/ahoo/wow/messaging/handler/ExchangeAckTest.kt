@@ -1,8 +1,10 @@
 package me.ahoo.wow.messaging.handler
 
+import io.mockk.called
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -72,4 +74,39 @@ class ExchangeAckTest {
             exchange.acknowledge()
         }
     }
+
+    @Test
+    fun filterThenAckIfTrue() {
+        val exchange = mockk<MessageExchange<*, *>> {
+            every { acknowledge() } returns Mono.empty()
+        }
+        Flux.just(exchange)
+            .filterThenAck {
+                true
+            }
+            .test()
+            .expectNext(exchange)
+            .verifyComplete()
+
+        verify {
+            exchange.acknowledge() wasNot called
+        }
+    }
+
+    @Test
+    fun filterThenAckIfFalse() {
+        val exchange = mockk<MessageExchange<*, *>> {
+            every { acknowledge() } returns Mono.empty()
+        }
+        Flux.just(exchange)
+            .filterThenAck {
+                false
+            }
+            .test()
+            .verifyComplete()
+        verify {
+            exchange.acknowledge()
+        }
+    }
+
 }
