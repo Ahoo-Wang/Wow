@@ -62,7 +62,14 @@ interface AggregateRoutePathSpec {
             )
         }
 
-        fun CommandRouteMetadata<*>.asAggregateRoutePathSpec(
+        fun AggregateMetadata<*, *>.asIgnoreTenantAggregateRoutePathSpec(currentContext: NamedBoundedContext): AggregateRoutePathSpec {
+            return IgnoreTenantAggregateRoutePathSpec(
+                currentContext = currentContext,
+                namedAggregate = this.namedAggregate
+            )
+        }
+
+        fun CommandRouteMetadata<*>.asCommandAggregateRoutePathSpec(
             currentContext: NamedBoundedContext,
             aggregateMetadata: AggregateMetadata<*, *>
         ): CommandAggregateRoutePathSpec {

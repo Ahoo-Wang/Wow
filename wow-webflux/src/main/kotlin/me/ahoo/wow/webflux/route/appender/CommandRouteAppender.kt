@@ -24,7 +24,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateRoutePathSpec
+import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asCommandAggregateRoutePathSpec
 import me.ahoo.wow.route.CommandAggregateRoutePathSpec
 import me.ahoo.wow.route.CommandRouteMetadata
 import me.ahoo.wow.route.asCommandRouteMetadata
@@ -60,7 +60,7 @@ class CommandRouteAppender(
             return
         }
         val commandAggregateRoutePathSpec =
-            commandRouteMetadata.asAggregateRoutePathSpec(currentContext, aggregateMetadata)
+            commandRouteMetadata.asCommandAggregateRoutePathSpec(currentContext, aggregateMetadata)
         val commandRoutePath = commandAggregateRoutePathSpec.routePath
         when {
             commandRouteMetadata.commandMetadata.isCreate ->

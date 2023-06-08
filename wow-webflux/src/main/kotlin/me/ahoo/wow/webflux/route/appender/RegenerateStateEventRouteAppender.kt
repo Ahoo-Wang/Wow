@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
+import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asIgnoreTenantAggregateRoutePathSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.BatchResult
 import me.ahoo.wow.webflux.route.RegenerateStateEventFunction
@@ -47,7 +47,7 @@ class RegenerateStateEventRouteAppender(
     private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
-        val routePrefix = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).aggregateNamePath
+        val routePrefix = aggregateMetadata.asIgnoreTenantAggregateRoutePathSpec(currentContext).aggregateNamePath
         routerFunctionBuilder
             .POST(
                 "$routePrefix/state/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}",
