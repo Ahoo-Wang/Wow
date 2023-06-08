@@ -58,7 +58,7 @@ class StateAutoConfiguration {
     fun localFirstStateEventBus(
         localBus: LocalStateEventBus,
         distributedBus: DistributedStateEventBus
-    ): StateEventBus {
+    ): LocalFirstStateEventBus {
         return LocalFirstStateEventBus(distributedBus, localBus)
     }
 

@@ -14,7 +14,11 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import io.mockk.mockk
+import me.ahoo.wow.event.DefaultEventCompensator
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -38,6 +42,23 @@ class EventAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryDomainEventBus::class.java)
+                    .hasSingleBean(DefaultEventCompensator::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfLocalFirst() {
+        contextRunner
+            .enableWow()
+            .withBean(EventStore::class.java, { mockk() })
+            .withBean(DistributedDomainEventBus::class.java, { mockk() })
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(LocalDomainEventBus::class.java)
+                    .hasSingleBean(LocalFirstDomainEventBus::class.java)
             }
     }
 }
