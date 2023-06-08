@@ -47,6 +47,9 @@ wow:
       storage: in_memory
     snapshot:
       storage: in_memory
+    state:
+      bus:
+        type: in_memory
 #  r2dbc:
 #    datasource:
 #      type: sharding
