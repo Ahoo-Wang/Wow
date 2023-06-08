@@ -71,6 +71,33 @@ class CartTest {
     }
 
     @Test
+    fun addCartItemIfSameProduct() {
+        val verifiedStage = mockInitializeCart()
+        val addCartItem = AddCartItem(
+            customerId = verifiedStage.stateRoot.id,
+            productId = "productId",
+            quantity = 1,
+        )
+
+        verifiedStage.then()
+            .given(
+                CartItemAdded(
+                    added = CartItem(
+                        productId = addCartItem.productId,
+                        quantity = 1,
+                    ),
+                )
+            )
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartQuantityChanged::class.java)
+            .expectState {
+                assertThat(it.items.first().quantity, equalTo(2))
+            }
+            .verify()
+    }
+
+    @Test
     fun addCartItemIfUnCreated() {
         val addCartItem = AddCartItem(
             customerId = MOCK_CUSTOMER_ID,
