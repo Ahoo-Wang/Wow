@@ -5,7 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
 import me.ahoo.wow.redis.bus.RedisStateEventBus
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -24,9 +24,9 @@ class RedisMessageBusAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${CommandProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
-                "${EventProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
-                "${StateProperties.Bus.TYPE}=${MessageBusType.REDIS_NAME}",
+                "${CommandProperties.BUS_TYPE}=${BusProperties.Type.REDIS_NAME}",
+                "${EventProperties.BUS_TYPE}=${BusProperties.Type.REDIS_NAME}",
+                "${StateProperties.BUS_TYPE}=${BusProperties.Type.REDIS_NAME}",
             )
             .withBean(ReactiveStringRedisTemplate::class.java, {
                 mockk<ReactiveStringRedisTemplate> {

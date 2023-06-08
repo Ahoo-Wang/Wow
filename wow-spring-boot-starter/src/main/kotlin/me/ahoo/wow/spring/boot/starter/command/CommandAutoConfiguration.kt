@@ -17,8 +17,8 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -30,12 +30,12 @@ import org.springframework.context.annotation.Primary
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(CommandProperties::class)
-class CommandAutoConfiguration(val commandProperties: CommandProperties) {
+class CommandAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        CommandProperties.Bus.TYPE,
-        havingValue = MessageBusType.IN_MEMORY_NAME,
+        CommandProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.IN_MEMORY_NAME,
     )
     fun inMemoryCommandBus(): LocalCommandBus {
         return InMemoryCommandBus()
@@ -43,11 +43,8 @@ class CommandAutoConfiguration(val commandProperties: CommandProperties) {
 
     @Bean
     @ConditionalOnMissingBean(LocalCommandBus::class)
-    @ConditionalOnProperty(
-        CommandProperties.LocalFirst.ENABLED_KEY,
-        havingValue = "true",
-        matchIfMissing = true
-    )
+    @ConditionalOnBean(value = [DistributedCommandBus::class])
+    @ConditionalOnCommandLocalFirstEnabled
     fun localCommandBus(): LocalCommandBus {
         return InMemoryCommandBus()
     }
@@ -55,15 +52,11 @@ class CommandAutoConfiguration(val commandProperties: CommandProperties) {
     @Bean
     @Primary
     @ConditionalOnBean(value = [LocalCommandBus::class, DistributedCommandBus::class])
-    @ConditionalOnProperty(
-        CommandProperties.LocalFirst.ENABLED_KEY,
-        havingValue = "true",
-        matchIfMissing = true
-    )
+    @ConditionalOnCommandLocalFirstEnabled
     fun localFirstCommandBus(
-        localCommandBus: LocalCommandBus,
-        distributedCommandBus: DistributedCommandBus
+        localBus: LocalCommandBus,
+        distributedBus: DistributedCommandBus
     ): LocalFirstCommandBus {
-        return LocalFirstCommandBus(distributedCommandBus, localCommandBus)
+        return LocalFirstCommandBus(distributedBus, localBus)
     }
 }

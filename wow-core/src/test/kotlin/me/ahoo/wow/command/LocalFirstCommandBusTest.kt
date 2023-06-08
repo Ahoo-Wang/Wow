@@ -2,10 +2,8 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.DEFAULT_BUSY_LOOPING_DURATION
+import me.ahoo.wow.messaging.InMemoryMessageBus
 import me.ahoo.wow.tck.command.CommandBusSpec
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 class LocalFirstCommandBusTest : CommandBusSpec() {
@@ -14,25 +12,12 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
     }
 }
 
-class MockDistributedCommandBus : DistributedCommandBus {
-    private val sink: Sinks.Many<ServerCommandExchange<*>> = Sinks.many().unicast().onBackpressureBuffer()
-
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        val exchange = SimpleServerCommandExchange(message)
-        return Mono.fromRunnable {
-            @Suppress("UNCHECKED_CAST")
-            sink.emitNext(
-                exchange as ServerCommandExchange<Any>,
-                Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION),
-            )
-        }
+class MockDistributedCommandBus(
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<CommandMessage<*>> = {
+        Sinks.many().multicast().onBackpressureBuffer()
     }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        return sink.asFlux().filter {
-            namedAggregates.any { namedAggregate ->
-                namedAggregate.isSameAggregateName(it.message)
-            }
-        }
+) : DistributedCommandBus, InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>() {
+    override fun CommandMessage<*>.createExchange(): ServerCommandExchange<*> {
+        return SimpleServerCommandExchange(this)
     }
 }

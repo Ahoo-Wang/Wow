@@ -19,8 +19,8 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
 import me.ahoo.wow.redis.bus.RedisStateEventBus
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -43,8 +43,8 @@ class RedisMessageBusAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        CommandProperties.Bus.TYPE,
-        havingValue = MessageBusType.REDIS_NAME,
+        CommandProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.REDIS_NAME,
     )
     fun redisCommandBus(redisTemplate: ReactiveStringRedisTemplate): DistributedCommandBus {
         return RedisCommandBus(redisTemplate)
@@ -52,8 +52,8 @@ class RedisMessageBusAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        EventProperties.Bus.TYPE,
-        havingValue = MessageBusType.REDIS_NAME,
+        EventProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.REDIS_NAME,
     )
     fun redisDomainEventBus(redisTemplate: ReactiveStringRedisTemplate): DistributedDomainEventBus {
         return RedisDomainEventBus(redisTemplate)
@@ -61,8 +61,8 @@ class RedisMessageBusAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        value = [StateProperties.Bus.TYPE],
-        havingValue = MessageBusType.REDIS_NAME,
+        StateProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.REDIS_NAME,
     )
     fun redisStateEventBus(redisTemplate: ReactiveStringRedisTemplate): DistributedStateEventBus {
         return RedisStateEventBus(redisTemplate)

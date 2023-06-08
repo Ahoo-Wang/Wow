@@ -13,29 +13,53 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-@ConditionalOnStateEnabled
 @EnableConfigurationProperties(StateProperties::class)
 class StateAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        value = [StateProperties.Bus.TYPE],
-        havingValue = MessageBusType.IN_MEMORY_NAME,
+        StateProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.IN_MEMORY_NAME,
     )
     fun inMemoryStateEventBus(): StateEventBus {
         return InMemoryStateEventBus()
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LocalStateEventBus::class)
+    @ConditionalOnBean(value = [DistributedStateEventBus::class])
+    @ConditionalOnStateEventLocalFirstEnabled
+    fun localStateEventBus(): LocalStateEventBus {
+        return InMemoryStateEventBus()
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnBean(value = [LocalStateEventBus::class, DistributedStateEventBus::class])
+    @ConditionalOnStateEventLocalFirstEnabled
+    fun localFirstStateEventBus(
+        localBus: LocalStateEventBus,
+        distributedBus: DistributedStateEventBus
+    ): StateEventBus {
+        return LocalFirstStateEventBus(distributedBus, localBus)
     }
 
     @Bean

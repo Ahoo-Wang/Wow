@@ -21,7 +21,7 @@ import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -39,7 +39,7 @@ internal class CommandAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${CommandProperties.Bus.TYPE}=${MessageBusType.IN_MEMORY_NAME}")
+            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
             .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,

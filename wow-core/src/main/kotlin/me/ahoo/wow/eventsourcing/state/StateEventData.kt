@@ -25,6 +25,8 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
     override val eventTime: Long
         get() = createTime
 
+    override fun copy(): StateEvent<S>
+
     companion object {
         fun <S : Any> DomainEventStream.asStateEvent(
             state: S,
@@ -50,4 +52,8 @@ data class StateEventData<S : Any>(
     override val state: S,
     override val firstEventTime: Long = delegate.createTime,
     override val deleted: Boolean = false
-) : StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate
+) : StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate {
+    override fun copy(): StateEvent<S> {
+        return copy(delegate = delegate.copy())
+    }
+}
