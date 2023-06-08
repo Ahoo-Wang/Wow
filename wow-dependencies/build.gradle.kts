@@ -19,7 +19,7 @@ dependencies {
     api(platform("io.r2dbc:r2dbc-bom:Borca-RELEASE"))
     api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
     constraints {
-        api("com.google.devtools.ksp:symbol-processing-api:1.8.21-1.0.11")
+        api("com.google.devtools.ksp:symbol-processing-api:1.8.22-1.0.11")
         api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
         api("com.google.guava:guava:32.0.0-jre")
         api("io.opentelemetry:opentelemetry-semconv:1.22.0-alpha")
