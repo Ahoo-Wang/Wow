@@ -14,9 +14,13 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import io.mockk.mockk
+import me.ahoo.wow.event.DefaultEventCompensator
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -30,7 +34,7 @@ class EventAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${EventProperties.Bus.TYPE}=${MessageBusType.IN_MEMORY_NAME}")
+            .withPropertyValues("${EventProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
             .withBean(EventStore::class.java, { mockk() })
             .withUserConfiguration(
                 EventAutoConfiguration::class.java,
@@ -38,6 +42,23 @@ class EventAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryDomainEventBus::class.java)
+                    .hasSingleBean(DefaultEventCompensator::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfLocalFirst() {
+        contextRunner
+            .enableWow()
+            .withBean(EventStore::class.java, { mockk() })
+            .withBean(DistributedDomainEventBus::class.java, { mockk() })
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(LocalDomainEventBus::class.java)
+                    .hasSingleBean(LocalFirstDomainEventBus::class.java)
             }
     }
 }

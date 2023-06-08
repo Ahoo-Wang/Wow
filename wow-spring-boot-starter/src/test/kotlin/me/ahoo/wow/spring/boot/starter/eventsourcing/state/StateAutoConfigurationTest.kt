@@ -1,8 +1,12 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
+import io.mockk.mockk
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -18,7 +22,7 @@ class StateAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${StateProperties.Bus.TYPE}=${MessageBusType.IN_MEMORY_NAME}",
+                "${StateProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}",
             )
             .withUserConfiguration(
                 StateAutoConfiguration::class.java,
@@ -27,6 +31,21 @@ class StateAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryStateEventBus::class.java)
                     .hasSingleBean(SendStateEventFilter::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfLocalFirst() {
+        contextRunner
+            .enableWow()
+            .withBean(DistributedStateEventBus::class.java, { mockk() })
+            .withUserConfiguration(
+                StateAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(LocalStateEventBus::class.java)
+                    .hasSingleBean(LocalFirstStateEventBus::class.java)
             }
     }
 }

@@ -13,19 +13,11 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
-import me.ahoo.wow.spring.boot.starter.BusProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
-import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
-@ConstructorBinding
-@ConfigurationProperties(prefix = StateProperties.PREFIX)
-data class StateProperties(
-    val bus: BusProperties = BusProperties()
-) {
-    companion object {
-        const val PREFIX = "${EventSourcingProperties.PREFIX}.state"
-        const val BUS_TYPE = "${PREFIX}${BusProperties.TYPE_SUFFIX_KEY}"
-        const val BUS_LOCAL_FIRST_ENABLED = "${PREFIX}${BusProperties.LOCAL_FIRST_ENABLED_SUFFIX_KEY}"
-    }
-}
+@ConditionalOnProperty(
+    StateProperties.BUS_LOCAL_FIRST_ENABLED,
+    havingValue = "true",
+    matchIfMissing = true
+)
+annotation class ConditionalOnStateEventLocalFirstEnabled

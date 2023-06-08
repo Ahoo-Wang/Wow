@@ -81,10 +81,12 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
     - [x] `InMemoryDomainEventBus` 
     - [x] `KafkaDomainEventBus` (Recommend)
     - [x] `RedisDomainEventBus`
+    - [x] `LocalFirstDomainEventBus`
 - [x] StateEventBus
     - [x] `InMemoryStateEventBus` 
     - [x] `KafkaStateEventBus` (Recommend)
     - [x] `RedisStateEventBus`
+    - [x] `LocalFirstStateEventBus`
 - [x] Spring Integration
     - [x] Spring Boot Auto Configuration
     - [x] Automatically register `CommandAggregate` to `RouterFunction`

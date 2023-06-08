@@ -13,17 +13,11 @@
 
 package me.ahoo.wow.spring.boot.starter.event
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.spring.boot.starter.BusProperties
-import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
-@ConstructorBinding
-@ConfigurationProperties(prefix = EventProperties.PREFIX)
-data class EventProperties(val bus: BusProperties = BusProperties()) {
-    companion object {
-        const val PREFIX = "${Wow.WOW_PREFIX}event"
-        const val BUS_TYPE = "${PREFIX}${BusProperties.TYPE_SUFFIX_KEY}"
-        const val BUS_LOCAL_FIRST_ENABLED = "${PREFIX}${BusProperties.LOCAL_FIRST_ENABLED_SUFFIX_KEY}"
-    }
-}
+@ConditionalOnProperty(
+    EventProperties.BUS_LOCAL_FIRST_ENABLED,
+    havingValue = "true",
+    matchIfMissing = true
+)
+annotation class ConditionalOnEventLocalFirstEnabled

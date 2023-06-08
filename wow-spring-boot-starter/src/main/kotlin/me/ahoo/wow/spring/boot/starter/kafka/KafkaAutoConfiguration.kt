@@ -27,8 +27,8 @@ import me.ahoo.wow.kafka.KafkaStateEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.StateEventTopicConverter
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.MessageBusType
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -61,9 +61,9 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnProperty(
-        CommandProperties.Bus.TYPE,
+        CommandProperties.BUS_TYPE,
         matchIfMissing = true,
-        havingValue = MessageBusType.KAFKA_NAME,
+        havingValue = BusProperties.Type.KAFKA_NAME,
     )
     fun kafkaCommandBus(
         topicConverter: CommandTopicConverter,
@@ -85,9 +85,9 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnProperty(
-        EventProperties.Bus.TYPE,
+        EventProperties.BUS_TYPE,
         matchIfMissing = true,
-        havingValue = MessageBusType.KAFKA_NAME,
+        havingValue = BusProperties.Type.KAFKA_NAME,
     )
     fun kafkaDomainEventBus(
         topicConverter: EventStreamTopicConverter,
@@ -109,9 +109,9 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnProperty(
-        value = [StateProperties.Bus.TYPE],
+        StateProperties.BUS_TYPE,
         matchIfMissing = true,
-        havingValue = MessageBusType.KAFKA_NAME,
+        havingValue = BusProperties.Type.KAFKA_NAME,
     )
     fun kafkaStateEventBus(
         topicConverter: StateEventTopicConverter,

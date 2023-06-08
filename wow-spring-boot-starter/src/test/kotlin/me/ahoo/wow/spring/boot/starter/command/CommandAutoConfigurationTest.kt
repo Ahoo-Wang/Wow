@@ -14,22 +14,16 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import io.mockk.mockk
-import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.command.wait.CommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
-import me.ahoo.wow.command.wait.ProjectedNotifierFilter
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.command.DistributedCommandBus
+import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.cloud.commons.util.UtilAutoConfiguration
-import javax.validation.Validator
 
 internal class CommandAutoConfigurationTest {
 
@@ -39,23 +33,28 @@ internal class CommandAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${CommandProperties.Bus.TYPE}=${MessageBusType.IN_MEMORY_NAME}")
-            .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
+            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
             .withUserConfiguration(
-                UtilAutoConfiguration::class.java,
-                WebClientAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,
-                CommandGatewayAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(Validator::class.java)
-                    .hasSingleBean(IdempotencyChecker::class.java)
-                    .hasSingleBean(WaitStrategyRegistrar::class.java)
-                    .hasSingleBean(CommandWaitEndpoint::class.java)
-                    .hasSingleBean(CommandGateway::class.java)
-                    .hasSingleBean(ProcessedNotifierFilter::class.java)
-                    .hasSingleBean(ProjectedNotifierFilter::class.java)
+                    .hasSingleBean(InMemoryCommandBus::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfLocalFirst() {
+        contextRunner
+            .enableWow()
+            .withBean(DistributedCommandBus::class.java, { mockk() })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(LocalCommandBus::class.java)
+                    .hasSingleBean(LocalFirstCommandBus::class.java)
             }
     }
 }

@@ -14,17 +14,22 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import me.ahoo.wow.event.DefaultEventCompensator
+import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.MessageBusType
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -32,8 +37,8 @@ import org.springframework.context.annotation.Bean
 class EventAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
-        EventProperties.Bus.TYPE,
-        havingValue = MessageBusType.IN_MEMORY_NAME,
+        EventProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.IN_MEMORY_NAME,
     )
     fun inMemoryDomainEventBus(): LocalDomainEventBus {
         return InMemoryDomainEventBus()
@@ -45,5 +50,24 @@ class EventAutoConfiguration {
         eventBus: DomainEventBus
     ): EventCompensator {
         return DefaultEventCompensator(eventStore, eventBus)
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LocalDomainEventBus::class)
+    @ConditionalOnBean(value = [DistributedDomainEventBus::class])
+    @ConditionalOnEventLocalFirstEnabled
+    fun localDomainEventBus(): LocalDomainEventBus {
+        return InMemoryDomainEventBus()
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnBean(value = [LocalDomainEventBus::class, DistributedDomainEventBus::class])
+    @ConditionalOnEventLocalFirstEnabled
+    fun localFirstDomainEventBus(
+        localBus: LocalDomainEventBus,
+        distributedBus: DistributedDomainEventBus
+    ): LocalFirstDomainEventBus {
+        return LocalFirstDomainEventBus(distributedBus, localBus)
     }
 }

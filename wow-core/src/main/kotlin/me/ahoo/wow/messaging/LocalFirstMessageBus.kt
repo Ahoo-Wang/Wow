@@ -38,7 +38,7 @@ fun <M> M.islocalHandled(): Boolean where M : Message<*, *>, M : NamedAggregate 
 }
 
 interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
-    where M : Message<*, *>, M : NamedAggregate, M : Copyable<M> {
+    where M : Message<*, *>, M : NamedAggregate, M : Copyable<*> {
     val distributedBus: DistributedMessageBus<M, E>
     val localBus: LocalMessageBus<M, E>
 
@@ -47,7 +47,9 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
         if (message.isLocal()) {
             message.withLoadFirst()
             val localSend = localBus.send(message)
-            val distributedMessage = message.copy()
+
+            @Suppress("UNCHECKED_CAST")
+            val distributedMessage = message.copy() as M
             val distributedSend = distributedBus.send(distributedMessage)
             return localSend.then(distributedSend)
         }

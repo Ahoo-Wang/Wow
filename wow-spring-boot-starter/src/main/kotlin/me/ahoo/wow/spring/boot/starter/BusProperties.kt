@@ -11,18 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.eventsourcing.state
+package me.ahoo.wow.spring.boot.starter
 
-import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-
-@ConditionalOnProperty(
-    value = [ConditionalOnStateEnabled.ENABLED_KEY],
-    matchIfMissing = true,
-    havingValue = "true",
-)
-annotation class ConditionalOnStateEnabled {
+data class BusProperties(
+    val type: Type = Type.KAFKA,
+    val localFirst: LocalFirst = LocalFirst()
+) {
     companion object {
-        const val ENABLED_KEY: String = StateProperties.PREFIX + ENABLED_SUFFIX_KEY
+        const val TYPE_SUFFIX_KEY = ".bus.type"
+        const val LOCAL_FIRST_ENABLED_SUFFIX_KEY = ".bus.local-first.enabled"
+    }
+
+    data class LocalFirst(val enabled: Boolean = true)
+
+    enum class Type {
+        KAFKA,
+        REDIS,
+        IN_MEMORY
+        ;
+
+        companion object {
+            const val KAFKA_NAME = "kafka"
+            const val REDIS_NAME = "redis"
+            const val IN_MEMORY_NAME = "in_memory"
+        }
     }
 }

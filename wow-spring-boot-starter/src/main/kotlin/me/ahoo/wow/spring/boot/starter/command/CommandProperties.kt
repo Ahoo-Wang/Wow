@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.spring.boot.starter.MessageBusType
+import me.ahoo.wow.spring.boot.starter.BusProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
 import java.time.Duration
@@ -22,29 +22,13 @@ import java.time.Duration
 @ConstructorBinding
 @ConfigurationProperties(prefix = CommandProperties.PREFIX)
 data class CommandProperties(
-    val bus: Bus = Bus(),
+    val bus: BusProperties = BusProperties(),
     val idempotency: Idempotency = Idempotency()
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}command"
-    }
-
-    data class Bus(
-        val type: MessageBusType = MessageBusType.KAFKA,
-        val localFirst: LocalFirst = LocalFirst()
-    ) {
-        companion object {
-            const val TYPE = "$PREFIX.bus.type"
-        }
-    }
-
-    data class LocalFirst(
-        val enabled: Boolean = true
-    ) {
-        companion object {
-            const val PREFIX = "${CommandProperties.PREFIX}.local-first"
-            const val ENABLED_KEY = "$PREFIX.enabled"
-        }
+        const val BUS_TYPE = "${PREFIX}${BusProperties.TYPE_SUFFIX_KEY}"
+        const val BUS_LOCAL_FIRST_ENABLED = "${PREFIX}${BusProperties.LOCAL_FIRST_ENABLED_SUFFIX_KEY}"
     }
 
     data class Idempotency(

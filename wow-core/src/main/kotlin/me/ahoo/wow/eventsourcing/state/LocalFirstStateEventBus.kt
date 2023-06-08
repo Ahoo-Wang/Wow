@@ -11,17 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter
+package me.ahoo.wow.eventsourcing.state
 
-enum class MessageBusType {
-    KAFKA,
-    REDIS,
-    IN_MEMORY
-    ;
+import me.ahoo.wow.messaging.LocalFirstMessageBus
 
-    companion object {
-        const val KAFKA_NAME = "kafka"
-        const val REDIS_NAME = "redis"
-        const val IN_MEMORY_NAME = "in_memory"
-    }
-}
+class LocalFirstStateEventBus(
+    override val distributedBus: DistributedStateEventBus,
+    override val localBus: LocalStateEventBus = InMemoryStateEventBus(),
+) : StateEventBus, LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>
