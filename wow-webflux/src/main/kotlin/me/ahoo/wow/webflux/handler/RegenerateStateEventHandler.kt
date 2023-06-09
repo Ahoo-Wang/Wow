@@ -13,40 +13,23 @@
 
 package me.ahoo.wow.webflux.handler
 
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationConfig
-import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.route.BatchResult
 import reactor.core.publisher.Mono
 
 class RegenerateStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val stateEventBus: StateEventBus
+    private val stateEventCompensator: StateEventCompensator
 ) {
     fun handle(config: CompensationConfig, cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap { aggregateId ->
-                stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-                    .flatMapMany { stateAggregate ->
-                        eventStore
-                            .load(
-                                aggregateId = aggregateId,
-                                headVersion = stateAggregate.expectedNextVersion,
-                            )
-                            .map {
-                                stateAggregate.onSourcing(it)
-                                it.asStateEvent(stateAggregate)
-                            }.concatMap {
-                                it.withCompensation(config)
-                                stateEventBus.send(it).thenReturn(it.aggregateId)
-                            }
-                    }
+                stateEventCompensator.compensate(aggregateId = aggregateId, config = config)
+                    .thenReturn(aggregateId)
             }
             .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
                 val nextCursorId = if (aggregateId.id > acc.cursorId) {

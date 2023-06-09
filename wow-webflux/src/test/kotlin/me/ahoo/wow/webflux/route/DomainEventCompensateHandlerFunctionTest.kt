@@ -2,8 +2,8 @@ package me.ahoo.wow.webflux.route
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.event.DefaultEventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.compensation.CompensationConfig
@@ -11,6 +11,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.appender.RoutePaths
+import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -19,13 +20,13 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
-class EventCompensateHandlerFunctionTest {
+class DomainEventCompensateHandlerFunctionTest {
 
     @Test
     fun handle() {
-        val handlerFunction = EventCompensateHandlerFunction(
+        val handlerFunction = DomainEventCompensateHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            eventCompensator = DefaultEventCompensator(
+            eventCompensator = DomainEventCompensator(
                 eventStore = InMemoryEventStore(),
                 eventBus = InMemoryDomainEventBus(),
             ),

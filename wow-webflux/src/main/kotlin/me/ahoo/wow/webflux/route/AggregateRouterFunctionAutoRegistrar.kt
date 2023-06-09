@@ -16,10 +16,10 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.event.EventCompensator
+import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -28,10 +28,11 @@ import me.ahoo.wow.webflux.route.appender.AggregateTracingRouteAppender
 import me.ahoo.wow.webflux.route.appender.BatchRegenerateSnapshotRouteAppender
 import me.ahoo.wow.webflux.route.appender.CommandRouteAppender
 import me.ahoo.wow.webflux.route.appender.DeleteAggregateRouteAppender
-import me.ahoo.wow.webflux.route.appender.EventCompensateRouteAppender
+import me.ahoo.wow.webflux.route.appender.DomainEventCompensateRouteAppender
 import me.ahoo.wow.webflux.route.appender.LoadAggregateRouteAppender
 import me.ahoo.wow.webflux.route.appender.RegenerateSnapshotRouteAppender
 import me.ahoo.wow.webflux.route.appender.RegenerateStateEventRouteAppender
+import me.ahoo.wow.webflux.route.appender.StateEventCompensateRouteAppender
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -46,8 +47,8 @@ class AggregateRouterFunctionAutoRegistrar(
     private val stateAggregateFactory: StateAggregateFactory,
     private val snapshotRepository: SnapshotRepository,
     private val eventStore: EventStore,
-    private val stateEventBus: StateEventBus,
-    private val eventCompensator: EventCompensator,
+    private val domainEventCompensator: DomainEventCompensator,
+    private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) {
     val routerFunction: RouterFunction<ServerResponse> by lazy {
@@ -93,9 +94,8 @@ class AggregateRouterFunctionAutoRegistrar(
                 currentContext = currentContext,
                 aggregateMetadata = aggregateMetadata,
                 routerFunctionBuilder = routerFunctionBuilder,
-                stateAggregateFactory = stateAggregateFactory,
                 eventStore = eventStore,
-                stateEventBus = stateEventBus,
+                stateEventCompensator = stateEventCompensator,
                 exceptionHandler = exceptionHandler,
             ).append()
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
@@ -114,11 +114,18 @@ class AggregateRouterFunctionAutoRegistrar(
                 commandGateway = commandGateway,
                 exceptionHandler = exceptionHandler,
             ).append()
-            EventCompensateRouteAppender(
+            DomainEventCompensateRouteAppender(
                 currentContext = currentContext,
                 aggregateMetadata = aggregateMetadata,
                 routerFunctionBuilder = routerFunctionBuilder,
-                eventCompensator = eventCompensator,
+                eventCompensator = domainEventCompensator,
+                exceptionHandler = exceptionHandler,
+            ).append()
+            StateEventCompensateRouteAppender(
+                currentContext = currentContext,
+                aggregateMetadata = aggregateMetadata,
+                routerFunctionBuilder = routerFunctionBuilder,
+                eventCompensator = stateEventCompensator,
                 exceptionHandler = exceptionHandler,
             ).append()
             AggregateTracingRouteAppender(

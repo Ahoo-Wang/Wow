@@ -11,27 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.event.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
+import me.ahoo.wow.messaging.compensation.EventCompensator
 import reactor.core.publisher.Mono
 
-/**
- * 事件补偿器
- */
-interface EventCompensator {
-    fun compensate(
-        aggregateId: AggregateId,
-        config: CompensationConfig = CompensationConfig.EMPTY,
-        headVersion: Int = EventStore.DEFAULT_HEAD_VERSION,
-        tailVersion: Int = Int.MAX_VALUE
-    ): Mono<Long>
-}
-
-class DefaultEventCompensator(
+class DomainEventCompensator(
     private val eventStore: EventStore,
     private val eventBus: DomainEventBus
 ) :

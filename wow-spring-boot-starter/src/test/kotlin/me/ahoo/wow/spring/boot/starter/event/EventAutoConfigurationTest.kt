@@ -14,12 +14,13 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import io.mockk.mockk
-import me.ahoo.wow.event.DefaultEventCompensator
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.LocalFirstDomainEventBus
+import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -35,14 +36,14 @@ class EventAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
-            .withBean(EventStore::class.java, { mockk() })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withUserConfiguration(
                 EventAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryDomainEventBus::class.java)
-                    .hasSingleBean(DefaultEventCompensator::class.java)
+                    .hasSingleBean(DomainEventCompensator::class.java)
             }
     }
 

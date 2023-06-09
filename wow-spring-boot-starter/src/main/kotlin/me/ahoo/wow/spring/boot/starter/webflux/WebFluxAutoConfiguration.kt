@@ -15,10 +15,10 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.event.EventCompensator
+import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -62,9 +62,9 @@ class WebFluxAutoConfiguration {
         stateAggregateRepository: StateAggregateRepository,
         snapshotRepository: SnapshotRepository,
         stateAggregateFactory: StateAggregateFactory,
-        eventCompensator: EventCompensator,
+        domainEventCompensator: DomainEventCompensator,
+        stateEventCompensator: StateEventCompensator,
         eventStore: EventStore,
-        stateEventBus: StateEventBus,
         exceptionHandler: ExceptionHandler
     ): RouterFunction<ServerResponse> {
         return AggregateRouterFunctionAutoRegistrar(
@@ -74,8 +74,8 @@ class WebFluxAutoConfiguration {
             snapshotRepository = snapshotRepository,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            stateEventBus = stateEventBus,
-            eventCompensator = eventCompensator,
+            domainEventCompensator = domainEventCompensator,
+            stateEventCompensator = stateEventCompensator,
             exceptionHandler = exceptionHandler,
         ).routerFunction
     }

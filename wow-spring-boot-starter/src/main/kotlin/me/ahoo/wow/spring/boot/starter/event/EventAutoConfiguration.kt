@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.spring.boot.starter.event
 
-import me.ahoo.wow.event.DefaultEventCompensator
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.LocalFirstDomainEventBus
+import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -45,11 +44,11 @@ class EventAutoConfiguration {
     }
 
     @Bean
-    fun eventCompensator(
+    fun domainEventCompensator(
         eventStore: EventStore,
         eventBus: DomainEventBus
-    ): EventCompensator {
-        return DefaultEventCompensator(eventStore, eventBus)
+    ): DomainEventCompensator {
+        return DomainEventCompensator(eventStore, eventBus)
     }
 
     @Bean

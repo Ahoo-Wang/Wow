@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
+import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -41,6 +44,15 @@ class StateAutoConfiguration {
     )
     fun inMemoryStateEventBus(): StateEventBus {
         return InMemoryStateEventBus()
+    }
+
+    @Bean
+    fun stateEventCompensator(
+        stateAggregateFactory: StateAggregateFactory,
+        eventStore: EventStore,
+        stateEventBus: StateEventBus
+    ): StateEventCompensator {
+        return StateEventCompensator(stateAggregateFactory, eventStore, stateEventBus)
     }
 
     @Bean

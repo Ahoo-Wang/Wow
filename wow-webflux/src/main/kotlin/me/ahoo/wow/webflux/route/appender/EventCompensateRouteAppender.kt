@@ -17,17 +17,17 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.TenantId.Companion.DEFAULT_TENANT_ID
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.route.EventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.appender.RoutePaths.COMPENSATE_HEAD_VERSION_KEY
 import me.ahoo.wow.webflux.route.appender.RoutePaths.COMPENSATE_TAIL_VERSION_KEY
+import me.ahoo.wow.webflux.route.compensation.EventCompensateHandlerFunction
 import org.springdoc.core.fn.builders.operation.Builder
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder
 import org.springframework.http.HttpStatus
@@ -35,27 +35,27 @@ import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RequestPredicates
 import java.util.function.Consumer
 
-class EventCompensateRouteAppender(
-    private val currentContext: NamedBoundedContext,
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val routerFunctionBuilder: SpringdocRouteBuilder,
-    private val eventCompensator: EventCompensator,
-    private val exceptionHandler: ExceptionHandler
-) {
+abstract class EventCompensateRouteAppender {
+
+    abstract val currentContext: NamedBoundedContext
+    abstract val aggregateMetadata: AggregateMetadata<*, *>
+    abstract val routerFunctionBuilder: SpringdocRouteBuilder
+    abstract val eventCompensator: EventCompensator
+    abstract val exceptionHandler: ExceptionHandler
+    abstract val topicKind: String
+
+    abstract fun createEventCompensateHandlerFunction(): EventCompensateHandlerFunction
+
     fun append() {
         val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath
         routerFunctionBuilder
             .PUT(
                 /* pattern = */
-                "$aggregateIdPath/event/{$COMPENSATE_HEAD_VERSION_KEY}/{$COMPENSATE_TAIL_VERSION_KEY}/compensate",
+                "$aggregateIdPath/$topicKind/{$COMPENSATE_HEAD_VERSION_KEY}/{$COMPENSATE_TAIL_VERSION_KEY}/compensate",
                 /* predicate = */
                 RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 /* handlerFunction = */
-                EventCompensateHandlerFunction(
-                    aggregateMetadata = aggregateMetadata,
-                    eventCompensator = eventCompensator,
-                    exceptionHandler = exceptionHandler,
-                ),
+                createEventCompensateHandlerFunction(),
                 /* operationsConsumer = */
                 eventCompensateOperation(),
             )
@@ -67,8 +67,8 @@ class EventCompensateRouteAppender(
             it
                 .tag(Wow.WOW)
                 .tag(aggregateMetadata.asStringWithAlias())
-                .summary("event compensate")
-                .operationId("${aggregateMetadata.asStringWithAlias()}.eventCompensate")
+                .summary("$topicKind compensate")
+                .operationId("${aggregateMetadata.asStringWithAlias()}.${topicKind}Compensate")
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)
