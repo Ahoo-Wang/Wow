@@ -15,6 +15,8 @@ package me.ahoo.wow.event
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -31,6 +33,7 @@ import java.time.Duration
 internal class DomainEventDispatcherTest {
     private val namedAggregate = DomainEventDispatcherTest::class.java.asRequiredNamedAggregate()
     private val domainEventBus: DomainEventBus = InMemoryDomainEventBus()
+    private val stateEventBus: StateEventBus = InMemoryStateEventBus()
     private val handlerRegistrar = DomainEventFunctionRegistrar()
 
     @Test
@@ -59,6 +62,7 @@ internal class DomainEventDispatcherTest {
             DomainEventDispatcher(
                 name = "test.DomainEventProcessor",
                 domainEventBus = domainEventBus,
+                stateEventBus = stateEventBus,
                 functionRegistrar = handlerRegistrar,
                 eventHandler = DefaultDomainEventHandler(chain).metrizable(),
             )

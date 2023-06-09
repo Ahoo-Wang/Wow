@@ -26,6 +26,6 @@ const val DEFAULT_ON_ERROR_NAME = "onError"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(FunctionKind.ERROR, defaultHandlerName = DEFAULT_ON_ERROR_NAME)
+@OnMessage(FunctionKind.ERROR, defaultFunctionName = DEFAULT_ON_ERROR_NAME)
 @MustBeDocumented
 annotation class OnError

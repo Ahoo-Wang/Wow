@@ -14,6 +14,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import java.util.concurrent.ConcurrentHashMap
 
 interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>>
@@ -22,3 +23,27 @@ class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : DomainEventExchange<T>
+
+interface StateDomainEventExchange<S : Any, T : Any> : DomainEventExchange<T> {
+    val state: ReadOnlyStateAggregate<S>
+    override fun <T : Any> extractDeclared(type: Class<T>): T? {
+        val extracted = super.extractDeclared(type)
+        if (extracted != null) {
+            return extracted
+        }
+        if (type.isInstance(state)) {
+            return type.cast(state)
+        }
+        if (type.isInstance(state.state)) {
+            return type.cast(state.state)
+        }
+
+        return null
+    }
+}
+
+class SimpleStateDomainEventExchange<S : Any, T : Any>(
+    override val state: ReadOnlyStateAggregate<S>,
+    override val message: DomainEvent<T>,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
+) : StateDomainEventExchange<S, T>

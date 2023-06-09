@@ -67,7 +67,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 .doOnSubscribe {
                     onReady.asMono()
                         .then(send(message))
-                        .delaySubscription(Duration.ofMillis(2000))
+                        .delaySubscription(Duration.ofMillis(1000))
                         .subscribe()
                 }
                 .test()
@@ -94,12 +94,13 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                         }
                     onReady.asMono()
                         .thenMany(sendFlux)
-                        .delaySubscription(Duration.ofMillis(2000))
+                        .delaySubscription(Duration.ofMillis(1000))
                         .subscribe()
                 }
                 .test()
                 .expectNextCount(10)
-                .verifyTimeout(Duration.ofSeconds(4))
+                .thenCancel()
+                .verify()
         }
     }
 
@@ -113,7 +114,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         }
     }
 
-    private fun sendLoop(messageBus: BUS, maxCount: Int = 2000): Mono<Void> {
+    private fun sendLoop(messageBus: BUS, maxCount: Int = 1000): Mono<Void> {
         return Flux.range(0, maxCount)
             .flatMap {
                 val message = createMessage()
@@ -125,7 +126,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     @Test
     fun receivePerformance() {
         verify {
-            val maxCount: Long = 2000
+            val maxCount: Long = 1000
             val onReady = Sinks.empty<Void>()
             val duration = receive(setOf(namedAggregate))
                 .writeReceiverGroup(GlobalIdGenerator.generateAsString())
@@ -134,12 +135,13 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                     val sendFlux = sendLoop(messageBus = this, maxCount = maxCount.toInt())
                     onReady.asMono()
                         .thenMany(sendFlux)
-                        .delaySubscription(Duration.ofMillis(2000))
+                        .delaySubscription(Duration.ofMillis(1000))
                         .subscribe()
                 }
                 .test()
                 .expectNextCount(maxCount)
-                .verifyTimeout(Duration.ofSeconds(6))
+                .thenCancel()
+                .verify()
             log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
         }
     }

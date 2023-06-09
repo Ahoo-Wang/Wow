@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 internal class MethodFunctionMetadataTest {
 
     @Test
-    fun asHandlerMetadata() {
+    fun asCommandFunctionMetadata() {
         val metadata = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
@@ -58,7 +58,7 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asEventHandlerMetadata() {
+    fun asEventFunctionMetadata() {
         val metadata =
             MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
@@ -75,7 +75,7 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asEventHandlerMetadataWithMultiAggregate() {
+    fun asEventFunctionMetadataWithMultiAggregate() {
         val metadata =
             MockWithMultiAggregateNameFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .asFunctionMetadata<Any, Any>()
@@ -95,7 +95,26 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asHandlerMetadataWhenWrapped() {
+    fun asOnStateEventFunctionMetadata() {
+        val metadata =
+            MockOnStateEventFunction::class.java.getDeclaredMethod("onStateEvent", DomainEvent::class.java)
+                .asFunctionMetadata<Any, Any>()
+        assertThat(
+            metadata.supportedTopics,
+            hasItems(
+                MaterializedNamedAggregate("wow-core-test", "aggregate1")
+            ),
+        )
+        assertThat(
+            metadata.functionKind,
+            equalTo(
+                FunctionKind.STATE_EVENT
+            ),
+        )
+    }
+
+    @Test
+    fun asFunctionMetadataWhenWrapped() {
         val metadata =
             MockWithWrappedFunction::class.java.getDeclaredMethod("onEvent", DomainEvent::class.java)
                 .asFunctionMetadata<MockAggregate, Any>()
@@ -117,9 +136,9 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asHandlerMetadataWithNoneParameter() {
+    fun asFunctionMetadataWithNoneParameter() {
         Assertions.assertThrows(IllegalStateException::class.java) {
-            MethodFunctionMetadataTest::class.java.getDeclaredMethod("asHandlerMetadataWithNoneParameter")
+            MethodFunctionMetadataTest::class.java.getDeclaredMethod("asFunctionMetadataWithNoneParameter")
                 .asFunctionMetadata<MethodFunctionMetadataTest, Any>()
         }
     }

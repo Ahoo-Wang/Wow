@@ -15,6 +15,7 @@ package me.ahoo.wow.projection
 
 import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
@@ -27,6 +28,7 @@ class ProjectionDispatcher(
     override val name: String,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val domainEventBus: DomainEventBus,
+    override val stateEventBus: StateEventBus,
     override val functionRegistrar: ProjectionFunctionRegistrar,
     override val eventHandler: ProjectionHandler,
     override val schedulerSupplier: AggregateSchedulerSupplier =

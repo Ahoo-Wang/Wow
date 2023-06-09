@@ -33,7 +33,7 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
 
     abstract fun receiveMessage(namedAggregate: NamedAggregate): Flux<T>
     abstract fun newAggregateDispatcher(namedAggregate: NamedAggregate, messageFlux: Flux<T>): MessageDispatcher
-    protected val aggregateDispatchers = lazy {
+    protected val aggregateDispatchers by lazy {
         namedAggregates
             .map {
                 val messageFlux = receiveMessage(it)
@@ -53,13 +53,13 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
             }
             return
         }
-        aggregateDispatchers.value.forEach { it.run() }
+        aggregateDispatchers.forEach { it.run() }
     }
 
     override fun close() {
         if (log.isInfoEnabled) {
             log.info("[$name] Close.")
         }
-        aggregateDispatchers.value.forEach { it.close() }
+        aggregateDispatchers.forEach { it.close() }
     }
 }

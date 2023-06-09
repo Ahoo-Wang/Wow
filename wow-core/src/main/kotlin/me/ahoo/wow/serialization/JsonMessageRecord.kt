@@ -72,7 +72,7 @@ interface HeaderRecord : JsonRecord {
     fun asMessageHeader(): Header {
         val messageHeader = DefaultHeader.empty()
         header.fields().forEach {
-            messageHeader.put(it.key, it.value.asText())
+            messageHeader[it.key] = it.value.asText()
         }
         return messageHeader
     }

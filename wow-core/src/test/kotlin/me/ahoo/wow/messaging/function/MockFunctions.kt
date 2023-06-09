@@ -16,6 +16,7 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.event.DomainEvent
 
 internal class MockEventBody
@@ -34,6 +35,11 @@ internal class MockAnotherFunction {
 internal class MockWithMultiAggregateNameFunction {
     @OnEvent("aggregate1", "aggregate2")
     fun onEvent(mockEventBody: MockEventBody) = Unit
+}
+
+internal class MockOnStateEventFunction {
+    @OnStateEvent("aggregate1")
+    fun onStateEvent(event: DomainEvent<MockEventBody>) = Unit
 }
 
 interface ExternalService

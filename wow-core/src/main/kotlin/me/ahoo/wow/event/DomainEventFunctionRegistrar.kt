@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.annotation.asEventProcessorMetadata
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -21,26 +20,17 @@ import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
 import reactor.core.publisher.Mono
 
-abstract class AbstractEventFunctionRegistrar<R : Mono<*>>(
-    override val delegate: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>> =
+abstract class AbstractEventFunctionRegistrar(
+    override val delegate: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
 ) :
-    MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>> by delegate,
-    Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, R>>> {
-
-    @Suppress("UNCHECKED_CAST")
-    val namedAggregates: Set<NamedAggregate>
-        get() = functions
-            .flatMap {
-                it.supportedTopics as Set<NamedAggregate>
-            }
-            .toSet()
-}
+    MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> by delegate,
+    Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>>
 
 class DomainEventFunctionRegistrar(
     actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
-) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
+) : AbstractEventFunctionRegistrar(actual) {
 
     fun registerProcessor(processor: Any) {
         processor.javaClass

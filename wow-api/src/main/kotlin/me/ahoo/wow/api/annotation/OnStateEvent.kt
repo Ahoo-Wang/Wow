@@ -10,17 +10,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.api.annotation
 
-package me.ahoo.wow.api.messaging
+import me.ahoo.wow.api.messaging.FunctionKind
+import java.lang.annotation.Inherited
 
-enum class FunctionKind(val topicKind: TopicKind) {
-    COMMAND(TopicKind.COMMAND),
-    SOURCING(TopicKind.EVENT_STREAM),
-    EVENT(TopicKind.EVENT_STREAM),
-    STATE_EVENT(TopicKind.STATE_EVENT),
-    ERROR(TopicKind.UNDEFINED),
-}
+const val DEFAULT_ON_STATE_EVENT_NAME = "onStateEvent"
 
-interface FunctionKindCapable {
-    val functionKind: FunctionKind
-}
+/**
+ * On State Event.
+ *
+ * @author ahoo wang
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Inherited
+@OnMessage(FunctionKind.STATE_EVENT, DEFAULT_ON_STATE_EVENT_NAME)
+@MustBeDocumented
+annotation class OnStateEvent(
+    /**
+     * aggregate Names
+     */
+    vararg val value: String
+)

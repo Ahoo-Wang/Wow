@@ -26,7 +26,7 @@ const val DEFAULT_ON_COMMAND_NAME = "onCommand"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(FunctionKind.COMMAND, defaultHandlerName = DEFAULT_ON_COMMAND_NAME)
+@OnMessage(FunctionKind.COMMAND, defaultFunctionName = DEFAULT_ON_COMMAND_NAME)
 @MustBeDocumented
 annotation class OnCommand(
     /**
