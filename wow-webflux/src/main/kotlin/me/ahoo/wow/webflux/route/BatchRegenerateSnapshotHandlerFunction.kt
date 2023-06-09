@@ -53,9 +53,9 @@ class BatchRegenerateSnapshotHandlerFunction(
             cursorId = cursorId,
             limit = limit
         )
-            .flatMap({ aggregateId ->
+            .flatMap { aggregateId ->
                 handler.handle(aggregateId)
-            }, limit, limit)
+            }
             .reduce(BatchResult(cursorId, 0)) { acc, snapshot ->
                 val nextCursorId = if (snapshot.aggregateId.id > acc.cursorId) {
                     snapshot.aggregateId.id
