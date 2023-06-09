@@ -38,9 +38,10 @@ interface EventStore : AggregateIdScanner {
     /**
      * 根据聚合ID加载事件流.
      * ``` kotlin
-     *  var offset=headVersion-1;
-     *  var limit=tailVersion-headVersion;
+     *  val offset=headVersion-1;
+     *  val limit=tailVersion-headVersion+1;
      * ```
+     * [headVersion~tailVersion]
      *
      * @param aggregateId 聚合ID
      * @param headVersion 事件流的第一个事件版本号，当 `headVersion`=H 时，即从事件版本号 H (包括)开始加载事件流。

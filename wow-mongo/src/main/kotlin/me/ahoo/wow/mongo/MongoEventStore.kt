@@ -81,6 +81,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.asEventStreamCollectionName()
+        val limit = tailVersion - headVersion + 1
         return database.getCollection(eventStreamCollectionName)
             .find(
                 Filters.and(
@@ -89,6 +90,8 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                     Filters.lte(MessageRecords.VERSION, tailVersion),
                 ),
             )
+            .limit(limit)
+            .batchSize(limit)
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyAsId().toJson().asObject<DomainEventStream>()
@@ -116,6 +119,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                     Aggregates.limit(limit)
                 )
             )
+            .batchSize(limit)
             .toFlux()
             .map {
                 namedAggregate.asAggregateId(

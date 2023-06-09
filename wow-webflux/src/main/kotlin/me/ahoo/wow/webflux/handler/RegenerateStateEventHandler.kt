@@ -31,7 +31,7 @@ class RegenerateStateEventHandler(
 ) {
     fun handle(config: CompensationConfig, cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
-            .flatMap({ aggregateId ->
+            .flatMap { aggregateId ->
                 stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
                     .flatMapMany { stateAggregate ->
                         eventStore
@@ -47,7 +47,7 @@ class RegenerateStateEventHandler(
                                 stateEventBus.send(it).thenReturn(it.aggregateId)
                             }
                     }
-            }, limit, limit)
+            }
             .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
                 val nextCursorId = if (aggregateId.id > acc.cursorId) {
                     aggregateId.id
