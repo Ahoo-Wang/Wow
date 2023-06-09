@@ -23,7 +23,7 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
         return R2dbcEventStore(
             SimpleDatabase(ConnectionFactoryProviders.create(2)),
             ShardingEventStreamSchema(
-                CosIdShardingDecorator(ModCycle(4, namedAggregate.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX))
+                CosIdShardingDecorator(ModCycle(4, namedAggregate.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX)),
             ),
         ).metrizable()
     }

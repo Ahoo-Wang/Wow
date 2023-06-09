@@ -40,7 +40,7 @@ class RegenerateSnapshotHandlerFunction(
         aggregateMetadata = aggregateMetadata,
         stateAggregateFactory = stateAggregateFactory,
         eventStore = eventStore,
-        snapshotRepository = snapshotRepository
+        snapshotRepository = snapshotRepository,
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {

@@ -42,7 +42,7 @@ class BatchRegenerateSnapshotHandlerFunction(
         aggregateMetadata,
         stateAggregateFactory,
         eventStore,
-        snapshotRepository
+        snapshotRepository,
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -51,7 +51,7 @@ class BatchRegenerateSnapshotHandlerFunction(
         return eventStore.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             cursorId = cursorId,
-            limit = limit
+            limit = limit,
         )
             .flatMap { aggregateId ->
                 handler.handle(aggregateId)

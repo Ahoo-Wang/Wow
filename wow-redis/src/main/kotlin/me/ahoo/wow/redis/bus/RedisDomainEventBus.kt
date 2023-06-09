@@ -28,7 +28,7 @@ class RedisDomainEventBus(
     AbstractRedisMessageBus<DomainEventStream, EventStreamExchange>(
         redisTemplate,
         topicConverter,
-        pollTimeout
+        pollTimeout,
     ) {
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
@@ -36,7 +36,7 @@ class RedisDomainEventBus(
     override fun DomainEventStream.asExchange(acknowledgePublisher: Mono<Void>): EventStreamExchange {
         return RedisEventStreamExchange(
             this,
-            acknowledgePublisher
+            acknowledgePublisher,
         )
     }
 }

@@ -26,7 +26,7 @@ class RegenerateSnapshotHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotRepository: SnapshotRepository
 ) {
 
     fun handle(aggregateId: AggregateId): Mono<Snapshot<*>> {

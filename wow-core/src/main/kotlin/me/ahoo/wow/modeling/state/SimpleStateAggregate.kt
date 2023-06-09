@@ -14,9 +14,9 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TypedAggregate
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata

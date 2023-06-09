@@ -109,15 +109,15 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .aggregate(
                 listOf(
                     Aggregates.match(
-                        Filters.gt(MessageRecords.AGGREGATE_ID, cursorId)
+                        Filters.gt(MessageRecords.AGGREGATE_ID, cursorId),
                     ),
                     Aggregates.group(
                         "\$${MessageRecords.AGGREGATE_ID}",
-                        BsonField(MessageRecords.TENANT_ID, Document("\$first", "\$${MessageRecords.TENANT_ID}"))
+                        BsonField(MessageRecords.TENANT_ID, Document("\$first", "\$${MessageRecords.TENANT_ID}")),
                     ),
                     Aggregates.sort(Sorts.ascending(Documents.ID_FIELD)),
-                    Aggregates.limit(limit)
-                )
+                    Aggregates.limit(limit),
+                ),
             )
             .batchSize(limit)
             .toFlux()

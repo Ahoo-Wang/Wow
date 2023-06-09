@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 class LocalFirstCommandBus(
     override val distributedBus: DistributedCommandBus,
-    override val localBus: LocalCommandBus = InMemoryCommandBus(),
+    override val localBus: LocalCommandBus = InMemoryCommandBus()
 ) : CommandBus, LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>>

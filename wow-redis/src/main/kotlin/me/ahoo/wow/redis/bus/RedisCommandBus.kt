@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
@@ -28,7 +28,7 @@ class RedisCommandBus(
     AbstractRedisMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(
         redisTemplate,
         topicConverter,
-        pollTimeout
+        pollTimeout,
     ) {
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
@@ -36,7 +36,7 @@ class RedisCommandBus(
     override fun CommandMessage<*>.asExchange(acknowledgePublisher: Mono<Void>): ServerCommandExchange<*> {
         return RedisServerCommandExchange(
             this,
-            acknowledgePublisher
+            acknowledgePublisher,
         )
     }
 }

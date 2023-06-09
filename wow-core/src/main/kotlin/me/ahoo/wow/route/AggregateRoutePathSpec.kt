@@ -65,7 +65,7 @@ interface AggregateRoutePathSpec {
         fun AggregateMetadata<*, *>.asIgnoreTenantAggregateRoutePathSpec(currentContext: NamedBoundedContext): AggregateRoutePathSpec {
             return IgnoreTenantAggregateRoutePathSpec(
                 currentContext = currentContext,
-                namedAggregate = this.namedAggregate
+                namedAggregate = this.namedAggregate,
             )
         }
 

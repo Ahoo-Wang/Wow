@@ -14,7 +14,6 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.TenantId

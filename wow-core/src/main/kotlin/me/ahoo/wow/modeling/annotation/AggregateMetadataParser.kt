@@ -24,8 +24,8 @@ import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
-import me.ahoo.wow.messaging.function.asMonoFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata

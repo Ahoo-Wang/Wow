@@ -18,7 +18,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 
 class IgnoreTenantAggregateRoutePathSpec(
     override val currentContext: NamedBoundedContext,
-    override val namedAggregate: NamedAggregate,
+    override val namedAggregate: NamedAggregate
 ) : AggregateRoutePathSpec {
     override val ignoreTenant: Boolean
         get() = true

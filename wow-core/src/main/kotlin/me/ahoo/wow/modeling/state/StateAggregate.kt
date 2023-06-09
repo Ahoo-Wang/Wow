@@ -55,7 +55,7 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
                 eventId = eventId,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
-                deleted = deleted
+                deleted = deleted,
             )
         }
 
@@ -77,7 +77,7 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
                 eventId = eventId,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
-                deleted = deleted
+                deleted = deleted,
             )
         }
 
@@ -92,7 +92,7 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
                 eventId = eventId,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
-                deleted = deleted
+                deleted = deleted,
             )
         }
     }

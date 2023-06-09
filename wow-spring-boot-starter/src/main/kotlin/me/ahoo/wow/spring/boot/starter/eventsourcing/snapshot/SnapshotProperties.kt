@@ -21,7 +21,7 @@ import org.springframework.boot.context.properties.ConstructorBinding
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
     val enabled: Boolean = true,
-    val storage: SnapshotStorage = SnapshotStorage.MONGO,
+    val storage: SnapshotStorage = SnapshotStorage.MONGO
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"

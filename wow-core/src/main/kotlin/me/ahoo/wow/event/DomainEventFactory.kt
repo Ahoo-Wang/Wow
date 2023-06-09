@@ -14,8 +14,6 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
-import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.annotation.asEventMetadata

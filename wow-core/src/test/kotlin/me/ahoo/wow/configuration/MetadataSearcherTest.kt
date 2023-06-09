@@ -43,8 +43,8 @@ internal class MetadataSearcherTest {
         WowMetadata(
             mapOf(
                 "cart-service" to BoundedContext(alias = "cart"),
-                "order-service" to BoundedContext(alias = "order")
-            )
+                "order-service" to BoundedContext(alias = "order"),
+            ),
         )
     }
 
@@ -53,8 +53,8 @@ internal class MetadataSearcherTest {
         WowMetadata(
             mapOf(
                 "cart-service" to BoundedContext(),
-                "order-service" to BoundedContext()
-            )
+                "order-service" to BoundedContext(),
+            ),
         )
     }
 
@@ -64,8 +64,8 @@ internal class MetadataSearcherTest {
             WowMetadata(
                 mapOf(
                     "cart-service" to BoundedContext(alias = "order"),
-                    "order-service" to BoundedContext(alias = "order")
-                )
+                    "order-service" to BoundedContext(alias = "order"),
+                ),
             )
         }
     }

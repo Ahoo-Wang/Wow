@@ -22,7 +22,7 @@ class AggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             eventStore = InMemoryEventStore(),
-            exceptionHandler = DefaultExceptionHandler
+            exceptionHandler = DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()

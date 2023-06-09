@@ -13,20 +13,19 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
-import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
-import me.ahoo.wow.infra.accessor.method.reactive.asMonoMethodAccessor
 import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.publisher.Mono
-import java.lang.reflect.Method
 
 data class MethodFunctionMetadata<P, out R>(
+    override val topicKind: TopicKind,
     val accessor: MethodAccessor<P, R>,
     val supportedType: Class<*>,
     val supportedTopics: Set<Any>,
     val firstParameterKind: FirstParameterKind,
     val injectParameterTypes: Array<Class<*>>
-) {
+) : TopicKindCapable {
     val injectParameterLength: Int
         get() = injectParameterTypes.size
 
@@ -45,9 +44,7 @@ data class MethodFunctionMetadata<P, out R>(
         if (this === other) return true
         if (other !is MethodFunctionMetadata<*, *>) return false
 
-        if (accessor != other.accessor) return false
-
-        return true
+        return accessor == other.accessor
     }
 
     override fun hashCode(): Int {
@@ -63,14 +60,4 @@ enum class FirstParameterKind {
     MESSAGE_EXCHANGE,
     MESSAGE,
     MESSAGE_BODY
-}
-
-fun <P, R> Method.asFunctionMetadata(): MethodFunctionMetadata<P, R> {
-    return this.asFunctionMetadata(::SimpleMethodAccessor)
-}
-
-fun <P, R> Method.asMonoFunctionMetadata(): MethodFunctionMetadata<P, Mono<R>> {
-    return this.asFunctionMetadata {
-        it.asMonoMethodAccessor()
-    }
 }

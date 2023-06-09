@@ -12,9 +12,9 @@
  */
 package me.ahoo.wow.tck.command
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
@@ -32,7 +32,7 @@ abstract class CommandBusSpec : MessageBusSpec<CommandMessage<*>, ServerCommandE
     override fun createMessage(): CommandMessage<*> {
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString()
+            data = GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
     }
 }

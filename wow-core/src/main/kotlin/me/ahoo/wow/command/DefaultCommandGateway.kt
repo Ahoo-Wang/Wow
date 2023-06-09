@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitStrategy

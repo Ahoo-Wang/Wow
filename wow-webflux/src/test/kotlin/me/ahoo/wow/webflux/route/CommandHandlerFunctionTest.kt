@@ -33,12 +33,12 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             commandRouteMetadata,
             commandGateway,
-            DefaultExceptionHandler
+            DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { bodyToMono(commandRouteMetadata.commandMetadata.commandType) } returns MockCreateAggregate(
                 id = GlobalIdGenerator.generateAsString(),
-                data = GlobalIdGenerator.generateAsString()
+                data = GlobalIdGenerator.generateAsString(),
             ).toMono()
             every { headers().firstHeader(CommandHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()

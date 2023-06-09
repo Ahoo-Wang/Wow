@@ -19,9 +19,9 @@ class NoOpValidatorTest {
     fun validateProperty() {
         val actual = NoOpValidator.validateProperty(
             MockCreateCommand(
-                GlobalIdGenerator.generateAsString()
+                GlobalIdGenerator.generateAsString(),
             ),
-            ""
+            "",
         )
         assertThat(actual, empty())
     }
@@ -31,7 +31,7 @@ class NoOpValidatorTest {
         val actual = NoOpValidator.validateValue(
             MockCreateCommand::class.java,
             "",
-            MockCreateCommand(GlobalIdGenerator.generateAsString())
+            MockCreateCommand(GlobalIdGenerator.generateAsString()),
         )
         assertThat(actual, empty())
     }

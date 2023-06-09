@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.TopicKind
 import java.lang.annotation.Inherited
 
 const val DEFAULT_ON_ERROR_NAME = "onError"
@@ -26,6 +26,6 @@ const val DEFAULT_ON_ERROR_NAME = "onError"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(CommandMessage::class, defaultHandlerName = DEFAULT_ON_ERROR_NAME)
+@OnMessage(TopicKind.COMMAND, defaultHandlerName = DEFAULT_ON_ERROR_NAME)
 @MustBeDocumented
 annotation class OnError

@@ -14,6 +14,7 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

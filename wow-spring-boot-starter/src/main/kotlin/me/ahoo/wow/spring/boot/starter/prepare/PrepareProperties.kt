@@ -21,7 +21,7 @@ import org.springframework.boot.context.properties.ConstructorBinding
 @ConfigurationProperties(prefix = PrepareProperties.PREFIX)
 data class PrepareProperties(
     val enabled: Boolean = true,
-    val storage: PrepareStorage = PrepareStorage.MONGO,
+    val storage: PrepareStorage = PrepareStorage.MONGO
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}prepare"
@@ -31,7 +31,7 @@ data class PrepareProperties(
 
 enum class PrepareStorage {
     MONGO,
-    REDIS,
+    REDIS
     ;
 
     companion object {

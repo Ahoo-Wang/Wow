@@ -33,7 +33,7 @@ abstract class DomainEventStreamSpec {
     private val testAggregateId = namedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
     protected val testEvents: List<*> = listOf(
         MockAggregateCreated(GlobalIdGenerator.generateAsString()),
-        MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        MockAggregateChanged(GlobalIdGenerator.generateAsString()),
     )
 
     protected abstract fun createDomainEventStream(

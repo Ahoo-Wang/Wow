@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.TopicKind
 import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
@@ -26,7 +26,7 @@ const val DEFAULT_ON_COMMAND_NAME = "onCommand"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(CommandMessage::class, defaultHandlerName = DEFAULT_ON_COMMAND_NAME)
+@OnMessage(TopicKind.COMMAND, defaultHandlerName = DEFAULT_ON_COMMAND_NAME)
 @MustBeDocumented
 annotation class OnCommand(
     /**

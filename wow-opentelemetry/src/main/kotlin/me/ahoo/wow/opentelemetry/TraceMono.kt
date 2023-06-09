@@ -22,7 +22,7 @@ class TraceMono<T : Any, O>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val request: T,
-    private val source: Mono<O>,
+    private val source: Mono<O>
 ) : Mono<O>() {
     override fun subscribe(actual: CoreSubscriber<in O>) {
         if (!instrumenter.shouldStart(parentContext, request)) {

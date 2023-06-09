@@ -32,7 +32,7 @@ class RegenerateStateEventFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val stateEventBus: StateEventBus,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler =
         RegenerateStateEventHandler(aggregateMetadata, stateAggregateFactory, eventStore, stateEventBus)

@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.infra.TypeNameMapper.asType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate

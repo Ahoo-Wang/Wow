@@ -17,5 +17,5 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 class LocalFirstDomainEventBus(
     override val distributedBus: DistributedDomainEventBus,
-    override val localBus: LocalDomainEventBus = InMemoryDomainEventBus(),
+    override val localBus: LocalDomainEventBus = InMemoryDomainEventBus()
 ) : DomainEventBus, LocalFirstMessageBus<DomainEventStream, EventStreamExchange>

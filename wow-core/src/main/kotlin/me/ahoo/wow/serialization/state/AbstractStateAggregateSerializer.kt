@@ -89,7 +89,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
                 eventId = eventId,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
-                deleted = deleted
+                deleted = deleted,
             )
         return createStateAggregate(stateRecord, stateAggregate)
     }

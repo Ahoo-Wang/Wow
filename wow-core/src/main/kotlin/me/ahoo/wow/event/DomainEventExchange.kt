@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.messaging.handler.MessageExchange
 import java.util.concurrent.ConcurrentHashMap
 

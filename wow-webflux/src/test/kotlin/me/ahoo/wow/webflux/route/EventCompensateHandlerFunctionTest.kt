@@ -27,9 +27,9 @@ class EventCompensateHandlerFunctionTest {
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             eventCompensator = DefaultEventCompensator(
                 eventStore = InMemoryEventStore(),
-                eventBus = InMemoryDomainEventBus()
+                eventBus = InMemoryDomainEventBus(),
             ),
-            exceptionHandler = DefaultExceptionHandler
+            exceptionHandler = DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()

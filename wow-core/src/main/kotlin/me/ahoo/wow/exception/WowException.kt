@@ -46,22 +46,22 @@ fun Throwable.asErrorInfo(): ErrorInfo {
         is ErrorInfo -> this.materialize()
         is IllegalArgumentException -> ErrorInfo.of(
             ErrorCodes.ILLEGAL_ARGUMENT,
-            message
+            message,
         )
 
         is IllegalStateException -> ErrorInfo.of(
             ErrorCodes.ILLEGAL_STATE,
-            message
+            message,
         )
 
         is TimeoutException -> ErrorInfo.of(
             ErrorCodes.REQUEST_TIMEOUT,
-            message
+            message,
         )
 
         else -> ErrorInfo.of(
             ErrorCodes.BAD_REQUEST,
-            message
+            message,
         )
     }
 }

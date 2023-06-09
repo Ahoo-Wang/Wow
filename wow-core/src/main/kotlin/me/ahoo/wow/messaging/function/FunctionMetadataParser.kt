@@ -13,23 +13,29 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
+import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.configuration.asNamedAggregate
 import me.ahoo.wow.configuration.asNamedBoundedContext
-import me.ahoo.wow.event.annotation.asEventMetadata
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
+import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
+import me.ahoo.wow.infra.accessor.method.reactive.asMonoMethodAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.asNamedAggregate
-import me.ahoo.wow.modeling.matedata.MetadataNamedAggregateGetter
+import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 
 object FunctionMetadataParser {
 
-    fun <P, R> parse(method: Method, accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
-        val parameterTypes = method.parameterTypes
+    fun <P, R> Method.asFunctionMetadata(accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
+        val parameterTypes = parameterTypes
         check(parameterTypes.isNotEmpty()) { "The function has at least one parameter." }
         /*
          * 处理函数第一个参数必须为消息.
@@ -51,7 +57,7 @@ object FunctionMetadataParser {
 
         val bodyType = when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
-                val messageWrappedBodyType = method.genericParameterTypes[0]
+                val messageWrappedBodyType = genericParameterTypes[0]
                 val parameterizedType = messageWrappedBodyType as ParameterizedType
                 parameterizedType.actualTypeArguments[0] as Class<*>
             }
@@ -63,9 +69,17 @@ object FunctionMetadataParser {
 
         val injectParameterTypes = parameterTypes.sliceArray(1 until parameterTypes.size)
 
-        val topics = parseOnEventTopics(method, bodyType)
+        val topicKind = asTopicKind()
+        val topics = when (topicKind) {
+            TopicKind.EVENT_STREAM -> {
+                parseOnEventTopics(bodyType)
+            }
+
+            else -> setOf()
+        }
         return MethodFunctionMetadata(
-            accessor = accessorFactory(method),
+            topicKind = topicKind,
+            accessor = accessorFactory(this),
             supportedType = bodyType,
             supportedTopics = topics,
             firstParameterKind = firstParameterKind,
@@ -73,26 +87,59 @@ object FunctionMetadataParser {
         )
     }
 
-    private fun parseOnEventTopics(method: Method, bodyType: Class<*>): Set<Any> {
-        val onEvent = method.scan<OnEvent>()
-        if (onEvent == null && method.name != DEFAULT_ON_EVENT_NAME) {
-            return emptySet()
+    private fun Method.asTopicKind(): TopicKind {
+        scan<OnMessage>()?.let {
+            return it.topicKind
         }
+        when (name) {
+            DEFAULT_ON_COMMAND_NAME -> {
+                return TopicKind.COMMAND
+            }
 
-        return if (onEvent != null && onEvent.value.isNotEmpty()) {
-            val namedBoundedContext =
-                bodyType.asNamedBoundedContext() ?: method.declaringClass.asNamedBoundedContext()
-            onEvent.value.map {
-                it.asNamedAggregate(namedBoundedContext?.contextName)
-            }.toSet()
-        } else {
-            val namedAggregateGetter = bodyType.asEventMetadata().namedAggregateGetter
-            require(namedAggregateGetter is MetadataNamedAggregateGetter<*>)
-            return setOf(namedAggregateGetter.namedAggregate)
+            DEFAULT_ON_SOURCING_NAME -> {
+                return TopicKind.EVENT_STREAM
+            }
+
+            DEFAULT_ON_EVENT_NAME -> {
+                return TopicKind.EVENT_STREAM
+            }
+        }
+        throw IllegalStateException("The method [$declaringClass.$name] is not annotated by @OnMessage.")
+    }
+
+    private fun Method.parseOnEventTopics(bodyType: Class<*>): Set<Any> {
+        val onEvent = scan<OnEvent>()
+        return parseTopics(bodyType, onEvent?.value)
+    }
+
+    private fun Method.parseTopics(
+        bodyType: Class<*>,
+        aggregateNames: Array<out String>?
+    ): Set<Any> {
+        if (aggregateNames.isNullOrEmpty()) {
+            return bodyType.asTopics()
+        }
+        val namedBoundedContext =
+            bodyType.asNamedBoundedContext() ?: declaringClass.asNamedBoundedContext()
+        return aggregateNames.map {
+            it.asNamedAggregate(namedBoundedContext?.contextName)
+        }.toSet()
+    }
+
+    private fun Class<*>.asTopics(): Set<Any> {
+        asNamedAggregate()?.let {
+            return setOf(it)
+        }
+        return setOf()
+    }
+
+    fun <P, R> Method.asFunctionMetadata(): MethodFunctionMetadata<P, R> {
+        return this.asFunctionMetadata(::SimpleMethodAccessor)
+    }
+
+    fun <P, R> Method.asMonoFunctionMetadata(): MethodFunctionMetadata<P, Mono<R>> {
+        return this.asFunctionMetadata {
+            it.asMonoMethodAccessor()
         }
     }
-}
-
-fun <P, R> Method.asFunctionMetadata(accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
-    return FunctionMetadataParser.parse(this, accessorFactory)
 }

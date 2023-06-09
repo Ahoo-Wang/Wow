@@ -38,7 +38,7 @@ class WowExceptionTest {
                 Arguments.arguments(IllegalArgumentException("test"), ErrorCodes.ILLEGAL_ARGUMENT),
                 Arguments.arguments(IllegalStateException("test"), ErrorCodes.ILLEGAL_STATE),
                 Arguments.arguments(TimeoutException("test"), ErrorCodes.REQUEST_TIMEOUT),
-                Arguments.arguments(Exception("test"), ErrorCodes.BAD_REQUEST)
+                Arguments.arguments(Exception("test"), ErrorCodes.BAD_REQUEST),
             )
         }
     }

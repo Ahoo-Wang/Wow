@@ -14,8 +14,8 @@
 package me.ahoo.wow.serialization
 
 import com.fasterxml.jackson.databind.module.SimpleModule
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent

@@ -27,7 +27,7 @@ class RegenerateStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val stateEventBus: StateEventBus,
+    private val stateEventBus: StateEventBus
 ) {
     fun handle(config: CompensationConfig, cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)

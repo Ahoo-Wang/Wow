@@ -40,37 +40,37 @@ internal class ShardingDataSourcingAutoConfigurationTest {
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.type=sharding")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.databases.event_stream_0.url=r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M"
+                "${DataSourceProperties.PREFIX}.sharding.databases.event_stream_0.url=r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M",
             )
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.event-stream.order.database-algorithm=event_stream_db"
+                "${DataSourceProperties.PREFIX}.sharding.event-stream.order.database-algorithm=event_stream_db",
             )
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.event-stream.order.table-algorithm=order_event_stream_table"
+                "${DataSourceProperties.PREFIX}.sharding.event-stream.order.table-algorithm=order_event_stream_table",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.algorithms.event_stream_db.type=mod")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.algorithms.event_stream_db.mod.logic-name-prefix=event_stream_"
+                "${DataSourceProperties.PREFIX}.sharding.algorithms.event_stream_db.mod.logic-name-prefix=event_stream_",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.algorithms.event_stream_db.mod.divisor=2")
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.algorithms.order_event_stream_table.type=mod")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_event_stream_table.mod.logic-name-prefix=order_event_stream_"
+                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_event_stream_table.mod.logic-name-prefix=order_event_stream_",
             )
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_event_stream_table.mod.divisor=2"
+                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_event_stream_table.mod.divisor=2",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.snapshot.order.database-algorithm=snapshot_db")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.snapshot.order.table-algorithm=order_snapshot_table"
+                "${DataSourceProperties.PREFIX}.sharding.snapshot.order.table-algorithm=order_snapshot_table",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.algorithms.snapshot_db.type=single")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.algorithms.snapshot_db.single.node=snapshot_db"
+                "${DataSourceProperties.PREFIX}.sharding.algorithms.snapshot_db.single.node=snapshot_db",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.sharding.algorithms.order_snapshot_table.type=single")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_snapshot_table.single.node=snapshot_table"
+                "${DataSourceProperties.PREFIX}.sharding.algorithms.order_snapshot_table.single.node=snapshot_table",
             )
             .withUserConfiguration(
                 R2dbcAutoConfiguration::class.java,

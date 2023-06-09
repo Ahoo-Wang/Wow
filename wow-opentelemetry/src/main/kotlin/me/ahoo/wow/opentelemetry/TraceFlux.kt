@@ -22,7 +22,7 @@ class TraceFlux<T : Any, O>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val request: T,
-    private val source: Flux<O>,
+    private val source: Flux<O>
 ) : Flux<O>() {
     override fun subscribe(actual: CoreSubscriber<in O>) {
         if (!instrumenter.shouldStart(parentContext, request)) {

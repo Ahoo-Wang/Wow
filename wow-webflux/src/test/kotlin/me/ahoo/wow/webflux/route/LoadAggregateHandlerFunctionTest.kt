@@ -27,9 +27,9 @@ class LoadAggregateHandlerFunctionTest {
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotRepository = NoOpSnapshotRepository,
-                eventStore = InMemoryEventStore()
+                eventStore = InMemoryEventStore(),
             ),
-            exceptionHandler = DefaultExceptionHandler
+            exceptionHandler = DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()

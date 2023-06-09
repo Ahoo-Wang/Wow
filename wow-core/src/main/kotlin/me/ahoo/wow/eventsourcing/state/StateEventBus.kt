@@ -13,11 +13,16 @@
 
 package me.ahoo.wow.eventsourcing.state
 
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
 
-interface StateEventBus : MessageBus<StateEvent<*>, StateEventExchange<*>>
+interface StateEventBus : MessageBus<StateEvent<*>, StateEventExchange<*>>, TopicKindCapable {
+    override val topicKind: TopicKind
+        get() = TopicKind.STATE_EVENT
+}
 
 interface LocalStateEventBus : StateEventBus, LocalMessageBus<StateEvent<*>, StateEventExchange<*>>
 

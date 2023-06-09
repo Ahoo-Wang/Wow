@@ -11,25 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization.event
+package me.ahoo.wow.event
 
-import com.fasterxml.jackson.databind.JsonNode
+import me.ahoo.wow.api.event.DEFAULT_REVISION
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.naming.annotation.asName
 
-data class BodyTypeNotFoundDomainEvent(
-    override val id: String,
-    override val header: Header,
-    override val body: JsonNode,
+data class SimpleDomainEvent<T : Any>(
+    override val id: String = GlobalIdGenerator.generateAsString(),
+    override val header: Header = DefaultHeader.empty(),
+    override val body: T,
     override val aggregateId: AggregateId,
     override val version: Int,
-    override val sequence: Int,
-    override val revision: String,
+    override val sequence: Int = DEFAULT_EVENT_SEQUENCE,
+    override val revision: String = DEFAULT_REVISION,
     override val commandId: String,
-    override val name: String,
+    override val name: String = body.javaClass.asName(),
     override val isLast: Boolean = true,
-    override val createTime: Long = System.currentTimeMillis(),
-    override val cause: Throwable
-) : DomainEvent<JsonNode>, NamedAggregate by aggregateId, IllegalStateException(cause)
+    override val createTime: Long = System.currentTimeMillis()
+) : DomainEvent<T>, NamedAggregate by aggregateId

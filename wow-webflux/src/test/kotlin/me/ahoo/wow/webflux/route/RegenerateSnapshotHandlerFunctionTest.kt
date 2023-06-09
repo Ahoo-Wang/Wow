@@ -26,7 +26,7 @@ class RegenerateSnapshotHandlerFunctionTest {
             ConstructorStateAggregateFactory,
             InMemoryEventStore(),
             NoOpSnapshotRepository,
-            DefaultExceptionHandler
+            DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()

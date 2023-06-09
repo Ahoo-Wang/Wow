@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
@@ -23,7 +25,10 @@ import me.ahoo.wow.messaging.MessageBus
  * 2. 领域事件处理有序性
  *
  */
-interface DomainEventBus : MessageBus<DomainEventStream, EventStreamExchange>
+interface DomainEventBus : MessageBus<DomainEventStream, EventStreamExchange>, TopicKindCapable {
+    override val topicKind: TopicKind
+        get() = TopicKind.EVENT_STREAM
+}
 
 interface LocalDomainEventBus : DomainEventBus, LocalMessageBus<DomainEventStream, EventStreamExchange>
 

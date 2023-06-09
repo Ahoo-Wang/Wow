@@ -15,10 +15,10 @@ package me.ahoo.wow.tck.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
@@ -48,7 +48,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     override fun createMessage(): CommandMessage<*> {
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString()
+            data = GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
     }
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar

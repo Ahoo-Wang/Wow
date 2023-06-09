@@ -24,7 +24,7 @@ internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
     override fun createMessageBus(): DomainEventBus {
         return KafkaDomainEventBus(
             senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions
+            receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
 
