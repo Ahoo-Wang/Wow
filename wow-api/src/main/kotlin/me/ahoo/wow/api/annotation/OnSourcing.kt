@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.FunctionKind
 import java.lang.annotation.Inherited
 
 const val DEFAULT_ON_SOURCING_NAME = "onSourcing"
@@ -25,6 +25,6 @@ const val DEFAULT_ON_SOURCING_NAME = "onSourcing"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(TopicKind.EVENT_STREAM, defaultHandlerName = DEFAULT_ON_SOURCING_NAME)
+@OnMessage(FunctionKind.SOURCING, defaultHandlerName = DEFAULT_ON_SOURCING_NAME)
 @MustBeDocumented
 annotation class OnSourcing

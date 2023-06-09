@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.FunctionKind
 import java.lang.annotation.Inherited
 
 /**
@@ -25,6 +25,6 @@ import java.lang.annotation.Inherited
 @Inherited
 @MustBeDocumented
 annotation class OnMessage(
-    val topicKind: TopicKind,
+    val functionKind: FunctionKind,
     val defaultHandlerName: String
 )

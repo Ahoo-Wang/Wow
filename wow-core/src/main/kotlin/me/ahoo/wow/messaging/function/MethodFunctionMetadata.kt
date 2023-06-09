@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.messaging.TopicKind
-import me.ahoo.wow.api.messaging.TopicKindCapable
+import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 data class MethodFunctionMetadata<P, out R>(
-    override val topicKind: TopicKind,
+    override val functionKind: FunctionKind,
     val accessor: MethodAccessor<P, R>,
     val supportedType: Class<*>,
     val supportedTopics: Set<Any>,
     val firstParameterKind: FirstParameterKind,
     val injectParameterTypes: Array<Class<*>>
-) : TopicKindCapable {
+) : FunctionKindCapable {
     val injectParameterLength: Int
         get() = injectParameterTypes.size
 
