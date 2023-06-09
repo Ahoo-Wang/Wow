@@ -18,8 +18,8 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnMessage
+import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.configuration.asNamedAggregate
 import me.ahoo.wow.configuration.asNamedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
@@ -69,16 +69,16 @@ object FunctionMetadataParser {
 
         val injectParameterTypes = parameterTypes.sliceArray(1 until parameterTypes.size)
 
-        val topicKind = asTopicKind()
-        val topics = when (topicKind) {
-            TopicKind.EVENT_STREAM -> {
+        val functionKind = asFunctionKind()
+        val topics = when (functionKind) {
+            FunctionKind.EVENT -> {
                 parseOnEventTopics(bodyType)
             }
 
             else -> setOf()
         }
         return MethodFunctionMetadata(
-            topicKind = topicKind,
+            functionKind = functionKind,
             accessor = accessorFactory(this),
             supportedType = bodyType,
             supportedTopics = topics,
@@ -87,21 +87,21 @@ object FunctionMetadataParser {
         )
     }
 
-    private fun Method.asTopicKind(): TopicKind {
+    private fun Method.asFunctionKind(): FunctionKind {
         scan<OnMessage>()?.let {
-            return it.topicKind
+            return it.functionKind
         }
         when (name) {
             DEFAULT_ON_COMMAND_NAME -> {
-                return TopicKind.COMMAND
+                return FunctionKind.COMMAND
             }
 
             DEFAULT_ON_SOURCING_NAME -> {
-                return TopicKind.EVENT_STREAM
+                return FunctionKind.SOURCING
             }
 
             DEFAULT_ON_EVENT_NAME -> {
-                return TopicKind.EVENT_STREAM
+                return FunctionKind.EVENT
             }
         }
         throw IllegalStateException("The method [$declaringClass.$name] is not annotated by @OnMessage.")

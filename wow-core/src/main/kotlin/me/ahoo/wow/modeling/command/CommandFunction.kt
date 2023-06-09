@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEventStream
@@ -29,8 +29,8 @@ class CommandFunction<C : Any>(
         get() = delegate.supportedType
     override val processor: C
         get() = delegate.processor
-    override val topicKind: TopicKind
-        get() = delegate.topicKind
+    override val functionKind: FunctionKind
+        get() = delegate.functionKind
     override fun handle(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return delegate
             .handle(exchange)

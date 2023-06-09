@@ -12,12 +12,12 @@
  */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.messaging.TopicKindCapable
+import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : TopicKindCapable {
+interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : FunctionKindCapable {
 
     /**
      * Message body types supported by the message function.

@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
@@ -41,9 +41,9 @@ internal class MethodFunctionMetadataTest {
             ),
         )
         assertThat(
-            metadata.topicKind,
+            metadata.functionKind,
             equalTo(
-                TopicKind.COMMAND,
+                FunctionKind.COMMAND
             ),
         )
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
@@ -67,9 +67,9 @@ internal class MethodFunctionMetadataTest {
             hasItem(MaterializedNamedAggregate("wow-core-test", "messaging_aggregate")),
         )
         assertThat(
-            metadata.topicKind,
+            metadata.functionKind,
             equalTo(
-                TopicKind.EVENT_STREAM,
+                FunctionKind.EVENT,
             ),
         )
     }
@@ -87,9 +87,9 @@ internal class MethodFunctionMetadataTest {
             ),
         )
         assertThat(
-            metadata.topicKind,
+            metadata.functionKind,
             equalTo(
-                TopicKind.EVENT_STREAM,
+                FunctionKind.EVENT
             ),
         )
     }
@@ -109,9 +109,9 @@ internal class MethodFunctionMetadataTest {
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
         assertThat(metadata.firstParameterKind, equalTo(FirstParameterKind.MESSAGE))
         assertThat(
-            metadata.topicKind,
+            metadata.functionKind,
             equalTo(
-                TopicKind.EVENT_STREAM,
+                FunctionKind.EVENT
             ),
         )
     }

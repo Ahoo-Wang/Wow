@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.asCommandMessage
@@ -35,8 +35,8 @@ class StatelessSagaFunction(
         get() = actual.supportedType
     override val supportedTopics: Set<Any>
         get() = actual.supportedTopics
-    override val topicKind: TopicKind
-        get() = actual.topicKind
+    override val functionKind: FunctionKind
+        get() = actual.functionKind
 
     override fun handle(exchange: DomainEventExchange<*>): Mono<CommandStream> {
         return actual.handle(exchange)

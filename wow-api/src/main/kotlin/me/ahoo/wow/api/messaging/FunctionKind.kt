@@ -13,13 +13,16 @@
 
 package me.ahoo.wow.api.messaging
 
-enum class TopicKind {
-    UNDEFINED,
-    COMMAND,
-    EVENT_STREAM,
-    STATE_EVENT
+enum class FunctionKind(val topicKind: TopicKind, val consumeStream: Boolean) {
+    COMMAND(TopicKind.COMMAND, false),
+    SOURCING(TopicKind.EVENT_STREAM, false),
+    EVENT(TopicKind.EVENT_STREAM, false),
+    EVENT_STREAM(TopicKind.EVENT_STREAM, true),
+    STATE_EVENT(TopicKind.STATE_EVENT, false),
+    STATE_EVENT_STREAM(TopicKind.STATE_EVENT, true),
+    ERROR(TopicKind.UNDEFINED, false),
 }
 
-interface TopicKindCapable {
-    val topicKind: TopicKind
+interface FunctionKindCapable {
+    val functionKind: FunctionKind
 }
