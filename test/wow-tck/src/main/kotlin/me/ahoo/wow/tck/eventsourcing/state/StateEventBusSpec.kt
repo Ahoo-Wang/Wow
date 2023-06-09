@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.eventsourcing.state
 
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEvent
@@ -27,6 +28,8 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 
 abstract class StateEventBusSpec : MessageBusSpec<StateEvent<*>, StateEventExchange<*>, StateEventBus>() {
+    override val topicKind: TopicKind
+        get() = TopicKind.STATE_EVENT
     override val namedAggregate: NamedAggregate
         get() = requiredNamedAggregate<MockAggregateCreated>()
 
