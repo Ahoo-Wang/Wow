@@ -21,6 +21,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
@@ -93,12 +94,14 @@ class EventDispatcherAutoConfiguration {
     fun domainEventDispatcher(
         namedBoundedContext: NamedBoundedContext,
         domainEventBus: DomainEventBus,
+        stateEventBus: StateEventBus,
         handlerRegistrar: DomainEventFunctionRegistrar,
         eventDispatcherHandler: DomainEventHandler
     ): DomainEventDispatcher {
         return DomainEventDispatcher(
             name = "${namedBoundedContext.contextName}.${DomainEventDispatcher::class.simpleName}",
             domainEventBus = domainEventBus,
+            stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = eventDispatcherHandler,
         )

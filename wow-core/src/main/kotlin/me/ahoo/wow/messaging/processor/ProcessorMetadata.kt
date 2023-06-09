@@ -22,7 +22,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.Metadata
 import reactor.core.publisher.Mono
 
-data class ProcessorMetadata<P : Any, M : MessageExchange<*, *>>(
+data class ProcessorMetadata<P : Any, in M : MessageExchange<*, *>>(
     private val namedBoundedContext: NamedBoundedContext,
     override val name: String,
     val processorType: Class<P>,
@@ -40,9 +40,7 @@ data class ProcessorMetadata<P : Any, M : MessageExchange<*, *>>(
         if (this === other) return true
         if (other !is ProcessorMetadata<*, *>) return false
 
-        if (processorType != other.processorType) return false
-
-        return true
+        return processorType == other.processorType
     }
 
     override fun hashCode(): Int {

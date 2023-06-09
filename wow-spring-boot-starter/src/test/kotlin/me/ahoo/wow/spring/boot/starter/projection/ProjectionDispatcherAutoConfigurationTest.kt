@@ -15,6 +15,8 @@ package me.ahoo.wow.spring.boot.starter.projection
 
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
@@ -36,6 +38,7 @@ internal class ProjectionDispatcherAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
                 WowOpenTelemetryAutoConfiguration::class.java,
                 ProjectionDispatcherAutoConfiguration::class.java,

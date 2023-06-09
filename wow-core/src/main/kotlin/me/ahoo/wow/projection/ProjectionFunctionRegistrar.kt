@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
 class ProjectionFunctionRegistrar(
     actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
-) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
+) : AbstractEventFunctionRegistrar(actual) {
 
     fun registerProcessor(processor: Any) {
         processor.javaClass

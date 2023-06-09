@@ -17,6 +17,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
@@ -92,11 +93,13 @@ class StatelessSagaAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: StatelessSagaFunctionRegistrar,
         domainEventBus: DomainEventBus,
+        stateEventBus: StateEventBus,
         statelessSagaHandler: StatelessSagaHandler
     ): StatelessSagaDispatcher {
         return StatelessSagaDispatcher(
             name = "${namedBoundedContext.contextName}.${StatelessSagaDispatcher::class.simpleName}",
             domainEventBus = domainEventBus,
+            stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = statelessSagaHandler,
         )

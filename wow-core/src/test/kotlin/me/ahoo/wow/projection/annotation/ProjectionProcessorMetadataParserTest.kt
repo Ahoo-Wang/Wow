@@ -33,7 +33,7 @@ internal class ProjectionProcessorMetadataParserTest {
         val metadata = projectionProcessorMetadata<MockProjector>()
         assertThat(metadata.processorType, equalTo(MockProjector::class.java))
         assertThat(metadata.contextName, equalTo("wow-core-test"))
-        assertThat(metadata.name, equalTo("mock_projector"))
+        assertThat(metadata.name, equalTo("MockProjector"))
         assertThat(metadata.functionRegistry.size, equalTo(3))
         assertThat(
             metadata.functionRegistry.map { it.supportedType }.toSet(),

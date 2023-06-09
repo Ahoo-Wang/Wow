@@ -17,6 +17,9 @@ import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
+import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.spring.stereotype.ProjectionProcessor
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
@@ -38,6 +41,20 @@ class OrderProjector {
 //                log.info("Block Mono.just(orderCreated)")
 //            }
 //        }.block()
+    }
+
+    @Suppress("UnusedParameter")
+    fun onStateEvent(orderCreated: OrderCreated, state: OrderState) {
+        if (log.isInfoEnabled) {
+            log.info(state.asJsonString())
+        }
+    }
+
+    @Suppress("UnusedParameter")
+    fun onStateEvent(orderCreated: OrderCreated, state: ReadOnlyStateAggregate<OrderState>) {
+        if (log.isInfoEnabled) {
+            log.info(state.asJsonString())
+        }
     }
 
     fun onEvent(addressChanged: AddressChanged): Mono<Void> {

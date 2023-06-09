@@ -25,6 +25,6 @@ const val DEFAULT_ON_SOURCING_NAME = "onSourcing"
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited
-@OnMessage(FunctionKind.SOURCING, defaultHandlerName = DEFAULT_ON_SOURCING_NAME)
+@OnMessage(FunctionKind.SOURCING, defaultFunctionName = DEFAULT_ON_SOURCING_NAME)
 @MustBeDocumented
 annotation class OnSourcing

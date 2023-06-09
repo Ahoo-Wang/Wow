@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
 class StatelessSagaFunctionRegistrar(
     actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
-) : AbstractEventFunctionRegistrar<Mono<*>>(actual) {
+) : AbstractEventFunctionRegistrar(actual) {
 
     fun registerStatelessSaga(statelessSaga: Any, commandGateway: CommandGateway) {
         statelessSaga.javaClass

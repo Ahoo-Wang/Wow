@@ -26,5 +26,5 @@ import java.lang.annotation.Inherited
 @MustBeDocumented
 annotation class OnMessage(
     val functionKind: FunctionKind,
-    val defaultHandlerName: String
+    val defaultFunctionName: String
 )

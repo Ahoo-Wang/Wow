@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.projection
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
@@ -91,11 +92,13 @@ class ProjectionDispatcherAutoConfiguration {
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,
+        stateEventBus: StateEventBus,
         projectionHandler: ProjectionHandler
     ): ProjectionDispatcher {
         return ProjectionDispatcher(
             name = "${namedBoundedContext.contextName}.${ProjectionDispatcher::class.simpleName}",
             domainEventBus = domainEventBus,
+            stateEventBus = stateEventBus,
             functionRegistrar = handlerRegistrar,
             eventHandler = projectionHandler,
         )

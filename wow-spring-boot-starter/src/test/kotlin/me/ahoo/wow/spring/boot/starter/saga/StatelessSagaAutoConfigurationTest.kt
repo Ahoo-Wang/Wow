@@ -17,6 +17,8 @@ import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
@@ -38,6 +40,7 @@ internal class StatelessSagaAutoConfigurationTest {
             .enableWow()
             .withBean(CommandGateway::class.java, { mockk() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
                 StatelessSagaAutoConfiguration::class.java,
             )

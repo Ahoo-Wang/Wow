@@ -22,44 +22,51 @@ import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetad
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.CacheableMetadataParser
-import me.ahoo.wow.naming.annotation.asName
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
+
+class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations: Class<out Annotation>) :
+    (Method) -> Boolean {
+    private val defaultFunctionNames = onMessageAnnotations.mapNotNull {
+        it.scan<OnMessage>()?.defaultFunctionName
+    }.toSet()
+
+    override fun invoke(method: Method): Boolean {
+        if (method.parameterCount == 0) {
+            return false
+        }
+        val annotated = onMessageAnnotations.any {
+            method.isAnnotationPresent(it)
+        }
+        if (annotated) {
+            return true
+        }
+        return method.name in defaultFunctionNames
+    }
+}
 
 /**
  * sess [me.ahoo.wow.api.annotation.OnMessage]
  */
-open class ProcessorMetadataParser<OM : Annotation, M : MessageExchange<*, *>>(
-    private val onMessageType: Class<OM>,
+open class ProcessorMetadataParser<M : MessageExchange<*, *>>(
     private val functionCondition: (Method) -> Boolean = { true }
 ) : CacheableMetadataParser<Class<*>, ProcessorMetadata<*, *>>() {
 
     override fun parseAsMetadata(type: Class<*>): ProcessorMetadata<*, *> {
         @Suppress("UNCHECKED_CAST")
-        val visitor = ProcessorMetadataVisitor<Any, OM, M>(type as Class<Any>, onMessageType, functionCondition)
+        val visitor = ProcessorMetadataVisitor<Any, M>(type as Class<Any>, functionCondition)
         ClassMetadata.visit(type, visitor)
         return visitor.asMetadata()
     }
 }
 
-internal class ProcessorMetadataVisitor<P : Any, OM : Annotation, M : MessageExchange<*, *>>(
+internal class ProcessorMetadataVisitor<P : Any, M : MessageExchange<*, *>>(
     private val processorType: Class<P>,
-    private val onMessageType: Class<OM>,
     private val functionCondition: (Method) -> Boolean
 ) : ClassVisitor {
-    private val onMessage: OnMessage = onMessageType.scan()!!
     private val functionRegistry: MutableSet<MethodFunctionMetadata<P, Mono<*>>> = mutableSetOf()
 
     override fun visitMethod(method: Method) {
-        if (method.parameterCount == 0) {
-            return
-        }
-        if (!method.isAnnotationPresent(onMessageType) &&
-            onMessage.defaultHandlerName != method.name
-        ) {
-            return
-        }
-
         if (!functionCondition(method)) {
             return
         }
@@ -71,7 +78,7 @@ internal class ProcessorMetadataVisitor<P : Any, OM : Annotation, M : MessageExc
     fun asMetadata(): ProcessorMetadata<P, M> {
         return ProcessorMetadata(
             namedBoundedContext = processorType.asRequiredNamedBoundedContext(),
-            name = processorType.asName(),
+            name = processorType.simpleName,
             processorType = processorType,
             functionRegistry = functionRegistry,
         )

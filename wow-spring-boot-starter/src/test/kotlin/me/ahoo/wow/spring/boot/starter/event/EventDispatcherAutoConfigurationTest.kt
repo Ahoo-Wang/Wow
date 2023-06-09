@@ -18,6 +18,8 @@ import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -41,6 +43,7 @@ internal class EventDispatcherAutoConfigurationTest {
             .enableWow()
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
             .withBean(EventStore::class.java, { mockk() })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,
                 WebClientAutoConfiguration::class.java,

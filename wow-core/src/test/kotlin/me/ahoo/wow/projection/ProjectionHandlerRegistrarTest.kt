@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.configuration.asNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.hamcrest.MatcherAssert.*
@@ -25,11 +24,9 @@ internal class ProjectionProcessorRegistrarTest {
     @Test
     fun registerProjectionProcessor() {
         val handlerRegistrar = ProjectionFunctionRegistrar()
-        val namedAggregate = MockAggregateCreated::class.java.asNamedAggregate()
         val mockProjector = MockProjector()
         handlerRegistrar.registerProcessor(mockProjector)
-        assertThat(handlerRegistrar.namedAggregates, hasSize(1))
-        assertThat(handlerRegistrar.namedAggregates, hasItem(namedAggregate))
+        assertThat(handlerRegistrar.functions, hasSize(2))
 
         assertThat(
             handlerRegistrar.getFunctions(MockAggregateCreated::class.java),

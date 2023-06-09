@@ -14,6 +14,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
@@ -23,20 +24,21 @@ import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
 @Suppress("LongParameterList")
-class AggregateEventDispatcher(
+class AggregateStateEventDispatcher(
     override val namedAggregate: NamedAggregate,
     override val name: String =
-        "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
+        "${namedAggregate.aggregateName}-${AggregateStateEventDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val messageFlux: Flux<EventStreamExchange>,
+    override val messageFlux: Flux<StateEventExchange<*>>,
     override val functionRegistrar:
     MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler
-) : AbstractAggregateEventDispatcher<EventStreamExchange>() {
+) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {
 
-    override fun EventStreamExchange.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> {
-        return SimpleDomainEventExchange(
+    override fun StateEventExchange<*>.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> {
+        return SimpleStateDomainEventExchange(
+            state = message,
             message = event,
             attributes = ConcurrentHashMap(attributes),
         )
