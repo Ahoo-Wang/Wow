@@ -16,13 +16,12 @@ package me.ahoo.wow.webflux.route.appender
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asIgnoreTenantAggregateRoutePathSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.BatchResult
@@ -41,9 +40,8 @@ class RegenerateStateEventRouteAppender(
     private val currentContext: NamedBoundedContext,
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val routerFunctionBuilder: SpringdocRouteBuilder,
-    private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val stateEventBus: StateEventBus,
+    private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
@@ -54,9 +52,8 @@ class RegenerateStateEventRouteAppender(
                 RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 RegenerateStateEventFunction(
                     aggregateMetadata = aggregateMetadata,
-                    stateAggregateFactory = stateAggregateFactory,
                     eventStore = eventStore,
-                    stateEventBus = stateEventBus,
+                    stateEventCompensator = stateEventCompensator,
                     exceptionHandler = exceptionHandler,
                 ),
                 batchRegenerateSnapshotOperation(),

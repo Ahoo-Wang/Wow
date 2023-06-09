@@ -2,6 +2,7 @@ package me.ahoo.wow.webflux.route
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
@@ -22,11 +23,15 @@ class RegenerateStateEventHandlerFunctionTest {
 
     @Test
     fun handle() {
+        val eventStore = InMemoryEventStore()
         val handlerFunction = RegenerateStateEventFunction(
             MOCK_AGGREGATE_METADATA,
-            ConstructorStateAggregateFactory,
-            InMemoryEventStore(),
-            InMemoryStateEventBus(),
+            eventStore,
+            StateEventCompensator(
+                stateAggregateFactory = ConstructorStateAggregateFactory,
+                eventStore = eventStore,
+                stateEventBus = InMemoryStateEventBus(),
+            ),
             DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {

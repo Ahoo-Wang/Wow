@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.handler.RegenerateStateEventHandler
@@ -29,13 +28,12 @@ import reactor.core.publisher.Mono
 
 class RegenerateStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val stateEventBus: StateEventBus,
+    private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        RegenerateStateEventHandler(aggregateMetadata, stateAggregateFactory, eventStore, stateEventBus)
+        RegenerateStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)

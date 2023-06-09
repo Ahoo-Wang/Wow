@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route
+package me.ahoo.wow.webflux.route.compensation
 
-import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.webflux.exception.ExceptionHandler
@@ -26,19 +26,18 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class EventCompensateHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventCompensator: EventCompensator,
-    private val exceptionHandler: ExceptionHandler
-) : HandlerFunction<ServerResponse> {
+abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> {
 
+    abstract val aggregateMetadata: AggregateMetadata<*, *>
+    abstract val eventCompensator: EventCompensator
+    abstract val exceptionHandler: ExceptionHandler
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
         return request.bodyToMono(CompensationConfig::class.java)
             .flatMap {
                 requireNotNull(it) {
-                    "targetProcessors is required!"
+                    "CompensationConfig is required!"
                 }
                 val headVersion = request.pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY).toInt()
                 val tailVersion = request.pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY).toInt()

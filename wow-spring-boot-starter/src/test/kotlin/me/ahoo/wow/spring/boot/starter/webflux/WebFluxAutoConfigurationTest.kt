@@ -17,14 +17,13 @@ import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.EventCompensator
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -53,8 +52,8 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(EventCompensator::class.java, { mockk() })
-            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withBean(DomainEventCompensator::class.java, { mockk() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,

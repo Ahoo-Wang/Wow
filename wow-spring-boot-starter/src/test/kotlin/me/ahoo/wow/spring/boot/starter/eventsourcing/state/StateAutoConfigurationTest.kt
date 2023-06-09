@@ -1,11 +1,16 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.state
 
 import io.mockk.mockk
+import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -24,13 +29,17 @@ class StateAutoConfigurationTest {
             .withPropertyValues(
                 "${StateProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}",
             )
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withUserConfiguration(
                 StateAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryStateEventBus::class.java)
+                    .hasSingleBean(StateEventCompensator::class.java)
                     .hasSingleBean(SendStateEventFilter::class.java)
+                    .hasSingleBean(StateEventCompensator::class.java)
             }
     }
 
@@ -39,6 +48,11 @@ class StateAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(DistributedStateEventBus::class.java, { mockk() })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withUserConfiguration(
+                StateAutoConfiguration::class.java,
+            )
             .withUserConfiguration(
                 StateAutoConfiguration::class.java,
             )
