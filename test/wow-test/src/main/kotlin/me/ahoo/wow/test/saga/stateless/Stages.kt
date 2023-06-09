@@ -15,12 +15,8 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.saga.stateless.CommandStream
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.greaterThanOrEqualTo
-import org.hamcrest.Matchers.instanceOf
-import org.hamcrest.Matchers.notNullValue
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 
 /**
  * Stateless Saga:
@@ -33,7 +29,7 @@ interface WhenStage<T : Any> {
     /**
      * 1. 当订阅到领域事件时，生成聚合命令.
      */
-    fun `when`(event: Any): ExpectStage<T>
+    fun `when`(event: Any, state: Any? = null): ExpectStage<T>
 }
 
 interface ExpectStage<T : Any> {

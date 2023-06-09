@@ -2,6 +2,7 @@ package me.ahoo.wow.example.domain.order
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.example.api.order.OrderCancelled
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -31,6 +32,17 @@ class OrderSagaTest {
                         fromCart
                     } returns true
                 },
+            )
+            .expectNoCommand()
+            .verify()
+    }
+
+    @Test
+    fun onOrderCreatedWithOrderState() {
+        StatelessSagaVerifier.sagaVerifier<OrderSaga>()
+            .`when`(
+                OrderCancelled,
+                mockk<OrderState>()
             )
             .expectNoCommand()
             .verify()

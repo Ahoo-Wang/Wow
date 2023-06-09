@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.domain.order
 
+import me.ahoo.wow.example.api.order.OrderCancelled
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
 import org.slf4j.LoggerFactory
@@ -27,6 +28,15 @@ class OrderSaga {
     fun onEvent(orderCreated: OrderCreated): Mono<Void> {
         if (log.isDebugEnabled) {
             log.debug(orderCreated.toString())
+        }
+        // write
+        return Mono.empty()
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun onStateEvent(orderCancelled: OrderCancelled, state: OrderState): Mono<Void> {
+        if (log.isDebugEnabled) {
+            log.debug(orderCancelled.toString())
         }
         // write
         return Mono.empty()
