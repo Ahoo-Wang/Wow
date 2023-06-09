@@ -53,14 +53,14 @@ class RedisEventStore(
                 eventStream.aggregateName,
                 eventStream.requestId,
                 eventStream.version.toString(),
-                eventStream.asJsonString()
+                eventStream.asJsonString(),
             ),
         ).doOnNext {
             when (it) {
                 ErrorCodes.EVENT_VERSION_CONFLICT -> throw EventVersionConflictException(eventStream)
                 ErrorCodes.DUPLICATE_REQUEST_ID -> throw DuplicateRequestIdException(
                     eventStream.aggregateId,
-                    eventStream.requestId
+                    eventStream.requestId,
                 )
             }
         }.then()

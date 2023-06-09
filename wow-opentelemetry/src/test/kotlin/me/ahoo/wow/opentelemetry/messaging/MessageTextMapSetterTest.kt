@@ -1,6 +1,6 @@
 package me.ahoo.wow.opentelemetry.messaging
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -22,7 +22,7 @@ class MessageTextMapSetterTest {
     fun set() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString()
+            GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
 
         MessageTextMapSetter<CommandMessage<*>>().set(command, key, value)
@@ -33,7 +33,7 @@ class MessageTextMapSetterTest {
     fun setIfReadyOnly() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString()
+            GlobalIdGenerator.generateAsString(),
         ).asCommandMessage().withReadOnly()
 
         MessageTextMapSetter<CommandMessage<*>>().set(command, key, value)

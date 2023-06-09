@@ -18,6 +18,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 @ConditionalOnProperty(
     StateProperties.BUS_LOCAL_FIRST_ENABLED,
     havingValue = "true",
-    matchIfMissing = true
+    matchIfMissing = true,
 )
 annotation class ConditionalOnStateEventLocalFirstEnabled

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.event
 
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventBus
@@ -24,7 +25,8 @@ import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 
 abstract class DomainEventBusSpec : MessageBusSpec<DomainEventStream, EventStreamExchange, DomainEventBus>() {
-
+    override val topicKind: TopicKind
+        get() = TopicKind.EVENT_STREAM
     override val namedAggregate: NamedAggregate
         get() = requiredNamedAggregate<MockAggregateCreated>()
 

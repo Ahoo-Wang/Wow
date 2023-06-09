@@ -199,6 +199,6 @@ class AggregateAnnotationParserTest {
         val tenantId: String,
         @AggregateVersion
         @get:AggregateVersion
-        val aggregateVersion: Int,
+        val aggregateVersion: Int
     )
 }

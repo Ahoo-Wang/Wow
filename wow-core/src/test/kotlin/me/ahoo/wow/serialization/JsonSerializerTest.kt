@@ -14,10 +14,10 @@
 package me.ahoo.wow.serialization
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEvent
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord

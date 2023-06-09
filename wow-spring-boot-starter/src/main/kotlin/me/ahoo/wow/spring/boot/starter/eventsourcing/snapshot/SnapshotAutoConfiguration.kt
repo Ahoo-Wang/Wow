@@ -58,7 +58,7 @@ class SnapshotAutoConfiguration {
         snapshotRepository: SnapshotRepository
     ): SnapshotStrategy {
         return SimpleSnapshotStrategy(
-            snapshotRepository = snapshotRepository
+            snapshotRepository = snapshotRepository,
         )
     }
 

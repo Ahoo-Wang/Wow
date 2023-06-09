@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
@@ -25,7 +26,10 @@ import me.ahoo.wow.messaging.MessageBus
  * @see InMemoryCommandBus
  *
  */
-interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>, TopicKindCapable {
+    override val topicKind: TopicKind
+        get() = TopicKind.COMMAND
+}
 
 interface LocalCommandBus : CommandBus, LocalMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
 

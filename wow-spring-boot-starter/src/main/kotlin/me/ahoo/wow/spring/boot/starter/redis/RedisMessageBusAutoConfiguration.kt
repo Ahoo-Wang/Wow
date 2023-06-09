@@ -34,7 +34,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
 @AutoConfiguration(
     before = [CommandAutoConfiguration::class],
-    after = [RedisReactiveAutoConfiguration::class]
+    after = [RedisReactiveAutoConfiguration::class],
 )
 @ConditionalOnWowEnabled
 @ConditionalOnRedisEnabled

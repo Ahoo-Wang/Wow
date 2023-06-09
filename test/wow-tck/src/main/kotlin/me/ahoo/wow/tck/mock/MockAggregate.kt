@@ -14,6 +14,7 @@
 package me.ahoo.wow.tck.mock
 
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
 val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
@@ -28,6 +29,7 @@ data class MockAggregateChanged(val data: String)
 
 class MockCommandAggregate(val state: MockStateAggregate) {
 
+    @OnCommand
     private fun onCommand(create: MockCreateAggregate): MockAggregateCreated {
         return MockAggregateCreated(create.data)
     }

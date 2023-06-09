@@ -40,7 +40,7 @@ object StatelessSagaVerifier {
             InMemoryCommandBus(),
             NoOpIdempotencyChecker,
             SimpleWaitStrategyRegistrar,
-            NoOpValidator
+            NoOpValidator,
         )
     }
 

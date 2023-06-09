@@ -16,7 +16,7 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.annotation.OnEvent
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.event.DomainEvent
 
 internal class MockEventBody
 internal class MockFunction {

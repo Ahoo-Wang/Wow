@@ -86,7 +86,7 @@ class CartTest {
                         productId = addCartItem.productId,
                         quantity = 1,
                     ),
-                )
+                ),
             )
             .`when`(addCartItem)
             .expectNoError()

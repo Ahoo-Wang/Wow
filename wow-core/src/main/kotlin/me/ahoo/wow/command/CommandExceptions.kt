@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
@@ -25,7 +24,7 @@ class DuplicateRequestIdException(val aggregateId: AggregateId, val requestId: S
     WowException(
         errorCode = DUPLICATE_REQUEST_ID,
         errorMsg = "Duplicate request ID[$requestId].",
-        cause = cause
+        cause = cause,
     ),
     NamedAggregate by aggregateId
 

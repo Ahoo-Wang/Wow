@@ -11,16 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.api.messaging
 
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.WowException
+enum class TopicKind {
+    COMMAND,
+    EVENT_STREAM,
+    STATE_EVENT
+}
 
-class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
-    WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
-    companion object {
-        fun DomainEvent<out ErrorInfo>.asException(): DomainEventException {
-            return DomainEventException(this)
-        }
-    }
+interface TopicKindCapable {
+    val topicKind: TopicKind
 }

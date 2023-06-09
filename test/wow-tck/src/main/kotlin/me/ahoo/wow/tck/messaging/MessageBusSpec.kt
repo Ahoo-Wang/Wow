@@ -13,8 +13,10 @@
 package me.ahoo.wow.tck.messaging
 
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.infra.Decorator.Companion.getDelegate
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -32,7 +34,7 @@ import java.time.Duration
 /**
  * Message Bus Implementation Specification.
  */
-abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> {
+abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> : TopicKindCapable {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(MessageBusSpec::class.java)
     }
@@ -46,8 +48,11 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     }
 
     open fun verify(block: BUS.() -> Unit) {
-        createMessageBus().metrizable().use { commandBus ->
-            block(commandBus)
+        createMessageBus().metrizable().use { bus ->
+            if (bus.getDelegate() is TopicKindCapable) {
+                assertThat((bus.getDelegate() as TopicKindCapable).topicKind, equalTo(topicKind))
+            }
+            block(bus)
         }
     }
 

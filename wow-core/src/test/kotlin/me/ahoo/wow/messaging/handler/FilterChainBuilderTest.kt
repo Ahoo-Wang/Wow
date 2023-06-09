@@ -16,7 +16,7 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

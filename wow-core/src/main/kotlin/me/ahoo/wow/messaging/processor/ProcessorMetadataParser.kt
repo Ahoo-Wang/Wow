@@ -18,8 +18,8 @@ import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
-import me.ahoo.wow.messaging.function.asMonoFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.naming.annotation.asName

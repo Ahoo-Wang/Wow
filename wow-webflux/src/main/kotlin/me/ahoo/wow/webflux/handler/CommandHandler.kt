@@ -36,7 +36,7 @@ fun ServerRequest.getCommandStage(): CommandStage {
 class CommandHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandGateway: CommandGateway,
-    private val timeout: Duration = DEFAULT_TIME_OUT,
+    private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
     fun handle(request: ServerRequest, commandBody: Any, aggregateId: String? = null): Mono<CommandResult> {

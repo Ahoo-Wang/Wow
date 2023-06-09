@@ -40,7 +40,7 @@ class CompensationMatcherTest {
     fun matchMessage() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString()
+            GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
         assertThat(command.match(processorName), equalTo(true))
     }
@@ -49,7 +49,7 @@ class CompensationMatcherTest {
     fun matchMessageWithCompensation() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString()
+            GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
             .withCompensation()
         assertThat(command.match(processorName), equalTo(false))

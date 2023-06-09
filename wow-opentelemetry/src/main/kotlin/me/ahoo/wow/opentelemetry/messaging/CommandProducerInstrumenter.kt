@@ -16,7 +16,7 @@ package me.ahoo.wow.opentelemetry.messaging
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX

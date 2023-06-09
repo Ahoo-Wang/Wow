@@ -45,7 +45,7 @@ class ResponsesKtTest {
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = GlobalIdGenerator.generateAsString(),
             requestId = GlobalIdGenerator.generateAsString(),
-            commandId = GlobalIdGenerator.generateAsString()
+            commandId = GlobalIdGenerator.generateAsString(),
         ).toMono()
             .asServerResponse(DefaultExceptionHandler)
             .test()

@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.tck.modeling.state
 
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore

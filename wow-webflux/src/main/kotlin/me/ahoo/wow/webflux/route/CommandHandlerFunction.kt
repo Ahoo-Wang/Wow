@@ -38,7 +38,7 @@ class CommandHandlerFunction(
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
     private val exceptionHandler: ExceptionHandler,
-    private val timeout: Duration = DEFAULT_TIME_OUT,
+    private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
     private val handler = CommandHandler(aggregateMetadata, commandGateway, timeout)

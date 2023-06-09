@@ -76,7 +76,7 @@ class RedisPrepareKey<V : Any>(
                 System.currentTimeMillis().toString(),
                 value.ttlAt.toString(),
                 value.value.asJsonString(),
-            )
+            ),
         ).next()
     }
 
@@ -95,8 +95,8 @@ class RedisPrepareKey<V : Any>(
             SCRIPT_PREPARE_ROLLBACK,
             listOf(wrappedKey),
             listOf(
-                System.currentTimeMillis().toString()
-            )
+                System.currentTimeMillis().toString(),
+            ),
         ).next()
     }
 
@@ -108,7 +108,7 @@ class RedisPrepareKey<V : Any>(
             listOf(
                 value.ttlAt.toString(),
                 value.value.asJsonString(),
-            )
+            ),
         ).next()
     }
 
@@ -120,8 +120,8 @@ class RedisPrepareKey<V : Any>(
             listOf(
                 newValue.ttlAt.toString(),
                 newValue.value.asJsonString(),
-                oldValue.asJsonString()
-            )
+                oldValue.asJsonString(),
+            ),
         ).next()
     }
 
@@ -131,8 +131,8 @@ class RedisPrepareKey<V : Any>(
             SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE,
             listOf(wrappedKey),
             listOf(
-                value.asJsonString()
-            )
+                value.asJsonString(),
+            ),
         ).next()
     }
 }

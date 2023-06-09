@@ -14,8 +14,8 @@ class CompositeAggregateIdShardingTest {
 
     private val sharding = CompositeAggregateIdSharding(
         mapOf(
-            MOCK_AGGREGATE_METADATA.materialize() to CosIdShardingDecorator(ModCycle(4, "sharding_"))
-        )
+            MOCK_AGGREGATE_METADATA.materialize() to CosIdShardingDecorator(ModCycle(4, "sharding_")),
+        ),
     )
 
     @Test

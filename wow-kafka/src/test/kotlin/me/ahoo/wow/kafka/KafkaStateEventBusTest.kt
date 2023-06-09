@@ -19,7 +19,7 @@ class KafkaStateEventBusTest : StateEventBusSpec() {
     override fun createMessageBus(): StateEventBus {
         return KafkaStateEventBus(
             senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions
+            receiverOptions = KafkaLauncher.receiverOptions,
         )
     }
 

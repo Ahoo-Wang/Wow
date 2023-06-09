@@ -28,7 +28,7 @@ class RedisStateEventBus(
     AbstractRedisMessageBus<StateEvent<*>, StateEventExchange<*>>(
         redisTemplate,
         topicConverter,
-        pollTimeout
+        pollTimeout,
     ) {
     override val messageType: Class<StateEvent<*>>
         get() = StateEvent::class.java
@@ -36,7 +36,7 @@ class RedisStateEventBus(
     override fun StateEvent<*>.asExchange(acknowledgePublisher: Mono<Void>): StateEventExchange<*> {
         return RedisStateEventExchange(
             this,
-            acknowledgePublisher
+            acknowledgePublisher,
         )
     }
 }

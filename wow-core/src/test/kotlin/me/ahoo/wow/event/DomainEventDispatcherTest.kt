@@ -13,6 +13,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.configuration.asRequiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -42,6 +43,8 @@ internal class DomainEventDispatcherTest {
                 get() = Any()
             override val supportedTopics: Set<Any>
                 get() = setOf(namedAggregate)
+            override val topicKind: TopicKind
+                get() = TopicKind.EVENT_STREAM
 
             override fun handle(exchange: DomainEventExchange<*>): Mono<*> {
                 return Mono.fromRunnable<Void> { sink.tryEmitEmpty() }
@@ -63,7 +66,7 @@ internal class DomainEventDispatcherTest {
         val aggregateId = namedAggregate.asAggregateId()
         val eventStream =
             MockAggregateCreated(
-                GlobalIdGenerator.generateAsString()
+                GlobalIdGenerator.generateAsString(),
             ).asDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
         domainEventBus.send(eventStream).block()
 

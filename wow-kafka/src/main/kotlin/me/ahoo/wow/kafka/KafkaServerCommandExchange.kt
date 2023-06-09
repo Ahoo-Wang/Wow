@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import reactor.core.publisher.Mono
 import reactor.kafka.receiver.ReceiverOffset

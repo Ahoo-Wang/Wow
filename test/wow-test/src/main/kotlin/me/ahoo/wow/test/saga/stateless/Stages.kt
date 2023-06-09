@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.test.saga.stateless
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.saga.stateless.CommandStream
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo

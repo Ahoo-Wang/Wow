@@ -41,7 +41,7 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
                 delegate = this,
                 state = stateAggregate.state,
                 firstEventTime = stateAggregate.firstEventTime,
-                deleted = stateAggregate.deleted
+                deleted = stateAggregate.deleted,
             )
         }
     }

@@ -17,5 +17,5 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 class LocalFirstStateEventBus(
     override val distributedBus: DistributedStateEventBus,
-    override val localBus: LocalStateEventBus = InMemoryStateEventBus(),
+    override val localBus: LocalStateEventBus = InMemoryStateEventBus()
 ) : StateEventBus, LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>

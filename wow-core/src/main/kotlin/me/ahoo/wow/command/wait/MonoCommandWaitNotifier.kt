@@ -14,8 +14,8 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.exception.asErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Subscription

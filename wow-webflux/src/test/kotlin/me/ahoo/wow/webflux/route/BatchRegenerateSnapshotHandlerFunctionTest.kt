@@ -25,7 +25,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStore = InMemoryEventStore(),
             snapshotRepository = NoOpSnapshotRepository,
-            exceptionHandler = DefaultExceptionHandler
+            exceptionHandler = DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID

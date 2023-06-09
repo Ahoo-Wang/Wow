@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
@@ -34,6 +35,8 @@ class StatelessSagaFunction(
         get() = actual.supportedType
     override val supportedTopics: Set<Any>
         get() = actual.supportedTopics
+    override val topicKind: TopicKind
+        get() = actual.topicKind
 
     override fun handle(exchange: DomainEventExchange<*>): Mono<CommandStream> {
         return actual.handle(exchange)
@@ -72,7 +75,7 @@ class StatelessSagaFunction(
         }
         return singleResult.asCommandMessage(
             requestId = "${domainEvent.id}-$index",
-            tenantId = domainEvent.aggregateId.tenantId
+            tenantId = domainEvent.aggregateId.tenantId,
         )
     }
 

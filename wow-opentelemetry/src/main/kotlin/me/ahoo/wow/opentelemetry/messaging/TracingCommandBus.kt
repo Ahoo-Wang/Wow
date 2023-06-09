@@ -14,20 +14,20 @@
 package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 
 class TracingLocalCommandBus(
     override val delegate: LocalCommandBus,
-    override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER,
+    override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER
 ) : TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, LocalCommandBus>,
     LocalCommandBus
 
 class TracingDistributedCommandBus(
     override val delegate: DistributedCommandBus,
-    override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER,
+    override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, DistributedCommandBus>,
     DistributedCommandBus

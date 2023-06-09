@@ -16,6 +16,8 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -31,7 +33,7 @@ internal class MethodMessageFunctionTest {
             MockCreateAggregate::class.java,
         ).asFunctionMetadata<MockCommandAggregate, Any>()
             .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, Any>(
-                MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString())))
+                MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
 
         assertThat(handler, notNullValue())
@@ -57,7 +59,7 @@ internal class MethodMessageFunctionTest {
             ExternalService::class.java,
         ).asFunctionMetadata<MockWithInjectableFunction, Any>()
             .asMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
-                MockWithInjectableFunction()
+                MockWithInjectableFunction(),
             )
 
         assertThat(handler, notNullValue())

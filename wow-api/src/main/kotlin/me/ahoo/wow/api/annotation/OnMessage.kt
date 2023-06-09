@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.TopicKind
 import java.lang.annotation.Inherited
-import kotlin.reflect.KClass
 
 /**
  * OnMessage .
@@ -26,6 +25,6 @@ import kotlin.reflect.KClass
 @Inherited
 @MustBeDocumented
 annotation class OnMessage(
-    val messageType: KClass<out Message<*, *>>,
+    val topicKind: TopicKind,
     val defaultHandlerName: String
 )

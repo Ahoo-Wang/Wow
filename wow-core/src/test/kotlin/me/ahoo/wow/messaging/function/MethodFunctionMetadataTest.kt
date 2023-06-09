@@ -12,8 +12,10 @@
  */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -38,6 +40,12 @@ internal class MethodFunctionMetadataTest {
                 MockCreateAggregate::class.java,
             ),
         )
+        assertThat(
+            metadata.topicKind,
+            equalTo(
+                TopicKind.COMMAND,
+            ),
+        )
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
         assertThat(
             metadata.accessor,
@@ -58,6 +66,12 @@ internal class MethodFunctionMetadataTest {
             metadata.supportedTopics,
             hasItem(MaterializedNamedAggregate("wow-core-test", "messaging_aggregate")),
         )
+        assertThat(
+            metadata.topicKind,
+            equalTo(
+                TopicKind.EVENT_STREAM,
+            ),
+        )
     }
 
     @Test
@@ -69,8 +83,14 @@ internal class MethodFunctionMetadataTest {
             metadata.supportedTopics,
             hasItems(
                 MaterializedNamedAggregate("wow-core-test", "aggregate1"),
-                MaterializedNamedAggregate("wow-core-test", "aggregate2")
-            )
+                MaterializedNamedAggregate("wow-core-test", "aggregate2"),
+            ),
+        )
+        assertThat(
+            metadata.topicKind,
+            equalTo(
+                TopicKind.EVENT_STREAM,
+            ),
         )
     }
 
@@ -88,6 +108,12 @@ internal class MethodFunctionMetadataTest {
         )
         assertThat(metadata.injectParameterTypes, arrayWithSize(0))
         assertThat(metadata.firstParameterKind, equalTo(FirstParameterKind.MESSAGE))
+        assertThat(
+            metadata.topicKind,
+            equalTo(
+                TopicKind.EVENT_STREAM,
+            ),
+        )
     }
 
     @Test

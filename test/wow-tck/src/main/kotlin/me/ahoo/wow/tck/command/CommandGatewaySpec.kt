@@ -15,10 +15,11 @@ package me.ahoo.wow.tck.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
@@ -42,13 +43,15 @@ import reactor.kotlin.test.test
 import java.time.Duration
 
 abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
+    override val topicKind: TopicKind
+        get() = TopicKind.COMMAND
     override val namedAggregate: NamedAggregate
         get() = requiredNamedAggregate<MockCreateAggregate>()
 
     override fun createMessage(): CommandMessage<*> {
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString()
+            data = GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
     }
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar

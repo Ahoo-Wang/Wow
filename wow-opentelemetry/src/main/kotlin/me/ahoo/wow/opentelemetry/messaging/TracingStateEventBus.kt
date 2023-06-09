@@ -21,14 +21,14 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 
 class TracingLocalStateEventBus(
     override val delegate: LocalStateEventBus,
-    override val producerInstrumenter: Instrumenter<StateEvent<*>, Unit> = StateEventProducerInstrumenter.INSTRUMENTER,
+    override val producerInstrumenter: Instrumenter<StateEvent<*>, Unit> = StateEventProducerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<StateEvent<*>, StateEventExchange<*>, LocalStateEventBus>,
     LocalStateEventBus
 
 class TracingDistributedStateEventBus(
     override val delegate: DistributedStateEventBus,
-    override val producerInstrumenter: Instrumenter<StateEvent<*>, Unit> = StateEventProducerInstrumenter.INSTRUMENTER,
+    override val producerInstrumenter: Instrumenter<StateEvent<*>, Unit> = StateEventProducerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<StateEvent<*>, StateEventExchange<*>, DistributedStateEventBus>,
     DistributedStateEventBus

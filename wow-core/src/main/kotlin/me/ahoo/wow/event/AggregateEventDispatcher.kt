@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher

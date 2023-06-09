@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEventStream
@@ -29,6 +30,8 @@ class DefaultDeleteAggregateFunction<C : Any>(
         get() = DefaultDeleteAggregate::class.java
     override val processor: C
         get() = commandAggregate.commandRoot
+    override val topicKind: TopicKind
+        get() = TopicKind.COMMAND
 
     override fun handle(
         exchange: ServerCommandExchange<*>

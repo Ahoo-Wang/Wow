@@ -1,7 +1,6 @@
 package me.ahoo.wow.command
 
 import io.mockk.mockk
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*

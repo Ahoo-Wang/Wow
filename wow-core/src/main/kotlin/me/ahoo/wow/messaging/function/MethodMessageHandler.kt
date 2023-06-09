@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
@@ -21,6 +22,8 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, ou
     MethodMessageFunction<P, M, R> {
     override val supportedTopics: Set<Any>
         get() = metadata.supportedTopics
+    override val topicKind: TopicKind
+        get() = metadata.topicKind
 
     override fun handle(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
@@ -39,6 +42,8 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>
     MethodMessageFunction<P, M, R> {
     override val supportedTopics: Set<Any>
         get() = metadata.supportedTopics
+    override val topicKind: TopicKind
+        get() = metadata.topicKind
 
     override fun handle(exchange: M): R {
         val args = arrayOfNulls<Any>(1 + metadata.injectParameterLength)

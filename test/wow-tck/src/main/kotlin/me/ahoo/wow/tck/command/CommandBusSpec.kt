@@ -12,9 +12,10 @@
  */
 package me.ahoo.wow.tck.command
 
-import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
@@ -26,13 +27,15 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
  * Command Bus Implementation Specification.
  */
 abstract class CommandBusSpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandBus>() {
+    override val topicKind: TopicKind
+        get() = TopicKind.COMMAND
     override val namedAggregate: NamedAggregate
         get() = requiredNamedAggregate<MockCreateAggregate>()
 
     override fun createMessage(): CommandMessage<*> {
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString()
+            data = GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
     }
 }
