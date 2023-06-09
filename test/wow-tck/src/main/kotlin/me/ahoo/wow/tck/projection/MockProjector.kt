@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.tck.projection
 
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.slf4j.LoggerFactory
 
 class MockProjector {
@@ -26,7 +28,8 @@ class MockProjector {
         log.info(created.toString())
     }
 
-    fun onEvent(changed: MockAggregateChanged) {
+    @Suppress("UNUSED_PARAMETER")
+    fun onStateEvent(changed: MockAggregateChanged, state: ReadOnlyStateAggregate<MockStateAggregate>) {
         log.info(changed.toString())
     }
 }

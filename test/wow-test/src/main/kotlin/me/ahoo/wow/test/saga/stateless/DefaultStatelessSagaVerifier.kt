@@ -57,7 +57,6 @@ internal class DefaultWhenStage<T : Any>(
         return this
     }
 
-
     @Suppress("UNCHECKED_CAST")
     override fun `when`(event: Any, state: Any?): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
