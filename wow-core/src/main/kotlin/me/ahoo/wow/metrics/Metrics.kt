@@ -24,6 +24,8 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.modeling.command.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
@@ -88,6 +90,18 @@ object Metrics {
         }
     }
 
+    fun LocalStateEventBus.metrizable(): LocalStateEventBus {
+        return metrizable {
+            MetricLocalStateEventBus(this)
+        }
+    }
+
+    fun DistributedStateEventBus.metrizable(): DistributedStateEventBus {
+        return metrizable {
+            MetricDistributedStateEventBus(this)
+        }
+    }
+
     fun EventStore.metrizable(): EventStore {
         return metrizable {
             MetricEventStore(this)
@@ -145,6 +159,8 @@ object Metrics {
             is DistributedCommandBus -> metrizable()
             is LocalDomainEventBus -> metrizable()
             is DistributedDomainEventBus -> metrizable()
+            is LocalStateEventBus -> metrizable()
+            is DistributedStateEventBus -> metrizable()
             is EventStore -> metrizable()
             is SnapshotStrategy -> metrizable()
             is SnapshotRepository -> metrizable()
