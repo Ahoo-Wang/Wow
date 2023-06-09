@@ -19,6 +19,11 @@ const val DEFAULT_ON_STATE_EVENT_NAME = "onStateEvent"
 
 /**
  * On State Event.
+ * ``` kotlin
+ *    fun onStateEvent(changed: Changed, state: State) {
+ *         //...
+ *     }
+ * ```
  *
  * @author ahoo wang
  */
