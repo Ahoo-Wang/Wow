@@ -17,10 +17,14 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
+import org.springframework.boot.context.properties.NestedConfigurationProperty
 
 @ConstructorBinding
 @ConfigurationProperties(prefix = EventProperties.PREFIX)
-data class EventProperties(val bus: BusProperties = BusProperties()) {
+data class EventProperties(
+    @NestedConfigurationProperty
+    val bus: BusProperties = BusProperties()
+) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}event"
         const val BUS_TYPE = "${PREFIX}${BusProperties.TYPE_SUFFIX_KEY}"
