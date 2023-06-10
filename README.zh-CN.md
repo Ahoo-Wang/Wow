@@ -79,6 +79,11 @@
             - [x] Table Sharding
         - [x] ElasticSearch
         - [x] Redis (Recommend)
+- [x] 命令等待策略（`WaitStrategy`）
+    - [x] `SENT` : 命令发送成功后发送完成信号
+    - [x] `PROCESSED` : 命令处理完成后发送完成信号
+    - [x] `SNAPSHOT` : 快照生成完成后发送完成信号
+    - [x] `PROJECTED` : 命令产生的事件被投影后发送完成信号
 - [x] CommandBus
     - [x] `InMemoryCommandBus`
     - [x] `KafkaCommandBus` (Recommend)
