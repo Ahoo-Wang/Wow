@@ -38,6 +38,14 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
   <img src="./document/design/assets/Spring-WebFlux-Integration.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
+### Test suite: 80%+ test coverage is very easy
+
+> Given -> When -> Expect .
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/CI-Flow.png" alt="Wow-CI-Flow"/>
+</p>
+
 ## Preconditions
 
 - Understanding **Domain Driven Design**：《Implementing Domain-Driven Design》,《Domain-Driven Design: Tackling Complexity
@@ -55,9 +63,9 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 - [x] Saga Modeling
     - [x] `StatelessSaga`
 - [x] Test Suite
-    - [x] Test Specification
+    - [x] The Technology Compatibility Kit
     - [x] `AggregateVerifier`
-    - [x] `StatelessSagaVerifier`
+    - [x] `SagaVerifier`
 - [x] EventSourcing
     - EventStore
         - [x] MongoDB (Recommend)
@@ -102,7 +110,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 
 ## Aggregate Unit Test
 
-### 80% test coverage is a breeze.
+### 80%+ test coverage is is very easy.
 
 ![Test Coverage](./document/example/example-domain-jococo.png)
 

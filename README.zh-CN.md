@@ -38,6 +38,14 @@
   <img src="./document/design/assets/Spring-WebFlux-Integration.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
+### 测试套件：80%+ 的测试覆盖率轻而易举
+
+> Given -> When -> Expect .
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/CI-Flow.png" alt="Wow-CI-Flow"/>
+</p>
+
 ## 前置条件
 
 - 理解 **领域驱动设计**：《实现领域驱动设计》、《领域驱动设计：软件核心复杂性应对之道》
@@ -54,9 +62,9 @@
 - [x] Saga Modeling
     - [x] `StatelessSaga`
 - [x] Test Suite
-    - [x] Test Specification
+    - [x] 兼容性测试规范（TCK）
     - [x] `AggregateVerifier`
-    - [x] `StatelessSagaVerifier`
+    - [x] `SagaVerifier`
 - [x] EventSourcing
     - EventStore
         - [x] MongoDB (Recommend)
