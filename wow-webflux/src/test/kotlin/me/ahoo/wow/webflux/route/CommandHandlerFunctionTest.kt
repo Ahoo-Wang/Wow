@@ -11,7 +11,7 @@ import me.ahoo.wow.route.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import me.ahoo.wow.test.StatelessSagaVerifier
+import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
 import org.hamcrest.MatcherAssert.*
@@ -27,7 +27,7 @@ class CommandHandlerFunctionTest {
 
     @Test
     fun handle() {
-        val commandGateway = spyk<CommandGateway>(StatelessSagaVerifier.defaultCommandGateway())
+        val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val commandRouteMetadata = commandRouteMetadata<MockCreateAggregate>()
         val handlerFunction = CommandHandlerFunction(
             MOCK_AGGREGATE_METADATA,

@@ -6,7 +6,7 @@ import me.ahoo.wow.example.api.order.OrderCancelled
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.test.StatelessSagaVerifier
+import me.ahoo.wow.test.SagaVerifier
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
@@ -19,7 +19,7 @@ class OrderSagaTest {
             BigDecimal.valueOf(10),
             10,
         )
-        StatelessSagaVerifier.sagaVerifier<OrderSaga>()
+        SagaVerifier.sagaVerifier<OrderSaga>()
             .`when`(
                 mockk<OrderCreated> {
                     every {
@@ -39,7 +39,7 @@ class OrderSagaTest {
 
     @Test
     fun onOrderCreatedWithOrderState() {
-        StatelessSagaVerifier.sagaVerifier<OrderSaga>()
+        SagaVerifier.sagaVerifier<OrderSaga>()
             .`when`(
                 OrderCancelled,
                 mockk<OrderState>()

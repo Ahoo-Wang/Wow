@@ -31,7 +31,7 @@ import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
-import me.ahoo.wow.test.StatelessSagaVerifier
+import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -47,7 +47,7 @@ internal class WebFluxAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
-            .withBean(CommandGateway::class.java, { StatelessSagaVerifier.defaultCommandGateway() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })

@@ -6,7 +6,7 @@ import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.test.StatelessSagaVerifier.sagaVerifier
+import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasSize
