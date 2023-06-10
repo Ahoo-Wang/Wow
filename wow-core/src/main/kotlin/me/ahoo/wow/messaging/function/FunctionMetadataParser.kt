@@ -14,6 +14,7 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
+import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_STATE_EVENT_NAME
@@ -94,6 +95,10 @@ object FunctionMetadataParser {
 
             DEFAULT_ON_STATE_EVENT_NAME -> {
                 return FunctionKind.STATE_EVENT
+            }
+
+            DEFAULT_ON_ERROR_NAME -> {
+                return FunctionKind.ERROR
             }
         }
         throw IllegalStateException("The method [$declaringClass.$name] is not annotated by @OnMessage.")
