@@ -32,7 +32,7 @@ import me.ahoo.wow.test.saga.stateless.WhenStage
  *
  * @author ahoo wang
  */
-object StatelessSagaVerifier {
+object SagaVerifier {
     @JvmStatic
     fun defaultCommandGateway(): CommandGateway {
         return DefaultCommandGateway(

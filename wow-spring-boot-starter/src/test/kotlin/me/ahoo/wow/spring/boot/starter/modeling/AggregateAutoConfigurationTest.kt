@@ -32,7 +32,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
-import me.ahoo.wow.test.StatelessSagaVerifier
+import me.ahoo.wow.test.SagaVerifier
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -50,7 +50,7 @@ internal class AggregateAutoConfigurationTest {
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(CommandGateway::class.java, { StatelessSagaVerifier.defaultCommandGateway() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withUserConfiguration(
                 WowOpenTelemetryAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
