@@ -34,6 +34,11 @@ class MockCommandAggregate(val state: MockStateAggregate) {
         return MockAggregateCreated(create.data)
     }
 
+    @Suppress("UnusedParameter")
+    private fun onError(create: MockCreateAggregate, throwable: Throwable) {
+        throw throwable
+    }
+
     private fun onCommand(change: MockChangeAggregate): MockAggregateChanged {
         return MockAggregateChanged(change.data)
     }

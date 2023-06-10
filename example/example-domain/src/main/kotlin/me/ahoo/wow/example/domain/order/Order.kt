@@ -17,6 +17,7 @@ package me.ahoo.wow.example.domain.order
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.ChangeAddress
 import me.ahoo.wow.example.api.order.CreateOrder
@@ -81,6 +82,15 @@ class Order(private val state: OrderState) {
                     ),
                 ),
             )
+    }
+
+    fun onError(
+        createOrder: CreateOrder,
+        throwable: Throwable,
+        eventStream: DomainEventStream?,
+    ): Mono<Void> {
+        log.error("onError - [{}]", createOrder, throwable)
+        return Mono.empty()
     }
 
     /**
