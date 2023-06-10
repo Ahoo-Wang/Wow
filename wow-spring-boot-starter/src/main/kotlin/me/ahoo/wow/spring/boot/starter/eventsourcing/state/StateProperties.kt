@@ -17,10 +17,12 @@ import me.ahoo.wow.spring.boot.starter.BusProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
+import org.springframework.boot.context.properties.NestedConfigurationProperty
 
 @ConstructorBinding
 @ConfigurationProperties(prefix = StateProperties.PREFIX)
 data class StateProperties(
+    @NestedConfigurationProperty
     val bus: BusProperties = BusProperties()
 ) {
     companion object {
