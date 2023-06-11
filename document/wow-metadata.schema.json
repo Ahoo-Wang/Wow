@@ -5,9 +5,6 @@
   "description": "Wow Bounded Context Schema",
   "type": "object",
   "properties": {
-    "domain": {
-      "$ref": "#/definitions/domain"
-    },
     "contexts": {
       "$ref": "#/definitions/contexts"
     }
@@ -16,15 +13,6 @@
     "contexts"
   ],
   "definitions": {
-    "domain": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "domain name"
-        }
-      }
-    },
     "contexts": {
       "type": "object",
       "additionalProperties": {
@@ -35,6 +23,10 @@
       "description": "Bounded Context",
       "type": "object",
       "properties": {
+        "alias": {
+          "type": "string",
+          "description": "context alias"
+        },
         "scopes": {
           "type": "array",
           "items": {
@@ -62,6 +54,22 @@
           "description": "Aggregate type fully qualified name"
         },
         "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string",
+          "description": "id name"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "events": {
           "type": "array",
           "items": {
             "type": "string"

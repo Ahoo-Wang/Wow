@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.domain.order
+package me.ahoo.wow.example.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.api.order.OrderService
+import me.ahoo.wow.example.api.ExampleService
 
 @Suppress("unused")
-@BoundedContext(name = OrderService.SERVICE_NAME)
-object OrderBoundedContext
+@BoundedContext(name = ExampleService.SERVICE_NAME)
+object ExampleBoundedContext

@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -30,6 +32,20 @@ internal class WowAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(WowProperties::class.java)
                     .hasSingleBean(ServiceProvider::class.java)
+                    .hasSingleBean(NamedBoundedContext::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfContextNull() {
+        contextRunner
+            .withPropertyValues("${SPRING_APPLICATION_NAME}=wow-spring-boot-starter-test")
+            .withUserConfiguration(WowAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(WowProperties::class.java)
+                    .hasSingleBean(ServiceProvider::class.java)
+                    .hasSingleBean(NamedBoundedContext::class.java)
             }
     }
 }

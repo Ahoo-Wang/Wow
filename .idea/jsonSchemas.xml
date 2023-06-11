@@ -25,6 +25,24 @@
             </SchemaInfo>
           </value>
         </entry>
+        <entry key="wow-metadata.schema">
+          <value>
+            <SchemaInfo>
+              <option name="generatedName" value="New Schema" />
+              <option name="name" value="wow-metadata.schema" />
+              <option name="relativePathToSchema" value="document/wow-metadata.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="wow-metadata.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
       </map>
     </state>
   </component>

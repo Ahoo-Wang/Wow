@@ -11,20 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.api.order
+package me.ahoo.wow.example.api
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.api.order.OrderService.ORDER_AGGREGATE_NAME
+import me.ahoo.wow.example.api.ExampleService.CART_AGGREGATE_NAME
+import me.ahoo.wow.example.api.ExampleService.ORDER_AGGREGATE_NAME
+import me.ahoo.wow.example.api.cart.InitializeCart
+import me.ahoo.wow.example.api.order.CreateOrder
 
 @BoundedContext(
-    OrderService.SERVICE_NAME,
-    OrderService.SERVICE_ALIAS,
+    ExampleService.SERVICE_NAME,
+    ExampleService.SERVICE_ALIAS,
     aggregates = [
         BoundedContext.Aggregate(ORDER_AGGREGATE_NAME, packageScopes = [CreateOrder::class]),
+        BoundedContext.Aggregate(CART_AGGREGATE_NAME, packageScopes = [InitializeCart::class]),
     ],
 )
-object OrderService {
-    const val SERVICE_NAME = "order-example-service"
-    const val SERVICE_ALIAS = "test_order"
+object ExampleService {
+    const val SERVICE_NAME = "example-service"
+    const val SERVICE_ALIAS = "example"
     const val ORDER_AGGREGATE_NAME = "order"
+    const val CART_AGGREGATE_NAME = "cart"
 }
