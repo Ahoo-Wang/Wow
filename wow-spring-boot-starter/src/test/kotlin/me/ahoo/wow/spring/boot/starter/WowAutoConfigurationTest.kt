@@ -39,7 +39,7 @@ internal class WowAutoConfigurationTest {
     @Test
     fun contextLoadsIfContextNull() {
         contextRunner
-            .withPropertyValues("${SPRING_APPLICATION_NAME}=wow-spring-boot-starter-test")
+            .withPropertyValues("$SPRING_APPLICATION_NAME=wow-spring-boot-starter-test")
             .withUserConfiguration(WowAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)

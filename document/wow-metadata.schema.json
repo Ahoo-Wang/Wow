@@ -50,7 +50,10 @@
       "type": "object",
       "properties": {
         "type": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Aggregate type fully qualified name"
         },
         "scopes": {
