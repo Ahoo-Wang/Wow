@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Bean
 class WowAutoConfiguration(private val wowProperties: WowProperties) {
 
     companion object {
-        private const val SPRING_APPLICATION_NAME = "spring.application.name"
+        const val SPRING_APPLICATION_NAME = "spring.application.name"
     }
 
     @Bean
