@@ -17,16 +17,15 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.logging.LoggingMeterRegistry
 import io.micrometer.core.instrument.logging.LoggingRegistryConfig
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.api.order.OrderService
-import me.ahoo.wow.example.domain.cart.CartBoundedContext
-import me.ahoo.wow.example.domain.order.OrderBoundedContext
+import me.ahoo.wow.example.api.ExampleService
+import me.ahoo.wow.example.domain.ExampleBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import java.time.Duration
 
-@BoundedContext(name = OrderService.SERVICE_NAME)
+@BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
-    scanBasePackageClasses = [CartBoundedContext::class, OrderBoundedContext::class, ExampleServer::class],
+    scanBasePackageClasses = [ExampleBoundedContext::class,  ExampleServer::class],
 )
 class ExampleServer
 

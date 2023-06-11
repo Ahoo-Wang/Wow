@@ -46,9 +46,8 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     @Bean
     @ConditionalOnMissingBean
     fun currentBoundedContext(applicationContext: ApplicationContext): NamedBoundedContext {
-        val contextName = wowProperties.contextName ?: requireNotNull(
-            applicationContext.environment.getRequiredProperty(SPRING_APPLICATION_NAME),
-        )
+        val contextName =
+            wowProperties.contextName ?: applicationContext.environment.getRequiredProperty(SPRING_APPLICATION_NAME)
         return MaterializedNamedBoundedContext(contextName)
     }
 }
