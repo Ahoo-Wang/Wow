@@ -1,5 +1,7 @@
 # Wow
 
+> [中文文档](README.zh-CN.md)
+
 A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
