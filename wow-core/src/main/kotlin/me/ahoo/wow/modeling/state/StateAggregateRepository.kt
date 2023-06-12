@@ -13,6 +13,8 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.configuration.asAggregateType
+import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 
@@ -28,4 +30,11 @@ interface StateAggregateRepository {
      * `stateAggregate.initialized=false` means that no aggregate was found.
      */
     fun <S : Any> load(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<StateAggregate<S>>
+
+    fun <S : Any> load(aggregateId: AggregateId): Mono<StateAggregate<S>> {
+        val stateAggregateMetadata = checkNotNull(aggregateId.asAggregateType<Any>())
+            .asAggregateMetadata<Any, S>()
+            .state
+        return load(stateAggregateMetadata, aggregateId)
+    }
 }
