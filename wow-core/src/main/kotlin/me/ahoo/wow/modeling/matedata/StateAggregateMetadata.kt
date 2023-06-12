@@ -42,9 +42,7 @@ data class StateAggregateMetadata<S : Any>(
         if (this === other) return true
         if (other !is StateAggregateMetadata<*>) return false
 
-        if (aggregateType != other.aggregateType) return false
-
-        return true
+        return aggregateType == other.aggregateType
     }
 
     override fun hashCode(): Int {
