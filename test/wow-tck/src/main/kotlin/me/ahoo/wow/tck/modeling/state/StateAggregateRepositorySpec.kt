@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.asNamedAggregate
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -32,6 +33,7 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -69,12 +71,21 @@ abstract class StateAggregateRepositorySpec {
     fun loadWhenNotFound() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
         val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
-        aggregateRepository.load(aggregateMetadata.state, aggregateId)
+        aggregateRepository.load<MockStateAggregate>(aggregateId)
             .test()
             .consumeNextWith {
                 assertThat(it.initialized, equalTo(false))
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun loadWhenAggregateTypeNull() {
+        val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
+        val aggregateId = "test.test".asNamedAggregate().asAggregateId(GlobalIdGenerator.generateAsString())
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            aggregateRepository.load<MockStateAggregate>(aggregateId)
+        }
     }
 
     @Test
