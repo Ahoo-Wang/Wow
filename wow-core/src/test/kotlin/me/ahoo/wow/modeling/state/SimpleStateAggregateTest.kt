@@ -12,9 +12,12 @@
  */
 package me.ahoo.wow.modeling.state
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
@@ -29,11 +32,53 @@ internal class SimpleStateAggregateTest {
     private val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
+    fun testMetadataHashCode() {
+        val stateAggregateMetadata = aggregateMetadata.state
+        assertThat(stateAggregateMetadata.hashCode(), equalTo(stateAggregateMetadata.aggregateType.hashCode()))
+    }
+
+    @Test
+    fun testMetadataToString() {
+        val stateAggregateMetadata = aggregateMetadata.state
+        assertThat(
+            stateAggregateMetadata.toString(),
+            equalTo("StateAggregateMetadata(aggregateType=${stateAggregateMetadata.aggregateType})")
+        )
+    }
+
+    @Test
+    fun testMetadataEq() {
+        val stateAggregateMetadata = aggregateMetadata.state
+        assertThat(
+            stateAggregateMetadata.equals(stateAggregateMetadata),
+            equalTo(true)
+        )
+        assertThat(
+            stateAggregateMetadata.equals(Any()),
+            equalTo(false)
+        )
+        assertThat(
+            stateAggregateMetadata.equals(
+                mockk<StateAggregateMetadata<MockStateAggregate>> {
+                    every {
+                        aggregateType
+                    } returns MockStateAggregate::class.java
+                }
+            ),
+            equalTo(true)
+        )
+    }
+
+    @Test
     fun id() {
         val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
         val stateAggregate = aggregateMetadata.asStateAggregate(mockAggregate, 0)
         assertThat(stateAggregate.aggregateId.id, equalTo(mockAggregate.id))
         assertThat(stateAggregate.initialized, equalTo(false))
+        assertThat(
+            stateAggregate.toString(),
+            equalTo("SimpleStateAggregate(aggregateId=${stateAggregate.aggregateId}, version=0)")
+        )
     }
 
     @Test
