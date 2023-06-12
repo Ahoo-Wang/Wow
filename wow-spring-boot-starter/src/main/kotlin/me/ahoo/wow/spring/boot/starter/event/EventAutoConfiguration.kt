@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.LocalFirstDomainEventBus
+import me.ahoo.wow.event.NoOpDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.spring.boot.starter.BusProperties
@@ -41,6 +42,15 @@ class EventAutoConfiguration {
     )
     fun inMemoryDomainEventBus(): LocalDomainEventBus {
         return InMemoryDomainEventBus()
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        EventProperties.BUS_TYPE,
+        havingValue = BusProperties.Type.NO_OP_NAME,
+    )
+    fun ooOpDomainEventBus(): DomainEventBus {
+        return NoOpDomainEventBus
     }
 
     @Bean

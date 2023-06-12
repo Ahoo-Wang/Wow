@@ -32,13 +32,15 @@ data class BusProperties(
     enum class Type {
         KAFKA,
         REDIS,
-        IN_MEMORY
+        IN_MEMORY,
+        NO_OP
         ;
 
         companion object {
             const val KAFKA_NAME = "kafka"
             const val REDIS_NAME = "redis"
             const val IN_MEMORY_NAME = "in_memory"
+            const val NO_OP_NAME = "no_op"
         }
     }
 }

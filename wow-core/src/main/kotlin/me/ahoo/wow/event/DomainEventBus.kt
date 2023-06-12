@@ -14,9 +14,12 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.messaging.TopicKindCapable
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 /**
  * Domain Event Bus.
@@ -33,3 +36,13 @@ interface DomainEventBus : MessageBus<DomainEventStream, EventStreamExchange>, T
 interface LocalDomainEventBus : DomainEventBus, LocalMessageBus<DomainEventStream, EventStreamExchange>
 
 interface DistributedDomainEventBus : DomainEventBus, DistributedMessageBus<DomainEventStream, EventStreamExchange>
+
+object NoOpDomainEventBus : DomainEventBus {
+    override fun send(message: DomainEventStream): Mono<Void> {
+        return Mono.empty()
+    }
+
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
+        return Flux.empty()
+    }
+}

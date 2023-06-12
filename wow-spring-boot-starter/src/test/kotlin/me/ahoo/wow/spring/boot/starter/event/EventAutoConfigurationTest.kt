@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.LocalFirstDomainEventBus
+import me.ahoo.wow.event.NoOpDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -43,6 +44,22 @@ class EventAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryDomainEventBus::class.java)
+                    .hasSingleBean(DomainEventCompensator::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsIfNoOp() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${EventProperties.BUS_TYPE}=${BusProperties.Type.NO_OP}")
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(NoOpDomainEventBus::class.java)
                     .hasSingleBean(DomainEventCompensator::class.java)
             }
     }
