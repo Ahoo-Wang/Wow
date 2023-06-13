@@ -25,12 +25,10 @@ class CommandFunction<C : Any>(
     private val commandAggregate: CommandAggregate<C, *>
 ) :
     MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
-    override val supportedType: Class<*>
-        get() = delegate.supportedType
-    override val processor: C
-        get() = delegate.processor
-    override val functionKind: FunctionKind
-        get() = delegate.functionKind
+    override val contextName: String = delegate.contextName
+    override val supportedType: Class<*> = delegate.supportedType
+    override val processor: C = delegate.processor
+    override val functionKind: FunctionKind = delegate.functionKind
     override fun handle(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return delegate
             .handle(exchange)

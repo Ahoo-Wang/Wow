@@ -20,10 +20,11 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, ou
     override val metadata: MethodFunctionMetadata<P, R>
 ) :
     MethodMessageFunction<P, M, R> {
-    override val supportedTopics: Set<Any>
-        get() = metadata.supportedTopics
-    override val functionKind: FunctionKind
-        get() = metadata.functionKind
+    override val contextName: String
+        get() = metadata.contextName
+    override val supportedTopics: Set<Any> = metadata.supportedTopics
+    override val functionKind: FunctionKind = metadata.functionKind
+
     override fun handle(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
         return metadata.accessor.invoke(processor, arrayOf(firstArgument))
@@ -39,10 +40,9 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>
     override val metadata: MethodFunctionMetadata<P, R>
 ) :
     MethodMessageFunction<P, M, R> {
-    override val supportedTopics: Set<Any>
-        get() = metadata.supportedTopics
-    override val functionKind: FunctionKind
-        get() = metadata.functionKind
+    override val contextName: String = metadata.contextName
+    override val supportedTopics: Set<Any> = metadata.supportedTopics
+    override val functionKind: FunctionKind = metadata.functionKind
 
     override fun handle(exchange: M): R {
         val args = arrayOfNulls<Any>(1 + metadata.injectParameterLength)

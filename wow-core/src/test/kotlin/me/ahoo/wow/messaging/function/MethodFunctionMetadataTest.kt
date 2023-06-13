@@ -55,6 +55,8 @@ internal class MethodFunctionMetadataTest {
         )
         assertThat(metadata.firstParameterKind, equalTo(FirstParameterKind.MESSAGE_BODY))
         assertThat(metadata.supportedTopics, hasSize(0))
+        assertThat(metadata.processorType, equalTo(MockCommandAggregate::class.java))
+        assertThat(metadata.contextName, equalTo("wow-tck"))
     }
 
     @Test

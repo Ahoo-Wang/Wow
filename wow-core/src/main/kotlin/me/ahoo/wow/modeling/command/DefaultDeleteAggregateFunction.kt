@@ -26,12 +26,10 @@ import reactor.kotlin.core.publisher.toMono
 class DefaultDeleteAggregateFunction<C : Any>(
     private val commandAggregate: CommandAggregate<C, *>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
-    override val supportedType: Class<*>
-        get() = DefaultDeleteAggregate::class.java
-    override val processor: C
-        get() = commandAggregate.commandRoot
-    override val functionKind: FunctionKind
-        get() = FunctionKind.COMMAND
+    override val contextName: String = commandAggregate.contextName
+    override val supportedType: Class<*> = DefaultDeleteAggregate::class.java
+    override val processor: C = commandAggregate.commandRoot
+    override val functionKind: FunctionKind = FunctionKind.COMMAND
 
     override fun handle(
         exchange: ServerCommandExchange<*>

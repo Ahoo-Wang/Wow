@@ -40,6 +40,8 @@ internal class DomainEventDispatcherTest {
     fun run() {
         val sink = Sinks.empty<Void>()
         handlerRegistrar.register(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
+            override val contextName: String
+                get() = "test"
             override val supportedType: Class<*>
                 get() = MockAggregateCreated::class.java
             override val processor: Any

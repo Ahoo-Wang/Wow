@@ -14,10 +14,9 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : FunctionKindCapable {
+interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : FunctionKindCapable, NamedBoundedContext {
 
     /**
      * Message body types supported by the message function.
@@ -51,8 +50,3 @@ fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.asMessa
         InjectableMethodMessageFunction(processor, this)
     }
 }
-
-val <P : Any, M : MessageExchange<*, *>, R> MessageFunction<P, M, R>.namedBoundedContext: NamedBoundedContext
-    get() {
-        return processor.javaClass.asRequiredNamedBoundedContext()
-    }
