@@ -42,6 +42,8 @@ internal class DomainEventDispatcherTest {
         handlerRegistrar.register(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
             override val contextName: String
                 get() = "test"
+            override val name: String
+                get() = "test"
             override val supportedType: Class<*>
                 get() = MockAggregateCreated::class.java
             override val processor: Any

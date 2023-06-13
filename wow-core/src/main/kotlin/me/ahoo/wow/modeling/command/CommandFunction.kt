@@ -26,6 +26,7 @@ class CommandFunction<C : Any>(
 ) :
     MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
     override val contextName: String = delegate.contextName
+    override val name: String = delegate.contextName
     override val supportedType: Class<*> = delegate.supportedType
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind

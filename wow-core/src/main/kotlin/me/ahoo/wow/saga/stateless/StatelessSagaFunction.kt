@@ -29,6 +29,7 @@ class StatelessSagaFunction(
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
     override val contextName: String = actual.contextName
+    override val name: String = actual.name
     override val processor: Any = actual.processor
     override val supportedType: Class<*> = actual.supportedType
     override val supportedTopics: Set<Any> = actual.supportedTopics

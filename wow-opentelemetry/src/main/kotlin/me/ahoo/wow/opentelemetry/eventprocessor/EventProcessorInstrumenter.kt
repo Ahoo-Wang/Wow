@@ -37,8 +37,6 @@ object EventProcessorInstrumenter {
 
 object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<Any>> {
     override fun extract(request: DomainEventExchange<Any>): String {
-        val function = checkNotNull(request.getEventFunction())
-        val processorName = function.processor.javaClass.simpleName
-        return "$processorName.${function.supportedType.simpleName}"
+        return checkNotNull(request.getEventFunction()).name
     }
 }
