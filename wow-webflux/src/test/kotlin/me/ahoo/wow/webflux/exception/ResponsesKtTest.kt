@@ -46,6 +46,8 @@ class ResponsesKtTest {
             tenantId = GlobalIdGenerator.generateAsString(),
             requestId = GlobalIdGenerator.generateAsString(),
             commandId = GlobalIdGenerator.generateAsString(),
+            contextName = "contextName",
+            processorName = "processorName",
         ).toMono()
             .asServerResponse(DefaultExceptionHandler)
             .test()
