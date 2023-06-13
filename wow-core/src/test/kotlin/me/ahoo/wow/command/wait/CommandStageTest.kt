@@ -10,14 +10,20 @@ import java.util.stream.Stream
 class CommandStageTest {
 
     @ParameterizedTest
-    @MethodSource("argsProvider")
+    @MethodSource("shouldNotifyArgsProvider")
     fun shouldNotify(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
         assertThat(commandStage.shouldNotify(processingStage), equalTo(expected))
     }
 
+    @ParameterizedTest
+    @MethodSource("isAfterArgsProvider")
+    fun isAfter(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
+        assertThat(commandStage.isAfter(processingStage), equalTo(expected))
+    }
+
     companion object {
         @JvmStatic
-        fun argsProvider(): Stream<Arguments> {
+        fun shouldNotifyArgsProvider(): Stream<Arguments> {
             return Stream.of(
                 Arguments.arguments(CommandStage.SENT, CommandStage.SENT, true),
                 Arguments.arguments(CommandStage.SENT, CommandStage.PROCESSED, false),
@@ -35,6 +41,28 @@ class CommandStageTest {
                 Arguments.arguments(CommandStage.PROJECTED, CommandStage.PROCESSED, true),
                 Arguments.arguments(CommandStage.PROJECTED, CommandStage.SNAPSHOT, false),
                 Arguments.arguments(CommandStage.PROJECTED, CommandStage.PROJECTED, true),
+            )
+        }
+
+        @JvmStatic
+        fun isAfterArgsProvider(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.arguments(CommandStage.SENT, CommandStage.SENT, false),
+                Arguments.arguments(CommandStage.SENT, CommandStage.PROCESSED, false),
+                Arguments.arguments(CommandStage.SENT, CommandStage.SNAPSHOT, false),
+                Arguments.arguments(CommandStage.SENT, CommandStage.PROJECTED, false),
+                Arguments.arguments(CommandStage.PROCESSED, CommandStage.SENT, true),
+                Arguments.arguments(CommandStage.PROCESSED, CommandStage.PROCESSED, false),
+                Arguments.arguments(CommandStage.PROCESSED, CommandStage.SNAPSHOT, false),
+                Arguments.arguments(CommandStage.PROCESSED, CommandStage.PROJECTED, false),
+                Arguments.arguments(CommandStage.SNAPSHOT, CommandStage.SENT, true),
+                Arguments.arguments(CommandStage.SNAPSHOT, CommandStage.PROCESSED, true),
+                Arguments.arguments(CommandStage.SNAPSHOT, CommandStage.SNAPSHOT, false),
+                Arguments.arguments(CommandStage.SNAPSHOT, CommandStage.PROJECTED, false),
+                Arguments.arguments(CommandStage.PROJECTED, CommandStage.SENT, true),
+                Arguments.arguments(CommandStage.PROJECTED, CommandStage.PROCESSED, true),
+                Arguments.arguments(CommandStage.PROJECTED, CommandStage.SNAPSHOT, false),
+                Arguments.arguments(CommandStage.PROJECTED, CommandStage.PROJECTED, false),
             )
         }
     }

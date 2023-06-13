@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -23,7 +23,7 @@ import java.util.*
  * Command Wait Strategy
  * @see WaitingFor
  */
-interface WaitStrategy {
+interface WaitStrategy : ProcessorInfo {
     fun waiting(): Mono<WaitSignal>
 
     fun error(throwable: Throwable)
@@ -35,18 +35,31 @@ interface WaitStrategy {
 }
 
 class WaitingFor(
+    val stage: CommandStage,
     override val contextName: String,
-    val stage: CommandStage
-) : WaitStrategy, NamedBoundedContext {
+    override val processorName: String = ""
+) : WaitStrategy {
 
     companion object {
         private val log = LoggerFactory.getLogger(WaitingFor::class.java)
-        fun processed(contextName: String): WaitingFor = stage(contextName, CommandStage.PROCESSED)
-        fun snapshot(contextName: String): WaitingFor = stage(contextName, CommandStage.SNAPSHOT)
-        fun projected(contextName: String): WaitingFor = stage(contextName, CommandStage.PROJECTED)
-        fun stage(contextName: String, stage: CommandStage): WaitingFor = WaitingFor(contextName, stage)
-        fun stage(contextName: String, stage: String): WaitingFor =
-            WaitingFor(contextName, CommandStage.valueOf(stage.uppercase(Locale.getDefault())))
+        fun processed(contextName: String): WaitingFor =
+            stage(stage = CommandStage.PROCESSED, contextName = contextName)
+
+        fun snapshot(contextName: String): WaitingFor =
+            stage(stage = CommandStage.SNAPSHOT, contextName = contextName)
+
+        fun projected(contextName: String, processorName: String = ""): WaitingFor =
+            stage(stage = CommandStage.PROJECTED, contextName = contextName, processorName = processorName)
+
+        fun stage(stage: CommandStage, contextName: String, processorName: String = ""): WaitingFor =
+            WaitingFor(stage = stage, contextName = contextName, processorName = processorName)
+
+        fun stage(stage: String, contextName: String, processorName: String = ""): WaitingFor =
+            stage(
+                stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
+                contextName = contextName,
+                processorName = processorName
+            )
     }
 
     private val sink: Sinks.One<WaitSignal> = Sinks.one()
@@ -62,24 +75,39 @@ class WaitingFor(
         if (log.isDebugEnabled) {
             log.debug("Next $signal.")
         }
-        if (!isSameBoundedContext(signal)) {
-            return
-        }
-        if (!signal.succeeded) {
+        if (!signal.succeeded && stage.isAfter(signal.stage)) {
             // fail fast
             sink.tryEmitValue(signal)
             return
         }
-        if (stage == CommandStage.PROJECTED && !signal.isLastProjection) {
+        if (stage != signal.stage) {
             return
         }
-        if (stage == signal.stage) {
+
+        if (stage != CommandStage.PROJECTED) {
             sink.tryEmitValue(signal)
             return
+        }
+        /**
+         * stage == CommandStage.PROJECTED
+         */
+        if (!isSameBoundedContext(signal)) {
+            return
+        }
+        if (processorName.isBlank()) {
+            if (signal.isLastProjection) {
+                sink.tryEmitValue(signal)
+                return
+            }
+        } else {
+            if (processorName == signal.processorName) {
+                sink.tryEmitValue(signal)
+                return
+            }
         }
     }
 
     override fun toString(): String {
-        return "WaitingFor(stage='$stage')"
+        return "WaitingFor(stage=$stage, contextName='$contextName', processorName='$processorName')"
     }
 }

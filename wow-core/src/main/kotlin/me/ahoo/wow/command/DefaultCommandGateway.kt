@@ -65,6 +65,8 @@ class DefaultCommandGateway(
             command.header.injectWaitStrategy(
                 commandWaitEndpoint = commandWaitEndpoint.endpoint,
                 stage = waitStrategy.stage,
+                context = waitStrategy.contextName,
+                processor = waitStrategy.processorName
             )
             if (waitStrategy.stage != CommandStage.SENT) {
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)

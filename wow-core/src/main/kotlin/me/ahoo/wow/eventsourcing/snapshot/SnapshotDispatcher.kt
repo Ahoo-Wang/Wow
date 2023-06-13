@@ -28,7 +28,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 
-private const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
+internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
 
 class SnapshotDispatcher(
     /**

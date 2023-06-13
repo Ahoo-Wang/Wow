@@ -16,6 +16,8 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.messaging.processor.ProcessorInfoData
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -24,11 +26,15 @@ internal class WaitingForTest {
     private val contextName = "WaitingForTest"
 
     @Test
-    fun waiting() {
+    fun processed() {
         val waitStrategy = WaitingFor.processed(contextName)
         val waitSignal = ProcessorInfoData(contextName, "processorName").asWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
+        )
+        assertThat(
+            waitStrategy.toString(),
+            equalTo("WaitingFor(stage=PROCESSED, contextName='WaitingForTest', processorName='')")
         )
         waitStrategy.waiting()
             .test()
@@ -40,13 +46,87 @@ internal class WaitingForTest {
     }
 
     @Test
-    fun waitingForProjected() {
+    fun stage() {
+        val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROCESSED,
+            contextName = contextName,
+            processorName = ""
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
+    fun snapshot() {
+        val waitStrategy = WaitingFor.snapshot(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.SNAPSHOT,
+            contextName = contextName,
+            processorName = "",
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
+    fun snapshotFailFast() {
+        val waitStrategy = WaitingFor.snapshot(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROCESSED,
+            contextName = contextName,
+            processorName = "",
+            errorCode = "ERROR_CODE"
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
+    fun projected() {
         val waitStrategy = WaitingFor.projected(contextName)
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROJECTED,
             contextName = contextName,
             processorName = "",
+            isLastProjection = true
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
+    fun waitingForProjectedProcessor() {
+        val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROJECTED,
+            contextName = contextName,
+            processorName = "processor",
             isLastProjection = true
         )
         waitStrategy.waiting()
@@ -130,7 +210,7 @@ internal class WaitingForTest {
                 waitStrategy.next(
                     SimpleWaitSignal(
                         "commandId",
-                        CommandStage.PROCESSED,
+                        CommandStage.PROJECTED,
                         contextName = "no-matched-context",
                         processorName = "",
                     )

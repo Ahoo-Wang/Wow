@@ -33,6 +33,14 @@ fun ServerRequest.getCommandStage(): CommandStage {
     return stage
 }
 
+fun ServerRequest.getWaitContext(): String {
+    return headers().firstHeader(CommandHeaders.WAIT_CONTEXT).orEmpty()
+}
+
+fun ServerRequest.getWaitProcessor(): String {
+    return headers().firstHeader(CommandHeaders.WAIT_PROCESSOR).orEmpty()
+}
+
 class CommandHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandGateway: CommandGateway,
@@ -53,7 +61,17 @@ class CommandHandler(
                 if (CommandStage.SENT == stage) {
                     commandGateway.sendAndWaitForSent(it)
                 } else {
-                    commandGateway.sendAndWait(it, waitStrategy = WaitingFor.stage(it.contextName, stage))
+                    val waitContext = request.getWaitContext().ifBlank {
+                        it.contextName
+                    }
+                    commandGateway.sendAndWait(
+                        command = it,
+                        waitStrategy = WaitingFor.stage(
+                            stage = stage,
+                            contextName = waitContext,
+                            processorName = request.getWaitProcessor()
+                        )
+                    )
                 }.timeout(commandWaitTimeout)
             }
     }
