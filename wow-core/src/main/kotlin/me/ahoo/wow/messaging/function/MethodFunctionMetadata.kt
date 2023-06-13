@@ -15,6 +15,8 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import me.ahoo.wow.messaging.handler.MessageExchange
 
@@ -25,12 +27,11 @@ data class MethodFunctionMetadata<P, out R>(
     val supportedTopics: Set<Any>,
     val firstParameterKind: FirstParameterKind,
     val injectParameterTypes: Array<Class<*>>
-) : FunctionKindCapable {
-    val injectParameterLength: Int
-        get() = injectParameterTypes.size
+) : FunctionKindCapable, NamedBoundedContext {
+    val injectParameterLength: Int = injectParameterTypes.size
 
-    val processorType: Class<P>
-        get() = accessor.targetType
+    val processorType: Class<P> = accessor.targetType
+    override val contextName: String = processorType.asRequiredNamedBoundedContext().contextName
 
     fun extractFirstArgument(exchange: MessageExchange<*, *>): Any {
         return when (firstParameterKind) {

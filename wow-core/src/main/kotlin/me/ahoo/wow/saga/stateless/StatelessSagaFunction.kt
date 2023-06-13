@@ -28,15 +28,11 @@ class StatelessSagaFunction(
     private val commandGateway: CommandGateway
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
-
-    override val processor: Any
-        get() = actual.processor
-    override val supportedType: Class<*>
-        get() = actual.supportedType
-    override val supportedTopics: Set<Any>
-        get() = actual.supportedTopics
-    override val functionKind: FunctionKind
-        get() = actual.functionKind
+    override val contextName: String = actual.contextName
+    override val processor: Any = actual.processor
+    override val supportedType: Class<*> = actual.supportedType
+    override val supportedTopics: Set<Any> = actual.supportedTopics
+    override val functionKind: FunctionKind = actual.functionKind
 
     override fun handle(exchange: DomainEventExchange<*>): Mono<CommandStream> {
         return actual.handle(exchange)
