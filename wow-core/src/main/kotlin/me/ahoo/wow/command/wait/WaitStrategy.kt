@@ -42,11 +42,11 @@ class WaitingFor(
 
     companion object {
         private val log = LoggerFactory.getLogger(WaitingFor::class.java)
-        fun processed(contextName: String, processorName: String = ""): WaitingFor =
-            stage(stage = CommandStage.PROCESSED, contextName = contextName, processorName = processorName)
+        fun processed(contextName: String): WaitingFor =
+            stage(stage = CommandStage.PROCESSED, contextName = contextName)
 
-        fun snapshot(contextName: String, processorName: String = ""): WaitingFor =
-            stage(stage = CommandStage.SNAPSHOT, contextName = contextName, processorName = processorName)
+        fun snapshot(contextName: String): WaitingFor =
+            stage(stage = CommandStage.SNAPSHOT, contextName = contextName)
 
         fun projected(contextName: String, processorName: String = ""): WaitingFor =
             stage(stage = CommandStage.PROJECTED, contextName = contextName, processorName = processorName)
@@ -55,7 +55,7 @@ class WaitingFor(
             WaitingFor(stage = stage, contextName = contextName, processorName = processorName)
 
         fun stage(stage: String, contextName: String, processorName: String = ""): WaitingFor =
-            WaitingFor(
+            stage(
                 stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
                 contextName = contextName,
                 processorName = processorName
