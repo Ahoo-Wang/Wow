@@ -75,19 +75,27 @@ class WaitingFor(
         if (log.isDebugEnabled) {
             log.debug("Next $signal.")
         }
-        if (!isSameBoundedContext(signal)) {
-            return
-        }
-        if (!signal.succeeded) {
+        if (!signal.succeeded && stage.isAfter(signal.stage)) {
             // fail fast
             sink.tryEmitValue(signal)
             return
         }
+        if (stage != signal.stage) {
+            return
+        }
+
+        if (stage != CommandStage.PROJECTED) {
+            sink.tryEmitValue(signal)
+            return
+        }
+        /**
+         * stage == CommandStage.PROJECTED
+         */
+        if (!isSameBoundedContext(signal)) {
+            return
+        }
         if (processorName.isBlank()) {
-            if (stage == CommandStage.PROJECTED && !signal.isLastProjection) {
-                return
-            }
-            if (stage == signal.stage) {
+            if (signal.isLastProjection) {
                 sink.tryEmitValue(signal)
                 return
             }
