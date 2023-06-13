@@ -22,7 +22,6 @@ interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo {
     val stage: CommandStage
     val isLastProjection: Boolean
         get() = false
-    override val processorName: String
 }
 
 data class SimpleWaitSignal(
