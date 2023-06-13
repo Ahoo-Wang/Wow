@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.messaging.processor.ProcessorInfoData
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -24,11 +26,9 @@ internal class WaitingForTest {
     @Test
     fun waiting() {
         val waitStrategy = WaitingFor.processed(contextName)
-        val waitSignal = SimpleWaitSignal(
+        val waitSignal = ProcessorInfoData(contextName, "processorName").asWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
-            contextName = contextName,
-            processorName = ""
         )
         waitStrategy.waiting()
             .test()
