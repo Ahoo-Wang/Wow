@@ -21,7 +21,6 @@ import io.opentelemetry.context.propagation.ContextPropagators
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
