@@ -125,7 +125,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                             SimpleWaitSignal(
                                 message.commandId,
                                 CommandStage.PROCESSED,
-                                "",
+                                message.contextName,
                                 ""
                             ),
                         )

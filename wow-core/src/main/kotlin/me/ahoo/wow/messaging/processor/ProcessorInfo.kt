@@ -18,3 +18,14 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 interface ProcessorInfo : NamedBoundedContext {
     val processorName: String
 }
+
+data class ProcessorInfoData(
+    override val contextName: String,
+    override val processorName: String
+) : ProcessorInfo {
+    companion object {
+        fun unknown(contextName: String): ProcessorInfo {
+            return ProcessorInfoData(contextName, "Unknown")
+        }
+    }
+}

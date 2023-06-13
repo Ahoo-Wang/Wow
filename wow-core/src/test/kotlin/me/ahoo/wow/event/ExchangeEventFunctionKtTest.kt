@@ -11,5 +11,6 @@ class ExchangeEventFunctionKtTest {
     fun setEventFunction() {
         val exchange = SimpleDomainEventExchange(mockk<DomainEvent<Any>>())
         assertThat(exchange.setEventFunction(mockk()).getEventFunction(), notNullValue())
+        assertThat(exchange.getProcessor(), notNullValue())
     }
 }

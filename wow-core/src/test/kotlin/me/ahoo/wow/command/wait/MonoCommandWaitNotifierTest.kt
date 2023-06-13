@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.command.wait
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.wow.command.MockCreateCommand
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
@@ -40,9 +42,19 @@ internal class MonoCommandWaitNotifierTest {
     fun notifyAndForgetWrap() {
         val command = MockCreateCommand("").asCommandMessage()
         command.header.injectWaitStrategy("", CommandStage.PROCESSED)
+
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
-            .thenNotifyAndForget(commandWaitNotifier, CommandStage.SENT, SimpleServerCommandExchange(command))
+            .thenNotifyAndForget(
+                commandWaitNotifier,
+                CommandStage.SENT,
+                SimpleServerCommandExchange(command).setAggregateProcessor(
+                    mockk {
+                        every { contextName } returns command.contextName
+                        every { processorName } returns "notifyAndForgetWrap"
+                    }
+                )
+            )
             .test()
             .verifyComplete()
     }
@@ -54,7 +66,11 @@ internal class MonoCommandWaitNotifierTest {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         RuntimeException("error")
             .toMono<Void>()
-            .thenNotifyAndForget(commandWaitNotifier, CommandStage.SENT, SimpleServerCommandExchange(command))
+            .thenNotifyAndForget(
+                commandWaitNotifier,
+                CommandStage.SENT,
+                SimpleServerCommandExchange(command)
+            )
             .test()
             .verifyError(RuntimeException::class.java)
     }

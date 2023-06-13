@@ -15,9 +15,15 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.command.CommandId
+import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
@@ -27,10 +33,10 @@ import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.projection.ProjectionDispatcher
 import reactor.core.publisher.Mono
 
-abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
+abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     private val processingStage: CommandStage,
     private val commandWaitNotifier: CommandWaitNotifier
-) : Filter<T> {
+) : Filter<T> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
     override fun filter(
         exchange: T,
         next: FilterChain<T>
@@ -44,16 +50,16 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, *>>(
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<ServerCommandExchange<*>>(CommandStage.PROCESSED, commandWaitNotifier)
+) : AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_FIRST)
 class SnapshotNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<StateEventExchange<*>>(CommandStage.SNAPSHOT, commandWaitNotifier)
+) : AbstractNotifierFilter<StateEventExchange<*>, StateEvent<*>>(CommandStage.SNAPSHOT, commandWaitNotifier)
 
 @FilterType(ProjectionDispatcher::class)
 @Order(ORDER_FIRST)
 class ProjectedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<DomainEventExchange<Any>>(CommandStage.PROJECTED, commandWaitNotifier)
+) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.PROJECTED, commandWaitNotifier)
