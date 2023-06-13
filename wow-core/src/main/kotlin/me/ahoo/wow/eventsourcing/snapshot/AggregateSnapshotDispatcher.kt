@@ -18,6 +18,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -30,9 +31,14 @@ class AggregateSnapshotDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
     override val messageFlux: Flux<StateEventExchange<*>>
-) : AggregateMessageDispatcher<StateEventExchange<*>>() {
+) : AggregateMessageDispatcher<StateEventExchange<*>>(), ProcessorInfo {
+    override val contextName: String
+        get() = namedAggregate.contextName
+    override val processorName: String
+        get() = SNAPSHOT_PROCESSOR_NAME
 
     override fun handleExchange(exchange: StateEventExchange<*>): Mono<Void> {
+        exchange.setProcessor(this)
         return snapshotHandler.handle(exchange)
     }
 

@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono
 
 const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
+const val PROCESSOR_KEY = "__PROCESSOR__"
 
 @Suppress("TooManyFunctions")
 interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> {
@@ -58,8 +59,12 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         return removeAttribute(ERROR_KEY)
     }
 
+    fun setProcessor(processorInfo: ProcessorInfo): SOURCE {
+        return setAttribute(PROCESSOR_KEY, processorInfo)
+    }
+
     fun getProcessor(): ProcessorInfo? {
-        return null
+        return getAttribute(PROCESSOR_KEY)
     }
 
     fun setServiceProvider(serviceProvider: ServiceProvider): SOURCE {

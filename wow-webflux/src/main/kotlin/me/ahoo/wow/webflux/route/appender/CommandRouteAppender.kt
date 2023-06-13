@@ -145,6 +145,16 @@ class CommandRouteAppender(
                 )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_CONTEXT)
+                        .`in`(ParameterIn.HEADER)
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_PROCESSOR)
+                        .`in`(ParameterIn.HEADER)
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(CommandHeaders.WAIT_TIME_OUT)
                         .`in`(ParameterIn.HEADER)
                         .example("${DEFAULT_TIME_OUT.toMillis()}")

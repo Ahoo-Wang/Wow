@@ -44,12 +44,12 @@ class MonoCommandWaitNotifier<E, M>(
 
         source.subscribe(
             CommandWaitNotifierSubscriber(
-                commandWaitNotifier,
-                processingStage,
-                waitStrategy,
-                message.commandId,
-                messageExchange,
-                actual,
+                commandWaitNotifier = commandWaitNotifier,
+                processingStage = processingStage,
+                waitStrategy = waitStrategy,
+                commandId = message.commandId,
+                messageExchange = messageExchange,
+                actual = actual,
             ),
         )
     }

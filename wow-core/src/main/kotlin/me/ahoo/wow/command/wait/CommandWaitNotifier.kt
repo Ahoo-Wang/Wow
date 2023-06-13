@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -22,6 +23,8 @@ import reactor.core.scheduler.Schedulers
 const val COMMAND_WAIT_PREFIX = "command.wait."
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
 const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
+const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
+const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
 
 interface CommandWaitEndpoint {
     val endpoint: String
@@ -29,23 +32,44 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
+fun Header.propagateWaitStrategy(upstreamHeader: Header): Header {
+    val commandWaitEndpoint = upstreamHeader[COMMAND_WAIT_ENDPOINT] ?: return this
+    return with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
+        .with(COMMAND_WAIT_STAGE, upstreamHeader[COMMAND_WAIT_STAGE].orEmpty())
+        .with(COMMAND_WAIT_CONTEXT, upstreamHeader[COMMAND_WAIT_CONTEXT].orEmpty())
+        .with(COMMAND_WAIT_PROCESSOR, upstreamHeader[COMMAND_WAIT_PROCESSOR].orEmpty())
+}
+
 fun Header.injectWaitStrategy(
     commandWaitEndpoint: String,
-    stage: CommandStage
+    stage: CommandStage,
+    context: String,
+    processor: String = ""
 ): Header {
     return with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
         .with(COMMAND_WAIT_STAGE, stage.name)
+        .with(COMMAND_WAIT_CONTEXT, context)
+        .with(COMMAND_WAIT_PROCESSOR, processor)
 }
 
 data class WaitStrategyInfo(
     val commandWaitEndpoint: String,
-    val stage: CommandStage
-)
+    val stage: CommandStage,
+    override val contextName: String,
+    override val processorName: String
+) : ProcessorInfo
 
 fun Header.extractWaitStrategy(): WaitStrategyInfo? {
     val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
-    val stage = this[COMMAND_WAIT_STAGE]!!
-    return WaitStrategyInfo(commandWaitEndpoint, CommandStage.valueOf(stage))
+    val stage = this[COMMAND_WAIT_STAGE].orEmpty()
+    val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
+    val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
+    return WaitStrategyInfo(
+        commandWaitEndpoint = commandWaitEndpoint,
+        stage = CommandStage.valueOf(stage),
+        contextName = context,
+        processorName = processor
+    )
 }
 
 /**
