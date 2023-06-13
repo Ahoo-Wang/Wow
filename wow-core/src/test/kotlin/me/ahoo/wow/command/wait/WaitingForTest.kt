@@ -19,10 +19,17 @@ import reactor.kotlin.test.test
 import java.time.Duration
 
 internal class WaitingForTest {
+    private val contextName = "WaitingForTest"
+
     @Test
     fun waiting() {
-        val waitStrategy = WaitingFor.processed()
-        val waitSignal = SimpleWaitSignal("commandId", CommandStage.PROCESSED)
+        val waitStrategy = WaitingFor.processed(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROCESSED,
+            contextName = contextName,
+            processorName = ""
+        )
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
@@ -34,8 +41,14 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjected() {
-        val waitStrategy = WaitingFor.projected()
-        val waitSignal = SimpleWaitSignal("commandId", CommandStage.PROJECTED, isLastProjection = true)
+        val waitStrategy = WaitingFor.projected(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROJECTED,
+            contextName = contextName,
+            processorName = "",
+            isLastProjection = true
+        )
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
@@ -47,8 +60,14 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjectedWhenNotLast() {
-        val waitStrategy = WaitingFor.projected()
-        val waitSignal = SimpleWaitSignal("commandId", CommandStage.PROJECTED, isLastProjection = false)
+        val waitStrategy = WaitingFor.projected(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROJECTED,
+            contextName = contextName,
+            processorName = "",
+            isLastProjection = false
+        )
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
@@ -61,13 +80,15 @@ internal class WaitingForTest {
 
     @Test
     fun waitingWhenFailure() {
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingFor.processed(contextName)
         val waitSignal = SimpleWaitSignal(
-            "commandId",
-            CommandStage.PROCESSED,
+            commandId = "commandId",
+            stage = CommandStage.PROCESSED,
+            contextName = contextName,
+            processorName = "",
             isLastProjection = true,
-            ErrorCodes.ILLEGAL_ARGUMENT,
-            "",
+            errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
+            errorMsg = "",
         )
         waitStrategy.waiting()
             .test()
@@ -81,13 +102,39 @@ internal class WaitingForTest {
     }
 
     @Test
-    fun waitingWhenNoMatchedSignal() {
-        val waitStrategy = WaitingFor.projected()
-
+    fun waitingWhenNoMatchedStage() {
+        val waitStrategy = WaitingFor.projected(contextName)
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
-                waitStrategy.next(SimpleWaitSignal("commandId", CommandStage.PROCESSED))
+                waitStrategy.next(
+                    SimpleWaitSignal(
+                        "commandId",
+                        CommandStage.PROCESSED,
+                        contextName = contextName,
+                        processorName = "",
+                    )
+                )
+            }
+            .expectNextCount(0)
+            .expectTimeout(Duration.ofMillis(100))
+            .verify()
+    }
+
+    @Test
+    fun waitingWhenNoMatchedContext() {
+        val waitStrategy = WaitingFor.projected(contextName)
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(
+                    SimpleWaitSignal(
+                        "commandId",
+                        CommandStage.PROCESSED,
+                        contextName = "no-matched-context",
+                        processorName = "",
+                    )
+                )
             }
             .expectNextCount(0)
             .expectTimeout(Duration.ofMillis(100))

@@ -16,7 +16,6 @@ package me.ahoo.wow.metrics
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventHandler
-import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
@@ -29,7 +28,7 @@ class MetricDomainEventHandler(override val delegate: DomainEventHandler) :
             .name(Wow.WOW_PREFIX + "event.handle")
             .tag(Metrics.AGGREGATE_KEY, exchange.message.aggregateName)
             .tag(Metrics.EVENT_KEY, exchange.message.name)
-            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.getEventFunction()).processor.javaClass.simpleName)
+            .tag(Metrics.PROCESSOR_KEY, requireNotNull(exchange.getEventFunction()).processorName)
             .metrics()
     }
 }

@@ -38,9 +38,7 @@ data class AggregateMetadata<C : Any, S : Any>(
         if (this === other) return true
         if (other !is AggregateMetadata<*, *>) return false
 
-        if (command != other.command) return false
-
-        return true
+        return command == other.command
     }
 
     override fun hashCode(): Int {

@@ -16,9 +16,10 @@ package me.ahoo.wow.command
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.exception.asErrorInfo
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+
+const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
 
 /**
  * Command Gateway .
@@ -42,7 +43,7 @@ interface CommandGateway : CommandBus {
     ): Mono<CommandResult> {
         return send(command, waitStrategy)
             .onErrorMap {
-                CommandResultException(it.asResult(command))
+                CommandResultException(it.asResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME))
             }
             .flatMap {
                 waitStrategy.waiting()
@@ -65,36 +66,30 @@ interface CommandGateway : CommandBus {
                 CommandResult(
                     stage = CommandStage.SENT,
                     aggregateId = command.aggregateId.id,
+                    contextName = command.contextName,
+                    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
                     tenantId = command.aggregateId.tenantId,
                     requestId = command.requestId,
                     commandId = command.commandId,
                 ),
             ).onErrorResume {
-                val errorInfo = it.asErrorInfo()
-                CommandResult(
-                    stage = CommandStage.SENT,
-                    aggregateId = command.aggregateId.id,
-                    tenantId = command.aggregateId.tenantId,
-                    requestId = command.requestId,
-                    commandId = command.commandId,
-                    errorCode = errorInfo.errorCode,
-                    errorMsg = errorInfo.errorMsg,
-                ).toMono()
+                it.asResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME)
+                    .toMono()
             }
     }
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.processed())
+        sendAndWait(command, WaitingFor.processed(command.contextName))
 
     fun <C : Any> sendAndWaitForSnapshot(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.snapshot())
+        sendAndWait(command, WaitingFor.snapshot(command.contextName))
 
     fun <C : Any> sendAndWaitForProjected(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.projected())
+        sendAndWait(command, WaitingFor.projected(command.contextName))
 }

@@ -53,7 +53,7 @@ class CommandHandler(
                 if (CommandStage.SENT == stage) {
                     commandGateway.sendAndWaitForSent(it)
                 } else {
-                    commandGateway.sendAndWait(it, waitStrategy = WaitingFor.stage(stage))
+                    commandGateway.sendAndWait(it, waitStrategy = WaitingFor.stage(it.contextName, stage))
                 }.timeout(commandWaitTimeout)
             }
     }

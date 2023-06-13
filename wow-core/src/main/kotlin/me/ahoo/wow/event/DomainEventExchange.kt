@@ -13,11 +13,29 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
-interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>>
+const val EVENT_FUNCTION_KEY = "__EVENT_FUNCTION__"
+
+interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>> {
+
+    fun setEventFunction(eventFunction: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>): DomainEventExchange<*> {
+        return setAttribute(EVENT_FUNCTION_KEY, eventFunction)
+    }
+
+    fun getEventFunction(): MessageFunction<Any, DomainEventExchange<*>, Mono<*>>? {
+        return getAttribute<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>(EVENT_FUNCTION_KEY)
+    }
+
+    override fun getProcessor(): ProcessorInfo? {
+        return getEventFunction()
+    }
+}
 
 class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,

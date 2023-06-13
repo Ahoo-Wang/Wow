@@ -39,6 +39,8 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         private val MIN_BACKOFF = Duration.ofMillis(500)
     }
 
+    override val processorName: String = aggregateMetadata.command.processorName
+
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
         .filter {
             val retryable = it.retryable

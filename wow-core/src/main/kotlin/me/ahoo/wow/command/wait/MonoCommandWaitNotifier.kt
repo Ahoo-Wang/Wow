@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.exception.asErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -93,18 +94,14 @@ class CommandWaitNotifierSubscriber<M>(
     }
 
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
-        val waitSignal = errorInfo?.let {
-            SimpleWaitSignal(
-                commandId = commandId,
-                stage = processingStage,
-                isLastProjection = isLastProjection,
-                errorCode = errorInfo.errorCode,
-                errorMsg = errorInfo.errorMsg,
-            )
-        } ?: SimpleWaitSignal(
+        val error = errorInfo ?: ErrorInfo.OK
+        val processorInfo = checkNotNull(messageExchange.getProcessor())
+        val waitSignal = processorInfo.asWaitSignal(
             commandId = commandId,
             stage = processingStage,
             isLastProjection = isLastProjection,
+            errorCode = error.errorCode,
+            errorMsg = error.errorMsg,
         )
         commandWaitNotifier.notifyAndForget(waitStrategy.commandWaitEndpoint, waitSignal)
     }

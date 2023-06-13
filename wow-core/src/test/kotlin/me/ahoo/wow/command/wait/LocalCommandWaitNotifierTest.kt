@@ -23,7 +23,7 @@ internal class LocalCommandWaitNotifierTest {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notify(
             "endpoint",
-            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT),
+            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT, "", ""),
         )
             .test()
             .verifyComplete()
@@ -34,14 +34,14 @@ internal class LocalCommandWaitNotifierTest {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notifyAndForget(
             "endpoint",
-            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT),
+            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT, "", ""),
         )
     }
 
     @Test
     fun notifyRemote() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
-        commandWaitNotifier.notify("endpoint", SimpleWaitSignal("0THbs0sW0066001", CommandStage.SENT))
+        commandWaitNotifier.notify("endpoint", SimpleWaitSignal("0THbs0sW0066001", CommandStage.SENT, "", ""))
             .test()
             .verifyComplete()
     }
