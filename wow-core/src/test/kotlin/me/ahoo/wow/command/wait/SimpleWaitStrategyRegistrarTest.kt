@@ -62,7 +62,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
 
-        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, "", "")
+        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, contextName, "")
         var nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(false))
         val waitStrategy = WaitingFor.processed(contextName)

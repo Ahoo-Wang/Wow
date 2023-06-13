@@ -16,7 +16,7 @@ import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaMethod
@@ -31,7 +31,7 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun fieldAsStringGetterIfInt() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             Mock::intField.javaField!!.asStringGetter<Mock>()
         }
     }
@@ -44,7 +44,7 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun methodAsStringGetterIfInt() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             Mock::intField.getter.javaMethod!!.asStringGetter<Mock>()
         }
     }
@@ -57,7 +57,7 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun fieldAsIntGetterIfString() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             Mock::stringField.javaField!!.asIntGetter<Mock>()
         }
     }
@@ -70,7 +70,7 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun methodAsIntGetterIfString() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             Mock::stringField.getter.javaMethod!!.asIntGetter<Mock>()
         }
     }
