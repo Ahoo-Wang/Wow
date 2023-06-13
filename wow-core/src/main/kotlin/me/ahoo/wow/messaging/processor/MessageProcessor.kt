@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.messaging.processor
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 
-interface MessageProcessor<P : Any, M : MessageExchange<*, *>, out R> : NamedBoundedContext {
+interface MessageProcessor<P : Any, M : MessageExchange<*, *>, out R> : ProcessorInfo {
     fun process(exchange: M): R
 }
 

@@ -11,17 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.messaging.processor
 
-import me.ahoo.wow.messaging.function.MessageFunction
-import reactor.core.publisher.Mono
+import me.ahoo.wow.api.naming.NamedBoundedContext
 
-const val EVENT_FUNCTION_KEY = "__EVENT_FUNCTION__"
-
-fun DomainEventExchange<*>.setEventFunction(eventFunction: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>): DomainEventExchange<*> {
-    return setAttribute(EVENT_FUNCTION_KEY, eventFunction)
-}
-
-fun DomainEventExchange<*>.getEventFunction(): MessageFunction<Any, DomainEventExchange<*>, Mono<*>>? {
-    return getAttribute<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>(EVENT_FUNCTION_KEY)
+interface ProcessorInfo : NamedBoundedContext {
+    val processorName: String
 }

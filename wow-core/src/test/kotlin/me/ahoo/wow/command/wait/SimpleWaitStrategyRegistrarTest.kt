@@ -14,18 +14,18 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleWaitStrategyRegistrarTest {
+    private val contextName = "SimpleWaitStrategyRegistrarTest"
 
     @Test
     fun register() {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingFor.processed(contextName)
         var registerResult = registrar.register(commandId, waitStrategy)
         assertThat(registerResult, nullValue())
         registerResult = registrar.register(commandId, waitStrategy)
@@ -36,7 +36,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     fun unregister() {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingFor.processed(contextName)
         var registerResult = registrar.unregister(commandId)
         assertThat(registerResult, nullValue())
         registerResult = registrar.register(commandId, waitStrategy)
@@ -51,7 +51,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         val commandId = GlobalIdGenerator.generateAsString()
         var containsResult = registrar.contains(commandId)
         assertThat(containsResult, equalTo(false))
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingFor.processed(contextName)
         registrar.register(commandId, waitStrategy)
         containsResult = registrar.contains(commandId)
         assertThat(containsResult, equalTo(true))
@@ -62,10 +62,10 @@ internal class SimpleWaitStrategyRegistrarTest {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
 
-        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED)
+        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, "", "")
         var nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(false))
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingFor.processed(contextName)
         registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(true))

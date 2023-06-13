@@ -15,12 +15,12 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 
 interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     FunctionKindCapable,
-    NamedBoundedContext,
+    ProcessorInfo,
     Named {
 
     /**
@@ -35,7 +35,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     val supportedTopics: Set<Any>
         get() = emptySet()
     val processor: P
-    val processorName: String
+    override val processorName: String
         get() = processor::class.java.simpleName
 
     fun handle(exchange: M): R

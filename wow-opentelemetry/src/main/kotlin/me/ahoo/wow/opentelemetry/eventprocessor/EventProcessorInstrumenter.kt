@@ -17,7 +17,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.getEventFunction
 import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX

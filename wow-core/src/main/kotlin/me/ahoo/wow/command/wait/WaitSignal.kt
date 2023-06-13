@@ -16,17 +16,41 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 
-interface WaitSignal : CommandId, ErrorInfo {
+interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo {
     val stage: CommandStage
     val isLastProjection: Boolean
         get() = false
+    override val processorName: String
 }
 
 data class SimpleWaitSignal(
     override val commandId: String,
     override val stage: CommandStage,
+    override val contextName: String,
+    override val processorName: String,
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
-) : WaitSignal
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+) : WaitSignal {
+    companion object {
+        fun ProcessorInfo.asWaitSignal(
+            commandId: String,
+            stage: CommandStage,
+            isLastProjection: Boolean = false,
+            errorCode: String = ErrorCodes.SUCCEEDED,
+            errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+        ): WaitSignal {
+            return SimpleWaitSignal(
+                commandId = commandId,
+                stage = stage,
+                contextName = this.contextName,
+                processorName = this.processorName,
+                isLastProjection = isLastProjection,
+                errorCode = errorCode,
+                errorMsg = errorMsg,
+            )
+        }
+    }
+}

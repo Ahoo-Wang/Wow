@@ -23,6 +23,7 @@ import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.asMessageFunction
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
@@ -35,8 +36,8 @@ data class CommandAggregateMetadata<C : Any>(
     val constructorAccessor: ConstructorAccessor<C>,
     val commandFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>,
     val errorFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>
-) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata {
-
+) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
+    override val processorName: String = aggregateType.simpleName
     val registeredDeleteAggregate: Boolean =
         commandFunctionRegistry.keys.any {
             DeleteAggregate::class.java.isAssignableFrom(it)

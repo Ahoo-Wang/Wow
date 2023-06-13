@@ -35,6 +35,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         private val log: Logger = LoggerFactory.getLogger(SimpleCommandAggregate::class.java)
     }
 
+    override val processorName: String = metadata.processorName
     private val commandFunctionRegistry = metadata.asCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.asErrorFunctionRegistry(this)
 

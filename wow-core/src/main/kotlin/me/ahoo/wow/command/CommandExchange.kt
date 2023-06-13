@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventException.Companion.asException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import java.util.concurrent.ConcurrentHashMap
 
@@ -50,6 +51,10 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
 
     fun getAggregateProcessor(): AggregateProcessor<C>? {
         return getAttribute(AGGREGATE_PROCESSOR_KEY)
+    }
+
+    override fun getProcessor(): ProcessorInfo? {
+        return getAggregateProcessor()
     }
 
     fun setEventStream(eventStream: DomainEventStream): ServerCommandExchange<C> {

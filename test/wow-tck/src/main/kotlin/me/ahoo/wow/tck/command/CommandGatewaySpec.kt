@@ -54,6 +54,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             data = GlobalIdGenerator.generateAsString(),
         ).asCommandMessage()
     }
+
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
@@ -124,6 +125,8 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                             SimpleWaitSignal(
                                 message.commandId,
                                 CommandStage.PROCESSED,
+                                "",
+                                ""
                             ),
                         )
                     }.delaySubscription(Duration.ofMillis(10)).subscribe()

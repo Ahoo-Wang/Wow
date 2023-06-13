@@ -21,21 +21,26 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.messaging.processor.ProcessorInfo
 
 data class CommandResult(
     val stage: CommandStage,
     val aggregateId: String,
+    override val contextName: String,
+    override val processorName: String,
     override val tenantId: String,
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
-) : CommandId, TenantId, RequestId, ErrorInfo
+) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo
 
 fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         stage = this.stage,
         aggregateId = commandMessage.aggregateId.id,
+        contextName = contextName,
+        processorName = this.processorName,
         tenantId = commandMessage.aggregateId.tenantId,
         requestId = commandMessage.requestId,
         commandId = commandMessage.commandId,
@@ -44,11 +49,18 @@ fun WaitSignal.asResult(commandMessage: CommandMessage<*>): CommandResult {
     )
 }
 
-fun Throwable.asResult(commandMessage: CommandMessage<*>, stage: CommandStage = CommandStage.SENT): CommandResult {
+fun Throwable.asResult(
+    commandMessage: CommandMessage<*>,
+    contextName: String = commandMessage.contextName,
+    processorName: String,
+    stage: CommandStage = CommandStage.SENT
+): CommandResult {
     val errorInfo = asErrorInfo()
     return CommandResult(
         stage = stage,
         aggregateId = commandMessage.aggregateId.id,
+        contextName = contextName,
+        processorName = processorName,
         tenantId = commandMessage.aggregateId.tenantId,
         requestId = commandMessage.requestId,
         commandId = commandMessage.commandId,

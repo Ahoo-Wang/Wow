@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -33,15 +34,19 @@ interface WaitStrategy {
     fun next(signal: WaitSignal)
 }
 
-class WaitingFor(val stage: CommandStage) : WaitStrategy {
+class WaitingFor(
+    override val contextName: String,
+    val stage: CommandStage
+) : WaitStrategy, NamedBoundedContext {
 
     companion object {
         private val log = LoggerFactory.getLogger(WaitingFor::class.java)
-        fun processed(): WaitingFor = stage(CommandStage.PROCESSED)
-        fun snapshot(): WaitingFor = stage(CommandStage.SNAPSHOT)
-        fun projected(): WaitingFor = stage(CommandStage.PROJECTED)
-        fun stage(stage: CommandStage): WaitingFor = WaitingFor(stage)
-        fun stage(stage: String): WaitingFor = WaitingFor(CommandStage.valueOf(stage.uppercase(Locale.getDefault())))
+        fun processed(contextName: String): WaitingFor = stage(contextName, CommandStage.PROCESSED)
+        fun snapshot(contextName: String): WaitingFor = stage(contextName, CommandStage.SNAPSHOT)
+        fun projected(contextName: String): WaitingFor = stage(contextName, CommandStage.PROJECTED)
+        fun stage(contextName: String, stage: CommandStage): WaitingFor = WaitingFor(contextName, stage)
+        fun stage(contextName: String, stage: String): WaitingFor =
+            WaitingFor(contextName, CommandStage.valueOf(stage.uppercase(Locale.getDefault())))
     }
 
     private val sink: Sinks.One<WaitSignal> = Sinks.one()
@@ -56,6 +61,9 @@ class WaitingFor(val stage: CommandStage) : WaitStrategy {
     override fun next(signal: WaitSignal) {
         if (log.isDebugEnabled) {
             log.debug("Next $signal.")
+        }
+        if (!isSameBoundedContext(signal)) {
+            return
         }
         if (!signal.succeeded) {
             // fail fast
