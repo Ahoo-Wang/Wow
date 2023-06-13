@@ -108,6 +108,6 @@ class WaitingFor(
     }
 
     override fun toString(): String {
-        return "WaitingFor(stage='$stage')"
+        return "WaitingFor(stage=$stage, contextName='$contextName', processorName='$processorName')"
     }
 }

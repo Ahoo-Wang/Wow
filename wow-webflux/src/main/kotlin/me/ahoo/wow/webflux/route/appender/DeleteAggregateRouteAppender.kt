@@ -22,9 +22,11 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.route.AggregateRoutePathSpec
 import me.ahoo.wow.route.AggregateRoutePathSpec.Companion.asAggregateIdRoutePathSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.route.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.DeleteAggregateHandlerFunction
 import org.springdoc.core.fn.builders.operation.Builder
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder
@@ -41,11 +43,11 @@ class DeleteAggregateRouteAppender(
     private val exceptionHandler: ExceptionHandler
 ) {
     fun append() {
-        val aggregateIdPath = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext).routePath
+        val aggregateRoutePathSpec = aggregateMetadata.asAggregateIdRoutePathSpec(currentContext)
         routerFunctionBuilder
             .DELETE(
                 /* pattern = */
-                aggregateIdPath,
+                aggregateRoutePathSpec.routePath,
                 /* predicate = */
                 RequestPredicates.accept(MediaType.APPLICATION_JSON),
                 /* handlerFunction = */
@@ -55,11 +57,12 @@ class DeleteAggregateRouteAppender(
                     exceptionHandler = exceptionHandler,
                 ),
                 /* operationsConsumer = */
-                deleteOperation(),
+                aggregateRoutePathSpec.deleteOperation(),
             )
     }
 
-    private fun deleteOperation(): Consumer<Builder> {
+    @Suppress("LongMethod")
+    private fun AggregateRoutePathSpec.deleteOperation(): Consumer<Builder> {
         return Consumer<Builder> {
             it
                 .tag(Wow.WOW)
@@ -68,25 +71,46 @@ class DeleteAggregateRouteAppender(
                 .operationId(
                     "${aggregateMetadata.asStringWithAlias()}.deleteAggregate",
                 )
-                .parameter(
+            if (!this.ignoreTenant) {
+                it.parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(MessageRecords.TENANT_ID)
                         .`in`(ParameterIn.PATH)
                         .implementation(String::class.java)
                         .example(DEFAULT_TENANT_ID),
                 )
-                .parameter(
-                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
-                        .name(RoutePaths.ID_KEY)
-                        .`in`(ParameterIn.PATH)
-                        .implementation(String::class.java),
-                )
+            }
+
+            it.parameter(
+                org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                    .name(RoutePaths.ID_KEY)
+                    .`in`(ParameterIn.PATH)
+                    .implementation(String::class.java),
+            )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(CommandHeaders.WAIT_STAGE)
                         .`in`(ParameterIn.HEADER)
                         .example("${CommandStage.PROCESSED}")
                         .implementation(CommandStage::class.java),
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_CONTEXT)
+                        .`in`(ParameterIn.HEADER)
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_PROCESSOR)
+                        .`in`(ParameterIn.HEADER)
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.WAIT_TIME_OUT)
+                        .`in`(ParameterIn.HEADER)
+                        .example("${DEFAULT_TIME_OUT.toMillis()}")
+                        .description("Unit: millisecond")
+                        .implementation(Int::class.java),
                 )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()

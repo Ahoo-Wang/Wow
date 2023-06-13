@@ -65,7 +65,7 @@ class CommandHandler(
                         it.contextName
                     }
                     commandGateway.sendAndWait(
-                        it,
+                        command = it,
                         waitStrategy = WaitingFor.stage(
                             stage = stage,
                             contextName = waitContext,
