@@ -35,6 +35,8 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     val supportedTopics: Set<Any>
         get() = emptySet()
     val processor: P
+    val processorName: String
+        get() = processor::class.java.simpleName
 
     fun handle(exchange: M): R
 }
@@ -45,6 +47,7 @@ interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : 
     override val supportedTopics: Set<Any> get() = metadata.supportedTopics
     override val functionKind: FunctionKind get() = metadata.functionKind
     override val supportedType: Class<*> get() = metadata.supportedType
+    override val processorName: String get() = metadata.processorName
     override val name: String get() = metadata.name
 }
 
