@@ -29,6 +29,7 @@ class DefaultDeleteAggregateFunction<C : Any>(
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultDeleteAggregate::class.java
     override val processor: C = commandAggregate.commandRoot
+    override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND
 
     override fun handle(

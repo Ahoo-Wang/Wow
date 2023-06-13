@@ -55,7 +55,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
                 if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
                     return@filter false
                 }
-                return@filter event.match(it.processor.javaClass.name)
+                return@filter event.match(it.processorName)
             }
         if (functions.isEmpty()) {
             if (log.isDebugEnabled) {
