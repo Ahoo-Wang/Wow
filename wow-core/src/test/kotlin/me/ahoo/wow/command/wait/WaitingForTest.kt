@@ -59,6 +59,25 @@ internal class WaitingForTest {
     }
 
     @Test
+    fun waitingForProjectedProcessor() {
+        val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.PROJECTED,
+            contextName = contextName,
+            processorName = "processor",
+            isLastProjection = true
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
     fun waitingForProjectedWhenNotLast() {
         val waitStrategy = WaitingFor.projected(contextName)
         val waitSignal = SimpleWaitSignal(
