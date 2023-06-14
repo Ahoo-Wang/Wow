@@ -32,14 +32,6 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
-fun Header.propagateWaitStrategy(upstreamHeader: Header): Header {
-    val commandWaitEndpoint = upstreamHeader[COMMAND_WAIT_ENDPOINT] ?: return this
-    return with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
-        .with(COMMAND_WAIT_STAGE, upstreamHeader[COMMAND_WAIT_STAGE].orEmpty())
-        .with(COMMAND_WAIT_CONTEXT, upstreamHeader[COMMAND_WAIT_CONTEXT].orEmpty())
-        .with(COMMAND_WAIT_PROCESSOR, upstreamHeader[COMMAND_WAIT_PROCESSOR].orEmpty())
-}
-
 fun Header.injectWaitStrategy(
     commandWaitEndpoint: String,
     stage: CommandStage,

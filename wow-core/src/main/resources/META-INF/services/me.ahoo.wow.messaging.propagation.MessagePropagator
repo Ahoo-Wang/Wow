@@ -10,15 +10,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-kotlin.code.style=official
-ksp.incremental=true
-ksp.incremental.log=true
-
-group=me.ahoo.wow
-version=1.18.6
-description=A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.
-website=https://github.com/Ahoo-Wang/Wow
-issues=https://github.com/Ahoo-Wang/Wow/issues
-vcs=https://github.com/Ahoo-Wang/Wow.git
-license_name=The Apache Software License, Version 2.0
-license_url=https://www.apache.org/licenses/LICENSE-2.0.txt
+me.ahoo.wow.messaging.propagation.WaitStrategyMessagePropagator
+me.ahoo.wow.messaging.propagation.CommandOperatorMessagePropagator
