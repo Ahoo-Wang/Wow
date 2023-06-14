@@ -16,21 +16,16 @@ package me.ahoo.wow.event
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.CommandMessage
-import me.ahoo.wow.command.CommandOperator.operator
-import me.ahoo.wow.command.CommandOperator.withOperator
-import me.ahoo.wow.command.wait.propagateWaitStrategy
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 
 fun Any.asDomainEventStream(
     command: CommandMessage<*>,
     aggregateVersion: Int,
     header: Header = DefaultHeader.empty()
 ): DomainEventStream {
-    header.propagateWaitStrategy(command.header)
-    command.header.operator?.let {
-        header.withOperator(it)
-    }
+    header.inject(command)
     val eventStreamId = GlobalIdGenerator.generateAsString()
     val aggregateId = command.aggregateId
     val streamVersion = aggregateVersion + 1
