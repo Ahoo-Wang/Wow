@@ -38,10 +38,31 @@ class PropertyDescriptorTest {
 
     @Test
     fun asPropertyGetter() {
-        val idField = MockProperty::class.java.getDeclaredField("id")
-        val propertyGetter = idField.asPropertyGetter<MockProperty, String>()
+        val idField = MockPropertyGetter::class.java.getDeclaredField("id")
+        val propertyGetter = idField.asPropertyGetter<MockPropertyGetter, String>()
         assertThat(propertyGetter, instanceOf(MethodPropertyGetter::class.java))
-        assertThat(propertyGetter.get(MockProperty("1")), equalTo("1"))
+        assertThat(propertyGetter.get(MockPropertyGetter("1")), equalTo("1"))
+    }
+
+    @Test
+    fun asPropertySetter() {
+        val idField = MockPropertySetter::class.java.getDeclaredField("id")
+        val propertyGetter = idField.asPropertySetter<MockPropertySetter, String>()!!
+        assertThat(propertyGetter, instanceOf(MethodPropertySetter::class.java))
+        val mockProperty = MockPropertySetter("1")
+        propertyGetter[mockProperty] = "2"
+        assertThat(mockProperty.id, equalTo("2"))
+    }
+
+    @Test
+    fun asFieldSetter() {
+        val idField = MockPropertyWithoutMethod::class.java.getDeclaredField("id")
+        val propertySetter = idField.asPropertySetter<MockPropertyWithoutMethod, String>()!!
+        assertThat(propertySetter, instanceOf(FieldPropertySetter::class.java))
+        val mockProperty = MockPropertyWithoutMethod("1")
+        propertySetter[mockProperty] = "2"
+        val propertyGetter = idField.asPropertyGetter<MockPropertyWithoutMethod, String>()
+        assertThat(propertyGetter[mockProperty], equalTo("2"))
     }
 
     @Test
@@ -49,18 +70,19 @@ class PropertyDescriptorTest {
         val idField = MockPropertyWithoutMethod::class.java.getDeclaredField("id")
         val propertyGetter = idField.asPropertyGetter<MockPropertyWithoutMethod, String>()
         assertThat(propertyGetter, instanceOf(FieldPropertyGetter::class.java))
-        assertThat(propertyGetter.get(MockPropertyWithoutMethod("1")), equalTo("1"))
+        assertThat(propertyGetter[MockPropertyWithoutMethod("1")], equalTo("1"))
     }
 
     @Test
     fun asPropertySetterWhenFinal() {
-        val idField = MockProperty::class.java.getDeclaredField("id")
+        val idField = MockPropertyGetter::class.java.getDeclaredField("id")
         val propertySetter = idField.asPropertySetter<MockPropertyWithoutMethod, String>()
         assertThat(propertySetter, nullValue())
     }
 }
 
-data class MockProperty(val id: String)
+data class MockPropertyGetter(val id: String)
+data class MockPropertySetter(var id: String)
 
 @Suppress("UnusedPrivateMember")
-class MockPropertyWithoutMethod(private val id: String)
+class MockPropertyWithoutMethod(private var id: String)

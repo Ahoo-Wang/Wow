@@ -71,7 +71,7 @@ object PropertyDescriptor {
     fun <T, V> Field.asPropertySetter(): PropertySetter<T, V>? {
         val setterName = asSetterName(name)
         try {
-            val setterMethod = declaringClass.getDeclaredMethod(setterName)
+            val setterMethod = declaringClass.getDeclaredMethod(setterName, type)
             if (setterMethod.parameterTypes.first() == type) {
                 setterMethod.asPropertySetter<T, V>()?.let {
                     return it
