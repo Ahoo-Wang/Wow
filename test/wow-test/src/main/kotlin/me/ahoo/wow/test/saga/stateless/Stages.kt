@@ -119,4 +119,23 @@ data class ExpectedResult<T>(
     val error: Throwable? = null
 ) {
     val hasError = error != null
+
+    private val commandStreamItr by lazy {
+        checkNotNull(commandStream)
+        commandStream.iterator()
+    }
+
+    fun hasNext(): Boolean {
+        return commandStreamItr.hasNext()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <C : Any> nextCommand(): CommandMessage<C> {
+        assertThat(commandStreamItr.hasNext(), equalTo(true))
+        return commandStreamItr.next() as CommandMessage<C>
+    }
+
+    fun <C : Any> nextCommandBody(): C {
+        return nextCommand<C>().body
+    }
 }
