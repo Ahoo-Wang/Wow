@@ -130,16 +130,12 @@ data class ExpectedResult<T>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommand(expected: (CommandMessage<C>) -> Unit) {
+    fun <C : Any> nextCommand(): CommandMessage<C> {
         assertThat(commandStreamItr.hasNext(), equalTo(true))
-        val nextCommand = commandStreamItr.next() as CommandMessage<C>
-        expected(nextCommand)
+        return commandStreamItr.next() as CommandMessage<C>
     }
 
-    @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommandBody(expected: (C) -> Unit) {
-        assertThat(commandStreamItr.hasNext(), equalTo(true))
-        val nextCommand = commandStreamItr.next() as CommandMessage<C>
-        expected(nextCommand.body)
+    fun <C : Any> nextCommandBody(): C {
+        return nextCommand<C>().body
     }
 }
