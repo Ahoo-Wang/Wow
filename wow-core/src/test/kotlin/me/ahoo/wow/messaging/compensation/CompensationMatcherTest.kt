@@ -21,6 +21,7 @@ class CompensationMatcherTest {
     @Test
     fun matchIfEmpty() {
         val header = DefaultHeader.empty().withCompensation(emptySet(), emptySet())
+        assertThat(header, equalTo(DefaultHeader.empty().withCompensation()))
         assertThat(header.match(processorName), equalTo(false))
     }
 
