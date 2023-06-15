@@ -1,5 +1,6 @@
 package me.ahoo.wow.spring
 
+import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -29,5 +30,6 @@ class MessageDispatcherLauncherTest {
             messageDispatcher.close()
         }
         assertThat(messageDispatcherLauncher.isRunning, equalTo(false))
+        confirmVerified(messageDispatcher)
     }
 }
