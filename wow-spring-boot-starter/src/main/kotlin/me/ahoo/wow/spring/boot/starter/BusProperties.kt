@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter
 
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
-@ConstructorBinding
 data class BusProperties(
     val type: Type = Type.KAFKA,
     @NestedConfigurationProperty

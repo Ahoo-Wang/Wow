@@ -1,11 +1,11 @@
 package me.ahoo.wow.example.api.cart
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
-import javax.validation.constraints.NotBlank
-import javax.validation.constraints.Positive
 
 @CommandRoute("customer/{customerId}/cart/add", ignoreAggregateNamePrefix = true)
 @Summary("加入购物车")

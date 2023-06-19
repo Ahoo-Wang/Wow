@@ -21,7 +21,7 @@ plugins {
 
 kotlin {
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 tasks.jar.configure {
@@ -36,13 +36,13 @@ tasks.jar.configure {
 application {
     mainClass.set("me.ahoo.wow.example.server.ExampleServerKt")
     applicationDefaultJvmArgs = listOf(
-        "-Xms1280M",
-        "-Xmx1280M",
+        "-Xms12170M",
+        "-Xmx12170M",
         "-XX:MaxMetaspaceSize=256M",
         "-XX:MaxDirectMemorySize=512M",
         "-Xss1m",
         "-server",
-        "-XX:+UseG1GC",
+        "-XX:+UseZGC",
         "-Xlog:gc*:file=logs/$applicationName-gc.log:time,tags:filecount=10,filesize=32M",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=data",

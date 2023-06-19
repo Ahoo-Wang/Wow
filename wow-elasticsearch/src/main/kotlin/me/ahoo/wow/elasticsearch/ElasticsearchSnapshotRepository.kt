@@ -12,24 +12,20 @@
  */
 package me.ahoo.wow.elasticsearch
 
+import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
-import org.elasticsearch.action.get.GetRequest
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.action.support.WriteRequest
-import org.elasticsearch.xcontent.XContentType
 import org.springframework.data.elasticsearch.RestStatusException
-import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsearchClient
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.ofType
 
 class ElasticsearchSnapshotRepository(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
-    private val refreshPolicy: WriteRequest.RefreshPolicy = WriteRequest.RefreshPolicy.WAIT_UNTIL
+    private val refreshPolicy: Refresh = Refresh.WaitFor
 ) : SnapshotRepository {
 
     private fun NamedAggregate.asIndexName(): String {
@@ -37,11 +33,12 @@ class ElasticsearchSnapshotRepository(
     }
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        val getRequest = GetRequest(aggregateId.asIndexName(), aggregateId.id)
-        return elasticsearchClient.get(getRequest)
-            .map {
-                it.sourceAsString().asObject<Snapshot<S>>()
-            }.onErrorResume {
+        return elasticsearchClient.get({
+            it.index(aggregateId.asIndexName())
+                .id(aggregateId.id)
+        }, Snapshot::class.java)
+            .ofType<Snapshot<S>>()
+            .onErrorResume {
                 if (it is RestStatusException && it.status == 404) {
                     return@onErrorResume Mono.empty()
                 }
@@ -50,11 +47,11 @@ class ElasticsearchSnapshotRepository(
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        val indexRequest = IndexRequest(snapshot.aggregateId.asIndexName())
-            .id(snapshot.aggregateId.id)
-            .source(snapshot.asJsonString(), XContentType.JSON)
-            .setRefreshPolicy(refreshPolicy)
-        return elasticsearchClient.index(indexRequest)
-            .then()
+        return elasticsearchClient.index {
+            it.index(snapshot.aggregateId.asIndexName())
+                .id(snapshot.aggregateId.id)
+                .document(snapshot)
+                .refresh(refreshPolicy)
+        }.then()
     }
 }

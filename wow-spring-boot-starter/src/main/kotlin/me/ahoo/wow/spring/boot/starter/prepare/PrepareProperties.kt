@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.prepare
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = PrepareProperties.PREFIX)
 data class PrepareProperties(
     val enabled: Boolean = true,

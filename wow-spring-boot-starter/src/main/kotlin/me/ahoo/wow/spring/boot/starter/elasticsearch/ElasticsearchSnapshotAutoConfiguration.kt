@@ -24,7 +24,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
-import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsearchClient
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 @AutoConfiguration
 @ConditionalOnWowEnabled

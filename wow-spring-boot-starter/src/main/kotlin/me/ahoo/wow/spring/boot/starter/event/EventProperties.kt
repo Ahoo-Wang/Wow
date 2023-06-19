@@ -16,10 +16,8 @@ package me.ahoo.wow.spring.boot.starter.event
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = EventProperties.PREFIX)
 data class EventProperties(
     @NestedConfigurationProperty

@@ -15,11 +15,9 @@ package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
 const val ENABLED_SUFFIX_KEY = ".enabled"
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = Wow.WOW)
 data class WowProperties(
     val enabled: Boolean = true,

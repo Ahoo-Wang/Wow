@@ -14,9 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.r2dbc
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = DataSourceProperties.PREFIX)
 data class DataSourceProperties(val type: Type = Type.SIMPLE) {
     companion object {

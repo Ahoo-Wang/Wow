@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.store
 
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
 data class EventStoreProperties(
     val storage: EventStoreStorage = EventStoreStorage.MONGO
