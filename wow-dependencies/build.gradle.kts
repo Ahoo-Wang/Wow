@@ -12,14 +12,15 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:2.7.12"))
-    api(platform("me.ahoo.cosid:cosid-bom:1.19.3"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:3.1.0"))
+    api(platform("me.ahoo.cosid:cosid-bom:2.1.0"))
     api(platform("io.opentelemetry:opentelemetry-bom:1.27.0"))
     api(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:1.27.0"))
     api(platform("io.r2dbc:r2dbc-bom:Borca-RELEASE"))
     api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
     constraints {
         api("com.google.devtools.ksp:symbol-processing-api:1.8.22-1.0.11")
+        api("com.google.devtools.ksp:symbol-processing:1.8.22-1.0.11")
         api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
         api("com.google.guava:guava:32.0.1-jre")
         api("io.opentelemetry:opentelemetry-semconv:1.22.0-alpha")

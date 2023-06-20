@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
 data class WebFluxProperties(
     val enabled: Boolean = true

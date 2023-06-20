@@ -14,12 +14,10 @@
 package me.ahoo.wow.spring.boot.starter.r2dbc
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
 const val MOD_ALG = "mod"
 const val SINGLE_ALG = "single"
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = ShardingProperties.PREFIX)
 data class ShardingProperties(
     val databases: Map<String, Database> = mapOf(),

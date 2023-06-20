@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import jakarta.validation.Validator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -21,7 +22,6 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import reactor.core.publisher.Mono
-import javax.validation.Validator
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,

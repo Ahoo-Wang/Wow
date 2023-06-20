@@ -12,9 +12,9 @@
  */
 package me.ahoo.wow.example.api.order
 
+import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.CommandRoute
-import javax.validation.constraints.NotBlank
 
 /**
  * ReceiptOrder .

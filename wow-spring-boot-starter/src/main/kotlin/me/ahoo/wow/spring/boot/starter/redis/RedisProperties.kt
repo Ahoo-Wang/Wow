@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.redis
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = RedisProperties.PREFIX)
 data class RedisProperties(val enabled: Boolean = true) {
     companion object {

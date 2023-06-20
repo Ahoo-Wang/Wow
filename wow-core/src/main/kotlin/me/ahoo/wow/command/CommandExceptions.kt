@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.command
 
+import jakarta.validation.ConstraintViolation
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
 import me.ahoo.wow.exception.WowException
-import javax.validation.ConstraintViolation
 
 class DuplicateRequestIdException(val aggregateId: AggregateId, val requestId: String, cause: Throwable? = null) :
     WowException(

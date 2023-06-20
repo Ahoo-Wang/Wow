@@ -11,16 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter
+package me.ahoo.wow.elasticsearch
 
-import me.ahoo.wow.api.Wow
-import org.springframework.boot.context.properties.ConfigurationProperties
+import me.ahoo.wow.serialization.JsonSerializer
 
-const val ENABLED_SUFFIX_KEY = ".enabled"
-
-@ConfigurationProperties(prefix = Wow.WOW)
-data class WowProperties(
-    val enabled: Boolean = true,
-    val rejectBlocking: Boolean = false,
-    val contextName: String?
-)
+val SnapshotJsonpMapper = co.elastic.clients.json.jackson.JacksonJsonpMapper(JsonSerializer)

@@ -19,11 +19,11 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import org.assertj.core.api.AssertionsForInterfaceTypes
+import org.elasticsearch.client.RestClient
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.data.elasticsearch.client.reactive.ReactiveElasticsearchClient
 
 internal class ElasticsearchSnapshotAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -33,8 +33,8 @@ internal class ElasticsearchSnapshotAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues("${SnapshotProperties.STORAGE}=${SnapshotStorage.ELASTICSEARCH_NAME}")
-            .withBean(ReactiveElasticsearchClient::class.java, {
-                mock(ReactiveElasticsearchClient::class.java)
+            .withBean(RestClient::class.java, {
+                mock(RestClient::class.java)
             })
             .withUserConfiguration(
                 ElasticsearchSnapshotAutoConfiguration::class.java,

@@ -30,9 +30,6 @@ jobs:
         ports:
           - 6379:6379
     steps:
-      - name: Start Mysql
-        run: sudo /etc/init.d/mysql start
-
       - name: Checkout
         uses: actions/checkout@master
 
@@ -43,9 +40,6 @@ jobs:
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
-
-      - name: Init Wow-Db
-        run: mysql -vvv -h localhost -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
 
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport --stacktrace

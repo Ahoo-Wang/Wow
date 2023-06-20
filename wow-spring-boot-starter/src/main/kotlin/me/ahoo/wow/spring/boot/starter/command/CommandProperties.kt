@@ -16,11 +16,9 @@ package me.ahoo.wow.spring.boot.starter.command
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.BusProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import java.time.Duration
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = CommandProperties.PREFIX)
 data class CommandProperties(
     @NestedConfigurationProperty

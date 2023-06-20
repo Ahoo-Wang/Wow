@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
     val enabled: Boolean = true,

@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.mongo
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = MongoProperties.PREFIX)
 data class MongoProperties(
     val enabled: Boolean = true,

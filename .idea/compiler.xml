@@ -4,7 +4,7 @@
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8">
+    <bytecodeTargetLevel target="17">
       <module name="Wow.example.example-api.jmh" target="8" />
       <module name="Wow.example.example-api.main" target="8" />
       <module name="Wow.example.example-api.test" target="8" />

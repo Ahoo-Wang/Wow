@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.example.api.order
 
+import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.ValueObject
-import javax.validation.constraints.NotBlank
 
 /**
  * OrderAddress .

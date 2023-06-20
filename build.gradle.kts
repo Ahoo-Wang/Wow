@@ -40,9 +40,8 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - exampleProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects + exampleLibraries
 
-ext {
-    set("libraryProjects", libraryProjects)
-}
+ext.set("libraryProjects", libraryProjects)
+
 allprojects {
     repositories {
         mavenLocal()
@@ -80,9 +79,7 @@ configure(libraryProjects) {
     }
     apply<KotlinPlatformJvmPlugin>()
     configure<KotlinJvmProjectExtension> {
-        jvmToolchain {
-            languageVersion.set(JavaLanguageVersion.of(8))
-        }
+        jvmToolchain(17)
     }
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions {
@@ -186,7 +183,7 @@ configure(publishProjects) {
 }
 
 nexusPublishing {
-    repositories {
+    this.repositories {
         sonatype {
             username.set(System.getenv("MAVEN_USERNAME"))
             password.set(System.getenv("MAVEN_PASSWORD"))

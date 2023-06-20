@@ -19,11 +19,9 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 data class KafkaProperties(
     val enabled: Boolean = true,

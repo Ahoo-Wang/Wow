@@ -171,12 +171,7 @@ jobs:
     name: Wow R2DBC Test
     needs: [ wow-core-test ]
     runs-on: ubuntu-latest
-    env:
-      MYSQL: 5.1
     steps:
-      - name: Start Mysql
-        run: sudo /etc/init.d/mysql start
-
       - name: Checkout
         uses: actions/checkout@master
 
@@ -187,9 +182,6 @@ jobs:
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
-
-      - name: Init Wow-Db
-        run: mysql -vvv -h localhost -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
 
       - name: Test Wow-R2DBC
         run: gradle wow-r2dbc:clean wow-r2dbc:check --stacktrace

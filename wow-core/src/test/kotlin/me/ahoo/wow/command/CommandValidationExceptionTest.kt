@@ -2,13 +2,13 @@ package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
+import jakarta.validation.ConstraintViolation
+import jakarta.validation.Path
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import javax.validation.ConstraintViolation
-import javax.validation.Path
 
 class CommandValidationExceptionTest {
     @Test

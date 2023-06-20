@@ -12,10 +12,10 @@
  */
 package me.ahoo.wow.example.api.order
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.exception.ErrorInfo
 import java.math.BigDecimal
-import javax.validation.constraints.NotBlank
-import javax.validation.constraints.Positive
 
 /**
  * PayOrder .

@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.r2dbc
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = R2dbcProperties.PREFIX)
 data class R2dbcProperties(
     val enabled: Boolean = true
