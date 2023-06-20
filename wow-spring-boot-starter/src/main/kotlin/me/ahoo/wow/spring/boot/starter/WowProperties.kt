@@ -21,6 +21,5 @@ const val ENABLED_SUFFIX_KEY = ".enabled"
 @ConfigurationProperties(prefix = Wow.WOW)
 data class WowProperties(
     val enabled: Boolean = true,
-    val rejectBlocking: Boolean = false,
     val contextName: String?
 )
