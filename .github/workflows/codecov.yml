@@ -51,7 +51,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Init Wow-Db
-        run: mysql -vvv -h localhost -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
+        run: mysql -vvv -h 127.0.0.1 -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
 
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport --stacktrace
