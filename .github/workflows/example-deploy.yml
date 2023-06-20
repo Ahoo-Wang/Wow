@@ -69,6 +69,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Login to AliyunCR
+        uses: docker/login-action@v2
+        with:
+          registry: registry.cn-shanghai.aliyuncs.com
+          username: ${{ secrets.ALIYUN_CR_USERNAME }}
+          password: ${{ secrets.ALIYUN_CR_TOKEN }}
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
@@ -76,6 +83,7 @@ jobs:
           images: |
             ahoowang/wow-example-server
             ghcr.io/ahoo-wang/wow-example-server
+            registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server
           tags: |
             type=ref,event=branch
             type=ref,event=pr

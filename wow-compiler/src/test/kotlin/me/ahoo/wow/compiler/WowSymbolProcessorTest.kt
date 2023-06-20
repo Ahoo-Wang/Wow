@@ -16,8 +16,8 @@ package me.ahoo.wow.compiler
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.symbolProcessorProviders
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.`is`
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -35,7 +35,6 @@ class WowSymbolProcessorTest {
                 )
             symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
             inheritClassPath = true
-            this.pluginOptions
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
