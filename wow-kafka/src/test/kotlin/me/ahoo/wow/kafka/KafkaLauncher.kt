@@ -25,8 +25,9 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 object KafkaLauncher {
-    private val KAFKA_CONTAINER: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.5"))
+    private val KAFKA_CONTAINER: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
         .withNetworkAliases("kafka")
+        .withKraft()
         .withReuse(true)
 
     init {
