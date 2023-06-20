@@ -30,15 +30,6 @@ jobs:
         ports:
           - 6379:6379
     steps:
-      - name: Shutdown Ubuntu MySQL (SUDO)
-        run: sudo service mysql stop
-
-      - name: Set up MySQL
-        uses: mirromutth/mysql-action@v1.1
-        with:
-          mysql version: '8.0'
-          mysql root password: 'root'
-
       - name: Checkout
         uses: actions/checkout@master
 
@@ -49,9 +40,6 @@ jobs:
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
-
-      - name: Init Wow-Db
-        run: mysql -vvv -h 127.0.0.1 -uroot -proot < wow-r2dbc/src/init-schema/init-schema-mysql.sql
 
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport --stacktrace
