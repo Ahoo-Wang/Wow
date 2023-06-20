@@ -30,8 +30,14 @@ jobs:
         ports:
           - 6379:6379
     steps:
-      - name: Start Mysql
-        run: sudo /etc/init.d/mysql start
+      - name: Shutdown Ubuntu MySQL (SUDO)
+        run: sudo service mysql stop
+
+      - name: Set up MySQL
+        uses: mirromutth/mysql-action@v1.1
+        with:
+          mysql version: '8.0'
+          mysql root password: 'root'
 
       - name: Checkout
         uses: actions/checkout@master
