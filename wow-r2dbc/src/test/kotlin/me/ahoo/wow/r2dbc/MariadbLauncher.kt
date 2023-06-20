@@ -23,17 +23,16 @@ object MariadbLauncher {
         .withDatabaseName("wow_db")
         .withInitScript("init-schema-mysql.sql")
         .withReuse(true)
-    val isCI = System.getenv("CI").isNullOrBlank()
+    private val inCI = System.getenv("CI").isNullOrBlank().not()
 
     init {
-        if (!System.getenv("CI").isNullOrBlank()) {
+        if (inCI) {
             CONTAINER.start()
         }
-        CONTAINER.start()
     }
 
     fun getHost(): String {
-        if (isCI) {
+        if (inCI) {
             return CONTAINER.host
         }
         return DEV_HOST
@@ -41,7 +40,7 @@ object MariadbLauncher {
 
     fun getPort(): Int {
         val innerPort = 3306
-        if (isCI) {
+        if (inCI) {
             return CONTAINER.getMappedPort(innerPort)
         }
         return innerPort
