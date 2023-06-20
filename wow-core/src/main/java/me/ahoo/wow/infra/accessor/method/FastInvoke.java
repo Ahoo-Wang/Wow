@@ -26,12 +26,33 @@ public final class FastInvoke {
     private FastInvoke() {
     }
 
+    /**
+     * invoke target object method
+     *
+     * @param method method
+     * @param target target
+     * @param args args
+     * @return result
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws IllegalAccessException IllegalAccessException
+     */
     @SuppressWarnings("AvoidObjectArrays")
     public static Object invoke(Method method, Object target, Object[] args)
             throws InvocationTargetException, IllegalAccessException {
         return method.invoke(target, args);
     }
 
+    /**
+     * create instance
+     *
+     * @param constructor create instance
+     * @param args args
+     * @param <T> instance type
+     * @return instance
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws InstantiationException InstantiationException
+     * @throws IllegalAccessException IllegalAccessException
+     */
     @SuppressWarnings("AvoidObjectArrays")
     public static <T> T newInstance(Constructor<T> constructor, Object[] args)
             throws InvocationTargetException, InstantiationException,

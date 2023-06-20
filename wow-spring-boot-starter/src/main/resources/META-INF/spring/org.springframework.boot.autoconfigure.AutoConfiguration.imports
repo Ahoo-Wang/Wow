@@ -23,3 +23,4 @@ me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 me.ahoo.wow.spring.boot.starter.mock.MockEventStoreAutoConfiguration
 me.ahoo.wow.spring.boot.starter.mock.MockSnapshotAutoConfiguration
+me.ahoo.wow.spring.boot.starter.prepare.PrepareAutoConfiguration
