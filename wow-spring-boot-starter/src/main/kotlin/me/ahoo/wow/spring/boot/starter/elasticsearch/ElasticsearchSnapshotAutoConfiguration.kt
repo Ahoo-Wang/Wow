@@ -13,20 +13,24 @@
 
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
+import co.elastic.clients.transport.rest_client.RestClientTransport
 import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
+import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
+import org.elasticsearch.client.RestClient
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-@AutoConfiguration
+@AutoConfiguration(after = [ElasticsearchRestClientAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
 @ConditionalOnProperty(
@@ -41,10 +45,11 @@ class ElasticsearchSnapshotAutoConfiguration {
 
     @Bean
     fun snapshotRepository(
-        elasticsearchClient: ReactiveElasticsearchClient,
+        restClient: RestClient,
         snapshotIndexNameConverter: SnapshotIndexNameConverter
-
     ): SnapshotRepository {
+        val restClientTransport = RestClientTransport(restClient, SnapshotJsonpMapper)
+        val elasticsearchClient = ReactiveElasticsearchClient(restClientTransport)
         return ElasticsearchSnapshotRepository(elasticsearchClient, snapshotIndexNameConverter)
     }
 }

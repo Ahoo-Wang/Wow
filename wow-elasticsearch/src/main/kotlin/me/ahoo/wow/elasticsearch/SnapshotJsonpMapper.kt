@@ -13,23 +13,6 @@
 
 package me.ahoo.wow.elasticsearch
 
-import org.testcontainers.elasticsearch.ElasticsearchContainer
-import org.testcontainers.utility.DockerImageName
+import me.ahoo.wow.serialization.JsonSerializer
 
-object ElasticsearchLauncher {
-    const val ELASTIC_PWD = "wow"
-    val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
-        DockerImageName
-            .parse("docker.elastic.co/elasticsearch/elasticsearch")
-            .withTag("8.7.1"),
-    )
-        .withPassword(ELASTIC_PWD)
-        .withNetworkAliases("elasticsearch")
-        .withReuse(true)
-
-    init {
-        ELASTICSEARCH_CONTAINER.start()
-    }
-
-    val isRunning = ELASTICSEARCH_CONTAINER.isRunning
-}
+val SnapshotJsonpMapper = co.elastic.clients.json.jackson.JacksonJsonpMapper(JsonSerializer)

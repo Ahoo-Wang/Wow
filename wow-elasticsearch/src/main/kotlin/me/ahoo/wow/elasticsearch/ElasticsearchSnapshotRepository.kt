@@ -20,7 +20,6 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.ofType
 
 class ElasticsearchSnapshotRepository(
     private val elasticsearchClient: ReactiveElasticsearchClient,
@@ -32,12 +31,15 @@ class ElasticsearchSnapshotRepository(
         return snapshotIndexNameConverter.convert(namedAggregate = this)
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return elasticsearchClient.get({
             it.index(aggregateId.asIndexName())
                 .id(aggregateId.id)
         }, Snapshot::class.java)
-            .ofType<Snapshot<S>>()
+            .mapNotNull<Snapshot<S>> {
+                it.source() as Snapshot<S>?
+            }
             .onErrorResume {
                 if (it is RestStatusException && it.status == 404) {
                     return@onErrorResume Mono.empty()
