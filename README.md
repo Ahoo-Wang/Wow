@@ -117,7 +117,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 
 ## Aggregate Unit Test
 
-### 80%+ test coverage is is very easy.
+### 80%+ test coverage is very easy.
 
 ![Test Coverage](./document/example/example-domain-jococo.png)
 
