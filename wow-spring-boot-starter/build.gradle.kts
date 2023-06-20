@@ -62,7 +62,7 @@ dependencies {
     testImplementation(project(":wow-r2dbc"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
-    testImplementation("org.springdoc:springdoc-openapi-webflux-core")
+    testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
