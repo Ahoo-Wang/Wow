@@ -20,9 +20,7 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
+    jvmToolchain(17)
 }
 tasks.jar.configure {
     exclude("application.yaml", "bootstrap.yaml")
