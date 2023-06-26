@@ -17,6 +17,7 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper
 import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
+import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -44,7 +45,7 @@ class ElasticsearchSnapshotAutoConfiguration {
 
     @Bean
     fun jacksonJsonpMapper(): JacksonJsonpMapper {
-        return JacksonJsonpMapper(JsonSerializer)
+        return SnapshotJsonpMapper
     }
 
     @Bean
