@@ -13,17 +13,16 @@
 
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-import co.elastic.clients.transport.rest_client.RestClientTransport
+import co.elastic.clients.json.jackson.JacksonJsonpMapper
 import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
-import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
-import org.elasticsearch.client.RestClient
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
@@ -44,12 +43,15 @@ class ElasticsearchSnapshotAutoConfiguration {
     }
 
     @Bean
+    fun jacksonJsonpMapper(): JacksonJsonpMapper {
+        return JacksonJsonpMapper(JsonSerializer)
+    }
+
+    @Bean
     fun snapshotRepository(
-        restClient: RestClient,
+        elasticsearchClient: ReactiveElasticsearchClient,
         snapshotIndexNameConverter: SnapshotIndexNameConverter
     ): SnapshotRepository {
-        val restClientTransport = RestClientTransport(restClient, SnapshotJsonpMapper)
-        val elasticsearchClient = ReactiveElasticsearchClient(restClientTransport)
         return ElasticsearchSnapshotRepository(elasticsearchClient, snapshotIndexNameConverter)
     }
 }

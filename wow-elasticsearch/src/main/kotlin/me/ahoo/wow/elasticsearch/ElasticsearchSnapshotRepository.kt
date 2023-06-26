@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.elasticsearch
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -26,6 +27,9 @@ class ElasticsearchSnapshotRepository(
     private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
     private val refreshPolicy: Refresh = Refresh.WaitFor
 ) : SnapshotRepository {
+    companion object {
+        private const val NOT_FOUND_STATUS = 404
+    }
 
     private fun NamedAggregate.asIndexName(): String {
         return snapshotIndexNameConverter.convert(namedAggregate = this)
@@ -41,7 +45,10 @@ class ElasticsearchSnapshotRepository(
                 it.source() as Snapshot<S>?
             }
             .onErrorResume {
-                if (it is RestStatusException && it.status == 404) {
+                if (it is RestStatusException && it.status == NOT_FOUND_STATUS) {
+                    return@onErrorResume Mono.empty()
+                }
+                if (it is ElasticsearchException && it.response().status() == NOT_FOUND_STATUS) {
                     return@onErrorResume Mono.empty()
                 }
                 Mono.error(it)
