@@ -32,7 +32,7 @@ data class CommandProperties(
     }
 
     data class Idempotency(
-        val enable: Boolean = false,
+        val enable: Boolean = true,
         val bloomFilter: BloomFilter = BloomFilter()
     ) {
         companion object {
