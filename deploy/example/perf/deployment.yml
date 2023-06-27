@@ -18,9 +18,9 @@ spec:
     metadata:
       labels:
         app: wow-example
-      annotations:
-        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
+      nodeSelector:
+        test: service
       tolerations:
         - key: "test"
           value: service
