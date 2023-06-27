@@ -9,3 +9,20 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: http
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: wow-example-node-port
+spec:
+  type: NodePort
+  selector:
+    app: wow-example
+  ports:
+    - nodePort: 32766
+      port: 80
+      protocol: TCP
+      targetPort: http
+
