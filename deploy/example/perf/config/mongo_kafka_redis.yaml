@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wow-example-config
+data:
+  application.yaml: >-
+    logging:
+      level:
+        me.ahoo.wow: warn
+    
+    spring:
+      application:
+        name: example-service
+      data:
+        mongodb:
+          uri: mongodb://root:QYE4XbfFl9uAGw@mongodb-test-mongodb-sharded.test.svc.cluster.local:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+        redis:
+          cluster:
+            max-redirects: 3
+            nodes:
+                - redis-test-redis-cluster-0.redis-test-redis-cluster-headless.test.svc.cluster.local:6379
+          password: VPI7MsrrF7beIg
+    cosid:
+      machine:
+        enabled: true
+        distributor:
+          type: redis
+      generator:
+        enabled: true
+    wow:
+      command:
+        bus:
+          type: kafka
+      event:
+        bus:
+          type: kafka
+      kafka:
+        bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
+      eventsourcing:
+        store:
+          storage: mongo
+        snapshot:
+          storage: redis
+        state:
+          bus:
+            type: kafka

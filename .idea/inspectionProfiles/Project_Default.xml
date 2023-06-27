@@ -5,6 +5,9 @@
       <option name="customHeaders">
         <set>
           <option value="Wow-Error-Code" />
+          <option value="Command-Wait-Timeout" />
+          <option value="Command-Wait-Stage" />
+          <option value="Command-Request-Id" />
         </set>
       </option>
     </inspection_tool>

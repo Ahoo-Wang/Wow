@@ -1,0 +1,34 @@
+POST {{host}}/customer/{{$uuid}}/order
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+
+{
+  "fromCart": false,
+  "items": [
+    {
+      "id": "0PsCv0bLOBG",
+      "productId": "0PsCv0bLOBH",
+      "price": 10,
+      "quantity": 10
+    }
+  ],
+  "address": {
+    "country": "country",
+    "province": "province",
+    "city": "city",
+    "district": "district",
+    "detail": "detail"
+  }
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+###
+
+GET {{host}}/customer/{{$uuid}}/order
