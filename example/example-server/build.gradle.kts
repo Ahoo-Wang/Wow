@@ -34,8 +34,8 @@ tasks.jar.configure {
 application {
     mainClass.set("me.ahoo.wow.example.server.ExampleServerKt")
     applicationDefaultJvmArgs = listOf(
-        "-Xms12170M",
-        "-Xmx12170M",
+        "-Xms1792M",
+        "-Xmx1792M",
         "-XX:MaxMetaspaceSize=256M",
         "-XX:MaxDirectMemorySize=512M",
         "-Xss1m",

@@ -28,7 +28,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.0.0
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.0.2
           env:
             - name: LANG
               value: C.utf8
@@ -44,7 +44,7 @@ spec:
             failureThreshold: 15
             httpGet:
               path: /actuator/health
-              port: 8080
+              port: http
               scheme: HTTP
             periodSeconds: 10
             successThreshold: 1
@@ -53,7 +53,7 @@ spec:
             failureThreshold: 6
             httpGet:
               path: /actuator/health
-              port: 8080
+              port: http
               scheme: HTTP
             periodSeconds: 10
             successThreshold: 1
@@ -63,7 +63,7 @@ spec:
             failureThreshold: 6
             httpGet:
               path: /actuator/health
-              port: 8080
+              port: http
               scheme: HTTP
             periodSeconds: 10
             successThreshold: 1
@@ -89,35 +89,3 @@ spec:
         - name: wow-example-config
           configMap:
             name: wow-example-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: wow-example-svc
-spec:
-  selector:
-    app: wow-example
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
----
-
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: wow-example-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: wow-example
-  minReplicas: 3
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80
