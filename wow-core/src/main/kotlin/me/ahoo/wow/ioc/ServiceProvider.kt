@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.ioc
 
+import me.ahoo.wow.naming.annotation.asName
+
 /**
  * ServiceProvider .
  *
@@ -19,13 +21,20 @@ package me.ahoo.wow.ioc
  */
 interface ServiceProvider {
     fun <S : Any> register(service: S) {
-        register(service.javaClass, service)
+        val serviceName = service.javaClass.asName()
+        register(serviceName, service)
     }
 
-    fun <S : Any> register(serviceType: Class<out S>, service: S)
+    fun <S : Any> register(serviceType: Class<S>, service: S)
+    fun <S : Any> register(serviceName: String, service: S)
     fun <S : Any> getService(serviceType: Class<S>): S?
+    fun <S : Any> getService(serviceName: String): S?
     fun <S : Any> getRequiredService(serviceType: Class<S>): S {
         return requireNotNull(getService(serviceType)) { "ServiceType[$serviceType] not found." }
+    }
+
+    fun <S : Any> getRequiredService(serviceName: String): S {
+        return requireNotNull(getService(serviceName)) { "ServiceName[$serviceName] not found." }
     }
 }
 

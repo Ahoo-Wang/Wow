@@ -15,7 +15,7 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.VALUE_PARAMETER)
 @Inherited
 @MustBeDocumented
 annotation class Name(val value: String)

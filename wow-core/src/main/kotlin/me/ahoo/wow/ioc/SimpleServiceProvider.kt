@@ -14,20 +14,31 @@ package me.ahoo.wow.ioc
 
 import java.util.concurrent.ConcurrentHashMap
 
-class SimpleServiceProvider(
-    private val services: ConcurrentHashMap<Class<*>, Any> = ConcurrentHashMap<Class<*>, Any>()
-) : ServiceProvider {
+class SimpleServiceProvider : ServiceProvider {
+    private val typedServices: ConcurrentHashMap<Class<*>, Any> = ConcurrentHashMap<Class<*>, Any>()
+    private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceType: Class<S>): S? {
-        val service = services[serviceType] as S?
+        val service = typedServices[serviceType] as S?
         if (service != null) {
             return service
         }
-        return services.values.firstOrNull { serviceType.isInstance(it) } as S?
+        return typedServices.values.firstOrNull { serviceType.isInstance(it) } as S?
     }
 
-    override fun <S : Any> register(serviceType: Class<out S>, service: S) {
-        services[serviceType] = service
+    @Suppress("UNCHECKED_CAST")
+    override fun <S : Any> getService(serviceName: String): S? {
+        return namedServices[serviceName] as S?
+    }
+
+    override fun <S : Any> register(serviceType: Class<S>, service: S) {
+        typedServices[serviceType] = service
+    }
+
+    override fun <S : Any> register(serviceName: String, service: S) {
+        namedServices[serviceName] = service
+        val serviceType = service.javaClass
+        register(serviceType, service)
     }
 }
