@@ -15,6 +15,7 @@
 package me.ahoo.wow.example.domain.order
 
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
@@ -62,7 +63,7 @@ class Order(private val state: OrderState) {
      */
     fun onCommand(
         command: CommandMessage<CreateOrder>,
-        specification: CreateOrderSpec
+        @Name("createOrderSpec") specification: CreateOrderSpec
     ): Mono<OrderCreated> {
         val createOrder = command.body
         require(createOrder.items.isNotEmpty()) {

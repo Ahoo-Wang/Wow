@@ -46,7 +46,7 @@ internal class MethodFunctionMetadataTest {
                 FunctionKind.COMMAND
             ),
         )
-        assertThat(metadata.injectParameterTypes, arrayWithSize(0))
+        assertThat(metadata.injectParameters, arrayWithSize(0))
         assertThat(
             metadata.accessor,
             instanceOf(
@@ -129,7 +129,7 @@ internal class MethodFunctionMetadataTest {
                 MockEventBody::class.java,
             ),
         )
-        assertThat(metadata.injectParameterTypes, arrayWithSize(0))
+        assertThat(metadata.injectParameters, arrayWithSize(0))
         assertThat(metadata.firstParameterKind, equalTo(FirstParameterKind.MESSAGE))
         assertThat(
             metadata.functionKind,

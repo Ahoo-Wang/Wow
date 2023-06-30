@@ -100,7 +100,7 @@ internal class OrderTest {
     fun createOrderGivenEmptyItems() {
         val customerId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Order, OrderState>()
-            .inject(mockk<CreateOrderSpec>())
+            .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
             .given()
             .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
             .expectErrorType(IllegalArgumentException::class.java)

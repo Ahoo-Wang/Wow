@@ -21,15 +21,23 @@ import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import me.ahoo.wow.messaging.handler.MessageExchange
 
+enum class FirstParameterKind {
+    MESSAGE_EXCHANGE,
+    MESSAGE,
+    MESSAGE_BODY
+}
+
+data class InjectParameter(val type: Class<*>, val name: String = "")
+
 data class MethodFunctionMetadata<P, out R>(
     override val functionKind: FunctionKind,
     val accessor: MethodAccessor<P, R>,
     val supportedType: Class<*>,
     val supportedTopics: Set<Any>,
     val firstParameterKind: FirstParameterKind,
-    val injectParameterTypes: Array<Class<*>>
+    val injectParameters: Array<InjectParameter>
 ) : FunctionKindCapable, NamedBoundedContext, Named {
-    val injectParameterLength: Int = injectParameterTypes.size
+    val injectParameterLength: Int = injectParameters.size
     val processorType: Class<P> = accessor.targetType
     val processorName = checkNotNull(processorType.simpleName)
     override val name: String = "$processorName.${supportedType.simpleName}"
@@ -57,10 +65,4 @@ data class MethodFunctionMetadata<P, out R>(
     override fun toString(): String {
         return "MethodFunctionMetadata(accessor=$accessor)"
     }
-}
-
-enum class FirstParameterKind {
-    MESSAGE_EXCHANGE,
-    MESSAGE,
-    MESSAGE_BODY
 }

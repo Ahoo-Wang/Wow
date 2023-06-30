@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_STATE_EVENT_NAME
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.annotation.OnStateEvent
@@ -49,14 +50,20 @@ object FunctionMetadataParser {
         val supportedType = asSupportedType(firstParameterKind, firstParameterType)
         val accessor = accessorFactory(this)
         val supportedTopics = asSupportedTopics(functionKind, supportedType)
-        val injectParameterTypes = parameterTypes.copyOfRange(1, parameterTypes.size)
+
+        val injectParameterTypes = parameterTypes.copyOfRange(1, parameterTypes.size).mapIndexed { idx, parameterType ->
+            val name = parameterAnnotations[idx + 1].firstOrNull {
+                it is Name
+            } as Name?
+            InjectParameter(parameterType, name?.value.orEmpty())
+        }.toTypedArray()
         return MethodFunctionMetadata(
             functionKind = functionKind,
             accessor = accessor,
             supportedType = supportedType,
             supportedTopics = supportedTopics,
             firstParameterKind = firstParameterKind,
-            injectParameterTypes = injectParameterTypes,
+            injectParameters = injectParameterTypes,
         )
     }
 

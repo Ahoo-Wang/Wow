@@ -36,8 +36,8 @@ internal class DefaultGivenStage<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider
 ) : GivenStage<S> {
-    override fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
-        serviceProvider.register(service)
+    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S> {
+        serviceProvider.register(serviceName, service)
         return this
     }
 
@@ -142,8 +142,8 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider
 ) : VerifiedStage<S>, GivenStage<S> {
-    override fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
-        serviceProvider.register(service)
+    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S> {
+        serviceProvider.register(serviceName, service)
         return this
     }
 
