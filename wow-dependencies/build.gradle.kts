@@ -22,7 +22,7 @@ dependencies {
         api("com.google.devtools.ksp:symbol-processing-api:1.8.22-1.0.11")
         api("com.google.devtools.ksp:symbol-processing:1.8.22-1.0.11")
         api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
-        api("com.google.guava:guava:32.1.0-jre")
+        api("com.google.guava:guava:32.1.1-jre")
         api("io.opentelemetry:opentelemetry-semconv:1.22.0-alpha")
         api("org.springdoc:springdoc-openapi-starter-webflux-api:2.1.0")
         api("org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0")
