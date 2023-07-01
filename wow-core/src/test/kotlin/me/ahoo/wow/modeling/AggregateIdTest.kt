@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling
 
+import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.MockCommandAggregate
@@ -66,4 +67,13 @@ internal class AggregateIdTest {
             aggregateId2.compareTo(aggregateId)
         }
     }
+
+    @Test
+    fun withStaticAggregate() {
+        val aggregateId = aggregateMetadata<MockStaticAggregate, MockStaticAggregate>().asAggregateId()
+        assertThat(aggregateId.tenantId, equalTo("static-tenant-id"))
+    }
 }
+
+@StaticTenantId("static-tenant-id")
+class MockStaticAggregate(private val id: String)

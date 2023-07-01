@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.modeling.equalTo
 import me.ahoo.wow.api.modeling.hash
 import me.ahoo.wow.id.generateId
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 
 data class DefaultAggregateId(
     override val namedAggregate: NamedAggregate,
@@ -40,6 +41,16 @@ fun NamedAggregate.asAggregateId(
 ) =
     DefaultAggregateId(
         namedAggregate = materialize(),
+        id = id,
+        tenantId = tenantId,
+    )
+
+fun AggregateMetadata<*, *>.asAggregateId(
+    id: String = generateId(),
+    tenantId: String = staticTenantId ?: TenantId.DEFAULT_TENANT_ID
+) =
+    DefaultAggregateId(
+        namedAggregate = namedAggregate.materialize(),
         id = id,
         tenantId = tenantId,
     )
