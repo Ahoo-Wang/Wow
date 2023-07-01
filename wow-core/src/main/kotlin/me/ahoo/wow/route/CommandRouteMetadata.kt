@@ -63,9 +63,7 @@ data class CommandRouteMetadata<C>(
 
         other as CommandRouteMetadata<*>
 
-        if (commandMetadata != other.commandMetadata) return false
-
-        return true
+        return commandMetadata == other.commandMetadata
     }
 
     override fun hashCode(): Int {
@@ -91,9 +89,7 @@ data class PathVariableMetadata(
 
         other as PathVariableMetadata
 
-        if (pathVariableName != other.pathVariableName) return false
-
-        return true
+        return pathVariableName == other.pathVariableName
     }
 
     override fun hashCode(): Int {
