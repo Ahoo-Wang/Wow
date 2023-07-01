@@ -18,11 +18,12 @@ import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.naming.annotation.asName
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 
 interface GivenStage<S : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S>
+    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.asName()): GivenStage<S>
 
     /**
      * 1. 给定领域事件，朔源聚合.

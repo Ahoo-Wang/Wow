@@ -40,8 +40,12 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>
         val args = arrayOfNulls<Any>(1 + metadata.injectParameterLength)
         args[0] = metadata.extractFirstArgument(exchange)
         for (i in 0 until metadata.injectParameterLength) {
-            val serviceType = metadata.injectParameterTypes[i]
-            args[i + 1] = exchange.extractObject(serviceType)
+            val injectParameter = metadata.injectParameters[i]
+            if (injectParameter.name.isNotBlank()) {
+                args[i + 1] = exchange.getServiceProvider()?.getService(injectParameter.name)
+            } else {
+                args[i + 1] = exchange.extractObject(injectParameter.type)
+            }
         }
         return metadata.accessor.invoke(processor, args)
     }

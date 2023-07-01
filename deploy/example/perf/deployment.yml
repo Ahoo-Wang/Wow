@@ -5,12 +5,9 @@ metadata:
   labels:
     app: wow-example
 spec:
-  replicas: 3
+  replicas: 4
   strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+    type: Recreate
   selector:
     matchLabels:
       app: wow-example
@@ -35,7 +32,7 @@ spec:
             - name: TZ
               value: Asia/Shanghai
             - name: JAVA_OPTS
-              value: -Xms8192M  -Xmx8192M
+              value: -Xms10240M  -Xmx10240M
           ports:
             - name: http
               protocol: TCP
@@ -72,7 +69,7 @@ spec:
           resources:
             limits:
               cpu: "16"
-              memory: 10240Mi
+              memory: 12288Mi
             requests:
               cpu: '8'
               memory: 10240Mi

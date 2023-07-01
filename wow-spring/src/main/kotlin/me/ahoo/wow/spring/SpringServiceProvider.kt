@@ -22,8 +22,17 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
     ServiceProvider,
     Decorator<ConfigurableBeanFactory> {
 
-    override fun <S : Any> register(serviceType: Class<out S>, service: S) {
-        delegate.registerSingleton(serviceType.simpleName, service)
+    override fun <S : Any> register(serviceType: Class<S>, service: S) {
+        register(service)
+    }
+
+    override fun <S : Any> register(serviceName: String, service: S) {
+        delegate.registerSingleton(serviceName, service)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <S : Any> getService(serviceName: String): S? {
+        return delegate.getBean(serviceName) as S?
     }
 
     override fun <S : Any> getService(serviceType: Class<S>): S? {

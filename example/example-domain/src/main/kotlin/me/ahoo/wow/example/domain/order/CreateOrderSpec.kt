@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.example.domain.order
 
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
@@ -27,6 +28,7 @@ interface CreateOrderSpec {
  *
  * @author ahoo wang
  */
+@Name("createOrderSpec")
 class DefaultCreateOrderSpec(
     private val inventoryService: InventoryService,
     private val pricingService: PricingService

@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.event.DomainEvent
@@ -45,5 +46,5 @@ internal class MockOnStateEventFunction {
 interface ExternalService
 
 internal class MockWithInjectableFunction {
-    fun onEvent(mockEventBody: MockEventBody, externalService: ExternalService) = Unit
+    fun onEvent(mockEventBody: MockEventBody, @Name("externalService") externalService: ExternalService) = Unit
 }
