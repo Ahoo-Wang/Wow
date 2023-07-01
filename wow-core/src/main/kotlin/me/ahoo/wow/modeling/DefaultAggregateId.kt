@@ -48,9 +48,4 @@ fun NamedAggregate.asAggregateId(
 fun AggregateMetadata<*, *>.asAggregateId(
     id: String = generateId(),
     tenantId: String = staticTenantId ?: TenantId.DEFAULT_TENANT_ID
-) =
-    DefaultAggregateId(
-        namedAggregate = namedAggregate.materialize(),
-        id = id,
-        tenantId = tenantId,
-    )
+) = namedAggregate.asAggregateId(id, tenantId)

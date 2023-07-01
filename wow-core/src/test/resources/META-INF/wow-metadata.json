@@ -20,6 +20,9 @@
             "me.ahoo.wow.modeling.state"
           ]
         },
+        "mock_static_aggregate": {
+          "type": "me.ahoo.wow.modeling.MockStaticAggregate"
+        },
         "modeling_annotation_command_aggregate": {
           "type": "me.ahoo.wow.modeling.annotation.MockCommandAggregate"
         },
@@ -36,7 +39,9 @@
           ]
         },
         "messaging_aggregate": {
-          "scopes": ["me.ahoo.wow.messaging"]
+          "scopes": [
+            "me.ahoo.wow.messaging"
+          ]
         }
       }
     }
