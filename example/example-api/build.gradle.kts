@@ -1,5 +1,5 @@
 plugins {
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.ksp)
 }
 dependencies {
     api(platform(project(":wow-dependencies")))
