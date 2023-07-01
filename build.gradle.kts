@@ -18,10 +18,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformJvmPlugin
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin")
-    id("io.gitlab.arturbosch.detekt")
-    kotlin("jvm")
-    id("org.jetbrains.dokka")
+    alias(libs.plugins.publishPlugin)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.kotlin)
+    alias(libs.plugins.dokka)
     jacoco
 }
 

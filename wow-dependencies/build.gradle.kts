@@ -12,22 +12,22 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:3.1.1"))
-    api(platform("me.ahoo.cosid:cosid-bom:2.2.1"))
-    api(platform("io.opentelemetry:opentelemetry-bom:1.27.0"))
-    api(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:1.27.0"))
-    api(platform("io.r2dbc:r2dbc-bom:Borca-RELEASE"))
-    api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
+    api(platform(libs.springBootDependencies))
+    api(platform(libs.cosidBom))
+    api(platform(libs.opentelemetryBom))
+    api(platform(libs.opentelemetryInstrumentationBom))
+    api(platform(libs.r2dbcBom))
+    api(platform(libs.testcontainersBom))
     constraints {
-        api("com.google.devtools.ksp:symbol-processing-api:1.8.22-1.0.11")
-        api("com.google.devtools.ksp:symbol-processing:1.8.22-1.0.11")
-        api("com.github.tschuchortdev:kotlin-compile-testing-ksp:1.5.0")
-        api("com.google.guava:guava:32.1.1-jre")
-        api("io.opentelemetry:opentelemetry-semconv:1.22.0-alpha")
-        api("org.springdoc:springdoc-openapi-starter-webflux-api:2.1.0")
-        api("org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0")
-        api("org.hamcrest:hamcrest:2.2")
-        api("io.mockk:mockk:1.13.5")
-        api("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.0")
+        api(libs.kspSymbolProcessingApi)
+        api(libs.kspSymbolProcessing)
+        api(libs.kotlinCompileTestingKsp)
+        api(libs.guava)
+        api(libs.opentelemetrySemconv)
+        api(libs.springDocStarterWebfluxApi)
+        api(libs.springDocStarterWebfluxUi)
+        api(libs.hamcrest)
+        api(libs.mockk)
+        api(libs.detektFormatting)
     }
 }
