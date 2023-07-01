@@ -42,5 +42,4 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
             null
         }
     }
-
 }
