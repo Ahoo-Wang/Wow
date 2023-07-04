@@ -95,14 +95,14 @@ object AggregateRootResolver {
     @OptIn(KspExperimental::class)
     fun KSFunctionDeclaration.isCommand(): Boolean {
         return (simpleName.getShortName() == DEFAULT_ON_COMMAND_NAME || isAnnotationPresent(OnCommand::class)) &&
-                parameters.isNotEmpty() &&
-                (returnType != null)
+            parameters.isNotEmpty() &&
+            (returnType != null)
     }
 
     @OptIn(KspExperimental::class)
     fun KSFunctionDeclaration.isDomainEvent(): Boolean {
         return (simpleName.getShortName() == DEFAULT_ON_SOURCING_NAME || isAnnotationPresent(OnSourcing::class)) &&
-                parameters.isNotEmpty()
+            parameters.isNotEmpty()
     }
 
     private fun KSFunctionDeclaration.asMessageType(resolver: Resolver): String {

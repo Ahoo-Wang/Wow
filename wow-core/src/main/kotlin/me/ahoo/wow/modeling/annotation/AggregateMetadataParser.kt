@@ -79,7 +79,7 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
             @Suppress("UNCHECKED_CAST")
             stateAggregateType =
                 (if (String::class.java != ctorParameterType) ctorParameterType else commandAggregateType)
-                        as Class<S>
+                    as Class<S>
             stateAggregateMetadata = stateAggregateType.asStateAggregateMetadata()
         }
 
@@ -100,11 +100,11 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
         }
 
         private fun isOnCommandFunctionMethod(method: Method) = DEFAULT_ON_COMMAND_NAME == method.name &&
-                method.parameterCount > 0 &&
-                method.returnType != Void.TYPE
+            method.parameterCount > 0 &&
+            method.returnType != Void.TYPE
 
         private fun isOnErrorFunctionMethod(method: Method) = DEFAULT_ON_ERROR_NAME == method.name &&
-                method.parameterCount > 0
+            method.parameterCount > 0
 
         fun asMetadata(): AggregateMetadata<C, S> {
             if (commandFunctionRegistry.isEmpty()) {

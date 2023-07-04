@@ -44,7 +44,9 @@ data class CommandMetadata<C>(
     val staticTenantId: String?
         get() = if (tenantIdGetter is StaticPropertyGetter) {
             tenantIdGetter.value
-        } else null
+        } else {
+            null
+        }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
