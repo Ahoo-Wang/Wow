@@ -124,7 +124,7 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
         }
 
         val namedAggregateGetter = aggregateNameGetter.asNamedAggregateGetter(commandType)
-        if (namedAggregateGetter is MetadataNamedAggregateGetter) {
+        if (tenantIdGetter == null && namedAggregateGetter is MetadataNamedAggregateGetter) {
             val tenantId = MetadataSearcher.requiredAggregate(namedAggregateGetter.namedAggregate).tenantId
             if (tenantId.isNotBlank()) {
                 tenantIdGetter = StaticPropertyGetter(tenantId)
