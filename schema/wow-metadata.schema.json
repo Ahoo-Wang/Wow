@@ -62,6 +62,10 @@
             "type": "string"
           }
         },
+        "tenantId": {
+          "type": "string",
+          "description": "static Tenant Id"
+        },
         "id": {
           "type": "string",
           "description": "id name"

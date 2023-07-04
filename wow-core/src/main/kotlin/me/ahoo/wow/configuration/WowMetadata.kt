@@ -70,6 +70,10 @@ data class Aggregate(
      */
     val type: String? = null,
     /**
+     * Static tenant ID
+     */
+    val tenantId: String = "",
+    /**
      * Custom ID generator name
      */
     val id: String = "",
@@ -92,10 +96,12 @@ data class Aggregate(
         if (mergedType.isNullOrBlank()) {
             mergedType = other.type
         }
+        val mergedTenantId: String = tenantId.ifBlank { other.tenantId }
         val mergedId: String = id.ifBlank { other.id }
         return Aggregate(
             scopes = mergedScopes,
             type = mergedType,
+            tenantId = mergedTenantId,
             id = mergedId,
             commands = mergedCommands,
             events = mergedEvents,

@@ -36,8 +36,9 @@ object BoundedContextResolver {
 
         val contextAggregates = contextAnnotation.getAggregates().associate {
             val id = it.getArgumentValue<String>(BoundedContext.Aggregate::id.name)
+            val tenantId = it.getArgumentValue<String>(BoundedContext.Aggregate::tenantId.name)
             val mergedAggregateScopes = it.getPackageScopes().plus(it.getScopes())
-            it.getName() to Aggregate(id = id, scopes = mergedAggregateScopes)
+            it.getName() to Aggregate(tenantId = tenantId, id = id, scopes = mergedAggregateScopes)
         }
         val boundedContext = me.ahoo.wow.configuration.BoundedContext(
             alias = contextAlias,
