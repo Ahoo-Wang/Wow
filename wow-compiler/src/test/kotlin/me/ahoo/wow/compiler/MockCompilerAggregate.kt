@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.command.CommandMessage
 
 @me.ahoo.wow.api.annotation.CreateAggregate
@@ -34,8 +35,11 @@ data class AggregateChanged(val state: String)
 
 interface ExternalService
 
+@StaticTenantId
+interface CompilerAggregate
+
 @AggregateRoot
-class MockCompilerAggregate(val id: String) {
+class MockCompilerAggregate(val id: String) : CompilerAggregate {
     private var state: String? = null
 
     fun state(): String? {
