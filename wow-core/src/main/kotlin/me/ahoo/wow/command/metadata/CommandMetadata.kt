@@ -15,6 +15,7 @@ package me.ahoo.wow.command.metadata
 import me.ahoo.wow.api.command.DeleteAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.NamedAggregateGetter
 
@@ -39,6 +40,11 @@ data class CommandMetadata<C>(
 
     val isDelete: Boolean
         get() = DeleteAggregate::class.java.isAssignableFrom(commandType)
+
+    val staticTenantId: String?
+        get() = if (tenantIdGetter is StaticPropertyGetter) {
+            tenantIdGetter.value
+        } else null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

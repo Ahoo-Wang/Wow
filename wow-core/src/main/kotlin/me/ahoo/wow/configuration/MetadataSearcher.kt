@@ -66,6 +66,16 @@ object MetadataSearcher {
     fun NamedAggregate.isLocal(): Boolean {
         return localAggregates.contains(this.materialize())
     }
+
+    fun getAggregate(namedAggregate: NamedAggregate): Aggregate? {
+        return metadata.contexts[namedAggregate.contextName]?.aggregates?.get(namedAggregate.aggregateName)
+    }
+
+    fun requiredAggregate(namedAggregate: NamedAggregate): Aggregate {
+        return requireNotNull(getAggregate(namedAggregate)) {
+            "NamedAggregate configuration [$namedAggregate] not found."
+        }
+    }
 }
 
 fun <T> Class<T>.asNamedBoundedContext(): NamedBoundedContext? {

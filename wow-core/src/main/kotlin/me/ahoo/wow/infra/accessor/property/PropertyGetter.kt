@@ -20,6 +20,13 @@ fun interface PropertyGetter<in T, V> {
     operator fun get(target: T): V
 }
 
+class StaticPropertyGetter<in T, V>(val value: V) : PropertyGetter<T, V> {
+
+    override fun get(target: T): V {
+        return value
+    }
+}
+
 class FieldPropertyGetter<in T, V>(private val fieldGetter: FieldGetter<T, V>) : PropertyGetter<T, V> {
 
     override fun get(target: T): V {

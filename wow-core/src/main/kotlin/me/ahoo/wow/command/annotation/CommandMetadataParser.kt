@@ -24,10 +24,13 @@ import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
 import me.ahoo.wow.command.metadata.CommandMetadata
+import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.modeling.matedata.MetadataNamedAggregateGetter
 import me.ahoo.wow.modeling.matedata.asNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.asName
 import org.slf4j.LoggerFactory
@@ -121,7 +124,12 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
         }
 
         val namedAggregateGetter = aggregateNameGetter.asNamedAggregateGetter(commandType)
-
+        if (namedAggregateGetter is MetadataNamedAggregateGetter) {
+            val tenantId = MetadataSearcher.requiredAggregate(namedAggregateGetter.namedAggregate).tenantId
+            if (tenantId.isNotBlank()) {
+                tenantIdGetter = StaticPropertyGetter(tenantId)
+            }
+        }
         return CommandMetadata(
             commandType = commandType,
             namedAggregateGetter = namedAggregateGetter,
