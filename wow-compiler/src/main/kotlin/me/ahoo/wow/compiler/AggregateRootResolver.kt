@@ -14,6 +14,7 @@
 package me.ahoo.wow.compiler
 
 import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getKotlinClassByName
 import com.google.devtools.ksp.isAnnotationPresent
@@ -82,8 +83,14 @@ object AggregateRootResolver {
                 it.asMessageType(resolver)
             }
             .toSet()
+
         val tenantId =
             getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name)
+                ?: getAllSuperTypes().mapNotNull {
+                    it.declaration.getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(
+                        StaticTenantId::tenantId.name
+                    )
+                }.firstOrNull()
         return Aggregate(
             type = type,
             tenantId = tenantId,

@@ -124,7 +124,6 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
                 errorFunctionRegistry = errorFunctionRegistry,
             )
             val staticTenantId = commandAggregateType.scan<StaticTenantId>()?.tenantId
-                ?: stateAggregateType.scan<StaticTenantId>()?.tenantId
                 ?: MetadataSearcher.getAggregate(namedAggregate)?.tenantId
             return AggregateMetadata(namedAggregate, staticTenantId, stateAggregateMetadata, commandAggregateMetadata)
         }
