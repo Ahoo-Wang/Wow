@@ -38,6 +38,10 @@ annotation class BoundedContext(
          */
         val name: String,
         /**
+         * Static tenant ID.
+         */
+        val tenantId: String = "",
+        /**
          * Custom ID generator name
          */
         val id: String = "",
