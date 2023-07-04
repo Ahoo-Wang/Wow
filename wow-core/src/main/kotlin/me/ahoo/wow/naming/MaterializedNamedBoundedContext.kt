@@ -23,5 +23,5 @@ fun String.asNamedBoundedContext(): NamedBoundedContext = MaterializedNamedBound
 
 fun NamedBoundedContext.getContextAlias(): String {
     val context = MetadataSearcher.metadata.contexts[contextName] ?: return contextName
-    return context.alias.ifBlank { contextName }
+    return context.alias ?: contextName
 }

@@ -83,7 +83,7 @@ object AggregateRootResolver {
             }
             .toSet()
         val tenantId =
-            getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name).orEmpty()
+            getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name)
         return Aggregate(
             type = type,
             tenantId = tenantId,
