@@ -24,7 +24,10 @@
       "type": "object",
       "properties": {
         "alias": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "context alias"
         },
         "scopes": {
@@ -63,11 +66,17 @@
           }
         },
         "tenantId": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "static Tenant Id"
         },
         "id": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "id name"
         },
         "commands": {
