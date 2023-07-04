@@ -54,8 +54,8 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
         ClassVisitor {
         private val commandAggregateType: Class<C>
+        private val stateAggregateType: Class<S>
         private val stateAggregateMetadata: StateAggregateMetadata<S>
-        private val staticTenantId: String?
         private var constructor: Constructor<C>
         private var commandFunctionRegistry: MutableMap<Class<*>, MethodFunctionMetadata<C, Mono<*>>> = HashMap()
         private var errorFunctionRegistry: MutableMap<Class<*>, MethodFunctionMetadata<C, Mono<*>>> = HashMap()
@@ -77,12 +77,10 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
             val ctorParameterType = constructor.parameterTypes[0]
 
             @Suppress("UNCHECKED_CAST")
-            val stateAggregateType =
+            stateAggregateType =
                 (if (String::class.java != ctorParameterType) ctorParameterType else commandAggregateType)
                     as Class<S>
             stateAggregateMetadata = stateAggregateType.asStateAggregateMetadata()
-            staticTenantId = commandAggregateType.scan<StaticTenantId>()?.tenantId
-                ?: stateAggregateType.scan<StaticTenantId>()?.tenantId
         }
 
         override fun visitMethod(method: Method) {
@@ -125,6 +123,9 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
             )
+            val staticTenantId = commandAggregateType.scan<StaticTenantId>()?.tenantId
+                ?: stateAggregateType.scan<StaticTenantId>()?.tenantId
+                ?: MetadataSearcher.getAggregate(namedAggregate)?.tenantId
             return AggregateMetadata(namedAggregate, staticTenantId, stateAggregateMetadata, commandAggregateMetadata)
         }
     }

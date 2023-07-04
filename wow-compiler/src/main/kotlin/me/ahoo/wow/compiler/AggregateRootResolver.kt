@@ -26,6 +26,7 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
+import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.compiler.BoundedContextResolver.getAnnotation
 import me.ahoo.wow.compiler.BoundedContextResolver.getArgumentValue
@@ -81,8 +82,14 @@ object AggregateRootResolver {
                 it.asMessageType(resolver)
             }
             .toSet()
-
-        return Aggregate(type = type, commands = commands, events = commandReturnEvents + sourcingEvents)
+        val tenantId =
+            getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name)
+        return Aggregate(
+            type = type,
+            tenantId = tenantId,
+            commands = commands,
+            events = commandReturnEvents + sourcingEvents
+        )
     }
 
     @OptIn(KspExperimental::class)

@@ -24,7 +24,11 @@ import me.ahoo.wow.example.api.order.CreateOrder
     ExampleService.SERVICE_ALIAS,
     aggregates = [
         BoundedContext.Aggregate(ORDER_AGGREGATE_NAME, packageScopes = [CreateOrder::class]),
-        BoundedContext.Aggregate(CART_AGGREGATE_NAME, packageScopes = [InitializeCart::class]),
+        BoundedContext.Aggregate(
+            CART_AGGREGATE_NAME,
+            tenantId = me.ahoo.wow.api.modeling.TenantId.DEFAULT_TENANT_ID,
+            packageScopes = [InitializeCart::class]
+        ),
     ],
 )
 object ExampleService {

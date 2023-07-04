@@ -27,7 +27,7 @@ object BoundedContextResolver {
     fun KSClassDeclaration.resolveBoundedContext(): WowMetadata {
         val contextAnnotation = requireNotNull(getAnnotation(BoundedContext::class))
         val contextName = contextAnnotation.getName()
-        val contextAlias = contextAnnotation.getAlias()
+        val contextAlias = contextAnnotation.getAlias().ifBlank { null }
         val contextScopes = contextAnnotation.getScopes()
         val contextPackageScopes = contextAnnotation.getPackageScopes()
         val mergedContextScopes = contextPackageScopes.plus(contextScopes).ifEmpty {
@@ -35,8 +35,8 @@ object BoundedContextResolver {
         }
 
         val contextAggregates = contextAnnotation.getAggregates().associate {
-            val id = it.getArgumentValue<String>(BoundedContext.Aggregate::id.name)
-            val tenantId = it.getArgumentValue<String>(BoundedContext.Aggregate::tenantId.name)
+            val id = it.getArgumentValue<String>(BoundedContext.Aggregate::id.name).ifBlank { null }
+            val tenantId = it.getArgumentValue<String>(BoundedContext.Aggregate::tenantId.name).ifBlank { null }
             val mergedAggregateScopes = it.getPackageScopes().plus(it.getScopes())
             it.getName() to Aggregate(tenantId = tenantId, id = id, scopes = mergedAggregateScopes)
         }

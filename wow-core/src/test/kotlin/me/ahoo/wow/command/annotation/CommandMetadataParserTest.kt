@@ -43,6 +43,7 @@ internal class CommandMetadataParserTest {
     fun parseWithDefaultNamedId() {
         val metadata = commandMetadata<MockCommandWithDefaultNamedId>()
         assertThat(metadata.isCreate, equalTo(false))
+        assertThat(metadata.staticTenantId, nullValue())
         assertThat(metadata.aggregateIdGetter, notNullValue())
     }
 
@@ -114,6 +115,7 @@ internal class CommandMetadataParserTest {
     fun parseWithStatic() {
         val metadata = commandMetadata<MockStaticCommand>()
         assertThat(metadata, notNullValue())
+        assertThat(metadata.staticTenantId, equalTo(TenantId.DEFAULT_TENANT_ID))
         assertThat(
             metadata.commandType,
             equalTo(

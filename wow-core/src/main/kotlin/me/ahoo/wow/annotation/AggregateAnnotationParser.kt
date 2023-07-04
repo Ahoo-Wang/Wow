@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -81,7 +82,7 @@ object AggregateAnnotationParser {
 
     fun <T> Class<*>.asStaticAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<StaticAggregateId>()?.let { staticAggregateId ->
-            PropertyGetter { staticAggregateId.aggregateId }
+            StaticPropertyGetter(staticAggregateId.aggregateId)
         }
     }
 
@@ -97,7 +98,7 @@ object AggregateAnnotationParser {
 
     fun <T> Class<*>.asStaticTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<StaticTenantId>()?.let { staticTenantId ->
-            PropertyGetter { staticTenantId.tenantId }
+            StaticPropertyGetter(staticTenantId.tenantId)
         }
     }
 

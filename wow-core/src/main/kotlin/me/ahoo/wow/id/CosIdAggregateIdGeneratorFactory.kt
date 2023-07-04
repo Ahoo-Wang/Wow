@@ -35,9 +35,7 @@ class CosIdAggregateIdGeneratorFactory : AggregateIdGeneratorFactory {
             ?.aggregates
             ?.get(namedAggregate.aggregateName)
             ?.id
-            .orEmpty().ifBlank {
-                namedAggregate.aggregateName
-            }
+            ?: namedAggregate.aggregateName
 
         val idGeneratorOp = DefaultIdGeneratorProvider.INSTANCE.get(idGenName)
         if (idGeneratorOp.isPresent) {

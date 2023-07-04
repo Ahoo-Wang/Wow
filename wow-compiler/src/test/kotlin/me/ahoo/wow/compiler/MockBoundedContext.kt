@@ -17,10 +17,13 @@ import me.ahoo.wow.api.annotation.BoundedContext
 
 @BoundedContext(
     "mock",
+    alias = "mock",
     packageScopes = [MockCompilerAggregate::class],
     aggregates = [
         BoundedContext.Aggregate(
             "mock_compiler_aggregate",
+            id = "mock",
+            tenantId = "mock",
             packageScopes = [MockCompilerAggregate::class],
         ),
     ],

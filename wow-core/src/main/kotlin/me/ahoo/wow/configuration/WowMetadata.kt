@@ -33,7 +33,7 @@ data class WowMetadata(
         contexts.keys.groupBy {
             contexts[it]!!.alias
         }.filter {
-            it.key.isNotBlank()
+            it.key != null
         }.forEach { (alias, contextNames) ->
             check(contextNames.size == 1) {
                 "The alias[$alias] conflicts with the bounded contexts${contextNames.asJsonString()}."
@@ -43,7 +43,7 @@ data class WowMetadata(
 }
 
 data class BoundedContext(
-    val alias: String = "",
+    val alias: String? = null,
     override val scopes: Set<String> = setOf(),
     /**
      * `aggregateName` -> `Aggregate`
@@ -51,12 +51,12 @@ data class BoundedContext(
     val aggregates: Map<String, Aggregate> = emptyMap()
 ) : NamingScopes, Merge<BoundedContext> {
     override fun merge(other: BoundedContext): BoundedContext {
-        if (alias.isNotBlank() && other.alias.isNotBlank()) {
+        if (alias != null && other.alias != null) {
             check(alias == other.alias) {
                 "The current bounded context alias[$alias] conflicts with the bounded context[${other.alias}] to be merged."
             }
         }
-        val mergedAlias = alias.ifBlank { other.alias }
+        val mergedAlias = firstNotBlank(alias, other.alias)
         val mergedScopes = scopes.plus(other.scopes)
         val mergedAggregates = aggregates.merge(other.aggregates)
         return BoundedContext(alias = mergedAlias, scopes = mergedScopes, aggregates = mergedAggregates)
@@ -72,11 +72,11 @@ data class Aggregate(
     /**
      * Static tenant ID
      */
-    val tenantId: String = "",
+    val tenantId: String? = null,
     /**
      * Custom ID generator name
      */
-    val id: String = "",
+    val id: String? = null,
     val commands: Set<String> = emptySet(),
     val events: Set<String> = emptySet()
 ) : NamingScopes, Merge<Aggregate> {
@@ -92,12 +92,10 @@ data class Aggregate(
             }
         }
 
-        var mergedType: String? = type
-        if (mergedType.isNullOrBlank()) {
-            mergedType = other.type
-        }
-        val mergedTenantId: String = tenantId.ifBlank { other.tenantId }
-        val mergedId: String = id.ifBlank { other.id }
+        val mergedType: String? = firstNotBlank(type, other.type)
+        val mergedTenantId: String? = firstNotBlank(tenantId, other.tenantId)
+        val mergedId: String? = firstNotBlank(id, other.id)
+
         return Aggregate(
             scopes = mergedScopes,
             type = mergedType,
@@ -115,6 +113,13 @@ interface NamingScopes {
 
 interface Merge<T> {
     fun merge(other: T): T
+}
+
+private fun firstNotBlank(first: String?, second: String?): String? {
+    if (first.isNullOrBlank()) {
+        return second
+    }
+    return first
 }
 
 internal fun <K, V : Merge<V>> Map<K, V>.merge(other: Map<K, V>): Map<K, V> {
