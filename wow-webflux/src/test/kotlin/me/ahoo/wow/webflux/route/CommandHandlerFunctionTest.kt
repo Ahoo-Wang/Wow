@@ -43,6 +43,7 @@ class CommandHandlerFunctionTest {
             every { headers().firstHeader(CommandHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
+            every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()

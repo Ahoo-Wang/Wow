@@ -34,11 +34,16 @@ object CommandParser {
         return pathVariables()[MessageRecords.TENANT_ID] ?: TenantId.DEFAULT_TENANT_ID
     }
 
+    fun ServerRequest.getAggregateId(): String? {
+        return headers().firstHeader(CommandHeaders.AGGREGATE_ID)
+    }
+
     fun ServerRequest.parse(
         aggregateMetadata: AggregateMetadata<*, *>,
         commandBody: Any,
         aggregateId: String? = null
     ): Mono<CommandMessage<Any>> {
+        val id = aggregateId ?: getAggregateId()
         val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID)
@@ -48,7 +53,7 @@ object CommandParser {
                 commandBody.asCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
-                    aggregateId = aggregateId,
+                    aggregateId = id,
                     tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                     header = header,
@@ -57,7 +62,7 @@ object CommandParser {
                 commandBody.asCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
-                    aggregateId = aggregateId,
+                    aggregateId = id,
                     tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                 ).toMono()

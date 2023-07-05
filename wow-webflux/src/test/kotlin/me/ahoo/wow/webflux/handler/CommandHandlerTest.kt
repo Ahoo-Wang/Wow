@@ -25,6 +25,7 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.WAIT_PROCESSOR) } returns "test"
             every { headers().firstHeader(CommandHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns mockk<Principal> {
@@ -48,6 +49,7 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.WAIT_PROCESSOR) } returns "test"
             every { headers().firstHeader(CommandHeaders.WAIT_TIME_OUT) } returns 10.toString()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns mockk<Principal> {

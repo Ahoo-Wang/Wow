@@ -19,5 +19,6 @@ object CommandHeaders {
     const val WAIT_TIME_OUT = "Command-Wait-Timout"
     const val WAIT_CONTEXT = "Command-Wait-Context"
     const val WAIT_PROCESSOR = "Command-Wait-Processor"
+    const val AGGREGATE_ID = "Command-Aggregate-Id"
     const val REQUEST_ID = "Command-Request-Id"
 }
