@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
+import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
@@ -36,14 +37,14 @@ object CommandParser {
 
     fun ServerRequest.getAggregateId(): String? {
         return headers().firstHeader(CommandHeaders.AGGREGATE_ID)
+            ?: pathVariables()[RoutePaths.ID_KEY]
     }
 
     fun ServerRequest.parse(
         aggregateMetadata: AggregateMetadata<*, *>,
-        commandBody: Any,
-        aggregateId: String? = null
+        commandBody: Any
     ): Mono<CommandMessage<Any>> {
-        val id = aggregateId ?: getAggregateId()
+        val aggregateId = getAggregateId()
         val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID)
@@ -53,7 +54,7 @@ object CommandParser {
                 commandBody.asCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
-                    aggregateId = id,
+                    aggregateId = aggregateId,
                     tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                     header = header,
@@ -62,7 +63,7 @@ object CommandParser {
                 commandBody.asCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
-                    aggregateId = id,
+                    aggregateId = aggregateId,
                     tenantId = tenantId,
                     aggregateVersion = aggregateVersion,
                 ).toMono()
