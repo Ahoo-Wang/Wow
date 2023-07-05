@@ -19,7 +19,6 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.handler.CommandHandler
-import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -34,8 +33,7 @@ class DeleteAggregateHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
     private val handler = CommandHandler(aggregateMetadata, commandGateway, timeout)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val id = request.pathVariable(RoutePaths.ID_KEY)
-        return handler.handle(request, DefaultDeleteAggregate, id)
+        return handler.handle(request, DefaultDeleteAggregate)
             .asServerResponse(exceptionHandler)
     }
 }

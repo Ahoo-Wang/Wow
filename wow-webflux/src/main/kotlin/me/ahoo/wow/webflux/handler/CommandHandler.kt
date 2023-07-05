@@ -47,14 +47,13 @@ class CommandHandler(
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
-    fun handle(request: ServerRequest, commandBody: Any, aggregateId: String? = null): Mono<CommandResult> {
+    fun handle(request: ServerRequest, commandBody: Any): Mono<CommandResult> {
         val commandWaitTimeout = request.headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)?.let {
             Duration.ofMillis(it.toLong())
         } ?: timeout
         return request.parse(
             aggregateMetadata = aggregateMetadata,
-            commandBody = commandBody,
-            aggregateId = aggregateId,
+            commandBody = commandBody
         )
             .flatMap {
                 val stage: CommandStage = request.getCommandStage()

@@ -14,6 +14,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
+import me.ahoo.wow.webflux.route.appender.RoutePaths
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -43,6 +44,8 @@ class CommandHandlerFunctionTest {
             every { headers().firstHeader(CommandHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
+            every { pathVariables()[RoutePaths.ID_KEY] } returns null
+            every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()

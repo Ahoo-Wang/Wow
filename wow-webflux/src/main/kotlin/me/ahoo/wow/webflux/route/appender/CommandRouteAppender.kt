@@ -163,6 +163,13 @@ class CommandRouteAppender(
                 )
                 .parameter(
                     org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
+                        .name(CommandHeaders.AGGREGATE_ID)
+                        .`in`(ParameterIn.HEADER)
+                        .required(false)
+                        .implementation(String::class.java),
+                )
+                .parameter(
+                    org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder()
                         .name(CommandHeaders.AGGREGATE_VERSION)
                         .`in`(ParameterIn.HEADER)
                         .required(false)
