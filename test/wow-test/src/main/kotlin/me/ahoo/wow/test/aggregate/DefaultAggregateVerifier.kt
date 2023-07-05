@@ -24,6 +24,10 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.asObject
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
@@ -188,11 +192,21 @@ internal class DefaultExpectStage<C : Any, S : Any>(
         return this
     }
 
+    private fun verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>) {
+        if (!stateAggregate.initialized) {
+            return
+        }
+        val serialized = stateAggregate.asJsonString()
+        val deserialized = serialized.asObject<StateAggregate<S>>()
+        assertThat(deserialized, equalTo(stateAggregate))
+    }
+
     override fun verify(): VerifiedStage<S> {
         lateinit var expectedResult: ExpectedResult<S>
         expectedResultMono
             .test()
             .consumeNextWith {
+                verifyStateAggregateSerializable(it.stateAggregate)
                 expectedResult = it
                 for (expectState in expectStates) {
                     expectState(it)
