@@ -11,21 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.mongo
+package me.ahoo.wow.spring.boot.starter.event
 
-import me.ahoo.wow.api.Wow
-import org.springframework.boot.context.properties.ConfigurationProperties
+import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.error.EventFunctionErrorRepository
+import me.ahoo.wow.event.error.RecordEventFunctionErrorHandler
+import me.ahoo.wow.messaging.handler.ErrorHandler
+import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 
-@ConfigurationProperties(prefix = MongoProperties.PREFIX)
-data class MongoProperties(
-    val enabled: Boolean = true,
-    val autoInitSchema: Boolean = true,
-    val eventStreamDatabase: String?,
-    val snapshotDatabase: String?,
-    val prepareDatabase: String?,
-    val errorDatabase: String?,
-) {
-    companion object {
-        const val PREFIX = "${Wow.WOW_PREFIX}mongo"
+object ErrorHandlerFactory {
+
+    fun create(eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+        if (eventFunctionErrorRepository == null) {
+            return LogResumeErrorHandler()
+        }
+        return RecordEventFunctionErrorHandler(eventFunctionErrorRepository)
     }
 }

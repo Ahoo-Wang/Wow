@@ -21,13 +21,13 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.event.error.EventFunctionErrorRepository
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
@@ -37,6 +37,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.lang.Nullable
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -77,8 +78,8 @@ class EventDispatcherAutoConfiguration {
 
     @Bean("eventProcessorErrorHandler")
     @ConditionalOnMissingBean(name = ["eventProcessorErrorHandler"])
-    fun eventProcessorErrorHandler(): ErrorHandler<DomainEventExchange<*>> {
-        return LogResumeErrorHandler()
+    fun eventProcessorErrorHandler(@Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+        return ErrorHandlerFactory.create(eventFunctionErrorRepository)
     }
 
     @Bean

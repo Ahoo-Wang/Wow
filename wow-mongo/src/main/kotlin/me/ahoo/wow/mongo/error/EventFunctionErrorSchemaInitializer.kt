@@ -11,21 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.mongo
+package me.ahoo.wow.mongo.error
 
-import me.ahoo.wow.api.Wow
-import org.springframework.boot.context.properties.ConfigurationProperties
+import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 
-@ConfigurationProperties(prefix = MongoProperties.PREFIX)
-data class MongoProperties(
-    val enabled: Boolean = true,
-    val autoInitSchema: Boolean = true,
-    val eventStreamDatabase: String?,
-    val snapshotDatabase: String?,
-    val prepareDatabase: String?,
-    val errorDatabase: String?,
-) {
-    companion object {
-        const val PREFIX = "${Wow.WOW_PREFIX}mongo"
+class EventFunctionErrorSchemaInitializer(private val database: MongoDatabase) {
+
+    fun init() {
+        if (!database.ensureCollection(MongoEventFunctionErrorRepository.COLLECTION_NAME)) {
+            return
+        }
     }
 }
