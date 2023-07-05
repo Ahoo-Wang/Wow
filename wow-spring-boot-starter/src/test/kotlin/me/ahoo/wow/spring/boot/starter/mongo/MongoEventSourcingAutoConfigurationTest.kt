@@ -17,6 +17,7 @@ import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
+import me.ahoo.wow.mongo.error.MongoEventFunctionErrorRepository
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -35,6 +36,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.event-stream-database=testEventStream",
                 "${MongoProperties.PREFIX}.snapshot-database=testSnapshot",
                 "${MongoProperties.PREFIX}.prepare-database=testPrepare",
+                "${MongoProperties.PREFIX}.error-database=testError",
             )
             .withBean(MongoClient::class.java, {
                 MongoClients.create(MongoLauncher.getConnectionString())
@@ -44,6 +46,7 @@ class MongoEventSourcingAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(MongoEventFunctionErrorRepository::class.java)
                     .hasSingleBean(MongoEventStore::class.java)
                     .hasSingleBean(MongoSnapshotRepository::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)
