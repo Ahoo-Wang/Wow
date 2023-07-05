@@ -25,7 +25,7 @@ import java.math.BigDecimal
 @Configuration
 class AppConfiguration {
 
-    @Bean
+    @Bean("createOrderSpec")
     fun createOrderSpecification(): CreateOrderSpec {
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {

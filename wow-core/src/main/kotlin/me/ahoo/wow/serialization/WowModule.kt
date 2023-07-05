@@ -14,6 +14,7 @@
 package me.ahoo.wow.serialization
 
 import com.fasterxml.jackson.databind.module.SimpleModule
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
@@ -35,6 +36,9 @@ import me.ahoo.wow.serialization.state.StateAggregateSerializer
 
 class WowModule : SimpleModule() {
     init {
+        addSerializer(AggregateId::class.java, AggregateIdJsonSerializer)
+        addDeserializer(AggregateId::class.java, AggregateIdJsonDeserializer)
+
         addSerializer(CommandMessage::class.java, CommandJsonSerializer)
         addDeserializer(CommandMessage::class.java, CommandJsonDeserializer)
 

@@ -17,19 +17,20 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.error.EventFunctionErrorRepository
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ErrorHandler
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.event.ErrorHandlerFactory
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -37,6 +38,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.lang.Nullable
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -75,8 +77,8 @@ class StatelessSagaAutoConfiguration {
 
     @Bean("statelessSagaErrorHandler")
     @ConditionalOnMissingBean(name = ["statelessSagaErrorHandler"])
-    fun statelessSagaErrorHandler(): ErrorHandler<DomainEventExchange<*>> {
-        return LogResumeErrorHandler()
+    fun statelessSagaErrorHandler(@Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+        return ErrorHandlerFactory.create(eventFunctionErrorRepository)
     }
 
     @Bean
