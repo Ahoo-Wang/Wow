@@ -3,7 +3,7 @@ package me.ahoo.wow.webflux.handler
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.webflux.route.appender.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.webflux.route.command.getCommandStage
 import me.ahoo.wow.webflux.route.command.getWaitContext
 import me.ahoo.wow.webflux.route.command.getWaitProcessor

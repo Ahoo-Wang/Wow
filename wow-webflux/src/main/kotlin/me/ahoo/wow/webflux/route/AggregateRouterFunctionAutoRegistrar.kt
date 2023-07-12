@@ -24,6 +24,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.Router
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
+import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
@@ -34,6 +35,7 @@ import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
+import me.ahoo.wow.webflux.route.command.DeleteAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunction
@@ -162,6 +164,17 @@ class AggregateRouterFunctionAutoRegistrar(
                         AggregateTracingHandlerFunction(
                             aggregateMetadata = routeSpec.aggregateMetadata,
                             eventStore = eventStore,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is DefaultDeleteAggregateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        DeleteAggregateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            commandGateway = commandGateway,
                             exceptionHandler = exceptionHandler,
                         )
                     )

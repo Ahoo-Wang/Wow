@@ -7,14 +7,14 @@ import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.route.commandRouteMetadata
+import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.appender.CommandHeaders
-import me.ahoo.wow.webflux.route.appender.RoutePaths
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

@@ -3,12 +3,12 @@ package me.ahoo.wow.webflux.handler
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.route.appender.CommandHeaders
-import me.ahoo.wow.webflux.route.appender.RoutePaths
 import me.ahoo.wow.webflux.route.command.CommandHandler
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest

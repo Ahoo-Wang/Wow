@@ -7,9 +7,9 @@ import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.appender.RoutePaths
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunction
 import org.hamcrest.MatcherAssert.*
