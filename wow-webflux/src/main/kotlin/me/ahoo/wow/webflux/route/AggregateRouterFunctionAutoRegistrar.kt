@@ -13,35 +13,49 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.openapi.Router
+import me.ahoo.wow.openapi.command.CommandRouteSpec
+import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
+import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
+import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
+import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.route.CommandRouteMetadata
+import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.route.appender.AggregateTracingRouteAppender
-import me.ahoo.wow.webflux.route.appender.BatchRegenerateSnapshotRouteAppender
-import me.ahoo.wow.webflux.route.appender.CommandRouteAppender
-import me.ahoo.wow.webflux.route.appender.DeleteAggregateRouteAppender
-import me.ahoo.wow.webflux.route.appender.DomainEventCompensateRouteAppender
-import me.ahoo.wow.webflux.route.appender.LoadAggregateRouteAppender
-import me.ahoo.wow.webflux.route.appender.RegenerateSnapshotRouteAppender
-import me.ahoo.wow.webflux.route.appender.RegenerateStateEventRouteAppender
-import me.ahoo.wow.webflux.route.appender.StateEventCompensateRouteAppender
+import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
+import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunction
+import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunction
+import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunction
+import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunction
+import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunction
+import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunction
+import me.ahoo.wow.webflux.route.state.RegenerateStateEventFunction
+import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunction
+import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
+import org.springframework.web.reactive.function.server.RequestPredicates
 import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
 
 /**
  * [org.springframework.web.reactive.function.server.support.RouterFunctionMapping]
  */
-@Suppress("UNCHECKED_CAST", "LongParameterList")
+@Suppress("LongParameterList")
 class AggregateRouterFunctionAutoRegistrar(
-    private val currentContext: NamedBoundedContext,
+    private val router: Router,
+    private val waitStrategyRegistrar: WaitStrategyRegistrar,
     private val commandGateway: CommandGateway,
     private val stateAggregateRepository: StateAggregateRepository,
     private val stateAggregateFactory: StateAggregateFactory,
@@ -57,84 +71,119 @@ class AggregateRouterFunctionAutoRegistrar(
 
     @Suppress("LongMethod")
     private fun buildRouterFunction(): RouterFunction<ServerResponse> {
-        check(MetadataSearcher.namedAggregateType.isNotEmpty()) {
-            "No Typed Aggregate found!"
+        check(router.isNotEmpty()) {
+            "router is empty!"
         }
+        val routerFunctionBuilder = RouterFunctions.route()
+        val acceptPredicate = RequestPredicates.accept(MediaType.APPLICATION_JSON)
+        for (routeSpec in router) {
+            val httpMethod = HttpMethod.valueOf(routeSpec.method)
+            val requestPredicate =
+                RequestPredicates.path(routeSpec.path).and(RequestPredicates.method(httpMethod)).and(acceptPredicate)
+            when (routeSpec) {
+                is CommandWaitRouteSpec -> {
+                    routerFunctionBuilder.route(requestPredicate, CommandWaitHandlerFunction(waitStrategyRegistrar))
+                }
 
-        val routerFunctionBuilder = org.springdoc.webflux.core.fn.SpringdocRouteBuilder.route()
-        MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
-            val aggregateType = aggregateEntry.value as Class<Any>
-            val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
-            LoadAggregateRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                stateAggregateRepository = stateAggregateRepository,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            RegenerateSnapshotRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                snapshotRepository = snapshotRepository,
-                stateAggregateFactory = stateAggregateFactory,
-                eventStore = eventStore,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            BatchRegenerateSnapshotRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                snapshotRepository = snapshotRepository,
-                stateAggregateFactory = stateAggregateFactory,
-                eventStore = eventStore,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            RegenerateStateEventRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                eventStore = eventStore,
-                stateEventCompensator = stateEventCompensator,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            if (!aggregateMetadata.command.registeredDeleteAggregate) {
-                DeleteAggregateRouteAppender(
-                    currentContext = currentContext,
-                    aggregateMetadata = aggregateMetadata,
-                    routerFunctionBuilder = routerFunctionBuilder,
-                    commandGateway = commandGateway,
-                    exceptionHandler = exceptionHandler,
-                ).append()
+                is LoadAggregateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        LoadAggregateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            stateAggregateRepository = stateAggregateRepository,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is RegenerateSnapshotRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        RegenerateSnapshotHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            stateAggregateFactory = stateAggregateFactory,
+                            eventStore = eventStore,
+                            snapshotRepository = snapshotRepository,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is BatchRegenerateSnapshotRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        BatchRegenerateSnapshotHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            stateAggregateFactory = stateAggregateFactory,
+                            eventStore = eventStore,
+                            snapshotRepository = snapshotRepository,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is RegenerateStateEventRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        RegenerateStateEventFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            eventStore = eventStore,
+                            stateEventCompensator = stateEventCompensator,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is DomainEventCompensateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        DomainEventCompensateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            eventCompensator = domainEventCompensator,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is StateEventCompensateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        StateEventCompensateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            eventCompensator = stateEventCompensator,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is AggregateTracingRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        AggregateTracingHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            eventStore = eventStore,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is CommandRouteSpec -> {
+                    @Suppress("UNCHECKED_CAST")
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        CommandHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            commandRouteMetadata = routeSpec.commandRouteMetadata as CommandRouteMetadata<out Any>,
+                            commandGateway = commandGateway,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                else -> {
+                    throw UnsupportedOperationException("Unsupported routeSpec: $routeSpec")
+                }
             }
-            CommandRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                commandGateway = commandGateway,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            DomainEventCompensateRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                eventCompensator = domainEventCompensator,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            StateEventCompensateRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                eventCompensator = stateEventCompensator,
-                exceptionHandler = exceptionHandler,
-            ).append()
-            AggregateTracingRouteAppender(
-                currentContext = currentContext,
-                aggregateMetadata = aggregateMetadata,
-                routerFunctionBuilder = routerFunctionBuilder,
-                eventStore = eventStore,
-                exceptionHandler = exceptionHandler,
-            ).append()
         }
         return routerFunctionBuilder.build()
     }

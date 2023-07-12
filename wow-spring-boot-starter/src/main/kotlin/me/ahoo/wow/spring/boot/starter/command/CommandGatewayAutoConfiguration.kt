@@ -92,7 +92,7 @@ class CommandGatewayAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingClass("me.ahoo.wow.webflux.route.CommandHandlerFunction")
+    @ConditionalOnMissingClass("me.ahoo.wow.webflux.route.command.CommandHandlerFunction")
     fun commandWaitNotifier(waitStrategyRegistrar: WaitStrategyRegistrar): CommandWaitNotifier {
         return LocalCommandWaitNotifier(waitStrategyRegistrar)
     }

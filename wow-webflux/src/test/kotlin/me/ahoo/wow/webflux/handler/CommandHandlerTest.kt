@@ -9,6 +9,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
 import me.ahoo.wow.webflux.route.appender.RoutePaths
+import me.ahoo.wow.webflux.route.command.CommandHandler
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono

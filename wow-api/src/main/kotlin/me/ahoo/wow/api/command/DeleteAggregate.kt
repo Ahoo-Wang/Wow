@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.api.command
 
+import me.ahoo.wow.api.annotation.Summary
+
 /**
  * @see me.ahoo.wow.api.event.AggregateDeleted
  */
 interface DeleteAggregate
 
+@Summary("Delete aggregate")
 object DefaultDeleteAggregate : DeleteAggregate

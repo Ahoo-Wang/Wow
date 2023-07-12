@@ -14,6 +14,9 @@
 package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
@@ -25,13 +28,12 @@ class CartSaga {
      * 下单之后删除购物车相应商品
      */
     @OnEvent
-    fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem? {
-        if (!orderCreated.fromCart) {
+    fun onOrderCreated(orderCreated: DomainEvent<OrderCreated>): CommandMessage<RemoveCartItem>? {
+        if (!orderCreated.body.fromCart) {
             return null
         }
         return RemoveCartItem(
-            customerId = orderCreated.customerId,
-            productIds = orderCreated.items.map { it.productId }.toSet(),
-        )
+            productIds = orderCreated.body.items.map { it.productId }.toSet(),
+        ).asCommandMessage(requestId = orderCreated.id)
     }
 }

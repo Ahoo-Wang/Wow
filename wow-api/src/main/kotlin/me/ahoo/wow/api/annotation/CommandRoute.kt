@@ -21,6 +21,7 @@ import java.lang.annotation.Inherited
 annotation class CommandRoute(
     val path: String,
     val enabled: Boolean = true,
+    val appendIdPath: AppendIdPath = AppendIdPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false
 ) {
     @Target(AnnotationTarget.FIELD)
@@ -29,4 +30,10 @@ annotation class CommandRoute(
         val nestedPath: Array<String> = [],
         val required: Boolean = true
     )
+
+    enum class AppendIdPath {
+        ALWAYS,
+        NEVER,
+        DEFAULT
+    }
 }

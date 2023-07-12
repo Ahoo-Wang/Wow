@@ -15,6 +15,7 @@ import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.appender.CommandHeaders
 import me.ahoo.wow.webflux.route.appender.RoutePaths
+import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

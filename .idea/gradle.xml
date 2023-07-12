@@ -24,6 +24,7 @@
             <option value="$PROJECT_DIR$/wow-elasticsearch" />
             <option value="$PROJECT_DIR$/wow-kafka" />
             <option value="$PROJECT_DIR$/wow-mongo" />
+            <option value="$PROJECT_DIR$/wow-openapi" />
             <option value="$PROJECT_DIR$/wow-opentelemetry" />
             <option value="$PROJECT_DIR$/wow-r2dbc" />
             <option value="$PROJECT_DIR$/wow-redis" />

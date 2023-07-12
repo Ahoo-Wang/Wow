@@ -24,6 +24,7 @@ dependencies {
         api(libs.kotlinCompileTestingKsp)
         api(libs.guava)
         api(libs.opentelemetrySemconv)
+        api(libs.swagger)
         api(libs.springDocStarterWebfluxApi)
         api(libs.springDocStarterWebfluxUi)
         api(libs.hamcrest)

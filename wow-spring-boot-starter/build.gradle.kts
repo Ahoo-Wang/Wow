@@ -37,6 +37,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "opentelemetry-support", version.toString())
     }
+    registerFeature("openapiSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "openapi-support", version.toString())
+    }
 }
 dependencies {
     kapt(platform(project(":wow-dependencies")))
@@ -50,6 +54,7 @@ dependencies {
     "webfluxSupportImplementation"(project(":wow-webflux"))
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
+    "openapiSupportImplementation"(project(":wow-openapi"))
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.cloud:spring-cloud-commons")
