@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.openapi
 
+import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.mongo.ENABLED_KEY
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -20,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
 const val ENABLED_KEY: String = OpenAPIProperties.PREFIX + ENABLED_SUFFIX_KEY
 
+@ConditionalOnWowEnabled
 @ConditionalOnClass(name = ["me.ahoo.wow.openapi.Router"])
 @ConditionalOnProperty(value = [ENABLED_KEY], matchIfMissing = true, havingValue = "true")
 annotation class ConditionalOnOpenAPIEnabled

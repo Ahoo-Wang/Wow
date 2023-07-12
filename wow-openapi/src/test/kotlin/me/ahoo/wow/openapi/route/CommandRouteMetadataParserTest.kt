@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.route
+package me.ahoo.wow.openapi.route
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.route.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
