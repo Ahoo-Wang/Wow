@@ -59,9 +59,12 @@ open class CommandRouteSpec(
                 return super.path
             }
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
-                return PathBuilder().append(commandRouteMetadata.path).build()
+                return PathBuilder().append(commandRouteMetadata.prefix).append(commandRouteMetadata.path).build()
             }
-            return PathBuilder().append(super.path).append(commandRouteMetadata.path).build()
+            return PathBuilder()
+                .append(commandRouteMetadata.prefix)
+                .append(super.path)
+                .append(commandRouteMetadata.path).build()
         }
     override val summary: String
         get() = commandRouteMetadata.commandMetadata.commandType.scan<Summary>()?.value ?: ""

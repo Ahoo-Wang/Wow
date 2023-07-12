@@ -1,4 +1,4 @@
-POST {{host}}/customer/{{$uuid}}/order
+POST {{host}}/customer/{{$uuid}}/tenant/{{$uuid}}/order/create_order
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -31,4 +31,4 @@ Command-Request-Id: {{$uuid}}
 
 ###
 
-GET {{host}}/customer/{{$uuid}}/order
+GET {{host}}/order/59c398c7-9c43-4ef7-ae80-22ebcec4668a/0Tjmm9G90001001

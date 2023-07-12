@@ -19,6 +19,7 @@ import jakarta.validation.constraints.Size
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.example.api.ExampleService
 
 /**
  * CreateOrder .
@@ -27,8 +28,7 @@ import me.ahoo.wow.api.annotation.Summary
  */
 @Summary("创建订单")
 @CommandRoute(
-    "customer/{customerId}/order",
-    ignoreAggregateNamePrefix = true,
+    prefix = ExampleService.CUSTOMER_ORDER_PREFIX
 )
 @CreateAggregate
 data class CreateOrder(
