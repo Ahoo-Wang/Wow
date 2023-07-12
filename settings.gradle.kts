@@ -17,6 +17,7 @@ include(":wow-bom")
 include(":wow-dependencies")
 include(":wow-api")
 include(":wow-core")
+include(":wow-openapi")
 include(":wow-compiler")
 include(":wow-kafka")
 include(":wow-mongo")
@@ -50,3 +51,4 @@ project(":example-domain").projectDir = file("example/example-domain")
 include(":example-server")
 project(":example-server").projectDir = file("example/example-server")
 //endregion
+

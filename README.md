@@ -107,7 +107,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
     - [x] Automatically register `CommandAggregate` to `RouterFunction`
 - [x] Observability
     - [x] OpenTelemetry
-- [x] OpenApi
+- [x] OpenAPI
 - [x] `WowMetadata` Generator
     - [x] `wow-compiler`
 

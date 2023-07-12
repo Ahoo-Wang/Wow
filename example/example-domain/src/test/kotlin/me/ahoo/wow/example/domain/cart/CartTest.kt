@@ -40,7 +40,7 @@ class CartTest {
             .`when`(initializeCart)
             .expectEventType(CartInitialized::class.java)
             .expectState {
-                assertThat(it.id, equalTo(initializeCart.customerId))
+                assertThat(it.id, equalTo(initializeCart.id))
                 assertThat(it.items, empty())
             }
             .verify()
@@ -55,7 +55,7 @@ class CartTest {
     fun addCartItem() {
         val verifiedStage = mockInitializeCart()
         val addCartItem = AddCartItem(
-            customerId = verifiedStage.stateRoot.id,
+            id = verifiedStage.stateRoot.id,
             productId = "productId",
             quantity = 1,
         )
@@ -74,7 +74,7 @@ class CartTest {
     fun addCartItemIfSameProduct() {
         val verifiedStage = mockInitializeCart()
         val addCartItem = AddCartItem(
-            customerId = verifiedStage.stateRoot.id,
+            id = verifiedStage.stateRoot.id,
             productId = "productId",
             quantity = 1,
         )
@@ -100,7 +100,7 @@ class CartTest {
     @Test
     fun addCartItemIfUnCreated() {
         val addCartItem = AddCartItem(
-            customerId = MOCK_CUSTOMER_ID,
+            id = MOCK_CUSTOMER_ID,
             productId = "productId",
             quantity = 1,
         )
@@ -134,7 +134,7 @@ class CartTest {
             }
         }.toTypedArray()
         val addCartItem = AddCartItem(
-            customerId = verifiedStage.stateRoot.id,
+            id = verifiedStage.stateRoot.id,
             productId = "productId",
             quantity = 1,
         )
@@ -152,7 +152,7 @@ class CartTest {
     fun removeCartItem() {
         val verifiedStage = mockInitializeCart()
         val removeCartItem = RemoveCartItem(
-            customerId = verifiedStage.stateRoot.id,
+            id = verifiedStage.stateRoot.id,
             productIds = setOf("productId"),
         )
         val added = CartItem(
@@ -178,7 +178,7 @@ class CartTest {
     fun changeQuantity() {
         val verifiedStage = mockInitializeCart()
         val changeQuantity = ChangeQuantity(
-            customerId = verifiedStage.stateRoot.id,
+            id = verifiedStage.stateRoot.id,
             productId = "productId",
             quantity = 2,
         )

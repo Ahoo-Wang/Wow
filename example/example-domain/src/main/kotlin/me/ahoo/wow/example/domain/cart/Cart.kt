@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.domain.cart
 
+import io.swagger.v3.oas.annotations.tags.Tag
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.StaticTenantId
@@ -30,6 +31,7 @@ const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
 @AggregateRoot
+@Tag(name = "customer")
 class Cart(private val state: CartState) {
 
     @Suppress("UnusedParameter")

@@ -17,10 +17,10 @@ import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
-import me.ahoo.wow.webflux.route.CommandParser.getTenantId
-import me.ahoo.wow.webflux.route.appender.RoutePaths
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse

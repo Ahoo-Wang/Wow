@@ -15,6 +15,7 @@ package me.ahoo.wow.example.api.order
 import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.example.api.ExampleService
 
 /**
  * ReceiptOrder .
@@ -22,8 +23,8 @@ import me.ahoo.wow.api.annotation.CommandRoute
  * @author ahoo wang
  */
 @CommandRoute(
-    "customer/{customerId}/order/{id}/receipt",
-    ignoreAggregateNamePrefix = true,
+    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
+    appendIdPath = CommandRoute.AppendIdPath.ALWAYS,
 )
 data class ReceiptOrder(
     @CommandRoute.PathVariable
@@ -33,4 +34,5 @@ data class ReceiptOrder(
     @CommandRoute.PathVariable
     val customerId: String
 )
+
 object OrderReceived

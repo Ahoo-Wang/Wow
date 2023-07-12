@@ -31,6 +31,7 @@ import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -60,11 +61,11 @@ internal class WebFluxAutoConfigurationTest {
                 CommandGatewayAutoConfiguration::class.java,
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasBean("commandWaitRouterFunction")
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(ExceptionHandler::class.java)
             }

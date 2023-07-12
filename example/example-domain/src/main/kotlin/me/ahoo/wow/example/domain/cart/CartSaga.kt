@@ -30,7 +30,7 @@ class CartSaga {
             return null
         }
         return RemoveCartItem(
-            customerId = orderCreated.customerId,
+            id = orderCreated.customerId,
             productIds = orderCreated.items.map { it.productId }.toSet(),
         )
     }

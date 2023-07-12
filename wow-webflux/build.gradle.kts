@@ -1,6 +1,6 @@
 dependencies {
     api(project(":wow-core"))
+    api(project(":wow-openapi"))
     implementation("org.springframework:spring-webflux")
-    implementation("org.springdoc:springdoc-openapi-starter-webflux-api")
     testImplementation(project(":wow-tck"))
 }

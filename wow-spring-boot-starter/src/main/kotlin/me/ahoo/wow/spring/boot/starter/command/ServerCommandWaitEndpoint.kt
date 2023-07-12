@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.webflux.wait.COMMAND_WAIT_HANDLER_PATH
+import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
 import org.springframework.boot.web.context.WebServerInitializedEvent
 import org.springframework.cloud.commons.util.InetUtils
 import org.springframework.context.ApplicationListener
@@ -24,7 +24,7 @@ class ServerCommandWaitEndpoint(inetUtils: InetUtils) :
     CommandWaitEndpoint,
     ApplicationListener<WebServerInitializedEvent> {
     override val endpoint: String by lazy {
-        "http://$ipAddress:$port$COMMAND_WAIT_HANDLER_PATH"
+        "http://$ipAddress:$port${CommandWaitRouteSpec.path}"
     }
     private val ipAddress = inetUtils.findFirstNonLoopbackHostInfo().ipAddress
     private var port by Delegates.notNull<Int>()

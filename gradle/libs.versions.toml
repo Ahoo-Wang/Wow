@@ -10,6 +10,7 @@ hamcrest = "2.2"
 mockk = "1.13.5"
 r2dbcBom = "Borca-RELEASE"
 kotlinCompileTestingKsp = "1.5.0"
+swagger = "2.2.9"
 springDoc = "2.1.0"
 # plugins
 detekt = "1.23.0"
@@ -31,6 +32,7 @@ kspSymbolProcessingApi = { module = "com.google.devtools.ksp:symbol-processing-a
 kspSymbolProcessing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
 kotlinCompileTestingKsp = { module = "com.github.tschuchortdev:kotlin-compile-testing-ksp", version.ref = "kotlinCompileTestingKsp" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springDocStarterWebfluxApi = { module = "org.springdoc:springdoc-openapi-starter-webflux-api", version.ref = "springDoc" }
 springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }

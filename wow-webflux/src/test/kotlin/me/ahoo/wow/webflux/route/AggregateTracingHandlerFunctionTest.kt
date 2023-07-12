@@ -4,10 +4,11 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.CommandParser.getTenantId
-import me.ahoo.wow.webflux.route.appender.RoutePaths
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
+import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

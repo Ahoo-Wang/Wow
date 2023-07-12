@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.event.compensation.DomainEventCompensator
@@ -21,12 +20,13 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.openapi.Router
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouterFunctionAutoRegistrar
-import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunction
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -40,24 +40,20 @@ import org.springframework.web.reactive.function.server.ServerResponse
  *
  * @author ahoo wang
  */
-@AutoConfiguration(after = [CommandAutoConfiguration::class])
+@AutoConfiguration(after = [CommandAutoConfiguration::class, OpenAPIAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnWebfluxEnabled
 @EnableConfigurationProperties(WebFluxProperties::class)
 @ConditionalOnClass(
-    name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.CommandHandlerFunction"],
+    name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.command.CommandHandlerFunction"],
 )
 class WebFluxAutoConfiguration {
-
-    @Bean
-    fun commandWaitRouterFunction(waitStrategyRegistrar: WaitStrategyRegistrar): RouterFunction<ServerResponse> {
-        return CommandWaitHandlerFunction(waitStrategyRegistrar).routerFunction
-    }
 
     @Suppress("LongParameterList")
     @Bean
     fun commandRouterFunction(
-        boundedContext: NamedBoundedContext,
+        router: Router,
+        waitStrategyRegistrar: WaitStrategyRegistrar,
         commandGateway: CommandGateway,
         stateAggregateRepository: StateAggregateRepository,
         snapshotRepository: SnapshotRepository,
@@ -68,7 +64,8 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): RouterFunction<ServerResponse> {
         return AggregateRouterFunctionAutoRegistrar(
-            currentContext = boundedContext,
+            router = router,
+            waitStrategyRegistrar = waitStrategyRegistrar,
             commandGateway = commandGateway,
             stateAggregateRepository = stateAggregateRepository,
             snapshotRepository = snapshotRepository,

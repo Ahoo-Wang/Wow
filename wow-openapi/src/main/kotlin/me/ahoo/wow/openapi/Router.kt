@@ -1,0 +1,114 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.openapi
+
+import io.swagger.v3.oas.models.Components
+import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.Paths
+import io.swagger.v3.oas.models.info.Info
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.modeling.annotation.asAggregateMetadata
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.command.CommandRouteSpec
+import me.ahoo.wow.openapi.command.CommandStageSchema
+import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
+import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
+import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
+import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
+import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.route.asCommandRouteMetadata
+import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
+
+class Router(
+    private val currentContext: NamedBoundedContext,
+    private val routes: MutableList<RouteSpec> = mutableListOf()
+) : MutableList<RouteSpec> by routes {
+    @Volatile
+    private var built: Boolean = false
+    private val openAPI = OpenAPI().apply {
+        info = Info()
+        paths = Paths()
+        components = Components()
+    }
+
+    fun addLocalAggregateRouteSpec(): Router {
+        MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
+            val aggregateType = aggregateEntry.value
+            val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
+            addAggregateRouteSpec(aggregateMetadata)
+        }
+        return this
+    }
+
+    fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
+        val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
+        add(loadAggregateRouteSpec)
+        val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
+        add(regenerateSnapshotRouteSpec)
+        val batchRegenerateSnapshotRouteSpec =
+            BatchRegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
+        add(batchRegenerateSnapshotRouteSpec)
+        val regenerateStateEventRouteSpec = RegenerateStateEventRouteSpec(currentContext, aggregateMetadata).build()
+        add(regenerateStateEventRouteSpec)
+        if (!aggregateMetadata.command.registeredDeleteAggregate) {
+            val deleteAggregateRouteSpec = DefaultDeleteAggregateRouteSpec(currentContext, aggregateMetadata).build()
+            add(deleteAggregateRouteSpec)
+        }
+        val domainEventCompensateRouteSpec = DomainEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
+        add(domainEventCompensateRouteSpec)
+        val stateEventCompensateRouteSpec = StateEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
+        add(stateEventCompensateRouteSpec)
+        val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
+        add(aggregateTracingRouteSpec)
+        aggregateMetadata.command.commandFunctionRegistry
+            .forEach {
+                val commandRouteMetadata = it.key.asCommandRouteMetadata()
+                if (!commandRouteMetadata.enabled) {
+                    return@forEach
+                }
+                val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
+                add(commandRouteSpec)
+            }
+        return this
+    }
+
+    fun addCommandStageSchema() {
+        openAPI.components.addSchemas(CommandStageSchema.name, CommandStageSchema.schema)
+    }
+
+    fun openAPI(): OpenAPI {
+        build()
+        return openAPI
+    }
+
+    fun build(): Router {
+        if (built) {
+            return this
+        }
+        built = true
+        addCommandStageSchema()
+        add(CommandWaitRouteSpec)
+        for (routeSpec in routes) {
+            routeSpec.schemas.forEach {
+                openAPI.components.addSchemas(it.key, it.value)
+            }
+            openAPI.paths.addPathItem(routeSpec.path, routeSpec.toPathItem())
+        }
+        return this
+    }
+}

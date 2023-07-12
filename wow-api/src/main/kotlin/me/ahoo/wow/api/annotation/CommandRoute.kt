@@ -15,12 +15,16 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
+const val DEFAULT_COMMAND_PATH = "__{command_name}__"
+
 @Target(AnnotationTarget.CLASS)
 @Inherited
 @MustBeDocumented
 annotation class CommandRoute(
-    val path: String,
+    val path: String = DEFAULT_COMMAND_PATH,
     val enabled: Boolean = true,
+    val prefix: String = "",
+    val appendIdPath: AppendIdPath = AppendIdPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false
 ) {
     @Target(AnnotationTarget.FIELD)
@@ -29,4 +33,10 @@ annotation class CommandRoute(
         val nestedPath: Array<String> = [],
         val required: Boolean = true
     )
+
+    enum class AppendIdPath {
+        ALWAYS,
+        NEVER,
+        DEFAULT
+    }
 }

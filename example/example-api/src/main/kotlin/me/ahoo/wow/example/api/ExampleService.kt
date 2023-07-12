@@ -36,4 +36,6 @@ object ExampleService {
     const val SERVICE_ALIAS = "example"
     const val ORDER_AGGREGATE_NAME = "order"
     const val CART_AGGREGATE_NAME = "cart"
+
+    const val CUSTOMER_ORDER_PREFIX = "customer/{customerId}"
 }

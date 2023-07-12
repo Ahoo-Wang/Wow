@@ -7,9 +7,8 @@ import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.hasSize
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
@@ -38,7 +37,7 @@ class CartSagaTest {
                 },
             )
             .expectCommandBody<RemoveCartItem> {
-                assertThat(it.customerId, equalTo("customerId"))
+                assertThat(it.id, equalTo("customerId"))
                 assertThat(it.productIds, hasSize(1))
                 assertThat(it.productIds.first(), equalTo(orderItem.productId))
             }
