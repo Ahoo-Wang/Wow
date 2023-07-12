@@ -33,6 +33,7 @@ kspSymbolProcessing = { module = "com.google.devtools.ksp:symbol-processing", ve
 kotlinCompileTestingKsp = { module = "com.github.tschuchortdev:kotlin-compile-testing-ksp", version.ref = "kotlinCompileTestingKsp" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
+springDocStarterCommon = { module = "org.springdoc:springdoc-openapi-starter-common", version.ref = "springDoc" }
 springDocStarterWebfluxApi = { module = "org.springdoc:springdoc-openapi-starter-webflux-api", version.ref = "springDoc" }
 springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }

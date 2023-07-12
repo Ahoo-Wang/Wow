@@ -25,7 +25,7 @@ import java.time.Duration
 
 @BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
-    scanBasePackageClasses = [ExampleBoundedContext::class,  ExampleServer::class],
+    scanBasePackageClasses = [ExampleBoundedContext::class, ExampleServer::class],
 )
 class ExampleServer
 

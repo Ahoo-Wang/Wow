@@ -16,12 +16,15 @@ package me.ahoo.wow.spring.boot.starter.openapi
 import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Router
+import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
+@AutoConfiguration
 @ConditionalOnOpenAPIEnabled
 @EnableConfigurationProperties(OpenAPIProperties::class)
 class OpenAPIAutoConfiguration {
+
     @Bean
     fun router(boundedContext: NamedBoundedContext): Router {
         return Router(boundedContext).addLocalAggregateRouteSpec().build()
