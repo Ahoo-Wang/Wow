@@ -18,8 +18,8 @@ import io.swagger.v3.oas.annotations.tags.Tags
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 
 object Tags {
-    fun Class<*>.asTags(): List<String> {
-        val tags = mutableListOf<String>()
+    fun Class<*>.asTags(): Set<String> {
+        val tags = mutableSetOf<String>()
         scan<Tag>()?.let {
             tags.add(it.name)
         }
