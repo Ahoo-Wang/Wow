@@ -28,21 +28,25 @@ data class CommandRouteMetadata<C>(
     /**
      * filedName -> PathVariableMetadata
      */
-    val pathVariableMetadata: Set<PathVariableMetadata> = setOf()
+    val pathVariableMetadata: Set<VariableMetadata> = setOf(),
+    val headerVariableMetadata: Set<VariableMetadata> = setOf()
 ) : me.ahoo.wow.metadata.Metadata {
 
-    private fun injectPathVariables(commandNode: ObjectNode, pathVariables: Map<String, String>): ObjectNode {
-        pathVariableMetadata.forEach { pathVariableMetadata ->
-            val pathVariableValue = pathVariables[pathVariableMetadata.pathVariableName]
-            if (pathVariableMetadata.required) {
+    private fun ObjectNode.injectPathVariables(
+        variableMetadata: Set<VariableMetadata>,
+        variableProvider: (String) -> String?
+    ): ObjectNode {
+        variableMetadata.forEach { metadata ->
+            val pathVariableValue = variableProvider(metadata.variableName)
+            if (metadata.required) {
                 requireNotNull(pathVariableValue)
             }
             if (pathVariableValue == null) {
                 return@forEach
             }
-            var fieldObject = commandNode
-            for (i in 0 until pathVariableMetadata.fieldPath.size - 1) {
-                val fieldPath = pathVariableMetadata.fieldPath[i]
+            var fieldObject = this
+            for (i in 0 until metadata.fieldPath.size - 1) {
+                val fieldPath = metadata.fieldPath[i]
                 var nextFieldObject = fieldObject.get(fieldPath)
                 if (nextFieldObject == null) {
                     nextFieldObject = ObjectNode(JsonSerializer.nodeFactory)
@@ -50,13 +54,19 @@ data class CommandRouteMetadata<C>(
                 }
                 fieldObject = nextFieldObject as ObjectNode
             }
-            fieldObject.put(pathVariableMetadata.fieldName, pathVariableValue)
+            fieldObject.put(metadata.fieldName, pathVariableValue)
         }
-        return commandNode
+        return this
     }
 
-    fun decode(commandNode: ObjectNode, pathVariables: Map<String, String>): C {
-        return injectPathVariables(commandNode, pathVariables).asObject(commandMetadata.commandType)
+    fun decode(
+        commandNode: ObjectNode,
+        pathVariableProvider: (String) -> String?,
+        headerVariableProvider: (String) -> String?
+    ): C {
+        return commandNode.injectPathVariables(pathVariableMetadata, pathVariableProvider)
+            .injectPathVariables(headerVariableMetadata, headerVariableProvider)
+            .asObject(commandMetadata.commandType)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -73,12 +83,12 @@ data class CommandRouteMetadata<C>(
     }
 }
 
-data class PathVariableMetadata(
+data class VariableMetadata(
     val fieldPath: List<String>,
     /**
      * path variable name
      */
-    val pathVariableName: String,
+    val variableName: String,
     val required: Boolean
 ) {
     val fieldName: String by lazy {
@@ -89,12 +99,12 @@ data class PathVariableMetadata(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as PathVariableMetadata
+        other as VariableMetadata
 
-        return pathVariableName == other.pathVariableName
+        return variableName == other.variableName
     }
 
     override fun hashCode(): Int {
-        return pathVariableName.hashCode()
+        return variableName.hashCode()
     }
 }

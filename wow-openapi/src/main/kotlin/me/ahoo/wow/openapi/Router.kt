@@ -55,7 +55,7 @@ class Router(
         return this
     }
 
-    fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
+    private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
         val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
         add(loadAggregateRouteSpec)
         val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()

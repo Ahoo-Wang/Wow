@@ -27,8 +27,16 @@ annotation class CommandRoute(
     val appendIdPath: AppendIdPath = AppendIdPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false
 ) {
+
     @Target(AnnotationTarget.FIELD)
     annotation class PathVariable(
+        val name: String = "",
+        val nestedPath: Array<String> = [],
+        val required: Boolean = true
+    )
+
+    @Target(AnnotationTarget.FIELD)
+    annotation class HeaderVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],
         val required: Boolean = true
