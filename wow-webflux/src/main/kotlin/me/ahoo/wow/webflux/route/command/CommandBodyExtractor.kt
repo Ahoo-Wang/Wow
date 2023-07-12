@@ -26,8 +26,15 @@ internal class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: C
     override fun extract(inputMessage: ReactiveHttpInputMessage, context: BodyExtractor.Context): Mono<C> {
         @Suppress("UNCHECKED_CAST")
         val pathVariables = context.hints()[RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE] as Map<String, String>
-        return BodyExtractors.toMono(ObjectNode::class.java).extract(inputMessage, context).map { objectNode ->
-            commandRouteMetadata.decode(objectNode, pathVariables)
-        }
+
+        return BodyExtractors.toMono(ObjectNode::class.java)
+            .extract(inputMessage, context)
+            .map { objectNode ->
+                commandRouteMetadata.decode(objectNode, {
+                    pathVariables[it]
+                }) {
+                    inputMessage.headers.getFirst(it)
+                }
+            }
     }
 }

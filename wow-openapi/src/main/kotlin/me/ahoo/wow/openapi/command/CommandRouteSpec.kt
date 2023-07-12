@@ -28,7 +28,6 @@ import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
-import me.ahoo.wow.serialization.MessageRecords
 
 open class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -48,8 +47,7 @@ open class CommandRouteSpec(
             }
             return Https.Method.PUT
         }
-    private val appendedTenantId: Boolean
-        get() = !ignoreTenant && !commandRouteMetadata.ignoreAggregateNamePrefix
+
     override val appendIdPath: Boolean
         get() = commandRouteMetadata.appendIdPath
 
@@ -96,14 +94,14 @@ open class CommandRouteSpec(
         addParameter(CommandHeaders.AGGREGATE_ID, ParameterIn.HEADER, StringSchema())
         addParameter(CommandHeaders.AGGREGATE_VERSION, ParameterIn.HEADER, IntegerSchema())
         addParameter(CommandHeaders.REQUEST_ID, ParameterIn.HEADER, StringSchema())
-        commandRouteMetadata.pathVariableMetadata.forEach { pathVariableMetadata ->
-            if (appendedTenantId &&
-                pathVariableMetadata.pathVariableName == MessageRecords.TENANT_ID
-            ) {
-                return@forEach
+        commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
+            addParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
+                it.required(variableMetadata.required)
             }
-            addParameter(pathVariableMetadata.pathVariableName, ParameterIn.PATH, StringSchema()) {
-                it.required(pathVariableMetadata.required)
+        }
+        commandRouteMetadata.headerVariableMetadata.forEach { variableMetadata ->
+            addParameter(variableMetadata.variableName, ParameterIn.HEADER, StringSchema()) {
+                it.required(variableMetadata.required)
             }
         }
         return this

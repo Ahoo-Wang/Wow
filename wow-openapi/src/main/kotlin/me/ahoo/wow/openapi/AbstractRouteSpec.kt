@@ -65,7 +65,14 @@ abstract class AbstractRouteSpec : RouteSpec {
         parameterIn: ParameterIn,
         schema: Schema<*>,
         customize: (Parameter) -> Unit = {}
-    ): Parameter {
+    ): Parameter? {
+        parameters.any {
+            it.name == name && it.`in` == parameterIn.toString()
+        }.apply {
+            if (this) {
+                return null
+            }
+        }
         val parameter = Parameter()
             .name(name)
             .`in`(parameterIn.toString())

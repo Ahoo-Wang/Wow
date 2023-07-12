@@ -34,26 +34,35 @@ object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRou
 internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>) :
     ClassVisitor {
 
-    private var pathVariables: MutableSet<PathVariableMetadata> = mutableSetOf()
+    private var pathVariables: MutableSet<VariableMetadata> = mutableSetOf()
+    private var headerVariables: MutableSet<VariableMetadata> = mutableSetOf()
+
+    private fun Field.asVariableMetadata(name: String, nestedPath: Array<String>, required: Boolean): VariableMetadata {
+        val fieldName = scan<JsonProperty>()?.value
+            .orEmpty()
+            .ifBlank {
+                this.name
+            }
+        val variableName = name.ifBlank { fieldName }
+        val fieldPath = buildList {
+            add(fieldName)
+            addAll(nestedPath)
+        }
+        return VariableMetadata(
+            fieldPath = fieldPath,
+            variableName = variableName,
+            required = required,
+        )
+    }
 
     override fun visitField(field: Field) {
         field.scan<CommandRoute.PathVariable>()?.let {
-            val fieldName = field.scan<JsonProperty>()?.value
-                .orEmpty()
-                .ifBlank {
-                    field.name
-                }
-            val pathVariableName = it.name.ifBlank { fieldName }
-            val fieldPath = buildList<String> {
-                add(fieldName)
-                addAll(it.nestedPath)
-            }
-            val pathVariableMetadata = PathVariableMetadata(
-                fieldPath = fieldPath,
-                pathVariableName = pathVariableName,
-                required = it.required,
-            )
-            pathVariables.add(pathVariableMetadata)
+            val variableMetadata = field.asVariableMetadata(it.name, it.nestedPath, it.required)
+            pathVariables.add(variableMetadata)
+        }
+        field.scan<CommandRoute.HeaderVariable>()?.let {
+            val variableMetadata = field.asVariableMetadata(it.name, it.nestedPath, it.required)
+            headerVariables.add(variableMetadata)
         }
     }
 
@@ -82,6 +91,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 ignoreAggregateNamePrefix = it.ignoreAggregateNamePrefix,
                 commandMetadata = commandMetadata,
                 pathVariableMetadata = pathVariables,
+                headerVariableMetadata = headerVariables,
             )
         } ?: CommandRouteMetadata(
             path = commandMetadata.name,
@@ -90,6 +100,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
             ignoreAggregateNamePrefix = false,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
+            headerVariableMetadata = headerVariables,
         )
     }
 }
