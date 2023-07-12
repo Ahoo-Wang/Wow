@@ -104,7 +104,7 @@
     - [x] Automatically register `CommandAggregate` to `RouterFunction`
 - [x] 可观测性
     - [x] OpenTelemetry
-- [x] OpenApi
+- [x] OpenAPI
 - [x] `WowMetadata` Generator
     - [x] `wow-compiler`
 
