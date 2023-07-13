@@ -46,9 +46,6 @@ open class CommandRouteSpec(
 
     override val path: String
         get() {
-            if (commandRouteMetadata.path.isBlank()) {
-                return super.path
-            }
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
                 return PathBuilder().append(commandRouteMetadata.prefix).append(commandRouteMetadata.path).build()
             }

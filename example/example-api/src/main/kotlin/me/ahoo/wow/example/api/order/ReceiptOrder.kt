@@ -15,6 +15,7 @@ package me.ahoo.wow.example.api.order
 import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.example.api.ExampleService
 
 /**
@@ -22,9 +23,12 @@ import me.ahoo.wow.example.api.ExampleService
  *
  * @author ahoo wang
  */
+@Summary("收货")
 @CommandRoute(
     prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
+    path = "package",
     appendIdPath = CommandRoute.AppendIdPath.ALWAYS,
+    method = CommandRoute.Method.PATCH
 )
 data class ReceiptOrder(
     @CommandRoute.PathVariable

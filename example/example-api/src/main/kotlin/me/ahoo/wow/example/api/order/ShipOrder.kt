@@ -12,11 +12,25 @@
  */
 package me.ahoo.wow.example.api.order
 
+import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.example.api.ExampleService
+
 /**
  * ShipOrder .
  *
  * @author ahoo wang
  */
-data class ShipOrder(val id: String)
+@Summary("发货")
+@CommandRoute(
+    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
+    path = "package",
+    appendIdPath = CommandRoute.AppendIdPath.ALWAYS,
+    method = CommandRoute.Method.POST
+)
+data class ShipOrder(
+    @CommandRoute.PathVariable
+    val id: String
+)
 
 object OrderShipped
