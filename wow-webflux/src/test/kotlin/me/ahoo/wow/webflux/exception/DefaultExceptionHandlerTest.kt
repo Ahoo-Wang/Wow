@@ -10,7 +10,7 @@ class DefaultExceptionHandlerTest {
 
     @Test
     fun handle() {
-        DefaultExceptionHandler.handle(IllegalArgumentException())
+        DefaultExceptionHandler.handle(IllegalArgumentException("error"))
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.BAD_REQUEST))
