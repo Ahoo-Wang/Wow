@@ -56,25 +56,7 @@ class Router(
     }
 
     private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
-        val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
-        add(loadAggregateRouteSpec)
-        val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
-        add(regenerateSnapshotRouteSpec)
-        val batchRegenerateSnapshotRouteSpec =
-            BatchRegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
-        add(batchRegenerateSnapshotRouteSpec)
-        val regenerateStateEventRouteSpec = RegenerateStateEventRouteSpec(currentContext, aggregateMetadata).build()
-        add(regenerateStateEventRouteSpec)
-        if (!aggregateMetadata.command.registeredDeleteAggregate) {
-            val deleteAggregateRouteSpec = DefaultDeleteAggregateRouteSpec(currentContext, aggregateMetadata).build()
-            add(deleteAggregateRouteSpec)
-        }
-        val domainEventCompensateRouteSpec = DomainEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
-        add(domainEventCompensateRouteSpec)
-        val stateEventCompensateRouteSpec = StateEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
-        add(stateEventCompensateRouteSpec)
-        val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
-        add(aggregateTracingRouteSpec)
+        //region command route
         aggregateMetadata.command.commandFunctionRegistry
             .forEach {
                 val commandRouteMetadata = it.key.asCommandRouteMetadata()
@@ -84,10 +66,38 @@ class Router(
                 val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
                 add(commandRouteSpec)
             }
+        if (!aggregateMetadata.command.registeredDeleteAggregate) {
+            val deleteAggregateRouteSpec = DefaultDeleteAggregateRouteSpec(currentContext, aggregateMetadata).build()
+            add(deleteAggregateRouteSpec)
+        }
+        //endregion
+
+        val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
+        add(loadAggregateRouteSpec)
+
+        //region snapshot
+        val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
+        add(regenerateSnapshotRouteSpec)
+        val batchRegenerateSnapshotRouteSpec =
+            BatchRegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
+        add(batchRegenerateSnapshotRouteSpec)
+        //endregion
+
+        //region compensate
+        val regenerateStateEventRouteSpec = RegenerateStateEventRouteSpec(currentContext, aggregateMetadata).build()
+        add(regenerateStateEventRouteSpec)
+        val domainEventCompensateRouteSpec = DomainEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
+        add(domainEventCompensateRouteSpec)
+        val stateEventCompensateRouteSpec = StateEventCompensateRouteSpec(currentContext, aggregateMetadata).build()
+        add(stateEventCompensateRouteSpec)
+        //endregion
+
+        val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
+        add(aggregateTracingRouteSpec)
         return this
     }
 
-    fun addCommandStageSchema() {
+    private fun addCommandStageSchema() {
         openAPI.components.addSchemas(CommandStageSchema.name, CommandStageSchema.schema)
     }
 

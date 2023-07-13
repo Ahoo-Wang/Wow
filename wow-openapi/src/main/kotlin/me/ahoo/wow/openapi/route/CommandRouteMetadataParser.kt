@@ -68,11 +68,11 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 
     fun asMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.asCommandMetadata()
-
+        val defaultAppendIdPath = commandMetadata.aggregateIdGetter == null && !commandMetadata.isCreate
         return commandType.scan<CommandRoute>()?.let {
             val appendIdPath = when (it.appendIdPath) {
                 CommandRoute.AppendIdPath.DEFAULT -> {
-                    commandMetadata.aggregateIdGetter == null && !commandMetadata.isCreate
+                    defaultAppendIdPath
                 }
 
                 CommandRoute.AppendIdPath.ALWAYS -> true
@@ -96,7 +96,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
         } ?: CommandRouteMetadata(
             path = commandMetadata.name,
             enabled = true,
-            appendIdPath = commandMetadata.aggregateIdGetter == null,
+            appendIdPath = defaultAppendIdPath,
             ignoreAggregateNamePrefix = false,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
