@@ -21,6 +21,8 @@ import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
 
 abstract class BatchRouteSpec : AggregateRouteSpec() {
+    override val ignoreTenant: Boolean
+        get() = true
     override val responseType: Class<*>
         get() = BatchResult::class.java
 

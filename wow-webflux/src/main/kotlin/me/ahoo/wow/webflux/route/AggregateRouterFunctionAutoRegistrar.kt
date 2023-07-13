@@ -29,6 +29,7 @@ import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
@@ -40,6 +41,7 @@ import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFuncti
 import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunction
 import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunction
+import me.ahoo.wow.webflux.route.query.ScanAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunction
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunction
 import me.ahoo.wow.webflux.route.state.RegenerateStateEventFunction
@@ -93,6 +95,18 @@ class AggregateRouterFunctionAutoRegistrar(
                         LoadAggregateHandlerFunction(
                             aggregateMetadata = routeSpec.aggregateMetadata,
                             stateAggregateRepository = stateAggregateRepository,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is ScanAggregateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        ScanAggregateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            stateAggregateRepository = stateAggregateRepository,
+                            eventStore = eventStore,
                             exceptionHandler = exceptionHandler,
                         )
                     )
