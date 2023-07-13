@@ -69,7 +69,6 @@ class BatchRegenerateSnapshotHandlerFunction(
     }
 }
 
-
 class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
@@ -88,5 +87,4 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
             exceptionHandler = exceptionHandler,
         )
     }
-
 }

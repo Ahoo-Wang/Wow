@@ -27,7 +27,6 @@ class StateEventCompensateHandlerFunction(
     override val exceptionHandler: ExceptionHandler
 ) : EventCompensateHandlerFunction()
 
-
 class StateEventCompensateHandlerFunctionFactory(
     private val eventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
@@ -38,5 +37,4 @@ class StateEventCompensateHandlerFunctionFactory(
     override fun create(spec: StateEventCompensateRouteSpec): HandlerFunction<ServerResponse> {
         return StateEventCompensateHandlerFunction(spec.aggregateMetadata, eventCompensator, exceptionHandler)
     }
-
 }

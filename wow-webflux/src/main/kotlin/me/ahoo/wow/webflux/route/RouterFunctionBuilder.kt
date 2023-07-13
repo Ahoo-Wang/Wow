@@ -41,7 +41,9 @@ class RouterFunctionBuilder(
             val httpMethod = HttpMethod.valueOf(routeSpec.method)
             val requestPredicate =
                 RequestPredicates.path(routeSpec.path).and(RequestPredicates.method(httpMethod)).and(acceptPredicate)
-            @Suppress("UNCHECKED_CAST") val factory =
+
+            @Suppress("UNCHECKED_CAST")
+            val factory =
                 requireNotNull(routeHandlerFunctionRegistrar.getFactory(routeSpec)) as RouteHandlerFunctionFactory<RouteSpec>
             val handlerFunction = factory.create(routeSpec)
             routerFunctionBuilder.route(

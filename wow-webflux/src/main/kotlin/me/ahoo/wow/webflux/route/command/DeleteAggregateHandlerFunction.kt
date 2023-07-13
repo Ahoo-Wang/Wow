@@ -50,5 +50,4 @@ class DeleteAggregateHandlerFunctionFactory(
     override fun create(spec: DefaultDeleteAggregateRouteSpec): HandlerFunction<ServerResponse> {
         return DeleteAggregateHandlerFunction(spec.aggregateMetadata, commandGateway, timeout, exceptionHandler)
     }
-
 }

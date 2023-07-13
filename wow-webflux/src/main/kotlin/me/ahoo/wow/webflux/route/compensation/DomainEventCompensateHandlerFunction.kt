@@ -27,7 +27,6 @@ class DomainEventCompensateHandlerFunction(
     override val exceptionHandler: ExceptionHandler
 ) : EventCompensateHandlerFunction()
 
-
 class DomainEventCompensateHandlerFunctionFactory(
     private val eventCompensator: DomainEventCompensator,
     private val exceptionHandler: ExceptionHandler
@@ -38,6 +37,4 @@ class DomainEventCompensateHandlerFunctionFactory(
     override fun create(spec: DomainEventCompensateRouteSpec): HandlerFunction<ServerResponse> {
         return DomainEventCompensateHandlerFunction(spec.aggregateMetadata, eventCompensator, exceptionHandler)
     }
-
-
 }

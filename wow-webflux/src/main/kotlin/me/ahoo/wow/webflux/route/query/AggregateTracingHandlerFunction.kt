@@ -90,5 +90,4 @@ class AggregateTracingHandlerFunctionFactory(
     override fun create(spec: AggregateTracingRouteSpec): HandlerFunction<ServerResponse> {
         return AggregateTracingHandlerFunction(spec.aggregateMetadata, eventStore, exceptionHandler)
     }
-
 }

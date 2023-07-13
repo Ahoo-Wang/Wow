@@ -53,7 +53,6 @@ class IdsQueryAggregateHandlerFunction(
     }
 }
 
-
 class IdsQueryAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: ExceptionHandler

@@ -50,7 +50,6 @@ class ScanAggregateHandlerFunction(
     }
 }
 
-
 class ScanAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val eventStore: EventStore,
@@ -67,5 +66,4 @@ class ScanAggregateHandlerFunctionFactory(
             exceptionHandler = exceptionHandler,
         )
     }
-
 }

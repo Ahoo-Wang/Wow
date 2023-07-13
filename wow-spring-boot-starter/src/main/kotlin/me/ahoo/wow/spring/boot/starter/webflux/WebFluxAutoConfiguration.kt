@@ -155,7 +155,6 @@ class WebFluxAutoConfiguration {
         return DomainEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
     }
 
-
     @Bean
     fun stateEventCompensateHandlerFunctionFactory(
         eventCompensator: StateEventCompensator,
@@ -197,5 +196,4 @@ class WebFluxAutoConfiguration {
             routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar
         ).build()
     }
-
 }

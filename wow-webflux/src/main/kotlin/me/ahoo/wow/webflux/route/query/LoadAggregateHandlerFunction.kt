@@ -49,7 +49,6 @@ class LoadAggregateHandlerFunction(
     }
 }
 
-
 class LoadAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: ExceptionHandler
@@ -60,5 +59,4 @@ class LoadAggregateHandlerFunctionFactory(
     override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
         return LoadAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
     }
-
 }

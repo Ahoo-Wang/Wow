@@ -75,5 +75,4 @@ class CommandHandlerFunctionFactory(
             timeout
         )
     }
-
 }

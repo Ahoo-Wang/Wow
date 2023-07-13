@@ -47,7 +47,6 @@ class RegenerateStateEventFunction(
     }
 }
 
-
 class RegenerateStateEventFunctionFactory(
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
@@ -64,5 +63,4 @@ class RegenerateStateEventFunctionFactory(
             exceptionHandler = exceptionHandler,
         )
     }
-
 }
