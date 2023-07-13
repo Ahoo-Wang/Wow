@@ -26,7 +26,22 @@ import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.route.AggregateRouterFunctionAutoRegistrar
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
+import me.ahoo.wow.webflux.route.RouterFunctionBuilder
+import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
+import me.ahoo.wow.webflux.route.command.DeleteAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.IdsQueryAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.ScanAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.RegenerateStateEventFunctionFactory
+import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -49,37 +64,138 @@ import org.springframework.web.reactive.function.server.ServerResponse
 )
 class WebFluxAutoConfiguration {
 
-    @Suppress("LongParameterList")
-    @Bean
-    fun commandRouterFunction(
-        router: Router,
-        waitStrategyRegistrar: WaitStrategyRegistrar,
-        commandGateway: CommandGateway,
-        stateAggregateRepository: StateAggregateRepository,
-        snapshotRepository: SnapshotRepository,
-        stateAggregateFactory: StateAggregateFactory,
-        domainEventCompensator: DomainEventCompensator,
-        stateEventCompensator: StateEventCompensator,
-        eventStore: EventStore,
-        exceptionHandler: ExceptionHandler
-    ): RouterFunction<ServerResponse> {
-        return AggregateRouterFunctionAutoRegistrar(
-            router = router,
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            commandGateway = commandGateway,
-            stateAggregateRepository = stateAggregateRepository,
-            snapshotRepository = snapshotRepository,
-            stateAggregateFactory = stateAggregateFactory,
-            eventStore = eventStore,
-            domainEventCompensator = domainEventCompensator,
-            stateEventCompensator = stateEventCompensator,
-            exceptionHandler = exceptionHandler,
-        ).routerFunction
-    }
-
     @Bean
     @ConditionalOnMissingBean
     fun exceptionHandler(): ExceptionHandler {
         return DefaultExceptionHandler
     }
+
+    @Bean
+    fun commandWaitHandlerFunctionFactory(waitStrategyRegistrar: WaitStrategyRegistrar): CommandWaitHandlerFunctionFactory {
+        return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar)
+    }
+
+    @Bean
+    fun loadAggregateHandlerFunctionFactory(
+        stateAggregateRepository: StateAggregateRepository,
+        exceptionHandler: ExceptionHandler
+    ): LoadAggregateHandlerFunctionFactory {
+        return LoadAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+    }
+
+    @Bean
+    fun idsQueryAggregateHandlerFunctionFactory(
+        stateAggregateRepository: StateAggregateRepository,
+        exceptionHandler: ExceptionHandler
+    ): IdsQueryAggregateHandlerFunctionFactory {
+        return IdsQueryAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+    }
+
+    @Bean
+    fun scanAggregateHandlerFunctionFactory(
+        stateAggregateRepository: StateAggregateRepository,
+        eventStore: EventStore,
+        exceptionHandler: ExceptionHandler
+    ): ScanAggregateHandlerFunctionFactory {
+        return ScanAggregateHandlerFunctionFactory(stateAggregateRepository, eventStore, exceptionHandler)
+    }
+
+    @Bean
+    fun aggregateTracingHandlerFunctionFactory(
+        eventStore: EventStore,
+        exceptionHandler: ExceptionHandler
+    ): AggregateTracingHandlerFunctionFactory {
+        return AggregateTracingHandlerFunctionFactory(eventStore, exceptionHandler)
+    }
+
+    @Bean
+    fun regenerateSnapshotHandlerFunctionFactory(
+        stateAggregateFactory: StateAggregateFactory,
+        eventStore: EventStore,
+        snapshotRepository: SnapshotRepository,
+        exceptionHandler: ExceptionHandler
+    ): RegenerateSnapshotHandlerFunctionFactory {
+        return RegenerateSnapshotHandlerFunctionFactory(
+            stateAggregateFactory,
+            eventStore,
+            snapshotRepository,
+            exceptionHandler
+        )
+    }
+
+    @Bean
+    fun batchRegenerateSnapshotHandlerFunctionFactory(
+        stateAggregateFactory: StateAggregateFactory,
+        eventStore: EventStore,
+        snapshotRepository: SnapshotRepository,
+        exceptionHandler: ExceptionHandler
+    ): BatchRegenerateSnapshotHandlerFunctionFactory {
+        return BatchRegenerateSnapshotHandlerFunctionFactory(
+            stateAggregateFactory,
+            eventStore,
+            snapshotRepository,
+            exceptionHandler
+        )
+    }
+
+    @Bean
+    fun regenerateStateEventFunctionFactory(
+        eventStore: EventStore,
+        stateEventCompensator: StateEventCompensator,
+        exceptionHandler: ExceptionHandler
+    ): RegenerateStateEventFunctionFactory {
+        return RegenerateStateEventFunctionFactory(eventStore, stateEventCompensator, exceptionHandler)
+    }
+
+    @Bean
+    fun domainEventCompensateHandlerFunctionFactory(
+        eventCompensator: DomainEventCompensator,
+        exceptionHandler: ExceptionHandler
+    ): DomainEventCompensateHandlerFunctionFactory {
+        return DomainEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
+    }
+
+
+    @Bean
+    fun stateEventCompensateHandlerFunctionFactory(
+        eventCompensator: StateEventCompensator,
+        exceptionHandler: ExceptionHandler
+    ): StateEventCompensateHandlerFunctionFactory {
+        return StateEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
+    }
+
+    @Bean
+    fun deleteAggregateHandlerFunctionFactory(
+        commandGateway: CommandGateway,
+        exceptionHandler: ExceptionHandler
+    ): DeleteAggregateHandlerFunctionFactory {
+        return DeleteAggregateHandlerFunctionFactory(commandGateway, DEFAULT_TIME_OUT, exceptionHandler)
+    }
+
+    @Bean
+    fun commandHandlerFunctionFactory(
+        commandGateway: CommandGateway,
+        exceptionHandler: ExceptionHandler,
+    ): CommandHandlerFunctionFactory {
+        return CommandHandlerFunctionFactory(commandGateway, exceptionHandler, DEFAULT_TIME_OUT)
+    }
+
+    @Bean
+    fun routeHandlerFunctionRegistrar(factories: List<RouteHandlerFunctionFactory<*>>): RouteHandlerFunctionRegistrar {
+        val registrar = RouteHandlerFunctionRegistrar()
+        factories.forEach { registrar.register(it) }
+        return registrar
+    }
+
+    @Bean
+    fun commandRouterFunction(
+        router: Router,
+        routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
+    ): RouterFunction<ServerResponse> {
+        return RouterFunctionBuilder(
+            router = router,
+            routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar
+        ).build()
+    }
+
 }

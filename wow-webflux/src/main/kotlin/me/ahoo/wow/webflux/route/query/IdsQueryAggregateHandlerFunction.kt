@@ -16,8 +16,10 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.openapi.query.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -48,5 +50,18 @@ class IdsQueryAggregateHandlerFunction(
             .map { it.state }
             .collectList()
             .asServerResponse(exceptionHandler)
+    }
+}
+
+
+class IdsQueryAggregateHandlerFunctionFactory(
+    private val stateAggregateRepository: StateAggregateRepository,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<IdsQueryAggregateRouteSpec> {
+    override val supportedSpec: Class<IdsQueryAggregateRouteSpec>
+        get() = IdsQueryAggregateRouteSpec::class.java
+
+    override fun create(spec: IdsQueryAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return IdsQueryAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
     }
 }

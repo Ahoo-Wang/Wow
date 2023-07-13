@@ -15,9 +15,11 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -53,4 +55,25 @@ class CommandHandlerFunction(
             handler.handle(request, it)
         }.asServerResponse(exceptionHandler)
     }
+}
+
+class CommandHandlerFunctionFactory(
+    private val commandGateway: CommandGateway,
+    private val exceptionHandler: ExceptionHandler,
+    private val timeout: Duration = DEFAULT_TIME_OUT
+) : RouteHandlerFunctionFactory<CommandRouteSpec> {
+    override val supportedSpec: Class<CommandRouteSpec>
+        get() = CommandRouteSpec::class.java
+
+    @Suppress("UNCHECKED_CAST")
+    override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
+        return CommandHandlerFunction(
+            spec.aggregateMetadata,
+            spec.commandRouteMetadata as CommandRouteMetadata<Any>,
+            commandGateway,
+            exceptionHandler,
+            timeout
+        )
+    }
+
 }

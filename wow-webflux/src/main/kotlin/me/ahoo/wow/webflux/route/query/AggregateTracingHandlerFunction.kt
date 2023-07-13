@@ -23,8 +23,10 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -76,4 +78,17 @@ class AggregateTracingHandlerFunction(
             }
         }
     }
+}
+
+class AggregateTracingHandlerFunctionFactory(
+    private val eventStore: EventStore,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<AggregateTracingRouteSpec> {
+    override val supportedSpec: Class<AggregateTracingRouteSpec>
+        get() = AggregateTracingRouteSpec::class.java
+
+    override fun create(spec: AggregateTracingRouteSpec): HandlerFunction<ServerResponse> {
+        return AggregateTracingHandlerFunction(spec.aggregateMetadata, eventStore, exceptionHandler)
+    }
+
 }

@@ -15,6 +15,8 @@ package me.ahoo.wow.webflux.wait
 
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -38,5 +40,15 @@ class CommandWaitHandlerFunction(
             }.flatMap {
                 EMPTY_OK
             }
+    }
+}
+
+class CommandWaitHandlerFunctionFactory(private val waitStrategyRegistrar: WaitStrategyRegistrar) :
+    RouteHandlerFunctionFactory<CommandWaitRouteSpec> {
+    override val supportedSpec: Class<CommandWaitRouteSpec>
+        get() = CommandWaitRouteSpec::class.java
+
+    override fun create(spec: CommandWaitRouteSpec): HandlerFunction<ServerResponse> {
+        return CommandWaitHandlerFunction(waitStrategyRegistrar)
     }
 }

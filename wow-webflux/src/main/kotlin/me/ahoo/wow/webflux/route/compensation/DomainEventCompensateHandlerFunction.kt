@@ -15,10 +15,29 @@ package me.ahoo.wow.webflux.route.compensation
 
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 
 class DomainEventCompensateHandlerFunction(
     override val aggregateMetadata: AggregateMetadata<*, *>,
     override val eventCompensator: DomainEventCompensator,
     override val exceptionHandler: ExceptionHandler
 ) : EventCompensateHandlerFunction()
+
+
+class DomainEventCompensateHandlerFunctionFactory(
+    private val eventCompensator: DomainEventCompensator,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<DomainEventCompensateRouteSpec> {
+    override val supportedSpec: Class<DomainEventCompensateRouteSpec>
+        get() = DomainEventCompensateRouteSpec::class.java
+
+    override fun create(spec: DomainEventCompensateRouteSpec): HandlerFunction<ServerResponse> {
+        return DomainEventCompensateHandlerFunction(spec.aggregateMetadata, eventCompensator, exceptionHandler)
+    }
+
+
+}

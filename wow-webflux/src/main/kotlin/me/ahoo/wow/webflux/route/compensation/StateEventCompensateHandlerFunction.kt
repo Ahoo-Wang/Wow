@@ -15,10 +15,28 @@ package me.ahoo.wow.webflux.route.compensation
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 
 class StateEventCompensateHandlerFunction(
     override val aggregateMetadata: AggregateMetadata<*, *>,
     override val eventCompensator: StateEventCompensator,
     override val exceptionHandler: ExceptionHandler
 ) : EventCompensateHandlerFunction()
+
+
+class StateEventCompensateHandlerFunctionFactory(
+    private val eventCompensator: StateEventCompensator,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<StateEventCompensateRouteSpec> {
+    override val supportedSpec: Class<StateEventCompensateRouteSpec>
+        get() = StateEventCompensateRouteSpec::class.java
+
+    override fun create(spec: StateEventCompensateRouteSpec): HandlerFunction<ServerResponse> {
+        return StateEventCompensateHandlerFunction(spec.aggregateMetadata, eventCompensator, exceptionHandler)
+    }
+
+}

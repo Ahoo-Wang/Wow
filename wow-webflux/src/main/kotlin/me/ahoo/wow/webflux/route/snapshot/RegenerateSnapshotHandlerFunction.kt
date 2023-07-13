@@ -20,8 +20,10 @@ import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -51,4 +53,26 @@ class RegenerateSnapshotHandlerFunction(
             .then()
             .asServerResponse(exceptionHandler)
     }
+}
+
+
+class RegenerateSnapshotHandlerFunctionFactory(
+    private val stateAggregateFactory: StateAggregateFactory,
+    private val eventStore: EventStore,
+    private val snapshotRepository: SnapshotRepository,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<RegenerateSnapshotRouteSpec> {
+    override val supportedSpec: Class<RegenerateSnapshotRouteSpec>
+        get() = RegenerateSnapshotRouteSpec::class.java
+
+    override fun create(spec: RegenerateSnapshotRouteSpec): HandlerFunction<ServerResponse> {
+        return RegenerateSnapshotHandlerFunction(
+            aggregateMetadata = spec.aggregateMetadata,
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            snapshotRepository = snapshotRepository,
+            exceptionHandler = exceptionHandler,
+        )
+    }
+
 }
