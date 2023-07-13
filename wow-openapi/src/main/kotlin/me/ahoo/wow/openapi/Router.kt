@@ -28,6 +28,7 @@ import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.query.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
 import me.ahoo.wow.openapi.route.asCommandRouteMetadata
@@ -75,6 +76,8 @@ class Router(
 
         val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
         add(loadAggregateRouteSpec)
+        val idsQueryAggregateRouteSpec = IdsQueryAggregateRouteSpec(currentContext, aggregateMetadata).build()
+        add(idsQueryAggregateRouteSpec)
         val scanAggregateRouteSpec = ScanAggregateRouteSpec(currentContext, aggregateMetadata).build()
         add(scanAggregateRouteSpec)
         val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
