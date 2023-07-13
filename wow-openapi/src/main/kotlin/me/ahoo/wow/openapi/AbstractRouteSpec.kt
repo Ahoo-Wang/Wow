@@ -112,4 +112,8 @@ abstract class AbstractRouteSpec : RouteSpec {
             schemas.putAll(this)
         }
     }
+
+    override fun toString(): String {
+        return "$path && $method"
+    }
 }

@@ -26,9 +26,10 @@ import me.ahoo.wow.example.api.ExampleService
  *
  * @author ahoo wang
  */
-@Summary("创建订单")
+@Summary("下单")
 @CommandRoute(
-    prefix = ExampleService.CUSTOMER_ORDER_PREFIX
+    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
+    path = ""
 )
 @CreateAggregate
 data class CreateOrder(

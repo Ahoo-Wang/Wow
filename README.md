@@ -37,7 +37,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 > Automatically register the `Command` routing processing function (`HandlerFunction`), and developers only need to write the domain model to complete the service development.
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Spring-WebFlux-Integration.png" alt="Wow-Spring-WebFlux-Integration"/>
+  <img src="document/design/assets/OpenAPI-Swagger.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
 ### Test suite: 80%+ test coverage is very easy

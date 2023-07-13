@@ -114,12 +114,19 @@ class Router(
         built = true
         addCommandStageSchema()
         add(CommandWaitRouteSpec)
-        for (routeSpec in routes) {
-            routeSpec.schemas.forEach {
-                openAPI.components.addSchemas(it.key, it.value)
-            }
-            openAPI.paths.addPathItem(routeSpec.path, routeSpec.toPathItem())
+        val groupedPathRoutes = routes.groupBy {
+            it.path
         }
+        for ((path, routeSpecs) in groupedPathRoutes) {
+            routeSpecs.forEach { routeSpec ->
+                routeSpec.schemas.forEach {
+                    openAPI.components.addSchemas(it.key, it.value)
+                }
+            }
+
+            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
+        }
+
         return this
     }
 }

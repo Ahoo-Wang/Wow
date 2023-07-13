@@ -35,7 +35,7 @@
 > 自动注册 **命令** 路由处理函数(`HandlerFunction`) ，开发人员仅需编写领域模型，即可完成服务开发。
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Spring-WebFlux-Integration.png" alt="Wow-Spring-WebFlux-Integration"/>
+  <img src="document/design/assets/OpenAPI-Swagger.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
 ### 测试套件：80%+ 的测试覆盖率轻而易举

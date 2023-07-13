@@ -55,22 +55,25 @@ fun RouteSpec.toOperation(): Operation {
     return operation
 }
 
-fun RouteSpec.toPathItem(): PathItem {
+fun List<RouteSpec>.toPathItem(): PathItem {
+    val firstRouteSpec = this.first()
     val pathItem = PathItem()
-    pathItem.summary = summary
-    pathItem.description = description
-    val operation = toOperation()
-
-    when (method) {
-        Https.Method.GET -> pathItem.get(operation)
-        Https.Method.POST -> pathItem.post(operation)
-        Https.Method.PUT -> pathItem.put(operation)
-        Https.Method.DELETE -> pathItem.delete(operation)
-        Https.Method.OPTIONS -> pathItem.options(operation)
-        Https.Method.HEAD -> pathItem.head(operation)
-        Https.Method.PATCH -> pathItem.patch(operation)
-        Https.Method.TRACE -> pathItem.trace(operation)
-        else -> throw IllegalArgumentException("Unsupported method: $method")
+    pathItem.summary = firstRouteSpec.summary
+    pathItem.description = firstRouteSpec.description
+    forEach {
+        val operation = it.toOperation()
+        when (it.method) {
+            Https.Method.GET -> pathItem.get(operation)
+            Https.Method.POST -> pathItem.post(operation)
+            Https.Method.PUT -> pathItem.put(operation)
+            Https.Method.DELETE -> pathItem.delete(operation)
+            Https.Method.OPTIONS -> pathItem.options(operation)
+            Https.Method.HEAD -> pathItem.head(operation)
+            Https.Method.PATCH -> pathItem.patch(operation)
+            Https.Method.TRACE -> pathItem.trace(operation)
+            else -> throw IllegalArgumentException("Unsupported method: ${it.method}")
+        }
     }
+
     return pathItem
 }

@@ -14,6 +14,7 @@ package me.ahoo.wow.example.api.order
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.exception.ErrorInfo
 import java.math.BigDecimal
 
@@ -22,7 +23,9 @@ import java.math.BigDecimal
  *
  * @author ahoo wang
  */
+@CommandRoute("pay", method = CommandRoute.Method.POST, appendIdPath = CommandRoute.AppendIdPath.ALWAYS)
 data class PayOrder(
+    @CommandRoute.PathVariable
     val id: String,
     @field:NotBlank
     val paymentId: String,
