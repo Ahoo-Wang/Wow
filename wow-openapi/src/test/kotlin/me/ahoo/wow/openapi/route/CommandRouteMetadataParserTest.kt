@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.route
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -26,8 +27,11 @@ class CommandRouteMetadataParserTest {
     @Test
     fun asCommandRouteMetadata() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
-        assertThat(commandRouteMetadata.path, equalTo("{id}/{name}"))
         assertThat(commandRouteMetadata.enabled, equalTo(true))
+        assertThat(commandRouteMetadata.path, equalTo("{id}/{name}"))
+        assertThat(commandRouteMetadata.method, equalTo(Https.Method.PATCH))
+        assertThat(commandRouteMetadata.prefix, equalTo(""))
+        assertThat(commandRouteMetadata.appendIdPath, equalTo(false))
         assertThat(commandRouteMetadata.ignoreAggregateNamePrefix, equalTo(false))
         val idPathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "id" }
         assertThat(idPathVariable.fieldName, equalTo("id"))
@@ -108,7 +112,7 @@ class CommandRouteMetadataParserTest {
     }
 }
 
-@CommandRoute("{id}/{name}")
+@CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)
 data class MockCommandRoute(
     @CommandRoute.PathVariable
     val id: String,
