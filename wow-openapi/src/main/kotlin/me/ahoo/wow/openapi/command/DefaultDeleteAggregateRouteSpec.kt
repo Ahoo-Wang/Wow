@@ -17,10 +17,12 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 
 private val DeleteCommandRoute = CommandRouteMetadata(
     path = "",
+    method = Https.Method.DELETE,
     enabled = true,
     commandMetadata = commandMetadata<DefaultDeleteAggregate>()
 )

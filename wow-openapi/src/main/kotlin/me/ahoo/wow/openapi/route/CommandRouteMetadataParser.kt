@@ -17,10 +17,12 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
 import me.ahoo.wow.command.annotation.asCommandMetadata
+import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.openapi.Https
 import java.lang.reflect.Field
 
 object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRouteMetadata<*>>() {
@@ -66,9 +68,23 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
         }
     }
 
+    private fun CommandMetadata<*>.asMethod(routeMethod: CommandRoute.Method = CommandRoute.Method.DEFAULT): String {
+        if (routeMethod != CommandRoute.Method.DEFAULT) {
+            return routeMethod.name
+        }
+        if (isCreate) {
+            return Https.Method.POST
+        }
+        if (isDelete) {
+            return Https.Method.DELETE
+        }
+        return Https.Method.PUT
+    }
+
     fun asMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.asCommandMetadata()
         val defaultAppendIdPath = commandMetadata.aggregateIdGetter == null && !commandMetadata.isCreate
+
         return commandType.scan<CommandRoute>()?.let {
             val appendIdPath = when (it.appendIdPath) {
                 CommandRoute.AppendIdPath.DEFAULT -> {
@@ -84,8 +100,9 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 it.path
             }
             CommandRouteMetadata(
-                path = path,
                 enabled = it.enabled,
+                path = path,
+                method = commandMetadata.asMethod(it.method),
                 prefix = it.prefix,
                 appendIdPath = appendIdPath,
                 ignoreAggregateNamePrefix = it.ignoreAggregateNamePrefix,
@@ -94,8 +111,9 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 headerVariableMetadata = headerVariables,
             )
         } ?: CommandRouteMetadata(
-            path = commandMetadata.name,
             enabled = true,
+            path = commandMetadata.name,
+            method = commandMetadata.asMethod(),
             appendIdPath = defaultAppendIdPath,
             ignoreAggregateNamePrefix = false,
             commandMetadata = commandMetadata,

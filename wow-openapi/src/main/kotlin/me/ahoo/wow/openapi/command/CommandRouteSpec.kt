@@ -23,7 +23,6 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.asTags
@@ -39,13 +38,7 @@ open class CommandRouteSpec(
         get() = "${aggregateMetadata.asStringWithAlias()}.${commandRouteMetadata.commandMetadata.name}"
     override val method: String
         get() {
-            if (commandRouteMetadata.commandMetadata.isCreate) {
-                return Https.Method.POST
-            }
-            if (commandRouteMetadata.commandMetadata.isDelete) {
-                return Https.Method.DELETE
-            }
-            return Https.Method.PUT
+            return commandRouteMetadata.method
         }
 
     override val appendIdPath: Boolean

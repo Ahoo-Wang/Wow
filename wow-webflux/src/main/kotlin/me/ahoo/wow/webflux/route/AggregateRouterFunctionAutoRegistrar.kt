@@ -98,6 +98,17 @@ class AggregateRouterFunctionAutoRegistrar(
                     )
                 }
 
+                is AggregateTracingRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        AggregateTracingHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            eventStore = eventStore,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
                 is RegenerateSnapshotRouteSpec -> {
                     routerFunctionBuilder.route(
                         requestPredicate,
@@ -153,17 +164,6 @@ class AggregateRouterFunctionAutoRegistrar(
                         StateEventCompensateHandlerFunction(
                             aggregateMetadata = routeSpec.aggregateMetadata,
                             eventCompensator = stateEventCompensator,
-                            exceptionHandler = exceptionHandler,
-                        )
-                    )
-                }
-
-                is AggregateTracingRouteSpec -> {
-                    routerFunctionBuilder.route(
-                        requestPredicate,
-                        AggregateTracingHandlerFunction(
-                            aggregateMetadata = routeSpec.aggregateMetadata,
-                            eventStore = eventStore,
                             exceptionHandler = exceptionHandler,
                         )
                     )
