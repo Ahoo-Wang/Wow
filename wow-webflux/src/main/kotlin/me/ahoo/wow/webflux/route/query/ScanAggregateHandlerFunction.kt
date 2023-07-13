@@ -40,9 +40,10 @@ class ScanAggregateHandlerFunction(
             limit = limit,
         ).flatMap {
             stateAggregateRepository.load<Any>(it)
-        }.map {
-            it.state
-        }.collectList()
+        }.filter {
+            it.initialized && !it.deleted
+        }.map { it.state }
+            .collectList()
             .asServerResponse(exceptionHandler)
     }
 }
