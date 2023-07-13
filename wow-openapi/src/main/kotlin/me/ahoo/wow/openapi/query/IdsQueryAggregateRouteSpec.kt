@@ -13,29 +13,41 @@
 
 package me.ahoo.wow.openapi.query
 
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.parameters.RequestBody
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 
-class AggregateTracingRouteSpec(
+class IdsQueryAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec() {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.getAggregateTracing"
+        get() = "${aggregateMetadata.asStringWithAlias()}.idsQueryStateAggregate"
     override val method: String
-        get() = Https.Method.GET
-    override val appendIdPath: Boolean
-        get() = true
+        get() = Https.Method.POST
+
     override val appendPathSuffix: String
-        get() = "state/tracing"
+        get() = "state/ids"
+
     override val summary: String
-        get() = "Get aggregate tracing"
-    override val responseType: Class<*>
-        get() = StateEvent::class.java
+        get() = "Query state aggregate by ids"
+
+    override val requestBodyType: Class<*>
+        get() = String::class.java
+    override val requestBody: RequestBody
+        get() {
+            val arraySchema = ArraySchema()
+            val requestBody = RequestBody().required(true).content(content(arraySchema))
+            arraySchema.items(StringSchema())
+            return requestBody
+        }
     override val isArrayResponse: Boolean
         get() = true
+    override val responseType: Class<*>
+        get() = aggregateMetadata.state.aggregateType
 }

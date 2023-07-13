@@ -28,6 +28,7 @@ import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.query.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
@@ -40,6 +41,7 @@ import me.ahoo.wow.webflux.route.command.DeleteAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunction
+import me.ahoo.wow.webflux.route.query.IdsQueryAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.query.ScanAggregateHandlerFunction
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunction
@@ -73,7 +75,7 @@ class AggregateRouterFunctionAutoRegistrar(
         buildRouterFunction()
     }
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun buildRouterFunction(): RouterFunction<ServerResponse> {
         check(router.isNotEmpty()) {
             "router is empty!"
@@ -93,6 +95,17 @@ class AggregateRouterFunctionAutoRegistrar(
                     routerFunctionBuilder.route(
                         requestPredicate,
                         LoadAggregateHandlerFunction(
+                            aggregateMetadata = routeSpec.aggregateMetadata,
+                            stateAggregateRepository = stateAggregateRepository,
+                            exceptionHandler = exceptionHandler,
+                        )
+                    )
+                }
+
+                is IdsQueryAggregateRouteSpec -> {
+                    routerFunctionBuilder.route(
+                        requestPredicate,
+                        IdsQueryAggregateHandlerFunction(
                             aggregateMetadata = routeSpec.aggregateMetadata,
                             stateAggregateRepository = stateAggregateRepository,
                             exceptionHandler = exceptionHandler,

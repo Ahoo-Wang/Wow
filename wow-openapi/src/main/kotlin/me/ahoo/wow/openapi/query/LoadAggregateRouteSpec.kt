@@ -24,7 +24,7 @@ class LoadAggregateRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec() {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.loadStateAggregate"
+        get() = "${aggregateMetadata.asStringWithAlias()}.getStateAggregate"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
@@ -34,7 +34,7 @@ class LoadAggregateRouteSpec(
         get() = "state"
 
     override val summary: String
-        get() = "Load state aggregate"
+        get() = "Get state aggregate"
 
     override val responseType: Class<*>
         get() = aggregateMetadata.state.aggregateType

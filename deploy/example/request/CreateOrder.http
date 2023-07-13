@@ -1,4 +1,4 @@
-POST {{host}}/customer/{{$uuid}}/tenant/{{$uuid}}/order/create_order
+POST {{host}}/customer/{{$uuid}}/tenant/{{$uuid}}/order
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
