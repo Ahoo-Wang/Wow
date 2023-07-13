@@ -18,8 +18,10 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -42,5 +44,23 @@ class RegenerateStateEventFunction(
                 handler.handle(it, cursorId, limit)
             }
             .asServerResponse(exceptionHandler)
+    }
+}
+
+class RegenerateStateEventFunctionFactory(
+    private val eventStore: EventStore,
+    private val stateEventCompensator: StateEventCompensator,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<RegenerateStateEventRouteSpec> {
+    override val supportedSpec: Class<RegenerateStateEventRouteSpec>
+        get() = RegenerateStateEventRouteSpec::class.java
+
+    override fun create(spec: RegenerateStateEventRouteSpec): HandlerFunction<ServerResponse> {
+        return RegenerateStateEventFunction(
+            aggregateMetadata = spec.aggregateMetadata,
+            eventStore = eventStore,
+            stateEventCompensator = stateEventCompensator,
+            exceptionHandler = exceptionHandler,
+        )
     }
 }

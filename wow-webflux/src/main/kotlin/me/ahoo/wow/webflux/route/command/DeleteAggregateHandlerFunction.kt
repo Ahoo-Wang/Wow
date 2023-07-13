@@ -16,8 +16,10 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -34,5 +36,18 @@ class DeleteAggregateHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return handler.handle(request, DefaultDeleteAggregate)
             .asServerResponse(exceptionHandler)
+    }
+}
+
+class DeleteAggregateHandlerFunctionFactory(
+    private val commandGateway: CommandGateway,
+    private val timeout: Duration = DEFAULT_TIME_OUT,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<DefaultDeleteAggregateRouteSpec> {
+    override val supportedSpec: Class<DefaultDeleteAggregateRouteSpec>
+        get() = DefaultDeleteAggregateRouteSpec::class.java
+
+    override fun create(spec: DefaultDeleteAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return DeleteAggregateHandlerFunction(spec.aggregateMetadata, commandGateway, timeout, exceptionHandler)
     }
 }

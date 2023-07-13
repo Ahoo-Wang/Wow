@@ -18,8 +18,10 @@ import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -44,5 +46,17 @@ class LoadAggregateHandlerFunction(
             .map { it.state }
             .throwNotFoundIfEmpty()
             .asServerResponse(exceptionHandler)
+    }
+}
+
+class LoadAggregateHandlerFunctionFactory(
+    private val stateAggregateRepository: StateAggregateRepository,
+    private val exceptionHandler: ExceptionHandler
+) : RouteHandlerFunctionFactory<LoadAggregateRouteSpec> {
+    override val supportedSpec: Class<LoadAggregateRouteSpec>
+        get() = LoadAggregateRouteSpec::class.java
+
+    override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return LoadAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
     }
 }
