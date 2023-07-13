@@ -23,6 +23,7 @@ const val DEFAULT_COMMAND_PATH = "__{command_name}__"
 annotation class CommandRoute(
     val path: String = DEFAULT_COMMAND_PATH,
     val enabled: Boolean = true,
+    val method: Method = Method.DEFAULT,
     val prefix: String = "",
     val appendIdPath: AppendIdPath = AppendIdPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false
@@ -41,6 +42,14 @@ annotation class CommandRoute(
         val nestedPath: Array<String> = [],
         val required: Boolean = true
     )
+
+    enum class Method {
+        POST,
+        PUT,
+        DELETE,
+        PATCH,
+        DEFAULT
+    }
 
     enum class AppendIdPath {
         ALWAYS,

@@ -75,6 +75,9 @@ class Router(
         val loadAggregateRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
         add(loadAggregateRouteSpec)
 
+        val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
+        add(aggregateTracingRouteSpec)
+
         //region snapshot
         val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
         add(regenerateSnapshotRouteSpec)
@@ -92,8 +95,6 @@ class Router(
         add(stateEventCompensateRouteSpec)
         //endregion
 
-        val aggregateTracingRouteSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata).build()
-        add(aggregateTracingRouteSpec)
         return this
     }
 
