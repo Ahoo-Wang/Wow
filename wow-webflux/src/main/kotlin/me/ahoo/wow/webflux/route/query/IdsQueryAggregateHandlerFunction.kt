@@ -16,10 +16,9 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.query.IdsQueryAggregateRouteSpec
-import me.ahoo.wow.openapi.query.TenantIdsQuery
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -27,34 +26,18 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 object IdList : ParameterizedTypeReference<Set<String>>()
-object IdsQueryList : ParameterizedTypeReference<Set<TenantIdsQuery>>()
 
 class IdsQueryAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val routeSpec: IdsQueryAggregateRouteSpec,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
-    @Suppress("UNCHECKED_CAST")
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val parameterizedTypeReference: ParameterizedTypeReference<*> =
-            if (routeSpec.requestBodyType == String::class.java) {
-                IdList
-            } else {
-                IdsQueryList
-            }
-        return request.bodyToMono(parameterizedTypeReference)
+        val tenantId = request.getTenantId(aggregateMetadata)
+        return request.bodyToMono(IdList)
             .flatMapIterable {
-                if (routeSpec.requestBodyType == String::class.java) {
-                    val ids = it as Set<String>
-                    ids.map { id ->
-                        aggregateMetadata.asAggregateId(id = id, tenantId = aggregateMetadata.staticTenantId!!)
-                    }
-                } else {
-                    val ids = it as Set<TenantIdsQuery>
-                    ids.map { tenantIdsQuery ->
-                        aggregateMetadata.asAggregateId(id = tenantIdsQuery.id, tenantId = tenantIdsQuery.tenantId)
-                    }
+                it.map { id ->
+                    aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
                 }
             }
             .flatMap {

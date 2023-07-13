@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.Schemas.getSchemaRef
 
 class IdsQueryAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -34,26 +33,17 @@ class IdsQueryAggregateRouteSpec(
 
     override val appendPathSuffix: String
         get() = "state/ids"
-    override val ignoreTenant: Boolean
-        get() = true
+
     override val summary: String
-        get() = "Load state aggregate by ids"
+        get() = "Query state aggregate by ids"
 
     override val requestBodyType: Class<*>
-        get() = if (super.ignoreTenant) {
-            String::class.java
-        } else {
-            TenantIdsQuery::class.java
-        }
+        get() = String::class.java
     override val requestBody: RequestBody
         get() {
             val arraySchema = ArraySchema()
             val requestBody = RequestBody().required(true).content(content(arraySchema))
-            if (super.ignoreTenant) {
-                arraySchema.items(StringSchema())
-            } else {
-                arraySchema.items(requestBodyType.getSchemaRef())
-            }
+            arraySchema.items(StringSchema())
             return requestBody
         }
     override val isArrayResponse: Boolean
@@ -61,8 +51,3 @@ class IdsQueryAggregateRouteSpec(
     override val responseType: Class<*>
         get() = aggregateMetadata.state.aggregateType
 }
-
-data class TenantIdsQuery(
-    val tenantId: String,
-    val id: String
-)

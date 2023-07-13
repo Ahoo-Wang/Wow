@@ -25,7 +25,7 @@ class AggregateTracingRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec() {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.aggregateTracing"
+        get() = "${aggregateMetadata.asStringWithAlias()}.getAggregateTracing"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
@@ -33,7 +33,7 @@ class AggregateTracingRouteSpec(
     override val appendPathSuffix: String
         get() = "state/tracing"
     override val summary: String
-        get() = "Aggregate Tracing"
+        get() = "Get aggregate tracing"
     override val responseType: Class<*>
         get() = StateEvent::class.java
     override val isArrayResponse: Boolean

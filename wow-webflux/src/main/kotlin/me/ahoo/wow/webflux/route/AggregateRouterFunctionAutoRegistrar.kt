@@ -108,7 +108,6 @@ class AggregateRouterFunctionAutoRegistrar(
                         IdsQueryAggregateHandlerFunction(
                             aggregateMetadata = routeSpec.aggregateMetadata,
                             stateAggregateRepository = stateAggregateRepository,
-                            routeSpec = routeSpec,
                             exceptionHandler = exceptionHandler,
                         )
                     )
