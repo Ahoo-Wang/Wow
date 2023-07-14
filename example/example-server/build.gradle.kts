@@ -12,7 +12,6 @@
  */
 
 plugins {
-    alias(libs.plugins.ksp)
     application
     alias(libs.plugins.kotlin)
     alias(libs.plugins.kotlinSpring)
@@ -57,7 +56,6 @@ application {
 dependencies {
     implementation(platform(project(":wow-dependencies")))
     kapt(platform(project(":wow-dependencies")))
-    ksp(project(":wow-compiler"))
     implementation("io.netty:netty-all")
     implementation(project(":example-domain"))
     implementation(project(":wow-mongo"))
