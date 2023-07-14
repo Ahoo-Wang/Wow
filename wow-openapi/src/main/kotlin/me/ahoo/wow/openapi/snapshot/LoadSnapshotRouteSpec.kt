@@ -13,11 +13,19 @@
 
 package me.ahoo.wow.openapi.snapshot
 
+import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
+import me.ahoo.wow.openapi.Schemas.asSchemas
+import me.ahoo.wow.openapi.snapshot.SnapshotSchema.Companion.asSnapshotSchema
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 class LoadSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -35,9 +43,29 @@ class LoadSnapshotRouteSpec(
 
     override val summary: String
         get() = "Get snapshot"
+    private val snapshotSchema = aggregateMetadata.state.aggregateType.asSnapshotSchema()
 
-    override val responseType: Class<*>
-        get() = aggregateMetadata.state.aggregateType
+    override fun customize(apiResponse: ApiResponse): ApiResponse {
+        return apiResponse.content(content(snapshotSchema.schemaRef))
+    }
 
+    override fun build(): RouteSpec {
+        super.build()
+        schemas[snapshotSchema.name] = snapshotSchema.schema
+        return this
+    }
+}
 
+data class SnapshotSchema(val name: String, val schema: Schema<*>, val schemaRef: Schema<*>) {
+
+    companion object {
+        fun Class<*>.asSnapshotSchema(): SnapshotSchema {
+            val stateAggregateName = simpleName
+            val snapshotName = Snapshot::class.java.simpleName
+            val schema = Snapshot::class.java.asSchemas()[snapshotName]!!
+            schema.properties[StateAggregateRecords.STATE] = this.asSchemaRef()
+            val schemaName = "${stateAggregateName}$snapshotName"
+            return SnapshotSchema(schemaName, schema, schemaName.asSchemaRef())
+        }
+    }
 }

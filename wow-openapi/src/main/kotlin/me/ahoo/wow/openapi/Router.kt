@@ -19,8 +19,6 @@ import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
@@ -35,6 +33,7 @@ import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
 import me.ahoo.wow.openapi.route.asCommandRouteMetadata
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
 
@@ -86,7 +85,7 @@ class Router(
         add(aggregateTracingRouteSpec)
 
         //region snapshot
-        val loadSnapshotRouteSpec = LoadAggregateRouteSpec(currentContext, aggregateMetadata).build()
+        val loadSnapshotRouteSpec = LoadSnapshotRouteSpec(currentContext, aggregateMetadata).build()
         add(loadSnapshotRouteSpec)
         val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
         add(regenerateSnapshotRouteSpec)

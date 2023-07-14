@@ -34,8 +34,12 @@ object Schemas {
         return schemas
     }
 
-    fun Class<*>.getSchemaRef(): Schema<*> {
-        val schemaRef = "${Components.COMPONENTS_SCHEMAS_REF}${this.simpleName}"
+    fun Class<*>.asSchemaRef(): Schema<*> {
+        return this.simpleName.asSchemaRef()
+    }
+
+    fun String.asSchemaRef(): Schema<*> {
+        val schemaRef = "${Components.COMPONENTS_SCHEMAS_REF}$this"
         return Schema<Any>().`$ref`(schemaRef)
     }
 }

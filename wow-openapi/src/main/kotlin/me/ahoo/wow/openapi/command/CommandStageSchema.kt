@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.command
 
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.Schemas.getSchemaRef
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
 
 object CommandStageSchema {
     val name = CommandStage::class.java.simpleName
@@ -25,7 +25,7 @@ object CommandStageSchema {
         }
     }
 
-    val schemaRef = CommandStage::class.java.getSchemaRef()
+    val schemaRef = CommandStage::class.java.asSchemaRef()
 
     val default = CommandStage.PROCESSED.name
 }

@@ -23,8 +23,8 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
-import me.ahoo.wow.openapi.Schemas.getSchemaRef
 
 abstract class AbstractRouteSpec : RouteSpec {
     open val requestBodyType: Class<*>?
@@ -40,7 +40,7 @@ abstract class AbstractRouteSpec : RouteSpec {
             if (requestBodyType == null) {
                 return null
             }
-            val schema = requestBodyType!!.getSchemaRef()
+            val schema = requestBodyType!!.asSchemaRef()
             return RequestBody()
                 .required(true)
                 .content(
@@ -95,7 +95,7 @@ abstract class AbstractRouteSpec : RouteSpec {
     private fun initResponse() {
         val apiResponse = ApiResponse().description(ErrorInfo.SUCCEEDED)
         if (responseType != null && !responseType!!.isPrimitive) {
-            val responseSchema = responseType!!.getSchemaRef()
+            val responseSchema = responseType!!.asSchemaRef()
             val schema = if (isArrayResponse) {
                 ArraySchema().items(responseSchema)
             } else {
