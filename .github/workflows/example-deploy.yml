@@ -48,7 +48,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Build Dist
-        run: gradle example-server:installDist
+        run: ./gradlew example-server:installDist
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
