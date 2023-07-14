@@ -73,6 +73,8 @@ class R2dbcSnapshotRepository(
             check(actualVersion == expectedVersion)
         }
         val eventId = readable.get("event_id", String::class.java).orEmpty()
+        val firstOperator = readable.get("first_operator", String::class.java).orEmpty()
+        val operator = readable.get("operator", String::class.java).orEmpty()
         val firstEventTime = readable.get("first_event_time", Long::class.java) ?: 0L
         val eventTime = readable.get("event_time", Long::class.java) ?: 0L
         val snapshotTime = checkNotNull(readable.get("snapshot_time", Long::class.java))
@@ -87,6 +89,8 @@ class R2dbcSnapshotRepository(
                 state = stateRoot,
                 version = actualVersion,
                 eventId = eventId,
+                firstOperator = firstOperator,
+                operator = operator,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
                 deleted = deleted,
@@ -106,10 +110,12 @@ class R2dbcSnapshotRepository(
                     .bind(3, snapshot.state.javaClass.name)
                     .bind(4, snapshot.state.asJsonString())
                     .bind(5, snapshot.eventId)
-                    .bind(6, snapshot.firstEventTime)
-                    .bind(7, snapshot.eventTime)
-                    .bind(8, snapshot.snapshotTime)
-                    .bind(9, snapshot.deleted)
+                    .bind(6, snapshot.firstOperator)
+                    .bind(7, snapshot.operator)
+                    .bind(8, snapshot.firstEventTime)
+                    .bind(9, snapshot.eventTime)
+                    .bind(10, snapshot.snapshotTime)
+                    .bind(11, snapshot.deleted)
                     .execute()
             },
             Connection::close,

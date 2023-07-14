@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.state
 
+import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
@@ -22,6 +23,8 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
         get() = state.javaClass
     override val eventId: String
         get() = id
+    override val operator: String
+        get() = header.operator.orEmpty()
     override val eventTime: Long
         get() = createTime
 
@@ -30,16 +33,24 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
     companion object {
         fun <S : Any> DomainEventStream.asStateEvent(
             state: S,
+            firstOperator: String = header.operator.orEmpty(),
             firstEventTime: Long = createTime,
             deleted: Boolean = false
         ): StateEvent<S> {
-            return StateEventData(this, state, firstEventTime, deleted)
+            return StateEventData(
+                delegate = this,
+                state = state,
+                firstOperator = firstOperator,
+                firstEventTime = firstEventTime,
+                deleted = deleted
+            )
         }
 
         fun <S : Any> DomainEventStream.asStateEvent(stateAggregate: ReadOnlyStateAggregate<S>): StateEvent<S> {
             return StateEventData(
                 delegate = this,
                 state = stateAggregate.state,
+                firstOperator = stateAggregate.firstOperator,
                 firstEventTime = stateAggregate.firstEventTime,
                 deleted = stateAggregate.deleted,
             )
@@ -50,6 +61,7 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
 data class StateEventData<S : Any>(
     override val delegate: DomainEventStream,
     override val state: S,
+    override val firstOperator: String = delegate.header.operator.orEmpty(),
     override val firstEventTime: Long = delegate.createTime,
     override val deleted: Boolean = false
 ) : StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate {

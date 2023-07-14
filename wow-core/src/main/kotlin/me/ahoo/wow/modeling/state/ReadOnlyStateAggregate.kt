@@ -42,6 +42,8 @@ interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version, TypedAg
 
     //region DomainEventStream State
     val eventId: String
+    val firstOperator: String
+    val operator: String
     val firstEventTime: Long
     val eventTime: Long
     //endregion

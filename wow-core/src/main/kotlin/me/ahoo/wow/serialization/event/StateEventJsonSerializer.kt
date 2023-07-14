@@ -25,12 +25,14 @@ import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.serialization.asObject
 import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_EVENT_TIME
+import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_OPERATOR
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
 
 object StateEventJsonSerializer :
     AbstractEventStreamJsonSerializer<StateEvent<*>>(StateEvent::class.java) {
     override fun writeExtendedInfo(generator: JsonGenerator, value: StateEvent<*>) {
         super.writeExtendedInfo(generator, value)
+        generator.writeStringField(FIRST_OPERATOR, value.firstOperator)
         generator.writeNumberField(FIRST_EVENT_TIME, value.firstEventTime)
         generator.writePOJOField(STATE, value.state)
         generator.writeBooleanField(DELETED, value.deleted)
@@ -44,9 +46,15 @@ object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::c
             .asDomainEventStream()
         val metadata = eventStream.asRequiredAggregateType<Any>()
             .asAggregateMetadata<Any, Any>().state
+        val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asText().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateEventRecord[DELETED].asBoolean()
         val stateRoot = stateEventRecord[STATE].asObject(metadata.aggregateType)
-        return eventStream.asStateEvent(stateRoot, firstEventTime, deleted)
+        return eventStream.asStateEvent(
+            state = stateRoot,
+            firstOperator = firstOperator,
+            firstEventTime = firstEventTime,
+            deleted = deleted
+        )
     }
 }

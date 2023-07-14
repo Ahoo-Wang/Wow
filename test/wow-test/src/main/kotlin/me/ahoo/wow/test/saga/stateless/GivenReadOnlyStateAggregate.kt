@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
@@ -24,6 +25,8 @@ class GivenReadOnlyStateAggregate<S : Any>(
     override val version: Int,
     override val deleted: Boolean,
     override val eventId: String,
+    override val firstOperator: String,
+    override val operator: String,
     override val firstEventTime: Long,
     override val eventTime: Long
 ) : ReadOnlyStateAggregate<S> {
@@ -32,10 +35,13 @@ class GivenReadOnlyStateAggregate<S : Any>(
             if (this is ReadOnlyStateAggregate<*>) {
                 return this
             }
-            val firstEventTime = if (domainEvent.isInitialVersion) {
-                domainEvent.createTime
-            } else {
-                0
+            var firstOperator = ""
+            var operator = ""
+            var firstEventTime = 0L
+            if (domainEvent.isInitialVersion) {
+                firstOperator = domainEvent.header.operator.orEmpty()
+                operator = firstOperator
+                firstEventTime = domainEvent.createTime
             }
             return GivenReadOnlyStateAggregate(
                 aggregateId = domainEvent.aggregateId,
@@ -44,6 +50,8 @@ class GivenReadOnlyStateAggregate<S : Any>(
                 version = domainEvent.version,
                 deleted = false,
                 eventId = domainEvent.id,
+                firstOperator = firstOperator,
+                operator = operator,
                 firstEventTime = firstEventTime,
                 eventTime = domainEvent.createTime
             )
