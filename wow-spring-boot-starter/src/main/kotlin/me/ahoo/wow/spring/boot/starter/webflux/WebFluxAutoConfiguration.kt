@@ -39,6 +39,7 @@ import me.ahoo.wow.webflux.route.query.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.ScanAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.RegenerateStateEventFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
@@ -106,6 +107,14 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): AggregateTracingHandlerFunctionFactory {
         return AggregateTracingHandlerFunctionFactory(eventStore, exceptionHandler)
+    }
+
+    @Bean
+    fun loadSnapshotHandlerFunctionFactory(
+        snapshotRepository: SnapshotRepository,
+        exceptionHandler: ExceptionHandler
+    ): LoadSnapshotHandlerFunctionFactory {
+        return LoadSnapshotHandlerFunctionFactory(snapshotRepository, exceptionHandler)
     }
 
     @Bean

@@ -33,6 +33,7 @@ import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
 import me.ahoo.wow.openapi.route.asCommandRouteMetadata
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
 
@@ -84,6 +85,8 @@ class Router(
         add(aggregateTracingRouteSpec)
 
         //region snapshot
+        val loadSnapshotRouteSpec = LoadSnapshotRouteSpec(currentContext, aggregateMetadata).build()
+        add(loadSnapshotRouteSpec)
         val regenerateSnapshotRouteSpec = RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata).build()
         add(regenerateSnapshotRouteSpec)
         val batchRegenerateSnapshotRouteSpec =
@@ -103,7 +106,7 @@ class Router(
         return this
     }
 
-    private fun addCommandStageSchema() {
+    private fun addCommonSchema() {
         openAPI.components.addSchemas(CommandStageSchema.name, CommandStageSchema.schema)
     }
 
@@ -117,7 +120,7 @@ class Router(
             return this
         }
         built = true
-        addCommandStageSchema()
+        addCommonSchema()
         add(CommandWaitRouteSpec)
         val groupedPathRoutes = routes.groupBy {
             it.path

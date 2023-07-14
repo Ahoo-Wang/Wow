@@ -1,7 +1,7 @@
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
-import me.ahoo.wow.openapi.Schemas.getSchemaRef
 import me.ahoo.wow.openapi.route.MockCommandRoute
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.anything
@@ -32,8 +32,8 @@ class SchemasTest {
     }
 
     @Test
-    fun getSchemaRef() {
-        val schemaRef = MockStateAggregate::class.java.getSchemaRef()
+    fun asSchemaRef() {
+        val schemaRef = MockStateAggregate::class.java.asSchemaRef()
         assertThat(
             schemaRef.`$ref`,
             equalTo("#/components/schemas/${MockStateAggregate::class.java.simpleName}")
