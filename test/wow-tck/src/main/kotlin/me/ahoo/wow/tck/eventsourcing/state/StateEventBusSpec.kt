@@ -40,6 +40,6 @@ abstract class StateEventBusSpec : MessageBusSpec<StateEvent<*>, StateEventExcha
             createdEventSupplier = { MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
         )
         val state = MockStateAggregate(eventStream.aggregateId.id)
-        return StateEventData(eventStream, state)
+        return StateEventData(delegate = eventStream, state = state, firstOperator = "", operator = "")
     }
 }

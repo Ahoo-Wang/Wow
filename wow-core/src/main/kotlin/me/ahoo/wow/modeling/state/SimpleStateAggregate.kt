@@ -16,6 +16,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TypedAggregate
+import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
@@ -29,9 +30,11 @@ class SimpleStateAggregate<S : Any>(
     override val state: S,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override var eventId: String = "",
+    override var firstOperator: String = "",
+    override var operator: String = "",
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
-    override var deleted: Boolean = false
+    override var deleted: Boolean = false,
 ) :
     StateAggregate<S>,
     TypedAggregate<S> by metadata {
@@ -63,9 +66,11 @@ class SimpleStateAggregate<S : Any>(
         }
         version = eventStream.version
         eventId = eventStream.id
+        operator = eventStream.header.operator.orEmpty()
         eventTime = eventStream.createTime
         if (isInitialVersion) {
-            firstEventTime = eventStream.createTime
+            firstOperator = operator
+            firstEventTime = eventTime
         }
         return this
     }

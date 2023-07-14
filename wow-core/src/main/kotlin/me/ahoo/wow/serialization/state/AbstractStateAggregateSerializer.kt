@@ -34,6 +34,8 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
 object StateAggregateRecords {
     const val STATE: String = "state"
     const val EVENT_ID: String = "eventId"
+    const val FIRST_OPERATOR: String = "firstOperator"
+    const val OPERATOR: String = "operator"
     const val FIRST_EVENT_TIME: String = "firstEventTime"
     const val EVENT_TIME: String = "eventTime"
     const val DELETED: String = "deleted"
@@ -49,6 +51,8 @@ abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(s
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
+        generator.writeStringField(StateAggregateRecords.FIRST_OPERATOR, value.firstOperator)
+        generator.writeStringField(StateAggregateRecords.OPERATOR, value.operator)
         generator.writeNumberField(StateAggregateRecords.FIRST_EVENT_TIME, value.firstEventTime)
         generator.writeNumberField(StateAggregateRecords.EVENT_TIME, value.eventTime)
         generator.writePOJOField(STATE, value.state)
@@ -72,6 +76,8 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
             .asAggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
         val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
+        val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asText().orEmpty()
+        val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asText().orEmpty()
         val firstEventTime = stateRecord.get(StateAggregateRecords.FIRST_EVENT_TIME)?.asLong() ?: 0L
         val eventTime = stateRecord.get(StateAggregateRecords.EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateRecord[DELETED].asBoolean()
@@ -87,6 +93,8 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
                 state = stateRoot,
                 version = version,
                 eventId = eventId,
+                firstOperator = firstOperator,
+                operator = operator,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
                 deleted = deleted,

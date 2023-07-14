@@ -51,9 +51,9 @@ internal class ShardingSnapshotSchemaTest {
             equalTo(
                 """
      replace into test_snapshot_3
-     (aggregate_id,tenant_id,version,state_type,state,event_id,first_event_time,event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
      values 
-     (?,?,?,?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim(),
             ),
         )

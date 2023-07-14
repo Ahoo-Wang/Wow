@@ -30,16 +30,27 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
     companion object {
         fun <S : Any> DomainEventStream.asStateEvent(
             state: S,
+            firstOperator: String = "",
+            operator: String = "",
             firstEventTime: Long = createTime,
             deleted: Boolean = false
         ): StateEvent<S> {
-            return StateEventData(this, state, firstEventTime, deleted)
+            return StateEventData(
+                delegate = this,
+                state = state,
+                firstOperator = firstOperator,
+                operator = operator,
+                firstEventTime = firstEventTime,
+                deleted = deleted
+            )
         }
 
         fun <S : Any> DomainEventStream.asStateEvent(stateAggregate: ReadOnlyStateAggregate<S>): StateEvent<S> {
             return StateEventData(
                 delegate = this,
                 state = stateAggregate.state,
+                firstOperator = stateAggregate.firstOperator,
+                operator = stateAggregate.operator,
                 firstEventTime = stateAggregate.firstEventTime,
                 deleted = stateAggregate.deleted,
             )
@@ -50,6 +61,8 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
 data class StateEventData<S : Any>(
     override val delegate: DomainEventStream,
     override val state: S,
+    override val firstOperator: String,
+    override val operator: String,
     override val firstEventTime: Long = delegate.createTime,
     override val deleted: Boolean = false
 ) : StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate {
