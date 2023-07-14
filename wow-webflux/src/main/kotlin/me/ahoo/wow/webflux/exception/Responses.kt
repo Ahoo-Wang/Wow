@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -37,7 +38,7 @@ fun ErrorInfo.asServerResponse(): Mono<ServerResponse> {
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
         .header(WOW_ERROR_CODE_HEADER, errorCode)
-        .bodyValue(this)
+        .bodyValue(this.asJsonString())
 }
 
 fun Mono<*>.asServerResponse(exceptionHandler: ExceptionHandler = DefaultExceptionHandler): Mono<ServerResponse> {
@@ -45,7 +46,7 @@ fun Mono<*>.asServerResponse(exceptionHandler: ExceptionHandler = DefaultExcepti
         if (it is ErrorInfo) {
             return@flatMap it.asServerResponse()
         }
-        ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(it)
+        ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(it.asJsonString())
     }.onErrorResume {
         exceptionHandler.handle(it)
     }
