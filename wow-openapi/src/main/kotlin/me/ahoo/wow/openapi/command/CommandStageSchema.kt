@@ -20,7 +20,7 @@ import me.ahoo.wow.openapi.Schemas.getSchemaRef
 object CommandStageSchema {
     val name = CommandStage::class.java.simpleName
     val schema = StringSchema().apply {
-        CommandStage.values().forEach {
+        CommandStage.entries.forEach {
             addEnumItem(it.name)
         }
     }
