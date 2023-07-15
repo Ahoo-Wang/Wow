@@ -82,7 +82,7 @@ fun List<RouteSpec>.toPathItem(): PathItem {
 private fun List<RouteSpec>.duplicateRouteDetect() {
     groupBy {
         it.method
-    }.forEach { (method, routeSpecs) ->
+    }.forEach { (_, routeSpecs) ->
         require(routeSpecs.size == 1) {
             "Duplicate Route: [${routeSpecs.joinToString { it.toString() }}]."
         }
