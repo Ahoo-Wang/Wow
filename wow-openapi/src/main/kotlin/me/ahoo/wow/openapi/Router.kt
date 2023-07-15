@@ -59,8 +59,7 @@ class Router(
     }
 
     private fun Class<*>.addCommandRouteSpec(aggregateMetadata: AggregateMetadata<*, *>) {
-        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
-        val commandRouteMetadata = asCommandRouteMetadata().copy(appendTenantPath = appendTenantPath)
+        val commandRouteMetadata = asCommandRouteMetadata()
         if (!commandRouteMetadata.enabled) {
             return
         }
