@@ -71,9 +71,7 @@ data class CommandAggregateMetadata<C : Any>(
         if (this === other) return true
         if (other !is CommandAggregateMetadata<*>) return false
 
-        if (aggregateType != other.aggregateType) return false
-
-        return true
+        return aggregateType == other.aggregateType
     }
 
     override fun hashCode(): Int {

@@ -56,6 +56,7 @@ fun RouteSpec.toOperation(): Operation {
 }
 
 fun List<RouteSpec>.toPathItem(): PathItem {
+    duplicateRouteDetect()
     val firstRouteSpec = this.first()
     val pathItem = PathItem()
     pathItem.summary = firstRouteSpec.summary
@@ -76,4 +77,14 @@ fun List<RouteSpec>.toPathItem(): PathItem {
     }
 
     return pathItem
+}
+
+private fun List<RouteSpec>.duplicateRouteDetect() {
+    groupBy {
+        it.method
+    }.forEach { (_, routeSpecs) ->
+        require(routeSpecs.size == 1) {
+            "Duplicate Route: [${routeSpecs.joinToString { it.toString() }}]."
+        }
+    }
 }

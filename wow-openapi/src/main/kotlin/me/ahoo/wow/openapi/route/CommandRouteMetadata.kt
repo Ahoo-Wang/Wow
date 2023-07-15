@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.route
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.asObject
@@ -23,7 +24,8 @@ data class CommandRouteMetadata<C>(
     val path: String,
     val method: String,
     val prefix: String = "",
-    val appendIdPath: Boolean = false,
+    val appendIdPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
+    val appendTenantPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false,
     val commandMetadata: CommandMetadata<C>,
     /**

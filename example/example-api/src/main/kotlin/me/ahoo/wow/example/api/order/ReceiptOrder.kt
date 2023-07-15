@@ -27,7 +27,7 @@ import me.ahoo.wow.example.api.ExampleService
 @CommandRoute(
     prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = "package",
-    appendIdPath = CommandRoute.AppendIdPath.ALWAYS,
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
     method = CommandRoute.Method.PATCH
 )
 data class ReceiptOrder(

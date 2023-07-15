@@ -31,7 +31,7 @@ class CommandRouteMetadataParserTest {
         assertThat(commandRouteMetadata.path, equalTo("{id}/{name}"))
         assertThat(commandRouteMetadata.method, equalTo(Https.Method.PATCH))
         assertThat(commandRouteMetadata.prefix, equalTo(""))
-        assertThat(commandRouteMetadata.appendIdPath, equalTo(false))
+        assertThat(commandRouteMetadata.appendIdPath, equalTo(CommandRoute.AppendPath.DEFAULT))
         assertThat(commandRouteMetadata.ignoreAggregateNamePrefix, equalTo(false))
         val idPathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "id" }
         assertThat(idPathVariable.fieldName, equalTo("id"))

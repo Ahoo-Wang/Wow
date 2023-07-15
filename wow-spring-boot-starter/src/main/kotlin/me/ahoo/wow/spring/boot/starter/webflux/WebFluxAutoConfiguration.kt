@@ -31,7 +31,6 @@ import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
-import me.ahoo.wow.webflux.route.command.DeleteAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunctionFactory
@@ -170,14 +169,6 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): StateEventCompensateHandlerFunctionFactory {
         return StateEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
-    }
-
-    @Bean
-    fun deleteAggregateHandlerFunctionFactory(
-        commandGateway: CommandGateway,
-        exceptionHandler: ExceptionHandler
-    ): DeleteAggregateHandlerFunctionFactory {
-        return DeleteAggregateHandlerFunctionFactory(commandGateway, DEFAULT_TIME_OUT, exceptionHandler)
     }
 
     @Bean

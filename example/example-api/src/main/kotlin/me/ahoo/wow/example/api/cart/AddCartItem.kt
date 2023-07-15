@@ -8,7 +8,7 @@ import me.ahoo.wow.api.annotation.Summary
 
 @Summary("加入购物车")
 @AllowCreate
-@CommandRoute(appendIdPath = CommandRoute.AppendIdPath.ALWAYS, method = CommandRoute.Method.POST)
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS, method = CommandRoute.Method.POST)
 data class AddCartItem(
     @CommandRoute.PathVariable
     val id: String,

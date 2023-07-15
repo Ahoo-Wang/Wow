@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.command
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
@@ -41,8 +42,28 @@ open class CommandRouteSpec(
             return commandRouteMetadata.method
         }
 
+    private fun CommandRoute.AppendPath.resolve(default: Boolean): Boolean {
+        return when (this) {
+            CommandRoute.AppendPath.DEFAULT -> {
+                default
+            }
+
+            CommandRoute.AppendPath.ALWAYS -> true
+            CommandRoute.AppendPath.NEVER -> false
+        }
+    }
+
+    override val appendTenantPath: Boolean
+        get() {
+            val default = super.appendTenantPath
+            return commandRouteMetadata.appendTenantPath.resolve(default)
+        }
     override val appendIdPath: Boolean
-        get() = commandRouteMetadata.appendIdPath
+        get() {
+            val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
+                !commandRouteMetadata.commandMetadata.isCreate
+            return commandRouteMetadata.appendIdPath.resolve(default)
+        }
 
     override val path: String
         get() {

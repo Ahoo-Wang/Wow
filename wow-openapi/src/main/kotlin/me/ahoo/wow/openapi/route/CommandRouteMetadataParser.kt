@@ -83,17 +83,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 
     fun asMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.asCommandMetadata()
-        val defaultAppendIdPath = commandMetadata.aggregateIdGetter == null && !commandMetadata.isCreate
-
         return commandType.scan<CommandRoute>()?.let {
-            val appendIdPath = when (it.appendIdPath) {
-                CommandRoute.AppendIdPath.DEFAULT -> {
-                    defaultAppendIdPath
-                }
-
-                CommandRoute.AppendIdPath.ALWAYS -> true
-                CommandRoute.AppendIdPath.NEVER -> false
-            }
             val path = if (it.path == DEFAULT_COMMAND_PATH) {
                 commandMetadata.name
             } else {
@@ -104,7 +94,8 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 path = path,
                 method = commandMetadata.asMethod(it.method),
                 prefix = it.prefix,
-                appendIdPath = appendIdPath,
+                appendIdPath = it.appendIdPath,
+                appendTenantPath = it.appendTenantPath,
                 ignoreAggregateNamePrefix = it.ignoreAggregateNamePrefix,
                 commandMetadata = commandMetadata,
                 pathVariableMetadata = pathVariables,
@@ -114,7 +105,8 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
             enabled = true,
             path = commandMetadata.name,
             method = commandMetadata.asMethod(),
-            appendIdPath = defaultAppendIdPath,
+            appendIdPath = CommandRoute.AppendPath.DEFAULT,
+            appendTenantPath = CommandRoute.AppendPath.DEFAULT,
             ignoreAggregateNamePrefix = false,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,

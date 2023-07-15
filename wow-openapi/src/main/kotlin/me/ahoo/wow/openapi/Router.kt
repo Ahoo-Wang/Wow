@@ -17,6 +17,7 @@ import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
@@ -24,7 +25,6 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandStageSchema
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
-import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
@@ -58,20 +58,23 @@ class Router(
         return this
     }
 
+    private fun Class<*>.addCommandRouteSpec(aggregateMetadata: AggregateMetadata<*, *>) {
+        val commandRouteMetadata = asCommandRouteMetadata()
+        if (!commandRouteMetadata.enabled) {
+            return
+        }
+        val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
+        add(commandRouteSpec)
+    }
+
     private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
         //region command route
         aggregateMetadata.command.commandFunctionRegistry
-            .forEach {
-                val commandRouteMetadata = it.key.asCommandRouteMetadata()
-                if (!commandRouteMetadata.enabled) {
-                    return@forEach
-                }
-                val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
-                add(commandRouteSpec)
+            .forEach { entry ->
+                entry.key.addCommandRouteSpec(aggregateMetadata)
             }
         if (!aggregateMetadata.command.registeredDeleteAggregate) {
-            val deleteAggregateRouteSpec = DefaultDeleteAggregateRouteSpec(currentContext, aggregateMetadata).build()
-            add(deleteAggregateRouteSpec)
+            DefaultDeleteAggregate::class.java.addCommandRouteSpec(aggregateMetadata)
         }
         //endregion
 

@@ -25,7 +25,8 @@ annotation class CommandRoute(
     val enabled: Boolean = true,
     val method: Method = Method.DEFAULT,
     val prefix: String = "",
-    val appendIdPath: AppendIdPath = AppendIdPath.DEFAULT,
+    val appendIdPath: AppendPath = AppendPath.DEFAULT,
+    val appendTenantPath: AppendPath = AppendPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false
 ) {
 
@@ -51,7 +52,7 @@ annotation class CommandRoute(
         DEFAULT
     }
 
-    enum class AppendIdPath {
+    enum class AppendPath {
         ALWAYS,
         NEVER,
         DEFAULT
