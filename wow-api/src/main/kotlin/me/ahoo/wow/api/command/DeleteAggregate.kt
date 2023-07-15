@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.command
 
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
 /**
@@ -21,4 +22,5 @@ import me.ahoo.wow.api.annotation.Summary
 interface DeleteAggregate
 
 @Summary("Delete aggregate")
+@CommandRoute(path = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 object DefaultDeleteAggregate : DeleteAggregate

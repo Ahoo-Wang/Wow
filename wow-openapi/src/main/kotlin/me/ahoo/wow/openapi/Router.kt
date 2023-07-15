@@ -17,6 +17,7 @@ import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
@@ -24,7 +25,6 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandStageSchema
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
-import me.ahoo.wow.openapi.command.DefaultDeleteAggregateRouteSpec
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
@@ -70,7 +70,7 @@ class Router(
                 add(commandRouteSpec)
             }
         if (!aggregateMetadata.command.registeredDeleteAggregate) {
-            val deleteAggregateRouteSpec = DefaultDeleteAggregateRouteSpec(currentContext, aggregateMetadata).build()
+            val deleteAggregateRouteSpec = aggregateMetadata.deleteAggregateRouteSpec()
             add(deleteAggregateRouteSpec)
         }
         //endregion
@@ -104,6 +104,13 @@ class Router(
         //endregion
 
         return this
+    }
+
+    private fun AggregateMetadata<*, *>.deleteAggregateRouteSpec(): RouteSpec {
+        val appendTenantPath = staticTenantId.isNullOrBlank()
+        val deleteCommandRouteMetadata = DefaultDeleteAggregate::class.java.asCommandRouteMetadata()
+            .copy(appendTenantPath = appendTenantPath)
+        return CommandRouteSpec(currentContext, this, deleteCommandRouteMetadata).build()
     }
 
     private fun addCommonSchema() {
