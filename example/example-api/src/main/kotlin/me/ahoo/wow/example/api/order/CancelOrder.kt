@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
 @Summary("取消订单")
-@CommandRoute(appendIdPath = CommandRoute.AppendIdPath.ALWAYS, method = CommandRoute.Method.PATCH)
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS, method = CommandRoute.Method.PATCH)
 data class CancelOrder(val id: String)
 
 object OrderCancelled

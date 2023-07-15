@@ -40,7 +40,8 @@ open class CommandRouteSpec(
         get() {
             return commandRouteMetadata.method
         }
-
+    override val appendTenantPath: Boolean
+        get() = commandRouteMetadata.appendTenantPath
     override val appendIdPath: Boolean
         get() = commandRouteMetadata.appendIdPath
 

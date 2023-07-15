@@ -24,6 +24,7 @@ data class CommandRouteMetadata<C>(
     val method: String,
     val prefix: String = "",
     val appendIdPath: Boolean = false,
+    val appendTenantPath: Boolean = false,
     val ignoreAggregateNamePrefix: Boolean = false,
     val commandMetadata: CommandMetadata<C>,
     /**

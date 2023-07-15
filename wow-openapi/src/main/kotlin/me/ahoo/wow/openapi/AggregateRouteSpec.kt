@@ -37,8 +37,8 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
             }
             return tags
         }
-    open val ignoreTenant: Boolean
-        get() = !aggregateMetadata.staticTenantId.isNullOrBlank()
+    open val appendTenantPath: Boolean
+        get() = aggregateMetadata.staticTenantId.isNullOrBlank()
     open val appendIdPath: Boolean
         get() = false
     open val appendPathSuffix: String
@@ -46,7 +46,7 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
     override val path: String
         get() {
             val pathBuilder = PathBuilder()
-            if (!ignoreTenant) {
+            if (appendTenantPath) {
                 pathBuilder.append(TENANT_PATH_PREFIX)
             }
             val namedAggregate = aggregateMetadata.namedAggregate
@@ -65,7 +65,7 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
 
     override fun build(): RouteSpec {
         super.build()
-        if (!ignoreTenant) {
+        if (appendTenantPath) {
             addParameter(MessageRecords.TENANT_ID, ParameterIn.PATH, StringSchema()) {
                 it.required(true)
                 it.example(TenantId.DEFAULT_TENANT_ID)

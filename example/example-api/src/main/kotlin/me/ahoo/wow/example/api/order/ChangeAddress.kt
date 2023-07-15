@@ -26,7 +26,7 @@ import me.ahoo.wow.example.api.ExampleService
     prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = "address",
     method = CommandRoute.Method.PUT,
-    appendIdPath = CommandRoute.AppendIdPath.ALWAYS
+    appendIdPath = CommandRoute.AppendPath.ALWAYS
 )
 data class ChangeAddress(
     @CommandRoute.PathVariable
