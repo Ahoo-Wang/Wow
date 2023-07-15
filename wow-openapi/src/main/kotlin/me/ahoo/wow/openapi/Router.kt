@@ -58,20 +58,24 @@ class Router(
         return this
     }
 
+    private fun Class<*>.addCommandRouteSpec(aggregateMetadata: AggregateMetadata<*, *>) {
+        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        val commandRouteMetadata = asCommandRouteMetadata().copy(appendTenantPath = appendTenantPath)
+        if (!commandRouteMetadata.enabled) {
+            return
+        }
+        val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
+        add(commandRouteSpec)
+    }
+
     private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
         //region command route
         aggregateMetadata.command.commandFunctionRegistry
-            .forEach {
-                val commandRouteMetadata = it.key.asCommandRouteMetadata()
-                if (!commandRouteMetadata.enabled) {
-                    return@forEach
-                }
-                val commandRouteSpec = CommandRouteSpec(currentContext, aggregateMetadata, commandRouteMetadata).build()
-                add(commandRouteSpec)
+            .forEach { entry ->
+                entry.key.addCommandRouteSpec(aggregateMetadata)
             }
         if (!aggregateMetadata.command.registeredDeleteAggregate) {
-            val deleteAggregateRouteSpec = aggregateMetadata.deleteAggregateRouteSpec()
-            add(deleteAggregateRouteSpec)
+            DefaultDeleteAggregate::class.java.addCommandRouteSpec(aggregateMetadata)
         }
         //endregion
 
@@ -104,13 +108,6 @@ class Router(
         //endregion
 
         return this
-    }
-
-    private fun AggregateMetadata<*, *>.deleteAggregateRouteSpec(): RouteSpec {
-        val appendTenantPath = staticTenantId.isNullOrBlank()
-        val deleteCommandRouteMetadata = DefaultDeleteAggregate::class.java.asCommandRouteMetadata()
-            .copy(appendTenantPath = appendTenantPath)
-        return CommandRouteSpec(currentContext, this, deleteCommandRouteMetadata).build()
     }
 
     private fun addCommonSchema() {

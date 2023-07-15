@@ -114,6 +114,6 @@ abstract class AbstractRouteSpec : RouteSpec {
     }
 
     override fun toString(): String {
-        return "$path && $method"
+        return "$id@($path && $method)"
     }
 }
