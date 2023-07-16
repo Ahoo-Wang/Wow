@@ -30,6 +30,7 @@ CREATE TABLE bi_db.order_order_state_local on cluster '{cluster}'
     version        UInt32,
     state          String,
     body           String,
+    firstOperator  String,
     firstEventTime DateTime('Asia/Shanghai'),
     createTime     DateTime('Asia/Shanghai'),
     deleted        Bool
@@ -65,6 +66,7 @@ SELECT JSONExtractString(data, 'id')                                            
        JSONExtractUInt(data, 'version')                                                   AS version,
        JSONExtractString(data, 'state')                                                   AS state,
        JSONExtractString(data, 'body')                                                    AS body,
+       JSONExtractString(data, 'firstOperator')                                           AS firstOperator,
        toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS firstEventTime,
        toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0, 3, 'Asia/Shanghai')     AS createTime,
        JSONExtractBool(data, 'deleted')                                                   AS deleted
