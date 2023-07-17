@@ -40,7 +40,7 @@ class ScanAggregateHandlerFunction(
             namedAggregate = aggregateMetadata.namedAggregate,
             cursorId = cursorId,
             limit = limit,
-        ).flatMap {
+        ).flatMapSequential {
             stateAggregateRepository.load<Any>(it)
         }.filter {
             it.initialized && !it.deleted
