@@ -46,12 +46,12 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
     override val path: String
         get() {
             val pathBuilder = PathBuilder()
-            if (appendTenantPath) {
-                pathBuilder.append(TENANT_PATH_PREFIX)
-            }
             val namedAggregate = aggregateMetadata.namedAggregate
             if (!currentContext.isSameBoundedContext(namedAggregate)) {
-                pathBuilder.append(currentContext.getContextAlias())
+                pathBuilder.append(namedAggregate.getContextAlias())
+            }
+            if (appendTenantPath) {
+                pathBuilder.append(TENANT_PATH_PREFIX)
             }
             pathBuilder.append(namedAggregate.aggregateName)
             if (appendIdPath) {
