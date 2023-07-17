@@ -297,17 +297,10 @@ internal class OrderTest {
             /*
              * 3.2 期望产生的事件状态
              */
-            .expectEventStream {
-                val itr = it.iterator()
-                /*
-                 * OrderPaid
-                 */
-                val orderPaid = itr.next().body as OrderPaid
+            .expect {
+                val orderPaid = it.nextEventBody<OrderPaid>()
                 assertThat(orderPaid.paid, equalTo(true))
-                /*
-                 * OrderOverPaid
-                 */
-                val orderOverPaid = itr.next().body as OrderOverPaid
+                val orderOverPaid = it.nextEventBody<OrderOverPaid>()
                 assertThat(
                     orderOverPaid.overPay,
                     equalTo(payOrder.amount.minus(previousState.totalAmount)),
