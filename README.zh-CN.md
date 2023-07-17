@@ -120,7 +120,7 @@
 
 > Given -> When -> Expect .
 
-## Aggregate Unit Test (`AggregateVerifier`)
+### Aggregate Unit Test (`AggregateVerifier`)
 
 [Aggregate Test](./example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderTest.kt)
 
@@ -274,7 +274,7 @@ internal class OrderTest {
 }
 ```
 
-## Saga Unit Test (`SagaVerifier`)
+### Saga Unit Test (`SagaVerifier`)
 
 [Saga Test](./example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaTest.kt)
 
