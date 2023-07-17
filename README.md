@@ -12,7 +12,8 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 [![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
 [![Awesome Kotlin Badge](https://kotlin.link/awesome-kotlin.svg)](https://github.com/KotlinBy/awesome-kotlin)
 
-**Domain-Driven** | **Event-Driven** | **Test-Driven** | **Declarative-Design** ｜ **Reactive Programming** ｜ **Command Query Responsibility Segregation** ｜ **Event Sourcing**
+**Domain-Driven** | **Event-Driven** | **Test-Driven** | **Declarative-Design** | **Reactive Programming** | **Command
+Query Responsibility Segregation** | **Event Sourcing**
 
 ## Architecture
 
@@ -32,9 +33,10 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
-### Spring WebFlux Integration
+### OpenAPI (Spring WebFlux Integration)
 
-> Automatically register the `Command` routing processing function (`HandlerFunction`), and developers only need to write the domain model to complete the service development.
+> Automatically register the `Command` routing processing function (`HandlerFunction`), and developers only need to
+> write the domain model to complete the service development.
 
 <p align="center" style="text-align:center">
   <img src="document/design/assets/OpenAPI-Swagger.png" alt="Wow-Spring-WebFlux-Integration"/>
@@ -93,12 +95,12 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
     - [x] `RedisCommandBus`
     - [x] `LocalFirstCommandBus`
 - [x] DomainEventBus
-    - [x] `InMemoryDomainEventBus` 
+    - [x] `InMemoryDomainEventBus`
     - [x] `KafkaDomainEventBus` (Recommend)
     - [x] `RedisDomainEventBus`
     - [x] `LocalFirstDomainEventBus`
 - [x] StateEventBus
-    - [x] `InMemoryStateEventBus` 
+    - [x] `InMemoryStateEventBus`
     - [x] `KafkaStateEventBus` (Recommend)
     - [x] `RedisStateEventBus`
     - [x] `LocalFirstStateEventBus`
@@ -115,7 +117,7 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 
 [Example](./example)
 
-## Aggregate Unit Test
+## Unit Test Suite
 
 ### 80%+ test coverage is very easy.
 
@@ -123,12 +125,12 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 
 > Given -> When -> Expect .
 
+### Aggregate Unit Test (`AggregateVerifier`)
+
+[Aggregate Test](./example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderTest.kt)
+
 ```kotlin
 internal class OrderTest {
-
-    companion object {
-        val SHIPPING_ADDRESS = ShippingAddress("China", "ShangHai", "ShangHai", "HuangPu", "001")
-    }
 
     private fun mockCreateOrder(): VerifiedStage<OrderState> {
         val tenantId = GlobalIdGenerator.generateAsString()
@@ -138,23 +140,23 @@ internal class OrderTest {
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
             BigDecimal.valueOf(10),
-            10
+            10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.quantity }.last()
+                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.price }.last()
+                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
             }
         }
         return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             .expectEventCount(1)
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
@@ -178,6 +180,22 @@ internal class OrderTest {
         mockCreateOrder()
     }
 
+    @Test
+    fun createOrderGivenEmptyItems() {
+        val customerId = GlobalIdGenerator.generateAsString()
+        aggregateVerifier<Order, OrderState>()
+            .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
+            .given()
+            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .expectStateAggregate {
+                /*
+                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
+                 */
+                assertThat(it.initialized, equalTo(false))
+            }.verify()
+    }
+
     /**
      * 创建订单-库存不足
      */
@@ -188,28 +206,28 @@ internal class OrderTest {
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
             BigDecimal.valueOf(10),
-            10
+            10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }
+                return orderItems.filter { it.productId == productId }
                     /*
                      * 模拟库存不足
                      */
-                    .map { it.quantity - 1 }.last()
+                    .map { it.quantity - 1 }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.price }.last()
+                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
             }
         }
 
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：库存不足异常.
              */
@@ -232,202 +250,68 @@ internal class OrderTest {
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
             BigDecimal.valueOf(10),
-            10
+            10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.toFlux().filter { it.productId == productId }.map { it.quantity }.last()
+                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
             }
         }
         val pricingService = object : PricingService {
             override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.toFlux().filter { it.productId == productId }
+                return orderItems.filter { it.productId == productId }
                     /*
                      * 模拟下单价格、商品定价不一致
                      */
-                    .map { it.price.plus(BigDecimal.valueOf(1)) }.last()
+                    .map { it.price.plus(BigDecimal.valueOf(1)) }.first().toMono()
             }
         }
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS))
+            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：价格不一致异常.
              */
             .expectErrorType(PriceInconsistencyException::class.java).verify()
     }
+}
+```
 
-    private fun mockPayOrder(): VerifiedStage<OrderState> {
-        val verifiedStageAfterCreateOrder = mockCreateOrder()
-        val previousState = verifiedStageAfterCreateOrder.stateRoot
-        val payOrder = PayOrder(
-            previousState.id,
+### Saga Unit Test (`SagaVerifier`)
+
+[Saga Test](./example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaTest.kt)
+
+```kotlin
+class CartSagaTest {
+
+    @Test
+    fun onOrderCreated() {
+        val orderItem = OrderItem(
             GlobalIdGenerator.generateAsString(),
-            previousState.totalAmount
+            GlobalIdGenerator.generateAsString(),
+            BigDecimal.valueOf(10),
+            10,
         )
-
-        return verifiedStageAfterCreateOrder
-            .then()
-            .given()
-            /*
-             * 2. 当接收到命令
-             */
-            .`when`(payOrder)
-            /*
-             * 3.1 期望将会产生1个事件
-             */
-            .expectEventCount(1)
-            /*
-             * 3.2 期望将会产生一个 OrderPaid 事件 (3.1 可以不需要)
-             */
-            .expectEventType(OrderPaid::class.java)
-            /*
-             * 3.3 期望产生的事件状态
-             */
-            .expectEventBody<OrderPaid> {
-                assertThat(it.amount, equalTo(payOrder.amount))
-            }
-            /*
-             * 4. 期望当前聚合状态
-             */
-            .expectState {
-                assertThat(it.address, equalTo(SHIPPING_ADDRESS))
-                assertThat(it.paidAmount, equalTo(payOrder.amount))
-                assertThat(it.status, equalTo(OrderStatus.PAID))
-            }
-            /*
-             * 完成测试编排后，验证期望.
-             */
-            .verify()
-    }
-
-    /**
-     * 支付订单
-     */
-    @Test
-    fun payOrder() {
-        mockPayOrder()
-    }
-
-    /**
-     * 支付订单-超付
-     */
-    @Test
-    fun payOrderWhenOverPay() {
-        val verifiedStageAfterCreateOrder = mockCreateOrder()
-        val previousState = verifiedStageAfterCreateOrder.stateRoot
-        val payOrder = PayOrder(
-            previousState.id,
-            GlobalIdGenerator.generateAsString(),
-            previousState.totalAmount.plus(
-                BigDecimal.valueOf(1)
+        sagaVerifier<CartSaga>()
+            .`when`(
+                mockk<OrderCreated> {
+                    every {
+                        customerId
+                    } returns "customerId"
+                    every {
+                        items
+                    } returns listOf(orderItem)
+                    every {
+                        fromCart
+                    } returns true
+                },
             )
-        )
-        verifiedStageAfterCreateOrder
-            .then()
-            .given()
-            /*
-             * 2. 处理 PayOrder 命令
-             */
-            .`when`(payOrder)
-            /*
-             * 3.1 期望将会产生俩个事件分别是： OrderPaid、OrderOverPaid
-             */
-            .expectEventType(OrderPaid::class.java, OrderOverPaid::class.java)
-            /*
-             * 3.2 期望产生的事件状态
-             */
-            .expectEventStream {
-                val itr = it.iterator()
-                /*
-                 * OrderPaid
-                 */
-                val orderPaid = itr.next().body as OrderPaid
-                assertThat(orderPaid.paid, equalTo(true))
-                /*
-                 * OrderOverPaid
-                 */
-                val orderOverPaid = itr.next().body as OrderOverPaid
-                assertThat(
-                    orderOverPaid.overPay,
-                    equalTo(payOrder.amount.minus(previousState.totalAmount))
-                )
-            }
-            /*
-             * 4. 期望当前聚合状态
-             */
-            .expectState {
-                assertThat(it.paidAmount, equalTo(previousState.totalAmount))
-                assertThat(it.status, equalTo(OrderStatus.PAID))
-            }
-            .verify()
-    }
-
-    /**
-     * 发货
-     */
-    @Test
-    fun ship() {
-        val verifiedStageAfterPayOrder = mockPayOrder()
-        val shipOrder = ShipOrder(verifiedStageAfterPayOrder.stateRoot.id)
-        verifiedStageAfterPayOrder
-            .then().given()
-            .`when`(shipOrder)
-            .expectEventType(OrderShipped::class.java)
-            /*
-             * 4. 期望当前聚合状态
-             */
-            .expectState {
-                assertThat(it.status, equalTo(OrderStatus.SHIPPED))
-            }
-            .verify()
-    }
-
-    @Test
-    fun shipGivenUnpaid() {
-        val verifiedStageAfterCreateOrder = mockCreateOrder()
-        val shipOrder = ShipOrder(verifiedStageAfterCreateOrder.stateRoot.id)
-        verifiedStageAfterCreateOrder.then().given()
-            .`when`(shipOrder)
-            .expectErrorType(IllegalStateException::class.java)
-            .expectState {
-                /*
-                 * 验证聚合状态[未]发生变更.
-                 */
-                assertThat(it.paidAmount, equalTo(BigDecimal.ZERO))
-                assertThat(it.status, equalTo(OrderStatus.CREATED))
-            }
-            .verify()
-    }
-
-    private fun mockDeleteOrder(): VerifiedStage<OrderState> {
-        val verifiedStageAfterCreateOrder = mockCreateOrder()
-        return verifiedStageAfterCreateOrder.then().given()
-            .`when`(DeleteAggregate)
-            .expectEventType(AggregateDeleted::class.java)
-            .expectStateAggregate {
-                assertThat(it.deleted, equalTo(true))
-            }
-            .verify()
-    }
-
-    @Test
-    fun deleteOrder() {
-        mockDeleteOrder()
-    }
-
-    @Test
-    fun deleteGivenDeleted() {
-        val verifiedStageAfterDelete = mockDeleteOrder()
-        verifiedStageAfterDelete.then().given()
-            .`when`(DeleteAggregate)
-            .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
-            .expectError<IllegalAccessDeletedAggregateException> {
-                assertThat(it.aggregateId, equalTo(verifiedStageAfterDelete.stateAggregate.aggregateId))
-            }.expectStateAggregate {
-                assertThat(it.deleted, equalTo(true))
+            .expectCommandBody<RemoveCartItem> {
+                assertThat(it.id, equalTo("customerId"))
+                assertThat(it.productIds, hasSize(1))
+                assertThat(it.productIds.first(), equalTo(orderItem.productId))
             }
             .verify()
     }

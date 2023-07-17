@@ -152,4 +152,23 @@ data class ExpectedResult<S : Any>(
     val error: Throwable? = null
 ) {
     val hasError = error != null
+
+    private val eventStreamItr by lazy {
+        checkNotNull(domainEventStream)
+        domainEventStream.iterator()
+    }
+
+    fun hasNextEvent(): Boolean {
+        return eventStreamItr.hasNext()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <E : Any> nextEvent(): DomainEvent<E> {
+        assertThat(hasNextEvent(), equalTo(true))
+        return eventStreamItr.next() as DomainEvent<E>
+    }
+
+    fun <C : Any> nextEventBody(): C {
+        return nextEvent<C>().body
+    }
 }

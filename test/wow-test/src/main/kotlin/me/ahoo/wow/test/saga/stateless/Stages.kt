@@ -126,13 +126,13 @@ data class ExpectedResult<T>(
         commandStream.iterator()
     }
 
-    fun hasNext(): Boolean {
+    fun hasNextCommand(): Boolean {
         return commandStreamItr.hasNext()
     }
 
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(): CommandMessage<C> {
-        assertThat(commandStreamItr.hasNext(), equalTo(true))
+        assertThat(hasNextCommand(), equalTo(true))
         return commandStreamItr.next() as CommandMessage<C>
     }
 
