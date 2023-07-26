@@ -16,12 +16,16 @@ package me.ahoo.wow.id
 import me.ahoo.cosid.CosId
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
+import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import org.slf4j.LoggerFactory
 
 @Order(ORDER_FIRST)
-class CosIdGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
+class CosIdGlobalIdGeneratorFactory(
+    private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
+) :
+    GlobalIdGeneratorFactory {
     companion object {
         private val log = LoggerFactory.getLogger(CosIdGlobalIdGeneratorFactory::class.java)
         const val ID_KEY = "wow.cosid"
@@ -29,7 +33,7 @@ class CosIdGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
     }
 
     override fun create(): CosIdGenerator? {
-        val idGenOp = DefaultIdGeneratorProvider.INSTANCE.get(ID_NAME)
+        val idGenOp = idProvider.get(ID_NAME)
         if (idGenOp.isEmpty) {
             if (log.isInfoEnabled) {
                 log.info("Create - Not found Id name[$ID_NAME] from DefaultIdGeneratorProvider.")

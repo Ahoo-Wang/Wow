@@ -17,6 +17,7 @@ import me.ahoo.cosid.IdGenerator
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
+import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -24,7 +25,10 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import org.slf4j.LoggerFactory
 
 @Order(ORDER_LAST)
-class CosIdAggregateIdGeneratorFactory : AggregateIdGeneratorFactory {
+class CosIdAggregateIdGeneratorFactory(
+    private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
+) :
+    AggregateIdGeneratorFactory {
     companion object {
         private val log = LoggerFactory.getLogger(CosIdAggregateIdGeneratorFactory::class.java)
     }
@@ -37,7 +41,7 @@ class CosIdAggregateIdGeneratorFactory : AggregateIdGeneratorFactory {
             ?.id
             ?: namedAggregate.aggregateName
 
-        val idGeneratorOp = DefaultIdGeneratorProvider.INSTANCE.get(idGenName)
+        val idGeneratorOp = idProvider.get(idGenName)
         if (idGeneratorOp.isPresent) {
             val idGenerator = idGeneratorOp.get()
             if (log.isInfoEnabled) {
