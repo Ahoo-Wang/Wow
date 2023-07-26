@@ -30,7 +30,7 @@ class CosIdGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
 
     override fun create(): CosIdGenerator? {
         val idGenOp = DefaultIdGeneratorProvider.INSTANCE.get(ID_NAME)
-        if (!idGenOp.isPresent) {
+        if (idGenOp.isEmpty) {
             if (log.isInfoEnabled) {
                 log.info("Create - Not found Id name[$ID_NAME] from DefaultIdGeneratorProvider.")
             }
