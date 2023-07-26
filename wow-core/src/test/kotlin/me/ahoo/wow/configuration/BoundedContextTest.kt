@@ -11,6 +11,11 @@ class BoundedContextTest {
     }
 
     @Test
+    fun mergeEmpty() {
+        BoundedContext("").merge(BoundedContext(""))
+    }
+
+    @Test
     fun mergeEmptyNull() {
         BoundedContext("").merge(BoundedContext())
     }
