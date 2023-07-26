@@ -21,7 +21,7 @@ data class WowMetadata(
     val contexts: Map<String, BoundedContext> = emptyMap()
 ) : Merge<WowMetadata> {
     init {
-        aliasConflictDetection()
+        detectAliasConflicts()
     }
 
     override fun merge(other: WowMetadata): WowMetadata {
@@ -29,11 +29,11 @@ data class WowMetadata(
         return WowMetadata(mergedContexts)
     }
 
-    private fun aliasConflictDetection() {
+    private fun detectAliasConflicts() {
         contexts.keys.groupBy {
             contexts[it]!!.alias
         }.filter {
-            it.key != null
+            it.key.isNullOrBlank().not()
         }.forEach { (alias, contextNames) ->
             check(contextNames.size == 1) {
                 "The alias[$alias] conflicts with the bounded contexts${contextNames.asJsonString()}."
@@ -51,7 +51,7 @@ data class BoundedContext(
     val aggregates: Map<String, Aggregate> = emptyMap()
 ) : NamingScopes, Merge<BoundedContext> {
     override fun merge(other: BoundedContext): BoundedContext {
-        if (alias != null && other.alias != null) {
+        if (alias.isNullOrBlank().not() && other.alias.isNullOrBlank().not()) {
             check(alias == other.alias) {
                 "The current bounded context alias[$alias] conflicts with the bounded context[${other.alias}] to be merged."
             }
@@ -84,9 +84,7 @@ data class Aggregate(
         val mergedScopes = scopes.plus(other.scopes)
         val mergedCommands = commands.plus(other.commands)
         val mergedEvents = events.plus(other.events)
-        if (!type.isNullOrBlank() &&
-            !other.type.isNullOrBlank()
-        ) {
+        if (type.isNullOrBlank().not() && other.type.isNullOrBlank().not()) {
             check(type == other.type) {
                 "The current aggregate type[$type] conflicts with the aggregate[${other.type}] to be merged."
             }
