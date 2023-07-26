@@ -51,7 +51,7 @@ data class BoundedContext(
     val aggregates: Map<String, Aggregate> = emptyMap()
 ) : NamingScopes, Merge<BoundedContext> {
     override fun merge(other: BoundedContext): BoundedContext {
-        if (alias != null && other.alias != null) {
+        if (alias.isNullOrBlank().not() && other.alias.isNullOrBlank().not()) {
             check(alias == other.alias) {
                 "The current bounded context alias[$alias] conflicts with the bounded context[${other.alias}] to be merged."
             }
@@ -84,8 +84,8 @@ data class Aggregate(
         val mergedScopes = scopes.plus(other.scopes)
         val mergedCommands = commands.plus(other.commands)
         val mergedEvents = events.plus(other.events)
-        if (!type.isNullOrBlank() &&
-            !other.type.isNullOrBlank()
+        if (type.isNullOrBlank().not() &&
+            other.type.isNullOrBlank().not()
         ) {
             check(type == other.type) {
                 "The current aggregate type[$type] conflicts with the aggregate[${other.type}] to be merged."
