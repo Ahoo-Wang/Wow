@@ -21,7 +21,7 @@ data class WowMetadata(
     val contexts: Map<String, BoundedContext> = emptyMap()
 ) : Merge<WowMetadata> {
     init {
-        aliasConflictDetection()
+        detectAliasConflicts()
     }
 
     override fun merge(other: WowMetadata): WowMetadata {
@@ -29,11 +29,11 @@ data class WowMetadata(
         return WowMetadata(mergedContexts)
     }
 
-    private fun aliasConflictDetection() {
+    private fun detectAliasConflicts() {
         contexts.keys.groupBy {
             contexts[it]!!.alias
         }.filter {
-            it.key != null
+            it.key.isNullOrBlank().not()
         }.forEach { (alias, contextNames) ->
             check(contextNames.size == 1) {
                 "The alias[$alias] conflicts with the bounded contexts${contextNames.asJsonString()}."
