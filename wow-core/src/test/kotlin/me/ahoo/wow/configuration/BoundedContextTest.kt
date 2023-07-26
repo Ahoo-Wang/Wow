@@ -11,6 +11,11 @@ class BoundedContextTest {
     }
 
     @Test
+    fun mergeEmptyNull() {
+        BoundedContext("").merge(BoundedContext())
+    }
+
+    @Test
     fun mergeIfConflict() {
         Assertions.assertThrows(IllegalStateException::class.java) {
             BoundedContext("Conflict").merge(BoundedContext("other"))

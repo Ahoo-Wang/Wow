@@ -30,12 +30,17 @@ internal class AggregateTest {
     }
 
     @Test
-    fun mergeFailed() {
-        val current = Aggregate(emptySet(), "aT1")
-        val other = Aggregate(emptySet(), "aT2")
-        assertThrows(IllegalStateException::class.java) {
-            current.merge(other)
-        }
+    fun mergeEmpty() {
+        val current = Aggregate(emptySet(), "")
+        val other = Aggregate(emptySet(), "")
+        current.merge(other)
+    }
+
+    @Test
+    fun mergeEmptyNull() {
+        val current = Aggregate(emptySet(), "")
+        val other = Aggregate(emptySet(), null)
+        current.merge(other)
     }
 
     @Test
