@@ -84,9 +84,7 @@ data class Aggregate(
         val mergedScopes = scopes.plus(other.scopes)
         val mergedCommands = commands.plus(other.commands)
         val mergedEvents = events.plus(other.events)
-        if (type.isNullOrBlank().not() &&
-            other.type.isNullOrBlank().not()
-        ) {
+        if (type.isNullOrBlank().not() && other.type.isNullOrBlank().not()) {
             check(type == other.type) {
                 "The current aggregate type[$type] conflicts with the aggregate[${other.type}] to be merged."
             }
