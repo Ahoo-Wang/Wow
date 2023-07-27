@@ -13,8 +13,9 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.wow.configuration.BoundedContext
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class MaterializedNamedBoundedContextTest {
@@ -31,5 +32,29 @@ internal class MaterializedNamedBoundedContextTest {
         val actual = "test-context".asNamedBoundedContext()
             .isSameBoundedContext("test-context-other".asNamedBoundedContext())
         assertThat(actual, equalTo(false))
+    }
+
+    @Test
+    fun getContextAlias() {
+        val actual = "test-context".asNamedBoundedContext().getContextAlias()
+        assertThat(actual, equalTo("test-context"))
+    }
+
+    @Test
+    fun getContextAliasIfNull() {
+        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext())
+        assertThat(actual, equalTo("test-context"))
+    }
+
+    @Test
+    fun getContextAliasIfEmpty() {
+        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext(""))
+        assertThat(actual, equalTo("test-context"))
+    }
+
+    @Test
+    fun getContextAliasIfNotEmpty() {
+        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext("alias"))
+        assertThat(actual, equalTo("alias"))
     }
 }
