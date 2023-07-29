@@ -13,7 +13,7 @@ kotlinCompileTestingKsp = "1.5.0"
 swagger = "2.2.15"
 springDoc = "2.1.0"
 # plugins
-detekt = "1.23.0"
+detekt = "1.23.1"
 dokka = "1.8.20"
 kotlin = "1.9.0"
 publishPlugin = "1.3.0"
