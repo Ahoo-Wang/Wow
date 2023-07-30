@@ -45,7 +45,8 @@ class MockCommandAggregate(val state: MockStateAggregate) {
 }
 
 data class MockStateAggregate(val id: String) {
-    var data: String = ""; private set
+    var data: String = ""
+        private set
 
     private fun onSourcing(aggregateCreated: MockAggregateCreated) {
         data = aggregateCreated.data

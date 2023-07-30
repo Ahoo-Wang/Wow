@@ -77,7 +77,9 @@ class StatelessSagaAutoConfiguration {
 
     @Bean("statelessSagaErrorHandler")
     @ConditionalOnMissingBean(name = ["statelessSagaErrorHandler"])
-    fun statelessSagaErrorHandler(@Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+    fun statelessSagaErrorHandler(
+        @Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?
+    ): ErrorHandler<DomainEventExchange<*>> {
         return ErrorHandlerFactory.create(eventFunctionErrorRepository)
     }
 
@@ -109,7 +111,9 @@ class StatelessSagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun statelessSagaDispatcherLauncher(statelessSagaDispatcher: StatelessSagaDispatcher): StatelessSagaDispatcherLauncher {
+    fun statelessSagaDispatcherLauncher(
+        statelessSagaDispatcher: StatelessSagaDispatcher
+    ): StatelessSagaDispatcherLauncher {
         return StatelessSagaDispatcherLauncher(statelessSagaDispatcher)
     }
 }

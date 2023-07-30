@@ -49,7 +49,9 @@ internal class SimpleCommandAggregateTest {
         )
         val create = Create(mockCommandAggregate.id(), "create")
         val commandMessage = create.asCommandMessage(GlobalIdGenerator.generateAsString())
-        commandAggregate.process(SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)).block()
+        commandAggregate.process(
+            SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
+        ).block()
         assertThat(mockCommandAggregate.state(), equalTo(create.state))
         assertThat(simpleStateAggregate.version, equalTo(1))
         eventStore.load(commandAggregate.aggregateId)
@@ -75,7 +77,9 @@ internal class SimpleCommandAggregateTest {
 
         val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
         val commandMessage = changeState.asCommandMessage(GlobalIdGenerator.generateAsString())
-        commandAggregate.process(SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)).block()
+        commandAggregate.process(
+            SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
+        ).block()
         assertThat(mockCommandAggregate.state(), equalTo(changeState.state))
         assertThat(simpleStateAggregate.version, equalTo(2))
         eventStore.load(commandAggregate.aggregateId)
@@ -138,7 +142,9 @@ internal class SimpleCommandAggregateTest {
 
         val changeState = ChangeStateDependExternalService(mockCommandAggregate.id(), "change")
         val commandMessage = changeState.asCommandMessage(GlobalIdGenerator.generateAsString())
-        commandAggregate.process(SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)).block()
+        commandAggregate.process(
+            SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
+        ).block()
 
         assertThat(mockCommandAggregate.otherState(), equalTo(changeState.otherState))
         assertThat(simpleStateAggregate.version, equalTo(2))

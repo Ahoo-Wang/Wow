@@ -32,7 +32,9 @@ object MockDomainEventStreams {
             DEFAULT_AGGREGATE_VERSION,
         eventCount: Int =
             DEFAULT_EVENT_COUNT,
-        createdEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
+        createdEventSupplier: (
+            AggregateId
+        ) -> Any = { _ -> MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
         changedEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateChanged(GlobalIdGenerator.generateAsString()) }
     ): DomainEventStream {
         val events: MutableList<Any> = LinkedList()

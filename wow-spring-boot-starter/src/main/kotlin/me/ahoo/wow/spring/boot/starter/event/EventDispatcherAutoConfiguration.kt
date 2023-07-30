@@ -78,7 +78,9 @@ class EventDispatcherAutoConfiguration {
 
     @Bean("eventProcessorErrorHandler")
     @ConditionalOnMissingBean(name = ["eventProcessorErrorHandler"])
-    fun eventProcessorErrorHandler(@Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+    fun eventProcessorErrorHandler(
+        @Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?
+    ): ErrorHandler<DomainEventExchange<*>> {
         return ErrorHandlerFactory.create(eventFunctionErrorRepository)
     }
 

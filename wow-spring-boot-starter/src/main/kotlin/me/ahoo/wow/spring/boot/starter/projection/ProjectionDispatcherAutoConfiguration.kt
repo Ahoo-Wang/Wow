@@ -76,7 +76,9 @@ class ProjectionDispatcherAutoConfiguration {
 
     @Bean("projectionErrorHandler")
     @ConditionalOnMissingBean(name = ["projectionErrorHandler"])
-    fun projectionErrorHandler(@Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?): ErrorHandler<DomainEventExchange<*>> {
+    fun projectionErrorHandler(
+        @Nullable eventFunctionErrorRepository: EventFunctionErrorRepository?
+    ): ErrorHandler<DomainEventExchange<*>> {
         return ErrorHandlerFactory.create(eventFunctionErrorRepository)
     }
 

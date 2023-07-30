@@ -37,16 +37,22 @@ class OrderState(
     val id: String
 ) {
 
-    lateinit var customerId: String; private set
+    lateinit var customerId: String
+        private set
 
     /**
      * unmodifiable.
      */
-    lateinit var items: List<OrderItem>; private set
-    lateinit var address: ShippingAddress; private set
-    var totalAmount: BigDecimal = BigDecimal.ZERO; private set
-    var paidAmount: BigDecimal = BigDecimal.ZERO; private set
-    var status = OrderStatus.CREATED; private set
+    lateinit var items: List<OrderItem>
+        private set
+    lateinit var address: ShippingAddress
+        private set
+    var totalAmount: BigDecimal = BigDecimal.ZERO
+        private set
+    var paidAmount: BigDecimal = BigDecimal.ZERO
+        private set
+    var status = OrderStatus.CREATED
+        private set
 
     /**
      * 订单剩余应付金额.

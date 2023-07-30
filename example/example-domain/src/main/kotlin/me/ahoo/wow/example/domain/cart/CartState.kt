@@ -21,7 +21,8 @@ import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 
 class CartState(val id: String) {
-    var items: List<CartItem> = listOf(); private set
+    var items: List<CartItem> = listOf()
+        private set
 
     @Suppress("UnusedPrivateMember")
     @OnSourcing
