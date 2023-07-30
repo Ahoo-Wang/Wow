@@ -71,7 +71,9 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
-    fun commandWaitHandlerFunctionFactory(waitStrategyRegistrar: WaitStrategyRegistrar): CommandWaitHandlerFunctionFactory {
+    fun commandWaitHandlerFunctionFactory(
+        waitStrategyRegistrar: WaitStrategyRegistrar
+    ): CommandWaitHandlerFunctionFactory {
         return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar)
     }
 

@@ -111,7 +111,9 @@ class Order(private val state: OrderState) {
     }
 
     fun onCommand(shipOrder: ServerCommandExchange<ShipOrder>): OrderShipped {
-        check(OrderStatus.PAID == state.status) { "The current order[${state.id}] status[${state.status}] cannot ship order." }
+        check(
+            OrderStatus.PAID == state.status
+        ) { "The current order[${state.id}] status[${state.status}] cannot ship order." }
         return OrderShipped
     }
 

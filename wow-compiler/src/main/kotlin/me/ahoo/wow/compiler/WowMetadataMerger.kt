@@ -22,7 +22,8 @@ import me.ahoo.wow.configuration.WowMetadata
 import java.util.SortedMap
 
 class WowMetadataMerger {
-    var metadata: WowMetadata = WowMetadata(); private set
+    var metadata: WowMetadata = WowMetadata()
+        private set
 
     fun merge(other: WowMetadata) {
         metadata = metadata.merge(other)
