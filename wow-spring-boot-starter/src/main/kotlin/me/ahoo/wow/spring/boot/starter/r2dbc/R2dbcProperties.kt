@@ -19,10 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = R2dbcProperties.PREFIX)
-class R2dbcProperties(
-    @DefaultValue("true")
-    override var enabled: Boolean = true
-) : EnabledCapable {
+class R2dbcProperties(@DefaultValue("true") override var enabled: Boolean = true) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}r2dbc"
     }

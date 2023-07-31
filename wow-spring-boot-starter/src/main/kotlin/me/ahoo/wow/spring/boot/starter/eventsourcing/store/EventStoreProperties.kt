@@ -17,9 +17,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
-class EventStoreProperties(
-    var storage: EventStoreStorage = EventStoreStorage.MONGO
-) {
+class EventStoreProperties(var storage: EventStoreStorage = EventStoreStorage.MONGO) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
         const val STORAGE = "$PREFIX.storage"

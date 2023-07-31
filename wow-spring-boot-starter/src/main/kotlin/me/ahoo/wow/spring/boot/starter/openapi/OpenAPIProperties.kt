@@ -20,8 +20,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = OpenAPIProperties.PREFIX)
 class OpenAPIProperties(
-    @DefaultValue("true")
-    override var enabled: Boolean = true
+    @DefaultValue("true") override var enabled: Boolean = true
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}openapi"

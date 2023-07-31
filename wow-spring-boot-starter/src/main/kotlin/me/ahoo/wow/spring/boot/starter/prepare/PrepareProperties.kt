@@ -20,8 +20,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = PrepareProperties.PREFIX)
 class PrepareProperties(
-    @DefaultValue("true")
-    override var enabled: Boolean = true,
+    @DefaultValue("true") override var enabled: Boolean = true,
     var storage: PrepareStorage = PrepareStorage.MONGO
 ) : EnabledCapable {
     companion object {
