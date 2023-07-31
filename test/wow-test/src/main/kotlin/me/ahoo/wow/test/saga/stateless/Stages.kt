@@ -38,28 +38,27 @@ interface ExpectStage<T : Any> {
 
     fun expectCommandStream(expected: (CommandStream) -> Unit): ExpectStage<T> {
         return expectNoError().expect {
-            assertThat(it.commandStream, notNullValue())
-            checkNotNull(it.commandStream)
-            expected(it.commandStream)
+            assertThat("Expect the command stream is not null.", it.commandStream, notNullValue())
+            expected(it.commandStream!!)
         }
     }
 
+    /**
+     * expectCommandCount(0)
+     * @see expectCommandCount
+     */
     fun expectNoCommand(): ExpectStage<T> {
-        return expectNoError().expect {
-            assertThat(it.commandStream, nullValue())
-        }
+        return expectCommandCount(0)
     }
 
     /**
      * 期望的第一个命令
      */
     fun <C : Any> expectCommand(expected: (CommandMessage<C>) -> Unit): ExpectStage<T> {
-        return expectNoError().expect {
-            assertThat(it.commandStream, notNullValue())
-            checkNotNull(it.commandStream)
-            assertThat(it.commandStream.size, greaterThanOrEqualTo(1))
+        return expectCommandStream {
+            assertThat("Expect the command stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
             @Suppress("UNCHECKED_CAST")
-            expected(it.commandStream.first() as CommandMessage<C>)
+            expected(it.first() as CommandMessage<C>)
         }
     }
 
@@ -70,10 +69,8 @@ interface ExpectStage<T : Any> {
     }
 
     fun expectCommandCount(expected: Int): ExpectStage<T> {
-        return expectNoError().expect {
-            assertThat(it.commandStream, notNullValue())
-            checkNotNull(it.commandStream)
-            assertThat(it.commandStream.size, equalTo(expected))
+        return expectCommandStream {
+            assertThat("Expect the command stream size.", it.size, equalTo(expected))
         }
     }
 
@@ -88,24 +85,25 @@ interface ExpectStage<T : Any> {
 
     fun expectNoError(): ExpectStage<T> {
         return expect {
-            assertThat(it.error, nullValue())
+            assertThat("Expect no error", it.error, nullValue())
         }
     }
 
     fun expectError(): ExpectStage<T> {
         return expect {
-            assertThat(it.error, notNullValue())
+            assertThat("Expect an error.", it.error, notNullValue())
         }
     }
 
-    fun expectError(expected: (Throwable) -> Unit): ExpectStage<T> {
+    fun <E : Throwable> expectError(expected: (E) -> Unit): ExpectStage<T> {
         return expectError().expect {
-            expected(it.error!!)
+            @Suppress("UNCHECKED_CAST")
+            expected(it.error as E)
         }
     }
 
-    fun expectErrorType(expected: Class<out Throwable>): ExpectStage<T> {
-        return expectError { assertThat(it, instanceOf(expected)) }
+    fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<T> {
+        return expectError<E> { assertThat(it, instanceOf(expected)) }
     }
 
     /**
@@ -132,7 +130,7 @@ data class ExpectedResult<T>(
 
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(): CommandMessage<C> {
-        assertThat(hasNextCommand(), equalTo(true))
+        assertThat("Expect the next command.", hasNextCommand(), equalTo(true))
         return commandStreamItr.next() as CommandMessage<C>
     }
 

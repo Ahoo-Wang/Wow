@@ -57,7 +57,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventStream(expected: (DomainEventStream) -> Unit): ExpectStage<S> {
         return expect {
-            assertThat(it.domainEventStream, notNullValue())
+            assertThat("Expect the domain event stream is not null.", it.domainEventStream, notNullValue())
             expected(it.domainEventStream!!)
         }
     }
@@ -66,12 +66,10 @@ interface ExpectStage<S : Any> {
      * 期望的第一个领域事件
      */
     fun <E : Any> expectEvent(expected: (DomainEvent<E>) -> Unit): ExpectStage<S> {
-        return expect {
-            assertThat(it.domainEventStream, notNullValue())
-            checkNotNull(it.domainEventStream)
-            assertThat(it.domainEventStream.size, greaterThanOrEqualTo(1))
+        return expectEventStream {
+            assertThat("Expect the domain event stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
             @Suppress("UNCHECKED_CAST")
-            expected(it.domainEventStream.first() as DomainEvent<E>)
+            expected(it.first() as DomainEvent<E>)
         }
     }
 
@@ -85,10 +83,8 @@ interface ExpectStage<S : Any> {
      * 期望产生的事件数量.
      */
     fun expectEventCount(expected: Int): ExpectStage<S> {
-        return expect {
-            val domainEventStream = it.domainEventStream
-            assertThat(domainEventStream, notNullValue())
-            assertThat(domainEventStream!!.size, equalTo(expected))
+        return expectEventStream {
+            assertThat("Expect the domain event stream size.", it.size, equalTo(expected))
         }
     }
 
@@ -106,13 +102,13 @@ interface ExpectStage<S : Any> {
 
     fun expectNoError(): ExpectStage<S> {
         return expect {
-            assertThat(it.error, nullValue())
+            assertThat("Expect no error", it.error, nullValue())
         }
     }
 
     fun expectError(): ExpectStage<S> {
         return expect {
-            assertThat(it.error, notNullValue())
+            assertThat("Expect an error.", it.error, notNullValue())
         }
     }
 
@@ -164,7 +160,7 @@ data class ExpectedResult<S : Any>(
 
     @Suppress("UNCHECKED_CAST")
     fun <E : Any> nextEvent(): DomainEvent<E> {
-        assertThat(hasNextEvent(), equalTo(true))
+        assertThat("Expect the next domain event.", hasNextEvent(), equalTo(true))
         return eventStreamItr.next() as DomainEvent<E>
     }
 

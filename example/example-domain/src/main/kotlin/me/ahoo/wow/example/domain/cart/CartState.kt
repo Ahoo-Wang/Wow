@@ -14,7 +14,6 @@
 package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnSourcing
-import me.ahoo.wow.example.api.cart.CartInitialized
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
@@ -23,10 +22,6 @@ import me.ahoo.wow.example.api.cart.CartQuantityChanged
 class CartState(val id: String) {
     var items: List<CartItem> = listOf()
         private set
-
-    @Suppress("UnusedPrivateMember")
-    @OnSourcing
-    fun onCartInitialized(cartInitialized: CartInitialized) = Unit
 
     @OnSourcing
     fun onCartItemAdded(cartItemAdded: CartItemAdded) {
