@@ -132,12 +132,14 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Decorator<Iterator<CommandMessage<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommand(): CommandMessage<C> {
+    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
-        return next() as CommandMessage<C>
+        val nextCommand = next()
+        assertThat("Expect the command body type.", nextCommand.body, instanceOf(C::class.java))
+        return nextCommand as CommandMessage<C>
     }
 
-    fun <C : Any> nextCommandBody(): C {
+    inline fun <reified C : Any> nextCommandBody(): C {
         return nextCommand<C>().body
     }
 }

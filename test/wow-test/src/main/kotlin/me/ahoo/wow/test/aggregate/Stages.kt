@@ -162,12 +162,14 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     Decorator<Iterator<DomainEvent<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextEvent(): DomainEvent<C> {
+    inline fun <reified E : Any> nextEvent(): DomainEvent<E> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
-        return next() as DomainEvent<C>
+        val nextEvent = next()
+        assertThat("Expect the event body type.", nextEvent.body, instanceOf(E::class.java))
+        return nextEvent as DomainEvent<E>
     }
 
-    fun <C : Any> nextEventBody(): C {
-        return nextEvent<C>().body
+    inline fun <reified E : Any> nextEventBody(): E {
+        return nextEvent<E>().body
     }
 }
