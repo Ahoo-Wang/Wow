@@ -13,32 +13,35 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import me.ahoo.wow.spring.boot.starter.BusType.Companion.KAFKA_NAME
 import org.springframework.boot.context.properties.NestedConfigurationProperty
+import org.springframework.boot.context.properties.bind.DefaultValue
 
-data class BusProperties(
-    val type: Type = Type.KAFKA,
+class BusProperties(
+    @DefaultValue(KAFKA_NAME)
+    var type: BusType = BusType.KAFKA,
     @NestedConfigurationProperty
-    val localFirst: LocalFirst = LocalFirst()
+    var localFirst: LocalFirstProperties = LocalFirstProperties()
 ) {
     companion object {
         const val TYPE_SUFFIX_KEY = ".bus.type"
         const val LOCAL_FIRST_ENABLED_SUFFIX_KEY = ".bus.local-first.enabled"
     }
+}
 
-    data class LocalFirst(val enabled: Boolean = true)
+class LocalFirstProperties(@DefaultValue("true") override var enabled: Boolean = true) : EnabledCapable
 
-    enum class Type {
-        KAFKA,
-        REDIS,
-        IN_MEMORY,
-        NO_OP
-        ;
+enum class BusType {
+    KAFKA,
+    REDIS,
+    IN_MEMORY,
+    NO_OP
+    ;
 
-        companion object {
-            const val KAFKA_NAME = "kafka"
-            const val REDIS_NAME = "redis"
-            const val IN_MEMORY_NAME = "in_memory"
-            const val NO_OP_NAME = "no_op"
-        }
+    companion object {
+        const val KAFKA_NAME = "kafka"
+        const val REDIS_NAME = "redis"
+        const val IN_MEMORY_NAME = "in_memory"
+        const val NO_OP_NAME = "no_op"
     }
 }

@@ -15,29 +15,34 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
+import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 
 @ConfigurationProperties(prefix = CommandProperties.PREFIX)
-data class CommandProperties(
+class CommandProperties(
     @NestedConfigurationProperty
-    val bus: BusProperties = BusProperties(),
-    val idempotency: Idempotency = Idempotency()
+    var bus: BusProperties = BusProperties(),
+    @NestedConfigurationProperty
+    var idempotency: IdempotencyProperties = IdempotencyProperties()
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}command"
         const val BUS_TYPE = "${PREFIX}${BusProperties.TYPE_SUFFIX_KEY}"
         const val BUS_LOCAL_FIRST_ENABLED = "${PREFIX}${BusProperties.LOCAL_FIRST_ENABLED_SUFFIX_KEY}"
     }
+}
 
-    data class Idempotency(
-        val enable: Boolean = true,
-        val bloomFilter: BloomFilter = BloomFilter()
-    ) {
-        companion object {
-            const val PREFIX = "${CommandProperties.PREFIX}.idempotency"
-        }
+class IdempotencyProperties(
+    @DefaultValue("true")
+    override var enabled: Boolean = true,
+    @NestedConfigurationProperty
+    var bloomFilter: BloomFilter = BloomFilter()
+) : EnabledCapable {
+    companion object {
+        const val PREFIX = "${CommandProperties.PREFIX}.idempotency"
     }
 
     data class BloomFilter(

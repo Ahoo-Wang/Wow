@@ -11,7 +11,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -27,7 +27,7 @@ class StateAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${StateProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}",
+                "${StateProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
             )
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })

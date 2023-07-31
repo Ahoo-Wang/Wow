@@ -14,18 +14,22 @@
 package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
-data class KafkaProperties(
-    val enabled: Boolean = true,
+class KafkaProperties(
+    @DefaultValue("true")
+    override var enabled: Boolean = true,
     val bootstrapServers: List<String>,
+    @DefaultValue(Wow.WOW_PREFIX)
     val topicPrefix: String = Wow.WOW_PREFIX,
     /**
      * common properties
@@ -33,7 +37,7 @@ data class KafkaProperties(
     val properties: Map<String, String> = mapOf(),
     val producer: Map<String, String> = mapOf(),
     val consumer: Map<String, String> = mapOf()
-) {
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"
     }

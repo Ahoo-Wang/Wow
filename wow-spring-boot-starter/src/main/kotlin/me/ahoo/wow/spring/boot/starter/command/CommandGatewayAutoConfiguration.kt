@@ -53,7 +53,7 @@ class CommandGatewayAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
-        value = [CommandProperties.Idempotency.PREFIX + ENABLED_SUFFIX_KEY],
+        value = [IdempotencyProperties.PREFIX + ENABLED_SUFFIX_KEY],
         matchIfMissing = false,
         havingValue = "false",
     )
@@ -64,7 +64,7 @@ class CommandGatewayAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
-        value = [CommandProperties.Idempotency.PREFIX + ENABLED_SUFFIX_KEY],
+        value = [IdempotencyProperties.PREFIX + ENABLED_SUFFIX_KEY],
         matchIfMissing = true,
         havingValue = "true",
     )

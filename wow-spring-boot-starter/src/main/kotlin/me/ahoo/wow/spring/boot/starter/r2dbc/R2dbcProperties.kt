@@ -14,12 +14,15 @@
 package me.ahoo.wow.spring.boot.starter.r2dbc
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = R2dbcProperties.PREFIX)
-data class R2dbcProperties(
-    val enabled: Boolean = true
-) {
+class R2dbcProperties(
+    @DefaultValue("true")
+    override var enabled: Boolean = true
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}r2dbc"
     }

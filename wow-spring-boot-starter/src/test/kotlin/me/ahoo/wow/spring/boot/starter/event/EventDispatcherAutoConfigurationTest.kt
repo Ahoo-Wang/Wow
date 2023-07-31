@@ -21,7 +21,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.handler.RetryableFilter
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
@@ -41,7 +41,7 @@ internal class EventDispatcherAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${EventProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
+            .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
             .withBean(EventStore::class.java, { mockk() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(

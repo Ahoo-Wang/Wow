@@ -14,13 +14,16 @@
 package me.ahoo.wow.spring.boot.starter.prepare
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = PrepareProperties.PREFIX)
-data class PrepareProperties(
-    val enabled: Boolean = true,
-    val storage: PrepareStorage = PrepareStorage.MONGO
-) {
+class PrepareProperties(
+    @DefaultValue("true")
+    override var enabled: Boolean = true,
+    var storage: PrepareStorage = PrepareStorage.MONGO
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}prepare"
         const val STORAGE = "$PREFIX.storage"

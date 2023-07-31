@@ -4,7 +4,7 @@ import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -20,7 +20,7 @@ class CommandGatewayAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
-            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
+            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
             .withUserConfiguration(
                 UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,

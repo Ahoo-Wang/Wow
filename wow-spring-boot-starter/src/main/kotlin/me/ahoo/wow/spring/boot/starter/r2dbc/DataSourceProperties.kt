@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.r2dbc
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = DataSourceProperties.PREFIX)
-data class DataSourceProperties(val type: Type = Type.SIMPLE) {
+class DataSourceProperties(var type: Type = Type.SIMPLE) {
     companion object {
         const val PREFIX = "${R2dbcProperties.PREFIX}.datasource"
         const val TYPE = "$PREFIX.type"

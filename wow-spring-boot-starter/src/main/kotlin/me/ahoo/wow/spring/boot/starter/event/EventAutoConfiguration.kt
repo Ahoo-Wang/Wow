@@ -21,7 +21,7 @@ import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.event.NoOpDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -38,7 +38,7 @@ class EventAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         EventProperties.BUS_TYPE,
-        havingValue = BusProperties.Type.IN_MEMORY_NAME,
+        havingValue = BusType.IN_MEMORY_NAME,
     )
     fun inMemoryDomainEventBus(): LocalDomainEventBus {
         return InMemoryDomainEventBus()
@@ -47,7 +47,7 @@ class EventAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         EventProperties.BUS_TYPE,
-        havingValue = BusProperties.Type.NO_OP_NAME,
+        havingValue = BusType.NO_OP_NAME,
     )
     fun ooOpDomainEventBus(): DomainEventBus {
         return NoOpDomainEventBus

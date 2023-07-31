@@ -17,7 +17,7 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -35,7 +35,7 @@ class CommandAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         CommandProperties.BUS_TYPE,
-        havingValue = BusProperties.Type.IN_MEMORY_NAME,
+        havingValue = BusType.IN_MEMORY_NAME,
     )
     fun inMemoryCommandBus(): LocalCommandBus {
         return InMemoryCommandBus()

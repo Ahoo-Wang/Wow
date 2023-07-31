@@ -21,7 +21,7 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 @ConfigurationProperties(prefix = StateProperties.PREFIX)
 data class StateProperties(
     @NestedConfigurationProperty
-    val bus: BusProperties = BusProperties()
+    var bus: BusProperties = BusProperties()
 ) {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.state"

@@ -18,7 +18,7 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -33,7 +33,7 @@ internal class CommandAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusProperties.Type.IN_MEMORY_NAME}")
+            .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
             )

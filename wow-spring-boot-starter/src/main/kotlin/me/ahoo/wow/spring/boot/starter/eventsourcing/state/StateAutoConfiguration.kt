@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.spring.boot.starter.BusProperties
+import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -40,7 +40,7 @@ class StateAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         StateProperties.BUS_TYPE,
-        havingValue = BusProperties.Type.IN_MEMORY_NAME,
+        havingValue = BusType.IN_MEMORY_NAME,
     )
     fun inMemoryStateEventBus(): StateEventBus {
         return InMemoryStateEventBus()

@@ -19,7 +19,7 @@ const val MOD_ALG = "mod"
 const val SINGLE_ALG = "single"
 
 @ConfigurationProperties(prefix = ShardingProperties.PREFIX)
-data class ShardingProperties(
+class ShardingProperties(
     val databases: Map<String, Database> = mapOf(),
     val eventStream: Map<String, ShardingRule> = mapOf(),
     val snapshot: Map<String, ShardingRule> = mapOf(),

@@ -19,9 +19,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
 @ConfigurationProperties(prefix = EventProperties.PREFIX)
-data class EventProperties(
+class EventProperties(
     @NestedConfigurationProperty
-    val bus: BusProperties = BusProperties()
+    var bus: BusProperties = BusProperties()
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}event"

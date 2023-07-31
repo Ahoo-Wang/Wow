@@ -14,17 +14,21 @@
 package me.ahoo.wow.spring.boot.starter.mongo
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = MongoProperties.PREFIX)
-data class MongoProperties(
-    val enabled: Boolean = true,
-    val autoInitSchema: Boolean = true,
+class MongoProperties(
+    @DefaultValue("true")
+    override val enabled: Boolean = true,
+    @DefaultValue("true")
+    var autoInitSchema: Boolean = true,
     val eventStreamDatabase: String?,
     val snapshotDatabase: String?,
     val prepareDatabase: String?,
     val errorDatabase: String?,
-) {
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}mongo"
     }

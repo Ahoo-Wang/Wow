@@ -13,14 +13,17 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
-    val enabled: Boolean = true,
-    val storage: SnapshotStorage = SnapshotStorage.MONGO
-) {
+    @DefaultValue("true")
+    override var enabled: Boolean = true,
+    var storage: SnapshotStorage = SnapshotStorage.MONGO
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
         const val STORAGE = "$PREFIX.storage"

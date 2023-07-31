@@ -15,11 +15,17 @@ package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.Wow
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 const val ENABLED_SUFFIX_KEY = ".enabled"
 
+interface EnabledCapable {
+    val enabled: Boolean
+}
+
 @ConfigurationProperties(prefix = Wow.WOW)
 data class WowProperties(
-    val enabled: Boolean = true,
-    val contextName: String?
-)
+    @DefaultValue("true")
+    override var enabled: Boolean = true,
+    var contextName: String?
+) : EnabledCapable
