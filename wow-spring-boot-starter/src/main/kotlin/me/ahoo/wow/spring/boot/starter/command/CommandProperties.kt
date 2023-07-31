@@ -23,10 +23,8 @@ import java.time.Duration
 
 @ConfigurationProperties(prefix = CommandProperties.PREFIX)
 class CommandProperties(
-    @NestedConfigurationProperty
-    var bus: BusProperties = BusProperties(),
-    @NestedConfigurationProperty
-    var idempotency: IdempotencyProperties = IdempotencyProperties()
+    @NestedConfigurationProperty var bus: BusProperties = BusProperties(),
+    @NestedConfigurationProperty var idempotency: IdempotencyProperties = IdempotencyProperties()
 ) {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}command"
@@ -36,10 +34,8 @@ class CommandProperties(
 }
 
 class IdempotencyProperties(
-    @DefaultValue("true")
-    override var enabled: Boolean = true,
-    @NestedConfigurationProperty
-    var bloomFilter: BloomFilter = BloomFilter()
+    @DefaultValue("true") override var enabled: Boolean = true,
+    @NestedConfigurationProperty var bloomFilter: BloomFilter = BloomFilter()
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${CommandProperties.PREFIX}.idempotency"

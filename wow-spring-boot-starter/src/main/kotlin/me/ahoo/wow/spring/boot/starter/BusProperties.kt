@@ -18,10 +18,8 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.boot.context.properties.bind.DefaultValue
 
 class BusProperties(
-    @DefaultValue(KAFKA_NAME)
-    var type: BusType = BusType.KAFKA,
-    @NestedConfigurationProperty
-    var localFirst: LocalFirstProperties = LocalFirstProperties()
+    @DefaultValue(KAFKA_NAME) var type: BusType = BusType.KAFKA,
+    @NestedConfigurationProperty var localFirst: LocalFirstProperties = LocalFirstProperties()
 ) {
     companion object {
         const val TYPE_SUFFIX_KEY = ".bus.type"

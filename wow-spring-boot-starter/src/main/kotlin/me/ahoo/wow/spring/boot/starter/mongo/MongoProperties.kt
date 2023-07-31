@@ -20,10 +20,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = MongoProperties.PREFIX)
 class MongoProperties(
-    @DefaultValue("true")
-    override val enabled: Boolean = true,
-    @DefaultValue("true")
-    var autoInitSchema: Boolean = true,
+    @DefaultValue("true") override val enabled: Boolean = true,
+    @DefaultValue("true") var autoInitSchema: Boolean = true,
     val eventStreamDatabase: String?,
     val snapshotDatabase: String?,
     val prepareDatabase: String?,
