@@ -25,6 +25,7 @@ import me.ahoo.wow.infra.accessor.constructor.InjectableObjectFactory
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.saga.stateless.CommandStream
+import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate.Companion.asReadOnlyStateAggregate
 import reactor.core.publisher.Mono
@@ -74,9 +75,23 @@ internal class DefaultWhenStage<T : Any>(
                 )
             }
             .onErrorResume {
-                Mono.just(ExpectedResult(processor = processor, commandStream = null, error = it))
+                Mono.just(
+                    ExpectedResult(
+                        processor = processor,
+                        commandStream = null,
+                        error = it
+                    )
+                )
             }.switchIfEmpty {
-                Mono.just(ExpectedResult(processor = processor, commandStream = null))
+                Mono.just(
+                    ExpectedResult(
+                        processor = processor,
+                        commandStream = DefaultCommandStream(
+                            domainEventId = eventExchange.message.id,
+                            commands = listOf()
+                        )
+                    )
+                )
             }
 
         return DefaultExpectStage(expectedResultMono)

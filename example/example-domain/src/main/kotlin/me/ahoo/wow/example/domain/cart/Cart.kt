@@ -18,13 +18,11 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.example.api.cart.CartInitialized
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
-import me.ahoo.wow.example.api.cart.InitializeCart
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 
 const val MAX_CART_ITEM_SIZE = 100
@@ -33,11 +31,6 @@ const val MAX_CART_ITEM_SIZE = 100
 @AggregateRoot
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
-
-    @Suppress("UnusedParameter")
-    fun onCommand(command: InitializeCart): CartInitialized {
-        return CartInitialized
-    }
 
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
     fun onCommand(command: AddCartItem): Any {

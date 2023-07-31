@@ -16,7 +16,7 @@ package me.ahoo.wow.example.api
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.example.api.ExampleService.CART_AGGREGATE_NAME
 import me.ahoo.wow.example.api.ExampleService.ORDER_AGGREGATE_NAME
-import me.ahoo.wow.example.api.cart.InitializeCart
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 
 @BoundedContext(
@@ -27,7 +27,7 @@ import me.ahoo.wow.example.api.order.CreateOrder
         BoundedContext.Aggregate(
             CART_AGGREGATE_NAME,
             tenantId = me.ahoo.wow.api.modeling.TenantId.DEFAULT_TENANT_ID,
-            packageScopes = [InitializeCart::class]
+            packageScopes = [AddCartItem::class]
         ),
     ],
 )

@@ -297,7 +297,7 @@ internal class OrderTest {
             /*
              * 3.2 期望产生的事件状态
              */
-            .expect {
+            .expectEventIterator {
                 val orderPaid = it.nextEventBody<OrderPaid>()
                 assertThat(orderPaid.paid, equalTo(true))
                 val orderOverPaid = it.nextEventBody<OrderOverPaid>()

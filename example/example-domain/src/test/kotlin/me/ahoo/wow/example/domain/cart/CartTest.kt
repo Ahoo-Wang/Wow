@@ -14,15 +14,13 @@
 package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.example.api.cart.CartInitialized
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
-import me.ahoo.wow.example.api.cart.InitializeCart
 import me.ahoo.wow.example.api.cart.RemoveCartItem
-import me.ahoo.wow.test.aggregate.VerifiedStage
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -33,34 +31,16 @@ class CartTest {
         const val MOCK_CUSTOMER_ID = "customerId"
     }
 
-    private fun mockInitializeCart(): VerifiedStage<CartState> {
-        val initializeCart = InitializeCart(MOCK_CUSTOMER_ID)
-        return aggregateVerifier<Cart, CartState>()
-            .given()
-            .`when`(initializeCart)
-            .expectEventType(CartInitialized::class.java)
-            .expectState {
-                assertThat(it.id, equalTo(initializeCart.id))
-                assertThat(it.items, empty())
-            }
-            .verify()
-    }
-
-    @Test
-    fun initializeCart() {
-        mockInitializeCart()
-    }
-
     @Test
     fun addCartItem() {
-        val verifiedStage = mockInitializeCart()
         val addCartItem = AddCartItem(
-            id = verifiedStage.stateRoot.id,
+            id = GlobalIdGenerator.generateAsString(),
             productId = "productId",
             quantity = 1,
         )
 
-        verifiedStage.then().given()
+        aggregateVerifier<Cart, CartState>()
+            .given()
             .`when`(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
@@ -72,14 +52,13 @@ class CartTest {
 
     @Test
     fun addCartItemIfSameProduct() {
-        val verifiedStage = mockInitializeCart()
         val addCartItem = AddCartItem(
-            id = verifiedStage.stateRoot.id,
+            id = GlobalIdGenerator.generateAsString(),
             productId = "productId",
             quantity = 1,
         )
 
-        verifiedStage.then()
+        aggregateVerifier<Cart, CartState>()
             .given(
                 CartItemAdded(
                     added = CartItem(
@@ -120,7 +99,6 @@ class CartTest {
 
     @Test
     fun addCartItemGivenMax() {
-        val verifiedStage = mockInitializeCart()
         val events = buildList {
             for (i in 0..99) {
                 add(
@@ -134,12 +112,13 @@ class CartTest {
             }
         }.toTypedArray()
         val addCartItem = AddCartItem(
-            id = verifiedStage.stateRoot.id,
+            id = GlobalIdGenerator.generateAsString(),
             productId = "productId",
             quantity = 1,
         )
 
-        verifiedStage.then().given(*events)
+        aggregateVerifier<Cart, CartState>()
+            .given(*events)
             .`when`(addCartItem)
             .expectErrorType(IllegalArgumentException::class.java)
             .expectState {
@@ -150,9 +129,8 @@ class CartTest {
 
     @Test
     fun removeCartItem() {
-        val verifiedStage = mockInitializeCart()
         val removeCartItem = RemoveCartItem(
-            id = verifiedStage.stateRoot.id,
+            id = GlobalIdGenerator.generateAsString(),
             productIds = setOf("productId"),
         )
         val added = CartItem(
@@ -160,7 +138,7 @@ class CartTest {
             quantity = 1,
         )
 
-        verifiedStage.then()
+        aggregateVerifier<Cart, CartState>()
             .given(
                 CartItemAdded(
                     added = added,
@@ -176,9 +154,8 @@ class CartTest {
 
     @Test
     fun changeQuantity() {
-        val verifiedStage = mockInitializeCart()
         val changeQuantity = ChangeQuantity(
-            id = verifiedStage.stateRoot.id,
+            id = GlobalIdGenerator.generateAsString(),
             productId = "productId",
             quantity = 2,
         )
@@ -186,7 +163,7 @@ class CartTest {
             productId = "productId",
             quantity = 1,
         )
-        verifiedStage.then()
+        aggregateVerifier<Cart, CartState>()
             .given(
                 CartItemAdded(
                     added = added,
