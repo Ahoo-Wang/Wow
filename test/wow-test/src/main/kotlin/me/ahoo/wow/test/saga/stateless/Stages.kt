@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.naming.annotation.asName
 import me.ahoo.wow.saga.stateless.CommandStream
 import org.hamcrest.MatcherAssert.*
@@ -40,6 +41,12 @@ interface ExpectStage<T : Any> {
         return expectNoError().expect {
             assertThat("Expect the command stream is not null.", it.commandStream, notNullValue())
             expected(it.commandStream!!)
+        }
+    }
+
+    fun expectCommandIterator(expected: (CommandIterator) -> Unit): ExpectStage<T> {
+        return expectCommandStream {
+            expected(CommandIterator(it.iterator()))
         }
     }
 
@@ -118,20 +125,16 @@ data class ExpectedResult<T>(
     val error: Throwable? = null
 ) {
     val hasError = error != null
+}
 
-    private val commandStreamItr by lazy {
-        checkNotNull(commandStream)
-        commandStream.iterator()
-    }
-
-    fun hasNextCommand(): Boolean {
-        return commandStreamItr.hasNext()
-    }
+class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
+    Iterator<CommandMessage<*>> by delegate,
+    Decorator<Iterator<CommandMessage<*>>> {
 
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(): CommandMessage<C> {
-        assertThat("Expect the next command.", hasNextCommand(), equalTo(true))
-        return commandStreamItr.next() as CommandMessage<C>
+        assertThat("Expect the next command.", hasNext(), equalTo(true))
+        return next() as CommandMessage<C>
     }
 
     fun <C : Any> nextCommandBody(): C {

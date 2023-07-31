@@ -16,6 +16,7 @@ package me.ahoo.wow.test.aggregate
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.asName
@@ -59,6 +60,12 @@ interface ExpectStage<S : Any> {
         return expect {
             assertThat("Expect the domain event stream is not null.", it.domainEventStream, notNullValue())
             expected(it.domainEventStream!!)
+        }
+    }
+
+    fun expectEventIterator(expected: (EventIterator) -> Unit): ExpectStage<S> {
+        return expectEventStream {
+            expected(EventIterator((it.iterator())))
         }
     }
 
@@ -148,20 +155,16 @@ data class ExpectedResult<S : Any>(
     val error: Throwable? = null
 ) {
     val hasError = error != null
+}
 
-    private val eventStreamItr by lazy {
-        checkNotNull(domainEventStream)
-        domainEventStream.iterator()
-    }
-
-    fun hasNextEvent(): Boolean {
-        return eventStreamItr.hasNext()
-    }
+class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
+    Iterator<DomainEvent<*>> by delegate,
+    Decorator<Iterator<DomainEvent<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    fun <E : Any> nextEvent(): DomainEvent<E> {
-        assertThat("Expect the next domain event.", hasNextEvent(), equalTo(true))
-        return eventStreamItr.next() as DomainEvent<E>
+    fun <C : Any> nextEvent(): DomainEvent<C> {
+        assertThat("Expect the next command.", hasNext(), equalTo(true))
+        return next() as DomainEvent<C>
     }
 
     fun <C : Any> nextEventBody(): C {
