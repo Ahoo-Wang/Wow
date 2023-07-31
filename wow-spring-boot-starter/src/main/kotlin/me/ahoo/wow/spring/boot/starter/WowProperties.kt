@@ -24,7 +24,7 @@ interface EnabledCapable {
 }
 
 @ConfigurationProperties(prefix = Wow.WOW)
-data class WowProperties(
+class WowProperties(
     @DefaultValue("true")
     override var enabled: Boolean = true,
     var contextName: String?
