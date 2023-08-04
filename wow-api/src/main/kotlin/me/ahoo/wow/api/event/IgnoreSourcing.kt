@@ -21,6 +21,12 @@ package me.ahoo.wow.api.event
  *  - 领域事件继承 [me.ahoo.wow.api.exception.ErrorInfo] ，标记该事件为失败事件
  *  - 领域事件继承 [IgnoreSourcing]
  *  - 领域事件版本=1
+ *  ``` kotlin
+ *  class ErrorIgnoreEvent(
+ *     override val errorCode: String,
+ *     override val errorMsg: String
+ * ) : IgnoreSourcing, ErrorInfo
+ *  ```
  *  ---
  *  影响：
  *  - [me.ahoo.wow.modeling.state.StateAggregate.onSourcing] 忽略该领域事件的溯源，且不会变更聚合版本。

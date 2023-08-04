@@ -31,4 +31,7 @@ class MockNamedEmptyEvent
 @Event(revision = REVISED_EVENT)
 class MockNamedAndRevisedEvent
 
-data class ErrorIgnoreEvent(override val errorCode: String, override val errorMsg: String) : IgnoreSourcing, ErrorInfo
+class ErrorIgnoreEvent(
+    override val errorCode: String,
+    override val errorMsg: String
+) : IgnoreSourcing, ErrorInfo
