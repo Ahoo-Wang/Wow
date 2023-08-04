@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema",
-  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/document/wow-metadata.schema.json",
-  "title": "Wow Bounded Context Schema",
-  "description": "Wow Bounded Context Schema",
+  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/schema/wow-metadata.schema.json",
+  "title": "Wow Metadata Schema",
+  "description": "Wow Metadata Schema",
   "type": "object",
   "properties": {
     "contexts": {
@@ -12,25 +12,28 @@
   "required": [
     "contexts"
   ],
+  "additionalProperties": false,
   "definitions": {
     "contexts": {
+      "description": "Bounded Context Name Map Bounded Context",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/definitions/boundedContext"
       }
     },
     "boundedContext": {
-      "description": "Bounded Context",
+      "description": "Bounded Context Definition",
       "type": "object",
       "properties": {
         "alias": {
+          "description": "Bounded Context Alias",
           "type": [
             "string",
             "null"
-          ],
-          "description": "context alias"
+          ]
         },
         "scopes": {
+          "description": "Bounded Context Scope",
           "type": "array",
           "items": {
             "type": "string"
@@ -43,49 +46,53 @@
       "additionalProperties": false
     },
     "aggregates": {
-      "type": "object",
       "description": "Aggregate name Map Aggregate",
+      "type": "object",
       "additionalProperties": {
         "$ref": "#/definitions/aggregate"
       }
     },
     "aggregate": {
+      "description": "Aggregate Root Definition",
       "type": "object",
       "properties": {
         "type": {
+          "description": "Aggregate Root type fully qualified name",
           "type": [
             "string",
             "null"
-          ],
-          "description": "Aggregate type fully qualified name"
+          ]
         },
         "scopes": {
+          "description": "Aggregate Root Scope",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "tenantId": {
+          "description": "Aggregate Root Static Tenant Id",
           "type": [
             "string",
             "null"
-          ],
-          "description": "static Tenant Id"
+          ]
         },
         "id": {
+          "description": "Aggregate Root Id Generator name",
           "type": [
             "string",
             "null"
-          ],
-          "description": "id name"
+          ]
         },
         "commands": {
+          "description": "Aggregate Root Commands fully qualified name",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "events": {
+          "description": "Aggregate Root Domain Event fully qualified name",
           "type": "array",
           "items": {
             "type": "string"
