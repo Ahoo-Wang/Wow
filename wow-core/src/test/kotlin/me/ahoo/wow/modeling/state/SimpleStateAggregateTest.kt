@@ -14,6 +14,8 @@ package me.ahoo.wow.modeling.state
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.event.IgnoreSourcing
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.asAggregateId
@@ -189,5 +191,23 @@ internal class SimpleStateAggregateTest {
         assertThat(stateAggregate.version, equalTo(1))
     }
 
+    @Test
+    fun sourcingGivenErrorIgnoreEvent() {
+        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val stateAggregate = aggregateMetadata.asStateAggregate(mockAggregate, 0)
+        val errorIgnoreEvent =
+            ErrorIgnoreEvent(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+        val domainEventStream = errorIgnoreEvent.asDomainEventStream(
+            command = GivenInitializationCommand(stateAggregate.aggregateId),
+            aggregateVersion = stateAggregate.version,
+        )
+        stateAggregate.onSourcing(domainEventStream)
+        assertThat(stateAggregate.version, equalTo(0))
+    }
+
     class WrongEvent
+
+    data class ErrorIgnoreEvent(override val errorCode: String, override val errorMsg: String) :
+        IgnoreSourcing,
+        ErrorInfo
 }
