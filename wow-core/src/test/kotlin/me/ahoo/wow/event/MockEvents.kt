@@ -15,6 +15,8 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.event.IgnoreSourcing
+import me.ahoo.wow.api.exception.ErrorInfo
 
 const val NAMED_EVENT = "NamedEvent"
 const val REVISED_EVENT = "RevisedEvent"
@@ -28,3 +30,5 @@ class MockNamedEmptyEvent
 @Name(NAMED_EVENT)
 @Event(revision = REVISED_EVENT)
 class MockNamedAndRevisedEvent
+
+data class ErrorIgnoreEvent(override val errorCode: String, override val errorMsg: String) : IgnoreSourcing, ErrorInfo
