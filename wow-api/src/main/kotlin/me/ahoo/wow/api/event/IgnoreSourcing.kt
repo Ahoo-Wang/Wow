@@ -18,8 +18,8 @@ package me.ahoo.wow.api.event
  *
  *  应用场景：执行聚合根命令时，业务校验失败需要生成失败事件以便下游订阅者处理。并且不需要溯源领域事件。
  *  触发条件：
- *  - 领域事件继承 [me.ahoo.wow.api.exception.ErrorInfo] ，标记该事件为失败事件
- *  - 领域事件继承 [IgnoreSourcing]
+ *  - 领域事件标记 [me.ahoo.wow.api.exception.ErrorInfo] ，标记该事件为失败事件
+ *  - 领域事件标记 [IgnoreSourcing]
  *  - 领域事件版本=1
  *  ``` kotlin
  *  class ErrorIgnoreEvent(
