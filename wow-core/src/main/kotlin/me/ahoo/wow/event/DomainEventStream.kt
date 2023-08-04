@@ -16,6 +16,8 @@ import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.RequestId
+import me.ahoo.wow.api.event.IgnoreSourcing
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.NamedBoundedContextMessage
 import me.ahoo.wow.api.modeling.AggregateId
@@ -77,5 +79,17 @@ data class SimpleDomainEventStream(
             createTime = it.createTime
         }
         size = body.size
+    }
+}
+
+/**
+ * @see IgnoreSourcing
+ */
+fun DomainEventStream.ignoreSourcing(): Boolean {
+    if (!isInitialVersion) {
+        return false
+    }
+    return body.all {
+        it.body is IgnoreSourcing && it.body is ErrorInfo
     }
 }

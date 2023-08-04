@@ -20,6 +20,7 @@ import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
+import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -48,6 +49,10 @@ class SimpleStateAggregate<S : Any>(
     override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
         if (log.isDebugEnabled) {
             log.debug("Sourcing {}.", eventStream)
+        }
+
+        if (eventStream.ignoreSourcing()) {
+            return this
         }
 
         require(aggregateId == eventStream.aggregateId) {
