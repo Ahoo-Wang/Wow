@@ -55,21 +55,23 @@ CREATE MATERIALIZED VIEW bi_db_consumer.order_order_state_consumer
             on cluster '{cluster}'
             TO bi_db.order_order_state
 AS
-SELECT JSONExtractString(data, 'id')                                                      AS id,
-       JSONExtractString(data, 'contextName')                                             AS contextName,
-       JSONExtractString(data, 'aggregateName')                                           AS aggregateName,
-       JSONExtractString(data, 'header')                                                  AS header,
-       JSONExtractString(data, 'aggregateId')                                             AS aggregateId,
-       JSONExtractString(data, 'tenantId')                                                AS tenantId,
-       JSONExtractString(data, 'commandId')                                               AS commandId,
-       JSONExtractString(data, 'requestId')                                               AS requestId,
-       JSONExtractUInt(data, 'version')                                                   AS version,
-       JSONExtractString(data, 'state')                                                   AS state,
-       JSONExtractString(data, 'body')                                                    AS body,
-       JSONExtractString(data, 'firstOperator')                                           AS firstOperator,
-       toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0, 3, 'Asia/Shanghai') AS firstEventTime,
-       toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0, 3, 'Asia/Shanghai')     AS createTime,
-       JSONExtractBool(data, 'deleted')                                                   AS deleted
+SELECT JSONExtractString(data, 'id')            AS id,
+       JSONExtractString(data, 'contextName')   AS contextName,
+       JSONExtractString(data, 'aggregateName') AS aggregateName,
+       JSONExtractString(data, 'header')        AS header,
+       JSONExtractString(data, 'aggregateId')   AS aggregateId,
+       JSONExtractString(data, 'tenantId')      AS tenantId,
+       JSONExtractString(data, 'commandId')     AS commandId,
+       JSONExtractString(data, 'requestId')     AS requestId,
+       JSONExtractUInt(data, 'version')         AS version,
+       JSONExtractString(data, 'state')         AS state,
+       JSONExtractString(data, 'body')          AS body,
+       JSONExtractString(data, 'firstOperator') AS firstOperator,
+       toDateTime64(JSONExtractUInt(data, 'firstEventTime') / 1000.0
+           , 3, 'Asia/Shanghai')                AS firstEventTime,
+       toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0
+           , 3, 'Asia/Shanghai')                AS createTime,
+       JSONExtractBool(data, 'deleted')         AS deleted
 FROM bi_db_consumer.order_order_state_queue
 ;
 
@@ -111,19 +113,22 @@ CREATE MATERIALIZED VIEW bi_db_consumer.order_order_command_consumer
             on cluster '{cluster}'
             TO bi_db.order_order_command
 AS
-SELECT JSONExtractString(data, 'id')                                                  AS id,
-       JSONExtractString(data, 'contextName')                                         AS contextName,
-       JSONExtractString(data, 'aggregateName')                                       AS aggregateName,
-       JSONExtractString(data, 'name')                                                AS name,
-       JSONExtractString(data, 'header')                                              AS header,
-       JSONExtractString(data, 'aggregateId')                                         AS aggregateId,
-       JSONExtractString(data, 'tenantId')                                            AS tenantId,
-       JSONExtractString(data, 'requestId')                                           AS requestId,
-       JSONExtract(data, 'aggregateVersion', 'Nullable(UInt32)')                      AS aggregateVersion,
-       JSONExtractBool(data, 'isCreate')                                              AS isCreate,
-       JSONExtractBool(data, 'allowCreate')                                           AS allowCreate,
-       JSONExtractString(data, 'bodyType')                                            AS bodyType,
-       JSONExtractString(data, 'body')                                                AS body,
-       toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0, 3, 'Asia/Shanghai') AS createTime
+SELECT JSONExtractString(data, 'id')            AS id,
+       JSONExtractString(data, 'contextName')   AS contextName,
+       JSONExtractString(data, 'aggregateName') AS aggregateName,
+       JSONExtractString(data, 'name')          AS name,
+       JSONExtractString(data, 'header')        AS header,
+       JSONExtractString(data, 'aggregateId')   AS aggregateId,
+       JSONExtractString(data, 'tenantId')      AS tenantId,
+       JSONExtractString(data, 'requestId')     AS requestId,
+       JSONExtract(data, 'aggregateVersion',
+                   'Nullable(UInt32)')          AS aggregateVersion,
+       JSONExtractBool(data, 'isCreate')        AS isCreate,
+       JSONExtractBool(data, 'allowCreate')     AS allowCreate,
+       JSONExtractString(data, 'bodyType')      AS bodyType,
+       JSONExtractString(data, 'body')          AS body,
+       toDateTime64(
+                   JSONExtractUInt(data, 'createTime') / 1000.0
+           , 3, 'Asia/Shanghai')                AS createTime
 FROM bi_db_consumer.order_order_command_queue
 ;

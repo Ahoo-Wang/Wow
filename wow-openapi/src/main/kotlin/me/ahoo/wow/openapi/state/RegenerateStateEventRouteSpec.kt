@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchRouteSpec
@@ -32,4 +33,6 @@ class RegenerateStateEventRouteSpec(
         get() = "Regenerate State Event"
     override val appendPathSuffix: String
         get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
+    override val requestBodyType: Class<*>
+        get() = CompensationConfig::class.java
 }
