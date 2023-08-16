@@ -3,8 +3,9 @@
 springBoot = "3.1.2"
 cosid = "2.4.0"
 testcontainers = "1.18.3"
-opentelemetry = "1.28.0"
-opentelemetrySemconv = "1.22.0-alpha"
+opentelemetry = "1.29.0"
+opentelemetryInstrumentation = "1.28.0"
+opentelemetrySemconv = "1.29.0-alpha"
 guava = "32.1.2-jre"
 hamcrest = "2.2"
 mockk = "1.13.7"
@@ -23,7 +24,7 @@ ksp = "1.9.0-1.0.11"
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 opentelemetryBom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
-opentelemetryInstrumentationBom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry" }
+opentelemetryInstrumentationBom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetryInstrumentation" }
 opentelemetrySemconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetrySemconv" }
 r2dbcBom = { module = "io.r2dbc:r2dbc-bom", version.ref = "r2dbcBom" }
 testcontainersBom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
