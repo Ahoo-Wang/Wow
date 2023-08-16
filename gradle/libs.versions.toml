@@ -3,7 +3,7 @@
 springBoot = "3.1.2"
 cosid = "2.4.0"
 testcontainers = "1.18.3"
-opentelemetry = "1.28.0"
+opentelemetry = "1.29.0"
 opentelemetrySemconv = "1.22.0-alpha"
 guava = "32.1.2-jre"
 hamcrest = "2.2"
