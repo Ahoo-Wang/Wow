@@ -2,7 +2,7 @@
 # libraries
 springBoot = "3.1.2"
 cosid = "2.5.0"
-testcontainers = "1.18.3"
+testcontainers = "1.19.0"
 opentelemetry = "1.29.0"
 opentelemetryInstrumentation = "1.29.0"
 opentelemetrySemconv = "1.29.0-alpha"
