@@ -43,7 +43,7 @@ CREATE TABLE bi_db.order_order_state_local on cluster '{cluster}'
 
 create table bi_db.order_order_state on cluster '{cluster}'
     as bi_db.order_order_state_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_state_local);
+        ENGINE = Distributed('{cluster}', bi_db, order_order_state_local, aggregateId);
 
 CREATE TABLE bi_db_consumer.order_order_state_queue on cluster '{cluster}'
 (
@@ -101,7 +101,7 @@ CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
 
 create table bi_db.order_order_command on cluster '{cluster}'
     as bi_db.order_order_command_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local);
+        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local, aggregateId);
 
 CREATE TABLE bi_db_consumer.order_order_command_queue on cluster '{cluster}'
 (
