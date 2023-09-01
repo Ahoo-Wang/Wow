@@ -68,9 +68,7 @@ class DefaultCommandGateway(
                 context = waitStrategy.contextName,
                 processor = waitStrategy.processorName
             )
-            if (waitStrategy.stage != CommandStage.SENT) {
-                waitStrategyRegistrar.register(command.commandId, waitStrategy)
-            }
+            waitStrategyRegistrar.register(command.commandId, waitStrategy)
             val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
             commandBus.send(command)
                 .doOnError {
