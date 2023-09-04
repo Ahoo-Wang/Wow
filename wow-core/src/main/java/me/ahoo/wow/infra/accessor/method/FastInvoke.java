@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.infra.accessor.method;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -37,7 +39,7 @@ public final class FastInvoke {
      * @throws IllegalAccessException IllegalAccessException
      */
     @SuppressWarnings("AvoidObjectArrays")
-    public static Object invoke(Method method, Object target, Object[] args)
+    public static Object invoke(@NotNull Method method, Object target, Object[] args)
             throws InvocationTargetException, IllegalAccessException {
         return method.invoke(target, args);
     }
@@ -53,8 +55,9 @@ public final class FastInvoke {
      * @throws InstantiationException InstantiationException
      * @throws IllegalAccessException IllegalAccessException
      */
+    @NotNull
     @SuppressWarnings("AvoidObjectArrays")
-    public static <T> T newInstance(Constructor<T> constructor, Object[] args)
+    public static <T> T newInstance(@NotNull Constructor<T> constructor, Object[] args)
             throws InvocationTargetException, InstantiationException,
             IllegalAccessException {
         return constructor.newInstance(args);
