@@ -21,6 +21,7 @@ import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -40,7 +41,6 @@ class CartTest {
         )
 
         aggregateVerifier<Cart, CartState>()
-            .given()
             .`when`(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
