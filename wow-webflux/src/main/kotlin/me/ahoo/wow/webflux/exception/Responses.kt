@@ -45,7 +45,10 @@ fun Mono<*>.asServerResponse(exceptionHandler: ExceptionHandler = DefaultExcepti
         if (it is ErrorInfo) {
             return@flatMap it.asServerResponse()
         }
-        ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(it.asJsonString())
+        ServerResponse.ok()
+            .contentType(MediaType.APPLICATION_JSON)
+            .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
+            .bodyValue(it.asJsonString())
     }.onErrorResume {
         exceptionHandler.handle(it)
     }
