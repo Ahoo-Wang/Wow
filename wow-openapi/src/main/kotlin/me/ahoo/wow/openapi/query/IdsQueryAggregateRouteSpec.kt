@@ -42,7 +42,7 @@ class IdsQueryAggregateRouteSpec(
     override val requestBody: RequestBody
         get() {
             val arraySchema = ArraySchema()
-            val requestBody = RequestBody().required(true).content(content(arraySchema))
+            val requestBody = RequestBody().required(true).content(jsonContent(arraySchema))
             arraySchema.items(StringSchema())
             return requestBody
         }

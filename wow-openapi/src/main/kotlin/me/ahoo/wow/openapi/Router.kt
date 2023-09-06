@@ -25,6 +25,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandStageSchema
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
+import me.ahoo.wow.openapi.command.ErrorInfoSchema
 import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
@@ -111,6 +112,7 @@ class Router(
 
     private fun addCommonSchema() {
         openAPI.components.addSchemas(CommandStageSchema.name, CommandStageSchema.schema)
+        openAPI.components.addSchemas(ErrorInfoSchema.name, ErrorInfoSchema.schema)
     }
 
     fun openAPI(): OpenAPI {

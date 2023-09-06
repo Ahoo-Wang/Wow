@@ -14,17 +14,22 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
+import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.command.ErrorInfoSchema
 
 abstract class AbstractRouteSpec : RouteSpec {
     open val requestBodyType: Class<*>?
@@ -44,18 +49,26 @@ abstract class AbstractRouteSpec : RouteSpec {
             return RequestBody()
                 .required(true)
                 .content(
-                    content(schema)
+                    jsonContent(schema)
                 )
         }
 
     override val responses: ApiResponses = ApiResponses()
 
-    fun content(
+    fun jsonContent(
+        schema: Schema<*>,
+        customize: (Content) -> Unit = {}
+    ): Content {
+        return context(Https.MediaType.APPLICATION_JSON, schema = schema, customize = customize)
+    }
+
+    fun context(
+        name: String = "*",
         schema: Schema<*>,
         customize: (Content) -> Unit = {}
     ): Content {
         val content = Content()
-            .addMediaType(Https.MediaType.APPLICATION_JSON, MediaType().schema(schema))
+            .addMediaType(name, MediaType().schema(schema))
         customize(content)
         return content
     }
@@ -93,7 +106,12 @@ abstract class AbstractRouteSpec : RouteSpec {
     }
 
     private fun initResponse() {
-        val apiResponse = ApiResponse().description(ErrorInfo.SUCCEEDED)
+        val errorCodeHeader = Header()
+            .content(context(schema = StringSchema()))
+            .example(ErrorCodes.BAD_REQUEST)
+        val succeededResponse = ApiResponse()
+            .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .description(ErrorInfo.SUCCEEDED)
         if (responseType != null && !responseType!!.isPrimitive) {
             val responseSchema = responseType!!.asSchemaRef()
             val schema = if (isArrayResponse) {
@@ -101,10 +119,15 @@ abstract class AbstractRouteSpec : RouteSpec {
             } else {
                 responseSchema
             }
-            apiResponse.content(content(schema))
+            succeededResponse.content(jsonContent(schema))
         }
-        customize(apiResponse)
-        responses.addApiResponse(Https.Code.OK, apiResponse)
+        customize(succeededResponse)
+        responses.addApiResponse(Https.Code.OK, succeededResponse)
+        ApiResponse()
+            .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .content(jsonContent(ErrorInfoSchema.schemaRef)).let {
+                responses.addApiResponse(Https.Code.CLIENT_ERROR_SERIES, it)
+            }
     }
 
     private fun initSchema() {

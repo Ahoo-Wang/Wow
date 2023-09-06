@@ -46,7 +46,7 @@ class LoadSnapshotRouteSpec(
     private val snapshotSchema = aggregateMetadata.state.aggregateType.asSnapshotSchema()
 
     override fun customize(apiResponse: ApiResponse): ApiResponse {
-        return apiResponse.content(content(snapshotSchema.schemaRef))
+        return apiResponse.content(jsonContent(snapshotSchema.schemaRef))
     }
 
     override fun build(): RouteSpec {
