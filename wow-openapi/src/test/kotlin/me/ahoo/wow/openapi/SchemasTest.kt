@@ -8,7 +8,7 @@ import org.hamcrest.CoreMatchers.anything
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
 import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.*
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 
 class SchemasTest {
@@ -36,7 +36,7 @@ class SchemasTest {
         val schemaRef = MockStateAggregate::class.java.asSchemaRef()
         assertThat(
             schemaRef.`$ref`,
-            equalTo("#/components/schemas/${MockStateAggregate::class.java.simpleName}")
+            equalTo("#/components/schemas/tck.${MockStateAggregate::class.java.simpleName}")
         )
     }
 }

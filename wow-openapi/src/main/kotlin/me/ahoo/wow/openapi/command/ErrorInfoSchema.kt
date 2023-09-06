@@ -14,11 +14,12 @@
 package me.ahoo.wow.openapi.command
 
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.openapi.Schemas.asSchemName
 import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
 
 object ErrorInfoSchema {
-    val name = ErrorInfo::class.java.simpleName
+    val name = ErrorInfo::class.java.asSchemName()
     val schema = ErrorInfo::class.java.asSchemas().entries.first().value
     val schemaRef = ErrorInfo::class.java.asSchemaRef()
 }

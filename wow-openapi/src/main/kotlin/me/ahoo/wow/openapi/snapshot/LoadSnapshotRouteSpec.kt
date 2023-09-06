@@ -22,6 +22,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.Schemas.asSchemName
 import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
 import me.ahoo.wow.openapi.snapshot.SnapshotSchema.Companion.asSnapshotSchema
@@ -60,11 +61,10 @@ data class SnapshotSchema(val name: String, val schema: Schema<*>, val schemaRef
 
     companion object {
         fun Class<*>.asSnapshotSchema(): SnapshotSchema {
-            val stateAggregateName = simpleName
             val snapshotName = Snapshot::class.java.simpleName
-            val schema = Snapshot::class.java.asSchemas()[snapshotName]!!
+            val schema = Snapshot::class.java.asSchemas()[Snapshot::class.java.asSchemName()]!!
             schema.properties[StateAggregateRecords.STATE] = this.asSchemaRef()
-            val schemaName = "${stateAggregateName}$snapshotName"
+            val schemaName = "${asSchemName()}$snapshotName"
             return SnapshotSchema(schemaName, schema, schemaName.asSchemaRef())
         }
     }

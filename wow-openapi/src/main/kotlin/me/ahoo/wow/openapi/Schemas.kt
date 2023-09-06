@@ -16,8 +16,22 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.core.converter.ModelConverters
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.Schema
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.configuration.asNamedBoundedContext
+import me.ahoo.wow.naming.getContextAlias
 
 object Schemas {
+    fun Class<*>.asSchemName(): String {
+        asNamedBoundedContext()?.let {
+            it.getContextAlias().let { alias ->
+                return "$alias.$simpleName"
+            }
+        }
+        if (name.startsWith("me.ahoo.wow.")) {
+            return Wow.WOW_PREFIX + simpleName
+        }
+        return simpleName
+    }
 
     fun Class<*>.asSchemas(): Map<String, Schema<*>> {
         return ModelConverters.getInstance().readAll(this)
@@ -35,7 +49,7 @@ object Schemas {
     }
 
     fun Class<*>.asSchemaRef(): Schema<*> {
-        return this.simpleName.asSchemaRef()
+        return this.asSchemName().asSchemaRef()
     }
 
     fun String.asSchemaRef(): Schema<*> {
