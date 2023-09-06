@@ -16,7 +16,7 @@ package me.ahoo.wow.openapi
 object Https {
     object Code {
         const val OK = "200"
-        const val CLIENT_ERROR_SERIES = "4xx"
+        const val BAD_REQUEST = "400"
     }
 
     object Method {
