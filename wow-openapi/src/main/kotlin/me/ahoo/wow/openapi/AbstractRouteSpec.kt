@@ -25,7 +25,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Schemas.asSchemas
 import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
@@ -108,7 +107,7 @@ abstract class AbstractRouteSpec : RouteSpec {
     private fun initResponse() {
         val errorCodeHeader = Header()
             .content(context(schema = StringSchema()))
-            .example(ErrorCodes.BAD_REQUEST)
+            .description("Error Code")
         val succeededResponse = ApiResponse()
             .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
             .description(ErrorInfo.SUCCEEDED)
@@ -125,8 +124,9 @@ abstract class AbstractRouteSpec : RouteSpec {
         responses.addApiResponse(Https.Code.OK, succeededResponse)
         ApiResponse()
             .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .description("Bad Request")
             .content(jsonContent(ErrorInfoSchema.schemaRef)).let {
-                responses.addApiResponse(Https.Code.CLIENT_ERROR_SERIES, it)
+                responses.addApiResponse(Https.Code.BAD_REQUEST, it)
             }
     }
 
