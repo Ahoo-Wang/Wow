@@ -30,7 +30,6 @@ interface GivenStage<S : Any> {
      * 1. 给定领域事件，朔源聚合.
      */
     fun given(vararg events: Any): WhenStage<S>
-
 }
 
 interface WhenStage<S : Any> {

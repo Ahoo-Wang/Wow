@@ -22,4 +22,6 @@ object CommandHeaders {
 
     const val WAIT_PROCESSOR = "Command-Wait-Processor"
     const val REQUEST_ID = "Command-Request-Id"
+
+    const val WOW_ERROR_CODE = "Wow-Error-Code"
 }

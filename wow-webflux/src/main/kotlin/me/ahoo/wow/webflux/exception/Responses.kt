@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
 import org.springframework.http.MediaType
@@ -22,14 +23,12 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-const val WOW_ERROR_CODE_HEADER = "Wow-Error-Code"
-
 fun Throwable.asResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = asErrorInfo()
     val status = errorInfo.asHttpStatus()
     return ResponseEntity.status(status)
         .contentType(MediaType.APPLICATION_JSON)
-        .header(WOW_ERROR_CODE_HEADER, errorInfo.errorCode)
+        .header(WOW_ERROR_CODE, errorInfo.errorCode)
         .body(errorInfo)
 }
 
@@ -37,7 +36,7 @@ fun ErrorInfo.asServerResponse(): Mono<ServerResponse> {
     val status = asHttpStatus()
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
-        .header(WOW_ERROR_CODE_HEADER, errorCode)
+        .header(WOW_ERROR_CODE, errorCode)
         .bodyValue(this.asJsonString())
 }
 

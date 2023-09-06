@@ -11,26 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.openapi.command
 
-object Https {
-    object Code {
-        const val OK = "200"
-        const val CLIENT_ERROR_SERIES = "4xx"
-    }
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
+import me.ahoo.wow.openapi.Schemas.asSchemas
 
-    object Method {
-        const val GET = "GET"
-        const val POST = "POST"
-        const val PUT = "PUT"
-        const val DELETE = "DELETE"
-        const val PATCH = "PATCH"
-        const val HEAD = "HEAD"
-        const val OPTIONS = "OPTIONS"
-        const val TRACE = "TRACE"
-    }
-
-    object MediaType {
-        const val APPLICATION_JSON = "application/json"
-    }
+object ErrorInfoSchema {
+    val name = ErrorInfo::class.java.simpleName
+    val schema = ErrorInfo::class.java.asSchemas().entries.first().value
+    val schemaRef = ErrorInfo::class.java.asSchemaRef()
 }
