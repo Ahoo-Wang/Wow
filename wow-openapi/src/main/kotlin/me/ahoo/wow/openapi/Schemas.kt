@@ -18,10 +18,16 @@ import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.configuration.asNamedBoundedContext
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.naming.getContextAlias
 
 object Schemas {
     fun Class<*>.asSchemName(): String? {
+        this.scan<io.swagger.v3.oas.annotations.media.Schema>()?.let {
+            if (it.name.isNotBlank()) {
+                return it.name
+            }
+        }
         asNamedBoundedContext()?.let {
             it.getContextAlias().let { alias ->
                 return "$alias.$simpleName"

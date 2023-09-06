@@ -14,6 +14,7 @@
 
 package me.ahoo.wow.example.domain.order
 
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
@@ -30,6 +31,7 @@ import java.math.BigDecimal
  * @author ahoo wang
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
+@Schema(name = "WowExampleOrderState")
 class OrderState(
     /**
      * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
