@@ -21,7 +21,7 @@ import me.ahoo.wow.configuration.asNamedBoundedContext
 import me.ahoo.wow.naming.getContextAlias
 
 object Schemas {
-    fun Class<*>.asSchemName(): String {
+    fun Class<*>.asSchemName(): String? {
         asNamedBoundedContext()?.let {
             it.getContextAlias().let { alias ->
                 return "$alias.$simpleName"
@@ -30,7 +30,7 @@ object Schemas {
         if (name.startsWith("me.ahoo.wow.")) {
             return Wow.WOW_PREFIX + simpleName
         }
-        return simpleName
+        return null
     }
 
     fun Class<*>.asSchemas(): Map<String, Schema<*>> {
@@ -49,7 +49,7 @@ object Schemas {
     }
 
     fun Class<*>.asSchemaRef(): Schema<*> {
-        return this.asSchemName().asSchemaRef()
+        return requireNotNull(this.asSchemName()).asSchemaRef()
     }
 
     fun String.asSchemaRef(): Schema<*> {
