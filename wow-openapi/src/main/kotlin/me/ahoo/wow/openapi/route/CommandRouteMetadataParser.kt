@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.route
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.asCommandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
@@ -83,6 +84,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 
     fun asMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.asCommandMetadata()
+        val summary = commandType.scan<Summary>()?.value ?: ""
         return commandType.scan<CommandRoute>()?.let {
             val path = if (it.path == DEFAULT_COMMAND_PATH) {
                 commandMetadata.name
@@ -100,6 +102,8 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 commandMetadata = commandMetadata,
                 pathVariableMetadata = pathVariables,
                 headerVariableMetadata = headerVariables,
+                summary = it.summary.ifBlank { summary },
+                description = it.description,
             )
         } ?: CommandRouteMetadata(
             enabled = true,
@@ -111,6 +115,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
+            summary = summary
         )
     }
 }
