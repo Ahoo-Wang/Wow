@@ -27,10 +27,9 @@ import java.time.Duration
 import java.util.*
 
 fun ServerRequest.getCommandStage(): CommandStage {
-    val stage: CommandStage = headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
+    return headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     } ?: CommandStage.PROCESSED
-    return stage
 }
 
 fun ServerRequest.getWaitContext(): String {
