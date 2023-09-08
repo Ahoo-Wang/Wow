@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Duration
 
 val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
@@ -51,6 +52,8 @@ class CommandHandlerFunction(
                 bodyExtractor,
                 mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables()),
             )
+        }.switchIfEmpty {
+            Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
             handler.handle(request, it)
         }.asServerResponse(exceptionHandler)
