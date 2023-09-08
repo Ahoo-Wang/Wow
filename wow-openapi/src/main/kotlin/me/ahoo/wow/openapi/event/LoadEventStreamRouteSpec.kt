@@ -11,31 +11,48 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.query
+package me.ahoo.wow.openapi.event
 
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.IntegerSchema
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.RouteSpec
 
-class LoadAggregateRouteSpec(
+class LoadEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec() {
+
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.getStateAggregate"
+        get() = "${aggregateMetadata.asStringWithAlias()}.loadEventStream"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
         get() = true
-
-    override val appendPathSuffix: String
-        get() = "state"
-
     override val summary: String
-        get() = "Get state aggregate"
-
+        get() = "Load Event Stream"
+    override val isArrayResponse: Boolean
+        get() = true
     override val responseType: Class<*>
-        get() = aggregateMetadata.state.aggregateType
+        get() = DomainEventStream::class.java
+    override val appendPathSuffix: String
+        get() = "event/{${RoutePaths.COMPENSATE_HEAD_VERSION_KEY}}/{${RoutePaths.COMPENSATE_TAIL_VERSION_KEY}}"
+
+    override fun build(): RouteSpec {
+        super.build()
+        addParameter(RoutePaths.COMPENSATE_HEAD_VERSION_KEY, ParameterIn.PATH, IntegerSchema()) {
+            it.example(EventStore.DEFAULT_HEAD_VERSION)
+        }
+        addParameter(RoutePaths.COMPENSATE_TAIL_VERSION_KEY, ParameterIn.PATH, IntegerSchema()) {
+            it.example(Int.MAX_VALUE)
+        }
+        return this
+    }
 }

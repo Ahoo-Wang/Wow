@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.compensation
+package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
+import me.ahoo.wow.openapi.event.DomainEventCompensateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction

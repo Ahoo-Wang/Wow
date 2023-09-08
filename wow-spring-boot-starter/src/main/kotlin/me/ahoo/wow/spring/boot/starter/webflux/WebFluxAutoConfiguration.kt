@@ -31,16 +31,17 @@ import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
-import me.ahoo.wow.webflux.route.compensation.DomainEventCompensateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.compensation.StateEventCompensateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.AggregateTracingHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.IdsQueryAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.LoadAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.query.ScanAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.state.RegenerateStateEventFunctionFactory
+import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.RegenerateStateEventFunctionFactory
+import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.ScanAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -179,6 +180,11 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler,
     ): CommandHandlerFunctionFactory {
         return CommandHandlerFunctionFactory(commandGateway, exceptionHandler, DEFAULT_TIME_OUT)
+    }
+
+    @Bean
+    fun loadEventStreamHandlerFunctionFactory(eventStore: EventStore): LoadEventStreamHandlerFunctionFactory {
+        return LoadEventStreamHandlerFunctionFactory(eventStore)
     }
 
     @Bean

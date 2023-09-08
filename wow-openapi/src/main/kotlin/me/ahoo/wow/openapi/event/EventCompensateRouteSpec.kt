@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.compensation
+package me.ahoo.wow.openapi.event
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.media.IntegerSchema

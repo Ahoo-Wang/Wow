@@ -27,6 +27,7 @@ object JsonSerializer : ObjectMapper() {
     init {
         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
         configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
+        // setSerializationInclusion(JsonInclude.Include.NON_NULL)
         disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         registerKotlinModule()
         registerModule(JavaTimeModule())

@@ -26,17 +26,18 @@ import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandStageSchema
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
 import me.ahoo.wow.openapi.command.ErrorInfoSchema
-import me.ahoo.wow.openapi.compensation.DomainEventCompensateRouteSpec
-import me.ahoo.wow.openapi.compensation.StateEventCompensateRouteSpec
-import me.ahoo.wow.openapi.query.AggregateTracingRouteSpec
-import me.ahoo.wow.openapi.query.IdsQueryAggregateRouteSpec
-import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
-import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
+import me.ahoo.wow.openapi.event.DomainEventCompensateRouteSpec
+import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.event.state.RegenerateStateEventRouteSpec
+import me.ahoo.wow.openapi.event.state.StateEventCompensateRouteSpec
 import me.ahoo.wow.openapi.route.asCommandRouteMetadata
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
-import me.ahoo.wow.openapi.state.RegenerateStateEventRouteSpec
+import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
+import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.state.ScanAggregateRouteSpec
 
 class Router(
     private val currentContext: NamedBoundedContext,
@@ -107,6 +108,8 @@ class Router(
         add(stateEventCompensateRouteSpec)
         //endregion
 
+        val loadEventStreamRouteSpec = LoadEventStreamRouteSpec(currentContext, aggregateMetadata).build()
+        add(loadEventStreamRouteSpec)
         return this
     }
 

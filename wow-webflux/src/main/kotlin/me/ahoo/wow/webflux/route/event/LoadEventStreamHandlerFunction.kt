@@ -11,43 +11,50 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.compensation
+package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.messaging.compensation.CompensationConfig
-import me.ahoo.wow.messaging.compensation.EventCompensator
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> {
+class LoadEventStreamHandlerFunction(
+    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val eventStore: EventStore
+) :
+    HandlerFunction<ServerResponse> {
 
-    abstract val aggregateMetadata: AggregateMetadata<*, *>
-    abstract val eventCompensator: EventCompensator
-    abstract val exceptionHandler: ExceptionHandler
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        return request.bodyToMono(CompensationConfig::class.java)
-            .flatMap {
-                requireNotNull(it) {
-                    "CompensationConfig is required!"
-                }
-                val headVersion = request.pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY).toInt()
-                val tailVersion = request.pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY).toInt()
-                val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
-                eventCompensator.compensate(
-                    aggregateId,
-                    config = it,
-                    headVersion = headVersion,
-                    tailVersion = tailVersion,
-                )
-            }.asServerResponse(exceptionHandler)
+        val headVersion = request.pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY).toInt()
+        val tailVersion = request.pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY).toInt()
+        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+        return eventStore
+            .load(
+                aggregateId = aggregateId,
+                headVersion = headVersion,
+                tailVersion = tailVersion
+            ).collectList()
+            .asServerResponse()
+    }
+}
+
+class LoadEventStreamHandlerFunctionFactory(
+    private val eventStore: EventStore
+) : RouteHandlerFunctionFactory<LoadEventStreamRouteSpec> {
+    override val supportedSpec: Class<LoadEventStreamRouteSpec>
+        get() = LoadEventStreamRouteSpec::class.java
+
+    override fun create(spec: LoadEventStreamRouteSpec): HandlerFunction<ServerResponse> {
+        return LoadEventStreamHandlerFunction(spec.aggregateMetadata, eventStore)
     }
 }

@@ -11,52 +11,56 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.query
+package me.ahoo.wow.webflux.route.event.state
 
-import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.query.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.event.state.RegenerateStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class LoadAggregateHandlerFunction(
+class RegenerateStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val stateAggregateRepository: StateAggregateRepository,
+    private val eventStore: EventStore,
+    private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
+    private val handler =
+        RegenerateStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
-        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
-        return stateAggregateRepository
-            .load(aggregateMetadata.state, aggregateId)
-            .filter {
-                it.initialized && !it.deleted
+        val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
+        val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
+        return request.bodyToMono(CompensationConfig::class.java)
+            .flatMap {
+                handler.handle(it, cursorId, limit)
             }
-            .map { it.state }
-            .throwNotFoundIfEmpty()
             .asServerResponse(exceptionHandler)
     }
 }
 
-class LoadAggregateHandlerFunctionFactory(
-    private val stateAggregateRepository: StateAggregateRepository,
+class RegenerateStateEventFunctionFactory(
+    private val eventStore: EventStore,
+    private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<LoadAggregateRouteSpec> {
-    override val supportedSpec: Class<LoadAggregateRouteSpec>
-        get() = LoadAggregateRouteSpec::class.java
+) : RouteHandlerFunctionFactory<RegenerateStateEventRouteSpec> {
+    override val supportedSpec: Class<RegenerateStateEventRouteSpec>
+        get() = RegenerateStateEventRouteSpec::class.java
 
-    override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
+    override fun create(spec: RegenerateStateEventRouteSpec): HandlerFunction<ServerResponse> {
+        return RegenerateStateEventFunction(
+            aggregateMetadata = spec.aggregateMetadata,
+            eventStore = eventStore,
+            stateEventCompensator = stateEventCompensator,
+            exceptionHandler = exceptionHandler,
+        )
     }
 }

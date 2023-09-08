@@ -11,59 +11,56 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.query
+package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.query.ScanAggregateRouteSpec
+import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class ScanAggregateHandlerFunction(
+object IdList : ParameterizedTypeReference<Set<String>>()
+
+class IdsQueryAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val eventStore: EventStore,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
-
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
-        val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return eventStore.scanAggregateId(
-            namedAggregate = aggregateMetadata.namedAggregate,
-            cursorId = cursorId,
-            limit = limit,
-        ).flatMapSequential {
-            stateAggregateRepository.load<Any>(it)
-        }.filter {
-            it.initialized && !it.deleted
-        }.map { it.state }
+        val tenantId = request.getTenantId(aggregateMetadata)
+        return request.bodyToMono(IdList)
+            .flatMapIterable {
+                it.map { id ->
+                    aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+                }
+            }
+            .flatMap {
+                stateAggregateRepository.load(aggregateMetadata.state, it)
+            }.filter {
+                it.initialized && !it.deleted
+            }
+            .map { it.state }
             .collectList()
             .asServerResponse(exceptionHandler)
     }
 }
 
-class ScanAggregateHandlerFunctionFactory(
+class IdsQueryAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val eventStore: EventStore,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<ScanAggregateRouteSpec> {
-    override val supportedSpec: Class<ScanAggregateRouteSpec>
-        get() = ScanAggregateRouteSpec::class.java
+) : RouteHandlerFunctionFactory<IdsQueryAggregateRouteSpec> {
+    override val supportedSpec: Class<IdsQueryAggregateRouteSpec>
+        get() = IdsQueryAggregateRouteSpec::class.java
 
-    override fun create(spec: ScanAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return ScanAggregateHandlerFunction(
-            aggregateMetadata = spec.aggregateMetadata,
-            stateAggregateRepository = stateAggregateRepository,
-            eventStore = eventStore,
-            exceptionHandler = exceptionHandler,
-        )
+    override fun create(spec: IdsQueryAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return IdsQueryAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
     }
 }

@@ -11,31 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.query
+package me.ahoo.wow.openapi.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 
-class AggregateTracingRouteSpec(
+class LoadAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec() {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.getAggregateTracing"
+        get() = "${aggregateMetadata.asStringWithAlias()}.getStateAggregate"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
         get() = true
+
     override val appendPathSuffix: String
-        get() = "state/tracing"
+        get() = "state"
+
     override val summary: String
-        get() = "Get aggregate tracing"
+        get() = "Get state aggregate"
+
     override val responseType: Class<*>
-        get() = StateEvent::class.java
-    override val isArrayResponse: Boolean
-        get() = true
+        get() = aggregateMetadata.state.aggregateType
 }

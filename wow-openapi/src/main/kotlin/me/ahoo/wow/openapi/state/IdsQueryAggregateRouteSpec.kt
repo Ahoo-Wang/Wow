@@ -13,26 +13,41 @@
 
 package me.ahoo.wow.openapi.state
 
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.parameters.RequestBody
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.BatchRouteSpec
+import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RoutePaths
 
-class RegenerateStateEventRouteSpec(
+class IdsQueryAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : BatchRouteSpec() {
+) : AggregateRouteSpec() {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.regenerateStateEvent"
+        get() = "${aggregateMetadata.asStringWithAlias()}.idsQueryStateAggregate"
     override val method: String
         get() = Https.Method.POST
-    override val summary: String
-        get() = "Regenerate State Event"
+
     override val appendPathSuffix: String
-        get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
+        get() = "state/ids"
+
+    override val summary: String
+        get() = "Query state aggregate by ids"
+
     override val requestBodyType: Class<*>
-        get() = CompensationConfig::class.java
+        get() = String::class.java
+    override val requestBody: RequestBody
+        get() {
+            val arraySchema = ArraySchema()
+            val requestBody = RequestBody().required(true).content(jsonContent(arraySchema))
+            arraySchema.items(StringSchema())
+            return requestBody
+        }
+    override val isArrayResponse: Boolean
+        get() = true
+    override val responseType: Class<*>
+        get() = aggregateMetadata.state.aggregateType
 }
