@@ -28,6 +28,8 @@ data class CommandRouteMetadata<C>(
     val appendTenantPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val ignoreAggregateNamePrefix: Boolean = false,
     val commandMetadata: CommandMetadata<C>,
+    val summary: String = "",
+    val description: String = "",
     /**
      * filedName -> PathVariableMetadata
      */

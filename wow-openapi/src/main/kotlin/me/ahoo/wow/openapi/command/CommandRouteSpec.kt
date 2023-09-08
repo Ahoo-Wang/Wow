@@ -17,10 +17,8 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
@@ -61,7 +59,7 @@ open class CommandRouteSpec(
     override val appendIdPath: Boolean
         get() {
             val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                !commandRouteMetadata.commandMetadata.isCreate
+                    !commandRouteMetadata.commandMetadata.isCreate
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
@@ -76,7 +74,9 @@ open class CommandRouteSpec(
                 .append(commandRouteMetadata.path).build()
         }
     override val summary: String
-        get() = commandRouteMetadata.commandMetadata.commandType.scan<Summary>()?.value ?: ""
+        get() = commandRouteMetadata.summary
+    override val description: String
+        get() = commandRouteMetadata.description
     override val tags: List<String>
         get() {
             val tags = mutableListOf<String>()

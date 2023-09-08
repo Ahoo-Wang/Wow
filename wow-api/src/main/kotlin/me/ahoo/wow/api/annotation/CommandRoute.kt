@@ -27,7 +27,9 @@ annotation class CommandRoute(
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
-    val ignoreAggregateNamePrefix: Boolean = false
+    val ignoreAggregateNamePrefix: Boolean = false,
+    val summary: String = "",
+    val description: String = "",
 ) {
 
     @Target(AnnotationTarget.FIELD)

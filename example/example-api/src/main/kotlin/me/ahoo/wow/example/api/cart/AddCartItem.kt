@@ -4,11 +4,14 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.Summary
 
-@Summary("加入购物车")
 @AllowCreate
-@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS, method = CommandRoute.Method.POST)
+@CommandRoute(
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    method = CommandRoute.Method.POST,
+    summary = "加入购物车",
+    description = "加入购物车"
+)
 data class AddCartItem(
     @CommandRoute.PathVariable
     val id: String,
