@@ -17,6 +17,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.webflux.route.command.CommandParser.parse
@@ -26,7 +27,7 @@ import java.time.Duration
 import java.util.*
 
 fun ServerRequest.getCommandStage(): CommandStage {
-    val stage: CommandStage = headers().firstHeader(CommandHeaders.WAIT_STAGE)?.let { stage ->
+    val stage: CommandStage = headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     } ?: CommandStage.PROCESSED
     return stage
@@ -40,6 +41,12 @@ fun ServerRequest.getWaitProcessor(): String {
     return headers().firstHeader(CommandHeaders.WAIT_PROCESSOR).orEmpty()
 }
 
+fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
+    return headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)?.toLongOrNull()?.let {
+        Duration.ofMillis(it)
+    } ?: default
+}
+
 class CommandHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandGateway: CommandGateway,
@@ -47,30 +54,27 @@ class CommandHandler(
 ) {
 
     fun handle(request: ServerRequest, commandBody: Any): Mono<CommandResult> {
-        val commandWaitTimeout = request.headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)?.let {
-            Duration.ofMillis(it.toLong())
-        } ?: timeout
+        val commandWaitTimeout = request.getWaitTimeout(timeout)
         return request.parse(
             aggregateMetadata = aggregateMetadata,
             commandBody = commandBody
-        )
-            .flatMap {
-                val stage: CommandStage = request.getCommandStage()
-                if (CommandStage.SENT == stage) {
-                    commandGateway.sendAndWaitForSent(it)
-                } else {
-                    val waitContext = request.getWaitContext().ifBlank {
-                        it.contextName
-                    }
-                    commandGateway.sendAndWait(
-                        command = it,
-                        waitStrategy = WaitingFor.stage(
-                            stage = stage,
-                            contextName = waitContext,
-                            processorName = request.getWaitProcessor()
-                        )
+        ).flatMap {
+            val stage: CommandStage = request.getCommandStage()
+            if (CommandStage.SENT == stage) {
+                commandGateway.sendAndWaitForSent(it)
+            } else {
+                val waitContext = request.getWaitContext().ifBlank {
+                    it.contextName
+                }
+                commandGateway.sendAndWait(
+                    command = it,
+                    waitStrategy = WaitingFor.stage(
+                        stage = stage,
+                        contextName = waitContext,
+                        processorName = request.getWaitProcessor()
                     )
-                }.timeout(commandWaitTimeout)
-            }
+                )
+            }.timeout(commandWaitTimeout)
+        }
     }
 }

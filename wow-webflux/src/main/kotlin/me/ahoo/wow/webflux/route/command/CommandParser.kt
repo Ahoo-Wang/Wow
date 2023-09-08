@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
@@ -29,15 +30,23 @@ import reactor.kotlin.core.publisher.toMono
 
 object CommandParser {
     fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String {
-        aggregateMetadata.staticTenantId?.let {
+        aggregateMetadata.staticTenantId.ifNotBlank<String> {
             return it
         }
-        return pathVariables()[MessageRecords.TENANT_ID] ?: TenantId.DEFAULT_TENANT_ID
+        pathVariables()[MessageRecords.TENANT_ID].ifNotBlank<String> {
+            return it
+        }
+        return TenantId.DEFAULT_TENANT_ID
     }
 
     fun ServerRequest.getAggregateId(): String? {
-        return headers().firstHeader(CommandHeaders.AGGREGATE_ID)
-            ?: pathVariables()[RoutePaths.ID_KEY]
+        headers().firstHeader(CommandHeaders.AGGREGATE_ID).ifNotBlank<String> {
+            return it
+        }
+        pathVariables()[RoutePaths.ID_KEY].ifNotBlank<String> {
+            return it
+        }
+        return null
     }
 
     fun ServerRequest.parse(
@@ -47,7 +56,7 @@ object CommandParser {
         val aggregateId = getAggregateId()
         val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
-        val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID)
+        val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID).ifNotBlank { it }
         return principal()
             .map {
                 val header = DefaultHeader.empty().withOperator(it.name)
