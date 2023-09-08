@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.compensation
+package me.ahoo.wow.openapi.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.event.EventCompensateRouteSpec
 
-class DomainEventCompensateRouteSpec(
+class StateEventCompensateRouteSpec(
     currentContext: NamedBoundedContext,
     aggregateMetadata: AggregateMetadata<*, *>,
 ) : EventCompensateRouteSpec(currentContext, aggregateMetadata) {
 
     override val topicKind: String
-        get() = "event"
+        get() = "state"
 }

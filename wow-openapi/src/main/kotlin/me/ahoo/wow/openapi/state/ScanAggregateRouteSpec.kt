@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.query
+package me.ahoo.wow.openapi.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
