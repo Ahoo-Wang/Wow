@@ -32,6 +32,10 @@ class TracingSnapshotRepository(override val delegate: SnapshotRepository) :
         }
     }
 
+    override fun getVersion(aggregateId: AggregateId): Mono<Int> {
+        return delegate.getVersion(aggregateId)
+    }
+
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.defer {
             val parentContext = Context.current()

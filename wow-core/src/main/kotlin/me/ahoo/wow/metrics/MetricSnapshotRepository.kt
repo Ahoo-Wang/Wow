@@ -30,6 +30,14 @@ class MetricSnapshotRepository(delegate: SnapshotRepository) :
             .metrics()
     }
 
+    override fun getVersion(aggregateId: AggregateId): Mono<Int> {
+        return delegate.getVersion(aggregateId)
+            .name(Wow.WOW_PREFIX + "snapshot.getVersion")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
+
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return delegate.save(snapshot)
             .name(Wow.WOW_PREFIX + "snapshot.save")

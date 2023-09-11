@@ -31,7 +31,7 @@ abstract class SnapshotStrategySpec {
 
     protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
-    private val snapshotStrategy: SnapshotStrategy
+    protected val snapshotStrategy: SnapshotStrategy
 
     init {
         this.snapshotStrategy = createSnapshotStrategy().metrizable()

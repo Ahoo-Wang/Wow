@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import reactor.core.publisher.Mono
 
@@ -19,11 +20,24 @@ import reactor.core.publisher.Mono
  * Snapshot Repository.
  */
 interface SnapshotRepository {
+    companion object {
+        val UNINITIALIZED_VERSION = Mono.just(Version.UNINITIALIZED_VERSION)
+    }
+
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
+    fun getVersion(aggregateId: AggregateId): Mono<Int> {
+        return load<Any>(aggregateId)
+            .map {
+                it.version
+            }
+            .switchIfEmpty(UNINITIALIZED_VERSION)
+    }
+
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
 }
 
 object NoOpSnapshotRepository : SnapshotRepository {
+
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return Mono.empty()
     }
