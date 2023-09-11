@@ -20,9 +20,6 @@ import reactor.core.publisher.Mono
  * Snapshot Repository.
  */
 interface SnapshotRepository {
-    companion object {
-        val UNINITIALIZED_VERSION = Mono.just(Version.UNINITIALIZED_VERSION)
-    }
 
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun getVersion(aggregateId: AggregateId): Mono<Int> {
@@ -30,7 +27,7 @@ interface SnapshotRepository {
             .map {
                 it.version
             }
-            .switchIfEmpty(UNINITIALIZED_VERSION)
+            .defaultIfEmpty(Version.UNINITIALIZED_VERSION)
     }
 
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
