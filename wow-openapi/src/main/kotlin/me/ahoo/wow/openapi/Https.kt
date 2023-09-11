@@ -17,6 +17,11 @@ object Https {
     object Code {
         const val OK = "200"
         const val BAD_REQUEST = "400"
+        const val NOT_FOUND = "404"
+        const val REQUEST_TIMEOUT = "408"
+        const val CONFLICT = "409"
+        const val GONE = "410"
+        const val TOO_MANY_REQUESTS = "429"
     }
 
     object Method {

@@ -14,16 +14,20 @@
 package me.ahoo.wow.openapi.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.Schemas.asSchemaRef
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 
@@ -91,6 +95,8 @@ open class CommandRouteSpec(
 
     override val responseType: Class<*>
         get() = CommandResult::class.java
+    override val errorResponseContent: Content
+        get() = jsonContent(responseType.asSchemaRef())
 
     override fun build(): RouteSpec {
         super.build()
@@ -115,6 +121,19 @@ open class CommandRouteSpec(
                 it.required(variableMetadata.required)
             }
         }
+
+        ApiResponse()
+            .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, errorCodeHeader)
+            .description("Version Conflict")
+            .content(errorResponseContent).let {
+                responses.addApiResponse(Https.Code.CONFLICT, it)
+            }
+        ApiResponse()
+            .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, errorCodeHeader)
+            .description("Illegal Access Deleted Aggregate")
+            .content(errorResponseContent).let {
+                responses.addApiResponse(Https.Code.GONE, it)
+            }
         return this
     }
 }
