@@ -16,10 +16,10 @@ package me.ahoo.wow.mongo
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.asSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents.replaceAggregateIdAsPrimaryKey
 import me.ahoo.wow.serialization.MessageRecords
@@ -53,7 +53,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             .toMono()
             .map {
                 it.getInteger(MessageRecords.VERSION)
-            }.switchIfEmpty(UNINITIALIZED_VERSION)
+            }.defaultIfEmpty(UNINITIALIZED_VERSION)
     }
 
     private fun <S : Any> mapSnapshot(
