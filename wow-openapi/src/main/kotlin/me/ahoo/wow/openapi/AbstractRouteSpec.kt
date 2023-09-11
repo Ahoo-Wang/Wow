@@ -53,7 +53,10 @@ abstract class AbstractRouteSpec : RouteSpec {
         }
 
     override val responses: ApiResponses = ApiResponses()
-
+    protected val errorCodeHeader = Header()
+        .content(context(schema = StringSchema()))
+        .description("Error Code")
+    protected open val errorResponseContent = jsonContent(ErrorInfoSchema.schemaRef)
     fun jsonContent(
         schema: Schema<*>,
         customize: (Content) -> Unit = {}
@@ -105,9 +108,6 @@ abstract class AbstractRouteSpec : RouteSpec {
     }
 
     private fun initResponse() {
-        val errorCodeHeader = Header()
-            .content(context(schema = StringSchema()))
-            .description("Error Code")
         val succeededResponse = ApiResponse()
             .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
             .description(ErrorInfo.SUCCEEDED)
@@ -125,8 +125,26 @@ abstract class AbstractRouteSpec : RouteSpec {
         ApiResponse()
             .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
             .description("Bad Request")
-            .content(jsonContent(ErrorInfoSchema.schemaRef)).let {
+            .content(errorResponseContent).let {
                 responses.addApiResponse(Https.Code.BAD_REQUEST, it)
+            }
+        ApiResponse()
+            .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .description("Not Found")
+            .content(errorResponseContent).let {
+                responses.addApiResponse(Https.Code.NOT_FOUND, it)
+            }
+        ApiResponse()
+            .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .description("Request Timeout")
+            .content(errorResponseContent).let {
+                responses.addApiResponse(Https.Code.REQUEST_TIMEOUT, it)
+            }
+        ApiResponse()
+            .addHeaderObject(WOW_ERROR_CODE, errorCodeHeader)
+            .description("Too Many Requests")
+            .content(errorResponseContent).let {
+                responses.addApiResponse(Https.Code.TOO_MANY_REQUESTS, it)
             }
     }
 
