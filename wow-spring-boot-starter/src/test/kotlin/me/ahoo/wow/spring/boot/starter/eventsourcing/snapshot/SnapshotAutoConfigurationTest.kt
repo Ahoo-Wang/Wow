@@ -14,10 +14,11 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -58,7 +59,36 @@ internal class SnapshotAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemorySnapshotRepository::class.java)
-                    .hasSingleBean(SnapshotStrategy::class.java)
+                    .hasSingleBean(SimpleSnapshotStrategy::class.java)
+                    .hasSingleBean(SnapshotFunctionFilter::class.java)
+                    .hasBean("snapshotFilterChain")
+                    .hasSingleBean(SnapshotHandler::class.java)
+                    .hasSingleBean(SnapshotDispatcher::class.java)
+                    .hasSingleBean(SnapshotDispatcherLauncher::class.java)
+            }
+    }
+
+    @Test
+    fun versionOffset() {
+        contextRunner
+            .enableWow()
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${EventStoreStorage.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${SnapshotStorage.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STRATEGY}=${Strategy.VERSION_OFFSET_NAME}",
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+            )
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+                EventStoreAutoConfiguration::class.java,
+                SnapshotAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(InMemorySnapshotRepository::class.java)
+                    .hasSingleBean(VersionOffsetSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)
                     .hasBean("snapshotFilterChain")
                     .hasSingleBean(SnapshotHandler::class.java)

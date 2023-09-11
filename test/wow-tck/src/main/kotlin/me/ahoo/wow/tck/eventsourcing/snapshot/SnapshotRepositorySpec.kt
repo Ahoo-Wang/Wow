@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.eventsourcing.snapshot
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.event.asDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -64,7 +65,10 @@ abstract class SnapshotRepositorySpec {
         snapshotRepository.save(snapshot)
             .test()
             .verifyComplete()
-
+        snapshotRepository.getVersion(stateAggregate.aggregateId)
+            .test()
+            .expectNext(stateAggregate.version)
+            .verifyComplete()
         snapshotRepository.load<MockStateAggregate>(stateAggregate.aggregateId)
             .test()
             .consumeNextWith {
@@ -81,6 +85,16 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.state.data),
                 )
             }
+            .verifyComplete()
+    }
+
+    @Test
+    fun getVersion() {
+        val snapshotRepository = createSnapshotRepository().metrizable()
+        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        snapshotRepository.getVersion(aggregateId)
+            .test()
+            .expectNext(Version.UNINITIALIZED_VERSION)
             .verifyComplete()
     }
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
+import me.ahoo.wow.eventsourcing.snapshot.DEFAULT_VERSION_OFFSET
 import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -21,11 +22,25 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
+    val strategy: Strategy = Strategy.ALL,
+    val versionOffset: Int = DEFAULT_VERSION_OFFSET,
     var storage: SnapshotStorage = SnapshotStorage.MONGO
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
+        const val STRATEGY = "$PREFIX.strategy"
         const val STORAGE = "$PREFIX.storage"
+    }
+}
+
+enum class Strategy {
+    ALL,
+    VERSION_OFFSET,
+    ;
+
+    companion object {
+        const val ALL_NAME = "all"
+        const val VERSION_OFFSET_NAME = "version_offset"
     }
 }
 

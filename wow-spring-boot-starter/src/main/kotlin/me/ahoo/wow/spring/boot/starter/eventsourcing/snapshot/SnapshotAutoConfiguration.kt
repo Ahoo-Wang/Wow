@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.Filter
@@ -31,7 +32,6 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -41,7 +41,7 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
-class SnapshotAutoConfiguration {
+class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperties) {
 
     @Bean
     @ConditionalOnProperty(
@@ -53,12 +53,30 @@ class SnapshotAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+        value = [SnapshotProperties.STRATEGY],
+        matchIfMissing = true,
+        havingValue = Strategy.ALL_NAME,
+    )
     fun simpleSnapshotStrategy(
         snapshotRepository: SnapshotRepository
     ): SnapshotStrategy {
         return SimpleSnapshotStrategy(
             snapshotRepository = snapshotRepository,
+        )
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = [SnapshotProperties.STRATEGY],
+        havingValue = Strategy.VERSION_OFFSET_NAME,
+    )
+    fun versionOffsetSnapshotStrategy(
+        snapshotRepository: SnapshotRepository
+    ): SnapshotStrategy {
+        return VersionOffsetSnapshotStrategy(
+            versionOffset = snapshotProperties.versionOffset,
+            snapshotRepository = snapshotRepository
         )
     }
 
