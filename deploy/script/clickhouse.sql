@@ -43,7 +43,7 @@ CREATE TABLE bi_db.order_order_state_local on cluster '{cluster}'
 
 create table bi_db.order_order_state on cluster '{cluster}'
     as bi_db.order_order_state_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_state_local, aggregateId);
+        ENGINE = Distributed('{cluster}', bi_db, order_order_state_local, sipHash64(aggregateId));
 
 CREATE TABLE bi_db_consumer.order_order_state_queue on cluster '{cluster}'
 (
@@ -74,7 +74,42 @@ SELECT JSONExtractString(data, 'id')            AS id,
        JSONExtractBool(data, 'deleted')         AS deleted
 FROM bi_db_consumer.order_order_state_queue
 ;
+--- Last State Event ---
+CREATE TABLE bi_db.order_order_state_last_local on cluster '{cluster}'
+(
+    id             String,
+    contextName    String,
+    aggregateName  String,
+    header         String,
+    aggregateId    String,
+    tenantId       String,
+    commandId      String,
+    requestId      String,
+    version        UInt32,
+    state          String,
+    body           String,
+    firstOperator  String,
+    firstEventTime DateTime('Asia/Shanghai'),
+    createTime     DateTime('Asia/Shanghai'),
+    deleted        Bool
+) ENGINE = ReplicatedReplacingMergeTree(
+           '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}',
+           version)
+      PARTITION BY toYYYYMM(createTime)
+      ORDER BY (aggregateId)
+;
 
+create table bi_db.order_order_state_last on cluster '{cluster}'
+    as bi_db.order_order_state_last_local
+        ENGINE = Distributed('{cluster}', bi_db, order_order_state_last_local, sipHash64(aggregateId));
+
+CREATE MATERIALIZED VIEW bi_db.order_order_state_last_consumer
+            on cluster '{cluster}'
+            TO bi_db.order_order_state_last
+AS
+SELECT *
+FROM bi_db.order_order_state
+;
 --- Command ---
 
 CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
@@ -101,7 +136,7 @@ CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
 
 create table bi_db.order_order_command on cluster '{cluster}'
     as bi_db.order_order_command_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local, aggregateId);
+        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local, sipHash64(aggregateId));
 
 CREATE TABLE bi_db_consumer.order_order_command_queue on cluster '{cluster}'
 (
