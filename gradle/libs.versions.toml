@@ -11,7 +11,7 @@ hamcrest = "2.2"
 mockk = "1.13.7"
 r2dbcBom = "Borca-RELEASE"
 kotlinCompileTestingKsp = "1.5.0"
-swagger = "2.2.15"
+swagger = "2.2.16"
 springDoc = "2.2.0"
 # plugins
 detekt = "1.23.1"
