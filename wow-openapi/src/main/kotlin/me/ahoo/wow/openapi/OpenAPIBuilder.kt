@@ -24,7 +24,6 @@ import me.ahoo.wow.modeling.annotation.asAggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.command.CommandStageSchema
-import me.ahoo.wow.openapi.command.CommandWaitRouteSpec
 import me.ahoo.wow.openapi.command.ErrorInfoSchema
 import me.ahoo.wow.openapi.event.DomainEventCompensateRouteSpec
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
@@ -38,8 +37,9 @@ import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.state.ScanAggregateRouteSpec
+import java.util.*
 
-class Router(
+class OpenAPIBuilder(
     private val currentContext: NamedBoundedContext,
     private val routes: MutableList<RouteSpec> = mutableListOf()
 ) : MutableList<RouteSpec> by routes {
@@ -51,7 +51,7 @@ class Router(
         components = Components()
     }
 
-    fun addLocalAggregateRouteSpec(): Router {
+    fun addLocalAggregateRouteSpec(): OpenAPIBuilder {
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
             val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
@@ -69,7 +69,7 @@ class Router(
         add(commandRouteSpec)
     }
 
-    private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): Router {
+    private fun addAggregateRouteSpec(aggregateMetadata: AggregateMetadata<*, *>): OpenAPIBuilder {
         //region command route
         aggregateMetadata.command.commandFunctionRegistry
             .forEach { entry ->
@@ -113,9 +113,18 @@ class Router(
         return this
     }
 
-    private fun addCommonSchema() {
+    private fun addGlobalSchema() {
         openAPI.components.addSchemas(CommandStageSchema.name, CommandStageSchema.schema)
         openAPI.components.addSchemas(ErrorInfoSchema.name, ErrorInfoSchema.schema)
+    }
+
+    private fun buildGlobalRouteSpec() {
+        ServiceLoader.load(GlobalRouteSpecFactory::class.java).forEach {
+            it.appendComponents(openAPI.components)
+            it.create(currentContext).forEach { routeSpec ->
+                add(routeSpec)
+            }
+        }
     }
 
     fun openAPI(): OpenAPI {
@@ -123,13 +132,14 @@ class Router(
         return openAPI
     }
 
-    fun build(): Router {
+    fun build(): OpenAPIBuilder {
         if (built) {
             return this
         }
         built = true
-        addCommonSchema()
-        add(CommandWaitRouteSpec)
+        buildGlobalRouteSpec()
+        addGlobalSchema()
+//        add(CommandWaitRouteSpec)
         val groupedPathRoutes = routes.groupBy {
             it.path
         }
