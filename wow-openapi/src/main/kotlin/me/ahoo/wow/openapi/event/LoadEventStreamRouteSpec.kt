@@ -55,6 +55,10 @@ class LoadEventStreamRouteSpec(
 }
 
 class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+    init {
+        DOMAIN_EVENT_STREAM_SCHEMA.schemas.mergeSchemas()
+    }
+
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>

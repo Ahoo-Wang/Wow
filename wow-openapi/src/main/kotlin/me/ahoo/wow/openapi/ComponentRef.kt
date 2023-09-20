@@ -129,9 +129,11 @@ class SchemaRef(
             genericSchema.properties[propertyName] = propertyType.asSchemaRef().ref
             val propertySchemas = propertyType.asSchemas()
             val propertySchemaName = propertyType.asSchemName()
-            val schemaName = propertySchemaName + "Of" + simpleName
+            val schemaName = propertySchemaName + simpleName
             genericSchema.name = schemaName
-            val schemas = (genericSchemas + propertySchemas).plus(schemaName to genericSchema)
+            val schemas = (genericSchemas + propertySchemas)
+                .minus(genericSchemaName)
+                .plus(schemaName to genericSchema)
             return SchemaRef(schemaName, genericSchema, schemas)
         }
     }
