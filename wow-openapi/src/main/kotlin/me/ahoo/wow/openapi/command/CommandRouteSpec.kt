@@ -92,7 +92,7 @@ class CommandRouteSpec(
     override val appendIdPath: Boolean
         get() {
             val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                    !commandRouteMetadata.commandMetadata.isCreate
+                !commandRouteMetadata.commandMetadata.isCreate
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 

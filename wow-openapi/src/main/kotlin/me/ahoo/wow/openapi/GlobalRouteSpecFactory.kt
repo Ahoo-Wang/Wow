@@ -31,7 +31,6 @@ import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_TAIL_VERSION
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_REQUEST
-import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_SCHEMA
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
 interface GlobalRouteSpecFactory : RouteSpecFactory {
