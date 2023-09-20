@@ -15,7 +15,6 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.HeaderRef.Companion.with
@@ -32,6 +31,7 @@ import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_TAIL_VERSION
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_REQUEST
+import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_SCHEMA
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
 interface GlobalRouteSpecFactory : RouteSpecFactory {
@@ -44,7 +44,6 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
     init {
         SchemaRef.ERROR_INFO.schemas.mergeSchemas()
         BatchResult::class.java.asSchemas().mergeSchemas()
-        CompensationConfig::class.java.asSchemas().mergeSchemas()
         components.headers.with(ERROR_CODE_HEADER)
         components.parameters
             .with(COMPENSATE_HEAD_VERSION)

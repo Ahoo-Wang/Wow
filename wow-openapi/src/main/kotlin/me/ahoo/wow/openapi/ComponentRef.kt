@@ -265,54 +265,45 @@ class ResponseRef(override val name: String, override val component: ApiResponse
         }
 
         val ERROR_INFO_CONTENT = ErrorInfo::class.java.asRefSchema().asJsonContent()
-        fun Class<*>.asOkResponse(isArray: Boolean = false): ApiResponse {
-            val response = ApiResponse()
-                .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
-                .description(ErrorInfo.SUCCEEDED)
-            if (!this.isPrimitive) {
-                val responseSchema = this.asRefSchema()
-                val schema = if (isArray) {
-                    responseSchema.asArraySchema()
-                } else {
-                    responseSchema
-                }
-                response.content(schema.asJsonContent())
-            }
-            return response
-        }
 
-        fun Schema<*>.asOkResponse(): ApiResponse {
-            return ApiResponse()
-                .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
-                .description(ErrorInfo.SUCCEEDED)
-                .content(asJsonContent())
-        }
-
-        fun errorResponse(description: String): ApiResponse {
+        fun Content.asResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
             return ApiResponse()
                 .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
                 .description(description)
-                .content(ERROR_INFO_CONTENT)
+                .content(this)
+        }
+
+        fun Schema<*>.asResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
+            return asJsonContent().asResponse(description)
+        }
+
+        fun Class<*>.asResponse(isArray: Boolean = false, description: String = ErrorInfo.SUCCEEDED): ApiResponse {
+            val responseSchema = this.asRefSchema()
+            return if (isArray) {
+                responseSchema.asArraySchema()
+            } else {
+                responseSchema
+            }.asResponse(description)
         }
 
         val BAD_REQUEST = ResponseRef(
             name = "${Wow.WOW_PREFIX}BadRequest",
-            component = errorResponse("Bad Request"),
+            component = ERROR_INFO_CONTENT.asResponse("Bad Request"),
             code = Https.Code.BAD_REQUEST
         )
         val NOT_FOUND = ResponseRef(
             name = "${Wow.WOW_PREFIX}NotFound",
-            component = errorResponse("Not Found"),
+            component = ERROR_INFO_CONTENT.asResponse("Not Found"),
             code = Https.Code.NOT_FOUND
         )
         val REQUEST_TIMEOUT = ResponseRef(
             name = "${Wow.WOW_PREFIX}RequestTimeout",
-            component = errorResponse("Request Timeout"),
+            component = ERROR_INFO_CONTENT.asResponse("Request Timeout"),
             code = Https.Code.REQUEST_TIMEOUT
         )
         val TOO_MANY_REQUESTS = ResponseRef(
             name = "${Wow.WOW_PREFIX}TooManyRequests",
-            component = errorResponse("Too Many Requests"),
+            component = ERROR_INFO_CONTENT.asResponse("Too Many Requests"),
             code = Https.Code.TOO_MANY_REQUESTS
         )
 
@@ -338,7 +329,7 @@ class ResponseRef(override val name: String, override val component: ApiResponse
         }
 
         fun ApiResponses.with(responseRef: ResponseRef): ApiResponses {
-            return addApiResponse(responseRef.code, responseRef.ref)
+            return addApiResponse(responseRef.code, responseRef.component)
         }
 
         fun ApiResponses.withBadRequest(): ApiResponses {

@@ -21,7 +21,8 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 
@@ -47,9 +48,9 @@ class LoadSnapshotRouteSpec(
     )
 
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.asOkResponse().let {
+        get() = responseSchemaRef.ref.asResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
-        }
+        }.withNotFound()
 }
 
 class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

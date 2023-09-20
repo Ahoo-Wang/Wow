@@ -63,6 +63,7 @@ class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     }
 
     override val components: Components = createComponents()
+
     init {
         WaitSignal::class.java.asSchemas().mergeSchemas()
     }

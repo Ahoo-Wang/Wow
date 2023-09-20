@@ -35,7 +35,7 @@ class RegenerateStateEventRouteSpec(
         get() = "Regenerate State Event"
     override val appendPathSuffix: String
         get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
-    override val requestBody: RequestBody = EventCompensateRouteSpecFactory.COMPENSATION_CONFIG_REQUEST.ref
+    override val requestBody: RequestBody = EventCompensateRouteSpecFactory.COMPENSATION_CONFIG_REQUEST.component
 }
 
 class RegenerateStateEventRouteSpecFactory : BatchRouteSpecFactory() {

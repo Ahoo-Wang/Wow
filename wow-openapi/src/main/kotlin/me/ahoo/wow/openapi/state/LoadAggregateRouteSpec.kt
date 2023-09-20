@@ -21,7 +21,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
@@ -46,7 +46,7 @@ class LoadAggregateRouteSpec(
 
     override val requestBody: RequestBody? = null
     override val responses: ApiResponses
-        get() = aggregateMetadata.state.aggregateType.asOkResponse().let {
+        get() = aggregateMetadata.state.aggregateType.asResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }.withBadRequest().withNotFound()
 }

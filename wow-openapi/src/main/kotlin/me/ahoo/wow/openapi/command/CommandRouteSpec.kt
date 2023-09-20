@@ -36,20 +36,23 @@ import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
 import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
-import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
-import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import me.ahoo.wow.openapi.Tags.asTags
+import me.ahoo.wow.openapi.asJsonContent
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RESULT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_TIMEOUT_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.TOO_MANY_REQUESTS_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEXT_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_PARAMETER
@@ -89,7 +92,7 @@ class CommandRouteSpec(
     override val appendIdPath: Boolean
         get() {
             val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                !commandRouteMetadata.commandMetadata.isCreate
+                    !commandRouteMetadata.commandMetadata.isCreate
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
@@ -121,7 +124,7 @@ class CommandRouteSpec(
         get() {
             return buildList {
                 addAll(super.parameters)
-                add(WAIT_STAGE_PARAMETER.ref)
+                add(WAIT_STAGE_PARAMETER.component)
                 add(WAIT_CONTEXT_PARAMETER.ref)
                 add(WAIT_PROCESSOR_PARAMETER.ref)
                 add(WAIT_TIME_OUT_PARAMETER.ref)
@@ -144,11 +147,12 @@ class CommandRouteSpec(
     override val responses: ApiResponses
         get() = ApiResponses()
             .with(COMMAND_RESULT_RESPONSE)
-            .with(CommandRouteSpecFactory.VERSION_CONFLICT_RESPONSE)
+            .with(BAD_REQUEST_RESPONSE)
+            .with(NOT_FOUND_RESPONSE)
+            .with(REQUEST_TIMEOUT_RESPONSE)
+            .with(TOO_MANY_REQUESTS_RESPONSE)
+            .with(VERSION_CONFLICT_RESPONSE)
             .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
-            .withBadRequest()
-            .withNotFound()
-            .withRequestTimeout()
 }
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
@@ -197,19 +201,40 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
+        val COMMAND_RESULT_CONTENT = CommandResult::class.java.asSchemaRef().ref.asJsonContent()
         val COMMAND_RESULT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandResult",
-            component = CommandResult::class.java.asOkResponse(),
+            component = COMMAND_RESULT_CONTENT.asResponse(),
             code = Https.Code.OK
+        )
+        val BAD_REQUEST_RESPONSE = ResponseRef(
+            name = "${Wow.WOW_PREFIX}CommandBadRequest",
+            component = COMMAND_RESULT_CONTENT.asResponse(description = "Bad Request"),
+            code = Https.Code.BAD_REQUEST
+        )
+        val NOT_FOUND_RESPONSE = ResponseRef(
+            name = "${Wow.WOW_PREFIX}CommandNotFound",
+            component = COMMAND_RESULT_CONTENT.asResponse("Not Found"),
+            code = Https.Code.NOT_FOUND
+        )
+        val REQUEST_TIMEOUT_RESPONSE = ResponseRef(
+            name = "${Wow.WOW_PREFIX}CommandRequestTimeout",
+            component = COMMAND_RESULT_CONTENT.asResponse("Request Timeout"),
+            code = Https.Code.REQUEST_TIMEOUT
+        )
+        val TOO_MANY_REQUESTS_RESPONSE = ResponseRef(
+            name = "${Wow.WOW_PREFIX}CommandTooManyRequests",
+            component = COMMAND_RESULT_CONTENT.asResponse("Too Many Requests"),
+            code = Https.Code.TOO_MANY_REQUESTS
         )
         val VERSION_CONFLICT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}VersionConflict",
-            component = ResponseRef.errorResponse("Version Conflict"),
+            component = COMMAND_RESULT_CONTENT.asResponse(description = "Version Conflict"),
             code = Https.Code.CONFLICT
         )
         val ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}IllegalAccessDeletedAggregate",
-            component = ResponseRef.errorResponse("Illegal Access Deleted Aggregate"),
+            component = COMMAND_RESULT_CONTENT.asResponse(description = "Illegal Access Deleted Aggregate"),
             code = Https.Code.GONE
         )
     }
@@ -228,6 +253,10 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
         components.responses
             .with(COMMAND_RESULT_RESPONSE)
+            .with(BAD_REQUEST_RESPONSE)
+            .with(NOT_FOUND_RESPONSE)
+            .with(REQUEST_TIMEOUT_RESPONSE)
+            .with(TOO_MANY_REQUESTS_RESPONSE)
             .with(VERSION_CONFLICT_RESPONSE)
             .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
     }

@@ -24,7 +24,8 @@ import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
@@ -43,7 +44,7 @@ class LoadEventStreamRouteSpec(
     override val summary: String
         get() = "Load Event Stream"
     override val responses: ApiResponses
-        get() = ApiResponses().addApiResponse(Https.Code.OK, DOMAIN_EVENT_STREAM_ARRAY_RESPONSE.ref)
+        get() = ApiResponses().with(DOMAIN_EVENT_STREAM_ARRAY_RESPONSE)
 
     override val appendPathSuffix: String
         get() = "event/{${RoutePaths.COMPENSATE_HEAD_VERSION_KEY}}/{${RoutePaths.COMPENSATE_TAIL_VERSION_KEY}}"
@@ -68,7 +69,7 @@ class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     companion object {
         val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.asSchemaRef()
-        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.asOkResponse().let {
+        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.asResponse().let {
             ResponseRef("${Wow.WOW_PREFIX}EventStreamArray", it)
         }
     }

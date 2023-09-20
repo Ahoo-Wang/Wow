@@ -22,7 +22,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.SchemaRef.Companion.asArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 
@@ -44,7 +44,7 @@ class AggregateTracingRouteSpec(
     val responseSchemaRef = StateEvent::class.java
         .asSchemaRef(StateEvent<*>::state.name, aggregateMetadata.state.aggregateType)
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.asArraySchema().asOkResponse().let {
+        get() = responseSchemaRef.ref.asArraySchema().asResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }

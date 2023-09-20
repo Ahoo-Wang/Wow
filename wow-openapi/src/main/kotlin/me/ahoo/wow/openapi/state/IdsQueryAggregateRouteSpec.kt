@@ -23,7 +23,7 @@ import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.asArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
@@ -49,7 +49,7 @@ class IdsQueryAggregateRouteSpec(
         }
 
     override val responses: ApiResponses
-        get() = aggregateMetadata.state.aggregateType.asOkResponse(true).let {
+        get() = aggregateMetadata.state.aggregateType.asResponse(true).let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }

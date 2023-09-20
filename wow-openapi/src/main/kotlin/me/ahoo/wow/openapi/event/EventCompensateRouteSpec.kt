@@ -25,11 +25,13 @@ import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBodyRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.with
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_HEAD_VERSION_KEY
 import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_TAIL_VERSION_KEY
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_REQUEST
 
 abstract class EventCompensateRouteSpec(
@@ -48,7 +50,7 @@ abstract class EventCompensateRouteSpec(
         get() = "$topicKind/{$COMPENSATE_HEAD_VERSION_KEY}/{$COMPENSATE_TAIL_VERSION_KEY}/compensate"
     override val requestBody: RequestBody? = COMPENSATION_CONFIG_REQUEST.ref
     override val responses: ApiResponses
-        get() = IntegerSchema().asOkResponse().let {
+        get() = IntegerSchema().asResponse().let {
             it.description("Number of event streams compensated")
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }.withBadRequest()
@@ -63,6 +65,12 @@ abstract class EventCompensateRouteSpec(
 
 abstract class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
+        val COMPENSATION_CONFIG_SCHEMA = CompensationConfig::class.java.asSchemaRef()
         val COMPENSATION_CONFIG_REQUEST = CompensationConfig::class.java.asRequestBodyRef()
+    }
+
+    init {
+        COMPENSATION_CONFIG_SCHEMA.schemas.mergeSchemas()
+        components.requestBodies.with(COMPENSATION_CONFIG_REQUEST)
     }
 }

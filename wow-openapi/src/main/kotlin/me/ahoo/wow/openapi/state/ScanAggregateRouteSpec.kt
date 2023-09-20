@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 
@@ -39,7 +39,7 @@ class ScanAggregateRouteSpec(
     override val summary: String
         get() = "Scan state aggregate"
     override val responses: ApiResponses
-        get() = aggregateMetadata.state.aggregateType.asOkResponse(true).let {
+        get() = aggregateMetadata.state.aggregateType.asResponse(true).let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }
