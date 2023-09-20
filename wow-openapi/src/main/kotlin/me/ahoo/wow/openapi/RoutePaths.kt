@@ -56,7 +56,7 @@ object RoutePaths {
     val BATCH_LIMIT_PARAMETER = Parameter()
         .name(BATCH_LIMIT)
         .`in`(ParameterIn.PATH.toString())
-        .schema(StringSchema())
+        .schema(IntegerSchema())
         .example(Int.MAX_VALUE)
         .description("The size of batch.").let {
             ParameterRef("${Wow.WOW_PREFIX}$BATCH_LIMIT", it)

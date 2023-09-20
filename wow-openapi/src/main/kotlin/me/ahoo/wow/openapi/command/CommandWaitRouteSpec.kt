@@ -56,7 +56,8 @@ class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
             DESCRIPTION,
             WaitSignal::class.java.asRequestBody(),
             ApiResponses().addApiResponse(
-                Https.Code.OK, ApiResponse().description(ErrorInfo.SUCCEEDED)
+                Https.Code.OK,
+                ApiResponse().description(ErrorInfo.SUCCEEDED)
             )
         )
     }
@@ -69,5 +70,4 @@ class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
         return listOf(CommandWaitRouteSpec)
     }
-
 }

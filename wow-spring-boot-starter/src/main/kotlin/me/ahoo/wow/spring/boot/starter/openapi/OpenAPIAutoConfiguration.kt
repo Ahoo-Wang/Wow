@@ -27,7 +27,7 @@ class OpenAPIAutoConfiguration {
 
     @Bean
     fun router(boundedContext: NamedBoundedContext): RouterSpecs {
-        return RouterSpecs(boundedContext).addLocalAggregateRouteSpec().build()
+        return RouterSpecs(boundedContext).build()
     }
 
     @Bean

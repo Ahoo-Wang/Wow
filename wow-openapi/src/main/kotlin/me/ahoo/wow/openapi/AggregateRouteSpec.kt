@@ -70,7 +70,7 @@ interface AggregateRouteSpec : RouteSpec {
         }
     override val parameters: List<Parameter>
         get() = mutableListOf<Parameter>()
-            .appendTenantPathParameter(appendIdPath)
+            .appendTenantPathParameter(appendTenantPath)
             .appendIdPathParameter(appendIdPath)
 }
 

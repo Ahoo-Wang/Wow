@@ -43,7 +43,6 @@ class RegenerateSnapshotRouteSpec(
         get() = ApiResponses().addApiResponse(Https.Code.OK, ApiResponse()).withNotFound()
 }
 
-
 class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     override fun create(
         currentContext: NamedBoundedContext,

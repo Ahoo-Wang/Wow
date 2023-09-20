@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class RouterSpecsTest {
     @Test
     fun build() {
-        val routerSpecs = RouterSpecs(MaterializedNamedBoundedContext("test")).addLocalAggregateRouteSpec().build()
+        val routerSpecs = RouterSpecs(MaterializedNamedBoundedContext("test")).build()
         assertThat(routerSpecs, notNullValue())
     }
 }

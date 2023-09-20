@@ -123,14 +123,15 @@ class SchemaRef(
         }
 
         fun Class<*>.asSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
-            val genericSchemaName = this::class.java.asSchemName()
+            val genericSchemaName = requireNotNull(this.asSchemName())
             val genericSchemas = asSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
             genericSchema.properties[propertyName] = propertyType.asSchemaRef().ref
             val propertySchemas = propertyType.asSchemas()
             val propertySchemaName = propertyType.asSchemName()
-            val schemaName = propertySchemaName + "Of" + genericSchemaName
-            val schemas = genericSchemas + propertySchemas
+            val schemaName = propertySchemaName + "Of" + simpleName
+            genericSchema.name = schemaName
+            val schemas = (genericSchemas + propertySchemas).plus(schemaName to genericSchema)
             return SchemaRef(schemaName, genericSchema, schemas)
         }
     }
@@ -295,7 +296,7 @@ class ResponseRef(override val name: String, override val component: ApiResponse
         val BAD_REQUEST = ResponseRef(
             name = "${Wow.WOW_PREFIX}BadRequest",
             component = errorResponse("Bad Request"),
-            code = Https.Code.OK
+            code = Https.Code.BAD_REQUEST
         )
         val NOT_FOUND = ResponseRef(
             name = "${Wow.WOW_PREFIX}NotFound",

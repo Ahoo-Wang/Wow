@@ -34,5 +34,4 @@ class StateEventCompensateRouteSpecFactory : EventCompensateRouteSpecFactory() {
     ): List<StateEventCompensateRouteSpec> {
         return listOf(StateEventCompensateRouteSpec(currentContext, aggregateMetadata))
     }
-
 }

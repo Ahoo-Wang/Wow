@@ -25,7 +25,6 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
@@ -44,6 +43,7 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
@@ -89,7 +89,7 @@ class CommandRouteSpec(
     override val appendIdPath: Boolean
         get() {
             val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                    !commandRouteMetadata.commandMetadata.isCreate
+                !commandRouteMetadata.commandMetadata.isCreate
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
@@ -150,7 +150,6 @@ class CommandRouteSpec(
             .withNotFound()
             .withRequestTimeout()
 }
-
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
@@ -217,7 +216,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     init {
         COMMAND_STAGE_SCHEMA.schemas.mergeSchemas()
-        CommandResult::class.java.asSchemaRef().schemas.mergeSchemas()
+        CommandResult::class.java.asSchemas().mergeSchemas()
         components.parameters
             .with(WAIT_STAGE_PARAMETER)
             .with(WAIT_CONTEXT_PARAMETER)
@@ -228,6 +227,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .with(REQUEST_ID_PARAMETER)
 
         components.responses
+            .with(COMMAND_RESULT_RESPONSE)
             .with(VERSION_CONFLICT_RESPONSE)
             .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
     }
@@ -256,17 +256,16 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             aggregateMetadata.command.commandFunctionRegistry
                 .forEach { entry ->
                     entry.key.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
-                        it.commandRouteMetadata.commandMetadata.commandType.asSchemaRef().metrizable()
+                        it.commandRouteMetadata.commandMetadata.commandType.asSchemas().mergeSchemas()
                         add(it)
                     }
                 }
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
-                    it.commandRouteMetadata.commandMetadata.commandType.asSchemaRef().metrizable()
+                    it.commandRouteMetadata.commandMetadata.commandType.asSchemas().mergeSchemas()
                     add(it)
                 }
             }
         }
     }
-
 }

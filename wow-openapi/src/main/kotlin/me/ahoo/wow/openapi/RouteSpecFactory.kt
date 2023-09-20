@@ -25,5 +25,4 @@ interface RouteSpecFactory {
     fun Map<String, Schema<*>>.mergeSchemas() {
         components.schemas.putAll(this)
     }
-
 }

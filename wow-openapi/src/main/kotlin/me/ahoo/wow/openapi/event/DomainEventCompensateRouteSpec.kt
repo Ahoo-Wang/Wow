@@ -33,5 +33,4 @@ class DomainEventCompensateRouteSpecFactory : EventCompensateRouteSpecFactory() 
     ): List<RouteSpec> {
         return listOf(DomainEventCompensateRouteSpec(currentContext, aggregateMetadata))
     }
-
 }

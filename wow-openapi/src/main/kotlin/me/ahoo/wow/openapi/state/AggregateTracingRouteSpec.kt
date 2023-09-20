@@ -44,7 +44,7 @@ class AggregateTracingRouteSpec(
     val responseSchemaRef = StateEvent::class.java
         .asSchemaRef(StateEvent<*>::state.name, aggregateMetadata.state.aggregateType)
     override val responses: ApiResponses
-        get() = responseSchemaRef.component.asArraySchema().asOkResponse().let {
+        get() = responseSchemaRef.ref.asArraySchema().asOkResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }

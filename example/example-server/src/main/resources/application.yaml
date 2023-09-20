@@ -13,7 +13,8 @@ logging:
   level:
     #    root: debug
     me.ahoo.wow: debug
-
+#springdoc:
+#  remove-broken-reference-definitions: false
 cosid:
   machine:
     enabled: true

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi.snapshot
 
-
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -42,13 +41,13 @@ class LoadSnapshotRouteSpec(
 
     override val summary: String
         get() = "Get snapshot"
-    val responseSchemaRef = aggregateMetadata.state.aggregateType.asSchemaRef(
+    val responseSchemaRef = Snapshot::class.java.asSchemaRef(
         Snapshot<*>::state.name,
         aggregateMetadata.state.aggregateType
     )
 
     override val responses: ApiResponses
-        get() = responseSchemaRef.component.asOkResponse().let {
+        get() = responseSchemaRef.ref.asOkResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }
@@ -62,7 +61,4 @@ class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         routeSpec.responseSchemaRef.schemas.mergeSchemas()
         return listOf(routeSpec)
     }
-
-
 }
-
