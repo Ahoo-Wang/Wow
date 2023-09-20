@@ -13,18 +13,26 @@
 
 package me.ahoo.wow.openapi.state
 
+import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
+import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 
 class LoadAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : AggregateRouteSpec() {
+) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.getStateAggregate"
+        get() = "${aggregateMetadata.asStringWithAlias()}.loadAggregateRoute"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
@@ -34,8 +42,22 @@ class LoadAggregateRouteSpec(
         get() = "state"
 
     override val summary: String
-        get() = "Get state aggregate"
+        get() = "Load state aggregate"
 
-    override val responseType: Class<*>
-        get() = aggregateMetadata.state.aggregateType
+    override val requestBody: RequestBody? = null
+    override val responses: ApiResponses
+        get() = aggregateMetadata.state.aggregateType.asResponse().let {
+            ApiResponses().addApiResponse(Https.Code.OK, it)
+        }.withBadRequest().withNotFound()
+}
+
+class LoadAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<RouteSpec> {
+        aggregateMetadata.state.aggregateType.asSchemas().mergeSchemas()
+        return listOf(LoadAggregateRouteSpec(currentContext, aggregateMetadata))
+    }
 }

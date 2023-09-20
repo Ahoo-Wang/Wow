@@ -13,25 +13,23 @@
 
 package me.ahoo.wow.openapi.snapshot
 
-import io.swagger.v3.oas.models.media.Schema
-import io.swagger.v3.oas.models.responses.ApiResponse
+import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.Schemas.asSchemName
-import me.ahoo.wow.openapi.Schemas.asSchemaRef
-import me.ahoo.wow.openapi.Schemas.asSchemas
-import me.ahoo.wow.openapi.snapshot.SnapshotSchema.Companion.asSnapshotSchema
-import me.ahoo.wow.serialization.state.StateAggregateRecords
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
 
 class LoadSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : AggregateRouteSpec() {
+) : AggregateRouteSpec {
     override val id: String
         get() = "${aggregateMetadata.asStringWithAlias()}.getSnapshot"
     override val method: String
@@ -44,28 +42,24 @@ class LoadSnapshotRouteSpec(
 
     override val summary: String
         get() = "Get snapshot"
-    private val snapshotSchema = aggregateMetadata.state.aggregateType.asSnapshotSchema()
+    val responseSchemaRef = Snapshot::class.java.asSchemaRef(
+        Snapshot<*>::state.name,
+        aggregateMetadata.state.aggregateType
+    )
 
-    override fun customize(apiResponse: ApiResponse): ApiResponse {
-        return apiResponse.content(jsonContent(snapshotSchema.schemaRef))
-    }
-
-    override fun build(): RouteSpec {
-        super.build()
-        schemas[snapshotSchema.name] = snapshotSchema.schema
-        return this
-    }
+    override val responses: ApiResponses
+        get() = responseSchemaRef.ref.asResponse().let {
+            ApiResponses().addApiResponse(Https.Code.OK, it)
+        }.withNotFound()
 }
 
-data class SnapshotSchema(val name: String, val schema: Schema<*>, val schemaRef: Schema<*>) {
-
-    companion object {
-        fun Class<*>.asSnapshotSchema(): SnapshotSchema {
-            val snapshotName = Snapshot::class.java.simpleName
-            val schema = Snapshot::class.java.asSchemas()[Snapshot::class.java.asSchemName()]!!
-            schema.properties[StateAggregateRecords.STATE] = this.asSchemaRef()
-            val schemaName = "${asSchemName()}$snapshotName"
-            return SnapshotSchema(schemaName, schema, schemaName.asSchemaRef())
-        }
+class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<RouteSpec> {
+        val routeSpec = LoadSnapshotRouteSpec(currentContext, aggregateMetadata)
+        routeSpec.responseSchemaRef.schemas.mergeSchemas()
+        return listOf(routeSpec)
     }
 }

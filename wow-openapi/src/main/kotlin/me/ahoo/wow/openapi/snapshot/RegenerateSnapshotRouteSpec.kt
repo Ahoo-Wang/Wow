@@ -13,16 +13,20 @@
 
 package me.ahoo.wow.openapi.snapshot
 
+import io.swagger.v3.oas.models.responses.ApiResponse
+import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 
 class RegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : AggregateRouteSpec() {
+) : AggregateRouteSpec {
     override val id: String
         get() = "${aggregateMetadata.asStringWithAlias()}.regenerateSnapshot"
     override val method: String
@@ -35,4 +39,15 @@ class RegenerateSnapshotRouteSpec(
 
     override val appendPathSuffix: String
         get() = "snapshot"
+    override val responses: ApiResponses
+        get() = ApiResponses().addApiResponse(Https.Code.OK, ApiResponse()).withNotFound()
+}
+
+class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<AggregateRouteSpec> {
+        return listOf(RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata))
+    }
 }

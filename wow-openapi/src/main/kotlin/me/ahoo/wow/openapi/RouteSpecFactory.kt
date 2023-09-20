@@ -11,22 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.command
+package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.models.media.StringSchema
-import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.Schemas.asSchemName
-import me.ahoo.wow.openapi.Schemas.asSchemaRef
+import io.swagger.v3.oas.models.Components
+import io.swagger.v3.oas.models.media.Schema
 
-object CommandStageSchema {
-    val name = CommandStage::class.java.asSchemName()
-    val schema = StringSchema().apply {
-        CommandStage.entries.forEach {
-            addEnumItem(it.name)
-        }
+interface RouteSpecFactory {
+    /**
+     * Global Components
+     */
+    val components: Components
+
+    fun Map<String, Schema<*>>.mergeSchemas() {
+        components.schemas.putAll(this)
     }
-
-    val schemaRef = CommandStage::class.java.asSchemaRef()
-
-    val default = CommandStage.PROCESSED.name
 }

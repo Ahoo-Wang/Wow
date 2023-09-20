@@ -17,6 +17,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchRouteSpec
+import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
@@ -24,7 +25,7 @@ import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
 class BatchRegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : BatchRouteSpec() {
+) : BatchRouteSpec {
     override val id: String
         get() = "${aggregateMetadata.asStringWithAlias()}.batchRegenerateSnapshot"
     override val summary: String
@@ -34,4 +35,13 @@ class BatchRegenerateSnapshotRouteSpec(
         get() = Https.Method.PUT
     override val appendPathSuffix: String
         get() = "snapshot/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}"
+}
+
+class BatchRegenerateSnapshotRouteSpecFactory : BatchRouteSpecFactory() {
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<BatchRegenerateSnapshotRouteSpec> {
+        return listOf(BatchRegenerateSnapshotRouteSpec(currentContext, aggregateMetadata))
+    }
 }

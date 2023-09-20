@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.event.state
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpec
+import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory
 
 class StateEventCompensateRouteSpec(
     currentContext: NamedBoundedContext,
@@ -24,4 +25,13 @@ class StateEventCompensateRouteSpec(
 
     override val topicKind: String
         get() = "state"
+}
+
+class StateEventCompensateRouteSpecFactory : EventCompensateRouteSpecFactory() {
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<StateEventCompensateRouteSpec> {
+        return listOf(StateEventCompensateRouteSpec(currentContext, aggregateMetadata))
+    }
 }

@@ -13,27 +13,62 @@
 
 package me.ahoo.wow.openapi.command
 
+import io.swagger.v3.oas.models.Components
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponse
+import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.openapi.AbstractRouteSpec
+import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
+import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 
-object CommandWaitRouteSpec : AbstractRouteSpec() {
+class CommandWaitRouteSpec(
+    override val id: String,
+    override val path: String,
+    override val method: String,
+    override val summary: String,
+    override val description: String,
+    override val requestBody: RequestBody?,
+    override val responses: ApiResponses
+) : RouteSpec {
+    override val parameters: List<Parameter> = listOf()
+}
 
-    override val id: String
-        get() = "wow.command.wait"
-    override val path: String
-        get() = "/${Wow.WOW}/command/wait"
-    override val method: String
-        get() = Https.Method.POST
-    override val summary: String
-        get() = "command wait handler"
-    override val description: String
-        get() = ""
-    override val requestBodyType: Class<*>
-        get() = WaitSignal::class.java
+class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
+    companion object {
+        const val ID = "wow.command.wait"
+        const val PATH = "/${Wow.WOW}/command/wait"
+        const val METHOD = Https.Method.POST
+        const val SUMMARY = "command wait handler"
+        const val DESCRIPTION = ""
+        val CommandWaitRouteSpec = CommandWaitRouteSpec(
+            ID,
+            PATH,
+            METHOD,
+            SUMMARY,
+            DESCRIPTION,
+            WaitSignal::class.java.asRequestBody(),
+            ApiResponses().addApiResponse(
+                Https.Code.OK,
+                ApiResponse().description(ErrorInfo.SUCCEEDED)
+            )
+        )
+    }
+
+    override val components: Components = createComponents()
 
     init {
-        super.build()
+        WaitSignal::class.java.asSchemas().mergeSchemas()
+    }
+
+    override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
+        return listOf(CommandWaitRouteSpec)
     }
 }

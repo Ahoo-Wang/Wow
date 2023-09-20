@@ -11,15 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.command
+package me.ahoo.wow.openapi
 
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.openapi.Schemas.asSchemName
-import me.ahoo.wow.openapi.Schemas.asSchemaRef
-import me.ahoo.wow.openapi.Schemas.asSchemas
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 
-object ErrorInfoSchema {
-    val name = ErrorInfo::class.java.asSchemName()
-    val schema = ErrorInfo::class.java.asSchemas().entries.first().value
-    val schemaRef = ErrorInfo::class.java.asSchemaRef()
+interface AggregateRouteSpecFactory : RouteSpecFactory {
+    fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<RouteSpec>
 }

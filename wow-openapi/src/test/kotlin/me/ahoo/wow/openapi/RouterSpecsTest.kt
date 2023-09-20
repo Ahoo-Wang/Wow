@@ -5,10 +5,10 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-class RouterTest {
+class RouterSpecsTest {
     @Test
     fun build() {
-        val router = Router(MaterializedNamedBoundedContext("test")).addLocalAggregateRouteSpec().build()
-        assertThat(router, notNullValue())
+        val routerSpecs = RouterSpecs(MaterializedNamedBoundedContext("test")).build()
+        assertThat(routerSpecs, notNullValue())
     }
 }

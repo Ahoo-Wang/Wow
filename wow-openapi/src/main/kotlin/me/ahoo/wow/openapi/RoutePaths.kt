@@ -13,7 +13,14 @@
 
 package me.ahoo.wow.openapi
 
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.IntegerSchema
+import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.parameters.Parameter
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
+import me.ahoo.wow.eventsourcing.EventStore
 
 object RoutePaths {
     const val ID_KEY = DEFAULT_AGGREGATE_ID_NAME
@@ -23,4 +30,35 @@ object RoutePaths {
 
     const val BATCH_CURSOR_ID = "cursorId"
     const val BATCH_LIMIT = "limit"
+
+    val COMPENSATE_HEAD_VERSION = Parameter()
+        .name(COMPENSATE_HEAD_VERSION_KEY)
+        .`in`(ParameterIn.PATH.toString())
+        .schema(IntegerSchema())
+        .example(EventStore.DEFAULT_HEAD_VERSION).let {
+            ParameterRef("${Wow.WOW_PREFIX}$COMPENSATE_HEAD_VERSION_KEY", it)
+        }
+    val COMPENSATE_TAIL_VERSION = Parameter()
+        .name(COMPENSATE_TAIL_VERSION_KEY)
+        .`in`(ParameterIn.PATH.toString())
+        .schema(IntegerSchema())
+        .example(Int.MAX_VALUE).let {
+            ParameterRef("${Wow.WOW_PREFIX}$COMPENSATE_TAIL_VERSION_KEY", it)
+        }
+    val BATCH_CURSOR_ID_PARAMETER = Parameter()
+        .name(BATCH_CURSOR_ID)
+        .`in`(ParameterIn.PATH.toString())
+        .schema(StringSchema())
+        .example(AggregateIdScanner.FIRST_CURSOR_ID)
+        .description("The cursor id of batch.").let {
+            ParameterRef("${Wow.WOW_PREFIX}$BATCH_CURSOR_ID", it)
+        }
+    val BATCH_LIMIT_PARAMETER = Parameter()
+        .name(BATCH_LIMIT)
+        .`in`(ParameterIn.PATH.toString())
+        .schema(IntegerSchema())
+        .example(Int.MAX_VALUE)
+        .description("The size of batch.").let {
+            ParameterRef("${Wow.WOW_PREFIX}$BATCH_LIMIT", it)
+        }
 }
