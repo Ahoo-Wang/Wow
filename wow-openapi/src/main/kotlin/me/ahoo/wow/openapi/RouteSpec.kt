@@ -15,7 +15,6 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
-import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
@@ -34,13 +33,10 @@ interface RouteSpec : Identifier {
         get() = ""
     val tags: List<String>
         get() = listOf(Wow.WOW)
-    val schemas: Map<String, Schema<*>>
     val parameters: List<Parameter>
-        get() = listOf()
     val requestBody: RequestBody?
+        get() = null
     val responses: ApiResponses
-
-    fun build(): RouteSpec
 }
 
 fun RouteSpec.toOperation(): Operation {

@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.OpenAPIBuilder
+import me.ahoo.wow.openapi.RouterSpecs
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RequestPredicates
@@ -27,17 +27,17 @@ import org.springframework.web.reactive.function.server.ServerResponse
  */
 @Suppress("LongParameterList")
 class RouterFunctionBuilder(
-    private val openApiBuilder: OpenAPIBuilder,
+    private val routerSpecs: RouterSpecs,
     private val routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
 ) {
 
     fun build(): RouterFunction<ServerResponse> {
-        check(openApiBuilder.isNotEmpty()) {
+        check(routerSpecs.isNotEmpty()) {
             "router is empty!"
         }
         val routerFunctionBuilder = RouterFunctions.route()
         val acceptPredicate = RequestPredicates.accept(MediaType.APPLICATION_JSON)
-        for (routeSpec in openApiBuilder) {
+        for (routeSpec in routerSpecs) {
             val httpMethod = HttpMethod.valueOf(routeSpec.method)
             val requestPredicate =
                 RequestPredicates.path(routeSpec.path).and(RequestPredicates.method(httpMethod)).and(acceptPredicate)

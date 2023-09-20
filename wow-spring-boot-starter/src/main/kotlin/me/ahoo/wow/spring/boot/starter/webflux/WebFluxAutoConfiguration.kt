@@ -20,7 +20,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.OpenAPIBuilder
+import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
@@ -196,11 +196,11 @@ class WebFluxAutoConfiguration {
 
     @Bean
     fun commandRouterFunction(
-        openApiBuilder: OpenAPIBuilder,
+        routerSpecs: RouterSpecs,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
     ): RouterFunction<ServerResponse> {
         return RouterFunctionBuilder(
-            openApiBuilder = openApiBuilder,
+            routerSpecs = routerSpecs,
             routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar
         ).build()
     }

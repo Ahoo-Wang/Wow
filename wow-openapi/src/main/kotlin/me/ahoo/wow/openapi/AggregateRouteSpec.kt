@@ -14,20 +14,26 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendIdPathParameter
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
+import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
+import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_PREFIX = "tenant/{${MessageRecords.TENANT_ID}}"
 
-abstract class AggregateRouteSpec : AbstractRouteSpec() {
-    abstract val currentContext: NamedBoundedContext
-    abstract val aggregateMetadata: AggregateMetadata<*, *>
+interface AggregateRouteSpec : RouteSpec {
+    val currentContext: NamedBoundedContext
+    val aggregateMetadata: AggregateMetadata<*, *>
     override val tags: List<String>
         get() {
             val tags = mutableListOf<String>()
@@ -37,11 +43,11 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
             }
             return tags
         }
-    open val appendTenantPath: Boolean
+    val appendTenantPath: Boolean
         get() = aggregateMetadata.staticTenantId.isNullOrBlank()
-    open val appendIdPath: Boolean
+    val appendIdPath: Boolean
         get() = false
-    open val appendPathSuffix: String
+    val appendPathSuffix: String
         get() = ""
     override val path: String
         get() {
@@ -62,18 +68,33 @@ abstract class AggregateRouteSpec : AbstractRouteSpec() {
             }
             return pathBuilder.build()
         }
+    override val parameters: List<Parameter>
+        get() = mutableListOf<Parameter>()
+            .appendTenantPathParameter(appendIdPath)
+            .appendIdPathParameter(appendIdPath)
+}
 
-    override fun build(): RouteSpec {
-        super.build()
-        if (appendTenantPath) {
-            addParameter(MessageRecords.TENANT_ID, ParameterIn.PATH, StringSchema()) {
+abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
+    override val components: Components = createComponents()
+
+    companion object {
+        fun MutableList<Parameter>.appendTenantPathParameter(appendTenantPath: Boolean): MutableList<Parameter> {
+            if (appendTenantPath.not()) {
+                return this
+            }
+            withParameter(MessageRecords.TENANT_ID, ParameterIn.PATH, StringSchema()) {
                 it.required(true)
                 it.example(TenantId.DEFAULT_TENANT_ID)
             }
+            return this
         }
-        if (appendIdPath) {
-            addParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema())
+
+        fun MutableList<Parameter>.appendIdPathParameter(appendIdPath: Boolean): MutableList<Parameter> {
+            if (appendIdPath.not()) {
+                return this
+            }
+            withParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema())
+            return this
         }
-        return this
     }
 }

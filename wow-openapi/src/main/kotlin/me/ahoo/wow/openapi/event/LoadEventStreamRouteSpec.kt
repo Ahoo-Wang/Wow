@@ -13,22 +13,26 @@
 
 package me.ahoo.wow.openapi.event
 
-import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.media.IntegerSchema
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.responses.ApiResponses
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.ResponseRef
+import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
+import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
 class LoadEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
-) : AggregateRouteSpec() {
+) : AggregateRouteSpec {
 
     override val id: String
         get() = "${aggregateMetadata.asStringWithAlias()}.loadEventStream"
@@ -38,21 +42,30 @@ class LoadEventStreamRouteSpec(
         get() = true
     override val summary: String
         get() = "Load Event Stream"
-    override val isArrayResponse: Boolean
-        get() = true
-    override val responseType: Class<*>
-        get() = DomainEventStream::class.java
+    override val responses: ApiResponses
+        get() = ApiResponses().addApiResponse(Https.Code.OK, DOMAIN_EVENT_STREAM_ARRAY_RESPONSE.ref)
+
     override val appendPathSuffix: String
         get() = "event/{${RoutePaths.COMPENSATE_HEAD_VERSION_KEY}}/{${RoutePaths.COMPENSATE_TAIL_VERSION_KEY}}"
+    override val parameters: List<Parameter>
+        get() = super.parameters + listOf(
+            RoutePaths.COMPENSATE_HEAD_VERSION.ref,
+            RoutePaths.COMPENSATE_TAIL_VERSION.ref
+        )
+}
 
-    override fun build(): RouteSpec {
-        super.build()
-        addParameter(RoutePaths.COMPENSATE_HEAD_VERSION_KEY, ParameterIn.PATH, IntegerSchema()) {
-            it.example(EventStore.DEFAULT_HEAD_VERSION)
+class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<AggregateRouteSpec> {
+        return listOf(LoadEventStreamRouteSpec(currentContext, aggregateMetadata))
+    }
+
+    companion object {
+        val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.asSchemaRef()
+        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.asOkResponse().let {
+            ResponseRef("${Wow.WOW_PREFIX}EventStreamArray", it)
         }
-        addParameter(RoutePaths.COMPENSATE_TAIL_VERSION_KEY, ParameterIn.PATH, IntegerSchema()) {
-            it.example(Int.MAX_VALUE)
-        }
-        return this
     }
 }

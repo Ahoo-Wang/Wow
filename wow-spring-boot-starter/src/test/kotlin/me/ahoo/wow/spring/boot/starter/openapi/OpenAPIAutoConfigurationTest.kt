@@ -1,7 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.openapi
 
 import io.swagger.v3.oas.models.OpenAPI
-import me.ahoo.wow.openapi.OpenAPIBuilder
+import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -20,7 +20,7 @@ class OpenAPIAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(OpenAPIBuilder::class.java)
+                    .hasSingleBean(RouterSpecs::class.java)
                     .hasSingleBean(OpenAPI::class.java)
             }
     }

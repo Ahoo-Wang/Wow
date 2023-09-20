@@ -13,29 +13,32 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.media.IntegerSchema
-import io.swagger.v3.oas.models.media.StringSchema
-import me.ahoo.wow.eventsourcing.AggregateIdScanner
-import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID
-import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.responses.ApiResponses
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.openapi.BatchRouteSpecFactory.Companion.BATCH_RESULT_RESPONSE
+import me.ahoo.wow.openapi.ResponseRef.Companion.asOkResponse
+import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID_PARAMETER
+import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 
-abstract class BatchRouteSpec : AggregateRouteSpec() {
+interface BatchRouteSpec : AggregateRouteSpec {
     override val appendTenantPath: Boolean
         get() = false
-    override val responseType: Class<*>
-        get() = BatchResult::class.java
 
-    override fun build(): RouteSpec {
-        super.build()
-        addParameter(BATCH_CURSOR_ID, ParameterIn.PATH, StringSchema()) {
-            it.description("The cursor id of batch.")
-            it.example(AggregateIdScanner.FIRST_CURSOR_ID)
+    override val responses: ApiResponses
+        get() = ApiResponses().addApiResponse(Https.Code.OK, BATCH_RESULT_RESPONSE.ref)
+
+    override val parameters: List<Parameter>
+        get() = super.parameters + listOf(
+            BATCH_CURSOR_ID_PARAMETER.ref,
+            BATCH_LIMIT_PARAMETER.ref
+        )
+}
+
+abstract class BatchRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+    companion object {
+        val BATCH_RESULT_RESPONSE = BatchResult::class.java.asOkResponse().let {
+            ResponseRef("${Wow.WOW_PREFIX}BatchResult", it)
         }
-        addParameter(BATCH_LIMIT, ParameterIn.PATH, IntegerSchema()) {
-            it.description("The size of batch.")
-            it.example(Int.MAX_VALUE)
-        }
-        return this
     }
 }

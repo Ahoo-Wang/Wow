@@ -22,6 +22,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 const val ENABLED_KEY: String = OpenAPIProperties.PREFIX + ENABLED_SUFFIX_KEY
 
 @ConditionalOnWowEnabled
-@ConditionalOnClass(name = ["me.ahoo.wow.openapi.OpenAPIBuilder"])
+@ConditionalOnClass(name = ["me.ahoo.wow.openapi.RouterSpecs"])
 @ConditionalOnProperty(value = [ENABLED_KEY], matchIfMissing = true, havingValue = "true")
 annotation class ConditionalOnOpenAPIEnabled
