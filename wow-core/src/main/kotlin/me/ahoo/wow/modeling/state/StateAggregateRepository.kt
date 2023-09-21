@@ -28,11 +28,12 @@ interface StateAggregateRepository {
      * Load State Aggregate.
      *
      * `stateAggregate.initialized=false` means that no aggregate was found.
+     * @param tailVersion [Int.MAX_VALUE] means that the latest version is loaded.
      */
     fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S> = aggregateId.asRequiredAggregateType<Any>()
             .asAggregateMetadata<Any, S>().state,
-        version: Int = Int.MAX_VALUE
+        tailVersion: Int = Int.MAX_VALUE
     ): Mono<StateAggregate<S>>
 }

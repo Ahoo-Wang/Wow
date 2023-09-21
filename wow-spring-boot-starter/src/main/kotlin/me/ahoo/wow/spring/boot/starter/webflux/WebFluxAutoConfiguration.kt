@@ -41,6 +41,7 @@ import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.ScanAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -84,6 +85,14 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): LoadAggregateHandlerFunctionFactory {
         return LoadAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+    }
+
+    @Bean
+    fun loadVersionedAggregateHandlerFunctionFactory(
+        stateAggregateRepository: StateAggregateRepository,
+        exceptionHandler: ExceptionHandler
+    ): LoadVersionedAggregateHandlerFunctionFactory {
+        return LoadVersionedAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
     }
 
     @Bean

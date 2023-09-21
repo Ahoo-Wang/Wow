@@ -16,33 +16,38 @@ package me.ahoo.wow.webflux.route.state
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpec
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 
-class LoadAggregateHandlerFunction(
+class LoadVersionedAggregateHandlerFunction(
     aggregateMetadata: AggregateMetadata<*, *>,
     stateAggregateRepository: StateAggregateRepository,
     exceptionHandler: ExceptionHandler
 ) : AbstractLoadAggregateHandlerFunction(aggregateMetadata, stateAggregateRepository, exceptionHandler) {
     override fun getVersion(request: ServerRequest): Int {
-        return Int.MAX_VALUE
+        return request.pathVariable(MessageRecords.VERSION).toInt()
     }
 
-    override fun checkVersion(targetVersion: Int, stateAggregate: StateAggregate<*>) = Unit
+    override fun checkVersion(targetVersion: Int, stateAggregate: StateAggregate<*>) {
+        check(targetVersion == stateAggregate.version) {
+            "targetVersion:$targetVersion != stateAggregate.version:${stateAggregate.version}"
+        }
+    }
 }
 
-class LoadAggregateHandlerFunctionFactory(
+class LoadVersionedAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<LoadAggregateRouteSpec> {
-    override val supportedSpec: Class<LoadAggregateRouteSpec>
-        get() = LoadAggregateRouteSpec::class.java
+) : RouteHandlerFunctionFactory<LoadVersionedAggregateRouteSpec> {
+    override val supportedSpec: Class<LoadVersionedAggregateRouteSpec>
+        get() = LoadVersionedAggregateRouteSpec::class.java
 
-    override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
+    override fun create(spec: LoadVersionedAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return LoadVersionedAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
     }
 }
