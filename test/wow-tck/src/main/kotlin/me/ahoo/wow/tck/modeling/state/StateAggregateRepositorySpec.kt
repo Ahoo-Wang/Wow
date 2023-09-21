@@ -66,7 +66,7 @@ abstract class StateAggregateRepositorySpec {
             equalTo(domainEventMessage.body.data),
         )
 
-        val stateAggregate1 = aggregateRepository.load<MockStateAggregate>(aggregateId, version = 1).block()!!
+        val stateAggregate1 = aggregateRepository.load<MockStateAggregate>(aggregateId, tailVersion = 1).block()!!
         assertThat(stateAggregate1.version, equalTo(domainEventMessage.version))
     }
 

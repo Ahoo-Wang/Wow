@@ -39,12 +39,12 @@ class EventSourcingStateAggregateRepository(
     override fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,
-        version: Int
+        tailVersion: Int
     ): Mono<StateAggregate<S>> {
         if (log.isDebugEnabled) {
-            log.debug("Load {}.", aggregateId)
+            log.debug("Load {} version:{}.", aggregateId, tailVersion)
         }
-        val loadStateAggregate = if (version == Int.MAX_VALUE) {
+        val loadStateAggregate = if (tailVersion == Int.MAX_VALUE) {
             snapshotRepository.load<S>(aggregateId)
                 .map {
                     it.asStateAggregate()
@@ -60,7 +60,7 @@ class EventSourcingStateAggregateRepository(
                     .load(
                         aggregateId = aggregateId,
                         headVersion = stateAggregate.expectedNextVersion,
-                        tailVersion = version
+                        tailVersion = tailVersion
                     )
                     .map {
                         stateAggregate.onSourcing(it)
