@@ -45,7 +45,7 @@ interface EventStore : AggregateIdScanner {
      *
      * @param aggregateId 聚合ID
      * @param headVersion 事件流的第一个事件版本号，当 `headVersion`=H 时，即从事件版本号 H (包括)开始加载事件流。
-     * @param tailVersion 事件流到最后一个版本号，包括.
+     * @param tailVersion 事件流的最后一个版本号，包括.
      * @return 事件流
      */
     fun load(
