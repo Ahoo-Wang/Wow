@@ -54,7 +54,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         val stateAggregateMono = if (exchange.message.isCreate) {
             aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId)
         } else {
-            stateAggregateRepository.load(aggregateMetadata.state, aggregateId)
+            stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
         }
         return stateAggregateMono.map { commandAggregateFactory.create(aggregateMetadata, it) }
             .flatMap {

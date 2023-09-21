@@ -36,7 +36,7 @@ class OrderQueryController(
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
         val metadata = aggregateMetadata<Order, OrderState>()
         val aggregateId = metadata.asAggregateId(id = orderId, tenantId = tenantId)
-        return stateAggregateRepository.load(metadata.state, aggregateId)
+        return stateAggregateRepository.load(aggregateId, metadata.state)
             .filter {
                 it.initialized
             }

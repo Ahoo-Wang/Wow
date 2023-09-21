@@ -34,11 +34,12 @@ class EventStoreStateAggregateRepository(
     }
 
     override fun <S : Any> load(
+        aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,
-        aggregateId: AggregateId
+        version: Int
     ): Mono<StateAggregate<S>> {
         if (log.isDebugEnabled) {
-            log.debug("Load {}.", aggregateId)
+            log.debug("Load {} version:{}.", aggregateId, version)
         }
         return stateAggregateFactory.create(metadata, aggregateId)
             .flatMap { stateAggregate ->
@@ -46,6 +47,7 @@ class EventStoreStateAggregateRepository(
                     .load(
                         aggregateId = aggregateId,
                         headVersion = stateAggregate.expectedNextVersion,
+                        tailVersion = version
                     )
                     .map {
                         stateAggregate.onSourcing(it)

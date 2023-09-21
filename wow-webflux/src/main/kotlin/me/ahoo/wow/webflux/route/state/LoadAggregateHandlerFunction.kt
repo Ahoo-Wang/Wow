@@ -39,7 +39,7 @@ class LoadAggregateHandlerFunction(
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
         return stateAggregateRepository
-            .load(aggregateMetadata.state, aggregateId)
+            .load(aggregateId, aggregateMetadata.state)
             .filter {
                 it.initialized && !it.deleted
             }

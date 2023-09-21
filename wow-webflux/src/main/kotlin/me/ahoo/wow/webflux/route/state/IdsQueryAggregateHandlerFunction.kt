@@ -43,7 +43,7 @@ class IdsQueryAggregateHandlerFunction(
                 }
             }
             .flatMap {
-                stateAggregateRepository.load(aggregateMetadata.state, it)
+                stateAggregateRepository.load(it, aggregateMetadata.state)
             }.filter {
                 it.initialized && !it.deleted
             }

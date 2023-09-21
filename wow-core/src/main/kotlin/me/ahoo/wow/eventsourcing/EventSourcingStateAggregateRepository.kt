@@ -37,22 +37,30 @@ class EventSourcingStateAggregateRepository(
     }
 
     override fun <S : Any> load(
+        aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,
-        aggregateId: AggregateId
+        version: Int
     ): Mono<StateAggregate<S>> {
         if (log.isDebugEnabled) {
             log.debug("Load {}.", aggregateId)
         }
-        return snapshotRepository.load<S>(aggregateId)
-            .map {
-                it.asStateAggregate()
-            }
-            .switchIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
+        val loadStateAggregate = if (version == Int.MAX_VALUE) {
+            snapshotRepository.load<S>(aggregateId)
+                .map {
+                    it.asStateAggregate()
+                }
+                .switchIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
+        } else {
+            stateAggregateFactory.create(metadata, aggregateId)
+        }
+
+        return loadStateAggregate
             .flatMap { stateAggregate ->
                 eventStore
                     .load(
                         aggregateId = aggregateId,
                         headVersion = stateAggregate.expectedNextVersion,
+                        tailVersion = version
                     )
                     .map {
                         stateAggregate.onSourcing(it)
