@@ -16,27 +16,10 @@ package me.ahoo.wow.openapi.converter
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
-import io.swagger.v3.core.converter.ModelConverterContextImpl
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertyGetter
-import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
-import org.slf4j.LoggerFactory
 
 class MarkedNullableConverter : ModelConverter {
-    companion object {
-        private val log = LoggerFactory.getLogger(MarkedNullableConverter::class.java)
-        val GET_PROCESSED_TYPES: PropertyGetter<ModelConverterContextImpl, Set<AnnotatedType>> = try {
-            ModelConverterContextImpl::class.java.getDeclaredField("processedTypes")
-                .asPropertyGetter()
-        } catch (throwable: Throwable) {
-            if (log.isWarnEnabled) {
-                log.warn("Can not find processedTypes field in ModelConverterContextImpl.", throwable)
-            }
-            PropertyGetter { emptySet() }
-        }
-
-    }
 
     override fun resolve(
         type: AnnotatedType,
@@ -47,25 +30,19 @@ class MarkedNullableConverter : ModelConverter {
             return null
         }
         val schema = chain.next().resolve(type, context, chain) ?: return null
-        val parentSchema = type.parent ?: return schema
-        if (context !is ModelConverterContextImpl) {
-            return schema
-        }
-        val processedTypes = GET_PROCESSED_TYPES.get(context)
-        val parentType = processedTypes.firstOrNull {
-            it.name == parentSchema.name
-        } ?: return schema
-        val parentClass = parentType.getRawClass() ?: return schema
+        val properties = schema.properties ?: return schema
+        val rawClass = type.getRawClass()?.kotlin ?: return schema
 
-        val member = parentClass.kotlin.members.firstOrNull {
-            it.name == type.propertyName
-        } ?: return schema
-        if (member.returnType.isMarkedNullable) {
-            schema.nullable(true)
+        properties.forEach { (name, propertySchema) ->
+            rawClass.members.firstOrNull { callable ->
+                callable.name == name
+            }?.let { member ->
+                if (member.returnType.isMarkedNullable) {
+                    propertySchema.nullable(true)
+                }
+            }
         }
-        if (member.isFinal) {
-            schema.readOnly(true)
-        }
+
         return schema
     }
 }

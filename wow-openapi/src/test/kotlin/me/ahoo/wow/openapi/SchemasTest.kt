@@ -1,7 +1,7 @@
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.core.converter.ModelConverters
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -19,21 +19,21 @@ class SchemasTest {
 
     @Test
     fun asSchemas() {
-        DataObject::name.returnType.isMarkedNullable
-        val schemas = ModelConverters.getInstance().readAll(DataObject::class.java)
+        val schemas = DataObject::class.java.asSchemas()
         val dataObjectSchema = requireNotNull(schemas[DataObject::class.java.asSchemaName()])
-        dataObjectSchema.properties.values.forEach {
+        requireNotNull(dataObjectSchema.properties[DataObject::id.name]).let {
+            assertThat(it.type, equalTo("string"))
             assertThat(it.readOnly, equalTo(true))
         }
         requireNotNull(dataObjectSchema.properties[DataObject::nullableName.name]).let {
             assertThat(it.type, equalTo("string"))
             assertThat(it.nullable, equalTo(true))
+            assertThat(it.readOnly, equalTo(true))
         }
     }
 }
 
 data class DataObject(
     val id: String,
-    val name: String,
-    val nullableName: String?
+    val nullableName: String?,
 )
