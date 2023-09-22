@@ -18,21 +18,30 @@ import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemName
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
 
 class BoundedContextSchemaNameConverter : ModelConverter {
+    companion object {
+        fun AnnotatedType.getRawClass(): Class<*>? {
+            val schemaType = this.type
+            if (schemaType is Class<*>) {
+                return schemaType
+            }
+            if (schemaType is JavaType) {
+                return schemaType.rawClass
+            }
+            return null
+        }
+    }
+
     override fun resolve(
         type: AnnotatedType,
         context: ModelConverterContext,
         chain: Iterator<ModelConverter>
     ): Schema<*>? {
         if (type.name.isNullOrBlank()) {
-            val schemaType = type.type
-            if (schemaType is Class<*>) {
-                type.name = schemaType.asSchemName()
-            }
-            if (schemaType is JavaType) {
-                type.name = schemaType.rawClass.asSchemName()
+            type.getRawClass()?.let {
+                type.name = it.asSchemaName()
             }
         }
         if (chain.hasNext()) {

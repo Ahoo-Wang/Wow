@@ -35,7 +35,7 @@ import me.ahoo.wow.openapi.ComponentRef.Companion.COMPONENTS_REF
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.SchemaRef.Companion.asArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.asRefSchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemName
+import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
 import me.ahoo.wow.openapi.command.CommandHeaders
 
 interface ComponentRef<C> {
@@ -75,7 +75,7 @@ class SchemaRef(
         fun Class<out Enum<*>>.asSchemaRef(default: String? = null): SchemaRef {
             val enumSchema = StringSchema()
             enumSchema._enum(this.enumConstants.map { it.toString() })
-            val schemaName = requireNotNull(this.asSchemName())
+            val schemaName = requireNotNull(this.asSchemaName())
             if (default.isNullOrBlank().not()) {
                 enumSchema.setDefault(default)
             }
@@ -91,14 +91,14 @@ class SchemaRef(
         }
 
         fun Class<*>.asRefSchema(): Schema<*> {
-            return requireNotNull(this.asSchemName()).asRefSchema()
+            return requireNotNull(this.asSchemaName()).asRefSchema()
         }
 
         fun Schema<*>.asArraySchema(): ArraySchema {
             return ArraySchema().items(this)
         }
 
-        fun Class<*>.asSchemName(): String? {
+        fun Class<*>.asSchemaName(): String? {
             this.scan<io.swagger.v3.oas.annotations.media.Schema>()?.let {
                 if (it.name.isNotBlank()) {
                     return it.name
@@ -116,19 +116,19 @@ class SchemaRef(
         }
 
         fun Class<*>.asSchemaRef(): SchemaRef {
-            val schemaName = requireNotNull(this.asSchemName())
+            val schemaName = requireNotNull(this.asSchemaName())
             val schemas = asSchemas()
             val component = requireNotNull(schemas[schemaName])
             return SchemaRef(schemaName, component, schemas)
         }
 
         fun Class<*>.asSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
-            val genericSchemaName = requireNotNull(this.asSchemName())
+            val genericSchemaName = requireNotNull(this.asSchemaName())
             val genericSchemas = asSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
             genericSchema.properties[propertyName] = propertyType.asSchemaRef().ref
             val propertySchemas = propertyType.asSchemas()
-            val propertySchemaName = propertyType.asSchemName()
+            val propertySchemaName = propertyType.asSchemaName()
             val schemaName = propertySchemaName + simpleName
             genericSchema.name = schemaName
             val schemas = (genericSchemas + propertySchemas)
@@ -242,7 +242,7 @@ class RequestBodyRef(override val name: String, override val component: RequestB
 
         fun Class<*>.asRequestBodyRef(): RequestBodyRef {
             return RequestBodyRef(
-                name = requireNotNull(asSchemName()),
+                name = requireNotNull(asSchemaName()),
                 component = asRequestBody()
             )
         }
