@@ -19,7 +19,7 @@ import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
 
-class MarkedNullableConverter : ModelConverter {
+class MarkNullableConverter : ModelConverter {
 
     override fun resolve(
         type: AnnotatedType,
@@ -30,7 +30,7 @@ class MarkedNullableConverter : ModelConverter {
             return null
         }
         val schema = chain.next().resolve(type, context, chain) ?: return null
-        val properties = schema.properties ?: return schema
+        val properties = context.getRawProperties(schema, type.name) ?: return schema
         val rawClass = type.getRawClass()?.kotlin ?: return schema
 
         properties.forEach { (name, propertySchema) ->
@@ -39,10 +39,28 @@ class MarkedNullableConverter : ModelConverter {
             }?.let { member ->
                 if (member.returnType.isMarkedNullable) {
                     propertySchema.nullable(true)
+                    if (propertySchema.`$ref` != null) {
+                        val refSchema = Schema<Any>().`$ref`(propertySchema.`$ref`)
+                        propertySchema.allOf(listOf(refSchema))
+                        propertySchema.`$ref`(null)
+                    }
                 }
             }
         }
 
         return schema
+    }
+
+    private fun ModelConverterContext.getRawProperties(
+        scheme: Schema<*>,
+        schemaName: String?
+    ): Map<String, Schema<*>>? {
+        if (scheme.properties != null) {
+            return scheme.properties
+        }
+        if (schemaName.isNullOrBlank()) {
+            return null
+        }
+        return definedModels[schemaName]?.properties
     }
 }
