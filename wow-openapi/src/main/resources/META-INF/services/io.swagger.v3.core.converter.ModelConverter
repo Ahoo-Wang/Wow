@@ -11,5 +11,6 @@
 # limitations under the License.
 #
 
+me.ahoo.wow.openapi.converter.MarkedNullableConverter
 me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter
 me.ahoo.wow.openapi.converter.HiddenVariableConverter
