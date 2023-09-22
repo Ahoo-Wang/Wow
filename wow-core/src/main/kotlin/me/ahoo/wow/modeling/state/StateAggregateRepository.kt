@@ -36,4 +36,9 @@ interface StateAggregateRepository {
             .asAggregateMetadata<Any, S>().state,
         tailVersion: Int = Int.MAX_VALUE
     ): Mono<StateAggregate<S>>
+
+    @Deprecated("use load(aggregateId,metadata) instead.", ReplaceWith("load(aggregateId, metadata)"))
+    fun <S : Any> load(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<StateAggregate<S>> {
+        return load(aggregateId, metadata)
+    }
 }
