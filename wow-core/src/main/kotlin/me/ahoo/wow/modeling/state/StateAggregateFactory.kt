@@ -40,13 +40,20 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         if (log.isDebugEnabled) {
             log.debug("Create {}.", aggregateId)
         }
-        val stateRoot = metadata.constructorAccessor.invoke(arrayOf(aggregateId.id))
+        val stateRoot = metadata.constructState(aggregateId)
         return SimpleStateAggregate(
             aggregateId = aggregateId,
             metadata = metadata,
             version = Version.UNINITIALIZED_VERSION,
             state = stateRoot,
         )
+    }
+
+    private fun <S : Any> StateAggregateMetadata<S>.constructState(aggregateId: AggregateId): S {
+        if (constructorAccessor.constructor.parameterCount == 1) {
+            return constructorAccessor.invoke(arrayOf(aggregateId.id))
+        }
+        return constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
     }
 
     override fun <S : Any> create(
