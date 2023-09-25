@@ -12,32 +12,62 @@
  */
 package me.ahoo.wow.tck.modeling.state
 
+import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert
+import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 abstract class StateAggregateFactorySpec {
-    private val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
+
     protected abstract fun createStateAggregateFactory(): StateAggregateFactory
 
-    @Test
-    fun create() {
+    private fun <C : Any, S : Any> createStateAggregate(
+        aggregateMetadata: AggregateMetadata<C, S>,
+        verify: (StateAggregate<S>) -> Unit = {}
+    ) {
         val aggregateFactory = createStateAggregateFactory()
         val aggregateId = aggregateMetadata.asAggregateId(id = GlobalIdGenerator.generateAsString())
         aggregateFactory.create(aggregateMetadata.state, aggregateId)
             .test()
-            .consumeNextWith { stateAggregate: StateAggregate<MockStateAggregate> ->
-                MatcherAssert.assertThat(stateAggregate, notNullValue())
-                MatcherAssert.assertThat(stateAggregate.aggregateId.id, equalTo(aggregateId.id))
+            .consumeNextWith { stateAggregate: StateAggregate<S> ->
+                assertThat(stateAggregate, notNullValue())
+                assertThat(stateAggregate.aggregateId.id, equalTo(aggregateId.id))
+                verify(stateAggregate)
             }
             .verifyComplete()
     }
+
+    @Test
+    fun create() {
+        val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
+        createStateAggregate(aggregateMetadata) {
+            assertThat(it.state.id, equalTo(it.aggregateId.id))
+        }
+    }
+
+    @Test
+    fun createWithTenantId() {
+        val aggregateMetadata = aggregateMetadata<MockCommandAggregateWithTenantId, MockStateAggregateWithTenantId>()
+        createStateAggregate(aggregateMetadata) {
+            assertThat(it.state.id, equalTo(it.aggregateId.id))
+            assertThat(it.state.tenantId, equalTo(it.aggregateId.tenantId))
+        }
+    }
 }
+
+class MockCommandAggregateWithTenantId(val state: MockStateAggregateWithTenantId)
+
+data class MockStateAggregateWithTenantId(
+    override val id: String,
+    override val tenantId: String
+) : Identifier, TenantId

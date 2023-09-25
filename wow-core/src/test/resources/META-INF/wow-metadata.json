@@ -42,6 +42,9 @@
           "scopes": [
             "me.ahoo.wow.messaging"
           ]
+        },
+        "modeling_command_aggregate_with_tenant_id": {
+          "type": "me.ahoo.wow.tck.modeling.state.MockCommandAggregateWithTenantId"
         }
       }
     }

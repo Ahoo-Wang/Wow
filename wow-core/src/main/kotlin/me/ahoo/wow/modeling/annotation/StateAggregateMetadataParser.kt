@@ -55,10 +55,14 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
 
     init {
         try {
-            constructor = stateAggregateType.getDeclaredConstructor(String::class.java)
-        } catch (e: NoSuchMethodException) {
+            @Suppress("UNCHECKED_CAST")
+            constructor = stateAggregateType.declaredConstructors.first {
+                (it.parameterCount == 1 || it.parameterCount == 2) &&
+                    it.parameterTypes.all { parameterType -> parameterType == String::class.java }
+            } as Constructor<S>
+        } catch (e: NoSuchElementException) {
             throw IllegalStateException(
-                "Failed to parse StateAggregate[$stateAggregateType] metadata: Not defined Constructor[ctor(aggregateId)].",
+                "Failed to parse StateAggregate[$stateAggregateType] metadata: Not defined Constructor[ctor(id) or ctor(id,tenantId)].",
             )
         }
     }

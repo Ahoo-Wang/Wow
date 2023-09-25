@@ -21,8 +21,7 @@ const val DEFAULT_VERSION_OFFSET = 5
 class VersionOffsetSnapshotStrategy(
     private val versionOffset: Int = DEFAULT_VERSION_OFFSET,
     private val snapshotRepository: SnapshotRepository
-) :
-    SnapshotStrategy {
+) : SnapshotStrategy {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(VersionOffsetSnapshotStrategy::class.java)
     }
