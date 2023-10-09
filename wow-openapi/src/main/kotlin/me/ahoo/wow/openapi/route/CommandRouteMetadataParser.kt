@@ -24,6 +24,10 @@ import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.PathBuilder
+import me.ahoo.wow.serialization.asJsonString
+import org.slf4j.LoggerFactory
+import org.springframework.web.util.UriTemplate
 import java.lang.reflect.Field
 
 object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRouteMetadata<*>>() {
@@ -36,6 +40,9 @@ object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRou
 
 internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>) :
     ClassVisitor {
+    companion object {
+        private val log = LoggerFactory.getLogger(CommandRouteMetadataVisitor::class.java)
+    }
 
     private var pathVariables: MutableSet<VariableMetadata> = mutableSetOf()
     private var headerVariables: MutableSet<VariableMetadata> = mutableSetOf()
@@ -85,27 +92,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
     fun asMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.asCommandMetadata()
         val summary = commandType.scan<Summary>()?.value ?: ""
-        return commandType.scan<CommandRoute>()?.let {
-            val path = if (it.path == DEFAULT_COMMAND_PATH) {
-                commandMetadata.name
-            } else {
-                it.path
-            }
-            CommandRouteMetadata(
-                enabled = it.enabled,
-                path = path,
-                method = commandMetadata.asMethod(it.method),
-                prefix = it.prefix,
-                appendIdPath = it.appendIdPath,
-                appendTenantPath = it.appendTenantPath,
-                ignoreAggregateNamePrefix = it.ignoreAggregateNamePrefix,
-                commandMetadata = commandMetadata,
-                pathVariableMetadata = pathVariables,
-                headerVariableMetadata = headerVariables,
-                summary = it.summary.ifBlank { summary },
-                description = it.description,
-            )
-        } ?: CommandRouteMetadata(
+        val commandRoute = commandType.scan<CommandRoute>() ?: return CommandRouteMetadata(
             enabled = true,
             path = commandMetadata.name,
             method = commandMetadata.asMethod(),
@@ -117,6 +104,59 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
             headerVariableMetadata = headerVariables,
             summary = summary
         )
+
+        val path = parsePath(commandRoute, commandMetadata)
+
+        return CommandRouteMetadata(
+            enabled = commandRoute.enabled,
+            path = path,
+            method = commandMetadata.asMethod(commandRoute.method),
+            prefix = commandRoute.prefix,
+            appendIdPath = commandRoute.appendIdPath,
+            appendTenantPath = commandRoute.appendTenantPath,
+            ignoreAggregateNamePrefix = commandRoute.ignoreAggregateNamePrefix,
+            commandMetadata = commandMetadata,
+            pathVariableMetadata = pathVariables,
+            headerVariableMetadata = headerVariables,
+            summary = commandRoute.summary.ifBlank { summary },
+            description = commandRoute.description,
+        )
+    }
+
+    private fun parsePath(
+        commandRoute: CommandRoute,
+        commandMetadata: CommandMetadata<C>
+    ): String {
+        if (commandRoute.path == DEFAULT_COMMAND_PATH) {
+            return commandMetadata.name
+        }
+        if (commandRoute.path.isBlank()) {
+            return commandRoute.path
+        }
+        val fullPath = PathBuilder().append(commandRoute.prefix).append(commandRoute.path).build()
+        val uriPathVariables = UriTemplate(fullPath).variableNames.toSet()
+        val pathVariableNames = pathVariables.map { it.variableName }.toSet()
+        val missedVariableNames = uriPathVariables - pathVariableNames
+        if (missedVariableNames.isNotEmpty()) {
+            if (log.isWarnEnabled) {
+                log.warn(
+                    "Command[{}] Route PathVariables{} is not bound to fields.",
+                    commandMetadata.commandType,
+                    missedVariableNames.asJsonString(),
+                )
+            }
+            missedVariableNames.forEach {
+                val missedVariable = VariableMetadata(
+                    fieldPath = listOf(it),
+                    variableName = it,
+                    required = true,
+                    bound = false
+                )
+                pathVariables.add(missedVariable)
+            }
+        }
+
+        return commandRoute.path
     }
 }
 

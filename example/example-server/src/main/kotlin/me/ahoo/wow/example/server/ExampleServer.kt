@@ -13,15 +13,11 @@
 
 package me.ahoo.wow.example.server
 
-import io.micrometer.core.instrument.Metrics
-import io.micrometer.core.instrument.logging.LoggingMeterRegistry
-import io.micrometer.core.instrument.logging.LoggingRegistryConfig
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.domain.ExampleBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
-import java.time.Duration
 
 @BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
@@ -30,13 +26,13 @@ import java.time.Duration
 class ExampleServer
 
 fun main(args: Array<String>) {
-    val loggingRegistryConfig = object : LoggingRegistryConfig {
-        override fun get(key: String): String? = null
-        override fun step(): Duration {
-            return Duration.ofSeconds(10)
-        }
-    }
-    val loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
-    Metrics.addRegistry(loggingMeterRegistry)
+//    val loggingRegistryConfig = object : LoggingRegistryConfig {
+//        override fun get(key: String): String? = null
+//        override fun step(): Duration {
+//            return Duration.ofSeconds(10)
+//        }
+//    }
+//    val loggingMeterRegistry = LoggingMeterRegistry.builder(loggingRegistryConfig).build()
+//    Metrics.addRegistry(loggingMeterRegistry)
     runApplication<ExampleServer>(*args)
 }

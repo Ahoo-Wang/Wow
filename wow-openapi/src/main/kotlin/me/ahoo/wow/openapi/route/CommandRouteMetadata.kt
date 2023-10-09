@@ -41,12 +41,14 @@ data class CommandRouteMetadata<C>(
         variableMetadata: Set<VariableMetadata>,
         variableProvider: (String) -> String?
     ): ObjectNode {
-        variableMetadata.forEach { metadata ->
-            val pathVariableValue = variableProvider(metadata.variableName)
+        variableMetadata.filter {
+            it.bound
+        }.forEach { metadata ->
+            val variableValue = variableProvider(metadata.variableName)
             if (metadata.required) {
-                requireNotNull(pathVariableValue)
+                requireNotNull(variableValue)
             }
-            if (pathVariableValue == null) {
+            if (variableValue == null) {
                 return@forEach
             }
             var fieldObject = this
@@ -59,7 +61,7 @@ data class CommandRouteMetadata<C>(
                 }
                 fieldObject = nextFieldObject as ObjectNode
             }
-            fieldObject.put(metadata.fieldName, pathVariableValue)
+            fieldObject.put(metadata.fieldName, variableValue)
         }
         return this
     }
@@ -94,7 +96,11 @@ data class VariableMetadata(
      * path variable name
      */
     val variableName: String,
-    val required: Boolean
+    val required: Boolean,
+    /**
+     * Whether the command body field is bound
+     */
+    val bound: Boolean = true
 ) {
     val fieldName: String by lazy {
         fieldPath.last()
