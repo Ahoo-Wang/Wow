@@ -14,7 +14,6 @@ package me.ahoo.wow.example.api.order
 
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.example.api.ExampleService
 
 /**
  * ShipOrder .
@@ -23,7 +22,6 @@ import me.ahoo.wow.example.api.ExampleService
  */
 @Summary("发货")
 @CommandRoute(
-    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = "package",
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     method = CommandRoute.Method.POST
