@@ -89,7 +89,7 @@ class WaitingFor(
             return
         }
         /**
-         * stage == CommandStage.PROJECTED
+         * `stage == CommandStage.PROJECTED`
          */
         if (!isSameBoundedContext(signal)) {
             return

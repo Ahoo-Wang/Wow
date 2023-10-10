@@ -86,11 +86,17 @@ class CommandRouteSpec(
 
     override val appendTenantPath: Boolean
         get() {
+            if (commandRouteMetadata.ignoreAggregateNamePrefix) {
+                return false
+            }
             val default = super.appendTenantPath
             return commandRouteMetadata.appendTenantPath.resolve(default)
         }
     override val appendIdPath: Boolean
         get() {
+            if (commandRouteMetadata.ignoreAggregateNamePrefix) {
+                return false
+            }
             val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
                 !commandRouteMetadata.commandMetadata.isCreate
             return commandRouteMetadata.appendIdPath.resolve(default)

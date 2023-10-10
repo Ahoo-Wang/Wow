@@ -29,7 +29,9 @@ import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.serialization.MessageRecords
 
-const val TENANT_PATH_PREFIX = "tenant/{${MessageRecords.TENANT_ID}}"
+const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
+const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
+const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
 interface AggregateRouteSpec : RouteSpec {
     val currentContext: NamedBoundedContext
@@ -61,7 +63,7 @@ interface AggregateRouteSpec : RouteSpec {
             }
             pathBuilder.append(namedAggregate.aggregateName)
             if (appendIdPath) {
-                pathBuilder.append("{${MessageRecords.ID}}")
+                pathBuilder.append(ID_PATH_VARIABLE)
             }
             if (appendPathSuffix.isNotEmpty()) {
                 pathBuilder.append(appendPathSuffix)
@@ -69,9 +71,11 @@ interface AggregateRouteSpec : RouteSpec {
             return pathBuilder.build()
         }
     override val parameters: List<Parameter>
-        get() = mutableListOf<Parameter>()
-            .appendTenantPathParameter(appendTenantPath)
-            .appendIdPathParameter(appendIdPath)
+        get() {
+            return mutableListOf<Parameter>()
+                .appendTenantPathParameter(appendTenantPath)
+                .appendIdPathParameter(appendIdPath)
+        }
 }
 
 abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
