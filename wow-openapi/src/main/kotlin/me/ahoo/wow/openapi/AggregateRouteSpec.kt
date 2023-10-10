@@ -28,7 +28,6 @@ import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.serialization.MessageRecords
-import org.springframework.web.util.UriTemplate
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
 const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
@@ -73,12 +72,6 @@ interface AggregateRouteSpec : RouteSpec {
         }
     override val parameters: List<Parameter>
         get() {
-            if (path.isBlank()) {
-                return emptyList()
-            }
-            val variableNames = UriTemplate(path).variableNames
-            val appendTenantPath = variableNames.contains(MessageRecords.TENANT_ID)
-            val appendIdPath = variableNames.contains(MessageRecords.ID)
             return mutableListOf<Parameter>()
                 .appendTenantPathParameter(appendTenantPath)
                 .appendIdPathParameter(appendIdPath)
