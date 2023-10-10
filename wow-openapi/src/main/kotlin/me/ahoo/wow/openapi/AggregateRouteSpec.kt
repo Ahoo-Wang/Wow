@@ -28,8 +28,11 @@ import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.Tags.asTags
 import me.ahoo.wow.serialization.MessageRecords
+import org.springframework.web.util.UriTemplate
 
-const val TENANT_PATH_PREFIX = "tenant/{${MessageRecords.TENANT_ID}}"
+const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
+const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
+const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
 interface AggregateRouteSpec : RouteSpec {
     val currentContext: NamedBoundedContext
@@ -61,7 +64,7 @@ interface AggregateRouteSpec : RouteSpec {
             }
             pathBuilder.append(namedAggregate.aggregateName)
             if (appendIdPath) {
-                pathBuilder.append("{${MessageRecords.ID}}")
+                pathBuilder.append(ID_PATH_VARIABLE)
             }
             if (appendPathSuffix.isNotEmpty()) {
                 pathBuilder.append(appendPathSuffix)
@@ -69,9 +72,17 @@ interface AggregateRouteSpec : RouteSpec {
             return pathBuilder.build()
         }
     override val parameters: List<Parameter>
-        get() = mutableListOf<Parameter>()
-            .appendTenantPathParameter(appendTenantPath)
-            .appendIdPathParameter(appendIdPath)
+        get() {
+            if (path.isBlank()) {
+                return emptyList()
+            }
+            val variableNames = UriTemplate(path).variableNames
+            val appendTenantPath = variableNames.contains(MessageRecords.TENANT_ID)
+            val appendIdPath = variableNames.contains(MessageRecords.ID)
+            return mutableListOf<Parameter>()
+                .appendTenantPathParameter(appendTenantPath)
+                .appendIdPathParameter(appendIdPath)
+        }
 }
 
 abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
