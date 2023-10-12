@@ -22,8 +22,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 @ConfigurationProperties(prefix = SnapshotProperties.PREFIX)
 data class SnapshotProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
-    val strategy: Strategy = Strategy.ALL,
-    val versionOffset: Int = DEFAULT_VERSION_OFFSET,
+    var strategy: Strategy = Strategy.ALL,
+    var versionOffset: Int = DEFAULT_VERSION_OFFSET,
     var storage: SnapshotStorage = SnapshotStorage.MONGO
 ) : EnabledCapable {
     companion object {

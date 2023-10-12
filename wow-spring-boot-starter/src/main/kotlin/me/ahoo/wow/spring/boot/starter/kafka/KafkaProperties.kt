@@ -27,8 +27,8 @@ import reactor.kafka.sender.SenderOptions
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
-    val bootstrapServers: List<String>,
-    @DefaultValue(Wow.WOW_PREFIX) val topicPrefix: String = Wow.WOW_PREFIX,
+    var bootstrapServers: List<String>,
+    @DefaultValue(Wow.WOW_PREFIX) var topicPrefix: String = Wow.WOW_PREFIX,
     /**
      * common properties
      */
