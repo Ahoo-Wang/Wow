@@ -336,11 +336,11 @@ configsvr:
   ##
   resources:
     limits:
-      cpu: "6"
-      memory: 6144Mi
+      cpu: "2"
+      memory: 4096Mi
     requests:
-      cpu: '6'
-      memory: 6144Mi
+      cpu: '2'
+      memory: 4096Mi
   ## @param configsvr.hostAliases Deployment pod host aliases
   ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   ##
@@ -658,10 +658,10 @@ mongos:
   ##
   resources:
     limits:
-      cpu: "6"
+      cpu: "10"
       memory: 6144Mi
     requests:
-      cpu: '6'
+      cpu: '10'
       memory: 6144Mi
   ## @param mongos.hostAliases Deployment pod host aliases
   ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -987,7 +987,7 @@ shardsvr:
   dataNode:
     ## @param shardsvr.dataNode.replicaCount Number of nodes in each shard replica set (the first node will be primary)
     ##
-    replicaCount: 2
+    replicaCount: 1
     ## @param shardsvr.dataNode.resources Configure pod resources
     ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
     ##
@@ -1313,7 +1313,7 @@ shardsvr:
   arbiter:
     ## @param shardsvr.arbiter.replicaCount Number of arbiters in each shard replica set (the first node will be primary)
     ##
-    replicaCount: 1
+    replicaCount: 0
     ## @param shardsvr.arbiter.hostAliases Deployment pod host aliases
     ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
     ##

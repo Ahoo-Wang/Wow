@@ -366,15 +366,26 @@ class CartSagaTest {
 - [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
 - [Application-Deployment](deploy/example/perf/deployment.yaml)
 
-### Performance Test
+### Test Report
 
 #### Add To Shopping Cart
 
-[Request](deploy/example/request/AddCartItem.http)
+- [Request](deploy/example/request/AddCartItem.http)
+- [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [Report-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
-TODO
+| **SENT**                                                   | **PROCESSED**                                                   |
+|------------------------------------------------------------|-----------------------------------------------------------------|
+| ![SENT](./document/example/perf/Example.Cart.Add@SENT.png) | ![SENT](./document/example/perf/Example.Cart.Add@PROCESSED.png) |
 
 ### Create Order
 
-TODO
+- [Request](deploy/example/request/CreateOrder.http)
+- [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [Report-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+
+| **SENT**                                                       | **PROCESSED**                                                       |
+|----------------------------------------------------------------|---------------------------------------------------------------------|
+| ![SENT](./document/example/perf/Example.Order.Create@SENT.png) | ![SENT](./document/example/perf/Example.Order.Create@PROCESSED.png) |
+
 

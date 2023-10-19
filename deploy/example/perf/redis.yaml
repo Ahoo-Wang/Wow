@@ -313,7 +313,7 @@ persistence:
     - ReadWriteOnce
   ## @param persistence.size Size of data volume
   ##
-  size: 20Gi
+  size: 40Gi
   ## @param persistence.matchLabels Persistent Volume selectors
   ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
   ##
@@ -490,10 +490,10 @@ redis:
   ##
   resources:
     limits:
-      cpu: "10"
+      cpu: "8"
       memory: 10240Mi
     requests:
-      cpu: '10'
+      cpu: '8'
       memory: 10240Mi
   ## @param redis.schedulerName Use an alternate scheduler, e.g. "stork".
   ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
