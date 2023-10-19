@@ -42,6 +42,7 @@ wow:
   kafka:
     enabled: false
     bootstrap-servers: 'PLAINTEXT://localhost:61546'
+
   eventsourcing:
     store:
       storage: in_memory

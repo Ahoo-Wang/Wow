@@ -10,32 +10,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.example.api.order
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.EntityObject
-import java.math.BigDecimal
+sh.enableSharding("wow_example_db");
+sh.shardCollection("wow_example_db.cart_snapshot", { "_id" : "hashed" });
+sh.shardCollection("wow_example_db.cart_event_stream", { "aggregateId" : "hashed" });
 
-interface CreateOrderItem {
-    val productId: String
-    val price: BigDecimal
-    val quantity: Int
-}
-
-/**
- * 订单项为实体对象 .
- *
- * @author ahoo wang
- */
-@EntityObject
-data class OrderItem(
-    override val id: String,
-    override val productId: String,
-    override val price: BigDecimal,
-    override val quantity: Int
-) : Identifier, CreateOrderItem {
-    val totalPrice: BigDecimal
-        get() {
-            return price.multiply(quantity.toBigDecimal())
-        }
-}
+sh.shardCollection("wow_example_db.order_snapshot", { "_id" : "hashed" });
+sh.shardCollection("wow_example_db.order_event_stream", { "aggregateId" : "hashed" });

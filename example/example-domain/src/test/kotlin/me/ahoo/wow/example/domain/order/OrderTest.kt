@@ -52,11 +52,10 @@ internal class OrderTest {
         val tenantId = GlobalIdGenerator.generateAsString()
         val customerId = GlobalIdGenerator.generateAsString()
 
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+        val orderItem = CreateOrder.Item(
+            productId = GlobalIdGenerator.generateAsString(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
@@ -82,10 +81,20 @@ internal class OrderTest {
                 assertThat(it.id, notNullValue())
                 assertThat(it.customerId, equalTo(customerId))
                 assertThat(it.address, equalTo(SHIPPING_ADDRESS))
-                assertThat(it.items, equalTo(orderItems))
+                verifyItems(it.items, orderItems)
                 assertThat(it.status, equalTo(OrderStatus.CREATED))
             }
             .verify()
+    }
+
+    fun verifyItems(orderItems: List<OrderItem>, createOrderItems: List<CreateOrder.Item>) {
+        assertThat(orderItems, hasSize(createOrderItems.size))
+        orderItems.forEachIndexed { index, orderItem ->
+            val createOrderItem = createOrderItems[index]
+            assertThat(orderItem.productId, equalTo(createOrderItem.productId))
+            assertThat(orderItem.price, equalTo(createOrderItem.price))
+            assertThat(orderItem.quantity, equalTo(createOrderItem.quantity))
+        }
     }
 
     /**
@@ -118,11 +127,10 @@ internal class OrderTest {
     @Test
     fun createOrderWhenInventoryShortage() {
         val customerId = GlobalIdGenerator.generateAsString()
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+        val orderItem = CreateOrder.Item(
+            productId = GlobalIdGenerator.generateAsString(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {
@@ -162,11 +170,10 @@ internal class OrderTest {
     @Test
     fun createOrderWhenPriceInconsistency() {
         val customerId = GlobalIdGenerator.generateAsString()
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+        val orderItem = CreateOrder.Item(
+            productId = GlobalIdGenerator.generateAsString(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         val orderItems = listOf(orderItem)
         val inventoryService = object : InventoryService {

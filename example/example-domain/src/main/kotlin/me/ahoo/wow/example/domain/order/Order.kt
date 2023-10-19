@@ -23,6 +23,7 @@ import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.ChangeAddress
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
+import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.example.api.order.OrderOverPaid
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.OrderPayDuplicated
@@ -31,6 +32,7 @@ import me.ahoo.wow.example.api.order.OrderShipped
 import me.ahoo.wow.example.api.order.PayOrder
 import me.ahoo.wow.example.api.order.ReceiptOrder
 import me.ahoo.wow.example.api.order.ShipOrder
+import me.ahoo.wow.id.GlobalIdGenerator
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -77,7 +79,14 @@ class Order(private val state: OrderState) {
                     OrderCreated(
                         orderId = command.aggregateId.id,
                         customerId = createOrder.customerId,
-                        items = createOrder.items,
+                        items = createOrder.items.map {
+                            OrderItem(
+                                id = GlobalIdGenerator.generateAsString(),
+                                productId = it.productId,
+                                price = it.price,
+                                quantity = it.quantity,
+                            )
+                        },
                         address = createOrder.address,
                         fromCart = createOrder.fromCart,
                     ),
