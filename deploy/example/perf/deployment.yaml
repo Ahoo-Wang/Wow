@@ -18,8 +18,8 @@ spec:
     metadata:
       labels:
         app: wow-example
-      annotations:
-        instrumentation.opentelemetry.io/inject-java: "true"
+#      annotations:
+#        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       nodeSelector:
         test: service
@@ -30,14 +30,14 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.6.10
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.6.11
           env:
             - name: LANG
               value: C.utf8
             - name: TZ
               value: Asia/Shanghai
             - name: JAVA_OPTS
-              value: -Xms6144M  -Xmx6144M
+              value: -Xms10240M  -Xmx10240M
           ports:
             - name: http
               protocol: TCP
@@ -73,11 +73,11 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "8"
-              memory: 7680Mi
+              cpu: "15"
+              memory: 14Gi
             requests:
-              cpu: '8'
-              memory: 6144Mi
+              cpu: '15'
+              memory: 10Gi
           volumeMounts:
             - mountPath: /etc/localtime
               name: volume-localtime

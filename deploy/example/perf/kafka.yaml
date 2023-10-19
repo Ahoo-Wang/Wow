@@ -1,13 +1,9 @@
-# helm install kafka-test bitnami/kafka -n test -f deploy/example/perf/kafka.yaml
-
-# Copyright VMware, Inc.
-# SPDX-License-Identifier: APACHE-2.0
+# helm install kafka-test bitnami/kafka -n test -f deploy/example/perf/kafka.yaml --set kraft.enabled=false --version 23.0.5
 
 ## @section Global parameters
 ## Global Docker image parameters
 ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
 ## Current available global Docker image parameters: imageRegistry, imagePullSecrets and storageClass
-##
 
 ## @param global.imageRegistry Global Docker image registry
 ## @param global.imagePullSecrets Global Docker registry secret names as an array
@@ -23,7 +19,6 @@ global:
   storageClass: "alicloud-disk-essd"
 
 ## @section Common parameters
-##
 
 ## @param kubeVersion Override Kubernetes version
 ##
@@ -46,11 +41,6 @@ commonAnnotations: {}
 ## @param extraDeploy Array of extra objects to deploy with the release
 ##
 extraDeploy: []
-## @param serviceBindings.enabled Create secret for service binding (Experimental)
-## Ref: https://servicebinding.io/service-provider/
-##
-serviceBindings:
-  enabled: false
 ## Enable diagnostic mode in the statefulset
 ##
 diagnosticMode:
@@ -67,7 +57,6 @@ diagnosticMode:
     - infinity
 
 ## @section Kafka parameters
-##
 
 ## Bitnami Kafka image version
 ## ref: https://hub.docker.com/r/bitnami/kafka/tags/
@@ -82,7 +71,7 @@ diagnosticMode:
 image:
   registry: docker.io
   repository: bitnami/kafka
-  tag: 3.5.0-debian-11-r0
+  tag: 3.3.1-debian-11-r1
   digest: ""
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
@@ -147,10 +136,10 @@ log4j: ""
 existingLog4jConfigMap: ""
 ## @param heapOpts Kafka Java Heap size
 ##
-heapOpts: -Xmx4096m -Xms4096m
+heapOpts: -Xmx8192m -Xms8192m
 ## @param deleteTopicEnable Switch to enable topic deletion or not
 ##
-deleteTopicEnable: false
+deleteTopicEnable: true
 ## @param autoCreateTopicsEnable Switch to enable auto creation of topics. Enabling auto creation of topics not recommended for production or similar environments
 ##
 autoCreateTopicsEnable: true
@@ -174,7 +163,6 @@ logRetentionHours: 168
 logSegmentBytes: _1073741824
 ## @param logsDirs A comma separated list of directories in which kafka's log data is kept
 ## ref: https://kafka.apache.org/documentation/#brokerconfigs_log.dirs
-##
 logsDirs: /bitnami/kafka/data
 ## @param maxMessageBytes The largest record batch size allowed by Kafka
 ##
@@ -244,14 +232,11 @@ auth:
   ## @param auth.externalClientProtocol Authentication protocol for communications with external clients. Defaults to value of `auth.clientProtocol`. Allowed protocols: `plaintext`, `tls`, `mtls`, `sasl` and `sasl_tls`
   ## @param auth.interBrokerProtocol Authentication protocol for inter-broker communications. Allowed protocols: `plaintext`, `tls`, `mtls`, `sasl` and `sasl_tls`
   ##
-  clientProtocol: plaintext
+  clientProtocol: sasl
   # Note: empty by default for backwards compatibility reasons, find more information at
   # https://github.com/bitnami/charts/pull/8902/
   externalClientProtocol: ""
   interBrokerProtocol: plaintext
-  ## @param auth.controllerProtocol Controller protocol. It is used with Kraft mode only.
-  ##
-  controllerProtocol: plaintext
   ## SASL configuration
   ##
   sasl:
@@ -271,14 +256,15 @@ auth:
       ##   - user2
       ##
       clientUsers:
-        - user
+        - client
       ## @param auth.sasl.jaas.clientPasswords Kafka client passwords. This is mandatory if more than one user is specified in clientUsers
       ##
       ## clientPasswords:
       ##   - password1
       ##   - password2"
       ##
-      clientPasswords: ["gRfbbgQBLmkINQ"]
+      clientPasswords:
+        - gRfbbgQBLmkINQ
       ## @param auth.sasl.jaas.interBrokerUser Kafka inter broker communication user for SASL authentication
       ##
       interBrokerUser: admin
@@ -437,28 +423,21 @@ extraEnvVarsCM: ""
 extraEnvVarsSecret: ""
 
 ## @section Statefulset parameters
-##
 
 ## @param replicaCount Number of Kafka nodes
 ##
 replicaCount: 3
-## @param minId Minimal node.id or broker.id values, nodes increment their value respectively
-## Nodes or Brokers idncrement their ID starting at this minimal value.
-## E.g., with `minId=100` and 3 nodes, IDs will be 100, 101, 102 for brokers 0, 1, and 2, respectively.
+## @param minBrokerId Minimal broker.id value, nodes increment their `broker.id` respectively
+## Brokers increment their ID starting at this minimal value.
+## E.g., with `minBrokerId=100` and 3 nodes, IDs will be 100, 101, 102 for brokers 0, 1, and 2, respectively.
 ##
-minId: 0
-## @param brokerRackAssignment Set Broker Assignment for multi tenant environment Allowed values: `aws-az`
-## ref: https://cwiki.apache.org/confluence/display/KAFKA/KIP-392%3A+Allow+consumers+to+fetch+from+closest+replica
-##
-brokerRackAssignment: ""
+minBrokerId: 0
 ## @param containerPorts.client Kafka client container port
-## @param containerPorts.controller Kafka Controller listener port. It is used if "kraft.enabled: true"
 ## @param containerPorts.internal Kafka inter-broker container port
 ## @param containerPorts.external Kafka external container port
 ##
 containerPorts:
   client: 9092
-  controller: 9095
   internal: 9093
   external: 9094
 ## Configure extra options for Kafka containers' liveness, readiness and startup probes
@@ -523,8 +502,12 @@ lifecycleHooks: {}
 ## @param resources.requests The requested resources for the container
 ##
 resources:
-  limits: {}
-  requests: {}
+  limits:
+    cpu: "10"
+    memory: 10240Mi
+  requests:
+    cpu: '10'
+    memory: 10240Mi
 ## Kafka pods' Security Context
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
 ## @param podSecurityContext.enabled Enable security context for the pods
@@ -648,14 +631,19 @@ updateStrategy:
 ##     secret:
 ##       secretName: kafka-jaas
 ##
-extraVolumes: []
+extraVolumes:
+  - hostPath:
+      path: /etc/localtime
+    name: volume-localtime
 ## @param extraVolumeMounts Optionally specify extra list of additional volumeMounts for the Kafka container(s)
 ## extraVolumeMounts:
 ##   - name: kafka-jaas
 ##     mountPath: /bitnami/kafka/config/kafka_jaas.conf
 ##     subPath: kafka_jaas.conf
 ##
-extraVolumeMounts: []
+extraVolumeMounts:
+  - mountPath: /etc/localtime
+    name: volume-localtime
 ## @param sidecars Add additional sidecar containers to the Kafka pod(s)
 ## e.g:
 ## sidecars:
@@ -690,7 +678,6 @@ pdb:
   maxUnavailable: 1
 
 ## @section Traffic Exposure parameters
-##
 
 ## Service parameters
 ##
@@ -699,13 +686,11 @@ service:
   ##
   type: ClusterIP
   ## @param service.ports.client Kafka svc port for client connections
-  ## @param service.ports.controller Kafka svc port for controller connections. It is used if "kraft.enabled: true"
   ## @param service.ports.internal Kafka svc port for inter-broker connections
   ## @param service.ports.external Kafka svc port for external connections
   ##
   ports:
     client: 9092
-    controller: 9095
     internal: 9093
     external: 9094
   ## @param service.nodePorts.client Node port for the Kafka client connections
@@ -752,10 +737,6 @@ service:
   ## Headless service properties
   ##
   headless:
-    ## @param service.headless.publishNotReadyAddresses Indicates that any agent which deals with endpoints for this Service should disregard any indications of ready/not-ready
-    ## ref: https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1/
-    ##
-    publishNotReadyAddresses: false
     ## @param service.headless.annotations Annotations for the headless service.
     ##
     annotations: {}
@@ -784,14 +765,14 @@ externalAccess:
     ## @param externalAccess.autoDiscovery.image.registry Init container auto-discovery image registry
     ## @param externalAccess.autoDiscovery.image.repository Init container auto-discovery image repository
     ## @param externalAccess.autoDiscovery.image.tag Init container auto-discovery image tag (immutable tags are recommended)
-    ## @param externalAccess.autoDiscovery.image.digest Kubectl image digest in the way sha256:aa.... Please note this parameter, if set, will override the tag
+    ## @param externalAccess.autoDiscovery.image.digest Petete image digest in the way sha256:aa.... Please note this parameter, if set, will override the tag
     ## @param externalAccess.autoDiscovery.image.pullPolicy Init container auto-discovery image pull policy
     ## @param externalAccess.autoDiscovery.image.pullSecrets Init container auto-discovery image pull secrets
     ##
     image:
       registry: docker.io
       repository: bitnami/kubectl
-      tag: 1.25.11-debian-11-r3
+      tag: 1.25.2-debian-11-r6
       digest: ""
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
@@ -859,13 +840,6 @@ externalAccess:
     ##   - 30002
     ##
     nodePorts: []
-    ## @param externalAccess.service.externalIPs Use distinct service host IPs to configure Kafka external listener when service type is NodePort. Length must be the same as replicaCount
-    ## e.g:
-    ## externalIPs:
-    ##   - X.X.X.X
-    ##   - Y.Y.Y.Y
-    ##
-    externalIPs: []
     ## @param externalAccess.service.useHostIPs Use service host IPs to configure Kafka external listener when service type is NodePort
     ##
     useHostIPs: false
@@ -877,10 +851,6 @@ externalAccess:
     ## ClusterIP: Must be specified, ingress IP or domain where tcp for external ports is configured
     ##
     domain: ""
-    ## @param externalAccess.service.publishNotReadyAddresses Indicates that any agent which deals with endpoints for this Service should disregard any indications of ready/not-ready
-    ## ref: https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1/
-    ##
-    publishNotReadyAddresses: false
     ## @param externalAccess.service.labels Service labels for external access
     ##
     labels: {}
@@ -935,11 +905,9 @@ networkPolicy:
     ##       - namespaceSelector:
     ##           matchLabels:
     ##             label: example
-    ##
     customRules: []
 
 ## @section Persistence parameters
-##
 
 ## Enable persistence using Persistent Volume Claims
 ## ref: https://kubernetes.io/docs/user-guide/persistent-volumes/
@@ -959,14 +927,14 @@ persistence:
   ## If undefined (the default) or set to null, no storageClassName spec is
   ## set, choosing the default provisioner.
   ##
-  storageClass: ""
+  storageClass: "alicloud-disk-essd"
   ## @param persistence.accessModes Persistent Volume Access Modes
   ##
   accessModes:
     - ReadWriteOnce
   ## @param persistence.size PVC Storage Request for Kafka data volume
   ##
-  size: 20Gi
+  size: 50Gi
   ## @param persistence.annotations Annotations for the PVC
   ##
   annotations: {}
@@ -987,7 +955,7 @@ persistence:
 logPersistence:
   ## @param logPersistence.enabled Enable Kafka logs persistence using PVC, note that ZooKeeper persistence is unaffected
   ##
-  enabled: false
+  enabled: true
   ## @param logPersistence.existingClaim A manually managed Persistent Volume and Claim
   ## If defined, PVC must be created manually before volume will be bound
   ## The value is evaluated as a template
@@ -999,14 +967,14 @@ logPersistence:
   ## If undefined (the default) or set to null, no storageClassName spec is
   ## set, choosing the default provisioner.
   ##
-  storageClass: ""
+  storageClass: "alicloud-disk-essd"
   ## @param logPersistence.accessModes Persistent Volume Access Modes
   ##
   accessModes:
     - ReadWriteOnce
   ## @param logPersistence.size PVC Storage Request for Kafka logs volume
   ##
-  size: 20Gi
+  size: 50Gi
   ## @param logPersistence.annotations Annotations for the PVC
   ##
   annotations: {}
@@ -1040,7 +1008,7 @@ volumePermissions:
   image:
     registry: docker.io
     repository: bitnami/bitnami-shell
-    tag: 11-debian-11-r129
+    tag: 11-debian-11-r40
     digest: ""
     pullPolicy: IfNotPresent
     ## Optionally specify an array of imagePullSecrets.
@@ -1068,7 +1036,6 @@ volumePermissions:
     runAsUser: 0
 
 ## @section Other Parameters
-##
 
 ## ServiceAccount for Kafka
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -1099,7 +1066,6 @@ rbac:
   create: false
 
 ## @section Metrics parameters
-##
 
 ## Prometheus Exporters / Metrics
 ##
@@ -1122,7 +1088,7 @@ metrics:
     image:
       registry: docker.io
       repository: bitnami/kafka-exporter
-      tag: 1.7.0-debian-11-r10
+      tag: 1.6.0-debian-11-r17
       digest: ""
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
@@ -1358,7 +1324,7 @@ metrics:
     image:
       registry: docker.io
       repository: bitnami/jmx-exporter
-      tag: 0.18.0-debian-11-r33
+      tag: 0.17.2-debian-11-r6
       digest: ""
       ## Specify a imagePullPolicy
       ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
@@ -1458,7 +1424,6 @@ metrics:
     ##    name: kafka_server_socket_server_metrics_$3
     ##    labels:
     ##      listener: $1
-    ##
     extraRules: ""
   ## Prometheus Operator ServiceMonitor configuration
   ##
@@ -1512,7 +1477,6 @@ metrics:
     groups: []
 
 ## @section Kafka provisioning parameters
-##
 
 ## Kafka provisioning
 ##
@@ -1580,10 +1544,7 @@ provisioning:
       type: jks
       ## @param provisioning.auth.tls.certificatesSecret Existing secret containing the TLS certificates for the Kafka provisioning Job.
       ## When using 'jks' format for certificates, the secret should contain a truststore and a keystore.
-      ## When using 'pem' format for certificates, the secret should contain one of the following:
-      ## 1. A public CA certificate, a public certificate and one private key.
-      ## 2. A truststore and a keystore in PEM format
-      ## If caCert is set, option 1 will be taken, otherwise option 2.
+      ## When using 'pem' format for certificates, the secret should contain a public CA certificate, a public certificate and one private key.
       ##
       certificatesSecret: ""
       ## @param provisioning.auth.tls.cert The secret key from the certificatesSecret if 'cert' key different from the default (tls.crt)
@@ -1652,28 +1613,15 @@ provisioning:
   ## Ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   ##
   podLabels: {}
-  ## Kafka provisioning pods ServiceAccount
-  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-  ##
-  serviceAccount:
-    ## @param provisioning.serviceAccount.create Enable creation of ServiceAccount for Kafka provisioning pods
-    ##
-    create: false
-    ## @param provisioning.serviceAccount.name The name of the service account to use. If not set and `create` is `true`, a name is generated
-    ## If not set and create is true, a name is generated using the provisioning.serviceAccount.name template
-    ##
-    name: ""
-    ## @param provisioning.serviceAccount.automountServiceAccountToken Allows auto mount of ServiceAccountToken on the serviceAccount created
-    ## Can be set to false if pods using this serviceAccount do not need to use K8s API
-    ##
-    automountServiceAccountToken: true
   ## Kafka provisioning resource requests and limits
   ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
   ## @param provisioning.resources.limits The resources limits for the Kafka provisioning container
   ## @param provisioning.resources.requests The requested resources for the Kafka provisioning container
   ##
   resources:
-    limits: {}
+    limits:
+      cpu: 2000m
+      memory: 5Gi
     requests: {}
   ## Kafka provisioning pods' Security Context
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
@@ -1744,44 +1692,18 @@ provisioning:
   ##
   waitForKafka: true
 
-## @section Kraft chart parameters
-
-## Kraft configuration
-## Kafka mode without Zookeeper. Kafka nodes can work as controllers in this mode.
-##
-kraft:
-  ## @param kraft.enabled Switch to enable or disable the Kraft mode for Kafka
-  ##
-  enabled: true
-  ## @param kraft.processRoles Roles of your Kafka nodes. Nodes can have 'broker', 'controller' roles or both of them.
-  ##
-  processRoles: broker,controller
-  ## @param kraft.controllerListenerNames Controller listener names
-  ##
-  controllerListenerNames: CONTROLLER
-  ## @param kraft.clusterId Kafka ClusterID. You must set it if your cluster contains more than one node.
-  ## Generate with `cat /proc/sys/kernel/random/uuid | tr -d '-' | base64 | cut -b 1-22`. Run `export LC_ALL=C` before if you generate it on MacOS.
-  ## Example: k2yipv1sRue7z2_Y3o976A
-  ##
-  clusterId: "kafka_cluster_id_test1"
-  ## @param kraft.controllerQuorumVoters Quorum voters of Kafka Kraft cluster. Use it for nodes with 'broker' role only.
-  ## Example: 1@controller1.example.com:9095,2@controller2.example.com:9095
-  ##
-  controllerQuorumVoters: ""
-
 ## @section ZooKeeper chart parameters
-##
 
 ## ZooKeeper chart configuration
 ## https://github.com/bitnami/charts/blob/main/bitnami/zookeeper/values.yaml
 ##
 zookeeper:
-  ## @param zookeeper.enabled Switch to enable or disable the ZooKeeper helm chart. Must be false if you use Kraft mode.
+  ## @param zookeeper.enabled Switch to enable or disable the ZooKeeper helm chart
   ##
   enabled: false
   ## @param zookeeper.replicaCount Number of ZooKeeper nodes
   ##
-  replicaCount: 1
+  replicaCount: 3
   ## ZooKeeper authenticaiton
   ##
   auth:
@@ -1813,12 +1735,12 @@ zookeeper:
     storageClass: ""
     accessModes:
       - ReadWriteOnce
-    size: 8Gi
+    size: 20Gi
 
 ## External Zookeeper Configuration
 ## All of these values are only used if `zookeeper.enabled=false`
 ##
 externalZookeeper:
-  ## @param externalZookeeper.servers List of external zookeeper servers to use. Typically used in combination with 'zookeeperChrootPath'. Must be empty if you use Kraft mode.
+  ## @param externalZookeeper.servers List of external zookeeper servers to use. Typically used in combination with 'zookeeperChrootPath'.
   ##
-  servers: []
+  servers: ["zookeeper-test.test:2181"]

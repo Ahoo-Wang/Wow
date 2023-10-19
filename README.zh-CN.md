@@ -350,3 +350,36 @@ class CartSagaTest {
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
+
+## 性能 (Example)
+
+### 部署
+
+- [Redis](deploy/example/perf/redis.yaml)
+- [MongoDB](deploy/example/perf/mongo.yaml)
+- [Kafka](deploy/example/perf/kafka.yaml)
+- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
+- [Application-Deployment](deploy/example/perf/deployment.yaml)
+
+### 测试报告
+
+#### Add To Shopping Cart
+
+- [Request](deploy/example/request/AddCartItem.http)
+- [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [Report-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+
+| **SENT**                                                   | **PROCESSED**                                                   |
+|------------------------------------------------------------|-----------------------------------------------------------------|
+| ![SENT](./document/example/perf/Example.Cart.Add@SENT.png) | ![SENT](./document/example/perf/Example.Cart.Add@PROCESSED.png) |
+
+### Create Order
+
+- [Request](deploy/example/request/CreateOrder.http)
+- [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [Report-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+
+| **SENT**                                                       | **PROCESSED**                                                       |
+|----------------------------------------------------------------|---------------------------------------------------------------------|
+| ![SENT](./document/example/perf/Example.Order.Create@SENT.png) | ![SENT](./document/example/perf/Example.Order.Create@PROCESSED.png) |
+
