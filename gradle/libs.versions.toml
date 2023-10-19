@@ -1,6 +1,6 @@
 [versions]
 # libraries
-springBoot = "3.1.4"
+springBoot = "3.1.5"
 cosid = "2.5.3"
 testcontainers = "1.19.1"
 opentelemetry = "1.31.0"
