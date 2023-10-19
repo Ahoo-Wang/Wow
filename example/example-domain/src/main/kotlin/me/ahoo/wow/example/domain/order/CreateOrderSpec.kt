@@ -13,14 +13,14 @@
 package me.ahoo.wow.example.domain.order
 
 import me.ahoo.wow.api.annotation.Name
-import me.ahoo.wow.example.api.order.OrderItem
+import me.ahoo.wow.example.api.order.CreateOrderItem
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
 
 interface CreateOrderSpec {
-    fun require(orderItem: OrderItem): Mono<OrderItem>
+    fun require(orderItem: CreateOrderItem): Mono<CreateOrderItem>
 }
 
 /**
@@ -34,7 +34,7 @@ class DefaultCreateOrderSpec(
     private val pricingService: PricingService
 ) : CreateOrderSpec {
 
-    override fun require(orderItem: OrderItem): Mono<OrderItem> {
+    override fun require(orderItem: CreateOrderItem): Mono<CreateOrderItem> {
         return Mono.zip(checkPrice(orderItem), checkInventory(orderItem))
             .thenReturn(orderItem)
     }
@@ -42,7 +42,7 @@ class DefaultCreateOrderSpec(
     /**
      * 预校验库存.
      */
-    private fun checkInventory(orderItem: OrderItem): Mono<Int> {
+    private fun checkInventory(orderItem: CreateOrderItem): Mono<Int> {
         return inventoryService.getInventory(orderItem.productId)
             .doOnNext {
                 if (orderItem.quantity > it) {
@@ -54,7 +54,7 @@ class DefaultCreateOrderSpec(
     /**
      * 验证商品客户端下单时的价格与最新的定价服务价格时否一致.
      */
-    private fun checkPrice(orderItem: OrderItem): Mono<BigDecimal> {
+    private fun checkPrice(orderItem: CreateOrderItem): Mono<BigDecimal> {
         return pricingService.getProductPrice(orderItem.productId)
             .doOnNext { unitPrice ->
                 if (orderItem.price != unitPrice) {
@@ -63,11 +63,11 @@ class DefaultCreateOrderSpec(
             }
     }
 
-    class InventoryShortageException(val orderItem: OrderItem, val inventory: Int) : IllegalArgumentException(
+    class InventoryShortageException(val orderItem: CreateOrderItem, val inventory: Int) : IllegalArgumentException(
         "item[$orderItem] is greater than the inventory quantity[$inventory].",
     )
 
-    class PriceInconsistencyException(val orderItem: OrderItem, val price: BigDecimal) : IllegalArgumentException(
+    class PriceInconsistencyException(val orderItem: CreateOrderItem, val price: BigDecimal) : IllegalArgumentException(
         "item[$orderItem]has expired, latest price[$price].",
     )
 }

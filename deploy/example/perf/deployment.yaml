@@ -7,7 +7,10 @@ metadata:
 spec:
   replicas: 4
   strategy:
-    type: Recreate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
   selector:
     matchLabels:
       app: wow-example
@@ -15,24 +18,26 @@ spec:
     metadata:
       labels:
         app: wow-example
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       nodeSelector:
         test: service
       tolerations:
         - key: "test"
-          value: service
           operator: "Equal"
+          value: service
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.4.2
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.6.10
           env:
             - name: LANG
               value: C.utf8
             - name: TZ
               value: Asia/Shanghai
             - name: JAVA_OPTS
-              value: -Xms10240M  -Xmx10240M
+              value: -Xms6144M  -Xmx6144M
           ports:
             - name: http
               protocol: TCP
@@ -68,11 +73,11 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "16"
-              memory: 12288Mi
+              cpu: "8"
+              memory: 7680Mi
             requests:
               cpu: '8'
-              memory: 10240Mi
+              memory: 6144Mi
           volumeMounts:
             - mountPath: /etc/localtime
               name: volume-localtime

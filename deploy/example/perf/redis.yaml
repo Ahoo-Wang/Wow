@@ -489,18 +489,12 @@ redis:
   ## @param redis.resources.requests The requested resources for the container
   ##
   resources:
-    ## Example:
-    ## limits:
-    ##    cpu: 100m
-    ##    memory: 128Mi
-    ##
-    limits: {}
-    ## Examples:
-    ## requests:
-    ##    cpu: 100m
-    ##    memory: 128Mi
-    ##
-    requests: {}
+    limits:
+      cpu: "10"
+      memory: 10240Mi
+    requests:
+      cpu: '10'
+      memory: 10240Mi
   ## @param redis.schedulerName Use an alternate scheduler, e.g. "stork".
   ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
   ##

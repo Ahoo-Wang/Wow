@@ -12,8 +12,15 @@
  */
 package me.ahoo.wow.example.api.order
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.EntityObject
 import java.math.BigDecimal
+
+interface CreateOrderItem {
+    val productId: String
+    val price: BigDecimal
+    val quantity: Int
+}
 
 /**
  * 订单项为实体对象 .
@@ -22,11 +29,11 @@ import java.math.BigDecimal
  */
 @EntityObject
 data class OrderItem(
-    val id: String,
-    val productId: String,
-    val price: BigDecimal,
-    val quantity: Int
-) {
+    override val id: String,
+    override val productId: String,
+    override val price: BigDecimal,
+    override val quantity: Int
+) : Identifier, CreateOrderItem {
     val totalPrice: BigDecimal
         get() {
             return price.multiply(quantity.toBigDecimal())

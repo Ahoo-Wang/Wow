@@ -8,18 +8,17 @@ Command-Request-Id: {{$uuid}}
   "fromCart": false,
   "items": [
     {
-      "id": "0PsCv0bLOBG",
-      "productId": "0PsCv0bLOBH",
+      "productId": "{{$uuid}}",
       "price": 10,
       "quantity": 10
     }
   ],
   "address": {
-    "country": "country",
-    "province": "province",
-    "city": "city",
-    "district": "district",
-    "detail": "detail"
+    "country": "china",
+    "province": "shanghai",
+    "city": "shanghai",
+    "district": "huangpu",
+    "detail": "renmin road 1000"
   }
 }
 
@@ -30,5 +29,3 @@ Command-Request-Id: {{$uuid}}
 %}
 
 ###
-
-GET {{host}}/order/59c398c7-9c43-4ef7-ae80-22ebcec4668a/0Tjmm9G90001001

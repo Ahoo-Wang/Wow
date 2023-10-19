@@ -355,3 +355,26 @@ class CartSagaTest {
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
+
+## Performance (Example)
+
+### Deployment
+
+- [Redis](deploy/example/perf/redis.yaml)
+- [MongoDB](deploy/example/perf/mongo.yaml)
+- [Kafka](deploy/example/perf/kafka.yaml)
+- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
+- [Application-Deployment](deploy/example/perf/deployment.yaml)
+
+### Performance Test
+
+#### Add To Shopping Cart
+
+[Request](deploy/example/request/AddCartItem.http)
+
+TODO
+
+### Create Order
+
+TODO
+

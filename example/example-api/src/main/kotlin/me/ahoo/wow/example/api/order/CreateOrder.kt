@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.example.api.ExampleService
+import java.math.BigDecimal
 
 /**
  * CreateOrder .
@@ -37,12 +38,18 @@ data class CreateOrder(
     @CommandRoute.PathVariable
     val customerId: String,
     @field:Size(min = 1)
-    val items: List<OrderItem>,
+    val items: List<Item>,
     @field:NotNull
     @field:Valid
     val address: ShippingAddress,
     val fromCart: Boolean
-)
+) {
+    data class Item(
+        override val productId: String,
+        override val price: BigDecimal,
+        override val quantity: Int
+    ) : CreateOrderItem
+}
 
 data class OrderCreated(
     val orderId: String,

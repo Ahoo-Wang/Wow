@@ -126,7 +126,7 @@ auth:
 ## @param shards Number of shards to be created
 ## ref: https://docs.mongodb.com/manual/core/sharded-cluster-shards/
 ##
-shards: 5
+shards: 3
 ## Properties for all of the pods in the cluster (shards, config servers and mongos)
 ##
 common:
@@ -334,7 +334,13 @@ configsvr:
   ## @param configsvr.resources Configure pod resources
   ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
   ##
-  resources: {}
+  resources:
+    limits:
+      cpu: "6"
+      memory: 6144Mi
+    requests:
+      cpu: '6'
+      memory: 6144Mi
   ## @param configsvr.hostAliases Deployment pod host aliases
   ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   ##
@@ -390,10 +396,11 @@ configsvr:
   ##
   nodeSelector:
     test: mongodb
-  ## @param configsvr.tolerations Config Server Tolerations for pod assignment
-  ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-  ##
-  tolerations: []
+  tolerations:
+    - key: "test"
+      operator: "Equal"
+      value: mongodb
+      effect: "NoSchedule"
   ## @param configsvr.podManagementPolicy Statefulset's pod management policy, allows parallel startup of pods
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
   ##
@@ -645,11 +652,17 @@ configsvr:
 mongos:
   ## @param mongos.replicaCount Number of replicas
   ##
-  replicaCount: 5
+  replicaCount: 3
   ## @param mongos.resources Configure pod resources
   ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
   ##
-  resources: {}
+  resources:
+    limits:
+      cpu: "6"
+      memory: 6144Mi
+    requests:
+      cpu: '6'
+      memory: 6144Mi
   ## @param mongos.hostAliases Deployment pod host aliases
   ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   ##
@@ -1308,7 +1321,13 @@ shardsvr:
     ## @param shardsvr.arbiter.resources Configure pod resources
     ## ref: https://kubernetes.io/docs/user-guide/compute-resources/
     ##
-    resources: {}
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2048Mi
+      requests:
+        cpu: '2'
+        memory: 2048Mi
     ## @param shardsvr.arbiter.mongodbExtraFlags MongoDB&reg; additional command line flags
     ## Can be used to specify command line flags, for example:
     ## mongodbExtraFlags:
