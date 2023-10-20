@@ -351,7 +351,11 @@ class CartSagaTest {
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
 
-## 性能 (Example)
+## 性能测试 (Example)
+
+- 测试代码：[Example](./example)
+- 测试场景：加入购物车、下单
+- 命令发送等待模式（`WaitStrategy`）：`SENT`、`PROCESSED`
 
 ### 部署
 
@@ -365,9 +369,9 @@ class CartSagaTest {
 
 #### 加入购物车
 
-- [Request](deploy/example/request/AddCartItem.http)
-- [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
-- [Report-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+- [请求](deploy/example/request/AddCartItem.http)
+- [报告-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [报告-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
 | **SENT**                                                   | **PROCESSED**                                                   |
 |------------------------------------------------------------|-----------------------------------------------------------------|
@@ -375,9 +379,9 @@ class CartSagaTest {
 
 #### 下单
 
-- [Request](deploy/example/request/CreateOrder.http)
-- [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
-- [Report-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+- [请求](deploy/example/request/CreateOrder.http)
+- [报告-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [报告-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
 | **SENT**                                                       | **PROCESSED**                                                       |
 |----------------------------------------------------------------|---------------------------------------------------------------------|

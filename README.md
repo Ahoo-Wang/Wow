@@ -356,7 +356,11 @@ class CartSagaTest {
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
 
-## Performance (Example)
+## Performance Test (Example)
+
+- Test Code: [Example](./example)
+- Test Case: Add To Shopping Cart / Create Order
+- Command `WaitStrategy`: `SENT`、`PROCESSED`
 
 ### Deployment
 
