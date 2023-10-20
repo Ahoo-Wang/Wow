@@ -375,8 +375,8 @@ class CartSagaTest {
 #### Add To Shopping Cart
 
 - [Request](deploy/example/request/AddCartItem.http)
-- [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
-- [Report-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
 > `WaitStrategy`: `SENT`
 
@@ -389,8 +389,8 @@ class CartSagaTest {
 #### Create Order
 
 - [Request](deploy/example/request/CreateOrder.http)
-- [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
-- [Report-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
 > `WaitStrategy`: `SENT`
 

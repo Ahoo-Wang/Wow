@@ -370,8 +370,8 @@ class CartSagaTest {
 #### 加入购物车
 
 - [请求](deploy/example/request/AddCartItem.http)
-- [报告-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
-- [报告-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+- [详细报告(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
 > `WaitStrategy`: `SENT`
 
@@ -383,8 +383,8 @@ class CartSagaTest {
 #### 下单
 
 - [请求](deploy/example/request/CreateOrder.http)
-- [报告-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
-- [报告-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+- [详细报告(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
 > `WaitStrategy`: `SENT`
 
