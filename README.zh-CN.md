@@ -1,6 +1,6 @@
 # Wow
 
-> [English Document](./README.md)
+> [English Document](https://github.com/Ahoo-Wang/Wow/blob/main/README.md)
 
 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架。
 

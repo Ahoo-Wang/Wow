@@ -1,6 +1,6 @@
 # Wow
 
-> [中文文档](./README.zh-CN.md)
+> [中文文档](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md)
 
 A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.
 
