@@ -378,9 +378,13 @@ class CartSagaTest {
 - [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
 - [Report-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
-| **SENT**                                                   | **PROCESSED**                                                   |
-|------------------------------------------------------------|-----------------------------------------------------------------|
-| ![SENT](./document/example/perf/Example.Cart.Add@SENT.png) | ![SENT](./document/example/perf/Example.Cart.Add@PROCESSED.png) |
+> `WaitStrategy`: `SENT`
+
+![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
 
 #### Create Order
 
@@ -388,8 +392,11 @@ class CartSagaTest {
 - [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
 - [Report-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
-| **SENT**                                                       | **PROCESSED**                                                       |
-|----------------------------------------------------------------|---------------------------------------------------------------------|
-| ![SENT](./document/example/perf/Example.Order.Create@SENT.png) | ![SENT](./document/example/perf/Example.Order.Create@PROCESSED.png) |
+> `WaitStrategy`: `SENT`
 
+![SENT](./document/example/perf/Example.Order.Create@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
 

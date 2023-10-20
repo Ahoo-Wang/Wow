@@ -373,17 +373,23 @@ class CartSagaTest {
 - [报告-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
 - [报告-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
-| **SENT**                                                   | **PROCESSED**                                                   |
-|------------------------------------------------------------|-----------------------------------------------------------------|
-| ![SENT](./document/example/perf/Example.Cart.Add@SENT.png) | ![SENT](./document/example/perf/Example.Cart.Add@PROCESSED.png) |
+> `WaitStrategy`: `SENT`
 
+![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
 #### 下单
 
 - [请求](deploy/example/request/CreateOrder.http)
 - [报告-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
 - [报告-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
-| **SENT**                                                       | **PROCESSED**                                                       |
-|----------------------------------------------------------------|---------------------------------------------------------------------|
-| ![SENT](./document/example/perf/Example.Order.Create@SENT.png) | ![SENT](./document/example/perf/Example.Order.Create@PROCESSED.png) |
+> `WaitStrategy`: `SENT`
 
+![SENT](./document/example/perf/Example.Order.Create@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
