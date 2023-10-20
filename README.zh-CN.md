@@ -363,7 +363,7 @@ class CartSagaTest {
 
 ### 测试报告
 
-#### 加入购物车
+#### Add To Shopping Cart
 
 - [Request](deploy/example/request/AddCartItem.http)
 - [Report-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
@@ -373,7 +373,7 @@ class CartSagaTest {
 |------------------------------------------------------------|-----------------------------------------------------------------|
 | ![SENT](./document/example/perf/Example.Cart.Add@SENT.png) | ![SENT](./document/example/perf/Example.Cart.Add@PROCESSED.png) |
 
-#### 下单
+### Create Order
 
 - [Request](deploy/example/request/CreateOrder.http)
 - [Report-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
