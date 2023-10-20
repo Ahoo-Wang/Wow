@@ -1,5 +1,7 @@
 # Wow
 
+> [English Document](./README.md)
+
 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架。
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
