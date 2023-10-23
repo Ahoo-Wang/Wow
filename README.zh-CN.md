@@ -20,19 +20,62 @@
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
-### 事件源
+## 性能测试 (Example)
+
+- 测试代码：[Example](./example)
+- 测试场景：加入购物车、下单
+- 命令发送等待模式（`WaitStrategy`）：`SENT`、`PROCESSED`
+
+### 部署
+
+- [Redis](deploy/example/perf/redis.yaml)
+- [MongoDB](deploy/example/perf/mongo.yaml)
+- [Kafka](deploy/example/perf/kafka.yaml)
+- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
+- [Application-Deployment](deploy/example/perf/deployment.yaml)
+
+### 测试报告
+
+#### 加入购物车
+
+- [请求](deploy/example/request/AddCartItem.http)
+- [详细报告(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+
+> `WaitStrategy`: `SENT`
+
+![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
+#### 下单
+
+- [请求](deploy/example/request/CreateOrder.http)
+- [详细报告(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+
+> `WaitStrategy`: `SENT`
+
+![SENT](./document/example/perf/Example.Order.Create@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
+
+## 事件源
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
-### 可观测性
+## 可观测性
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
-### OpenAPI (Spring WebFlux 集成)
+## OpenAPI (Spring WebFlux 集成)
 
 > 自动注册 **命令** 路由处理函数(`HandlerFunction`) ，开发人员仅需编写领域模型，即可完成服务开发。
 
@@ -40,7 +83,7 @@
   <img src="document/design/assets/OpenAPI-Swagger.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
-### 测试套件：80%+ 的测试覆盖率轻而易举
+## 测试套件：80%+ 的测试覆盖率轻而易举
 
 > Given -> When -> Expect .
 
@@ -352,46 +395,3 @@ class CartSagaTest {
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
-
-## 性能测试 (Example)
-
-- 测试代码：[Example](./example)
-- 测试场景：加入购物车、下单
-- 命令发送等待模式（`WaitStrategy`）：`SENT`、`PROCESSED`
-
-### 部署
-
-- [Redis](deploy/example/perf/redis.yaml)
-- [MongoDB](deploy/example/perf/mongo.yaml)
-- [Kafka](deploy/example/perf/kafka.yaml)
-- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
-- [Application-Deployment](deploy/example/perf/deployment.yaml)
-
-### 测试报告
-
-#### 加入购物车
-
-- [请求](deploy/example/request/AddCartItem.http)
-- [详细报告(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
-
-> `WaitStrategy`: `SENT`
-
-![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
-
-> `WaitStrategy`: `PROCESSED`
-
-![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
-#### 下单
-
-- [请求](deploy/example/request/CreateOrder.http)
-- [详细报告(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
-
-> `WaitStrategy`: `SENT`
-
-![SENT](./document/example/perf/Example.Order.Create@SENT.png)
-
-> `WaitStrategy`: `PROCESSED`
-
-![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)

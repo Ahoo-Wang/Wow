@@ -21,19 +21,63 @@ Query Responsibility Segregation** | **Event Sourcing**
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
-### Event Sourcing
+## Performance Test (Example)
+
+- Test Code: [Example](./example)
+- Test Case: Add To Shopping Cart / Create Order
+- Command `WaitStrategy`: `SENT`、`PROCESSED`
+
+### Deployment
+
+- [Redis](deploy/example/perf/redis.yaml)
+- [MongoDB](deploy/example/perf/mongo.yaml)
+- [Kafka](deploy/example/perf/kafka.yaml)
+- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
+- [Application-Deployment](deploy/example/perf/deployment.yaml)
+
+### Test Report
+
+#### Add To Shopping Cart
+
+- [Request](deploy/example/request/AddCartItem.http)
+- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
+- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
+
+> `WaitStrategy`: `SENT`
+
+![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
+
+#### Create Order
+
+- [Request](deploy/example/request/CreateOrder.http)
+- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
+- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
+
+> `WaitStrategy`: `SENT`
+
+![SENT](./document/example/perf/Example.Order.Create@SENT.png)
+
+> `WaitStrategy`: `PROCESSED`
+
+![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
+
+## Event Sourcing
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/EventSourcing.svg" alt="Wow-EventSourcing"/>
 </p>
 
-### Observability
+## Observability
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/OpenTelemetry.png" alt="Wow-Observability"/>
 </p>
 
-### OpenAPI (Spring WebFlux Integration)
+## OpenAPI (Spring WebFlux Integration)
 
 > Automatically register the `Command` routing processing function (`HandlerFunction`), and developers only need to
 > write the domain model to complete the service development.
@@ -42,7 +86,7 @@ Query Responsibility Segregation** | **Event Sourcing**
   <img src="document/design/assets/OpenAPI-Swagger.png" alt="Wow-Spring-WebFlux-Integration"/>
 </p>
 
-### Test suite: 80%+ test coverage is very easy
+## Test suite: 80%+ test coverage is very easy
 
 > Given -> When -> Expect .
 
@@ -355,48 +399,4 @@ class CartSagaTest {
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
 </p>
-
-## Performance Test (Example)
-
-- Test Code: [Example](./example)
-- Test Case: Add To Shopping Cart / Create Order
-- Command `WaitStrategy`: `SENT`、`PROCESSED`
-
-### Deployment
-
-- [Redis](deploy/example/perf/redis.yaml)
-- [MongoDB](deploy/example/perf/mongo.yaml)
-- [Kafka](deploy/example/perf/kafka.yaml)
-- [Application-Config](deploy/example/perf/config/mongo_kafka_redis.yaml)
-- [Application-Deployment](deploy/example/perf/deployment.yaml)
-
-### Test Report
-
-#### Add To Shopping Cart
-
-- [Request](deploy/example/request/AddCartItem.http)
-- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
-- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
-
-> `WaitStrategy`: `SENT`
-
-![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
-
-> `WaitStrategy`: `PROCESSED`
-
-![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
-
-#### Create Order
-
-- [Request](deploy/example/request/CreateOrder.http)
-- [Detailed Report(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
-- [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
-
-> `WaitStrategy`: `SENT`
-
-![SENT](./document/example/perf/Example.Order.Create@SENT.png)
-
-> `WaitStrategy`: `PROCESSED`
-
-![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
 
