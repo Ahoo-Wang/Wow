@@ -22,9 +22,11 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.EventHandledNotifierFilter
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
+import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
@@ -110,6 +112,16 @@ class CommandGatewayAutoConfiguration {
     @Bean
     fun projectedNotifierFilter(commandWaitNotifier: CommandWaitNotifier): ProjectedNotifierFilter {
         return ProjectedNotifierFilter(commandWaitNotifier)
+    }
+
+    @Bean
+    fun eventHandledNotifierFilter(commandWaitNotifier: CommandWaitNotifier): EventHandledNotifierFilter {
+        return EventHandledNotifierFilter(commandWaitNotifier)
+    }
+
+    @Bean
+    fun sagaHandledNotifierFilter(commandWaitNotifier: CommandWaitNotifier): SagaHandledNotifierFilter {
+        return SagaHandledNotifierFilter(commandWaitNotifier)
     }
 
     @Suppress("LongParameterList")

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEvent
@@ -31,6 +32,7 @@ import me.ahoo.wow.messaging.handler.FilterType
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.projection.ProjectionDispatcher
+import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
 
 abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
@@ -63,3 +65,15 @@ class SnapshotNotifierFilter(
 class ProjectedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.PROJECTED, commandWaitNotifier)
+
+@FilterType(DomainEventDispatcher::class)
+@Order(ORDER_FIRST)
+class EventHandledNotifierFilter(
+    commandWaitNotifier: CommandWaitNotifier
+) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.EVENT_HANDLED, commandWaitNotifier)
+
+@FilterType(StatelessSagaDispatcher::class)
+@Order(ORDER_FIRST)
+class SagaHandledNotifierFilter(
+    commandWaitNotifier: CommandWaitNotifier
+) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.SAGA_HANDLED, commandWaitNotifier)

@@ -159,6 +159,44 @@ internal class WaitingForTest {
     }
 
     @Test
+    fun waitingForEventHandled() {
+        val waitStrategy = WaitingFor.eventHandled(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.EVENT_HANDLED,
+            contextName = contextName,
+            processorName = "",
+            isLastProjection = true
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
+    fun waitingForSagaHandled() {
+        val waitStrategy = WaitingFor.sagaHandled(contextName)
+        val waitSignal = SimpleWaitSignal(
+            commandId = "commandId",
+            stage = CommandStage.SAGA_HANDLED,
+            contextName = contextName,
+            processorName = "",
+            isLastProjection = true
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(waitSignal)
+            }
+            .expectNext(waitSignal)
+            .verifyComplete()
+    }
+
+    @Test
     fun waitingWhenFailure() {
         val waitStrategy = WaitingFor.processed(contextName)
         val waitSignal = SimpleWaitSignal(
