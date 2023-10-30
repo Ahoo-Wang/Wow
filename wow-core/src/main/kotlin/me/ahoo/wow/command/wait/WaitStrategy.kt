@@ -51,6 +51,12 @@ class WaitingFor(
         fun projected(contextName: String, processorName: String = ""): WaitingFor =
             stage(stage = CommandStage.PROJECTED, contextName = contextName, processorName = processorName)
 
+        fun eventHandled(contextName: String, processorName: String = ""): WaitingFor =
+            stage(stage = CommandStage.EVENT_HANDLED, contextName = contextName, processorName = processorName)
+
+        fun sagaHandled(contextName: String, processorName: String = ""): WaitingFor =
+            stage(stage = CommandStage.SAGA_HANDLED, contextName = contextName, processorName = processorName)
+
         fun stage(stage: CommandStage, contextName: String, processorName: String = ""): WaitingFor =
             WaitingFor(stage = stage, contextName = contextName, processorName = processorName)
 
