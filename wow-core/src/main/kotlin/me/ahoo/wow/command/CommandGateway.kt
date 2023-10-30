@@ -82,15 +82,4 @@ interface CommandGateway : CommandBus {
         command: CommandMessage<C>
     ): Mono<CommandResult> =
         sendAndWait(command, WaitingFor.processed(command.contextName))
-
-    fun <C : Any> sendAndWaitForSnapshot(
-        command: CommandMessage<C>
-    ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.snapshot(command.contextName))
-
-    fun <C : Any> sendAndWaitForProjected(
-        command: CommandMessage<C>
-    ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.projected(command.contextName))
-
 }
