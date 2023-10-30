@@ -68,6 +68,28 @@ enum class CommandStage {
         override fun isAfter(processingStage: CommandStage): Boolean {
             return SENT == processingStage || PROCESSED == processingStage
         }
+    },
+    EVENT_HANDLED {
+        override fun shouldNotify(processingStage: CommandStage): Boolean {
+            return this == processingStage ||
+                SENT == processingStage ||
+                PROCESSED == processingStage
+        }
+
+        override fun isAfter(processingStage: CommandStage): Boolean {
+            return SENT == processingStage || PROCESSED == processingStage
+        }
+    },
+    SAGA_HANDLED {
+        override fun shouldNotify(processingStage: CommandStage): Boolean {
+            return this == processingStage ||
+                SENT == processingStage ||
+                PROCESSED == processingStage
+        }
+
+        override fun isAfter(processingStage: CommandStage): Boolean {
+            return SENT == processingStage || PROCESSED == processingStage
+        }
     };
 
     abstract fun shouldNotify(processingStage: CommandStage): Boolean

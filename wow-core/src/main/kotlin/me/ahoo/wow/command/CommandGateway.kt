@@ -92,4 +92,5 @@ interface CommandGateway : CommandBus {
         command: CommandMessage<C>
     ): Mono<CommandResult> =
         sendAndWait(command, WaitingFor.projected(command.contextName))
+
 }

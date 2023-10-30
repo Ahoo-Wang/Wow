@@ -84,26 +84,24 @@ class WaitingFor(
             return
         }
 
-        if (stage != CommandStage.PROJECTED) {
+        if (stage == CommandStage.SENT || stage == CommandStage.PROCESSED || stage == CommandStage.SNAPSHOT) {
             sink.tryEmitValue(signal)
             return
         }
-        /**
-         * `stage == CommandStage.PROJECTED`
-         */
+
         if (!isSameBoundedContext(signal)) {
             return
         }
         if (processorName.isBlank()) {
             if (signal.isLastProjection) {
                 sink.tryEmitValue(signal)
-                return
             }
-        } else {
-            if (processorName == signal.processorName) {
-                sink.tryEmitValue(signal)
-                return
-            }
+            return
+        }
+
+        if (processorName == signal.processorName) {
+            sink.tryEmitValue(signal)
+            return
         }
     }
 
