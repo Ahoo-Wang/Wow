@@ -17,7 +17,7 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.compensation.CompensationConfig
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.webflux.route.snapshot.BatchResult
+import me.ahoo.wow.openapi.BatchResult
 import reactor.core.publisher.Mono
 
 class RegenerateStateEventHandler(
