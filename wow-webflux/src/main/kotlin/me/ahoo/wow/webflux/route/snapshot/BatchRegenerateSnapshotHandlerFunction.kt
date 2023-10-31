@@ -17,6 +17,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
@@ -26,11 +27,6 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-
-data class BatchResult(
-    val cursorId: String,
-    val size: Int
-)
 
 class BatchRegenerateSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
