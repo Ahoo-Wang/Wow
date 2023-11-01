@@ -15,7 +15,6 @@ import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
-import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformJvmPlugin
 
 plugins {
     alias(libs.plugins.publishPlugin)
@@ -77,7 +76,9 @@ configure(libraryProjects) {
         withJavadocJar()
         withSourcesJar()
     }
-    apply<KotlinPlatformJvmPlugin>()
+
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+//    apply<KotlinPlatformJvmPlugin>()
     configure<KotlinJvmProjectExtension> {
         jvmToolchain(17)
     }
