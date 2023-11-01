@@ -2,12 +2,9 @@ description = "Wow Symbol Processing"
 
 dependencies {
     implementation(project(":wow-core"))
-    implementation("com.google.devtools.ksp:symbol-processing-api")
-    testImplementation("com.github.tschuchortdev:kotlin-compile-testing-ksp")
-    {
-        exclude("com.google.devtools.ksp", "symbol-processing")
-    }
-    testImplementation("com.google.devtools.ksp:symbol-processing")
+    implementation(libs.kspSymbolProcessingApi)
+    testImplementation(libs.kotlinCompileTesting)
+    testImplementation(libs.kspSymbolProcessing)
 }
 
 tasks.withType<Test>().all {

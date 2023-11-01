@@ -18,11 +18,13 @@ import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.symbolProcessorProviders
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
 
 class WowSymbolProcessorTest {
 
+    @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun process() {
         val mockBoundedContextFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")

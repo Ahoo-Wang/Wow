@@ -19,9 +19,6 @@ dependencies {
     api(platform(libs.r2dbcBom))
     api(platform(libs.testcontainersBom))
     constraints {
-        api(libs.kspSymbolProcessingApi)
-        api(libs.kspSymbolProcessing)
-        api(libs.kotlinCompileTestingKsp)
         api(libs.guava)
         api(libs.opentelemetrySemconv)
         api(libs.swagger)
