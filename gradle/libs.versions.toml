@@ -10,7 +10,7 @@ guava = "32.1.3-jre"
 hamcrest = "2.2"
 mockk = "1.13.8"
 r2dbcBom = "Borca-RELEASE"
-kotlinCompileTestingKsp = "1.5.0"
+kotlinCompileTesting = "0.4.0"
 swagger = "2.2.18"
 springDoc = "2.2.0"
 # plugins
@@ -18,7 +18,7 @@ detekt = "1.23.3"
 dokka = "1.9.10"
 kotlin = "1.9.10"
 publishPlugin = "1.3.0"
-ksp = "1.9.0-1.0.11"
+ksp = "1.9.20-1.0.13"
 
 [libraries]
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -30,7 +30,7 @@ r2dbcBom = { module = "io.r2dbc:r2dbc-bom", version.ref = "r2dbcBom" }
 testcontainersBom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 kspSymbolProcessingApi = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 kspSymbolProcessing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
-kotlinCompileTestingKsp = { module = "com.github.tschuchortdev:kotlin-compile-testing-ksp", version.ref = "kotlinCompileTestingKsp" }
+kotlinCompileTesting = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlinCompileTesting" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springDocStarterCommon = { module = "org.springdoc:springdoc-openapi-starter-common", version.ref = "springDoc" }
