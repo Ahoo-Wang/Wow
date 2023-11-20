@@ -14,10 +14,12 @@
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
 plugins {
+    alias(libs.plugins.testRetry)
     alias(libs.plugins.publishPlugin)
     alias(libs.plugins.detekt)
     alias(libs.plugins.kotlin)
@@ -39,7 +41,7 @@ val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - exampleProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects + exampleLibraries
-
+val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 
 allprojects {
@@ -77,7 +79,6 @@ configure(libraryProjects) {
         withJavadocJar()
         withSourcesJar()
     }
-
     apply(plugin = "org.jetbrains.kotlin.jvm")
 //    apply<KotlinPlatformJvmPlugin>()
     configure<KotlinJvmProjectExtension> {
@@ -88,6 +89,7 @@ configure(libraryProjects) {
             freeCompilerArgs = listOf("-Xjsr305=strict", "-Xjvm-default=all-compatibility")
         }
     }
+    apply<TestRetryPlugin>()
     tasks.withType<Test> {
         useJUnitPlatform()
         testLogging {
@@ -95,6 +97,13 @@ configure(libraryProjects) {
         }
         // fix logging missing code for JacocoPlugin
         jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        retry {
+            if (isInCI) {
+                maxRetries = 2
+                maxFailures = 20
+            }
+            failOnPassedAfterRetry = true
+        }
     }
 
     dependencies {
@@ -171,7 +180,6 @@ configure(publishProjects) {
         }
     }
     configure<SigningExtension> {
-        val isInCI = !System.getenv("CI").isNullOrEmpty()
         if (isInCI) {
             val signingKeyId = System.getenv("SIGNING_KEYID")
             val signingKey = System.getenv("SIGNING_SECRETKEY")
