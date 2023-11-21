@@ -13,5 +13,19 @@
 
 package me.ahoo.wow.example.transfer.api;
 
-public record EntryFailed(String sourceId, Long amount) {
+import me.ahoo.wow.api.exception.ErrorInfo;
+import org.jetbrains.annotations.NotNull;
+
+public record EntryFailed(String sourceId, Long amount) implements ErrorInfo {
+    @NotNull
+    @Override
+    public String getErrorCode() {
+        return "Account-Entry-Failed";
+    }
+
+    @NotNull
+    @Override
+    public String getErrorMsg() {
+        return "Entry-Failed";
+    }
 }

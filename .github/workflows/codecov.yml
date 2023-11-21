@@ -65,6 +65,7 @@ jobs:
             wow-spring-boot-starter/build/test-results/**/*.xml
             wow-opentelemetry/build/test-results/**/*.xml
             example/example-domain/build/test-results/**/*.xml
+            example/transfer/example-transfer-domain/build/test-results/**/*.xml
 
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v3
