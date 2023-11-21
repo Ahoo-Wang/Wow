@@ -19,7 +19,7 @@ import me.ahoo.wow.example.transfer.api.Entry
 import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.example.transfer.api.UnlockAmount
-import me.ahoo.wow.test.SagaVerifier
+import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -29,7 +29,7 @@ internal class TransferSagaTest {
     @Test
     fun onPrepared() {
         val event = Prepared("to", 1)
-        SagaVerifier.sagaVerifier<TransferSaga>()
+        sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<Entry> {
                 assertThat(it.id, equalTo(event.to))
@@ -41,7 +41,7 @@ internal class TransferSagaTest {
     @Test
     fun onAmountEntered() {
         val event = AmountEntered("sourceId", 1)
-        SagaVerifier.sagaVerifier<TransferSaga>()
+        sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<Confirm> {
                 assertThat(it.id, equalTo(event.sourceId))
@@ -53,7 +53,7 @@ internal class TransferSagaTest {
     @Test
     fun onEntryFailed() {
         val event = EntryFailed("sourceId", 1)
-        SagaVerifier.sagaVerifier<TransferSaga>()
+        sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<UnlockAmount> {
                 assertThat(it.id, equalTo(event.sourceId))
