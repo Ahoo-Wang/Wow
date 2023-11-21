@@ -157,9 +157,13 @@ Query Responsibility Segregation** | **Event Sourcing**
 - [x] `WowMetadata` Generator
     - [x] `wow-compiler`
 
-## Example
+### Order Service（Kotlin）
 
-[Example](./example)
+[Example-Order](./example)
+
+### Transfer（JAVA）
+
+[Example-Transfer](./example/transfer)
 
 ## Unit Test Suite
 
