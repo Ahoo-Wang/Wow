@@ -18,8 +18,7 @@
 
 ## 运行案例
 
--
-运行 [TransferExampleServer.java](example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java)
+- 运行 [TransferExampleServer.java](example-transfer-server/src/main/java/me/ahoo/wow/example/transfer/server/TransferExampleServer.java)
 - 查看 Swagger-UI : http://localhost:8080/swagger-ui.html
 - 执行 API 测试：[Transfer.http](Transfer.http)
 
