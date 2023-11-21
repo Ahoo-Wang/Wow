@@ -199,6 +199,12 @@ public class TransferSaga {
 
 ### 单元测试
 
+借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
+
+<p align="center" style="text-align:center">
+  <img src="../../document/design/assets/example-transfer-jacoco.png" alt="example-transfer-jacoco"/>
+</p>
+
 > 使用 `aggregateVerifier` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
 
 > `Account` 聚合根单元测试
