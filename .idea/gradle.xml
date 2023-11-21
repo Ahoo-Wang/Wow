@@ -11,6 +11,9 @@
             <option value="$PROJECT_DIR$/example/example-api" />
             <option value="$PROJECT_DIR$/example/example-domain" />
             <option value="$PROJECT_DIR$/example/example-server" />
+            <option value="$PROJECT_DIR$/example/transfer/example-transfer-api" />
+            <option value="$PROJECT_DIR$/example/transfer/example-transfer-domain" />
+            <option value="$PROJECT_DIR$/example/transfer/example-transfer-server" />
             <option value="$PROJECT_DIR$/test/code-coverage-report" />
             <option value="$PROJECT_DIR$/test/wow-it" />
             <option value="$PROJECT_DIR$/test/wow-mock" />

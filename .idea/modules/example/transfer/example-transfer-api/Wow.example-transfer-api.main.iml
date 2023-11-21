@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module version="4">
+  <component name="AdditionalModuleElements">
+    <content url="file://$MODULE_DIR$/../../../../../example/transfer/example-transfer-api/src/main" dumb="true">
+      <sourceFolder url="file://$MODULE_DIR$/../../../../../example/transfer/example-transfer-api/src/main/java" isTestSource="false" />
+    </content>
+  </component>
+  <component name="CheckStyle-IDEA-Module" serialisationVersion="2">
+    <option name="activeLocationsIds" />
+  </component>
+</module>

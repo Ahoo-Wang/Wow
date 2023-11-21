@@ -1,0 +1,35 @@
+@startuml TransferProcessManager
+!include layout.puml
+title
+TransferProcessManager
+(Saga)
+end title
+hide footbox
+
+actor User
+participant SourceAccount
+participant Saga
+participant TargetAccount
+autonumber "[0]"
+
+User++
+
+User -> SourceAccount --++ : Prepare \n(准备转账)
+SourceAccount -> SourceAccount++-- : CheckBalance \n(校验余额)
+SourceAccount -> SourceAccount++-- : LockAmount \n(锁定金额)
+SourceAccount --> Saga++ : Prepared \n(转账已准备就绪)
+SourceAccount--
+Saga -> TargetAccount --++ : Entry \n(入账)
+alt success：入账成功
+TargetAccount -> Saga++-- : Entered \n(已入账)
+Saga -> SourceAccount ++-- : Confirm \n(确认转账)
+SourceAccount -> SourceAccount++-- : Confirmed \n(转账已确认)
+SourceAccount--
+else fail：入账失败
+TargetAccount -> Saga++-- : EntryFailed \n(入账失败)
+Saga -> SourceAccount ++-- : UnlockAmount \n(解锁金额)
+SourceAccount -> SourceAccount++-- : AmountUnlocked \n(金额已解锁)
+SourceAccount--
+end
+@enduml
+

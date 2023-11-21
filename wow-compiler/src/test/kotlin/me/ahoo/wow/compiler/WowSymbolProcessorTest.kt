@@ -41,4 +41,22 @@ class WowSymbolProcessorTest {
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
     }
+
+    @OptIn(ExperimentalCompilerApi::class)
+    @Test
+    fun processJava() {
+        val mockBoundedContextFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
+        val mockCompilerAggregateFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
+        val compilation = KotlinCompilation().apply {
+            sources =
+                listOf(
+                    SourceFile.fromPath(mockBoundedContextFile),
+                    SourceFile.fromPath(mockCompilerAggregateFile),
+                )
+            symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
+            inheritClassPath = true
+        }
+        val result = compilation.compile()
+        assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+    }
 }

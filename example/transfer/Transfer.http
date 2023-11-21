@@ -1,0 +1,78 @@
+### 创建源账户
+POST {{host}}/account/create_account
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+Command-Aggregate-Id: sourceId
+
+{
+  "name": "source",
+  "balance": 100
+}
+
+> {%
+    client.test("Request executed successfully", function () {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### 创建目标账户
+
+POST {{host}}/account/create_account
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+Command-Aggregate-Id: targetId
+
+{
+  "name": "targetId",
+  "balance": 0
+}
+
+> {%
+    client.test("Request executed successfully", function () {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### 准备转账
+
+POST {{host}}/account/sourceId/prepare
+Content-Type: application/json
+Command-Wait-Stage: PROCESSED
+Command-Wait-Timeout: 30000
+Command-Request-Id: {{$uuid}}
+
+{
+  "to": "targetId",
+  "amount": 10
+}
+
+> {%
+    client.test("Request executed successfully", function () {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+%}
+
+### 获取源账户余额
+
+GET {{host}}/account/sourceId/state
+
+> {%
+    client.test("Request executed successfully", function () {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balanceAmount === 90, "balanceAmount is not 90");
+        client.assert(response.body.lockedAmount === 0, "lockedAmount is not 90");
+    });
+%}
+### 获取目标账户余额
+GET {{host}}/account/targetId/state
+
+> {%
+    client.test("Request executed successfully", function () {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.balanceAmount === 10, "balanceAmount is not 10");
+    });
+%}

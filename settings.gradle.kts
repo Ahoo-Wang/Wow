@@ -50,5 +50,15 @@ project(":example-domain").projectDir = file("example/example-domain")
 
 include(":example-server")
 project(":example-server").projectDir = file("example/example-server")
+
+include("example-transfer-api")
+project(":example-transfer-api").projectDir =file("example/transfer/example-transfer-api")
+
+include("example-transfer-domain")
+project(":example-transfer-domain").projectDir =file("example/transfer/example-transfer-domain")
+
+include("example-transfer-server")
+project(":example-transfer-server").projectDir =file("example/transfer/example-transfer-server")
+
 //endregion
 
