@@ -1,5 +1,5 @@
 ### 创建源账户
-POST {{host}}/account/create_account
+POST http://localhost:8080/account/create_account
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -19,7 +19,7 @@ Command-Aggregate-Id: sourceId
 
 ### 创建目标账户
 
-POST {{host}}/account/create_account
+POST http://localhost:8080/account/create_account
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -39,7 +39,7 @@ Command-Aggregate-Id: targetId
 
 ### 准备转账
 
-POST {{host}}/account/sourceId/prepare
+POST http://localhost:8080/account/sourceId/prepare
 Content-Type: application/json
 Command-Wait-Stage: PROCESSED
 Command-Wait-Timeout: 30000
@@ -58,7 +58,7 @@ Command-Request-Id: {{$uuid}}
 
 ### 获取源账户余额
 
-GET {{host}}/account/sourceId/state
+GET http://localhost:8080/account/sourceId/state
 
 > {%
     client.test("Request executed successfully", function () {
@@ -68,7 +68,7 @@ GET {{host}}/account/sourceId/state
     });
 %}
 ### 获取目标账户余额
-GET {{host}}/account/targetId/state
+GET http://localhost:8080/account/targetId/state
 
 > {%
     client.test("Request executed successfully", function () {
