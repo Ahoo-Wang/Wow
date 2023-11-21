@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getAnnotationsByType
+import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getKotlinClassByName
 import com.google.devtools.ksp.isAnnotationPresent
 import com.google.devtools.ksp.processing.Resolver
@@ -46,11 +47,12 @@ object AggregateRootResolver {
     @OptIn(KspExperimental::class)
     fun KSClassDeclaration.resolveAggregateRoot(resolver: Resolver): Aggregate {
         val type = qualifiedName!!.asString()
-
-        check(primaryConstructor != null && primaryConstructor!!.parameters.size == 1) {
+        val aggregateRootCtor = primaryConstructor ?: getConstructors().firstOrNull()
+        check(aggregateRootCtor != null && aggregateRootCtor.parameters.size == 1) {
             "AggregateRoot[$type] must have a primary constructor with one parameter,like ctor(id) or ctor(state)."
         }
-        val ctorParameterDeclaration = primaryConstructor!!.parameters.single().type.resolve().declaration
+
+        val ctorParameterDeclaration = aggregateRootCtor.parameters.single().type.resolve().declaration
         val aggregationPattern = ctorParameterDeclaration.qualifiedName!!.asString() != String::class.qualifiedName!!
 
         val commands = getAllFunctions()
@@ -102,14 +104,14 @@ object AggregateRootResolver {
     @OptIn(KspExperimental::class)
     fun KSFunctionDeclaration.isCommand(): Boolean {
         return (simpleName.getShortName() == DEFAULT_ON_COMMAND_NAME || isAnnotationPresent(OnCommand::class)) &&
-            parameters.isNotEmpty() &&
-            (returnType != null)
+                parameters.isNotEmpty() &&
+                (returnType != null)
     }
 
     @OptIn(KspExperimental::class)
     fun KSFunctionDeclaration.isDomainEvent(): Boolean {
         return (simpleName.getShortName() == DEFAULT_ON_SOURCING_NAME || isAnnotationPresent(OnSourcing::class)) &&
-            parameters.isNotEmpty()
+                parameters.isNotEmpty()
     }
 
     private fun KSFunctionDeclaration.asMessageType(resolver: Resolver): String {

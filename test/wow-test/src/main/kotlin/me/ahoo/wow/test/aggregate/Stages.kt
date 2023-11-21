@@ -25,6 +25,9 @@ import org.hamcrest.Matchers.*
 
 interface GivenStage<S : Any> {
     fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.asName()): GivenStage<S>
+    fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
+        return inject(service, service.javaClass.asName())
+    }
 
     /**
      * 1. 给定领域事件，朔源聚合.
@@ -37,6 +40,10 @@ interface WhenStage<S : Any> {
      * 2. 接收并执行命令.
      */
     fun `when`(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S>
+
+    fun `when`(command: Any): ExpectStage<S> {
+        return this.`when`(command, DefaultHeader.empty())
+    }
 }
 
 interface ExpectStage<S : Any> {

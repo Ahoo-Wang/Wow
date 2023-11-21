@@ -34,8 +34,12 @@ val bomProjects = setOf(
 )
 
 val exampleDomainProject = project(":example-domain")
-val exampleLibraries = setOf(project(":example-api"), exampleDomainProject)
-val exampleProjects = exampleLibraries + project(":example-server")
+val exampleLibraries = setOf(
+    project(":example-api"), exampleDomainProject,
+    project(":example-transfer-api"),
+    project(":example-transfer-domain")
+)
+val exampleProjects = exampleLibraries + project(":example-server") + project(":example-transfer-server")
 
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")

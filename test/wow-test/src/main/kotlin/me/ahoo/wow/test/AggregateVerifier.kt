@@ -37,6 +37,7 @@ import me.ahoo.wow.test.aggregate.GivenStage
 object AggregateVerifier {
 
     @JvmStatic
+    @JvmOverloads
     fun <C : Any, S : Any> Class<C>.asAggregateVerifier(
         aggregateId: String = GlobalIdGenerator.generateAsString(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
