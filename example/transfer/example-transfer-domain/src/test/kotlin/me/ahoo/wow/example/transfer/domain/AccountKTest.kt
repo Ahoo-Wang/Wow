@@ -23,6 +23,7 @@ import me.ahoo.wow.example.transfer.api.CreateAccount
 import me.ahoo.wow.example.transfer.api.Entry
 import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.FreezeAccount
+import me.ahoo.wow.example.transfer.api.LockAmount
 import me.ahoo.wow.example.transfer.api.Prepare
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.example.transfer.api.UnlockAmount
@@ -132,6 +133,22 @@ internal class AccountKTest {
                 assertThat(it.balanceAmount, equalTo(100))
                 assertThat(it.lockedAmount, equalTo(0))
                 assertThat(it.isFrozen, equalTo(true))
+            }
+            .verify()
+    }
+
+    @Test
+    fun lockAmount() {
+        val aggregateId = GlobalIdGenerator.generateAsString()
+        aggregateVerifier<Account, AccountState>(aggregateId)
+            .given(AccountCreated("name", 100L))
+            .`when`(LockAmount(10))
+            .expectEventType(AmountLocked::class.java)
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(90L))
+                assertThat(it.lockedAmount, equalTo(10L))
+                assertThat(it.isFrozen, equalTo(false))
             }
             .verify()
     }

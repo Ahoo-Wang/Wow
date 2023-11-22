@@ -66,4 +66,8 @@ public class Account {
     AccountFrozen onCommand(FreezeAccount freezeAccount) {
         return new AccountFrozen(freezeAccount.reason());
     }
+
+    AmountLocked onCommand(LockAmount lockAmount) {
+        return new AmountLocked(lockAmount.amount());
+    }
 }
