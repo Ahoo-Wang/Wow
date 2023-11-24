@@ -59,15 +59,25 @@ public class Account {
         return new Confirmed(confirm.amount());
     }
 
+    AmountLocked onCommand(LockAmount lockAmount) {
+        return new AmountLocked(lockAmount.amount());
+    }
+
     AmountUnlocked onCommand(UnlockAmount unlockAmount) {
         return new AmountUnlocked(unlockAmount.amount());
     }
 
     AccountFrozen onCommand(FreezeAccount freezeAccount) {
+        if (state.isFrozen()) {
+            throw new IllegalStateException("账号已冻结无需再次冻结.");
+        }
         return new AccountFrozen(freezeAccount.reason());
     }
 
-    AmountLocked onCommand(LockAmount lockAmount) {
-        return new AmountLocked(lockAmount.amount());
+    AccountUnfrozen onCommand(UnfreezeAccount unfreezeAccount) {
+        if (!state.isFrozen()) {
+            throw new IllegalStateException("账号未冻结无需解冻.");
+        }
+        return new AccountUnfrozen(unfreezeAccount.reason());
     }
 }

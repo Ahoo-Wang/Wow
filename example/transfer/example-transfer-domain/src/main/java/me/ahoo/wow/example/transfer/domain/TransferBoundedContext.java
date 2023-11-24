@@ -17,5 +17,5 @@ import me.ahoo.wow.api.annotation.BoundedContext;
 import me.ahoo.wow.example.transfer.TransferService;
 
 @BoundedContext(name = TransferService.SERVICE_NAME)
-public class TransferBoundedContext {
+public final class TransferBoundedContext {
 }

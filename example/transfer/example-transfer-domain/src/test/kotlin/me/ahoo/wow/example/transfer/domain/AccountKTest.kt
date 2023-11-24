@@ -14,6 +14,7 @@ package me.ahoo.wow.example.transfer.domain
 
 import me.ahoo.wow.example.transfer.api.AccountCreated
 import me.ahoo.wow.example.transfer.api.AccountFrozen
+import me.ahoo.wow.example.transfer.api.AccountUnfrozen
 import me.ahoo.wow.example.transfer.api.AmountEntered
 import me.ahoo.wow.example.transfer.api.AmountLocked
 import me.ahoo.wow.example.transfer.api.AmountUnlocked
@@ -26,6 +27,7 @@ import me.ahoo.wow.example.transfer.api.FreezeAccount
 import me.ahoo.wow.example.transfer.api.LockAmount
 import me.ahoo.wow.example.transfer.api.Prepare
 import me.ahoo.wow.example.transfer.api.Prepared
+import me.ahoo.wow.example.transfer.api.UnfreezeAccount
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.aggregateVerifier
@@ -56,6 +58,37 @@ internal class AccountKTest {
             .expectState {
                 assertThat(it.name, equalTo("name"))
                 assertThat(it.balanceAmount, equalTo(0))
+            }
+            .verify()
+    }
+
+    @Test
+    fun prepareGivenFrozen() {
+        aggregateVerifier<Account, AccountState>()
+            .given(AccountCreated("name", 100), AccountFrozen(""))
+            .`when`(Prepare("name", 100))
+            .expectError<IllegalStateException> {
+                assertThat(it.message, equalTo("账号已冻结无法转账."))
+            }
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+                assertThat(it.isFrozen, equalTo(true))
+            }
+            .verify()
+    }
+
+    @Test
+    fun prepareGivenBalanceInsufficient() {
+        aggregateVerifier<Account, AccountState>()
+            .given(AccountCreated("name", 100))
+            .`when`(Prepare("name", 200))
+            .expectError<IllegalStateException> {
+                assertThat(it.message, equalTo("账号余额不足."))
+            }
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
             }
             .verify()
     }
@@ -133,6 +166,54 @@ internal class AccountKTest {
                 assertThat(it.balanceAmount, equalTo(100))
                 assertThat(it.lockedAmount, equalTo(0))
                 assertThat(it.isFrozen, equalTo(true))
+            }
+            .verify()
+    }
+
+    @Test
+    fun freezeAccountGivenFrozen() {
+        val aggregateId = GlobalIdGenerator.generateAsString()
+        aggregateVerifier<Account, AccountState>(aggregateId)
+            .given(AccountCreated("name", 100), AccountFrozen(""))
+            .`when`(FreezeAccount(""))
+            .expectError<IllegalStateException> {
+                assertThat(it.message, equalTo("账号已冻结无需再次冻结."))
+            }
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+                assertThat(it.lockedAmount, equalTo(0))
+                assertThat(it.isFrozen, equalTo(true))
+            }
+            .verify()
+    }
+
+    @Test
+    fun unfreezeAccount() {
+        val aggregateId = GlobalIdGenerator.generateAsString()
+        aggregateVerifier<Account, AccountState>(aggregateId)
+            .given(AccountCreated("name", 100), AccountFrozen(""))
+            .`when`(UnfreezeAccount(""))
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+                assertThat(it.lockedAmount, equalTo(0))
+                assertThat(it.isFrozen, equalTo(false))
+            }
+            .verify()
+    }
+
+    @Test
+    fun unfreezeAccountGivenUnfrozen() {
+        val aggregateId = GlobalIdGenerator.generateAsString()
+        aggregateVerifier<Account, AccountState>(aggregateId)
+            .given(AccountCreated("name", 100), AccountUnfrozen(""))
+            .`when`(UnfreezeAccount(""))
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+                assertThat(it.lockedAmount, equalTo(0))
+                assertThat(it.isFrozen, equalTo(false))
             }
             .verify()
     }

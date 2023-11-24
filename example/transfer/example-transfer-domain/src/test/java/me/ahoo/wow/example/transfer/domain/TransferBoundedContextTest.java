@@ -11,11 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.transfer.api;
+package me.ahoo.wow.example.transfer.domain;
 
-import me.ahoo.wow.api.annotation.CommandRoute;
+import org.junit.jupiter.api.Test;
 
-@CommandRoute(summary = "冻结账号", appendIdPath = CommandRoute.AppendPath.ALWAYS)
-public record FreezeAccount(String reason) {
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
+
+class TransferBoundedContextTest {
+
+    @Test
+    void ctor() {
+        var boundedContext = new TransferBoundedContext();
+        assertThat(boundedContext, notNullValue());
+    }
 }
-

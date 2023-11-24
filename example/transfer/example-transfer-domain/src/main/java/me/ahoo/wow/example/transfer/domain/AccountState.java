@@ -89,4 +89,8 @@ public class AccountState implements Identifier {
         this.frozen = true;
     }
 
+    void onSourcing(AccountUnfrozen accountUnfrozen) {
+        this.frozen = false;
+    }
+
 }
