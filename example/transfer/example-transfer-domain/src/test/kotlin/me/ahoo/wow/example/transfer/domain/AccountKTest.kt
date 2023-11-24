@@ -63,6 +63,37 @@ internal class AccountKTest {
     }
 
     @Test
+    fun prepareGivenFrozen() {
+        aggregateVerifier<Account, AccountState>()
+            .given(AccountCreated("name", 100), AccountFrozen(""))
+            .`when`(Prepare("name", 100))
+            .expectError<IllegalStateException> {
+                assertThat(it.message, equalTo("账号已冻结无法转账."))
+            }
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+                assertThat(it.isFrozen, equalTo(true))
+            }
+            .verify()
+    }
+
+    @Test
+    fun prepareGivenBalanceInsufficient() {
+        aggregateVerifier<Account, AccountState>()
+            .given(AccountCreated("name", 100))
+            .`when`(Prepare("name", 200))
+            .expectError<IllegalStateException> {
+                assertThat(it.message, equalTo("账号余额不足."))
+            }
+            .expectState {
+                assertThat(it.name, equalTo("name"))
+                assertThat(it.balanceAmount, equalTo(100))
+            }
+            .verify()
+    }
+
+    @Test
     fun entry() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)

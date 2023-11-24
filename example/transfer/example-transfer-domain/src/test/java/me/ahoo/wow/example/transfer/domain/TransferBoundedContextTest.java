@@ -13,9 +13,16 @@
 
 package me.ahoo.wow.example.transfer.domain;
 
-import me.ahoo.wow.api.annotation.BoundedContext;
-import me.ahoo.wow.example.transfer.TransferService;
+import org.junit.jupiter.api.Test;
 
-@BoundedContext(name = TransferService.SERVICE_NAME)
-public final class TransferBoundedContext {
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
+
+class TransferBoundedContextTest {
+
+    @Test
+    void ctor() {
+        var boundedContext = new TransferBoundedContext();
+        assertThat(boundedContext, notNullValue());
+    }
 }
