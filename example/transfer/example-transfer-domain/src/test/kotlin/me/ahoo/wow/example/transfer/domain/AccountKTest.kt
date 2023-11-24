@@ -145,7 +145,7 @@ internal class AccountKTest {
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .`when`(FreezeAccount(""))
-            .expectError<IllegalStateException>() {
+            .expectError<IllegalStateException> {
                 assertThat(it.message, equalTo("账号已冻结无需再次冻结."))
             }
             .expectState {
