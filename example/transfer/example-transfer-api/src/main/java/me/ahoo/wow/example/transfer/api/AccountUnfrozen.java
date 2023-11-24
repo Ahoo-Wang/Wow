@@ -13,9 +13,5 @@
 
 package me.ahoo.wow.example.transfer.api;
 
-import me.ahoo.wow.api.annotation.CommandRoute;
-
-@CommandRoute(summary = "冻结账号", appendIdPath = CommandRoute.AppendPath.ALWAYS)
-public record FreezeAccount(String reason) {
+public record AccountUnfrozen(String reason) {
 }
-
