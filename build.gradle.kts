@@ -109,7 +109,9 @@ configure(libraryProjects) {
             failOnPassedAfterRetry = true
         }
     }
-
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.addAll(listOf("-parameters"))
+    }
     dependencies {
         api(platform(dependenciesProject))
         detektPlugins(platform(dependenciesProject))
