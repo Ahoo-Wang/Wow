@@ -14,8 +14,6 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import io.mockk.mockk
-import me.ahoo.cosid.machine.HostAddressSupplier
-import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
@@ -33,6 +31,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.cloud.commons.util.UtilAutoConfiguration
 
 internal class EventDispatcherAutoConfigurationTest {
 
@@ -45,8 +44,8 @@ internal class EventDispatcherAutoConfigurationTest {
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
             .withBean(EventStore::class.java, { mockk() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
-            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
+                UtilAutoConfiguration::class.java,
                 WebClientAutoConfiguration::class.java,
                 WowOpenTelemetryAutoConfiguration::class.java,
                 EventAutoConfiguration::class.java,
