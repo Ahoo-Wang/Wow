@@ -1,9 +1,6 @@
 spring:
   application:
     name: transfer-service
-  cloud:
-    compatibility-verifier:
-      enabled: false
 logging:
   level:
     me.ahoo.wow: debug

@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import io.mockk.mockk
+import me.ahoo.cosid.machine.HostAddressSupplier
+import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
@@ -38,7 +40,6 @@ import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.cloud.commons.util.UtilAutoConfiguration
 
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -47,6 +48,7 @@ internal class WebFluxAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
@@ -56,7 +58,6 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withUserConfiguration(
-                UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,
                 CommandGatewayAutoConfiguration::class.java,
                 EventSourcingAutoConfiguration::class.java,
