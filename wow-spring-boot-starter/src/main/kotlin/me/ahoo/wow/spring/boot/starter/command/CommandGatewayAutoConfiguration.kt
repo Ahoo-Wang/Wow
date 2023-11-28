@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.command
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
 import jakarta.validation.Validator
+import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -39,7 +40,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.cloud.commons.util.InetUtils
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 
@@ -89,8 +89,8 @@ class CommandGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun commandWaitEndpoint(inetUtils: InetUtils): CommandWaitEndpoint {
-        return ServerCommandWaitEndpoint(inetUtils)
+    fun commandWaitEndpoint(hostAddressSupplier: HostAddressSupplier): CommandWaitEndpoint {
+        return ServerCommandWaitEndpoint(hostAddressSupplier)
     }
 
     @Bean

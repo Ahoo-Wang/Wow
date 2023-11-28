@@ -1,6 +1,8 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import io.mockk.mockk
+import me.ahoo.cosid.machine.HostAddressSupplier
+import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
@@ -10,7 +12,6 @@ import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.cloud.commons.util.UtilAutoConfiguration
 
 class CommandGatewayAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -20,9 +21,9 @@ class CommandGatewayAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
             .withUserConfiguration(
-                UtilAutoConfiguration::class.java,
                 CommandAutoConfiguration::class.java,
                 CommandGatewayAutoConfiguration::class.java,
             )

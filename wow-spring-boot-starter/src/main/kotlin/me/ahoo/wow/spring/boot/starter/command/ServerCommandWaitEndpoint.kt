@@ -13,20 +13,20 @@
 
 package me.ahoo.wow.spring.boot.starter.command
 
+import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory
 import org.springframework.boot.web.context.WebServerInitializedEvent
-import org.springframework.cloud.commons.util.InetUtils
 import org.springframework.context.ApplicationListener
 import kotlin.properties.Delegates
 
-class ServerCommandWaitEndpoint(inetUtils: InetUtils) :
+class ServerCommandWaitEndpoint(hostAddressSupplier: HostAddressSupplier) :
     CommandWaitEndpoint,
     ApplicationListener<WebServerInitializedEvent> {
     override val endpoint: String by lazy {
         "http://$ipAddress:$port${CommandWaitRouteSpecFactory.PATH}"
     }
-    private val ipAddress = inetUtils.findFirstNonLoopbackHostInfo().ipAddress
+    private val ipAddress = hostAddressSupplier.hostAddress
     private var port by Delegates.notNull<Int>()
     override fun onApplicationEvent(event: WebServerInitializedEvent) {
         port = event.webServer.port
