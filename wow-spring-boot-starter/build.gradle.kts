@@ -57,7 +57,6 @@ dependencies {
     "openapiSupportImplementation"(project(":wow-openapi"))
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
-    api("org.springframework.cloud:spring-cloud-commons")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":wow-test"))
