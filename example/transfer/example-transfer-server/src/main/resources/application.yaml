@@ -4,7 +4,6 @@ spring:
 logging:
   level:
     me.ahoo.wow: debug
-
 cosid:
   machine:
     enabled: true
