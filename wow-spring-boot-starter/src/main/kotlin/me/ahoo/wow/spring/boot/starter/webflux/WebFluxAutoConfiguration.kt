@@ -89,7 +89,6 @@ class WebFluxAutoConfiguration {
             "stateEventCompensateHandlerFunctionFactory"
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
-
     }
 
     @Bean
@@ -251,7 +250,9 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
-    fun routeHandlerFunctionRegistrar(factories: ObjectProvider<RouteHandlerFunctionFactory<*>>): RouteHandlerFunctionRegistrar {
+    fun routeHandlerFunctionRegistrar(
+        factories: ObjectProvider<RouteHandlerFunctionFactory<*>>
+    ): RouteHandlerFunctionRegistrar {
         val registrar = RouteHandlerFunctionRegistrar()
         factories.orderedStream().forEach { registrar.register(it) }
         return registrar
