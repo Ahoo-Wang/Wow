@@ -42,10 +42,10 @@ object ErrorHttpStatusMapping {
     }
 
     fun register(errorCode: String, httpStatus: HttpStatus) {
+        val previous = registrar.put(errorCode, httpStatus)
         if (log.isInfoEnabled) {
-            log.info("Register - errorCode:[{}],httpStatus:[{}].", errorCode, httpStatus)
+            log.info("Register - errorCode:[{}] - previous:[{}],current:[{}].", errorCode, previous, httpStatus)
         }
-        registrar[errorCode] = httpStatus
     }
 
     fun unregister(errorCode: String) {
