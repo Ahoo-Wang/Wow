@@ -44,11 +44,14 @@ import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.ScanAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -65,6 +68,29 @@ import org.springframework.web.reactive.function.server.ServerResponse
     name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.command.CommandHandlerFunction"],
 )
 class WebFluxAutoConfiguration {
+    companion object {
+        const val COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandWaitHandlerFunctionFactory"
+        const val LOAD_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadAggregateHandlerFunctionFactory"
+        const val LOAD_VERSIONED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "loadVersionedAggregateHandlerFunctionFactory"
+        const val IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "idsQueryAggregateHandlerFunctionFactory"
+        const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
+        const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
+        const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
+        const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "regenerateSnapshotHandlerFunctionFactory"
+        const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "batchRegenerateSnapshotHandlerFunctionFactory"
+        const val REGENERATE_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME = "regenerateStateEventFunctionFactory"
+        const val DOMAIN_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "domainEventCompensateHandlerFunctionFactory"
+        const val STATE_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "stateEventCompensateHandlerFunctionFactory"
+        const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
+        const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
+
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -73,6 +99,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandWaitHandlerFunctionFactory(
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandWaitHandlerFunctionFactory {
@@ -80,6 +108,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LOAD_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadAggregateHandlerFunctionFactory(
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
@@ -88,6 +118,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LOAD_VERSIONED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadVersionedAggregateHandlerFunctionFactory(
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
@@ -96,6 +128,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun idsQueryAggregateHandlerFunctionFactory(
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
@@ -104,6 +138,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun scanAggregateHandlerFunctionFactory(
         stateAggregateRepository: StateAggregateRepository,
         eventStore: EventStore,
@@ -113,6 +149,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun aggregateTracingHandlerFunctionFactory(
         eventStore: EventStore,
         exceptionHandler: ExceptionHandler
@@ -121,6 +159,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadSnapshotHandlerFunctionFactory(
         snapshotRepository: SnapshotRepository,
         exceptionHandler: ExceptionHandler
@@ -129,6 +169,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun regenerateSnapshotHandlerFunctionFactory(
         stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
@@ -144,6 +186,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun batchRegenerateSnapshotHandlerFunctionFactory(
         stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
@@ -159,6 +203,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [REGENERATE_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME])
     fun regenerateStateEventFunctionFactory(
         eventStore: EventStore,
         stateEventCompensator: StateEventCompensator,
@@ -168,6 +214,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [DOMAIN_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun domainEventCompensateHandlerFunctionFactory(
         eventCompensator: DomainEventCompensator,
         exceptionHandler: ExceptionHandler
@@ -176,6 +224,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [STATE_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun stateEventCompensateHandlerFunctionFactory(
         eventCompensator: StateEventCompensator,
         exceptionHandler: ExceptionHandler
@@ -184,6 +234,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandHandlerFunctionFactory(
         commandGateway: CommandGateway,
         exceptionHandler: ExceptionHandler,
@@ -192,14 +244,16 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadEventStreamHandlerFunctionFactory(eventStore: EventStore): LoadEventStreamHandlerFunctionFactory {
         return LoadEventStreamHandlerFunctionFactory(eventStore)
     }
 
     @Bean
-    fun routeHandlerFunctionRegistrar(factories: List<RouteHandlerFunctionFactory<*>>): RouteHandlerFunctionRegistrar {
+    fun routeHandlerFunctionRegistrar(factories: ObjectProvider<RouteHandlerFunctionFactory<*>>): RouteHandlerFunctionRegistrar {
         val registrar = RouteHandlerFunctionRegistrar()
-        factories.forEach { registrar.register(it) }
+        factories.orderedStream().forEach { registrar.register(it) }
         return registrar
     }
 
