@@ -79,7 +79,7 @@ interface AggregateRouteSpec : RouteSpec {
 }
 
 abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
-    final override val components: Components = createComponents()
+    override val components: Components = createComponents()
 
     companion object {
         fun MutableList<Parameter>.appendTenantPathParameter(appendTenantPath: Boolean): MutableList<Parameter> {
