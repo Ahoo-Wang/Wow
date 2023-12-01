@@ -16,7 +16,6 @@ dependencies {
     api(platform(libs.cosidBom))
     api(platform(libs.opentelemetryBom))
     api(platform(libs.opentelemetryInstrumentationBom))
-    api(platform(libs.r2dbcBom))
     api(platform(libs.testcontainersBom))
     constraints {
         api(libs.guava)
