@@ -21,7 +21,7 @@ import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.server.RouterFunctions
 import reactor.core.publisher.Mono
 
-internal class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRouteMetadata<C>) :
+class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRouteMetadata<C>) :
     BodyExtractor<Mono<C>, ReactiveHttpInputMessage> {
     override fun extract(inputMessage: ReactiveHttpInputMessage, context: BodyExtractor.Context): Mono<C> {
         @Suppress("UNCHECKED_CAST")
