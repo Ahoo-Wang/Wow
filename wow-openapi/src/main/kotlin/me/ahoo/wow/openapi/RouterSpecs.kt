@@ -20,7 +20,6 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import java.util.*
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -33,8 +32,6 @@ class RouterSpecs(
         paths = Paths()
         components = Components()
     }
-    private val globalRouteSpecFactoryProvider = ServiceLoader.load(GlobalRouteSpecFactory::class.java)
-    private val aggregateRouteSpecFactoryProvider = ServiceLoader.load(AggregateRouteSpecFactory::class.java)
 
     private fun mergeComponents(other: Components) {
         other.schemas?.forEach { (name, schema) ->
@@ -73,16 +70,16 @@ class RouterSpecs(
     }
 
     private fun mergeRouteSpecFactoryComponents() {
-        globalRouteSpecFactoryProvider.forEach {
+        GlobalRouteSpecFactoryProvider.get().forEach {
             mergeComponents(it.components)
         }
-        aggregateRouteSpecFactoryProvider.forEach {
+        AggregateRouteSpecFactoryProvider.get().forEach {
             mergeComponents(it.components)
         }
     }
 
     private fun buildGlobalRouteSpec() {
-        ServiceLoader.load(GlobalRouteSpecFactory::class.java).forEach {
+        GlobalRouteSpecFactoryProvider.get().forEach {
             it.create(currentContext).forEach { routeSpec ->
                 add(routeSpec)
             }
@@ -93,7 +90,7 @@ class RouterSpecs(
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
             val aggregateMetadata = aggregateType.asAggregateMetadata<Any, Any>()
-            aggregateRouteSpecFactoryProvider.forEach { aggregateRouteSpecFactory ->
+            AggregateRouteSpecFactoryProvider.get().forEach { aggregateRouteSpecFactory ->
                 aggregateRouteSpecFactory.create(currentContext, aggregateMetadata).forEach { routeSpec ->
                     add(routeSpec)
                 }
