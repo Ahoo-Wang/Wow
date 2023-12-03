@@ -98,6 +98,11 @@
 - 理解 **事件源架构**
 - 理解 **响应式编程**
 
+## 快速开始
+
+使用 Wow 框架模板快速创建项目。
+模板地址：[Wow-Project-Template](https://gitee.com/AhooWang/wow-project-template)
+
 ## 特性
 
 - [x] Aggregate Modeling
