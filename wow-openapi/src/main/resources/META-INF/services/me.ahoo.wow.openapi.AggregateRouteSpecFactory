@@ -1,11 +1,12 @@
 #command
 me.ahoo.wow.openapi.command.CommandRouteSpecFactory
 #state
+## WARN: AggregateTracingRouteSpecFactory must be defined first, otherwise it won't match. LoadVersionedAggregateRouteSpecFactory will be matched.
+me.ahoo.wow.openapi.state.AggregateTracingRouteSpecFactory
 me.ahoo.wow.openapi.state.LoadAggregateRouteSpecFactory
 me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpecFactory
 me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpecFactory
 me.ahoo.wow.openapi.state.ScanAggregateRouteSpecFactory
-me.ahoo.wow.openapi.state.AggregateTracingRouteSpecFactory
 #snapshot
 me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpecFactory

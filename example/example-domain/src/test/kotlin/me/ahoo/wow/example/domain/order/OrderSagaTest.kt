@@ -41,8 +41,8 @@ class OrderSagaTest {
     fun onOrderCreatedWithOrderState() {
         SagaVerifier.sagaVerifier<OrderSaga>()
             .`when`(
-                OrderCancelled,
-                mockk<OrderState>()
+                event = OrderCancelled,
+                state = mockk<OrderState>()
             )
             .expectNoCommand()
             .verify()
