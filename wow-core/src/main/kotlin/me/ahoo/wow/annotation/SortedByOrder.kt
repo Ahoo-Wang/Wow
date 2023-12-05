@@ -47,7 +47,6 @@ private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, 
     }
 }
 
-
 private fun <T : Any> MutableList<Pair<T, Order>>.moveToAfter(current: Pair<T, Order>) {
     val afterValues = current.second.after
     for (afterClass in afterValues) {
@@ -63,4 +62,3 @@ private fun <T : Any> MutableList<Pair<T, Order>>.moveToAfter(current: Pair<T, O
         removeAt(currentIndex)
     }
 }
-

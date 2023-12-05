@@ -40,4 +40,3 @@ class SortedByOrderKtTest {
         assertThat(sortedList, contains(Before, OrderFirst, OrderLast, Undefined, After))
     }
 }
-
