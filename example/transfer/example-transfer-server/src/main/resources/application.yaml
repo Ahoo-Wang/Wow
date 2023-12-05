@@ -1,3 +1,20 @@
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
+
 spring:
   application:
     name: transfer-service

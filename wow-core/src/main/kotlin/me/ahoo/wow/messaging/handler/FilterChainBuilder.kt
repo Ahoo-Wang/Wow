@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.messaging.handler
 
-import me.ahoo.wow.annotation.OrderComparator
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.messaging.MessageDispatcher
 import org.slf4j.LoggerFactory
@@ -86,7 +86,7 @@ class FilterChainBuilder<T : MessageExchange<*, *>> {
     fun build(): FilterChain<T> {
         val sortedFilters = filters
             .filter { filterCondition.matches(it) }
-            .sortedWith(OrderComparator)
+            .sortedByOrder()
         var next: FilterChain<T> = EmptyFilterChain.instance()
         for (i in sortedFilters.size - 1 downTo 0) {
             next = chainFactory(sortedFilters[i], next)
