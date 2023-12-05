@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.wow.annotation.OrderComparator
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import org.slf4j.LoggerFactory
@@ -24,7 +24,7 @@ object MessagePropagatorProvider : MessagePropagator {
 
     private val messagePropagators: List<MessagePropagator> by lazy {
         ServiceLoader.load(MessagePropagator::class.java)
-            .sortedWith(OrderComparator)
+            .sortedByOrder()
             .map {
                 if (log.isInfoEnabled) {
                     log.info("Load MessagePropagator: [{}]", it.javaClass.name)

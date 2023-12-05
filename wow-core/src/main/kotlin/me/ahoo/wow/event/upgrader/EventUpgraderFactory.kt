@@ -13,19 +13,18 @@
 
 package me.ahoo.wow.event.upgrader
 
-import me.ahoo.wow.annotation.OrderComparator
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.event.DomainEventRecord
 import org.slf4j.LoggerFactory
-import java.util.ServiceLoader
-import java.util.SortedSet
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 object EventUpgraderFactory {
     private val log = LoggerFactory.getLogger(EventUpgraderFactory::class.java)
-    private val eventUpgraderFactories: ConcurrentHashMap<EventNamedAggregate, SortedSet<EventUpgrader>> =
+    private val eventUpgraderFactories: ConcurrentHashMap<EventNamedAggregate, List<EventUpgrader>> =
         ConcurrentHashMap()
 
     init {
@@ -44,16 +43,15 @@ object EventUpgraderFactory {
         }
         eventUpgraderFactories.compute(eventUpgrader.eventNamedAggregate) { _, value ->
             if (value == null) {
-                sortedSetOf(OrderComparator, eventUpgrader)
+                mutableListOf(eventUpgrader)
             } else {
-                value.add(eventUpgrader)
-                value
+                (value + eventUpgrader).sortedByOrder()
             }
         }
     }
 
-    fun get(eventNamedAggregate: EventNamedAggregate): Set<EventUpgrader> {
-        return eventUpgraderFactories[eventNamedAggregate] ?: setOf()
+    fun get(eventNamedAggregate: EventNamedAggregate): List<EventUpgrader> {
+        return eventUpgraderFactories[eventNamedAggregate] ?: listOf()
     }
 
     fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {

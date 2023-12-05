@@ -18,7 +18,10 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 
 /**
- * TODO traverse comparison depth
+ * [Order]-based comparators for [Any] objects.
+ * Prefer [me.ahoo.wow.annotation.sortedByOrder] .
+ * @see Order
+ * @see me.ahoo.wow.annotation.sortedByOrder is recommended.
  */
 object OrderComparator : Comparator<Any> {
 

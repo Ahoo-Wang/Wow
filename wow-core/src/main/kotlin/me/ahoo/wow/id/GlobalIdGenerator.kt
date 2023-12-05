@@ -15,7 +15,7 @@ package me.ahoo.wow.id
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.cosid.CosIdIdStateParser
 import me.ahoo.cosid.cosid.CosIdState
-import me.ahoo.wow.annotation.OrderComparator
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.infra.Decorator
 import org.slf4j.LoggerFactory
@@ -33,7 +33,7 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
 
     private fun loadGlobalIdGenerator(): CosIdGenerator? {
         return ServiceLoader.load(GlobalIdGeneratorFactory::class.java)
-            .sortedWith(OrderComparator)
+            .sortedByOrder()
             .firstNotNullOfOrNull {
                 if (log.isInfoEnabled) {
                     log.info("Load $it to create GlobalIdGenerator.")

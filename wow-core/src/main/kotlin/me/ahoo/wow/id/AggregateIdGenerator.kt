@@ -14,11 +14,11 @@
 package me.ahoo.wow.id
 
 import me.ahoo.cosid.IdGenerator
-import me.ahoo.wow.annotation.OrderComparator
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
-import java.util.ServiceLoader
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 private val AGGREGATE_ID_GENERATORS: MutableMap<NamedAggregate, IdGenerator> =
@@ -29,7 +29,7 @@ object AggregateIdGeneratorRegistrar :
     private val log = LoggerFactory.getLogger(AggregateIdGeneratorRegistrar::class.java)
     private val factories: List<AggregateIdGeneratorFactory> by lazy {
         return@lazy ServiceLoader.load(AggregateIdGeneratorFactory::class.java)
-            .sortedWith(OrderComparator)
+            .sortedByOrder()
     }
 
     fun getOrInitialize(key: NamedAggregate): IdGenerator {
