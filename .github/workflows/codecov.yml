@@ -75,6 +75,5 @@ jobs:
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)
-#          directory: ./build/reports/jacoco/codeCoverageReport/
-          files: ./test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+          files: ./test/code-coverage-report/build/reports/kover/report.xml
           path_to_write_report: ./coverage/codecov_report.txt

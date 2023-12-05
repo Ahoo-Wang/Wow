@@ -25,6 +25,7 @@ plugins {
     alias(libs.plugins.kotlin)
     alias(libs.plugins.dokka)
     jacoco
+    alias(libs.plugins.kover)
 }
 
 val dependenciesProject = project(":wow-dependencies")
@@ -84,7 +85,7 @@ configure(libraryProjects) {
         withSourcesJar()
     }
     apply(plugin = "org.jetbrains.kotlin.jvm")
-//    apply<KotlinPlatformJvmPlugin>()
+    apply(plugin = "org.jetbrains.kotlinx.kover")
     configure<KotlinJvmProjectExtension> {
         jvmToolchain(17)
     }
@@ -145,6 +146,14 @@ configure(publishProjects) {
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
+                }
+            }
+            maven {
+                name = "LinYiPackages"
+                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
+                credentials {
+                    username = project.properties["linyiPackageUsername"]?.toString()
+                    password = project.properties["linyiPackagePwd"]?.toString()
                 }
             }
         }
