@@ -13,10 +13,24 @@
 
 package me.ahoo.wow.command
 
+import io.mockk.mockk
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.tck.command.CommandGatewaySpec
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 
 internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     override fun createCommandBus(): CommandBus {
         return InMemoryCommandBus()
+    }
+
+    @Test
+    fun sendWithSend() {
+        val messageGateway = createMessageBus()
+        val commandMessage: CommandMessage<Any> = mockk()
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        }
     }
 }

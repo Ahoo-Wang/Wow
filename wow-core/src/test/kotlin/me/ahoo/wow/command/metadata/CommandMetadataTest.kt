@@ -27,5 +27,9 @@ internal class CommandMetadataTest {
         val otherCommandMetadata = commandMetadata.copy()
         assertThat(commandMetadata, equalTo(otherCommandMetadata))
         assertThat(commandMetadata.hashCode(), equalTo(otherCommandMetadata.hashCode()))
+        assertThat(
+            commandMetadata.toString(),
+            equalTo("CommandMetadata(commandType=class me.ahoo.wow.tck.mock.MockCreateAggregate)")
+        )
     }
 }
