@@ -13,7 +13,7 @@ kotlinCompileTesting = "0.4.0"
 swagger = "2.2.19"
 springDoc = "2.2.0"
 # plugins
-testRetry= "1.5.7"
+testRetry= "1.5.8"
 detekt = "1.23.4"
 dokka = "1.9.10"
 kotlin = "1.9.21"
