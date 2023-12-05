@@ -42,7 +42,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Build Code Coverage Report
-        run: ./gradlew codeCoverageReport --stacktrace
+        run: ./gradlew code-coverage-report:koverXmlReport --stacktrace
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.11.0
