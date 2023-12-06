@@ -40,15 +40,8 @@ class CommandValidationException(
 
     companion object {
         private fun Set<ConstraintViolation<*>>.asErrorMessage(): String {
-            val constraintViolations = this
-            return buildString {
-                constraintViolations.forEach {
-                    append("[")
-                    append(it.propertyPath)
-                    append("]:")
-                    append(it.message)
-                    appendLine()
-                }
+            return joinToString(separator = System.lineSeparator()) {
+                "[${it.propertyPath}]:${it.message}"
             }
         }
     }
