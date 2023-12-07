@@ -15,4 +15,5 @@ ignore:
   - "document/.*"
   - "test/wow-it/.*"
   - "test/wow-tck/.*"
+  - "test/wow-test/.*"
   - "wow-api/.*"
