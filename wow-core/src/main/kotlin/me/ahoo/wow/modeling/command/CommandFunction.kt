@@ -30,9 +30,9 @@ class CommandFunction<C : Any>(
     override val supportedType: Class<*> = delegate.supportedType
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
-    override fun handle(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+    override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return delegate
-            .handle(exchange)
+            .invoke(exchange)
             .map {
                 it.asDomainEventStream(exchange.message, commandAggregate.version)
             }

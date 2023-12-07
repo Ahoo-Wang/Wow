@@ -32,7 +32,7 @@ class DefaultDeleteAggregateFunction<C : Any>(
     override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND
 
-    override fun handle(
+    override fun invoke(
         exchange: ServerCommandExchange<*>
     ): Mono<DomainEventStream> {
         return DefaultAggregateDeleted

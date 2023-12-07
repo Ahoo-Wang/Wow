@@ -20,7 +20,7 @@ data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, ou
 ) :
     MethodMessageFunction<P, M, R> {
 
-    override fun handle(exchange: M): R {
+    override fun invoke(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
         return metadata.accessor.invoke(processor, arrayOf(firstArgument))
     }
@@ -36,7 +36,7 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>
 ) :
     MethodMessageFunction<P, M, R> {
 
-    override fun handle(exchange: M): R {
+    override fun invoke(exchange: M): R {
         val args = arrayOfNulls<Any>(1 + metadata.injectParameterLength)
         args[0] = metadata.extractFirstArgument(exchange)
         for (i in 0 until metadata.injectParameterLength) {

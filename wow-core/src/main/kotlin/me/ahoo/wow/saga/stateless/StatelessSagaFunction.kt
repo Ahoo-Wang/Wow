@@ -35,8 +35,8 @@ class StatelessSagaFunction(
     override val supportedTopics: Set<Any> = actual.supportedTopics
     override val functionKind: FunctionKind = actual.functionKind
 
-    override fun handle(exchange: DomainEventExchange<*>): Mono<CommandStream> {
-        return actual.handle(exchange)
+    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
+        return actual.invoke(exchange)
             .map {
                 asCommandStream(exchange.message, it)
             }

@@ -38,7 +38,11 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
-    fun handle(exchange: M): R
+    operator fun invoke(exchange: M): R
+    
+    fun handle(exchange: M): R {
+        return invoke(exchange)
+    }
 }
 
 interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
