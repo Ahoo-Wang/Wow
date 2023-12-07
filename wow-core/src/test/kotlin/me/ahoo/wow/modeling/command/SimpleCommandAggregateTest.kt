@@ -60,7 +60,6 @@ internal class SimpleCommandAggregateTest {
             .consumeNextWith {
                 assertThat(it.version, equalTo(1))
             }.verifyComplete()
-
     }
 
     @Test
