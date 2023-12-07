@@ -39,7 +39,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
         get() = processor::class.java.simpleName
 
     operator fun invoke(exchange: M): R
-    
+
     fun handle(exchange: M): R {
         return invoke(exchange)
     }
