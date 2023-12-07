@@ -13,4 +13,6 @@ coverage:
         threshold: 1%
 ignore:
   - "document/.*"
-  - "test/.*"
+  - "test/wow-it/.*"
+  - "test/wow-tck/.*"
+  - "wow-api/.*"
