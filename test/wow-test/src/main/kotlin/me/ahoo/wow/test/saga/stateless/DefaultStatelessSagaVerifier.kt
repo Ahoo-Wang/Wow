@@ -67,7 +67,7 @@ internal class DefaultWhenStage<T : Any>(
         val eventExchange = asEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.getFunctions(eventExchange.message.body.javaClass)
             .first()
-            .handle(eventExchange)
+            .invoke(eventExchange)
             .map {
                 ExpectedResult(
                     processor = processor,

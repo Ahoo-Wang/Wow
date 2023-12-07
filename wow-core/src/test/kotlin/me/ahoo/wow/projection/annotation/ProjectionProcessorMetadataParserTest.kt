@@ -53,7 +53,7 @@ internal class ProjectionProcessorMetadataParserTest {
         ).first()
         eventHandlerRegistry.first {
             it.supportedType == created.body.javaClass
-        }.handle(SimpleDomainEventExchange(created)).block()
+        }.invoke(SimpleDomainEventExchange(created)).block()
         assertThat(mockProjector.data, equalTo(createdState))
     }
 }

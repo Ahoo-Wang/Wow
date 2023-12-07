@@ -86,7 +86,7 @@ class SimpleStateAggregate<S : Any>(
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
-            sourcingFunction.handle(SimpleDomainEventExchange(domainEvent))
+            sourcingFunction.invoke(SimpleDomainEventExchange(domainEvent))
         } else {
             if (log.isDebugEnabled) {
                 log.debug(

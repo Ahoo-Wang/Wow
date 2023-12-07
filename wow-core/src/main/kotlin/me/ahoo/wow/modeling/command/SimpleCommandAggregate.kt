@@ -76,7 +76,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
             commandFunction
-                .handle(exchange)
+                .invoke(exchange)
                 .doOnNext {
                     exchange.setEventStream(it)
                     /**
@@ -96,7 +96,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     exchange.setError(it)
                     val errorFunction = errorFunctionRegistry[commandType]
                     val errorMono = Mono.error<DomainEventStream>(it)
-                    errorFunction?.handle(exchange)?.then(errorMono) ?: errorMono
+                    errorFunction?.invoke(exchange)?.then(errorMono) ?: errorMono
                 }
         }
     }

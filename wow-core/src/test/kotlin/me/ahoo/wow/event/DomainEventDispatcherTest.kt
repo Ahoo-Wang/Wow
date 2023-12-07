@@ -53,7 +53,7 @@ internal class DomainEventDispatcherTest {
             override val supportedTopics: Set<Any>
                 get() = setOf(namedAggregate)
 
-            override fun handle(exchange: DomainEventExchange<*>): Mono<*> {
+            override fun invoke(exchange: DomainEventExchange<*>): Mono<*> {
                 return Mono.fromRunnable<Void> { sink.tryEmitEmpty() }
             }
         })

@@ -12,12 +12,16 @@
  */
 package me.ahoo.wow.messaging.function
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -27,33 +31,51 @@ import org.junit.jupiter.api.Test
 
 internal class MethodMessageFunctionTest {
     @Test
-    fun asMessageHandler() {
-        val handler = MockCommandAggregate::class.java.getDeclaredMethod(
+    fun asMessageFunction() {
+        val messageFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
-        ).asFunctionMetadata<MockCommandAggregate, Any>()
-            .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, Any>(
+        ).asFunctionMetadata<MockCommandAggregate, MockAggregateCreated>()
+            .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
                 MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
+        assertThat(messageFunction, notNullValue())
+        val serverCommandExchange = mockk<ServerCommandExchange<MockCreateAggregate>> {
+            every { message } returns MockCreateAggregate("id", "data").asCommandMessage()
+        }
+        messageFunction(serverCommandExchange)
+        val created = messageFunction.handle(serverCommandExchange)
+        assertThat(created.data, equalTo("data"))
 
-        assertThat(handler, notNullValue())
         assertThat(
-            handler,
+            messageFunction,
             instanceOf(
                 SimpleMethodMessageFunction::class.java,
             ),
         )
         assertThat(
-            handler.supportedType,
+            messageFunction.supportedType,
             equalTo(
                 MockCreateAggregate::class.java,
+            ),
+        )
+        assertThat(
+            messageFunction.supportedTopics,
+            equalTo(
+                emptySet(),
+            ),
+        )
+        assertThat(
+            messageFunction.processorName,
+            equalTo(
+                "MockCommandAggregate"
             ),
         )
     }
 
     @Test
-    fun asMessageHandlerWhenInjectable() {
-        val handler = MockWithInjectableFunction::class.java.getDeclaredMethod(
+    fun asMessageFunctionWhenInjectable() {
+        val messageFunction = MockWithInjectableFunction::class.java.getDeclaredMethod(
             "onEvent",
             MockEventBody::class.java,
             ExternalService::class.java,
@@ -62,15 +84,15 @@ internal class MethodMessageFunctionTest {
                 MockWithInjectableFunction(),
             )
 
-        assertThat(handler, notNullValue())
+        assertThat(messageFunction, notNullValue())
         assertThat(
-            handler,
+            messageFunction,
             instanceOf(
                 InjectableMethodMessageFunction::class.java,
             ),
         )
         assertThat(
-            handler.supportedType,
+            messageFunction.supportedType,
             equalTo(
                 MockEventBody::class.java,
             ),
@@ -78,8 +100,8 @@ internal class MethodMessageFunctionTest {
     }
 
     @Test
-    fun asMonoMessageHandler() {
-        val handler = MockFunction::class.java.getDeclaredMethod(
+    fun asMonoMessageFunction() {
+        val messageFunction = MockFunction::class.java.getDeclaredMethod(
             "onEvent",
             MockEventBody::class.java,
         ).asMonoFunctionMetadata<MockFunction, Any>()
@@ -87,21 +109,21 @@ internal class MethodMessageFunctionTest {
                 MockFunction(),
             )
 
-        assertThat(handler, notNullValue())
+        assertThat(messageFunction, notNullValue())
         assertThat(
-            handler,
+            messageFunction,
             instanceOf(
                 SimpleMethodMessageFunction::class.java,
             ),
         )
         assertThat(
-            handler.supportedType,
+            messageFunction.supportedType,
             equalTo(
                 MockEventBody::class.java,
             ),
         )
         assertThat(
-            handler.metadata.accessor,
+            messageFunction.metadata.accessor,
             instanceOf(
                 MonoMethodAccessor::class.java,
             ),
