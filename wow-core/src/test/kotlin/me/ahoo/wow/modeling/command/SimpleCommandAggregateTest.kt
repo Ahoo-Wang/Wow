@@ -54,11 +54,13 @@ internal class SimpleCommandAggregateTest {
         ).block()
         assertThat(mockCommandAggregate.state(), equalTo(create.state))
         assertThat(simpleStateAggregate.version, equalTo(1))
+        assertThat(simpleStateAggregate.toString(), notNullValue())
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .consumeNextWith {
                 assertThat(it.version, equalTo(1))
             }.verifyComplete()
+
     }
 
     @Test
