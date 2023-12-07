@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test
 
 internal class MethodMessageFunctionTest {
     @Test
-    fun asMessageHandler() {
+    fun asMessageFunction() {
         val messageFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
@@ -39,13 +39,14 @@ internal class MethodMessageFunctionTest {
             .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
                 MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
+        assertThat(messageFunction, notNullValue())
         val serverCommandExchange = mockk<ServerCommandExchange<MockCreateAggregate>> {
             every { message } returns MockCreateAggregate("id", "data").asCommandMessage()
         }
         messageFunction(serverCommandExchange)
         val created = messageFunction.handle(serverCommandExchange)
         assertThat(created.data, equalTo("data"))
-        assertThat(messageFunction, notNullValue())
+
         assertThat(
             messageFunction,
             instanceOf(
@@ -56,6 +57,18 @@ internal class MethodMessageFunctionTest {
             messageFunction.supportedType,
             equalTo(
                 MockCreateAggregate::class.java,
+            ),
+        )
+        assertThat(
+            messageFunction.supportedTopics,
+            equalTo(
+                emptySet(),
+            ),
+        )
+        assertThat(
+            messageFunction.processorName,
+            equalTo(
+                "MockCommandAggregate"
             ),
         )
     }
