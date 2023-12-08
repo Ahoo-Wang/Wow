@@ -37,6 +37,7 @@ class WowSymbolProcessorTest {
                 )
             symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
             inheritClassPath = true
+            messageOutputStream = System.out
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -55,6 +56,26 @@ class WowSymbolProcessorTest {
                 )
             symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
             inheritClassPath = true
+            messageOutputStream = System.out
+        }
+        val result = compilation.compile()
+        assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+    }
+
+    @OptIn(ExperimentalCompilerApi::class)
+    @Test
+    fun processExample() {
+        val exampleApiDir = File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api")
+        val exampleApiFiles = exampleApiDir.walkTopDown().filter { it.isFile }.toList()
+            .map { SourceFile.fromPath(it) }
+        val exampleDomainDir = File("../example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain")
+        val exampleDomainFiles = exampleDomainDir.walkTopDown().filter { it.isFile }.toList()
+            .map { SourceFile.fromPath(it) }
+        val compilation = KotlinCompilation().apply {
+            sources = exampleDomainFiles + exampleApiFiles
+            symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
+            inheritClassPath = true
+            messageOutputStream = System.out
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))

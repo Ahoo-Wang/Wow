@@ -134,7 +134,7 @@ class Order(private val state: OrderState) {
     }
 
     /**
-     * [订单服务] 订阅 [支付服务] 发布的集成事件 `PaymentOrderPaid`，适配成 [订单服务] 限界上下文 `PayOrder` 命令.
+     * *订单服务* 订阅 *支付服务* 发布的集成事件 `PaymentOrderPaid`，适配成 *订单服务* 限界上下文 `PayOrder` 命令.
      *
      * @see PaymentOrderPaid
      */
