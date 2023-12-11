@@ -17,7 +17,8 @@ import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
+import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getJavaType
+import me.ahoo.wow.serialization.JsonSerializer
 
 class MarkNullableConverter : ModelConverter {
 
@@ -31,19 +32,21 @@ class MarkNullableConverter : ModelConverter {
         }
         val schema = chain.next().resolve(type, context, chain) ?: return null
         val properties = context.getRawProperties(schema, type.name) ?: return schema
-        val rawClass = type.getRawClass()?.kotlin ?: return schema
+        val javaType = type.getJavaType() ?: return schema
+        val beanDescription = JsonSerializer.serializationConfig.introspect(javaType)
+        val beanProperties = beanDescription.findProperties()
 
-        properties.forEach { (name, propertySchema) ->
-            rawClass.members.firstOrNull { callable ->
-                callable.name == name
-            }?.let { member ->
-                if (member.returnType.isMarkedNullable) {
-                    propertySchema.nullable(true)
-                    if (propertySchema.`$ref` != null) {
-                        val refSchema = Schema<Any>().`$ref`(propertySchema.`$ref`)
-                        propertySchema.allOf(listOf(refSchema))
-                        propertySchema.`$ref`(null)
-                    }
+        javaType.rawClass.kotlin.members.forEach { member ->
+            val beanProperty = beanProperties.firstOrNull {
+                it.internalName == member.name
+            } ?: return@forEach
+            val propertySchema = properties[beanProperty.name] ?: return@forEach
+            if (member.returnType.isMarkedNullable) {
+                propertySchema.nullable(true)
+                if (propertySchema.`$ref` != null) {
+                    val refSchema = Schema<Any>().`$ref`(propertySchema.`$ref`)
+                    propertySchema.allOf(listOf(refSchema))
+                    propertySchema.`$ref`(null)
                 }
             }
         }

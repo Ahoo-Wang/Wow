@@ -19,6 +19,7 @@ import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
+import me.ahoo.wow.serialization.JsonSerializer
 
 class BoundedContextSchemaNameConverter : ModelConverter {
     companion object {
@@ -30,6 +31,18 @@ class BoundedContextSchemaNameConverter : ModelConverter {
             if (schemaType is JavaType) {
                 return schemaType.rawClass
             }
+            return null
+        }
+
+        fun AnnotatedType.getJavaType(): JavaType? {
+            val schemaType = this.type
+            if (schemaType is JavaType) {
+                return schemaType
+            }
+            if (schemaType is Class<*>) {
+                return JsonSerializer.constructType(schemaType)
+            }
+
             return null
         }
     }
