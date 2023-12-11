@@ -1,4 +1,5 @@
 @startuml
+!include layout.puml
 
 title
 Command Event Flow
