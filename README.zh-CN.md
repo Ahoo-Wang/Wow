@@ -20,6 +20,10 @@
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
+## 快速开始
+
+使用[Wow 项目模板](https://gitee.com/AhooWang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
+
 ## 性能测试 (Example)
 
 - 测试代码：[Example](./example)
@@ -97,11 +101,6 @@
 - 理解 **命令查询职责分离**（CQRS）
 - 理解 **事件源架构**
 - 理解 **响应式编程**
-
-## 快速开始
-
-使用 Wow 框架模板快速创建项目。
-模板地址：[Wow-Project-Template](https://gitee.com/AhooWang/wow-project-template)
 
 ## 特性
 
