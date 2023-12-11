@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.route
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
@@ -47,6 +48,12 @@ class CommandRouteMetadataParserTest {
         assertThat(headerVariable.fieldName, equalTo("header"))
         assertThat(headerVariable.variableName, equalTo("header"))
         assertThat(headerVariable.required, equalTo(false))
+    }
+
+    @Test
+    fun asDelete() {
+        val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
+        assertThat(commandRouteMetadata.method, equalTo(Https.Method.DELETE))
     }
 
     @Test
