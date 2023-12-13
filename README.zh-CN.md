@@ -1,3 +1,7 @@
+<p align="center" style="text-align:center;">
+  <img width="150" src="document/design/assets/logo.svg" alt="Wow:基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
+</p>
+
 # Wow
 
 > [English Document](https://github.com/Ahoo-Wang/Wow/blob/main/README.md)

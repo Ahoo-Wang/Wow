@@ -1,3 +1,7 @@
+<p align="center" style="text-align:center;">
+  <img width="150" src="document/design/assets/logo.svg" alt="Wow:A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing"/>
+</p>
+
 # Wow
 
 > [中文文档](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md)
