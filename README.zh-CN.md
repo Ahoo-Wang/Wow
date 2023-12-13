@@ -18,15 +18,15 @@
 
 **领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** | **响应式编程** | **命令查询职责分离** | **事件溯源**
 
+## 快速开始
+
+使用[Wow 项目模板](https://gitee.com/AhooWang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
+
 ## 架构图
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
-
-## 快速开始
-
-使用[Wow 项目模板](https://gitee.com/AhooWang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
 
 ## 性能测试 (Example)
 

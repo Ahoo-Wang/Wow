@@ -19,15 +19,15 @@ A Modern Reactive CQRS Architecture Microservice development framework based on 
 **Domain-Driven** | **Event-Driven** | **Test-Driven** | **Declarative-Design** | **Reactive Programming** | **Command
 Query Responsibility Segregation** | **Event Sourcing**
 
+## Quick Start
+
+Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the Wow framework.
+
 ## Architecture
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
 </p>
-
-## Quick Start
-
-Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the Wow framework.
 
 ## Performance Test (Example)
 
