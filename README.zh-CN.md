@@ -1,3 +1,7 @@
+<p align="center" style="text-align:center;">
+  <img width="200" src="document/design/assets/logo.svg" alt="Wow-Logo"/>
+</p>
+
 # Wow
 
 > [English Document](https://github.com/Ahoo-Wang/Wow/blob/main/README.md)
