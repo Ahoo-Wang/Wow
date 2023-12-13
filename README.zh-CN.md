@@ -186,7 +186,8 @@
 ```kotlin
 internal class OrderTest {
 
-    private fun mockCreateOrder(): VerifiedStage<OrderState> {
+    @Test
+    private fun createOrder() {
         val tenantId = GlobalIdGenerator.generateAsString()
         val customerId = GlobalIdGenerator.generateAsString()
 
@@ -207,7 +208,7 @@ internal class OrderTest {
                 return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
             }
         }
-        return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
+        aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
             .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
@@ -224,14 +225,6 @@ internal class OrderTest {
                 assertThat(it.status, equalTo(OrderStatus.CREATED))
             }
             .verify()
-    }
-
-    /**
-     * 创建订单
-     */
-    @Test
-    fun createOrder() {
-        mockCreateOrder()
     }
 
     @Test
@@ -292,43 +285,6 @@ internal class OrderTest {
                  */
                 assertThat(it.initialized, equalTo(false))
             }.verify()
-    }
-
-    /**
-     * 创建订单-下单价格与当前价格不一致
-     */
-    @Test
-    fun createOrderWhenPriceInconsistency() {
-        val customerId = GlobalIdGenerator.generateAsString()
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
-        )
-        val orderItems = listOf(orderItem)
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
-            }
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.filter { it.productId == productId }
-                    /*
-                     * 模拟下单价格、商品定价不一致
-                     */
-                    .map { it.price.plus(BigDecimal.valueOf(1)) }.first().toMono()
-            }
-        }
-        aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            /*
-             * 期望：价格不一致异常.
-             */
-            .expectErrorType(PriceInconsistencyException::class.java).verify()
     }
 }
 ```
