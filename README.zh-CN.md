@@ -1,5 +1,5 @@
 <p align="center" style="text-align:center;">
-  <img width="200" src="document/design/assets/logo.svg" alt="Wow-Logo"/>
+  <img width="150" src="document/design/assets/logo.svg" alt="Wow-Logo"/>
 </p>
 
 # Wow
