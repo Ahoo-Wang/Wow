@@ -13,6 +13,16 @@
 
 package me.ahoo.wow.compensation.api
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 
-data class ApplyExecutionFailed(@CommandRoute.PathVariable val id: String)
+data class ApplyExecutionFailed(
+    @CommandRoute.PathVariable override val id: String,
+    override val error: ErrorDetails,
+    override val executionTime: Long
+) : Identifier, ExecutionFailedErrorInfo
+
+data class ExecutionFailedApplied(
+    override val error: ErrorDetails,
+    override val executionTime: Long
+) : ExecutionFailedErrorInfo

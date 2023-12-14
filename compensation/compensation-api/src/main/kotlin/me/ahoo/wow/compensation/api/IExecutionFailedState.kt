@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 
@@ -24,12 +25,31 @@ data class ErrorDetails(override val errorCode: String, override val errorMsg: S
     ErrorInfo
 
 data class EventId(override val id: String, override val aggregateId: AggregateId, override val version: Int) :
-    Identifier, Version,
+    Identifier,
+    Version,
     AggregateIdCapable
 
-interface IExecutionFailedState : Identifier {
-    val eventId: EventId
-    val functionKind: FunctionKind
-    val error: ErrorDetails
+interface ExecutionTime {
     val executionTime: Long
+}
+
+interface ExecutionFailedErrorInfo : ExecutionTime {
+    val error: ErrorDetails
+}
+
+interface ExecutionFailedInfo : ExecutionFailedErrorInfo {
+    val eventId: EventId
+    val processor: ProcessorInfoData
+    val functionKind: FunctionKind
+}
+
+interface IExecutionFailedState : Identifier, ExecutionFailedInfo {
+    val status: ExecutionFailedStatus
+    val retriedTimes: Int
+}
+
+enum class ExecutionFailedStatus {
+    FAILED,
+    PREPARED,
+    SUCCEEDED
 }

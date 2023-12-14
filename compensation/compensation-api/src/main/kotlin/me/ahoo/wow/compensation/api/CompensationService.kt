@@ -13,6 +13,21 @@
 
 package me.ahoo.wow.compensation.api
 
+import me.ahoo.wow.api.annotation.BoundedContext
+import me.ahoo.wow.api.annotation.BoundedContext.Aggregate
+import me.ahoo.wow.api.modeling.TenantId
+
+@BoundedContext(
+    name = CompensationService.SERVICE_NAME,
+    alias = CompensationService.SERVICE_ALIAS,
+    aggregates = [
+        Aggregate(
+            name = CompensationService.EXECUTION_FAILED_AGGREGATE_NAME,
+            tenantId = TenantId.DEFAULT_TENANT_ID,
+            packageScopes = [CreateExecutionFailed::class]
+        )
+    ],
+)
 object CompensationService {
     const val SERVICE_NAME = "compensation-service"
     const val SERVICE_ALIAS = "compensation"

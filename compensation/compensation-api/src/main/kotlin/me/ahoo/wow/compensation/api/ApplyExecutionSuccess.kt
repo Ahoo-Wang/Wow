@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.compensation.api
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 
-data class ApplyExecutionSuccess(@CommandRoute.PathVariable val id: String) {
-}
+data class ApplyExecutionSuccess(@CommandRoute.PathVariable override val id: String, override val executionTime: Long) :
+    Identifier, ExecutionTime
+
+data class ExecutionSuccessApplied(override val executionTime: Long) : ExecutionTime

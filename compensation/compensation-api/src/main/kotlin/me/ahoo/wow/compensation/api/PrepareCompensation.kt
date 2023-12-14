@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.compensation.api
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 
-data class PrepareCompensation(@CommandRoute.PathVariable val id: String)  {
-}
+data class PrepareCompensation(@CommandRoute.PathVariable override val id: String) : Identifier
+
+object CompensationPrepared
