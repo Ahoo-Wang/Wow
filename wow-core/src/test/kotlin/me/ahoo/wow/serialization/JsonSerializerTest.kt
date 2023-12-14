@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
@@ -31,7 +32,6 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.event.BodyTypeNotFoundDomainEvent

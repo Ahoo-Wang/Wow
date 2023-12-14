@@ -16,14 +16,14 @@ package me.ahoo.wow.event.error
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.processor.materialize
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.asErrorInfo
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.processor.ProcessorInfoData
-import me.ahoo.wow.messaging.processor.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
