@@ -13,19 +13,18 @@
 
 package me.ahoo.wow.compensation.api
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 
+@CreateAggregate
 data class CreateExecutionFailed(
-    @CommandRoute.PathVariable override val id: String,
     override val eventId: EventId,
     override val processor: ProcessorInfoData,
     override val functionKind: FunctionKind,
     override val error: ErrorDetails,
     override val executionTime: Long
-) : Identifier, ExecutionFailedInfo
+) : ExecutionFailedInfo
 
 data class ExecutionFailedCreated(
     override val eventId: EventId,

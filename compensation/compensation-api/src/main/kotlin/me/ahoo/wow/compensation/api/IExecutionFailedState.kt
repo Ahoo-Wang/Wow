@@ -29,6 +29,10 @@ data class EventId(override val id: String, override val aggregateId: AggregateI
     Version,
     AggregateIdCapable
 
+interface RetriedTimes {
+    val retriedTimes: Int
+}
+
 interface ExecutionTime {
     val executionTime: Long
 }
@@ -43,9 +47,8 @@ interface ExecutionFailedInfo : ExecutionFailedErrorInfo {
     val functionKind: FunctionKind
 }
 
-interface IExecutionFailedState : Identifier, ExecutionFailedInfo {
+interface IExecutionFailedState : Identifier, ExecutionFailedInfo, RetriedTimes {
     val status: ExecutionFailedStatus
-    val retriedTimes: Int
 }
 
 enum class ExecutionFailedStatus {

@@ -11,19 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.compensation.domain
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.BoundedContext
+import me.ahoo.wow.compensation.api.CompensationService
 
-data class ApplyExecutionFailed(
-    @CommandRoute.PathVariable override val id: String,
-    override val error: ErrorDetails,
-    override val executionTime: Long
-) : Identifier, ExecutionFailedErrorInfo
-
-data class ExecutionFailedApplied(
-    override val retriedTimes: Int,
-    override val error: ErrorDetails,
-    override val executionTime: Long
-) : RetriedTimes, ExecutionFailedErrorInfo
+@Suppress("unused")
+@BoundedContext(name = CompensationService.SERVICE_NAME)
+object CompensationBoundedContext
