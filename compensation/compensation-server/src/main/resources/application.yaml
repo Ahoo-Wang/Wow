@@ -1,0 +1,49 @@
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
+
+spring:
+  application:
+    name: compensation-service
+logging:
+  level:
+    me.ahoo.wow: debug
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        machine-id: 1
+  generator:
+    enabled: true
+wow:
+  command:
+    bus:
+      type: in_memory
+  event:
+    bus:
+      type: in_memory
+  kafka:
+    enabled: false
+  eventsourcing:
+    store:
+      storage: in_memory
+    snapshot:
+      storage: in_memory
+    state:
+      bus:
+        type: in_memory

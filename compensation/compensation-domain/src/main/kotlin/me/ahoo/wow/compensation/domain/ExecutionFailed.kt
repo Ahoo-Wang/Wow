@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.compensation.domain
+package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.compensation.domain
+package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.messaging.FunctionKind
