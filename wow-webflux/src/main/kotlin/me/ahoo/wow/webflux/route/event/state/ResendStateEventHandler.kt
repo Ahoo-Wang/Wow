@@ -15,20 +15,20 @@ package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
 import reactor.core.publisher.Mono
 
-class RegenerateStateEventHandler(
+class ResendStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator
 ) {
-    fun handle(config: CompensationConfig, cursorId: String, limit: Int): Mono<BatchResult> {
+    fun handle(filter: CompensationFilter, cursorId: String, limit: Int): Mono<BatchResult> {
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap { aggregateId ->
-                stateEventCompensator.compensate(aggregateId = aggregateId, config = config)
+                stateEventCompensator.compensate(aggregateId = aggregateId, filter = filter)
                     .thenReturn(aggregateId)
             }
             .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->

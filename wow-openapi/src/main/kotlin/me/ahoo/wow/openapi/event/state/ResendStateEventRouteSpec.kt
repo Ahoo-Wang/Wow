@@ -23,27 +23,27 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory
 
-class RegenerateStateEventRouteSpec(
+class ResendStateEventRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : BatchRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.regenerateStateEvent"
+        get() = "${aggregateMetadata.asStringWithAlias()}.resendStateEvent"
     override val method: String
         get() = Https.Method.POST
     override val summary: String
-        get() = "Regenerate State Event"
+        get() = "Resend State Event"
     override val appendPathSuffix: String
         get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
     override val requestBody: RequestBody = EventCompensateRouteSpecFactory.COMPENSATION_CONFIG_REQUEST.component
 }
 
-class RegenerateStateEventRouteSpecFactory : BatchRouteSpecFactory() {
+class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
-    ): List<RegenerateStateEventRouteSpec> {
-        return listOf(RegenerateStateEventRouteSpec(currentContext, aggregateMetadata))
+    ): List<ResendStateEventRouteSpec> {
+        return listOf(ResendStateEventRouteSpec(currentContext, aggregateMetadata))
     }
 }

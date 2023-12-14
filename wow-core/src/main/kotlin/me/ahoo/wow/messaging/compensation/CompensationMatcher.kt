@@ -22,12 +22,12 @@ const val COMPENSATION_EXCLUDE_HEADER = "${COMPENSATION_PREFIX}exclude"
 const val COMPENSATION_INCLUDE_HEADER = "${COMPENSATION_PREFIX}include"
 const val COMPENSATION_ALL_VALUE = "*"
 
-data class CompensationConfig(
+data class CompensationFilter(
     val include: Set<String> = emptySet(),
     val exclude: Set<String> = emptySet()
 ) {
     companion object {
-        val EMPTY = CompensationConfig()
+        val EMPTY = CompensationFilter()
     }
 }
 
@@ -36,7 +36,7 @@ object CompensationMatcher {
         return split(COMPENSATE_PROCESSOR_SEPARATOR).filter { it.isNotBlank() }.toSet()
     }
 
-    fun <M : Message<out M, *>> M.withCompensation(config: CompensationConfig = CompensationConfig.EMPTY): M {
+    fun <M : Message<out M, *>> M.withCompensation(config: CompensationFilter = CompensationFilter.EMPTY): M {
         return this.withCompensation(include = config.include, exclude = config.exclude)
     }
 

@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 interface EventCompensator {
     fun compensate(
         aggregateId: AggregateId,
-        config: CompensationConfig = CompensationConfig.EMPTY,
+        filter: CompensationFilter = CompensationFilter.EMPTY,
         headVersion: Int = EventStore.DEFAULT_HEAD_VERSION,
         tailVersion: Int = Int.MAX_VALUE
     ): Mono<Long>

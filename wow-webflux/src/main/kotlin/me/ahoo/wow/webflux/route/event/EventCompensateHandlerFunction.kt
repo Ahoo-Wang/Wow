@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -34,7 +34,7 @@ abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        return request.bodyToMono(CompensationConfig::class.java)
+        return request.bodyToMono(CompensationFilter::class.java)
             .flatMap {
                 requireNotNull(it) {
                     "CompensationConfig is required!"
@@ -44,7 +44,7 @@ abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> 
                 val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
                 eventCompensator.compensate(
                     aggregateId,
-                    config = it,
+                    filter = it,
                     headVersion = headVersion,
                     tailVersion = tailVersion,
                 )
