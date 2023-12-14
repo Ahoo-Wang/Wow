@@ -32,7 +32,6 @@ import me.ahoo.wow.openapi.RoutePaths.COMPENSATE_TAIL_VERSION
 import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_CONFIG_REQUEST
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
-import me.ahoo.wow.openapi.schema.AggregateIdSchema
 
 interface GlobalRouteSpecFactory : RouteSpecFactory {
     fun create(currentContext: NamedBoundedContext): List<RouteSpec>
@@ -44,7 +43,6 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
     init {
         SchemaRef.ERROR_INFO.schemas.mergeSchemas()
         BatchResult::class.java.asSchemas().mergeSchemas()
-        components.schemas[AggregateIdSchema.SCHEMA_NAME] = AggregateIdSchema.SCHEMA
         components.headers.with(ERROR_CODE_HEADER)
         components.parameters
             .with(COMPENSATE_HEAD_VERSION)
