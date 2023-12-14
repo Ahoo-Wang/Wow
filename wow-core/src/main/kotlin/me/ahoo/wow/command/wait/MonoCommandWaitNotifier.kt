@@ -14,11 +14,11 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.exception.asErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.processor.ProcessorInfoData

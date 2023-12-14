@@ -14,9 +14,9 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap

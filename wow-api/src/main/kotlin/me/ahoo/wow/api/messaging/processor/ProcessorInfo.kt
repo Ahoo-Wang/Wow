@@ -18,4 +18,3 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 interface ProcessorInfo : NamedBoundedContext {
     val processorName: String
 }
-

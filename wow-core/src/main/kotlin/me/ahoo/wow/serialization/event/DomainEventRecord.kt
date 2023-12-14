@@ -14,8 +14,8 @@
 package me.ahoo.wow.serialization.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.event.upgrader.EventUpgraderFactory
 import me.ahoo.wow.infra.TypeNameMapper.asType

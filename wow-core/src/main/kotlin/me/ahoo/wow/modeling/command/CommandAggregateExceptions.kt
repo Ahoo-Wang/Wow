@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE
 import me.ahoo.wow.exception.WowException

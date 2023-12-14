@@ -14,6 +14,7 @@ package me.ahoo.wow.modeling.matedata
 
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
@@ -23,7 +24,6 @@ import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.asMessageFunction
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction

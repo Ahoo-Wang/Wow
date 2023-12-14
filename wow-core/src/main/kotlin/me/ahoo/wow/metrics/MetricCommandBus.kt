@@ -14,9 +14,9 @@
 package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange

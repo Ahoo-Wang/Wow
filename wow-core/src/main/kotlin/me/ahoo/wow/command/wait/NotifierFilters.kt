@@ -16,11 +16,11 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandId
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher

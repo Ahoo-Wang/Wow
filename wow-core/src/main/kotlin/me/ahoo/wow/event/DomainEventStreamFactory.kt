@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
