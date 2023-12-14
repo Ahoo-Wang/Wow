@@ -40,6 +40,10 @@ project(":wow-it").projectDir = file("test/wow-it")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 //endregion
+//region compensation
+include(":compensation-api")
+project(":compensation-api").projectDir = file("compensation/compensation-api")
+//endregion
 //region example
 include(":example-api")
 project(":example-api").projectDir = file("example/example-api")

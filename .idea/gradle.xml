@@ -8,6 +8,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/compensation/compensation-api" />
             <option value="$PROJECT_DIR$/example/example-api" />
             <option value="$PROJECT_DIR$/example/example-domain" />
             <option value="$PROJECT_DIR$/example/example-server" />
