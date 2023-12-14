@@ -46,5 +46,4 @@ class AggregateIdConverter : ModelConverter {
         val rawClass = type.getRawClass() ?: return false
         return rawClass == AggregateId::class.java
     }
-
 }
