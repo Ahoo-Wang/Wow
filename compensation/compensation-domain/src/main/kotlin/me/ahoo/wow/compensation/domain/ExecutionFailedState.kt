@@ -51,6 +51,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.status = ExecutionFailedStatus.FAILED
     }
 
+    @Suppress("UnusedParameter")
     @OnSourcing
     fun onPrepared(event: CompensationPrepared) {
         this.status = ExecutionFailedStatus.PREPARED
