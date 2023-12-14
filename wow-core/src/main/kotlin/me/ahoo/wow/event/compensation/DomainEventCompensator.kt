@@ -16,7 +16,7 @@ package me.ahoo.wow.event.compensation
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import reactor.core.publisher.Mono
@@ -28,7 +28,7 @@ class DomainEventCompensator(
     EventCompensator {
     override fun compensate(
         aggregateId: AggregateId,
-        config: CompensationConfig,
+        filter: CompensationFilter,
         headVersion: Int,
         tailVersion: Int
     ): Mono<Long> {
@@ -37,7 +37,7 @@ class DomainEventCompensator(
             headVersion = headVersion,
             tailVersion = tailVersion,
         ).concatMap {
-            val eventStream = it.withCompensation(config)
+            val eventStream = it.withCompensation(filter)
             eventBus.send(eventStream).thenReturn(it)
         }.count()
     }

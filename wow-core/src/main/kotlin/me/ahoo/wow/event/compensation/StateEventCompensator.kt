@@ -18,7 +18,7 @@ import me.ahoo.wow.configuration.asRequiredAggregateType
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.annotation.asAggregateMetadata
@@ -33,7 +33,7 @@ class StateEventCompensator(
     EventCompensator {
     override fun compensate(
         aggregateId: AggregateId,
-        config: CompensationConfig,
+        filter: CompensationFilter,
         headVersion: Int,
         tailVersion: Int
     ): Mono<Long> {
@@ -54,7 +54,7 @@ class StateEventCompensator(
                         it.version in headVersion..tailVersion
                     }
                     .concatMap {
-                        it.withCompensation(config)
+                        it.withCompensation(filter)
                         stateEventBus.send(it).thenReturn(it.aggregateId)
                     }
             }.count()

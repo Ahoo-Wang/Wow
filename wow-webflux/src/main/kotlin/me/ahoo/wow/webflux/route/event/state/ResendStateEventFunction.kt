@@ -15,10 +15,10 @@ package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.event.state.RegenerateStateEventRouteSpec
+import me.ahoo.wow.openapi.event.state.ResendStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -27,19 +27,19 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class RegenerateStateEventFunction(
+class ResendStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        RegenerateStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
+        ResendStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return request.bodyToMono(CompensationConfig::class.java)
+        return request.bodyToMono(CompensationFilter::class.java)
             .flatMap {
                 handler.handle(it, cursorId, limit)
             }
@@ -47,16 +47,16 @@ class RegenerateStateEventFunction(
     }
 }
 
-class RegenerateStateEventFunctionFactory(
+class ResendStateEventFunctionFactory(
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<RegenerateStateEventRouteSpec> {
-    override val supportedSpec: Class<RegenerateStateEventRouteSpec>
-        get() = RegenerateStateEventRouteSpec::class.java
+) : RouteHandlerFunctionFactory<ResendStateEventRouteSpec> {
+    override val supportedSpec: Class<ResendStateEventRouteSpec>
+        get() = ResendStateEventRouteSpec::class.java
 
-    override fun create(spec: RegenerateStateEventRouteSpec): HandlerFunction<ServerResponse> {
-        return RegenerateStateEventFunction(
+    override fun create(spec: ResendStateEventRouteSpec): HandlerFunction<ServerResponse> {
+        return ResendStateEventFunction(
             aggregateMetadata = spec.aggregateMetadata,
             eventStore = eventStore,
             stateEventCompensator = stateEventCompensator,

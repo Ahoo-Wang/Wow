@@ -33,7 +33,7 @@ import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.state.RegenerateStateEventFunctionFactory
+import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
@@ -82,7 +82,7 @@ class WebFluxAutoConfiguration {
             "regenerateSnapshotHandlerFunctionFactory"
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
-        const val REGENERATE_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME = "regenerateStateEventFunctionFactory"
+        const val RESEND_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME = "resendStateEventFunctionFactory"
         const val DOMAIN_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "domainEventCompensateHandlerFunctionFactory"
         const val STATE_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
@@ -203,13 +203,13 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [REGENERATE_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME])
-    fun regenerateStateEventFunctionFactory(
+    @ConditionalOnMissingBean(name = [RESEND_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME])
+    fun resendStateEventFunctionFactory(
         eventStore: EventStore,
         stateEventCompensator: StateEventCompensator,
         exceptionHandler: ExceptionHandler
-    ): RegenerateStateEventFunctionFactory {
-        return RegenerateStateEventFunctionFactory(eventStore, stateEventCompensator, exceptionHandler)
+    ): ResendStateEventFunctionFactory {
+        return ResendStateEventFunctionFactory(eventStore, stateEventCompensator, exceptionHandler)
     }
 
     @Bean

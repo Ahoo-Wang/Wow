@@ -18,7 +18,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.messaging.compensation.CompensationConfig
+import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
@@ -65,8 +65,8 @@ abstract class EventCompensateRouteSpec(
 
 abstract class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
-        val COMPENSATION_CONFIG_SCHEMA = CompensationConfig::class.java.asSchemaRef()
-        val COMPENSATION_CONFIG_REQUEST = CompensationConfig::class.java.asRequestBodyRef()
+        val COMPENSATION_CONFIG_SCHEMA = CompensationFilter::class.java.asSchemaRef()
+        val COMPENSATION_CONFIG_REQUEST = CompensationFilter::class.java.asRequestBodyRef()
     }
 
     init {
