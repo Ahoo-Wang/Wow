@@ -70,10 +70,10 @@ class RouterSpecs(
     }
 
     private fun mergeRouteSpecFactoryComponents() {
-        AggregateRouteSpecFactoryProvider.get().forEach {
+        GlobalRouteSpecFactoryProvider.get().forEach {
             mergeComponents(it.components)
         }
-        GlobalRouteSpecFactoryProvider.get().forEach {
+        AggregateRouteSpecFactoryProvider.get().forEach {
             mergeComponents(it.components)
         }
     }
