@@ -17,7 +17,7 @@ import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.command.CommandOperator.operator
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.ignoreSourcing

@@ -11,12 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.api.event
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.event.DEFAULT_REVISION
-import me.ahoo.wow.api.event.Revision
 import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable

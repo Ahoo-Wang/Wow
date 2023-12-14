@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage

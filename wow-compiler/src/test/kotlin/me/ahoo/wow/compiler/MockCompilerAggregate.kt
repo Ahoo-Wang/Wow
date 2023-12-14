@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.StaticTenantId
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 
 @me.ahoo.wow.api.annotation.CreateAggregate
 class CreateAggregate(@AggregateId val targetId: String, val state: String)

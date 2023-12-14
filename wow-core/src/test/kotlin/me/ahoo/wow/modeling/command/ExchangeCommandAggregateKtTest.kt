@@ -1,7 +1,7 @@
 package me.ahoo.wow.modeling.command
 
 import io.mockk.mockk
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

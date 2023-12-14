@@ -1,6 +1,6 @@
 package me.ahoo.wow.opentelemetry.messaging
 
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.mock.MockCreateAggregate

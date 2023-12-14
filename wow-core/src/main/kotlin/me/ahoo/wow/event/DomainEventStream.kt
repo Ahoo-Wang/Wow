@@ -16,6 +16,7 @@ import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.RequestId
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Header

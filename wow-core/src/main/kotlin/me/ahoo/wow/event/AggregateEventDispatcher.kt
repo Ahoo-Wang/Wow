@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction

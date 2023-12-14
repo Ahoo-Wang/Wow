@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.event.DEFAULT_EVENT_SEQUENCE
+import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate

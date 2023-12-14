@@ -23,7 +23,7 @@ import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.asMessageFunction
-import me.ahoo.wow.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction

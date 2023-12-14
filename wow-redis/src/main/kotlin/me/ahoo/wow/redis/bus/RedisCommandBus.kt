@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate

@@ -14,7 +14,7 @@
 package me.ahoo.wow.event.upgrader
 
 import me.ahoo.wow.configuration.requiredNamedAggregate
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.asDomainEvent
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate

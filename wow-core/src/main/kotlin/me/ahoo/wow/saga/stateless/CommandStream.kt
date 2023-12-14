@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 
 interface CommandStream : Iterable<CommandMessage<*>> {
     val domainEventId: String

@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.api.modeling.TenantId
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.infra.ifNotBlank

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.processor
 
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono

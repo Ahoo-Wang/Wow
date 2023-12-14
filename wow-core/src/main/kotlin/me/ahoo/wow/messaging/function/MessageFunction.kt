@@ -14,9 +14,9 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.messaging.processor.ProcessorInfo
 
 interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     FunctionKindCapable,

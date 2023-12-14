@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers

@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.TenantId

@@ -15,7 +15,7 @@
 package me.ahoo.wow.example.domain.order
 
 import io.swagger.v3.oas.annotations.media.Schema
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem

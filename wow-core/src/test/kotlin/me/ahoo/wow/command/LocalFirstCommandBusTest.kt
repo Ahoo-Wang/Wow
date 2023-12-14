@@ -1,5 +1,6 @@
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.InMemoryMessageBus
 import me.ahoo.wow.tck.command.CommandBusSpec

@@ -11,29 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.processor
+package me.ahoo.wow.api.messaging.processor
 
-import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.NamedBoundedContext
 
 interface ProcessorInfo : NamedBoundedContext {
     val processorName: String
 }
 
-data class ProcessorInfoData(
-    override val contextName: String,
-    override val processorName: String
-) : ProcessorInfo, Materialized {
-    companion object {
-        fun unknown(contextName: String): ProcessorInfo {
-            return ProcessorInfoData(contextName, "Unknown")
-        }
-    }
-}
-
-fun ProcessorInfo.materialize(): ProcessorInfoData {
-    if (this is Materialized) {
-        return this as ProcessorInfoData
-    }
-    return ProcessorInfoData(contextName = contextName, processorName = processorName)
-}

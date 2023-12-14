@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.api.event.DomainEvent
 
 data class BodyTypeNotFoundDomainEvent(
     override val id: String,

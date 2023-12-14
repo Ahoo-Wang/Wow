@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.messaging.DistributedMessageBus
