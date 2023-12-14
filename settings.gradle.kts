@@ -40,6 +40,14 @@ project(":wow-it").projectDir = file("test/wow-it")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 //endregion
+//region compensation
+include(":compensation-api")
+project(":compensation-api").projectDir = file("compensation/compensation-api")
+include(":compensation-domain")
+project(":compensation-domain").projectDir = file("compensation/compensation-domain")
+include(":compensation-server")
+project(":compensation-server").projectDir = file("compensation/compensation-server")
+//endregion
 //region example
 include(":example-api")
 project(":example-api").projectDir = file("example/example-api")
@@ -51,12 +59,12 @@ include(":example-server")
 project(":example-server").projectDir = file("example/example-server")
 
 include("example-transfer-api")
-project(":example-transfer-api").projectDir =file("example/transfer/example-transfer-api")
+project(":example-transfer-api").projectDir = file("example/transfer/example-transfer-api")
 
 include("example-transfer-domain")
-project(":example-transfer-domain").projectDir =file("example/transfer/example-transfer-domain")
+project(":example-transfer-domain").projectDir = file("example/transfer/example-transfer-domain")
 
 include("example-transfer-server")
-project(":example-transfer-server").projectDir =file("example/transfer/example-transfer-server")
+project(":example-transfer-server").projectDir = file("example/transfer/example-transfer-server")
 //endregion
 

@@ -1,0 +1,34 @@
+@startuml EventCompensation
+!include layout.puml
+title
+EventCompensation
+(CompensationScheduler)
+end title
+hide footbox
+
+actor ExternalService
+participant ExecutionFailed
+participant CompensationScheduler
+participant EventCompensator
+autonumber "[0]"
+
+ExternalService++
+CompensationScheduler++
+
+ExternalService -> ExecutionFailed --++ : CreateFailed \n(执行失败)
+ExecutionFailed --
+CompensationScheduler -> CompensationScheduler ++ : 定时重试失败的执行
+CompensationScheduler -> ExecutionFailed  --: Prepare \n(准备重试)
+ExecutionFailed --> EventCompensator --++ : Prepared \n(已准备就绪)
+EventCompensator -> EventCompensator ++-- : 发起补偿
+EventCompensator --> ExternalService++-- : 接收补偿事件
+ExternalService-> ExternalService ++-- : Invoke \n(执行补偿)
+alt success：成功
+ExternalService -> ExecutionFailed++ : ApplySuccess \n(执行成功)
+ExecutionFailed--
+else fail：失败
+ExternalService -> ExecutionFailed++ : ApplyFailed \n(执行失败)
+end
+@enduml
+
+
