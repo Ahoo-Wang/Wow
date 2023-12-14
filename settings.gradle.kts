@@ -28,7 +28,6 @@ include(":wow-spring")
 include(":wow-webflux")
 include(":wow-spring-boot-starter")
 include(":wow-opentelemetry")
-
 //region test
 include(":wow-test")
 project(":wow-test").projectDir = file("test/wow-test")
@@ -59,6 +58,5 @@ project(":example-transfer-domain").projectDir =file("example/transfer/example-t
 
 include("example-transfer-server")
 project(":example-transfer-server").projectDir =file("example/transfer/example-transfer-server")
-
 //endregion
 

@@ -2,11 +2,9 @@
   <img width="150" src="document/design/assets/logo.svg" alt="Wow:基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
 </p>
 
-# Wow
+# Wow : 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 
 > [English Document](https://github.com/Ahoo-Wang/Wow/blob/main/README.md)
-
-基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架。
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
