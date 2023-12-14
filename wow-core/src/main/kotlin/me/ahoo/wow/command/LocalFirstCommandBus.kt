@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 class LocalFirstCommandBus(

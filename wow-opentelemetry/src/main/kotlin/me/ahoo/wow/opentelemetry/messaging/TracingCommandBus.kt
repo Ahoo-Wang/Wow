@@ -14,7 +14,7 @@
 package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange

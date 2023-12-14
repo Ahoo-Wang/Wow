@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.api.command
 
 import me.ahoo.wow.api.Copyable
-import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable

@@ -16,7 +16,7 @@ import com.google.common.base.Preconditions
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.eventsourcing.EventStore

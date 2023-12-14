@@ -11,17 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.api.messaging.processor
 
-import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.WowException
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Test
 
-class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
-    WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
-    companion object {
-        fun DomainEvent<out ErrorInfo>.asException(): DomainEventException {
-            return DomainEventException(this)
-        }
+class ProcessorInfoDataTest {
+    @Test
+    fun `materialize - ProcessorInfoData`() {
+        val processorInfoData = ProcessorInfoData("contextName", "processorName")
+        val materialized = processorInfoData.materialize()
+        assertThat(processorInfoData, sameInstance(materialized))
+    }
+
+    @Test
+    fun `unknown - ProcessorInfoData`() {
+        val processorInfoData = ProcessorInfoData.unknown("contextName")
+        assertThat(processorInfoData.processorName, equalTo("Unknown"))
     }
 }

@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.event.DomainEvent
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
 import me.ahoo.wow.modeling.MaterializedNamedAggregate

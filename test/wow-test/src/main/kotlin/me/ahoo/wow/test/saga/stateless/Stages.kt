@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.test.saga.stateless
 
-import me.ahoo.wow.command.CommandMessage
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.naming.annotation.asName
 import me.ahoo.wow.saga.stateless.CommandStream

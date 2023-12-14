@@ -11,17 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.api.messaging.processor
 
-import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.WowException
+import me.ahoo.wow.api.naming.Materialized
 
-class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
-    WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
+data class ProcessorInfoData(
+    override val contextName: String,
+    override val processorName: String
+) : ProcessorInfo, Materialized {
     companion object {
-        fun DomainEvent<out ErrorInfo>.asException(): DomainEventException {
-            return DomainEventException(this)
+        fun unknown(contextName: String): ProcessorInfo {
+            return ProcessorInfoData(contextName, "Unknown")
         }
     }
+}
+
+fun ProcessorInfo.materialize(): ProcessorInfoData {
+    if (this is Materialized) {
+        return this as ProcessorInfoData
+    }
+    return ProcessorInfoData(
+        contextName = contextName,
+        processorName = processorName
+    )
 }

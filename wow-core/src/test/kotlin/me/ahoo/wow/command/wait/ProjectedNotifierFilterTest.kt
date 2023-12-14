@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.event.DomainEvent
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator

@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import jakarta.validation.ConstraintViolation
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION

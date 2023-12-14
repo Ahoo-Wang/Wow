@@ -15,8 +15,8 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.messaging.processor.ProcessorInfo
 
 interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo {
     val stage: CommandStage

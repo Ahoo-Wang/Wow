@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import io.mockk.mockk
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.tck.command.CommandGatewaySpec

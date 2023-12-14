@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
