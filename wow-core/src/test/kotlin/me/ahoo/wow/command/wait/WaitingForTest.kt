@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.messaging.processor.ProcessorInfoData
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

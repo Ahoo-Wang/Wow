@@ -11,25 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.processor
+package me.ahoo.wow.api.messaging.processor
 
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.api.naming.Materialized
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Test
 
-data class ProcessorInfoData(
-    override val contextName: String,
-    override val processorName: String
-) : ProcessorInfo, Materialized {
-    companion object {
-        fun unknown(contextName: String): ProcessorInfo {
-            return ProcessorInfoData(contextName, "Unknown")
-        }
+class ProcessorInfoDataTest {
+    @Test
+    fun `materialize - ProcessorInfoData`() {
+        val processorInfoData = ProcessorInfoData("contextName", "processorName")
+        val materialized = processorInfoData.materialize()
+        assertThat(processorInfoData, sameInstance(materialized))
     }
-}
 
-fun ProcessorInfo.materialize(): ProcessorInfoData {
-    if (this is Materialized) {
-        return this as ProcessorInfoData
+    @Test
+    fun `unknown - ProcessorInfoData`() {
+        val processorInfoData = ProcessorInfoData.unknown("contextName")
+        assertThat(processorInfoData.processorName, equalTo("Unknown"))
     }
-    return ProcessorInfoData(contextName = contextName, processorName = processorName)
 }
