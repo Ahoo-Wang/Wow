@@ -9,6 +9,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/compensation/compensation-api" />
+            <option value="$PROJECT_DIR$/compensation/compensation-core" />
             <option value="$PROJECT_DIR$/compensation/compensation-domain" />
             <option value="$PROJECT_DIR$/compensation/compensation-server" />
             <option value="$PROJECT_DIR$/example/example-api" />

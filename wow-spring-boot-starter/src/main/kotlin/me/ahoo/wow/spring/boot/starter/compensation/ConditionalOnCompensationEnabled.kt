@@ -11,17 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.spring.boot.starter.compensation
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
-data class PrepareCompensation(@CommandRoute.PathVariable override val id: String) : Identifier
+const val ENABLED_KEY: String = CompensationProperties.PREFIX + ENABLED_SUFFIX_KEY
 
-data class CompensationPrepared(
-    val eventId: EventId,
-    val processor: ProcessorInfoData,
-    val functionKind: FunctionKind
+@ConditionalOnProperty(
+    ENABLED_KEY,
+    havingValue = "true",
+    matchIfMissing = true,
 )
+annotation class ConditionalOnCompensationEnabled

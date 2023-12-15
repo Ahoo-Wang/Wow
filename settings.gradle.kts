@@ -43,6 +43,8 @@ project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 //region compensation
 include(":compensation-api")
 project(":compensation-api").projectDir = file("compensation/compensation-api")
+include(":compensation-core")
+project(":compensation-core").projectDir = file("compensation/compensation-core")
 include(":compensation-domain")
 project(":compensation-domain").projectDir = file("compensation/compensation-domain")
 include(":compensation-server")

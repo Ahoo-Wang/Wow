@@ -14,7 +14,7 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.compensation.api.CompensationService
+import me.ahoo.wow.compensation.CompensationService
 import me.ahoo.wow.compensation.domain.CompensationBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

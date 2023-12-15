@@ -15,6 +15,7 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
@@ -27,7 +28,13 @@ data class ErrorDetails(override val errorCode: String, override val errorMsg: S
 data class EventId(override val id: String, override val aggregateId: AggregateId, override val version: Int) :
     Identifier,
     Version,
-    AggregateIdCapable
+    AggregateIdCapable {
+    companion object {
+        fun DomainEvent<*>.toEventId(): EventId {
+            return EventId(id = id, aggregateId = aggregateId, version = version)
+        }
+    }
+}
 
 interface RetriedTimes {
     val retriedTimes: Int

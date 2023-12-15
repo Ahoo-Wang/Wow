@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.compensation
 
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.BoundedContext.Aggregate
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.compensation.api.CreateExecutionFailed
 
 @BoundedContext(
     name = CompensationService.SERVICE_NAME,
@@ -29,7 +30,7 @@ import me.ahoo.wow.api.modeling.TenantId
     ],
 )
 object CompensationService {
-    const val SERVICE_NAME = "compensation-service"
     const val SERVICE_ALIAS = "compensation"
+    const val SERVICE_NAME = "${SERVICE_ALIAS}-service"
     const val EXECUTION_FAILED_AGGREGATE_NAME = "execution_failed"
 }
