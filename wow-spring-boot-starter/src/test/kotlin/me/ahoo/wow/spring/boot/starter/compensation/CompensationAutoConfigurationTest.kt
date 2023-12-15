@@ -1,8 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.compensation
 
 import io.mockk.mockk
-import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationFilter
 import me.ahoo.wow.compensation.core.CompensationSaga
 import me.ahoo.wow.event.compensation.DomainEventCompensator
@@ -20,9 +19,9 @@ class CompensationAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withBean(CommandBus::class.java, { InMemoryCommandBus() })
-            .withBean(DomainEventCompensator::class.java, { mockk<DomainEventCompensator>() })
-            .withBean(StateEventCompensator::class.java, { mockk<StateEventCompensator>() })
+            .withBean(CommandGateway::class.java, { mockk() })
+            .withBean(DomainEventCompensator::class.java, { mockk() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
             .withUserConfiguration(
                 CompensationAutoConfiguration::class.java
             )

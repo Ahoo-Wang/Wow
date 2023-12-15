@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.compensation
 
-import me.ahoo.wow.command.CommandBus
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationFilter
 import me.ahoo.wow.compensation.core.CompensationSaga
 import me.ahoo.wow.event.compensation.DomainEventCompensator
@@ -28,8 +28,8 @@ import org.springframework.context.annotation.Bean
 class CompensationAutoConfiguration {
 
     @Bean
-    fun compensationFilter(commandBus: CommandBus): CompensationFilter {
-        return CompensationFilter(commandBus)
+    fun compensationFilter(commandGateway: CommandGateway): CompensationFilter {
+        return CompensationFilter(commandGateway)
     }
 
     @Bean
