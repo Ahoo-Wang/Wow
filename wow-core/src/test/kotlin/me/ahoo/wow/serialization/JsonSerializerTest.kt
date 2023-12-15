@@ -16,16 +16,11 @@ package me.ahoo.wow.serialization
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.asCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.asDomainEvent
-import me.ahoo.wow.event.error.ErrorDetails
-import me.ahoo.wow.event.error.EventFunctionError
-import me.ahoo.wow.event.error.EventId
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -54,24 +49,6 @@ internal class JsonSerializerTest {
         assertThat(output, notNullValue())
         val input = output.asObject<AggregateId>()
         assertThat(input, equalTo(aggregateId))
-    }
-
-    @Test
-    fun eventFunctionError() {
-        val aggregateId = MOCK_AGGREGATE_METADATA.asAggregateId()
-        val eventFunctionError =
-            EventFunctionError(
-                id = GlobalIdGenerator.generateAsString(),
-                eventId = EventId(GlobalIdGenerator.generateAsString(), aggregateId),
-                functionKind = FunctionKind.EVENT,
-                processor = ProcessorInfoData("", ""),
-                error = ErrorDetails("", "", ""),
-                createTime = System.currentTimeMillis()
-            )
-        val output = eventFunctionError.asJsonString()
-        assertThat(output, notNullValue())
-        val input = output.asObject<EventFunctionError>()
-        assertThat(input, equalTo(eventFunctionError))
     }
 
     @Test
