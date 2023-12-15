@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.compensation
 
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
 const val ENABLED_KEY: String = CompensationProperties.PREFIX + ENABLED_SUFFIX_KEY
@@ -23,4 +24,5 @@ const val ENABLED_KEY: String = CompensationProperties.PREFIX + ENABLED_SUFFIX_K
     havingValue = "true",
     matchIfMissing = true,
 )
+@ConditionalOnClass(name = ["me.ahoo.wow.compensation.core.CompensationFilter"])
 annotation class ConditionalOnCompensationEnabled
