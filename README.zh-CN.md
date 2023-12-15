@@ -106,58 +106,9 @@
 
 ## 特性
 
-- [x] Aggregate Modeling
-    - [x] Single Class
-    - [x] Inheritance Pattern
-    - [x] Aggregation Pattern
-- [x] Saga Modeling
-    - [x] `StatelessSaga`
-- [x] Test Suite
-    - [x] 兼容性测试规范（TCK）
-    - [x] `AggregateVerifier`
-    - [x] `SagaVerifier`
-- [x] EventSourcing
-    - EventStore
-        - [x] MongoDB (Recommend)
-        - [x] R2dbc
-            - [x] Database Sharding
-            - [x] Table Sharding
-        - [x] Redis
-    - Snapshot
-        - [x] MongoDB
-        - [x] R2dbc
-            - [x] Database Sharding
-            - [x] Table Sharding
-        - [x] ElasticSearch
-        - [x] Redis (Recommend)
-- [x] 命令等待策略（`WaitStrategy`）
-    - [x] `SENT` : 命令发送成功后发送完成信号
-    - [x] `PROCESSED` : 命令处理完成后发送完成信号
-    - [x] `SNAPSHOT` : 快照生成完成后发送完成信号
-    - [x] `PROJECTED` : 命令产生的事件被投影后发送完成信号
-- [x] CommandBus
-    - [x] `InMemoryCommandBus`
-    - [x] `KafkaCommandBus` (Recommend)
-    - [x] `RedisCommandBus`
-    - [x] `LocalFirstCommandBus`
-- [x] DomainEventBus
-    - [x] `InMemoryDomainEventBus` 
-    - [x] `KafkaDomainEventBus` (Recommend)
-    - [x] `RedisDomainEventBus`
-    - [x] `LocalFirstDomainEventBus`
-- [x] StateEventBus
-    - [x] `InMemoryStateEventBus` 
-    - [x] `KafkaStateEventBus` (Recommend)
-    - [x] `RedisStateEventBus`
-    - [x] `LocalFirstStateEventBus`
-- [x] Spring 集成
-    - [x] Spring Boot Auto Configuration
-    - [x] Automatically register `CommandAggregate` to `RouterFunction`
-- [x] 可观测性
-    - [x] OpenTelemetry
-- [x] OpenAPI
-- [x] `WowMetadata` Generator
-    - [x] `wow-compiler`
+<p align="center" style="text-align:center">
+  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
+</p>
 
 ## Example
 
