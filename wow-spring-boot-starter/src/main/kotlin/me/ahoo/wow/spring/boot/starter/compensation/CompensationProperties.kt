@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.spring.boot.starter.compensation
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
-data class PrepareCompensation(@CommandRoute.PathVariable override val id: String) : Identifier
-
-data class CompensationPrepared(
-    val eventId: EventId,
-    val processor: ProcessorInfoData,
-    val functionKind: FunctionKind
-)
+@ConfigurationProperties(prefix = CompensationProperties.PREFIX)
+class CompensationProperties(
+    @DefaultValue("true") override var enabled: Boolean = true
+) : EnabledCapable {
+    companion object {
+        const val PREFIX = "${Wow.WOW_PREFIX}compensation"
+    }
+}

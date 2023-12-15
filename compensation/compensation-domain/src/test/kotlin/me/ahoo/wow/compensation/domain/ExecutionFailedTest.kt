@@ -115,7 +115,14 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .given(executionFailedCreated, CompensationPrepared)
+            .given(
+                executionFailedCreated,
+                CompensationPrepared(
+                    eventId = EVENT_ID,
+                    processor = processor,
+                    functionKind = functionKind
+                )
+            )
             .`when`(applyExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedApplied::class.java)
@@ -149,7 +156,14 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .given(executionFailedCreated, CompensationPrepared)
+            .given(
+                executionFailedCreated,
+                CompensationPrepared(
+                    eventId = EVENT_ID,
+                    processor = processor,
+                    functionKind = functionKind
+                )
+            )
             .`when`(applyExecutionSuccess)
             .expectNoError()
             .expectEventType(ExecutionSuccessApplied::class.java)

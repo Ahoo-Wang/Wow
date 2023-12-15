@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.spring.projection
 
+import me.ahoo.wow.api.annotation.ProjectionProcessor
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.spring.AutoRegistrar
-import me.ahoo.wow.spring.stereotype.ProjectionProcessor
 import org.springframework.context.ApplicationContext
 
 class ProjectionProcessorAutoRegistrar(

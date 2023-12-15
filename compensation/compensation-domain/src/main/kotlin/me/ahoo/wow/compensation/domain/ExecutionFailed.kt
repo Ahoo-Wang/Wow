@@ -43,7 +43,11 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     @OnCommand
     fun onPrepare(command: PrepareCompensation): CompensationPrepared {
         check(this.state.status == ExecutionFailedStatus.FAILED) { "ExecutionFailed is not failed." }
-        return CompensationPrepared
+        return CompensationPrepared(
+            eventId = this.state.eventId,
+            processor = this.state.processor,
+            functionKind = this.state.functionKind
+        )
     }
 
     @OnCommand

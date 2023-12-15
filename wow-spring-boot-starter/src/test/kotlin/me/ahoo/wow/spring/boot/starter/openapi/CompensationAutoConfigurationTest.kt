@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
-class OpenAPIAutoConfigurationTest {
+class CompensationAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test

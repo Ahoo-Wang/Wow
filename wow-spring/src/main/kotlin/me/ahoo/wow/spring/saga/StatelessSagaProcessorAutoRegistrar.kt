@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.spring.saga
 
+import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.spring.AutoRegistrar
-import me.ahoo.wow.spring.stereotype.StatelessSaga
 import org.springframework.context.ApplicationContext
 
 class StatelessSagaProcessorAutoRegistrar(

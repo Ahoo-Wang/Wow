@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.spring.event
 
+import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.spring.AutoRegistrar
-import me.ahoo.wow.spring.stereotype.EventProcessor
 import org.springframework.context.ApplicationContext
 
 class EventProcessorAutoRegistrar(

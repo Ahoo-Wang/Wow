@@ -14,7 +14,7 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.compensation.api.CompensationService
+import me.ahoo.wow.compensation.CompensationService
 
 @Suppress("unused")
 @BoundedContext(name = CompensationService.SERVICE_NAME)
