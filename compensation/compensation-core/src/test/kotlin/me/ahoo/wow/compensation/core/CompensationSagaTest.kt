@@ -94,4 +94,16 @@ class CompensationSagaTest {
             )
         }
     }
+
+    @Test
+    fun onCompensationPreparedWhenOther() {
+        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.asAggregateId(), 1)
+        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.ERROR)
+        sagaVerifier<CompensationSaga>()
+            .inject(mockk<StateEventCompensator>())
+            .inject(mockk<DomainEventCompensator>())
+            .`when`(compensationPrepared)
+            .expectNoCommand()
+            .verify()
+    }
 }
