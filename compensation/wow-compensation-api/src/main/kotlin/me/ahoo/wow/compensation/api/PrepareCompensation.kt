@@ -15,10 +15,13 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
+import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 
-data class PrepareCompensation(@CommandRoute.PathVariable override val id: String) : Identifier
+@CommandRoute(appendIdPath = AppendPath.ALWAYS)
+data class PrepareCompensation(@PathVariable override val id: String) : Identifier
 
 data class CompensationPrepared(
     val eventId: EventId,
