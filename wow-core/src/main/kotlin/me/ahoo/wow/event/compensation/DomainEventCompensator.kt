@@ -26,10 +26,6 @@ class DomainEventCompensator(
     private val eventBus: DomainEventBus
 ) : EventCompensator {
 
-    override fun compensate(aggregateId: AggregateId, version: Int, target: CompensationTarget): Mono<Long> {
-        return resend(aggregateId, version, version, target)
-    }
-
     override fun resend(
         aggregateId: AggregateId,
         headVersion: Int,
