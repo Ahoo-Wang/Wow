@@ -107,7 +107,7 @@
 ## 特性
 
 <p align="center" style="text-align:center">
-  <img src="document/design/assets/Features.svg" alt="Wow-Features"/>
+  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
 </p>
 
 ## Example
