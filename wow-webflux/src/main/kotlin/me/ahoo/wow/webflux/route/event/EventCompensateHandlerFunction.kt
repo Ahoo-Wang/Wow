@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.messaging.compensation.CompensationFilter
+import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.asServerResponse
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -34,19 +35,17 @@ abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        return request.bodyToMono(CompensationFilter::class.java)
+        return request.bodyToMono(CompensationTarget::class.java)
             .flatMap {
                 requireNotNull(it) {
-                    "CompensationConfig is required!"
+                    "CompensationTarget is required!"
                 }
-                val headVersion = request.pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY).toInt()
-                val tailVersion = request.pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY).toInt()
+                val version = request.pathVariable(MessageRecords.VERSION).toInt()
                 val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
                 eventCompensator.compensate(
-                    aggregateId,
-                    filter = it,
-                    headVersion = headVersion,
-                    tailVersion = tailVersion,
+                    aggregateId = aggregateId,
+                    target = it,
+                    version = version
                 )
             }.asServerResponse(exceptionHandler)
     }

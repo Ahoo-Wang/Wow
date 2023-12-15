@@ -47,11 +47,11 @@ class LoadEventStreamRouteSpec(
         get() = ApiResponses().with(DOMAIN_EVENT_STREAM_ARRAY_RESPONSE)
 
     override val appendPathSuffix: String
-        get() = "event/{${RoutePaths.COMPENSATE_HEAD_VERSION_KEY}}/{${RoutePaths.COMPENSATE_TAIL_VERSION_KEY}}"
+        get() = "event/{${RoutePaths.HEAD_VERSION_KEY}}/{${RoutePaths.TAIL_VERSION_KEY}}"
     override val parameters: List<Parameter>
         get() = super.parameters + listOf(
-            RoutePaths.COMPENSATE_HEAD_VERSION.ref,
-            RoutePaths.COMPENSATE_TAIL_VERSION.ref
+            RoutePaths.HEAD_VERSION.ref,
+            RoutePaths.TAIL_VERSION.ref
         )
 }
 

@@ -14,7 +14,6 @@
 package me.ahoo.wow.messaging.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.eventsourcing.EventStore
 import reactor.core.publisher.Mono
 
 /**
@@ -23,8 +22,16 @@ import reactor.core.publisher.Mono
 interface EventCompensator {
     fun compensate(
         aggregateId: AggregateId,
-        filter: CompensationFilter = CompensationFilter.EMPTY,
-        headVersion: Int = EventStore.DEFAULT_HEAD_VERSION,
-        tailVersion: Int = Int.MAX_VALUE
+        version: Int,
+        target: CompensationTarget
+    ): Mono<Long> {
+        return resend(aggregateId, version, version, target)
+    }
+
+    fun resend(
+        aggregateId: AggregateId,
+        headVersion: Int,
+        tailVersion: Int,
+        target: CompensationTarget,
     ): Mono<Long>
 }

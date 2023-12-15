@@ -25,8 +25,8 @@ class LoadEventStreamHandlerFunctionTest {
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY) } returns "0"
-            every { pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
+            every { pathVariable(RoutePaths.HEAD_VERSION_KEY) } returns "0"
+            every { pathVariable(RoutePaths.TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
         }
         handlerFunction.handle(request)

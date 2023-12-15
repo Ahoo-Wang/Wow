@@ -15,71 +15,51 @@ package me.ahoo.wow.messaging.compensation
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.id.GlobalIdGenerator
 
 const val COMPENSATION_PREFIX = "compensate."
-const val COMPENSATE_PROCESSOR_SEPARATOR = ","
-const val COMPENSATION_EXCLUDE_HEADER = "${COMPENSATION_PREFIX}exclude"
-const val COMPENSATION_INCLUDE_HEADER = "${COMPENSATION_PREFIX}include"
-const val COMPENSATION_ALL_VALUE = "*"
+const val COMPENSATION_ID = "${COMPENSATION_PREFIX}id"
+const val COMPENSATION_CONTEXT = "${COMPENSATION_PREFIX}context"
+const val COMPENSATION_PROCESSOR = "${COMPENSATION_PREFIX}processor"
 
-data class CompensationFilter(
-    val include: Set<String> = emptySet(),
-    val exclude: Set<String> = emptySet()
-) {
-    companion object {
-        val EMPTY = CompensationFilter()
-    }
-}
+data class CompensationTarget(
+    val id: String = GlobalIdGenerator.generateAsString(),
+    val processor: ProcessorInfoData
+)
 
 object CompensationMatcher {
-    private fun String.asStringSet(): Set<String> {
-        return split(COMPENSATE_PROCESSOR_SEPARATOR).filter { it.isNotBlank() }.toSet()
-    }
-
-    fun <M : Message<out M, *>> M.withCompensation(config: CompensationFilter = CompensationFilter.EMPTY): M {
-        return this.withCompensation(include = config.include, exclude = config.exclude)
-    }
-
-    fun <M : Message<out M, *>> M.withCompensation(
-        include: Set<String> = emptySet(),
-        exclude: Set<String> = emptySet()
-    ): M {
-        header.withCompensation(include, exclude)
+    fun <M : Message<out M, *>> M.withCompensation(target: CompensationTarget): M {
+        header.withCompensation(target)
         return this
     }
 
-    fun Header.withCompensation(
-        include: Set<String> = emptySet(),
-        exclude: Set<String> = emptySet()
-    ): Header {
-        val excludeString = exclude.joinToString(COMPENSATE_PROCESSOR_SEPARATOR) {
-            it.trim()
-        }
-        val includeString = include.joinToString(COMPENSATE_PROCESSOR_SEPARATOR) {
-            it.trim()
-        }
-        return with(COMPENSATION_EXCLUDE_HEADER, excludeString)
-            .with(COMPENSATION_INCLUDE_HEADER, includeString)
+    fun Header.withCompensation(target: CompensationTarget): Header {
+        return with(COMPENSATION_ID, target.id)
+            .with(COMPENSATION_CONTEXT, target.processor.contextName)
+            .with(COMPENSATION_PROCESSOR, target.processor.processorName)
     }
 
-    fun Message<*, *>.match(processor: String): Boolean {
+    fun Message<*, *>.match(processor: ProcessorInfo): Boolean {
         return header.match(processor)
     }
 
-    fun Header.match(processor: String): Boolean {
-        val excludeString = this[COMPENSATION_EXCLUDE_HEADER]
-        val includeString = this[COMPENSATION_INCLUDE_HEADER]
-        if (excludeString == null && includeString == null) {
+    val Header.compensationId: String?
+        get() = this[COMPENSATION_ID]
+
+    fun Header.match(processor: ProcessorInfo): Boolean {
+        if (!containsKey(COMPENSATION_ID)) {
             return true
         }
-        val exclude = excludeString?.asStringSet() ?: emptySet()
-        if (processor in exclude) {
+        val context = this[COMPENSATION_CONTEXT]
+        val processorName = this[COMPENSATION_PROCESSOR]
+        if (context != processor.contextName) {
             return false
         }
-        val include = includeString?.asStringSet() ?: emptySet()
-        if (include.contains(COMPENSATION_ALL_VALUE)) {
-            return true
+        if (processorName != processor.processorName) {
+            return false
         }
-        return processor in include
+        return true
     }
 }
