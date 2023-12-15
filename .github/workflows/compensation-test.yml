@@ -25,8 +25,25 @@ env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  wow-compensation-test:
-    name: Compensation Test
+  compensation-core-test:
+    name: Compensation Core Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Compensation
+        run: ./gradlew compensation-core:clean compensation-core:check --stacktrace
+  compensation-domain-test:
+    name: Compensation Domain Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
