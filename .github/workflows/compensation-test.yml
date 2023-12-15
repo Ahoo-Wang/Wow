@@ -41,7 +41,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Compensation
-        run: ./gradlew compensation-core:clean compensation-core:check --stacktrace
+        run: ./gradlew wow-compensation-core:clean wow-compensation-core:check --stacktrace
   compensation-domain-test:
     name: Compensation Domain Test
     runs-on: ubuntu-latest
@@ -58,4 +58,4 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Compensation
-        run: ./gradlew compensation-domain:clean compensation-domain:check --stacktrace
+        run: ./gradlew wow-compensation-domain:clean wow-compensation-domain:check --stacktrace
