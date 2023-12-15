@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 dependencies {
-    api(project(":compensation-api"))
+    api(project(":wow-compensation-api"))
     api(project(":wow-spring"))
     ksp(project(":wow-compiler"))
     testImplementation(project(":wow-test"))
