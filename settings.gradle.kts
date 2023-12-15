@@ -41,14 +41,14 @@ include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 //endregion
 //region compensation
-include(":compensation-api")
-project(":compensation-api").projectDir = file("compensation/compensation-api")
-include(":compensation-core")
-project(":compensation-core").projectDir = file("compensation/compensation-core")
-include(":compensation-domain")
-project(":compensation-domain").projectDir = file("compensation/compensation-domain")
-include(":compensation-server")
-project(":compensation-server").projectDir = file("compensation/compensation-server")
+include(":wow-compensation-api")
+project(":wow-compensation-api").projectDir = file("compensation/wow-compensation-api")
+include(":wow-compensation-core")
+project(":wow-compensation-core").projectDir = file("compensation/wow-compensation-core")
+include(":wow-compensation-domain")
+project(":wow-compensation-domain").projectDir = file("compensation/wow-compensation-domain")
+include(":wow-compensation-server")
+project(":wow-compensation-server").projectDir = file("compensation/wow-compensation-server")
 //endregion
 //region example
 include(":example-api")
