@@ -25,7 +25,6 @@ class MongoProperties(
     val eventStreamDatabase: String?,
     val snapshotDatabase: String?,
     val prepareDatabase: String?,
-    val errorDatabase: String?,
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}mongo"
