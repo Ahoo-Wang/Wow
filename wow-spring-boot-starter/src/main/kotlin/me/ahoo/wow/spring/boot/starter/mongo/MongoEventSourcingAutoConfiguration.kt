@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot.starter.mongo
 
 import com.mongodb.reactivestreams.client.MongoClient
-import me.ahoo.wow.event.error.EventFunctionErrorRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
@@ -22,8 +21,6 @@ import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
-import me.ahoo.wow.mongo.error.EventFunctionErrorSchemaInitializer
-import me.ahoo.wow.mongo.error.MongoEventFunctionErrorRepository
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
@@ -50,24 +47,6 @@ import org.springframework.lang.Nullable
 @ConditionalOnClass(MongoEventStore::class)
 @EnableConfigurationProperties(MongoProperties::class)
 class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProperties) {
-
-    @Bean
-    @ConditionalOnBean(MongoClient::class)
-    @ConditionalOnMissingBean(EventFunctionErrorRepository::class)
-    fun mongoEventFunctionErrorRepository(
-        mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
-    ): EventFunctionErrorRepository {
-        val errorDatabaseName = mongoProperties.errorDatabase ?: dataMongoProperties?.mongoClientDatabase
-        requireNotNull(errorDatabaseName) {
-            "${MongoProperties.PREFIX}.error-database must not be null!"
-        }
-        val errorDatabase = mongoClient.getDatabase(errorDatabaseName)
-        if (mongoProperties.autoInitSchema) {
-            EventFunctionErrorSchemaInitializer(errorDatabase).init()
-        }
-        return MongoEventFunctionErrorRepository(errorDatabase)
-    }
 
     @Bean
     @ConditionalOnProperty(
