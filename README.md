@@ -21,6 +21,12 @@ Query Responsibility Segregation** | **Event Sourcing**
 
 Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the Wow framework.
 
+## Features Overview
+
+<p align="center" style="text-align:center">
+  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
+</p>
+
 ## Architecture
 
 <p align="center" style="text-align:center">
@@ -107,12 +113,6 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 - Understanding **Command Query Responsibility Segregation**(CQRS)
 - Understanding **EventSourcing**
 - Understanding **Reactive Programming**
-
-## Features
-
-<p align="center" style="text-align:center">
-  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
-</p>
 
 ### Order Service（Kotlin）
 

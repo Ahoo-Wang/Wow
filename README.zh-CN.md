@@ -20,6 +20,12 @@
 
 使用[Wow 项目模板](https://gitee.com/AhooWang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
 
+## 特性概览
+
+<p align="center" style="text-align:center">
+  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
+</p>
+
 ## 架构图
 
 <p align="center" style="text-align:center">
@@ -103,12 +109,6 @@
 - 理解 **命令查询职责分离**（CQRS）
 - 理解 **事件源架构**
 - 理解 **响应式编程**
-
-## 特性
-
-<p align="center" style="text-align:center">
-  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
-</p>
 
 ## Example
 
