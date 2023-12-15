@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.webflux.route.event.state
 
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationFilter
+import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
+import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
 import reactor.core.publisher.Mono
@@ -25,11 +28,20 @@ class ResendStateEventHandler(
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator
 ) {
-    fun handle(filter: CompensationFilter, cursorId: String, limit: Int): Mono<BatchResult> {
+    companion object {
+        private val RESEND_PROCESSOR = ProcessorInfoData(Wow.WOW, "Resend")
+    }
+
+    fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
+        val target = CompensationTarget(processor = RESEND_PROCESSOR)
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap { aggregateId ->
-                stateEventCompensator.compensate(aggregateId = aggregateId, filter = filter)
-                    .thenReturn(aggregateId)
+                stateEventCompensator.resend(
+                    aggregateId = aggregateId,
+                    target = target,
+                    headVersion = DEFAULT_HEAD_VERSION,
+                    tailVersion = Int.MAX_VALUE
+                ).thenReturn(aggregateId)
             }
             .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
                 val nextCursorId = if (aggregateId.id > acc.cursorId) {

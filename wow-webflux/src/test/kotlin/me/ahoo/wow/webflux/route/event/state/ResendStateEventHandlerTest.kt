@@ -6,7 +6,6 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -34,7 +33,7 @@ class ResendStateEventHandlerTest {
                 stateEventBus = InMemoryStateEventBus(),
             )
         )
-        handlerFunction.handle(CompensationFilter.EMPTY, "(0)", 10)
+        handlerFunction.handle("(0)", 10)
             .test()
             .consumeNextWith {
                 assertThat(it.size, equalTo(1))

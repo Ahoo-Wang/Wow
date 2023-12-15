@@ -18,9 +18,11 @@ import io.mockk.mockk
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_PROCESSOR
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.compensation.CompensationFilter
+import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -47,10 +49,11 @@ class DomainEventCompensateHandlerFunctionTest {
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY) } returns "0"
-            every { pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
+            every { pathVariable(MessageRecords.VERSION) } returns "1"
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
-            every { bodyToMono(CompensationFilter::class.java) } returns CompensationFilter.EMPTY.toMono()
+            every { bodyToMono(CompensationTarget::class.java) } returns CompensationTarget(
+                processor = SNAPSHOT_PROCESSOR
+            ).toMono()
         }
         handlerFunction.handle(request)
             .test()

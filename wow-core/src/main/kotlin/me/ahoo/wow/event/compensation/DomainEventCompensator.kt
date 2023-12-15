@@ -16,28 +16,32 @@ package me.ahoo.wow.event.compensation
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
+import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
 import reactor.core.publisher.Mono
 
 class DomainEventCompensator(
     private val eventStore: EventStore,
     private val eventBus: DomainEventBus
-) :
-    EventCompensator {
-    override fun compensate(
+) : EventCompensator {
+
+    override fun compensate(aggregateId: AggregateId, version: Int, target: CompensationTarget): Mono<Long> {
+        return resend(aggregateId, version, version, target)
+    }
+
+    override fun resend(
         aggregateId: AggregateId,
-        filter: CompensationFilter,
         headVersion: Int,
-        tailVersion: Int
+        tailVersion: Int,
+        target: CompensationTarget,
     ): Mono<Long> {
         return eventStore.load(
             aggregateId = aggregateId,
             headVersion = headVersion,
             tailVersion = tailVersion,
         ).concatMap {
-            val eventStream = it.withCompensation(filter)
+            val eventStream = it.withCompensation(target)
             eventBus.send(eventStream).thenReturn(it)
         }.count()
     }

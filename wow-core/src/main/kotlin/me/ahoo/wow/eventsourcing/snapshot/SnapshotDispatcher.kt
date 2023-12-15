@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -29,6 +31,7 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 
 internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
+val SNAPSHOT_PROCESSOR = ProcessorInfoData(Wow.WOW, SNAPSHOT_PROCESSOR_NAME)
 
 class SnapshotDispatcher(
     /**
@@ -40,7 +43,7 @@ class SnapshotDispatcher(
     private val stateEventBus: StateEventBus,
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("SnapshotDispatcher")
+        DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)
 ) : AbstractDispatcher<StateEventExchange<*>>(), MessageDispatcher {
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
@@ -49,7 +52,7 @@ class SnapshotDispatcher(
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
             .filterThenAck {
-                it.message.match(SNAPSHOT_PROCESSOR_NAME)
+                it.message.match(SNAPSHOT_PROCESSOR)
             }
     }
 
