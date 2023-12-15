@@ -35,8 +35,8 @@ class LoadEventStreamHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        val headVersion = request.pathVariable(RoutePaths.COMPENSATE_HEAD_VERSION_KEY).toInt()
-        val tailVersion = request.pathVariable(RoutePaths.COMPENSATE_TAIL_VERSION_KEY).toInt()
+        val headVersion = request.pathVariable(RoutePaths.HEAD_VERSION_KEY).toInt()
+        val tailVersion = request.pathVariable(RoutePaths.TAIL_VERSION_KEY).toInt()
         val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
         return eventStore
             .load(

@@ -21,29 +21,36 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
 import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.serialization.MessageRecords
 
 object RoutePaths {
     const val ID_KEY = DEFAULT_AGGREGATE_ID_NAME
 
-    const val COMPENSATE_HEAD_VERSION_KEY = "headVersion"
-    const val COMPENSATE_TAIL_VERSION_KEY = "tailVersion"
+    const val HEAD_VERSION_KEY = "headVersion"
+    const val TAIL_VERSION_KEY = "tailVersion"
 
     const val BATCH_CURSOR_ID = "cursorId"
     const val BATCH_LIMIT = "limit"
 
-    val COMPENSATE_HEAD_VERSION = Parameter()
-        .name(COMPENSATE_HEAD_VERSION_KEY)
+    val VERSION = Parameter()
+        .name(MessageRecords.VERSION)
+        .`in`(ParameterIn.PATH.toString())
+        .schema(IntegerSchema())
+        .example(EventStore.DEFAULT_HEAD_VERSION)
+
+    val HEAD_VERSION = Parameter()
+        .name(HEAD_VERSION_KEY)
         .`in`(ParameterIn.PATH.toString())
         .schema(IntegerSchema())
         .example(EventStore.DEFAULT_HEAD_VERSION).let {
-            ParameterRef("${Wow.WOW_PREFIX}$COMPENSATE_HEAD_VERSION_KEY", it)
+            ParameterRef("${Wow.WOW_PREFIX}$HEAD_VERSION_KEY", it)
         }
-    val COMPENSATE_TAIL_VERSION = Parameter()
-        .name(COMPENSATE_TAIL_VERSION_KEY)
+    val TAIL_VERSION = Parameter()
+        .name(TAIL_VERSION_KEY)
         .`in`(ParameterIn.PATH.toString())
         .schema(IntegerSchema())
         .example(Int.MAX_VALUE).let {
-            ParameterRef("${Wow.WOW_PREFIX}$COMPENSATE_TAIL_VERSION_KEY", it)
+            ParameterRef("${Wow.WOW_PREFIX}$TAIL_VERSION_KEY", it)
         }
     val BATCH_CURSOR_ID_PARAMETER = Parameter()
         .name(BATCH_CURSOR_ID)

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi.event.state
 
-import io.swagger.v3.oas.models.parameters.RequestBody
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -21,7 +20,6 @@ import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory
 
 class ResendStateEventRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -35,7 +33,6 @@ class ResendStateEventRouteSpec(
         get() = "Resend State Event"
     override val appendPathSuffix: String
         get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
-    override val requestBody: RequestBody = EventCompensateRouteSpecFactory.COMPENSATION_CONFIG_REQUEST.component
 }
 
 class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {

@@ -19,7 +19,6 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -30,7 +29,6 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.function.server.ServerRequest
-import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class ResendStateEventHandlerFunctionTest {
@@ -51,7 +49,6 @@ class ResendStateEventHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID
             every { pathVariable(RoutePaths.BATCH_LIMIT) } returns Int.MAX_VALUE.toString()
-            every { bodyToMono(CompensationFilter::class.java) } returns CompensationFilter.EMPTY.toMono()
         }
         handlerFunction.handle(request)
             .test()

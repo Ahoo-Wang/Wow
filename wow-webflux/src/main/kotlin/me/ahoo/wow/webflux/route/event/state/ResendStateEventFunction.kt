@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.messaging.compensation.CompensationFilter
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.state.ResendStateEventRouteSpec
@@ -39,10 +38,7 @@ class ResendStateEventFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return request.bodyToMono(CompensationFilter::class.java)
-            .flatMap {
-                handler.handle(it, cursorId, limit)
-            }
+        return handler.handle(cursorId, limit)
             .asServerResponse(exceptionHandler)
     }
 }
