@@ -32,3 +32,5 @@ cosid:
 wow:
   kafka:
     bootstrap-servers: PLAINTEXT://localhost:58526
+#  compensation:
+#    max-retries: 5

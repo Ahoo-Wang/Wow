@@ -13,9 +13,14 @@
 
 package me.ahoo.wow.compensation.server
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.Configuration
+import me.ahoo.wow.compensation.domain.CompensationSpec
+import me.ahoo.wow.compensation.domain.DefaultCompensationSpec
+import org.springframework.boot.context.properties.ConfigurationProperties
+import java.time.Duration
 
-@Configuration
-@EnableConfigurationProperties(CompensationProperties::class)
-class CompensationConfiguration
+@ConfigurationProperties(prefix = me.ahoo.wow.spring.boot.starter.compensation.CompensationProperties.PREFIX)
+data class CompensationProperties(
+    override val maxRetries: Int = DefaultCompensationSpec.maxRetries,
+    override val minBackoff: Duration = DefaultCompensationSpec.minBackoff,
+    override val executionTimeout: Duration = DefaultCompensationSpec.executionTimeout,
+) : CompensationSpec
