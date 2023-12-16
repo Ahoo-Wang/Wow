@@ -69,6 +69,7 @@ class ExecutionFailedTest {
                 assertThat(it.retryState.retries, equalTo(0))
                 assertThat(it.retryState.isRetryable, equalTo(true))
                 assertThat(it.retryState.timeout(), equalTo(false))
+                assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.shouldToRetry(), equalTo(false))
             }
             .verify()
@@ -94,6 +95,7 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
                 assertThat(it.retryState.retries, equalTo(1))
+                assertThat(it.shouldToRetry(), equalTo(false))
             }
             .verify().then()
             .given()
@@ -137,6 +139,8 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
                 assertThat(it.retryState.retries, equalTo(1))
+                assertThat(it.canRetry(), equalTo(true))
+                assertThat(it.shouldToRetry(), equalTo(false))
             }
             .verify().then()
             .given()
@@ -180,6 +184,8 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
                 assertThat(it.retryState.retries, equalTo(1))
+                assertThat(it.canRetry(), equalTo(false))
+                assertThat(it.shouldToRetry(), equalTo(false))
             }
             .verify().then()
             .given()

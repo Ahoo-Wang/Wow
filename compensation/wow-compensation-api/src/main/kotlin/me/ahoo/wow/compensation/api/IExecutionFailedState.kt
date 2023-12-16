@@ -87,7 +87,7 @@ data class RetryState(
 interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
     val status: ExecutionFailedStatus
 
-    fun shouldRetryable(): Boolean {
+    fun canRetry(): Boolean {
         if (!retryState.isRetryable) {
             return false
         }
@@ -100,7 +100,7 @@ interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
     }
 
     fun shouldToRetry(): Boolean {
-        if (!shouldRetryable()) {
+        if (!canRetry()) {
             return false
         }
 

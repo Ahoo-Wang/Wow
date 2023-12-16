@@ -44,9 +44,8 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     @Suppress("UnusedParameter")
     @OnCommand
     fun onPrepare(command: PrepareCompensation, compensationSpec: CompensationSpec): CompensationPrepared {
-        check(this.state.retryState.isRetryable) { "ExecutionFailed is not retryable." }
-        check(this.state.status == ExecutionFailedStatus.FAILED || this.state.retryState.timeout()) {
-            "ExecutionFailed is not FAILED or not Timeout."
+        check(this.state.canRetry()) {
+            "ExecutionFailed can not retry."
         }
         val retries = this.state.retryState.retries + 1
         val retryState = compensationSpec.nextRetryState(retries)
