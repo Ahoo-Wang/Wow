@@ -7,5 +7,6 @@ dependencies {
     implementation(project(":wow-api"))
     implementation("com.fasterxml.jackson.core:jackson-annotations")
     api("jakarta.validation:jakarta.validation-api")
+    api("io.projectreactor:reactor-core")
     ksp(project(":wow-compiler"))
 }
