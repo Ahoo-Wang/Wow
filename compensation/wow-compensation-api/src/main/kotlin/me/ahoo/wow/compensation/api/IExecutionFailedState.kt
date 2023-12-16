@@ -36,8 +36,8 @@ data class EventId(override val id: String, override val aggregateId: AggregateI
     }
 }
 
-interface RetriedTimes {
-    val retriedTimes: Int
+interface IRetryState {
+    val retryState: RetryState
 }
 
 interface ExecutionTime {
@@ -54,8 +54,58 @@ interface ExecutionFailedInfo : ExecutionFailedErrorInfo {
     val functionKind: FunctionKind
 }
 
-interface IExecutionFailedState : Identifier, ExecutionFailedInfo, RetriedTimes {
+data class RetryState(
+    /**
+     * 最大重试次数
+     */
+    val maxRetries: Int,
+    /**
+     * 当前已尝试次数
+     */
+    val retries: Int,
+    /**
+     * 当前尝试执行点
+     */
+    val retryAt: Long,
+    /**
+     * 当前执行超时时间点
+     */
+    val timoutAt: Long,
+    /**
+     * 下次尝试执行时间,For Scheduled
+     */
+    val nextRetryAt: Long,
+) {
+    val isRetryable: Boolean
+        get() = retries < maxRetries
+
+    fun timeout(): Boolean {
+        return System.currentTimeMillis() > timoutAt
+    }
+}
+
+interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
     val status: ExecutionFailedStatus
+
+    fun shouldRetryable(): Boolean {
+        if (!retryState.isRetryable) {
+            return false
+        }
+
+        return when (status) {
+            ExecutionFailedStatus.SUCCEEDED -> false
+            ExecutionFailedStatus.FAILED -> true
+            ExecutionFailedStatus.PREPARED -> retryState.timeout()
+        }
+    }
+
+    fun shouldToRetry(): Boolean {
+        if (!shouldRetryable()) {
+            return false
+        }
+
+        return System.currentTimeMillis() >= retryState.nextRetryAt
+    }
 }
 
 enum class ExecutionFailedStatus {

@@ -26,5 +26,6 @@ data class PrepareCompensation(@PathVariable override val id: String) : Identifi
 data class CompensationPrepared(
     val eventId: EventId,
     val processor: ProcessorInfoData,
-    val functionKind: FunctionKind
-)
+    val functionKind: FunctionKind,
+    override val retryState: RetryState
+) : IRetryState

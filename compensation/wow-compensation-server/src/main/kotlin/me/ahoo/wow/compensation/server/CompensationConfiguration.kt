@@ -11,21 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.compensation.server
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
-import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
+import me.ahoo.wow.compensation.domain.CompensationSpec
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 
-@CommandRoute(appendIdPath = AppendPath.ALWAYS)
-data class ApplyExecutionFailed(
-    @PathVariable override val id: String,
-    override val error: ErrorDetails,
-    override val executionTime: Long
-) : Identifier, ExecutionFailedErrorInfo
-
-data class ExecutionFailedApplied(
-    override val error: ErrorDetails,
-    override val executionTime: Long
-) : ExecutionFailedErrorInfo
+@Configuration
+class CompensationConfiguration {
+    @Bean
+    fun compensationSpec(): CompensationSpec {
+        return CompensationSpec.DEFAULT
+    }
+}

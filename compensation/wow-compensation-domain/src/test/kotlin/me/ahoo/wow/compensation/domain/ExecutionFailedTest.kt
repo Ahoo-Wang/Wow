@@ -55,6 +55,7 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(CompensationSpec.DEFAULT)
             .`when`(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
@@ -65,7 +66,10 @@ class ExecutionFailedTest {
                 assertThat(it.error, equalTo(createExecutionFailed.error))
                 assertThat(it.executionTime, equalTo(createExecutionFailed.executionTime))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
-                assertThat(it.retriedTimes, equalTo(0))
+                assertThat(it.retryState.retries, equalTo(0))
+                assertThat(it.retryState.isRetryable, equalTo(true))
+                assertThat(it.retryState.timeout(), equalTo(false))
+                assertThat(it.shouldToRetry(), equalTo(false))
             }
             .verify()
     }
@@ -78,16 +82,18 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis()
+            executionTime = System.currentTimeMillis(),
+            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
         )
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(CompensationSpec.DEFAULT)
             .given(executionFailedCreated)
             .`when`(prepareCompensation)
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
-                assertThat(it.retriedTimes, equalTo(0))
+                assertThat(it.retryState.retries, equalTo(1))
             }
             .verify().then()
             .given()
@@ -111,7 +117,8 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis()
+            executionTime = System.currentTimeMillis(),
+            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -120,7 +127,8 @@ class ExecutionFailedTest {
                 CompensationPrepared(
                     eventId = EVENT_ID,
                     processor = processor,
-                    functionKind = functionKind
+                    functionKind = functionKind,
+                    retryState = CompensationSpec.DEFAULT.nextRetryState(1)
                 )
             )
             .`when`(applyExecutionFailed)
@@ -128,7 +136,7 @@ class ExecutionFailedTest {
             .expectEventType(ExecutionFailedApplied::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
-                assertThat(it.retriedTimes, equalTo(1))
+                assertThat(it.retryState.retries, equalTo(1))
             }
             .verify().then()
             .given()
@@ -136,7 +144,7 @@ class ExecutionFailedTest {
             .expectErrorType(IllegalStateException::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
-                assertThat(it.retriedTimes, equalTo(1))
+                assertThat(it.retryState.retries, equalTo(1))
             }
             .verify()
     }
@@ -152,7 +160,8 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis()
+            executionTime = System.currentTimeMillis(),
+            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -161,7 +170,8 @@ class ExecutionFailedTest {
                 CompensationPrepared(
                     eventId = EVENT_ID,
                     processor = processor,
-                    functionKind = functionKind
+                    functionKind = functionKind,
+                    retryState = CompensationSpec.DEFAULT.nextRetryState(1)
                 )
             )
             .`when`(applyExecutionSuccess)
@@ -169,7 +179,7 @@ class ExecutionFailedTest {
             .expectEventType(ExecutionSuccessApplied::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
-                assertThat(it.retriedTimes, equalTo(1))
+                assertThat(it.retryState.retries, equalTo(1))
             }
             .verify().then()
             .given()
@@ -177,7 +187,7 @@ class ExecutionFailedTest {
             .expectErrorType(IllegalStateException::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
-                assertThat(it.retriedTimes, equalTo(1))
+                assertThat(it.retryState.retries, equalTo(1))
             }
             .verify()
     }

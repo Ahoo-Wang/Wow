@@ -22,6 +22,5 @@ import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 data class ApplyExecutionSuccess(@PathVariable override val id: String, override val executionTime: Long) :
     Identifier, ExecutionTime
 
-data class ExecutionSuccessApplied(override val retriedTimes: Int, override val executionTime: Long) :
-    RetriedTimes,
+data class ExecutionSuccessApplied(override val executionTime: Long) :
     ExecutionTime
