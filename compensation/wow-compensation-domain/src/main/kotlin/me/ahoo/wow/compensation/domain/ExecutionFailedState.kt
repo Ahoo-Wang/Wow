@@ -24,6 +24,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.RetryState
 
 class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     override lateinit var eventId: EventId
@@ -36,9 +37,9 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         private set
     override var executionTime: Long = 0
         private set
-    override var status: ExecutionFailedStatus = ExecutionFailedStatus.FAILED
+    override lateinit var retryState: RetryState
         private set
-    override var retriedTimes: Int = 0
+    override var status: ExecutionFailedStatus = ExecutionFailedStatus.FAILED
         private set
 
     @OnSourcing
@@ -48,25 +49,25 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.functionKind = event.functionKind
         this.error = event.error
         this.executionTime = event.executionTime
+        this.retryState = event.retryState
         this.status = ExecutionFailedStatus.FAILED
     }
 
     @Suppress("UnusedParameter")
     @OnSourcing
     fun onPrepared(event: CompensationPrepared) {
+        this.retryState = event.retryState
         this.status = ExecutionFailedStatus.PREPARED
     }
 
     @OnSourcing
     fun onFailed(event: ExecutionFailedApplied) {
-        this.retriedTimes = event.retriedTimes
         this.executionTime = event.executionTime
         this.status = ExecutionFailedStatus.FAILED
     }
 
     @OnSourcing
     fun onSuccess(event: ExecutionSuccessApplied) {
-        this.retriedTimes = event.retriedTimes
         this.executionTime = event.executionTime
         this.status = ExecutionFailedStatus.SUCCEEDED
     }

@@ -29,33 +29,38 @@ import me.ahoo.wow.compensation.api.PrepareCompensation
 class ExecutionFailed(private val state: ExecutionFailedState) {
 
     @OnCommand
-    fun onCreate(command: CreateExecutionFailed): ExecutionFailedCreated {
+    fun onCreate(command: CreateExecutionFailed, compensationSpec: CompensationSpec): ExecutionFailedCreated {
+        val retryState = compensationSpec.nextRetryState(0, command.executionTime)
         return ExecutionFailedCreated(
             eventId = command.eventId,
             processor = command.processor,
             functionKind = command.functionKind,
             error = command.error,
-            executionTime = command.executionTime
+            executionTime = command.executionTime,
+            retryState = retryState
         )
     }
 
     @Suppress("UnusedParameter")
     @OnCommand
-    fun onPrepare(command: PrepareCompensation): CompensationPrepared {
-        check(this.state.status == ExecutionFailedStatus.FAILED) { "ExecutionFailed is not failed." }
+    fun onPrepare(command: PrepareCompensation, compensationSpec: CompensationSpec): CompensationPrepared {
+        check(this.state.canRetry()) {
+            "ExecutionFailed can not retry."
+        }
+        val retries = this.state.retryState.retries + 1
+        val retryState = compensationSpec.nextRetryState(retries)
         return CompensationPrepared(
             eventId = this.state.eventId,
             processor = this.state.processor,
-            functionKind = this.state.functionKind
+            functionKind = this.state.functionKind,
+            retryState = retryState
         )
     }
 
     @OnCommand
     fun onFailed(command: ApplyExecutionFailed): ExecutionFailedApplied {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
-        val retriedTimes = this.state.retriedTimes + 1
         return ExecutionFailedApplied(
-            retriedTimes = retriedTimes,
             error = command.error,
             executionTime = command.executionTime
         )
@@ -64,9 +69,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     @OnCommand
     fun onSucceed(command: ApplyExecutionSuccess): ExecutionSuccessApplied {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
-        val retriedTimes = this.state.retriedTimes + 1
         return ExecutionSuccessApplied(
-            retriedTimes = retriedTimes,
             executionTime = command.executionTime
         )
     }
