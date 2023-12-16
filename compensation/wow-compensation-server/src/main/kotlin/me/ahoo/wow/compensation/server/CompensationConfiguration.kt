@@ -14,6 +14,7 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.wow.compensation.domain.CompensationSpec
+import me.ahoo.wow.compensation.domain.DefaultCompensationSpec
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -21,6 +22,6 @@ import org.springframework.context.annotation.Configuration
 class CompensationConfiguration {
     @Bean
     fun compensationSpec(): CompensationSpec {
-        return CompensationSpec.DEFAULT
+        return DefaultCompensationSpec
     }
 }

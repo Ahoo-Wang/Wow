@@ -9,7 +9,7 @@ class DefaultCompensationSpecTest {
     @Test
     fun defaultValue() {
         assertThat(DefaultCompensationSpec.maxRetries, equalTo(10))
-        assertThat(DefaultCompensationSpec.minBackoff, equalTo(Duration.ofSeconds(60)))
+        assertThat(DefaultCompensationSpec.minBackoff, equalTo(Duration.ofSeconds(180)))
         assertThat(DefaultCompensationSpec.executionTimeout, equalTo(Duration.ofSeconds(120)))
     }
 

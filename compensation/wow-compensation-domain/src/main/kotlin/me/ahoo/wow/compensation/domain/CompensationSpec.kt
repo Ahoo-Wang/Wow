@@ -25,9 +25,6 @@ import kotlin.math.pow
  * @see RetrySpec.backoff
  */
 interface CompensationSpec {
-    companion object {
-        val DEFAULT: CompensationSpec = DefaultCompensationSpec
-    }
 
     val maxRetries: Int
 

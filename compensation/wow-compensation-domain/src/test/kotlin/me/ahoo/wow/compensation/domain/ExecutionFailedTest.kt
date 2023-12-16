@@ -55,7 +55,7 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .inject(CompensationSpec.DEFAULT)
+            .inject(DefaultCompensationSpec)
             .`when`(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
@@ -83,10 +83,10 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
+            retryState = DefaultCompensationSpec.nextRetryState(0)
         )
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .inject(CompensationSpec.DEFAULT)
+            .inject(DefaultCompensationSpec)
             .given(executionFailedCreated)
             .`when`(prepareCompensation)
             .expectNoError()
@@ -118,7 +118,7 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
+            retryState = DefaultCompensationSpec.nextRetryState(0)
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -128,7 +128,7 @@ class ExecutionFailedTest {
                     eventId = EVENT_ID,
                     processor = processor,
                     functionKind = functionKind,
-                    retryState = CompensationSpec.DEFAULT.nextRetryState(1)
+                    retryState = DefaultCompensationSpec.nextRetryState(1)
                 )
             )
             .`when`(applyExecutionFailed)
@@ -161,7 +161,7 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = CompensationSpec.DEFAULT.nextRetryState(0)
+            retryState = DefaultCompensationSpec.nextRetryState(0)
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -171,7 +171,7 @@ class ExecutionFailedTest {
                     eventId = EVENT_ID,
                     processor = processor,
                     functionKind = functionKind,
-                    retryState = CompensationSpec.DEFAULT.nextRetryState(1)
+                    retryState = DefaultCompensationSpec.nextRetryState(1)
                 )
             )
             .`when`(applyExecutionSuccess)
