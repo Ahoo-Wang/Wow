@@ -18,7 +18,7 @@ import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
-import me.ahoo.wow.messaging.function.asMessageFunction
+import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 
 data class StateAggregateMetadata<S : Any>(
@@ -31,10 +31,10 @@ data class StateAggregateMetadata<S : Any>(
     val sourcingFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<S, Void>>
 ) : TypedAggregate<S>, Metadata {
 
-    fun asMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> {
+    fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> {
         return sourcingFunctionRegistry
             .map {
-                it.key to it.value.asMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot)
+                it.key to it.value.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot)
             }.toMap()
     }
 

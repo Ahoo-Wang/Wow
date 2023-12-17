@@ -44,7 +44,7 @@ class MutableDomainEventRecord(override val actual: ObjectNode) : DomainEventRec
         }
 
     companion object {
-        fun DomainEventRecord.asMutableDomainEventRecord(): MutableDomainEventRecord {
+        fun DomainEventRecord.toMutableDomainEventRecord(): MutableDomainEventRecord {
             if (this is MutableDomainEventRecord) {
                 return this
             }

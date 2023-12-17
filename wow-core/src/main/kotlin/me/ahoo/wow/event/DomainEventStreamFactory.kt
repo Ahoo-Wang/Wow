@@ -22,7 +22,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 
-fun Any.asDomainEventStream(
+fun Any.toDomainEventStream(
     command: CommandMessage<*>,
     aggregateVersion: Int,
     header: Header = DefaultHeader.empty()
@@ -35,15 +35,15 @@ fun Any.asDomainEventStream(
 
     val events = when (this) {
         is Iterable<*> -> {
-            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
 
         is Array<*> -> {
-            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
 
         else -> {
-            asDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
         }
     }
 
@@ -55,14 +55,14 @@ fun Any.asDomainEventStream(
     )
 }
 
-private fun Any.asDomainEvents(
+private fun Any.toDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
-    val domainEvent = this.asDomainEvent(
+    val domainEvent = this.toDomainEvent(
         id = GlobalIdGenerator.generateAsString(),
         version = streamVersion,
         aggregateId = aggregateId,
@@ -73,7 +73,7 @@ private fun Any.asDomainEvents(
     return listOf(domainEvent)
 }
 
-private fun Array<*>.asDomainEvents(
+private fun Array<*>.toDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
@@ -81,7 +81,7 @@ private fun Array<*>.asDomainEvents(
     createTime: Long
 ) = mapIndexed { index, event ->
     val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-    event!!.asDomainEvent(
+    event!!.toDomainEvent(
         id = GlobalIdGenerator.generateAsString(),
         version = streamVersion,
         sequence = sequence,
@@ -93,7 +93,7 @@ private fun Array<*>.asDomainEvents(
     )
 }.toList()
 
-private fun Iterable<*>.asDomainEvents(
+private fun Iterable<*>.toDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
@@ -103,7 +103,7 @@ private fun Iterable<*>.asDomainEvents(
     val eventCount = count()
     return mapIndexed { index, event ->
         val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-        event!!.asDomainEvent(
+        event!!.toDomainEvent(
             id = GlobalIdGenerator.generateAsString(),
             version = streamVersion,
             sequence = sequence,

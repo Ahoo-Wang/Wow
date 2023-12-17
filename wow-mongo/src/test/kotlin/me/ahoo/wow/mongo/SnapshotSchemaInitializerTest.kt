@@ -15,7 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.asSnapshotCollectionName
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 
 class SnapshotSchemaInitializerTest : SchemaInitializerSpec() {
 
@@ -28,6 +28,6 @@ class SnapshotSchemaInitializerTest : SchemaInitializerSpec() {
     }
 
     override fun getCollectionName(namedAggregate: NamedAggregate): String {
-        return namedAggregate.asSnapshotCollectionName()
+        return namedAggregate.toSnapshotCollectionName()
     }
 }

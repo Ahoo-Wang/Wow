@@ -19,7 +19,7 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
-import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertyGetter
+import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.toPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
@@ -28,99 +28,99 @@ import java.lang.reflect.Method
 
 object AggregateAnnotationParser {
 
-    fun <T> Field.asStringGetter(): PropertyGetter<T, String> {
+    fun <T> Field.toStringGetter(): PropertyGetter<T, String> {
         require(type == String::class.java) {
             "Field[$this] must be of type String."
         }
-        return asPropertyGetter()
+        return toPropertyGetter()
     }
 
-    fun <T> Method.asStringGetter(): PropertyGetter<T, String>? {
+    fun <T> Method.toStringGetter(): PropertyGetter<T, String>? {
         require(returnType == String::class.java) {
             "Method[$this]'s returnType must be of type String."
         }
-        return asPropertyGetter()
+        return toPropertyGetter()
     }
 
-    fun <T> Field.asIntGetter(): PropertyGetter<T, Int?> {
+    fun <T> Field.toIntGetter(): PropertyGetter<T, Int?> {
         require(type == Int::class.java || type == java.lang.Integer::class.java) {
             "Field[$this] must be of type Int."
         }
-        return asPropertyGetter()
+        return toPropertyGetter()
     }
 
-    fun <T> Method.asIntGetter(): PropertyGetter<T, Int?>? {
+    fun <T> Method.toIntGetter(): PropertyGetter<T, Int?>? {
         require(returnType == Int::class.java || returnType == java.lang.Integer::class.java) {
             "Method[$this]'s returnType must be of type Int."
         }
-        return asPropertyGetter()
+        return toPropertyGetter()
     }
 
-    fun <T> Field.asAggregateNameGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Field.toAggregateNameGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<AggregateName>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Method.asAggregateNameGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Method.toAggregateNameGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<AggregateName>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Field.asAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Field.toAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<AggregateId>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Method.asAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Method.toAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<AggregateId>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Class<*>.asStaticAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Class<*>.toStaticAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<StaticAggregateId>()?.let { staticAggregateId ->
             StaticPropertyGetter(staticAggregateId.aggregateId)
         }
     }
 
     inline fun <reified T> staticAggregateIdGetterIfAnnotated(): PropertyGetter<T, String>? {
-        return T::class.java.asStaticAggregateIdGetterIfAnnotated()
+        return T::class.java.toStaticAggregateIdGetterIfAnnotated()
     }
 
-    fun <T> Field.asTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Field.toTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<TenantId>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Class<*>.asStaticTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Class<*>.toStaticTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<StaticTenantId>()?.let { staticTenantId ->
             StaticPropertyGetter(staticTenantId.tenantId)
         }
     }
 
     inline fun <reified T> staticTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
-        return T::class.java.asStaticTenantIdGetterIfAnnotated()
+        return T::class.java.toStaticTenantIdGetterIfAnnotated()
     }
 
-    fun <T> Method.asTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+    fun <T> Method.toTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scan<TenantId>()?.let {
-            this.asStringGetter()
+            this.toStringGetter()
         }
     }
 
-    fun <T> Field.asAggregateVersionGetterIfAnnotated(): PropertyGetter<T, Int?>? {
+    fun <T> Field.toAggregateVersionGetterIfAnnotated(): PropertyGetter<T, Int?>? {
         return this.scan<AggregateVersion>()?.let {
-            this.asIntGetter()
+            this.toIntGetter()
         }
     }
 
-    fun <T> Method.asAggregateVersionGetterIfAnnotated(): PropertyGetter<T, Int?>? {
+    fun <T> Method.toAggregateVersionGetterIfAnnotated(): PropertyGetter<T, Int?>? {
         return this.scan<AggregateVersion>()?.let {
-            this.asIntGetter()
+            this.toIntGetter()
         }
     }
 }

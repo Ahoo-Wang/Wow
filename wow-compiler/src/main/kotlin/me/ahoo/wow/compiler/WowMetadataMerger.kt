@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.compiler
 
-import me.ahoo.wow.compiler.BoundedContextSearcher.Companion.asBoundedContextSearcher
+import me.ahoo.wow.compiler.BoundedContextSearcher.Companion.toBoundedContextSearcher
 import me.ahoo.wow.configuration.Aggregate
 import me.ahoo.wow.configuration.BoundedContext
 import me.ahoo.wow.configuration.ScopeComparator
 import me.ahoo.wow.configuration.ScopeSearcher
 import me.ahoo.wow.configuration.WowMetadata
-import java.util.SortedMap
+import java.util.*
 
 class WowMetadataMerger {
     var metadata: WowMetadata = WowMetadata()
@@ -30,7 +30,7 @@ class WowMetadataMerger {
     }
 
     fun merge(aggregateName: String, aggregate: Aggregate) {
-        val boundedContextSearcher = metadata.asBoundedContextSearcher()
+        val boundedContextSearcher = metadata.toBoundedContextSearcher()
         val matchedContext = boundedContextSearcher.requiredSearch(aggregate.type!!)
         val contextName = matchedContext.first
         val contextAlias = matchedContext.second.alias
@@ -48,7 +48,7 @@ internal class BoundedContextSearcher(
     private val source: SortedMap<String, Pair<String, BoundedContext>>
 ) : ScopeSearcher<Pair<String, BoundedContext>>, SortedMap<String, Pair<String, BoundedContext>> by source {
     companion object {
-        fun WowMetadata.asBoundedContextSearcher(): BoundedContextSearcher {
+        fun WowMetadata.toBoundedContextSearcher(): BoundedContextSearcher {
             val source = mutableMapOf<String, Pair<String, BoundedContext>>().apply {
                 contexts.forEach { contextEntry ->
                     contextEntry.value.aggregates.flatMap { it.value.scopes }

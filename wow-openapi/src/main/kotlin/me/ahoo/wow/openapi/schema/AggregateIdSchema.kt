@@ -17,8 +17,8 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TenantId
-import me.ahoo.wow.openapi.SchemaRef.Companion.asRefSchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
+import me.ahoo.wow.openapi.SchemaRef.Companion.toRefSchema
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 import me.ahoo.wow.serialization.MessageRecords
 
 /**
@@ -29,8 +29,8 @@ import me.ahoo.wow.serialization.MessageRecords
  */
 object AggregateIdSchema {
 
-    val SCHEMA_NAME = requireNotNull(AggregateId::class.java.asSchemaName())
-    val REF_SCHEMA_NAME = SCHEMA_NAME.asRefSchema()
+    val SCHEMA_NAME = requireNotNull(AggregateId::class.java.toSchemaName())
+    val REF_SCHEMA_NAME = SCHEMA_NAME.toRefSchema()
     val SCHEMA = Schema<AggregateId>()
 
     init {

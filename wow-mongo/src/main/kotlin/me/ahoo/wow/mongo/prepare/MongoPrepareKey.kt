@@ -22,19 +22,19 @@ import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.Updates
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.infra.accessor.method.reactive.asBlockable
+import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.TTL_FOREVER
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asForever
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toForever
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.prepare.PrepareRecords.TTL_AT_FIELD
-import me.ahoo.wow.mongo.prepare.PrepareRecords.asDocument
-import me.ahoo.wow.mongo.prepare.PrepareRecords.asPreparedValue
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.mongo.prepare.PrepareRecords.toDocument
+import me.ahoo.wow.mongo.prepare.PrepareRecords.toPreparedValue
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -60,12 +60,12 @@ class MongoPrepareKey<V : Any>(
             prepareCollection.createIndex(
                 Indexes.ascending(TTL_AT_FIELD),
                 IndexOptions().expireAfter(0, TimeUnit.SECONDS),
-            ).toMono().asBlockable().block()
+            ).toMono().toBlockable().block()
         }
     }
 
     override fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val document = value.asDocument()
+        val document = value.toDocument()
         return prepareCollection
             .replaceOne(
                 Filters.and(
@@ -92,7 +92,7 @@ class MongoPrepareKey<V : Any>(
             .first()
             .toMono()
             .map {
-                it.asPreparedValue(valueType)
+                it.toPreparedValue(valueType)
             }
     }
 
@@ -111,7 +111,7 @@ class MongoPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String, value: V): Mono<Boolean> {
-        val document = value.asForever().asDocument()
+        val document = value.toForever().toDocument()
         return prepareCollection.deleteOne(
             Filters.and(
                 Filters.eq(Documents.ID_FIELD, key),
@@ -125,7 +125,7 @@ class MongoPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
-        val valueDocument = value.asDocument()
+        val valueDocument = value.toDocument()
         return prepareCollection
             .updateOne(
                 Filters.eq(Documents.ID_FIELD, key),
@@ -141,8 +141,8 @@ class MongoPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, oldValue: V, newValue: PreparedValue<V>): Mono<Boolean> {
-        val oldValueDocument = oldValue.asForever().asDocument()
-        val newValueDocument = newValue.asDocument()
+        val oldValueDocument = oldValue.toForever().toDocument()
+        val newValueDocument = newValue.toDocument()
         return prepareCollection
             .updateOne(
                 Filters.and(
@@ -165,8 +165,8 @@ object PrepareRecords {
     const val VALUE_FIELD = "value"
     const val TTL_AT_FIELD = "ttlAt"
 
-    fun <V> PreparedValue<V>.asDocument(): Document {
-        val jsonString = asJsonString()
+    fun <V> PreparedValue<V>.toDocument(): Document {
+        val jsonString = toJsonString()
         val document = Document.parse(jsonString)
         document.replace(TTL_AT_FIELD, Date(ttlAt))
         document.remove("forever")
@@ -174,19 +174,19 @@ object PrepareRecords {
         return document
     }
 
-    fun <V> Document.asPreparedValue(valueType: Class<V>): PreparedValue<V> {
+    fun <V> Document.toPreparedValue(valueType: Class<V>): PreparedValue<V> {
         val rawValue = checkNotNull(this[VALUE_FIELD])
         val value = if (valueType.isInstance(rawValue)) {
             valueType.cast(rawValue)
         } else if (rawValue is Document) {
             val rawValueString = rawValue.toJson()
-            rawValueString.asObject(valueType)
+            rawValueString.toObject(valueType)
         } else {
             @Suppress("UseRequire")
             throw IllegalArgumentException("valueType: $valueType is not assignable from rawValue: $rawValue")
         }
 
         val ttlAt = this.getDate(TTL_AT_FIELD)?.time ?: TTL_FOREVER
-        return value.asTtlAt(ttlAt)
+        return value.toTtlAt(ttlAt)
     }
 }

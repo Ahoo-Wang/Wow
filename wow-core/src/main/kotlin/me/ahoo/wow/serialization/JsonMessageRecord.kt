@@ -69,7 +69,7 @@ interface HeaderRecord : JsonRecord {
             return actual[HEADER] as ObjectNode
         }
 
-    fun asMessageHeader(): Header {
+    fun toMessageHeader(): Header {
         val messageHeader = DefaultHeader.empty()
         header.fields().forEach {
             messageHeader[it.key] = it.value.asText()
@@ -124,7 +124,7 @@ interface MessageRecord : MessageIdRecord, HeaderRecord, MessageBodyRecord, Mess
 
 class DelegatingMessageRecord(override val actual: ObjectNode) : MessageRecord
 
-fun ObjectNode.asMessageRecord(): MessageRecord {
+fun ObjectNode.toMessageRecord(): MessageRecord {
     return DelegatingMessageRecord(this)
 }
 
@@ -137,7 +137,7 @@ interface NamedBoundedContextMessageRecord :
 
 class DelegatingNamedBoundedContextMessageRecord(override val actual: ObjectNode) : NamedBoundedContextMessageRecord
 
-fun ObjectNode.asBoundedContextMessageRecord(): NamedBoundedContextMessageRecord {
+fun ObjectNode.toBoundedContextMessageRecord(): NamedBoundedContextMessageRecord {
     return DelegatingNamedBoundedContextMessageRecord(this)
 }
 

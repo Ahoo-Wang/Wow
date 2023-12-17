@@ -15,8 +15,8 @@ package me.ahoo.wow.test.aggregate
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -24,8 +24,8 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import reactor.core.publisher.Mono
@@ -67,7 +67,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
 ) : WhenStage<S> {
     @Suppress("UseRequire", "LongMethod")
     override fun `when`(command: Any, header: Header): ExpectStage<S> {
-        val commandMessage = command.asCommandMessage(
+        val commandMessage = command.toCommandMessage(
             aggregateId = aggregateId.id,
             namedAggregate = aggregateId.namedAggregate,
             tenantId = aggregateId.tenantId,
@@ -108,7 +108,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
                     aggregateId = commandAggregateId,
                 )
 
-            val domainEventStream = events.asDomainEventStream(
+            val domainEventStream = events.toDomainEventStream(
                 command = initializationCommand,
                 aggregateVersion = it.version,
             )
@@ -196,8 +196,8 @@ internal class DefaultExpectStage<C : Any, S : Any>(
         if (!stateAggregate.initialized) {
             return
         }
-        val serialized = stateAggregate.asJsonString()
-        val deserialized = serialized.asObject<StateAggregate<S>>()
+        val serialized = stateAggregate.toJsonString()
+        val deserialized = serialized.toObject<StateAggregate<S>>()
         assertThat(deserialized, equalTo(stateAggregate))
     }
 

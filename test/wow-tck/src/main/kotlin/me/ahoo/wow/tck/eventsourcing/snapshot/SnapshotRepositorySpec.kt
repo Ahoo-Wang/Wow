@@ -13,13 +13,13 @@
 package me.ahoo.wow.tck.eventsourcing.snapshot
 
 import me.ahoo.wow.api.Version
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -47,14 +47,14 @@ abstract class SnapshotRepositorySpec {
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
-                aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString()),
+                aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
             ).block()!!
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
         val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
         val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
-        val eventStream = listOf(aggregateCreated, changed).asDomainEventStream(
+        val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
             command = command,
             aggregateVersion = stateAggregate.version,
         )
@@ -91,7 +91,7 @@ abstract class SnapshotRepositorySpec {
     @Test
     fun getVersion() {
         val snapshotRepository = createSnapshotRepository().metrizable()
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
         snapshotRepository.getVersion(aggregateId)
             .test()
             .expectNext(Version.UNINITIALIZED_VERSION)
@@ -102,7 +102,7 @@ abstract class SnapshotRepositorySpec {
     fun loadWhenNotFound() {
         val snapshotRepository = createSnapshotRepository().metrizable()
 
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
         snapshotRepository.load<MockStateAggregate>(aggregateId)
             .test()
             .expectNextCount(0)
@@ -112,7 +112,7 @@ abstract class SnapshotRepositorySpec {
     @Test
     fun save() {
         val snapshotRepository = createSnapshotRepository().metrizable()
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
@@ -127,14 +127,14 @@ abstract class SnapshotRepositorySpec {
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
-                aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString()),
+                aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
             ).block()!!
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
         val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
         val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
-        val eventStream = listOf(aggregateCreated, changed).asDomainEventStream(
+        val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
             command = command,
             aggregateVersion = stateAggregate.version,
         )
@@ -146,7 +146,7 @@ abstract class SnapshotRepositorySpec {
             .test()
             .verifyComplete()
 
-        val eventStream2 = listOf(aggregateCreated, changed).asDomainEventStream(
+        val eventStream2 = listOf(aggregateCreated, changed).toDomainEventStream(
             command = command,
             aggregateVersion = stateAggregate.version,
         )

@@ -17,7 +17,7 @@ import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 object PrepareKeyConverter {
 
-    fun String.asKey(): String {
+    fun String.toKey(): String {
         return "prepare:${wrap()}"
     }
 }

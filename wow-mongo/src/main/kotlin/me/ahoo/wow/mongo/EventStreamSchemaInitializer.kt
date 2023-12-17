@@ -16,13 +16,13 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.asEventStreamCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndRequestIdUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndVersionUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createRequestIdUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.slf4j.LoggerFactory
 
 class EventStreamSchemaInitializer(
@@ -48,7 +48,7 @@ class EventStreamSchemaInitializer(
     }
 
     fun initSchema(namedAggregate: NamedAggregate) {
-        val collectionName = namedAggregate.asEventStreamCollectionName()
+        val collectionName = namedAggregate.toEventStreamCollectionName()
         if (log.isInfoEnabled) {
             log.info(
                 "Init NamedAggregate Schema [{}] to Database:[{}] CollectionName [{}]",

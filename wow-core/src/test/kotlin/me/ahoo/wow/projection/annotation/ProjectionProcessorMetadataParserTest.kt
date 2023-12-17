@@ -15,9 +15,9 @@ package me.ahoo.wow.projection.annotation
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.event.SimpleDomainEventExchange
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -45,10 +45,10 @@ internal class ProjectionProcessorMetadataParserTest {
     fun asTarget() {
         val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val mockProjector = MockProjector()
-        val eventHandlerRegistry = projectionProcessorMetadata<MockProjector>().asMessageFunctionRegistry(mockProjector)
+        val eventHandlerRegistry = projectionProcessorMetadata<MockProjector>().toMessageFunctionRegistry(mockProjector)
         val createdState = GlobalIdGenerator.generateAsString()
-        val created = MockAggregateChanged(createdState).asDomainEventStream(
-            command = GivenInitializationCommand(aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())),
+        val created = MockAggregateChanged(createdState).toDomainEventStream(
+            command = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 0,
         ).first()
         eventHandlerRegistry.first {

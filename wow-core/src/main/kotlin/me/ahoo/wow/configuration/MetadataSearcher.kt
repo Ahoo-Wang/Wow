@@ -47,16 +47,16 @@ object MetadataSearcher {
     }
 
     val typeNamedAggregate: TypeNamedAggregateSearcher by lazy {
-        metadata.asTypeNamedAggregateSearcher()
+        metadata.toTypeNamedAggregateSearcher()
     }
     val namedAggregateType: NamedAggregateTypeSearcher by lazy {
-        metadata.asNamedAggregateTypeSearcher()
+        metadata.toNamedAggregateTypeSearcher()
     }
     val scopeContext: ScopeContextSearcher by lazy {
-        metadata.asScopeContextSearcher()
+        metadata.toScopeContextSearcher()
     }
     val scopeNamedAggregate: ScopeNamedAggregateSearcher by lazy {
-        metadata.asScopeNamedAggregateSearcher()
+        metadata.toScopeNamedAggregateSearcher()
     }
 
     val localAggregates: Set<NamedAggregate> by lazy {
@@ -78,37 +78,37 @@ object MetadataSearcher {
     }
 }
 
-fun <T> Class<T>.asNamedBoundedContext(): NamedBoundedContext? {
+fun <T> Class<T>.namedBoundedContext(): NamedBoundedContext? {
     return MetadataSearcher.scopeContext.search(name)
 }
 
-fun <T> Class<T>.asRequiredNamedBoundedContext(): NamedBoundedContext {
+fun <T> Class<T>.requiredNamedBoundedContext(): NamedBoundedContext {
     return MetadataSearcher.scopeContext.requiredSearch(name)
 }
 
-fun <T> Class<T>.asNamedAggregate(): NamedAggregate? {
+fun <T> Class<T>.namedAggregate(): NamedAggregate? {
     return MetadataSearcher.scopeNamedAggregate.search(name)
 }
 
-fun <T> Class<T>.asRequiredNamedAggregate(): NamedAggregate {
+fun <T> Class<T>.requiredNamedAggregate(): NamedAggregate {
     return MetadataSearcher.scopeNamedAggregate.requiredSearch(name)
 }
 
-fun <T> NamedAggregate.asAggregateType(): Class<T>? {
+fun <T> NamedAggregate.aggregateType(): Class<T>? {
     @Suppress("UNCHECKED_CAST")
     return MetadataSearcher.namedAggregateType[this.materialize()] as Class<T>?
 }
 
-fun <T> NamedAggregate.asRequiredAggregateType(): Class<T> {
-    return checkNotNull(asAggregateType()) {
+fun <T> NamedAggregate.requiredAggregateType(): Class<T> {
+    return checkNotNull(aggregateType()) {
         "NamedAggregate [$this] not found."
     }
 }
 
 inline fun <reified T> namedAggregate(): NamedAggregate? {
-    return T::class.java.asNamedAggregate()
+    return T::class.java.namedAggregate()
 }
 
 inline fun <reified T> requiredNamedAggregate(): NamedAggregate {
-    return T::class.java.asRequiredNamedAggregate()
+    return T::class.java.requiredNamedAggregate()
 }

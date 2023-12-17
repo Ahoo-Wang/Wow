@@ -19,14 +19,14 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.naming.annotation.asName
+import me.ahoo.wow.naming.annotation.toName
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 
 interface GivenStage<S : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.asName()): GivenStage<S>
+    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.toName()): GivenStage<S>
     fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
-        return inject(service, service.javaClass.asName())
+        return inject(service, service.javaClass.toName())
     }
 
     /**

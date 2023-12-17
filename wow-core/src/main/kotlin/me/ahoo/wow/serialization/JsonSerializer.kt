@@ -35,31 +35,31 @@ object JsonSerializer : ObjectMapper() {
     }
 }
 
-fun Any.asJsonString(): String {
+fun Any.toJsonString(): String {
     return JsonSerializer.writeValueAsString(this)
 }
 
-fun Any.asPrettyJson(): String {
+fun Any.toPrettyJson(): String {
     return JsonSerializer.writerWithDefaultPrettyPrinter().writeValueAsString(this)
 }
 
-fun <T : JsonNode> String.asJsonNode(): T {
+fun <T : JsonNode> String.toJsonNode(): T {
     @Suppress("UNCHECKED_CAST")
     return JsonSerializer.readTree(this) as T
 }
 
-fun <T> String.asObject(objectType: Class<T>): T {
+fun <T> String.toObject(objectType: Class<T>): T {
     return JsonSerializer.readValue(this, objectType)
 }
 
-fun <T> JsonNode.asObject(objectType: Class<T>): T {
+fun <T> JsonNode.toObject(objectType: Class<T>): T {
     return JsonSerializer.treeToValue(this, objectType)
 }
 
-inline fun <reified T> String.asObject(): T {
-    return asObject(T::class.java)
+inline fun <reified T> String.toObject(): T {
+    return toObject(T::class.java)
 }
 
-inline fun <reified T> JsonNode.asObject(): T {
-    return asObject(T::class.java)
+inline fun <reified T> JsonNode.toObject(): T {
+    return toObject(T::class.java)
 }

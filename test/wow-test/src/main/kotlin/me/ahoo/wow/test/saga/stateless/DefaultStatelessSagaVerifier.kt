@@ -19,7 +19,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleStateDomainEventExchange
-import me.ahoo.wow.event.asDomainEvent
+import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.constructor.InjectableObjectFactory
 import me.ahoo.wow.ioc.ServiceProvider
@@ -27,7 +27,7 @@ import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
-import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate.Companion.asReadOnlyStateAggregate
+import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate.Companion.toReadOnlyStateAggregate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
@@ -42,11 +42,11 @@ internal class DefaultWhenStage<T : Any>(
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"
     }
 
-    private fun asDomainEvent(event: Any): DomainEvent<*> {
+    private fun toDomainEvent(event: Any): DomainEvent<*> {
         if (event is DomainEvent<*>) {
             return event
         }
-        return event.asDomainEvent(
+        return event.toDomainEvent(
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = TenantId.DEFAULT_TENANT_ID,
             commandId = STATELESS_SAGA_COMMAND_ID,
@@ -64,7 +64,7 @@ internal class DefaultWhenStage<T : Any>(
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
         val handlerRegistrar = StatelessSagaFunctionRegistrar()
         handlerRegistrar.registerStatelessSaga(processor, commandGateway)
-        val eventExchange = asEventExchange(event, state)
+        val eventExchange = toEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.getFunctions(eventExchange.message.body.javaClass)
             .first()
             .invoke(eventExchange)
@@ -97,12 +97,12 @@ internal class DefaultWhenStage<T : Any>(
         return DefaultExpectStage(expectedResultMono)
     }
 
-    private fun asEventExchange(event: Any, state: Any?): DomainEventExchange<out Any> {
-        val domainEvent = asDomainEvent(event)
+    private fun toEventExchange(event: Any, state: Any?): DomainEventExchange<out Any> {
+        val domainEvent = toDomainEvent(event)
         return if (state == null) {
             SimpleDomainEventExchange(message = domainEvent)
         } else {
-            val stateAggregate = state.asReadOnlyStateAggregate(domainEvent)
+            val stateAggregate = state.toReadOnlyStateAggregate(domainEvent)
             SimpleStateDomainEventExchange(state = stateAggregate, message = domainEvent)
         }.setServiceProvider(serviceProvider)
     }

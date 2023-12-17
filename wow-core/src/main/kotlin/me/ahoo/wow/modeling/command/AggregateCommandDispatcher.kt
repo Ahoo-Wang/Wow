@@ -17,7 +17,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -57,7 +57,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         return commandHandler.handle(exchange)
     }
 
-    override fun ServerCommandExchange<*>.asGroupKey(): Int {
-        return message.asGroupKey(parallelism)
+    override fun ServerCommandExchange<*>.toGroupKey(): Int {
+        return message.toGroupKey(parallelism)
     }
 }

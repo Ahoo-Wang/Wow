@@ -1,10 +1,10 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.state.SimpleStateEventExchange
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStrategySpec
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -21,12 +21,12 @@ class VersionOffsetSnapshotStrategyTest : SnapshotStrategySpec() {
 
     @Test
     fun onEventWhenSave() {
-        val aggregateId = aggregateMetadata.asAggregateId()
+        val aggregateId = aggregateMetadata.aggregateId()
         val createdEventStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString())
-                .asDomainEventStream(GivenInitializationCommand(aggregateId), DEFAULT_VERSION_OFFSET)
+                .toDomainEventStream(GivenInitializationCommand(aggregateId), DEFAULT_VERSION_OFFSET)
         val state = MockStateAggregate(createdEventStream.aggregateId.id)
-        val stateEvent = createdEventStream.asStateEvent(state)
+        val stateEvent = createdEventStream.toStateEvent(state)
         val exchange = SimpleStateEventExchange(stateEvent)
         snapshotStrategy.onEvent(exchange)
             .test()

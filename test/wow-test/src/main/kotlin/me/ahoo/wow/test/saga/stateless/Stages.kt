@@ -15,7 +15,7 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.naming.annotation.asName
+import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -26,7 +26,7 @@ import org.hamcrest.Matchers.*
  * 2. expect commands
  */
 interface WhenStage<T : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.asName()): WhenStage<T>
+    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.toName()): WhenStage<T>
 
     /**
      * 1. 当订阅到领域事件时，生成聚合命令.

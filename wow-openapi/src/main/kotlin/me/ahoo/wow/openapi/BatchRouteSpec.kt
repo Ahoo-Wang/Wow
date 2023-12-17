@@ -17,7 +17,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.openapi.BatchRouteSpecFactory.Companion.BATCH_RESULT_RESPONSE
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
@@ -38,7 +38,7 @@ interface BatchRouteSpec : AggregateRouteSpec {
 
 abstract class BatchRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
-        val BATCH_RESULT_RESPONSE = BatchResult::class.java.asResponse().let {
+        val BATCH_RESULT_RESPONSE = BatchResult::class.java.toResponse().let {
             ResponseRef("${Wow.WOW_PREFIX}BatchResult", it)
         }
     }

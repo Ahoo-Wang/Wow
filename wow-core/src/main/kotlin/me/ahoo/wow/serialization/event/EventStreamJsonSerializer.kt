@@ -23,6 +23,6 @@ object EventStreamJsonSerializer : AbstractEventStreamJsonSerializer<DomainEvent
 
 object EventStreamJsonDeserializer : StdDeserializer<DomainEventStream>(DomainEventStream::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DomainEventStream {
-        return p.codec.readTree<ObjectNode>(p).asEventStreamRecord().asDomainEventStream()
+        return p.codec.readTree<ObjectNode>(p).toEventStreamRecord().toDomainEventStream()
     }
 }

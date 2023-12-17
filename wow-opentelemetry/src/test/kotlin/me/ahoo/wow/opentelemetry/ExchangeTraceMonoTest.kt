@@ -25,7 +25,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorInstrumenter
 import me.ahoo.wow.opentelemetry.projection.ProjectionInstrumenter
 import me.ahoo.wow.opentelemetry.saga.StatelessSagaInstrumenter
@@ -59,7 +59,7 @@ class ExchangeTraceMonoTest {
             every { message.id } returns GlobalIdGenerator.generateAsString()
 
             every { message.header } returns DefaultHeader.empty()
-            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { name } returns "traceEventProcessor"
                 every { getError() } returns null
@@ -80,7 +80,7 @@ class ExchangeTraceMonoTest {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.header } returns DefaultHeader.empty()
-            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
                 every { name } returns "traceSagaProcessor"
@@ -102,7 +102,7 @@ class ExchangeTraceMonoTest {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
             every { message.header } returns DefaultHeader.empty()
-            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
                 every { name } returns "traceProjectionProcessor"
@@ -126,7 +126,7 @@ class ExchangeTraceMonoTest {
             every { message.requestId } returns GlobalIdGenerator.generateAsString()
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
-            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.asAggregateId()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getError() } returns null
         }
 

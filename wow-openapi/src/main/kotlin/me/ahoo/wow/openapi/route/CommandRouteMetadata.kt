@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toObject
 
 data class CommandRouteMetadata<C>(
     val enabled: Boolean,
@@ -73,7 +73,7 @@ data class CommandRouteMetadata<C>(
     ): C {
         return commandNode.injectPathVariables(pathVariableMetadata, pathVariableProvider)
             .injectPathVariables(headerVariableMetadata, headerVariableProvider)
-            .asObject(commandMetadata.commandType)
+            .toObject(commandMetadata.commandType)
     }
 
     override fun equals(other: Any?): Boolean {

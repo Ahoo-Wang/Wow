@@ -24,7 +24,7 @@ import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -44,11 +44,11 @@ private val log = LoggerFactory.getLogger(AggregateMetadataParser::class.java)
  */
 object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMetadata<*, *>>() {
 
-    override fun parseAsMetadata(type: Class<*>): AggregateMetadata<*, *> {
+    override fun parseToMetadata(type: Class<*>): AggregateMetadata<*, *> {
         @Suppress("UNCHECKED_CAST")
         val visitor = AggregateMetadataVisitor<Any, Any>(type as Class<Any>)
         ClassMetadata.visit(type, visitor)
-        return visitor.asMetadata()
+        return visitor.toMetadata()
     }
 
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
@@ -80,21 +80,21 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
             stateAggregateType =
                 (if (String::class.java != ctorParameterType) ctorParameterType else commandAggregateType)
                     as Class<S>
-            stateAggregateMetadata = stateAggregateType.asStateAggregateMetadata()
+            stateAggregateMetadata = stateAggregateType.stateAggregateMetadata()
         }
 
         override fun visitMethod(method: Method) {
             if (method.isAnnotationPresent(OnCommand::class.java) ||
                 (isOnCommandFunctionMethod(method))
             ) {
-                val functionMetadata = method.asMonoFunctionMetadata<C, Any>()
+                val functionMetadata = method.toMonoFunctionMetadata<C, Any>()
                 commandFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
 
             if (method.isAnnotationPresent(OnError::class.java) ||
                 (isOnErrorFunctionMethod(method))
             ) {
-                val functionMetadata = method.asMonoFunctionMetadata<C, Void>()
+                val functionMetadata = method.toMonoFunctionMetadata<C, Void>()
                 errorFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
         }
@@ -106,7 +106,7 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
         private fun isOnErrorFunctionMethod(method: Method) = DEFAULT_ON_ERROR_NAME == method.name &&
             method.parameterCount > 0
 
-        fun asMetadata(): AggregateMetadata<C, S> {
+        fun toMetadata(): AggregateMetadata<C, S> {
             if (commandFunctionRegistry.isEmpty()) {
                 if (log.isWarnEnabled) {
                     log.warn("CommandAggregate[$commandAggregateType] requires at least one OnCommand function!")
@@ -130,11 +130,11 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
     }
 }
 
-fun <C : Any, S : Any> Class<out C>.asAggregateMetadata(): AggregateMetadata<C, S> {
+fun <C : Any, S : Any> Class<out C>.aggregateMetadata(): AggregateMetadata<C, S> {
     @Suppress("UNCHECKED_CAST")
     return AggregateMetadataParser.parse(this) as AggregateMetadata<C, S>
 }
 
 inline fun <reified C : Any, S : Any> aggregateMetadata(): AggregateMetadata<C, S> {
-    return C::class.java.asAggregateMetadata()
+    return C::class.java.aggregateMetadata()
 }

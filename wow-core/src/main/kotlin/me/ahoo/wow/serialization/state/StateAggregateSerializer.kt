@@ -16,7 +16,7 @@ package me.ahoo.wow.serialization.state
 import com.fasterxml.jackson.databind.JsonNode
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 
 object StateAggregateSerializer : AbstractStateAggregateSerializer<StateAggregate<*>>(StateAggregate::class.java)
 
@@ -29,6 +29,6 @@ object StateAggregateDeserializer : AbstractStateAggregateDeserializer<StateAggr
         if (stateAggregate is StateAggregate<Any>) {
             return stateAggregate
         }
-        return stateAggregate.asStateAggregate()
+        return stateAggregate.toStateAggregate()
     }
 }

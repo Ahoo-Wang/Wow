@@ -22,21 +22,21 @@ internal class DefaultHeaderTest {
     @Test
     fun asHeader() {
         val values = HashMap<String, String>()
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header, notNullValue())
     }
 
     @Test
     fun size() {
         val values = HashMap<String, String>()
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.size, equalTo(0))
     }
 
     @Test
     fun isEmpty() {
         val values = HashMap<String, String>()
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.isEmpty(), equalTo(true))
     }
 
@@ -44,7 +44,7 @@ internal class DefaultHeaderTest {
     fun containsKey() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.size, equalTo(1))
         assertThat(header.isEmpty(), not(true))
         assertThat(header.containsKey(KEY), equalTo(true))
@@ -58,7 +58,7 @@ internal class DefaultHeaderTest {
     fun containsValue() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.size, equalTo(1))
         assertThat(header.isEmpty(), not(true))
         assertThat(header.containsValue(VALUE), equalTo(true))
@@ -72,7 +72,7 @@ internal class DefaultHeaderTest {
     fun get() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.size, equalTo(1))
         assertThat(header.isEmpty(), not(true))
         assertThat(header[KEY], equalTo(VALUE))
@@ -81,14 +81,14 @@ internal class DefaultHeaderTest {
     @Test
     fun keySet() {
         val values = HashMap<String, String>()
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.keys, equalTo(emptySet<Any>()))
     }
 
     @Test
     fun values() {
         val values = HashMap<String, String>()
-        val header = values.asHeader()
+        val header = values.toHeader()
         assertThat(header.values.isEmpty(), equalTo(values.values.isEmpty()))
     }
 

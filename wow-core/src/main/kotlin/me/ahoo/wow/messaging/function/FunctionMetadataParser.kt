@@ -24,32 +24,32 @@ import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.configuration.asNamedAggregate
-import me.ahoo.wow.configuration.asNamedBoundedContext
+import me.ahoo.wow.configuration.namedAggregate
+import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
-import me.ahoo.wow.infra.accessor.method.reactive.asMonoMethodAccessor
+import me.ahoo.wow.infra.accessor.method.reactive.toMonoMethodAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.toNamedAggregate
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 
 object FunctionMetadataParser {
 
-    fun <P, R> Method.asFunctionMetadata(accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
+    fun <P, R> Method.toFunctionMetadata(accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
         val parameterTypes = parameterTypes
         check(parameterTypes.isNotEmpty()) { "The function has at least one parameter." }
         /*
          * 消息函数第一个参数必须为消息.
          */
         val firstParameterType = parameterTypes[0]
-        val firstParameterKind = firstParameterType.asFirstParameterKind()
-        val functionKind = asFunctionKind()
-        val supportedType = asSupportedType(firstParameterKind, firstParameterType)
+        val firstParameterKind = firstParameterType.toFirstParameterKind()
+        val functionKind = toFunctionKind()
+        val supportedType = toSupportedType(firstParameterKind, firstParameterType)
         val accessor = accessorFactory(this)
-        val supportedTopics = asSupportedTopics(functionKind, supportedType)
+        val supportedTopics = toSupportedTopics(functionKind, supportedType)
 
         val injectParameterTypes = parameterTypes.copyOfRange(1, parameterTypes.size).mapIndexed { idx, parameterType ->
             val name = parameterAnnotations[idx + 1].firstOrNull {
@@ -67,7 +67,7 @@ object FunctionMetadataParser {
         )
     }
 
-    private fun Class<*>.asFirstParameterKind(): FirstParameterKind {
+    private fun Class<*>.toFirstParameterKind(): FirstParameterKind {
         return when {
             MessageExchange::class.java.isAssignableFrom(this) -> {
                 FirstParameterKind.MESSAGE_EXCHANGE
@@ -83,7 +83,7 @@ object FunctionMetadataParser {
         }
     }
 
-    private fun Method.asFunctionKind(): FunctionKind {
+    private fun Method.toFunctionKind(): FunctionKind {
         scan<OnMessage>()?.let {
             return it.functionKind
         }
@@ -111,7 +111,7 @@ object FunctionMetadataParser {
         throw IllegalStateException("The method [$declaringClass.$name] is not annotated by @OnMessage.")
     }
 
-    private fun Method.asSupportedType(firstParameterKind: FirstParameterKind, firstParameterType: Class<*>): Class<*> {
+    private fun Method.toSupportedType(firstParameterKind: FirstParameterKind, firstParameterType: Class<*>): Class<*> {
         return when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
                 val messageWrappedBodyType = genericParameterTypes[0]
@@ -125,7 +125,7 @@ object FunctionMetadataParser {
         }
     }
 
-    private fun Method.asSupportedTopics(functionKind: FunctionKind, supportedType: Class<*>): Set<Any> {
+    private fun Method.toSupportedTopics(functionKind: FunctionKind, supportedType: Class<*>): Set<Any> {
         return when (functionKind) {
             FunctionKind.EVENT -> {
                 val onEvent = scan<OnEvent>()
@@ -149,26 +149,26 @@ object FunctionMetadataParser {
             return bodyType.typeAsTopics()
         }
         val namedBoundedContext =
-            bodyType.asNamedBoundedContext() ?: declaringClass.asNamedBoundedContext()
+            bodyType.namedBoundedContext() ?: declaringClass.namedBoundedContext()
         return aggregateNames.map {
-            it.asNamedAggregate(namedBoundedContext?.contextName)
+            it.toNamedAggregate(namedBoundedContext?.contextName)
         }.toSet()
     }
 
     private fun Class<*>.typeAsTopics(): Set<Any> {
-        asNamedAggregate()?.let {
+        namedAggregate()?.let {
             return setOf(it)
         }
         return setOf()
     }
 
-    fun <P, R> Method.asFunctionMetadata(): MethodFunctionMetadata<P, R> {
-        return this.asFunctionMetadata(::SimpleMethodAccessor)
+    fun <P, R> Method.toFunctionMetadata(): MethodFunctionMetadata<P, R> {
+        return this.toFunctionMetadata(::SimpleMethodAccessor)
     }
 
-    fun <P, R> Method.asMonoFunctionMetadata(): MethodFunctionMetadata<P, Mono<R>> {
-        return this.asFunctionMetadata {
-            it.asMonoMethodAccessor()
+    fun <P, R> Method.toMonoFunctionMetadata(): MethodFunctionMetadata<P, Mono<R>> {
+        return this.toFunctionMetadata {
+            it.toMonoMethodAccessor()
         }
     }
 }

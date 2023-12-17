@@ -20,10 +20,10 @@ import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.asSnapshotCollectionName
-import me.ahoo.wow.mongo.Documents.replaceAggregateIdAsPrimaryKey
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -34,7 +34,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
     }
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        val snapshotCollectionName = aggregateId.asSnapshotCollectionName()
+        val snapshotCollectionName = aggregateId.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.eq(Documents.ID_FIELD, aggregateId.id))
             .first()
@@ -45,7 +45,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
     }
 
     override fun getVersion(aggregateId: AggregateId): Mono<Int> {
-        val snapshotCollectionName = aggregateId.asSnapshotCollectionName()
+        val snapshotCollectionName = aggregateId.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.eq(Documents.ID_FIELD, aggregateId.id))
             .projection(Document(MessageRecords.VERSION, 1))
@@ -60,7 +60,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
         aggregateId: AggregateId,
         document: Document
     ): Snapshot<S> {
-        val snapshot = document.asSnapshot<S>()
+        val snapshot = document.toSnapshot<S>()
         require(aggregateId == snapshot.aggregateId) {
             "aggregateId: $aggregateId != snapshot.aggregateId: ${snapshot.aggregateId}"
         }
@@ -68,10 +68,10 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        val snapshotCollectionName = snapshot.aggregateId.asSnapshotCollectionName()
-        val snapshotJsonString = snapshot.asJsonString()
+        val snapshotCollectionName = snapshot.aggregateId.toSnapshotCollectionName()
+        val snapshotJsonString = snapshot.toJsonString()
         val document = Document.parse(snapshotJsonString)
-            .replaceAggregateIdAsPrimaryKey()
+            .replaceAggregateIdToPrimaryKey()
         return database.getCollection(snapshotCollectionName)
             .replaceOne(
                 Filters.eq(Documents.ID_FIELD, snapshot.aggregateId.id),

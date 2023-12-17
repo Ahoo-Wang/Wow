@@ -40,7 +40,7 @@ class SimpleStateAggregate<S : Any>(
     StateAggregate<S>,
     TypedAggregate<S> by metadata {
 
-    private val sourcingRegistry = metadata.asMessageFunctionRegistry(state)
+    private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(SimpleStateAggregate::class.java)

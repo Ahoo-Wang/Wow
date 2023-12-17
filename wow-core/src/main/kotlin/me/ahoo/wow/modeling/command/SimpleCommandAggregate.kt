@@ -36,8 +36,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     }
 
     override val processorName: String = metadata.processorName
-    private val commandFunctionRegistry = metadata.asCommandFunctionRegistry(this)
-    private val errorFunctionRegistry = metadata.asErrorFunctionRegistry(this)
+    private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
+    private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)
 
     @Volatile
     override var commandState = CommandState.STORED

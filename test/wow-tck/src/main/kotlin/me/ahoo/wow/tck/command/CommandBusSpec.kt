@@ -17,7 +17,7 @@ import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.messaging.MessageBusSpec
@@ -36,6 +36,6 @@ abstract class CommandBusSpec : MessageBusSpec<CommandMessage<*>, ServerCommandE
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
             data = GlobalIdGenerator.generateAsString(),
-        ).asCommandMessage()
+        ).toCommandMessage()
     }
 }

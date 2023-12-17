@@ -1,6 +1,6 @@
 package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
@@ -14,7 +14,7 @@ class MessagePropagatorProviderTest {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
-                .asCommandMessage()
+                .toCommandMessage()
         header.inject(upstreamMessage)
     }
 }

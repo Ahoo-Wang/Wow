@@ -1,6 +1,6 @@
 package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
@@ -21,7 +21,7 @@ class WaitStrategyMessagePropagatorTest {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
-                .asCommandMessage()
+                .toCommandMessage()
         upstreamMessage.header.injectWaitStrategy("wait-endpoint", CommandStage.SENT, "context", "processor")
         WaitStrategyMessagePropagator().inject(header, upstreamMessage)
         assertThat(header[COMMAND_WAIT_ENDPOINT], equalTo("wait-endpoint"))
@@ -35,7 +35,7 @@ class WaitStrategyMessagePropagatorTest {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
-                .asCommandMessage()
+                .toCommandMessage()
         upstreamMessage.header.injectWaitStrategy("wait-endpoint", CommandStage.SENT, "", "")
         WaitStrategyMessagePropagator().inject(header, upstreamMessage)
         assertThat(header[COMMAND_WAIT_ENDPOINT], equalTo(upstreamMessage.header[COMMAND_WAIT_ENDPOINT]))

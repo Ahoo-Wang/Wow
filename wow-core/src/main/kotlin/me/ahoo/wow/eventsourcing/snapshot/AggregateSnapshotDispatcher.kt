@@ -18,7 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -42,7 +42,7 @@ class AggregateSnapshotDispatcher(
         return snapshotHandler.handle(exchange)
     }
 
-    override fun StateEventExchange<*>.asGroupKey(): Int {
-        return message.asGroupKey(parallelism)
+    override fun StateEventExchange<*>.toGroupKey(): Int {
+        return message.toGroupKey(parallelism)
     }
 }

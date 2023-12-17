@@ -14,7 +14,7 @@ package me.ahoo.wow.tck.event
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -47,7 +47,7 @@ object MockDomainEventStreams {
             events.add(changed)
             eventCounter++
         }
-        return events.asDomainEventStream(
+        return events.toDomainEventStream(
             command = GivenInitializationCommand(
                 aggregateId = aggregateId,
             ),

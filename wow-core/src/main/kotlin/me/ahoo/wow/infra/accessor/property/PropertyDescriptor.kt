@@ -29,27 +29,27 @@ object PropertyDescriptor {
         return fieldName.substring(0, 1).uppercase() + fieldName.substring(1)
     }
 
-    fun asGetterName(fieldName: String): String {
+    fun toGetterName(fieldName: String): String {
         return PROPERTY_GETTER_PREFIX + capitalize(fieldName)
     }
 
-    fun asSetterName(fieldName: String): String {
+    fun toSetterName(fieldName: String): String {
         return PROPERTY_SETTER_PREFIX + capitalize(fieldName)
     }
 
-    fun <T, V> Method.asPropertyGetter(): PropertyGetter<T, V>? {
+    fun <T, V> Method.toPropertyGetter(): PropertyGetter<T, V>? {
         if (parameterCount == 0 && returnType != Void.TYPE) {
             return MethodPropertyGetter(SimpleMethodAccessor(this))
         }
         return null
     }
 
-    fun <T, V> Field.asPropertyGetter(): PropertyGetter<T, V> {
-        val getterName = asGetterName(name)
+    fun <T, V> Field.toPropertyGetter(): PropertyGetter<T, V> {
+        val getterName = toGetterName(name)
         try {
             val getterMethod = declaringClass.getDeclaredMethod(getterName)
             if (getterMethod.returnType == this.type) {
-                getterMethod.asPropertyGetter<T, V>()?.let {
+                getterMethod.toPropertyGetter<T, V>()?.let {
                     return it
                 }
             }
@@ -69,7 +69,7 @@ object PropertyDescriptor {
     }
 
     fun <T, V> Field.asPropertySetter(): PropertySetter<T, V>? {
-        val setterName = asSetterName(name)
+        val setterName = toSetterName(name)
         try {
             val setterMethod = declaringClass.getDeclaredMethod(setterName, type)
             if (setterMethod.parameterTypes.first() == type) {

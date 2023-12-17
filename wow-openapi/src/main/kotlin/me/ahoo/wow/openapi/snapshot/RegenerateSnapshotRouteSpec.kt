@@ -16,8 +16,8 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -28,7 +28,7 @@ class RegenerateSnapshotRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.regenerateSnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.regenerateSnapshot"
     override val method: String
         get() = Https.Method.PUT
     override val summary: String

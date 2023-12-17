@@ -18,9 +18,9 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.event.upgrader.EventUpgraderFactory
-import me.ahoo.wow.infra.TypeNameMapper.asType
+import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageBodyRecord
@@ -30,7 +30,7 @@ import me.ahoo.wow.serialization.MessageIdRecord
 import me.ahoo.wow.serialization.MessageNameRecord
 import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toObject
 
 object DomainEventRecords {
     const val SEQUENCE = "sequence"
@@ -55,28 +55,28 @@ interface DomainEventRecord :
     val isLast: Boolean
         get() = actual[DomainEventRecords.IS_LAST].asBoolean()
 
-    fun asAggregateId(): AggregateId {
+    fun toAggregateId(): AggregateId {
         return MaterializedNamedAggregate(contextName, aggregateName)
-            .asAggregateId(
+            .aggregateId(
                 id = aggregateId,
                 tenantId = tenantId,
             )
     }
 
-    fun asDomainEvent(): DomainEvent<Any> {
+    fun toDomainEvent(): DomainEvent<Any> {
         val upgradedRecord = EventUpgraderFactory.upgrade(this)
-        return upgradedRecord.asDomainEventObject()
+        return upgradedRecord.toDomainEventObject()
     }
 
-    private fun asDomainEventObject(): DomainEvent<Any> {
-        val aggregateId = asAggregateId()
+    private fun toDomainEventObject(): DomainEvent<Any> {
+        val aggregateId = toAggregateId()
         val bodyType = try {
-            bodyType.asType<Any>()
+            bodyType.toType<Any>()
         } catch (classNotFoundException: ClassNotFoundException) {
             @Suppress("UNCHECKED_CAST")
             return BodyTypeNotFoundDomainEvent(
                 id = id,
-                header = asMessageHeader(),
+                header = toMessageHeader(),
                 body = body,
                 aggregateId = aggregateId,
                 version = version,
@@ -91,8 +91,8 @@ interface DomainEventRecord :
         }
         return SimpleDomainEvent(
             id = id,
-            header = asMessageHeader(),
-            body = body.asObject(bodyType),
+            header = toMessageHeader(),
+            body = body.toObject(bodyType),
             aggregateId = aggregateId,
             version = version,
             sequence = sequence,
@@ -107,6 +107,6 @@ interface DomainEventRecord :
 
 class DelegatingDomainEventRecord(override val actual: ObjectNode) : DomainEventRecord
 
-fun ObjectNode.asDomainEventRecord(): DomainEventRecord {
+fun ObjectNode.toDomainEventRecord(): DomainEventRecord {
     return DelegatingDomainEventRecord(this)
 }

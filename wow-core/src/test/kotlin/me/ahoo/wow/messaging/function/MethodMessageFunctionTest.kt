@@ -15,12 +15,12 @@ package me.ahoo.wow.messaging.function
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -35,13 +35,13 @@ internal class MethodMessageFunctionTest {
         val messageFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
-        ).asFunctionMetadata<MockCommandAggregate, MockAggregateCreated>()
-            .asMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
+        ).toFunctionMetadata<MockCommandAggregate, MockAggregateCreated>()
+            .toMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
                 MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
         assertThat(messageFunction, notNullValue())
         val serverCommandExchange = mockk<ServerCommandExchange<MockCreateAggregate>> {
-            every { message } returns MockCreateAggregate("id", "data").asCommandMessage()
+            every { message } returns MockCreateAggregate("id", "data").toCommandMessage()
         }
         messageFunction(serverCommandExchange)
         val created = messageFunction.handle(serverCommandExchange)
@@ -79,8 +79,8 @@ internal class MethodMessageFunctionTest {
             "onEvent",
             MockEventBody::class.java,
             ExternalService::class.java,
-        ).asFunctionMetadata<MockWithInjectableFunction, Any>()
-            .asMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
+        ).toFunctionMetadata<MockWithInjectableFunction, Any>()
+            .toMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
                 MockWithInjectableFunction(),
             )
 
@@ -104,8 +104,8 @@ internal class MethodMessageFunctionTest {
         val messageFunction = MockFunction::class.java.getDeclaredMethod(
             "onEvent",
             MockEventBody::class.java,
-        ).asMonoFunctionMetadata<MockFunction, Any>()
-            .asMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
+        ).toMonoFunctionMetadata<MockFunction, Any>()
+            .toMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
                 MockFunction(),
             )
 

@@ -14,8 +14,8 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,13 +24,13 @@ class InMemorySnapshotRepository : SnapshotRepository {
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return Mono.fromCallable {
-            aggregateIdMapSnapshot[aggregateId]?.asObject<Snapshot<S>>()
+            aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>()
         }
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.asJsonString()
+            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
         }
     }
 }

@@ -27,8 +27,8 @@ import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
@@ -37,8 +37,8 @@ import org.junit.jupiter.api.Test
 
 class ExecutionFailedTest {
     companion object {
-        val EVENT_AGGREGATE = "order.order".asNamedAggregate()
-        val EVENT_ID = EventId(GlobalIdGenerator.generateAsString(), EVENT_AGGREGATE.asAggregateId(), 1)
+        val EVENT_AGGREGATE = "order.order".toNamedAggregate()
+        val EVENT_ID = EventId(GlobalIdGenerator.generateAsString(), EVENT_AGGREGATE.aggregateId(), 1)
         val processor = ProcessorInfoData("order", "OrderProjector")
         val functionKind = FunctionKind.EVENT
         val error = ErrorDetails("errorCode", "errorMsg", "stackTrace")

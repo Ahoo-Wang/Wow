@@ -21,7 +21,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventStream
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageCommandIdRecord
@@ -36,22 +36,22 @@ interface EventStreamRecord :
     MessageRequestIdRecord,
     MessageAggregateIdRecord,
     MessageAggregateNameRecord {
-    fun asAggregateId(): AggregateId {
+    fun toAggregateId(): AggregateId {
         return MaterializedNamedAggregate(contextName, aggregateName)
-            .asAggregateId(
+            .aggregateId(
                 id = aggregateId,
                 tenantId = tenantId,
             )
     }
 
-    fun asDomainEventStream(): DomainEventStream {
+    fun toDomainEventStream(): DomainEventStream {
         val id = id
         val commandId = commandId
         val requestId = requestId
         val version = version
-        val header = asMessageHeader()
+        val header = toMessageHeader()
         val createTime = createTime
-        val aggregateId = asAggregateId()
+        val aggregateId = toAggregateId()
         val eventCount = body.size()
         val events = body.mapIndexed { index, eventNode ->
             val sequence = (index + DEFAULT_EVENT_SEQUENCE)
@@ -64,7 +64,7 @@ interface EventStreamRecord :
                 sequence = sequence,
                 isLast = sequence == eventCount,
                 streamedCreateTime = createTime,
-            ).asDomainEvent()
+            ).toDomainEvent()
         }.toList()
 
         return SimpleDomainEventStream(
@@ -78,7 +78,7 @@ interface EventStreamRecord :
 
 class DelegatingEventStreamRecord(override val actual: ObjectNode) : EventStreamRecord
 
-fun ObjectNode.asEventStreamRecord(): EventStreamRecord {
+fun ObjectNode.toEventStreamRecord(): EventStreamRecord {
     return DelegatingEventStreamRecord(this)
 }
 
@@ -105,7 +105,7 @@ class FlatEventStreamRecord(
     override val tenantId: String
         get() = rawAggregateId.tenantId
 
-    override fun asAggregateId(): AggregateId {
+    override fun toAggregateId(): AggregateId {
         return rawAggregateId
     }
 }
@@ -141,11 +141,11 @@ class StreamDomainEventRecord(
     override val createTime: Long
         get() = streamedCreateTime
 
-    override fun asMessageHeader(): Header {
+    override fun toMessageHeader(): Header {
         return streamedHeader
     }
 
-    override fun asAggregateId(): AggregateId {
+    override fun toAggregateId(): AggregateId {
         return streamedAggregateId
     }
 }

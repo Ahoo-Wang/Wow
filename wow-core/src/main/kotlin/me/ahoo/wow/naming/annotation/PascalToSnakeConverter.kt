@@ -31,6 +31,6 @@ object PascalToSnakeConverter {
     }
 }
 
-fun Class<*>.asName(): String {
+fun Class<*>.toName(): String {
     return PascalToSnakeConverter.convert(this)
 }

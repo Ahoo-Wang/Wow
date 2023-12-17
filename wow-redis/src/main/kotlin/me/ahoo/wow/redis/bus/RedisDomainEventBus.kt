@@ -33,7 +33,7 @@ class RedisDomainEventBus(
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
 
-    override fun DomainEventStream.asExchange(acknowledgePublisher: Mono<Void>): EventStreamExchange {
+    override fun DomainEventStream.toExchange(acknowledgePublisher: Mono<Void>): EventStreamExchange {
         return RedisEventStreamExchange(
             this,
             acknowledgePublisher,

@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.command.CommandResultException
-import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.exception.toErrorInfo
 import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
@@ -30,8 +30,8 @@ object DefaultExceptionHandler : ExceptionHandler {
             log.warn(throwable.message, throwable)
         }
         if (throwable is CommandResultException) {
-            return throwable.commandResult.asServerResponse()
+            return throwable.commandResult.toServerResponse()
         }
-        return throwable.asErrorInfo().asServerResponse()
+        return throwable.toErrorInfo().toServerResponse()
     }
 }

@@ -22,8 +22,8 @@ import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.Range
@@ -53,7 +53,7 @@ class RedisEventStore(
                 eventStream.aggregateName,
                 eventStream.requestId,
                 eventStream.version.toString(),
-                eventStream.asJsonString(),
+                eventStream.toJsonString(),
             ),
         ).doOnNext {
             when (it) {
@@ -71,7 +71,7 @@ class RedisEventStore(
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
         return redisTemplate.opsForZSet().rangeByScore(key, range, RedisZSetCommands.Limit.unlimited())
             .map {
-                it.asObject<DomainEventStream>()
+                it.toObject<DomainEventStream>()
             }
     }
 

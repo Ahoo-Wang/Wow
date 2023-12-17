@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.server.configuration
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.webflux.exception.asResponseEntity
+import me.ahoo.wow.webflux.exception.toResponseEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -25,6 +25,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 class GlobalRestExceptionHandler {
     @ExceptionHandler(RuntimeException::class)
     fun handleWowException(ex: RuntimeException): ResponseEntity<ErrorInfo> {
-        return ex.asResponseEntity()
+        return ex.toResponseEntity()
     }
 }

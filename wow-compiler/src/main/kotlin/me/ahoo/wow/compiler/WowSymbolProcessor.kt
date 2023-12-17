@@ -26,7 +26,7 @@ import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRoot
 import me.ahoo.wow.compiler.BoundedContextResolver.resolveBoundedContext
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
-import me.ahoo.wow.serialization.asPrettyJson
+import me.ahoo.wow.serialization.toPrettyJson
 
 /**
  * @see me.ahoo.wow.configuration.WowMetadata
@@ -68,7 +68,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 it.containingFile?.let { file ->
                     dependencyFiles.add(file)
                 }
-                val aggregateName = it.asName()
+                val aggregateName = it.toName()
                 val aggregate = it.resolveAggregateRoot(resolver)
                 wowMetadataMerger.merge(aggregateName, aggregate)
             }
@@ -83,7 +83,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 fileName = WOW_METADATA_RESOURCE_PATH,
                 extensionName = "",
             )
-        file.write(wowMetadataMerger.metadata.asPrettyJson().toByteArray())
+        file.write(wowMetadataMerger.metadata.toPrettyJson().toByteArray())
         file.close()
         return emptyList()
     }

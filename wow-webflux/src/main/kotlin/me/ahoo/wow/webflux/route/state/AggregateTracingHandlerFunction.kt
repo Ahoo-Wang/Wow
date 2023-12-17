@@ -17,15 +17,15 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -42,7 +42,7 @@ class AggregateTracingHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
 
         return eventStore
             .load(
@@ -50,7 +50,7 @@ class AggregateTracingHandlerFunction(
             ).collectList()
             .map {
                 aggregateMetadata.state.trace(it)
-            }.asServerResponse(exceptionHandler)
+            }.toServerResponse(exceptionHandler)
     }
 
     companion object {
@@ -63,7 +63,7 @@ class AggregateTracingHandlerFunction(
             eventStreams.forEach {
                 stateAggregate.onSourcing(it)
             }
-            return eventStreams.last().asStateEvent(stateAggregate)
+            return eventStreams.last().toStateEvent(stateAggregate)
         }
 
         fun <S : Any> StateAggregateMetadata<S>.trace(

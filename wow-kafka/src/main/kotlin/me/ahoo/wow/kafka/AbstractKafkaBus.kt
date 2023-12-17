@@ -19,8 +19,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.getReceiverGroup
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.slf4j.LoggerFactory
@@ -73,7 +73,7 @@ abstract class AbstractKafkaBus<M, E>(
         }
     }
 
-    abstract fun M.asExchange(receiverOffset: ReceiverOffset): E
+    abstract fun M.toExchange(receiverOffset: ReceiverOffset): E
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
         return Flux.deferContextual { contextView ->
@@ -89,7 +89,7 @@ abstract class AbstractKafkaBus<M, E>(
                 .retryWhen(DEFAULT_RECEIVE_RETRY_SPEC)
                 .mapNotNull {
                     val message = decode(it) ?: return@mapNotNull null
-                    message.asExchange(it.receiverOffset())
+                    message.toExchange(it.receiverOffset())
                 }
         }
     }
@@ -105,7 +105,7 @@ abstract class AbstractKafkaBus<M, E>(
             /* key = */
             message.aggregateId.id,
             /* value = */
-            message.asJsonString(),
+            message.toJsonString(),
         )
         return SenderRecord.create(producerRecord, Sinks.empty())
     }
@@ -113,7 +113,7 @@ abstract class AbstractKafkaBus<M, E>(
     @Suppress("TooGenericExceptionCaught")
     protected fun decode(receiverRecord: ReceiverRecord<String, String>): M? {
         return try {
-            receiverRecord.value().asObject(messageType)
+            receiverRecord.value().toObject(messageType)
         } catch (e: Throwable) {
             if (log.isErrorEnabled) {
                 log.error("Failed to decode ReceiverRecord[$receiverRecord].", e)

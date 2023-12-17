@@ -15,7 +15,7 @@ package me.ahoo.wow.r2dbc
 
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.sharding.CosIdShardingDecorator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -31,7 +31,7 @@ internal class ShardingSnapshotSchemaTest {
     @Test
     fun load() {
         assertThat(
-            snapshotSchema.load(namedAggregate.asAggregateId("0TEC7cEx0001001")),
+            snapshotSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")),
             equalTo("select * from test_snapshot_1 where aggregate_id=? order by version desc limit 1"),
         )
     }
@@ -39,7 +39,7 @@ internal class ShardingSnapshotSchemaTest {
     @Test
     fun loadVersion() {
         assertThat(
-            snapshotSchema.loadByVersion(namedAggregate.asAggregateId("0TEC7cEx0001002")),
+            snapshotSchema.loadByVersion(namedAggregate.aggregateId("0TEC7cEx0001002")),
             equalTo("select * from test_snapshot_2 where aggregate_id=? and version=?"),
         )
     }
@@ -47,7 +47,7 @@ internal class ShardingSnapshotSchemaTest {
     @Test
     fun save() {
         assertThat(
-            snapshotSchema.save(namedAggregate.asAggregateId("0TEC7cEx0001003")),
+            snapshotSchema.save(namedAggregate.aggregateId("0TEC7cEx0001003")),
             equalTo(
                 """
      replace into test_snapshot_3

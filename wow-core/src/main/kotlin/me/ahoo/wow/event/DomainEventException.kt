@@ -20,7 +20,7 @@ import me.ahoo.wow.exception.WowException
 class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
     WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
     companion object {
-        fun DomainEvent<out ErrorInfo>.asException(): DomainEventException {
+        fun DomainEvent<out ErrorInfo>.toException(): DomainEventException {
             return DomainEventException(this)
         }
     }

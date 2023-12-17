@@ -16,7 +16,7 @@ package me.ahoo.wow.event
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.asGroupKey
+import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
@@ -36,8 +36,8 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
     abstract val eventHandler: EventHandler
 
-    override fun E.asGroupKey(): Int {
-        return message.asGroupKey(parallelism)
+    override fun E.toGroupKey(): Int {
+        return message.toGroupKey(parallelism)
     }
 
     override fun handleExchange(exchange: E): Mono<Void> {

@@ -15,7 +15,7 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -28,11 +28,11 @@ import org.junit.jupiter.api.Test
 internal class MethodFunctionMetadataTest {
 
     @Test
-    fun asCommandFunctionMetadata() {
+    fun toCommandFunctionMetadata() {
         val metadata = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
-        ).asFunctionMetadata<MockAggregate, Any>()
+        ).toFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
@@ -65,7 +65,7 @@ internal class MethodFunctionMetadataTest {
     fun asEventFunctionMetadata() {
         val metadata =
             MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .asFunctionMetadata<Any, Any>()
+                .toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItem(MaterializedNamedAggregate("wow-core-test", "messaging_aggregate")),
@@ -82,7 +82,7 @@ internal class MethodFunctionMetadataTest {
     fun asEventFunctionMetadataWithMultiAggregate() {
         val metadata =
             MockWithMultiAggregateNameFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .asFunctionMetadata<Any, Any>()
+                .toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItems(
@@ -102,7 +102,7 @@ internal class MethodFunctionMetadataTest {
     fun asOnStateEventFunctionMetadata() {
         val metadata =
             MockOnStateEventFunction::class.java.getDeclaredMethod("onStateEvent", DomainEvent::class.java)
-                .asFunctionMetadata<Any, Any>()
+                .toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItems(
@@ -121,7 +121,7 @@ internal class MethodFunctionMetadataTest {
     fun asFunctionMetadataWhenWrapped() {
         val metadata =
             MockWithWrappedFunction::class.java.getDeclaredMethod("onEvent", DomainEvent::class.java)
-                .asFunctionMetadata<MockAggregate, Any>()
+                .toFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
@@ -143,7 +143,7 @@ internal class MethodFunctionMetadataTest {
     fun asFunctionMetadataWithNoneParameter() {
         Assertions.assertThrows(IllegalStateException::class.java) {
             MethodFunctionMetadataTest::class.java.getDeclaredMethod("asFunctionMetadataWithNoneParameter")
-                .asFunctionMetadata<MethodFunctionMetadataTest, Any>()
+                .toFunctionMetadata<MethodFunctionMetadataTest, Any>()
         }
     }
 }

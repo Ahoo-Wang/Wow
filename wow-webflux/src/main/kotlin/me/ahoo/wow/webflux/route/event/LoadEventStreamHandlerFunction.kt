@@ -14,11 +14,11 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -37,14 +37,14 @@ class LoadEventStreamHandlerFunction(
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val headVersion = request.pathVariable(RoutePaths.HEAD_VERSION_KEY).toInt()
         val tailVersion = request.pathVariable(RoutePaths.TAIL_VERSION_KEY).toInt()
-        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         return eventStore
             .load(
                 aggregateId = aggregateId,
                 headVersion = headVersion,
                 tailVersion = tailVersion
             ).collectList()
-            .asServerResponse()
+            .toServerResponse()
     }
 }
 

@@ -19,7 +19,7 @@ import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.spring.stereotype.ProjectionProcessor
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
@@ -46,14 +46,14 @@ class OrderProjector {
     @Suppress("UnusedParameter")
     fun onStateEvent(orderCreated: OrderCreated, state: OrderState) {
         if (log.isInfoEnabled) {
-            log.info(state.asJsonString())
+            log.info(state.toJsonString())
         }
     }
 
     @Suppress("UnusedParameter")
     fun onStateEvent(orderCreated: OrderCreated, state: ReadOnlyStateAggregate<OrderState>) {
         if (log.isInfoEnabled) {
-            log.info(state.asJsonString())
+            log.info(state.toJsonString())
         }
     }
 

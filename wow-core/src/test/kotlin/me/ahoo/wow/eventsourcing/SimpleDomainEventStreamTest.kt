@@ -14,7 +14,7 @@ package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.tck.event.DomainEventStreamSpec
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 
@@ -24,7 +24,7 @@ internal class SimpleDomainEventStreamTest : DomainEventStreamSpec() {
         aggregateId: AggregateId,
         aggregateVersion: Int
     ): DomainEventStream {
-        return events.asDomainEventStream(
+        return events.toDomainEventStream(
             command = GivenInitializationCommand(aggregateId),
             aggregateVersion = aggregateVersion,
         )

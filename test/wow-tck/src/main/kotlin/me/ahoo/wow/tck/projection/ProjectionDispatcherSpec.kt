@@ -16,15 +16,15 @@ package me.ahoo.wow.tck.projection
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
@@ -70,8 +70,8 @@ abstract class ProjectionDispatcherSpec {
             )
         projectionDispatcher.run()
 
-        val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
-            command = GivenInitializationCommand(aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())),
+        val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
+            command = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 1,
         )
         domainEventBus.send(eventStream).block()

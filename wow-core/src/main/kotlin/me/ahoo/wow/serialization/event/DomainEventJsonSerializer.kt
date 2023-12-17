@@ -37,7 +37,7 @@ object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent
 
 object DomainEventJsonDeserializer : StdDeserializer<DomainEvent<*>>(DomainEvent::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DomainEvent<*> {
-        return p.codec.readTree<ObjectNode>(p).asDomainEventRecord()
-            .asDomainEvent()
+        return p.codec.readTree<ObjectNode>(p).toDomainEventRecord()
+            .toDomainEvent()
     }
 }

@@ -17,23 +17,23 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.asArraySchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
+import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 
 class IdsQueryAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.idsQueryStateAggregate"
+        get() = "${aggregateMetadata.toStringWithAlias()}.idsQueryStateAggregate"
     override val method: String
         get() = Https.Method.POST
 
@@ -45,11 +45,11 @@ class IdsQueryAggregateRouteSpec(
 
     override val requestBody: RequestBody
         get() {
-            return StringSchema().asArraySchema().asRequestBody()
+            return StringSchema().toArraySchema().toRequestBody()
         }
 
     override val responses: ApiResponses
-        get() = aggregateMetadata.state.aggregateType.asResponse(true).let {
+        get() = aggregateMetadata.state.aggregateType.toResponse(true).let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }
 }
@@ -60,7 +60,7 @@ class IdsQueryAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        aggregateMetadata.state.aggregateType.asSchemas().mergeSchemas()
+        aggregateMetadata.state.aggregateType.toSchemas().mergeSchemas()
         return listOf(
             IdsQueryAggregateRouteSpec(
                 currentContext,

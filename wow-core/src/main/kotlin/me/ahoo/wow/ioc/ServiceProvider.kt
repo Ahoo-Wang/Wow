@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.ioc
 
-import me.ahoo.wow.naming.annotation.asName
+import me.ahoo.wow.naming.annotation.toName
 
 /**
  * ServiceProvider .
@@ -21,7 +21,7 @@ import me.ahoo.wow.naming.annotation.asName
  */
 interface ServiceProvider {
     fun <S : Any> register(service: S) {
-        val serviceName = service.javaClass.asName()
+        val serviceName = service.javaClass.toName()
         register(serviceName, service)
     }
 

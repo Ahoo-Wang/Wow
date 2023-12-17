@@ -22,39 +22,39 @@ internal class MaterializedNamedBoundedContextTest {
 
     @Test
     fun isSameBoundedContext() {
-        val context = "test-context".asNamedBoundedContext()
+        val context = "test-context".toNamedBoundedContext()
         assertThat(context.contextName, equalTo("test-context"))
-        assertThat(context.isSameBoundedContext("test-context".asNamedBoundedContext()), equalTo(true))
+        assertThat(context.isSameBoundedContext("test-context".toNamedBoundedContext()), equalTo(true))
     }
 
     @Test
     fun notSameBoundedContext() {
-        val actual = "test-context".asNamedBoundedContext()
-            .isSameBoundedContext("test-context-other".asNamedBoundedContext())
+        val actual = "test-context".toNamedBoundedContext()
+            .isSameBoundedContext("test-context-other".toNamedBoundedContext())
         assertThat(actual, equalTo(false))
     }
 
     @Test
     fun getContextAlias() {
-        val actual = "test-context".asNamedBoundedContext().getContextAlias()
+        val actual = "test-context".toNamedBoundedContext().getContextAlias()
         assertThat(actual, equalTo("test-context"))
     }
 
     @Test
     fun getContextAliasIfNull() {
-        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext())
+        val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext())
         assertThat(actual, equalTo("test-context"))
     }
 
     @Test
     fun getContextAliasIfEmpty() {
-        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext(""))
+        val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext(""))
         assertThat(actual, equalTo("test-context"))
     }
 
     @Test
     fun getContextAliasIfNotEmpty() {
-        val actual = "test-context".asNamedBoundedContext().getContextAlias(BoundedContext("alias"))
+        val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext("alias"))
         assertThat(actual, equalTo("alias"))
     }
 }

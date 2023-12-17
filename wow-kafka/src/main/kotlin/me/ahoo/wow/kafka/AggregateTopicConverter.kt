@@ -15,7 +15,7 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.asStringWithAlias
+import me.ahoo.wow.modeling.toStringWithAlias
 
 fun interface AggregateTopicConverter {
     fun convert(namedAggregate: NamedAggregate): String
@@ -31,7 +31,7 @@ class DefaultCommandTopicConverter(private val topicPrefix: String = Wow.WOW_PRE
     }
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${topicPrefix}${namedAggregate.asStringWithAlias()}.$COMMAND_TOPIC_SUFFIX"
+        return "${topicPrefix}${namedAggregate.toStringWithAlias()}.$COMMAND_TOPIC_SUFFIX"
     }
 }
 
@@ -41,7 +41,7 @@ class DefaultEventStreamTopicConverter(private val topicPrefix: String = Wow.WOW
     }
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${topicPrefix}${namedAggregate.asStringWithAlias()}.$EVENT_TOPIC_SUFFIX"
+        return "${topicPrefix}${namedAggregate.toStringWithAlias()}.$EVENT_TOPIC_SUFFIX"
     }
 }
 
@@ -51,6 +51,6 @@ class DefaultStateEventTopicConverter(private val topicPrefix: String = Wow.WOW_
     }
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${topicPrefix}${namedAggregate.asStringWithAlias()}.$STATE_EVENT_TOPIC_SUFFIX"
+        return "${topicPrefix}${namedAggregate.toStringWithAlias()}.$STATE_EVENT_TOPIC_SUFFIX"
     }
 }

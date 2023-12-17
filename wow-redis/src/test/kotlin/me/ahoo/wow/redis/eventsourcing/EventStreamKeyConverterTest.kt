@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.MatcherAssert.*
@@ -21,7 +21,7 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class EventStreamKeyConverterTest {
-    private val aggregateId = MOCK_AGGREGATE_METADATA.asAggregateId("id", "tenantId")
+    private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
 
     @Test
     fun toKeyPrefix() {

@@ -21,7 +21,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -35,7 +35,7 @@ abstract class StateEventBusSpec : MessageBusSpec<StateEvent<*>, StateEventExcha
 
     override fun createMessage(): StateEvent<*> {
         val eventStream = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregate.asAggregateId(GlobalIdGenerator.generateAsString()),
+            aggregateId = namedAggregate.aggregateId(GlobalIdGenerator.generateAsString()),
             eventCount = 1,
             createdEventSupplier = { MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
         )

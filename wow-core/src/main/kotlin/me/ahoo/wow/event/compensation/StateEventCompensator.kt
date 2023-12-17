@@ -14,14 +14,14 @@
 package me.ahoo.wow.event.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.asRequiredAggregateType
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import reactor.core.publisher.Mono
 
@@ -37,8 +37,8 @@ class StateEventCompensator(
         tailVersion: Int,
         target: CompensationTarget
     ): Mono<Long> {
-        val aggregateMetadata = aggregateId.asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, Any>()
+        val aggregateMetadata = aggregateId.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, Any>()
         return stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
             .flatMapMany { stateAggregate ->
                 eventStore
@@ -48,7 +48,7 @@ class StateEventCompensator(
                     )
                     .map {
                         stateAggregate.onSourcing(it)
-                        it.asStateEvent(stateAggregate)
+                        it.toStateEvent(stateAggregate)
                     }
                     .filter {
                         it.version in headVersion..tailVersion

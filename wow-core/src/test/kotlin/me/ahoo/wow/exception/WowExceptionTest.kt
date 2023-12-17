@@ -25,7 +25,7 @@ class WowExceptionTest {
     @ParameterizedTest
     @MethodSource("argsProvider")
     fun asErrorInfo(throwable: Throwable, errorCode: String) {
-        val actual = throwable.asErrorInfo()
+        val actual = throwable.toErrorInfo()
         assertThat(actual.errorCode, equalTo(errorCode))
         assertThat(actual.errorMsg, equalTo(throwable.message))
     }

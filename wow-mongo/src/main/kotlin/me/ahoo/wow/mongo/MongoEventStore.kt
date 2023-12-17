@@ -26,15 +26,15 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.asEventStreamCollectionName
-import me.ahoo.wow.mongo.Documents.replaceIdAsPrimaryKey
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyAsId
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -47,10 +47,10 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val eventStreamCollectionName = eventStream.asEventStreamCollectionName()
-        val eventStreamJson = eventStream.asJsonString()
+        val eventStreamCollectionName = eventStream.toEventStreamCollectionName()
+        val eventStreamJson = eventStream.toJsonString()
         val document = Document.parse(eventStreamJson)
-            .replaceIdAsPrimaryKey()
+            .replaceIdToPrimaryKey()
             .append(SIZE_FIELD, eventStream.size)
 
         return database.getCollection(eventStreamCollectionName)
@@ -80,7 +80,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
     }
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        val eventStreamCollectionName = aggregateId.asEventStreamCollectionName()
+        val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         val limit = tailVersion - headVersion + 1
         return database.getCollection(eventStreamCollectionName)
             .find(
@@ -94,7 +94,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .batchSize(limit)
             .toFlux()
             .map {
-                val domainEventStream = it.replacePrimaryKeyAsId().toJson().asObject<DomainEventStream>()
+                val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
                 require(domainEventStream.aggregateId == aggregateId) {
                     "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
                 }
@@ -104,7 +104,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
     }
 
     override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        val eventStreamCollectionName = namedAggregate.asEventStreamCollectionName()
+        val eventStreamCollectionName = namedAggregate.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
             .aggregate(
                 listOf(
@@ -122,7 +122,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .batchSize(limit)
             .toFlux()
             .map {
-                namedAggregate.asAggregateId(
+                namedAggregate.aggregateId(
                     id = it.getString(Documents.ID_FIELD),
                     tenantId = it.getString(MessageRecords.TENANT_ID),
                 )

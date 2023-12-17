@@ -18,11 +18,11 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.infra.TypeNameMapper.asType
-import me.ahoo.wow.modeling.annotation.asStateAggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.infra.TypeNameMapper.toType
+import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -78,13 +78,13 @@ class R2dbcSnapshotRepository(
         val firstEventTime = readable.get("first_event_time", Long::class.java) ?: 0L
         val eventTime = readable.get("event_time", Long::class.java) ?: 0L
         val snapshotTime = checkNotNull(readable.get("snapshot_time", Long::class.java))
-        val metadata = checkNotNull(readable.get("state_type", String::class.java)).asType<S>()
-            .asStateAggregateMetadata()
+        val metadata = checkNotNull(readable.get("state_type", String::class.java)).toType<S>()
+            .stateAggregateMetadata()
         val state = checkNotNull(readable.get("state", String::class.java))
-        val stateRoot = state.asObject(metadata.aggregateType)
+        val stateRoot = state.toObject(metadata.aggregateType)
         val deleted = checkNotNull(readable.get("deleted", Boolean::class.java))
         return SimpleSnapshot(
-            delegate = metadata.asStateAggregate(
+            delegate = metadata.toStateAggregate(
                 aggregateId = aggregateId,
                 state = stateRoot,
                 version = actualVersion,
@@ -108,7 +108,7 @@ class R2dbcSnapshotRepository(
                     .bind(1, snapshot.aggregateId.tenantId)
                     .bind(2, snapshot.version)
                     .bind(3, snapshot.state.javaClass.name)
-                    .bind(4, snapshot.state.asJsonString())
+                    .bind(4, snapshot.state.toJsonString())
                     .bind(5, snapshot.eventId)
                     .bind(6, snapshot.firstOperator)
                     .bind(7, snapshot.operator)

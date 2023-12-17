@@ -18,7 +18,7 @@ import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -36,7 +36,7 @@ class DefaultDeleteAggregateFunction<C : Any>(
         exchange: ServerCommandExchange<*>
     ): Mono<DomainEventStream> {
         return DefaultAggregateDeleted
-            .asDomainEventStream(exchange.message, commandAggregate.version)
+            .toDomainEventStream(exchange.message, commandAggregate.version)
             .toMono()
     }
 }

@@ -16,7 +16,7 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -30,7 +30,7 @@ internal class ProcessedNotifierFilterTest {
     fun filter() {
         val processedNotifierFilter = ProcessedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val command = MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
-            .asCommandMessage() as CommandMessage<*>
+            .toCommandMessage() as CommandMessage<*>
         val exchange = SimpleServerCommandExchange(command)
         val chain = FilterChainBuilder<ServerCommandExchange<*>>().build()
         processedNotifierFilter.filter(exchange, chain)

@@ -35,7 +35,7 @@ class KafkaDomainEventBus(
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
 
-    override fun DomainEventStream.asExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
+    override fun DomainEventStream.toExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
         return KafkaEventStreamExchange(this, receiverOffset)
     }
 }

@@ -14,13 +14,13 @@
 package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -39,7 +39,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         val version = getVersion(request)
         return stateAggregateRepository
             .load(aggregateId, aggregateMetadata.state, version)
@@ -51,6 +51,6 @@ abstract class AbstractLoadAggregateHandlerFunction(
                 it.state
             }
             .throwNotFoundIfEmpty()
-            .asServerResponse(exceptionHandler)
+            .toServerResponse(exceptionHandler)
     }
 }

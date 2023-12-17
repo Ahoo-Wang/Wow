@@ -17,7 +17,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
@@ -38,7 +38,7 @@ class StatelessSagaFunction(
     override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
         return actual.invoke(exchange)
             .map {
-                asCommandStream(exchange.message, it)
+                toCommandStream(exchange.message, it)
             }
             .flatMap { commandStream ->
                 exchange.setCommandStream(commandStream)
@@ -51,26 +51,26 @@ class StatelessSagaFunction(
             }
     }
 
-    private fun asCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
+    private fun toCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
         if (handleResult !is Iterable<*>) {
             return DefaultCommandStream(
                 domainEventId = domainEvent.id,
-                commands = listOf(asCommand(domainEvent, handleResult)),
+                commands = listOf(toCommand(domainEvent, handleResult)),
             )
         }
         val commands = mutableListOf<CommandMessage<*>>()
         handleResult.forEachIndexed { index, singleResult ->
             requireNotNull(singleResult)
-            commands.add(asCommand(domainEvent, singleResult, index))
+            commands.add(toCommand(domainEvent, singleResult, index))
         }
         return DefaultCommandStream(domainEvent.id, commands)
     }
 
-    private fun asCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
+    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
         if (singleResult is CommandMessage<*>) {
             return singleResult
         }
-        return singleResult.asCommandMessage(
+        return singleResult.toCommandMessage(
             requestId = "${domainEvent.id}-$index",
             tenantId = domainEvent.aggregateId.tenantId,
         )

@@ -37,7 +37,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.naming.NamingConverter
 
 @OptIn(KspExperimental::class)
-fun KSClassDeclaration.asName(): String {
+fun KSClassDeclaration.toName(): String {
     return getAnnotationsByType(Name::class).firstOrNull()?.value
         ?: NamingConverter.PASCAL_TO_SNAKE.convert(simpleName.asString())
 }
@@ -58,7 +58,7 @@ object AggregateRootResolver {
         val commands = getAllFunctions()
             .filter { it.isCommand() }
             .map {
-                it.asMessageType(resolver)
+                it.toMessageType(resolver)
             }
             .toSet()
 
@@ -82,7 +82,7 @@ object AggregateRootResolver {
         val sourcingEvents = stateAggregateDeclaration.getAllFunctions()
             .filter { it.isDomainEvent() }
             .map {
-                it.asMessageType(resolver)
+                it.toMessageType(resolver)
             }
             .toSet()
 
@@ -114,18 +114,18 @@ object AggregateRootResolver {
             parameters.isNotEmpty()
     }
 
-    private fun KSFunctionDeclaration.asMessageType(resolver: Resolver): String {
-        return parameters.first().type.resolve().asMessageType(resolver)
+    private fun KSFunctionDeclaration.toMessageType(resolver: Resolver): String {
+        return parameters.first().type.resolve().toMessageType(resolver)
     }
 
     @OptIn(KspExperimental::class)
-    private fun KSType.asMessageType(resolver: Resolver): String {
+    private fun KSType.toMessageType(resolver: Resolver): String {
         val messageDeclaration = resolver.getKotlinClassByName(Message::class.qualifiedName!!)!!
         val messageExchangeDeclaration = resolver.getKotlinClassByName(MessageExchange::class.qualifiedName!!)!!
         if (messageDeclaration.asStarProjectedType().isAssignableFrom(this) ||
             messageExchangeDeclaration.asStarProjectedType().isAssignableFrom(this)
         ) {
-            return this.arguments.first().type!!.resolve().asMessageType(resolver)
+            return this.arguments.first().type!!.resolve().toMessageType(resolver)
         }
         return checkNotNull(this.declaration.qualifiedName).asString()
     }

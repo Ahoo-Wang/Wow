@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 
 object AggregateIdJsonSerializer : StdSerializer<AggregateId>(AggregateId::class.java) {
     override fun serialize(value: AggregateId, generator: JsonGenerator, provider: SerializerProvider) {
@@ -41,7 +41,7 @@ object AggregateIdJsonDeserializer : StdDeserializer<AggregateId>(AggregateId::c
         val contextName = aggregateIdRecord[MessageRecords.CONTEXT_NAME].asText()
         val aggregateName = aggregateIdRecord[MessageRecords.AGGREGATE_NAME].asText()
         return MaterializedNamedAggregate(contextName, aggregateName)
-            .asAggregateId(
+            .aggregateId(
                 id = aggregateIdRecord[MessageRecords.AGGREGATE_ID].asText(),
                 tenantId = aggregateIdRecord[MessageRecords.TENANT_ID].asText(),
             )

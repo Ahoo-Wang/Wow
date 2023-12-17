@@ -70,7 +70,7 @@ class ScopeNamedAggregateSearcher(private val source: SortedMap<String, NamedAgg
     ScopeSearcher<NamedAggregate>,
     SortedMap<String, NamedAggregate> by source
 
-fun WowMetadata.asScopeContextSearcher(): ScopeContextSearcher {
+fun WowMetadata.toScopeContextSearcher(): ScopeContextSearcher {
     val source = mutableMapOf<String, NamedBoundedContext>().apply {
         contexts.forEach { contextEntry ->
             val contextName = contextEntry.key
@@ -85,7 +85,7 @@ fun WowMetadata.asScopeContextSearcher(): ScopeContextSearcher {
     return ScopeContextSearcher(source)
 }
 
-fun WowMetadata.asScopeNamedAggregateSearcher(): ScopeNamedAggregateSearcher {
+fun WowMetadata.toScopeNamedAggregateSearcher(): ScopeNamedAggregateSearcher {
     val source = mutableMapOf<String, NamedAggregate>().apply {
         contexts.forEach { contextEntry ->
             val contextName = contextEntry.key

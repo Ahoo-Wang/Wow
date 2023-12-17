@@ -19,14 +19,14 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendIdPathParameter
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
-import me.ahoo.wow.openapi.Tags.asTags
+import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
@@ -39,8 +39,8 @@ interface AggregateRouteSpec : RouteSpec {
     override val tags: List<String>
         get() {
             val tags = mutableListOf<String>()
-            tags.add(aggregateMetadata.asStringWithAlias())
-            aggregateMetadata.command.aggregateType.asTags().let {
+            tags.add(aggregateMetadata.toStringWithAlias())
+            aggregateMetadata.command.aggregateType.toTags().let {
                 tags.addAll(it)
             }
             return tags

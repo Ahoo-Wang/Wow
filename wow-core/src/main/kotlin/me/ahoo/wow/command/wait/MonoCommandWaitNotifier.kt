@@ -19,8 +19,8 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
-import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
+import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
@@ -88,7 +88,7 @@ class CommandWaitNotifierSubscriber<E, M>(
         } else {
             throwable
         }
-        val errorInfo = exception.asErrorInfo()
+        val errorInfo = exception.toErrorInfo()
         notifySignal(errorInfo)
         actual.onError(exception)
     }
@@ -97,7 +97,7 @@ class CommandWaitNotifierSubscriber<E, M>(
         val error = errorInfo ?: ErrorInfo.OK
         val processorInfo =
             messageExchange.getProcessor() ?: ProcessorInfoData.unknown(messageExchange.message.contextName)
-        val waitSignal = processorInfo.asWaitSignal(
+        val waitSignal = processorInfo.toWaitSignal(
             commandId = commandId,
             stage = processingStage,
             isLastProjection = isLastProjection,
@@ -108,7 +108,7 @@ class CommandWaitNotifierSubscriber<E, M>(
     }
 
     override fun hookOnComplete() {
-        val errorInfo = messageExchange.getError()?.asErrorInfo()
+        val errorInfo = messageExchange.getError()?.toErrorInfo()
         notifySignal(errorInfo)
         actual.onComplete()
     }

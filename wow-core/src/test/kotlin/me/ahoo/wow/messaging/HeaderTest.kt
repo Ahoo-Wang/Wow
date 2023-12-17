@@ -20,12 +20,12 @@ import org.junit.jupiter.api.Test
 internal class HeaderTest {
     @Test
     fun ofWhenNull() {
-        assertThat(null.asHeader(), equalTo(DefaultHeader.empty()))
+        assertThat(null.toHeader(), equalTo(DefaultHeader.empty()))
     }
 
     @Test
     fun ofWhenEmpty() {
-        assertThat(HashMap<String, String>().asHeader(), equalTo(DefaultHeader.empty()))
+        assertThat(HashMap<String, String>().toHeader(), equalTo(DefaultHeader.empty()))
     }
 
     @Test
@@ -33,13 +33,13 @@ internal class HeaderTest {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
         val header = DefaultHeader(values)
-        assertThat(header.asHeader(), equalTo(header))
+        assertThat(header.toHeader(), equalTo(header))
     }
 
     @Test
     fun ofWhenNotEmpty() {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
-        assertThat(values.asHeader(), aMapWithSize(1))
+        assertThat(values.toHeader(), aMapWithSize(1))
     }
 }

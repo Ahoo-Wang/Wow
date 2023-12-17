@@ -15,11 +15,11 @@ package me.ahoo.wow.redis.prepare
 
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
-import me.ahoo.wow.redis.prepare.PrepareKeyConverter.asKey
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.redis.prepare.PrepareKeyConverter.toKey
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.Resource
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
@@ -63,8 +63,8 @@ class RedisPrepareKey<V : Any>(
             return null
         }
         val ttlAt = checkNotNull(this[TTL_AT_FIELD]).toLong()
-        val value = checkNotNull(this[VALUE_FIELD]).asObject(valueType)
-        return value.asTtlAt(ttlAt)
+        val value = checkNotNull(this[VALUE_FIELD]).toObject(valueType)
+        return value.toTtlAt(ttlAt)
     }
 
     override fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean> {
@@ -75,13 +75,13 @@ class RedisPrepareKey<V : Any>(
             listOf(
                 System.currentTimeMillis().toString(),
                 value.ttlAt.toString(),
-                value.value.asJsonString(),
+                value.value.toJsonString(),
             ),
         ).next()
     }
 
     override fun getValue(key: String): Mono<PreparedValue<V>> {
-        val redisKey = key.asKey()
+        val redisKey = key.toKey()
         return redisTemplate.opsForHash<String, String>().entries(redisKey)
             .collectMap({ it.key }, { it.value })
             .mapNotNull {
@@ -107,7 +107,7 @@ class RedisPrepareKey<V : Any>(
             listOf(wrappedKey),
             listOf(
                 value.ttlAt.toString(),
-                value.value.asJsonString(),
+                value.value.toJsonString(),
             ),
         ).next()
     }
@@ -119,8 +119,8 @@ class RedisPrepareKey<V : Any>(
             listOf(wrappedKey),
             listOf(
                 newValue.ttlAt.toString(),
-                newValue.value.asJsonString(),
-                oldValue.asJsonString(),
+                newValue.value.toJsonString(),
+                oldValue.toJsonString(),
             ),
         ).next()
     }
@@ -131,7 +131,7 @@ class RedisPrepareKey<V : Any>(
             SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE,
             listOf(wrappedKey),
             listOf(
-                value.asJsonString(),
+                value.toJsonString(),
             ),
         ).next()
     }

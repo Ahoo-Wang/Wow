@@ -31,7 +31,7 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
     override fun copy(): StateEvent<S>
 
     companion object {
-        fun <S : Any> DomainEventStream.asStateEvent(
+        fun <S : Any> DomainEventStream.toStateEvent(
             state: S,
             firstOperator: String = header.operator.orEmpty(),
             firstEventTime: Long = createTime,
@@ -46,7 +46,7 @@ interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
             )
         }
 
-        fun <S : Any> DomainEventStream.asStateEvent(stateAggregate: ReadOnlyStateAggregate<S>): StateEvent<S> {
+        fun <S : Any> DomainEventStream.toStateEvent(stateAggregate: ReadOnlyStateAggregate<S>): StateEvent<S> {
             return StateEventData(
                 delegate = this,
                 state = stateAggregate.state,

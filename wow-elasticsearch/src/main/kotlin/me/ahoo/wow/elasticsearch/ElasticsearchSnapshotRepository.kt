@@ -31,14 +31,14 @@ class ElasticsearchSnapshotRepository(
         private const val NOT_FOUND_STATUS = 404
     }
 
-    private fun NamedAggregate.asIndexName(): String {
+    private fun NamedAggregate.toIndexName(): String {
         return snapshotIndexNameConverter.convert(namedAggregate = this)
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return elasticsearchClient.get({
-            it.index(aggregateId.asIndexName())
+            it.index(aggregateId.toIndexName())
                 .id(aggregateId.id)
         }, Snapshot::class.java)
             .mapNotNull<Snapshot<S>> {
@@ -57,7 +57,7 @@ class ElasticsearchSnapshotRepository(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return elasticsearchClient.index {
-            it.index(snapshot.aggregateId.asIndexName())
+            it.index(snapshot.aggregateId.toIndexName())
                 .id(snapshot.aggregateId.id)
                 .document(snapshot)
                 .refresh(refreshPolicy)

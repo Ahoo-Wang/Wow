@@ -18,13 +18,13 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.test.AggregateVerifier.asAggregateVerifier
+import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
 import me.ahoo.wow.test.aggregate.DefaultGivenStage
 import me.ahoo.wow.test.aggregate.GivenStage
 
@@ -38,16 +38,16 @@ object AggregateVerifier {
 
     @JvmStatic
     @JvmOverloads
-    fun <C : Any, S : Any> Class<C>.asAggregateVerifier(
+    fun <C : Any, S : Any> Class<C>.aggregateVerifier(
         aggregateId: String = GlobalIdGenerator.generateAsString(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
         stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
         eventStore: EventStore = InMemoryEventStore(),
         serviceProvider: ServiceProvider = SimpleServiceProvider()
     ): GivenStage<S> {
-        val metadata: AggregateMetadata<C, S> = asAggregateMetadata()
+        val metadata: AggregateMetadata<C, S> = aggregateMetadata()
         return DefaultGivenStage(
-            metadata.asAggregateId(
+            metadata.aggregateId(
                 id = aggregateId,
                 tenantId = tenantId,
             ),
@@ -63,7 +63,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = GlobalIdGenerator.generateAsString(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID
 ): GivenStage<S> {
-    return C::class.java.asAggregateVerifier(
+    return C::class.java.aggregateVerifier(
         aggregateId = aggregateId,
         tenantId = tenantId,
     )
@@ -74,7 +74,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
     tenantId: String = TenantId.DEFAULT_TENANT_ID,
     serviceProvider: ServiceProvider
 ): GivenStage<S> {
-    return C::class.java.asAggregateVerifier(
+    return C::class.java.aggregateVerifier(
         aggregateId = aggregateId,
         tenantId = tenantId,
         serviceProvider = serviceProvider,
@@ -87,7 +87,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
     eventStore: EventStore = InMemoryEventStore(),
     serviceProvider: ServiceProvider = SimpleServiceProvider()
 ): GivenStage<S> {
-    return C::class.java.asAggregateVerifier(
+    return C::class.java.aggregateVerifier(
         aggregateId = aggregateId,
         tenantId = tenantId,
         eventStore = eventStore,

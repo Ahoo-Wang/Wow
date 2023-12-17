@@ -18,8 +18,8 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.annotation.eventMetadata
-import me.ahoo.wow.event.upgrader.DroppedEvent.asDroppedEventRecord
-import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
+import me.ahoo.wow.event.upgrader.DroppedEvent.toDroppedEventRecord
+import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
 import me.ahoo.wow.serialization.event.DomainEventRecord
 
 @Order(ORDER_LAST)
@@ -27,7 +27,7 @@ class MockEventToDroppedUpgrader : EventUpgrader {
     companion object {
         val EVENT_NAMED_AGGREGATE: EventNamedAggregate by lazy {
             val eventName = eventMetadata<MockNamedEvent>().name
-            requiredNamedAggregate<MockNamedEvent>().asEventNamedAggregate(eventName)
+            requiredNamedAggregate<MockNamedEvent>().toEventNamedAggregate(eventName)
         }
     }
 
@@ -35,6 +35,6 @@ class MockEventToDroppedUpgrader : EventUpgrader {
         get() = EVENT_NAMED_AGGREGATE
 
     override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-        return domainEventRecord.asDroppedEventRecord()
+        return domainEventRecord.toDroppedEventRecord()
     }
 }

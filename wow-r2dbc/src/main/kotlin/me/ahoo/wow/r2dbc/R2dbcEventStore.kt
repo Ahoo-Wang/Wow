@@ -22,10 +22,10 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.asJsonNode
-import me.ahoo.wow.serialization.asJsonString
 import me.ahoo.wow.serialization.event.FlatEventStreamRecord
-import me.ahoo.wow.serialization.event.asEventStreamRecord
+import me.ahoo.wow.serialization.event.toEventStreamRecord
+import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -40,7 +40,7 @@ class R2dbcEventStore(
             /* resourceClosure = */
             {
                 val eventStreamRecord = JsonSerializer.valueToTree<ObjectNode>(eventStream)
-                    .asEventStreamRecord()
+                    .toEventStreamRecord()
                 it.createStatement(eventStreamSchema.append(eventStream.aggregateId))
                     .bind(0, eventStreamRecord.id)
                     .bind(1, eventStream.aggregateId.id)
@@ -48,8 +48,8 @@ class R2dbcEventStore(
                     .bind(3, eventStreamRecord.requestId)
                     .bind(4, eventStreamRecord.commandId)
                     .bind(5, eventStreamRecord.version)
-                    .bind(6, eventStreamRecord.header.asJsonString())
-                    .bind(7, eventStreamRecord.body.asJsonString())
+                    .bind(6, eventStreamRecord.header.toJsonString())
+                    .bind(7, eventStreamRecord.body.toJsonString())
                     .bind(8, eventStream.size)
                     .bind(9, eventStreamRecord.createTime)
                     .execute()
@@ -114,13 +114,13 @@ class R2dbcEventStore(
                 FlatEventStreamRecord(
                     id = id,
                     rawAggregateId = aggregateId,
-                    header = header.asJsonNode() as ObjectNode,
-                    body = body.asJsonNode(),
+                    header = header.toJsonNode() as ObjectNode,
+                    body = body.toJsonNode(),
                     commandId = commandId,
                     requestId = requestId,
                     version = version,
                     createTime = createTime,
-                ).asDomainEventStream()
+                ).toDomainEventStream()
             }
         }
     }

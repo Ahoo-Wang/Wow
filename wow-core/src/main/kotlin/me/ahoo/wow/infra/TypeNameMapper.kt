@@ -19,7 +19,7 @@ object TypeNameMapper {
     private val mapper: ConcurrentHashMap<String, Class<*>> = ConcurrentHashMap()
 
     @Suppress("UNCHECKED_CAST")
-    fun <T> String.asType(): Class<T> {
+    fun <T> String.toType(): Class<T> {
         return mapper.computeIfAbsent(this) {
             Class.forName(this)
         } as Class<T>

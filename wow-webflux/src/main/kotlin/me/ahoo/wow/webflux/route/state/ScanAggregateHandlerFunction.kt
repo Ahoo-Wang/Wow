@@ -19,7 +19,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.ScanAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -46,7 +46,7 @@ class ScanAggregateHandlerFunction(
             it.initialized && !it.deleted
         }.map { it.state }
             .collectList()
-            .asServerResponse(exceptionHandler)
+            .toServerResponse(exceptionHandler)
     }
 }
 

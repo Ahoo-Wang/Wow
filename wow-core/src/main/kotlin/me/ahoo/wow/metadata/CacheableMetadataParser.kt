@@ -20,9 +20,9 @@ abstract class CacheableMetadataParser<TYPE, METADATA : Metadata> {
 
     fun parse(type: TYPE): METADATA {
         return cache.computeIfAbsent(type) {
-            parseAsMetadata(type)
+            parseToMetadata(type)
         }
     }
 
-    abstract fun parseAsMetadata(type: TYPE): METADATA
+    abstract fun parseToMetadata(type: TYPE): METADATA
 }

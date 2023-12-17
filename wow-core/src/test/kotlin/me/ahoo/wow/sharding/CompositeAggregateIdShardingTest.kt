@@ -2,7 +2,7 @@ package me.ahoo.wow.sharding
 
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.MatcherAssert
@@ -20,13 +20,13 @@ class CompositeAggregateIdShardingTest {
 
     @Test
     fun sharding() {
-        val actual = sharding.sharding(MOCK_AGGREGATE_METADATA.asAggregateId("0TEDamtj0001001"))
+        val actual = sharding.sharding(MOCK_AGGREGATE_METADATA.aggregateId("0TEDamtj0001001"))
         MatcherAssert.assertThat(actual, Matchers.equalTo("sharding_1"))
     }
 
     @Test
     fun shardingIfMissing() {
-        val aggregateId = MaterializedNamedAggregate("test", "test").asAggregateId()
+        val aggregateId = MaterializedNamedAggregate("test", "test").aggregateId()
         Assertions.assertThrows(IllegalStateException::class.java) {
             sharding.sharding(aggregateId)
         }

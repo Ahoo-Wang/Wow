@@ -33,7 +33,7 @@ class RedisStateEventBus(
     override val messageType: Class<StateEvent<*>>
         get() = StateEvent::class.java
 
-    override fun StateEvent<*>.asExchange(acknowledgePublisher: Mono<Void>): StateEventExchange<*> {
+    override fun StateEvent<*>.toExchange(acknowledgePublisher: Mono<Void>): StateEventExchange<*> {
         return RedisStateEventExchange(
             this,
             acknowledgePublisher,

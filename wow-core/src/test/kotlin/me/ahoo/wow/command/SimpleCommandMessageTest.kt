@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class SimpleCommandMessageTest {
     @Test
     fun asCommandMessage() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         assertThat(command.isReadOnly, equalTo(false))
         command.withHeader(DefaultHeader.empty())
         command.withReadOnly()

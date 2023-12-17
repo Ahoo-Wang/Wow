@@ -15,15 +15,15 @@ package me.ahoo.wow.tck.eventsourcing
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.DuplicateRequestIdException
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -46,7 +46,7 @@ import reactor.kotlin.test.test
  */
 @ExtendWith(LoggingMeterRegistryInitializer::class)
 abstract class EventStoreSpec {
-    val namedAggregate = EventStoreSpec::class.java.asRequiredNamedAggregate()
+    val namedAggregate = EventStoreSpec::class.java.requiredNamedAggregate()
     lateinit var eventStore: EventStore
 
     @BeforeEach
@@ -61,7 +61,7 @@ abstract class EventStoreSpec {
     }
 
     protected fun generateEventStream(): DomainEventStream {
-        return generateEventStream(namedAggregate.asAggregateId())
+        return generateEventStream(namedAggregate.aggregateId())
     }
 
     @Test
@@ -85,7 +85,7 @@ abstract class EventStoreSpec {
     @Test
     fun appendEventStreamWhenDuplicateAggregateId() {
         val eventStore = createEventStore().metrizable()
-        val aggregateId = namedAggregate.asAggregateId()
+        val aggregateId = namedAggregate.aggregateId()
         val eventStream = generateEventStream(aggregateId)
         eventStore.append(eventStream)
             .test()
@@ -118,10 +118,10 @@ abstract class EventStoreSpec {
 
     @Test
     fun appendEventStreamWhenEventVersionConflict() {
-        val aggregateId = namedAggregate.asAggregateId()
+        val aggregateId = namedAggregate.aggregateId()
         val eventStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString())
-                .asDomainEventStream(
+                .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION,
                 )
@@ -131,7 +131,7 @@ abstract class EventStoreSpec {
 
         val changeStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString())
-                .asDomainEventStream(
+                .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION + 1,
                 )
@@ -140,7 +140,7 @@ abstract class EventStoreSpec {
             .verifyComplete()
         val conflictingStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString())
-                .asDomainEventStream(
+                .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION + 1,
                 )
@@ -163,9 +163,9 @@ abstract class EventStoreSpec {
     @Test
     open fun appendEventStreamWhenDuplicateRequestIdException() {
         val requestId = GlobalIdGenerator.generateAsString()
-        val aggregateId = namedAggregate.asAggregateId()
+        val aggregateId = namedAggregate.aggregateId()
         val eventStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
+            MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
                 Version.UNINITIALIZED_VERSION,
             )
@@ -173,7 +173,7 @@ abstract class EventStoreSpec {
             .test()
             .verifyComplete()
         val conflictingStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString()).asDomainEventStream(
+            MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
                 Version.UNINITIALIZED_VERSION + 1,
             )
@@ -237,7 +237,7 @@ abstract class EventStoreSpec {
     @Test
     fun loadEventStreamWhenNotFound() {
         val eventStore = createEventStore().metrizable()
-        eventStore.load(namedAggregate.asAggregateId())
+        eventStore.load(namedAggregate.aggregateId())
             .test()
             .expectNextCount(0)
             .verifyComplete()

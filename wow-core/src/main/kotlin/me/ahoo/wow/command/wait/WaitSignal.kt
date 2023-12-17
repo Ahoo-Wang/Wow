@@ -34,7 +34,7 @@ data class SimpleWaitSignal(
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
 ) : WaitSignal {
     companion object {
-        fun ProcessorInfo.asWaitSignal(
+        fun ProcessorInfo.toWaitSignal(
             commandId: String,
             stage: CommandStage,
             isLastProjection: Boolean = false,

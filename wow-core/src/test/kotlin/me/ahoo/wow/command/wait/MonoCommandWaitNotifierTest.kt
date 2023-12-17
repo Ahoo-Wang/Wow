@@ -17,7 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.MockCreateCommand
 import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -32,7 +32,7 @@ internal class MonoCommandWaitNotifierTest {
             .thenNotifyAndForget(
                 commandWaitNotifier,
                 CommandStage.SENT,
-                SimpleServerCommandExchange(MockCreateCommand("").asCommandMessage()),
+                SimpleServerCommandExchange(MockCreateCommand("").toCommandMessage()),
             )
             .test()
             .verifyComplete()
@@ -40,7 +40,7 @@ internal class MonoCommandWaitNotifierTest {
 
     @Test
     fun notifyAndForgetWrap() {
-        val command = MockCreateCommand("").asCommandMessage()
+        val command = MockCreateCommand("").toCommandMessage()
         command.header.injectWaitStrategy("", CommandStage.PROCESSED, command.contextName)
 
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
@@ -61,7 +61,7 @@ internal class MonoCommandWaitNotifierTest {
 
     @Test
     fun notifyAndForgetWrapError() {
-        val command = MockCreateCommand("").asCommandMessage()
+        val command = MockCreateCommand("").toCommandMessage()
         command.header.injectWaitStrategy("", CommandStage.PROCESSED, command.contextName)
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         RuntimeException("error")
@@ -77,7 +77,7 @@ internal class MonoCommandWaitNotifierTest {
 
     @Test
     fun notifyAndForgetWrapAndStageIsEarly() {
-        val command = MockCreateCommand("").asCommandMessage()
+        val command = MockCreateCommand("").toCommandMessage()
         command.header.injectWaitStrategy("", CommandStage.SENT, command.contextName)
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()

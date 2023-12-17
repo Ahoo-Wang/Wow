@@ -12,8 +12,8 @@
  */
 package me.ahoo.wow.modeling.annotation
 
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asStringGetter
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toStringGetter
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnSourcing
@@ -21,7 +21,7 @@ import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -39,10 +39,10 @@ private val log = LoggerFactory.getLogger(StateAggregateMetadataParser::class.ja
  */
 object StateAggregateMetadataParser : CacheableMetadataParser<Class<*>, StateAggregateMetadata<*>>() {
 
-    override fun parseAsMetadata(type: Class<*>): StateAggregateMetadata<*> {
+    override fun parseToMetadata(type: Class<*>): StateAggregateMetadata<*> {
         val visitor = StateAggregateMetadataVisitor(type)
         ClassMetadata.visit(type, visitor)
-        return visitor.asMetadata()
+        return visitor.toMetadata()
     }
 }
 
@@ -69,7 +69,7 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
 
     override fun visitField(field: Field) {
         if (aggregateIdGetter == null) {
-            aggregateIdGetter = field.asAggregateIdGetterIfAnnotated()
+            aggregateIdGetter = field.toAggregateIdGetterIfAnnotated()
         }
         if (namedIdField == null && DEFAULT_AGGREGATE_ID_NAME == field.name) {
             namedIdField = field
@@ -78,12 +78,12 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
 
     override fun visitMethod(method: Method) {
         if (aggregateIdGetter == null) {
-            aggregateIdGetter = method.asAggregateIdGetterIfAnnotated()
+            aggregateIdGetter = method.toAggregateIdGetterIfAnnotated()
         }
         if (method.isAnnotationPresent(OnSourcing::class.java) ||
             (DEFAULT_ON_SOURCING_NAME == method.name && method.parameterCount == 1)
         ) {
-            val functionMetadata = method.asFunctionMetadata<S, Void>()
+            val functionMetadata = method.toFunctionMetadata<S, Void>()
             sourcingFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
         }
     }
@@ -93,10 +93,10 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
             return
         }
 
-        aggregateIdGetter = namedIdField!!.asStringGetter()
+        aggregateIdGetter = namedIdField!!.toStringGetter()
     }
 
-    fun asMetadata(): StateAggregateMetadata<S> {
+    fun toMetadata(): StateAggregateMetadata<S> {
         if (sourcingFunctionRegistry.isEmpty()) {
             if (log.isWarnEnabled) {
                 log.warn("StateAggregate[$stateAggregateType] requires at least one OnSourcing function!")
@@ -112,11 +112,11 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
     }
 }
 
-fun <S : Any> Class<out S>.asStateAggregateMetadata(): StateAggregateMetadata<S> {
+fun <S : Any> Class<out S>.stateAggregateMetadata(): StateAggregateMetadata<S> {
     @Suppress("UNCHECKED_CAST")
     return StateAggregateMetadataParser.parse(this) as StateAggregateMetadata<S>
 }
 
 inline fun <reified S : Any> stateAggregateMetadata(): StateAggregateMetadata<S> {
-    return S::class.java.asStateAggregateMetadata()
+    return S::class.java.stateAggregateMetadata()
 }

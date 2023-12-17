@@ -19,16 +19,16 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_REQUEST
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -39,7 +39,7 @@ abstract class EventCompensateRouteSpec(
 
     abstract val topicKind: String
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.${topicKind}Compensate"
+        get() = "${aggregateMetadata.toStringWithAlias()}.${topicKind}Compensate"
     override val summary: String
         get() = "$topicKind compensate"
     override val method: String
@@ -48,7 +48,7 @@ abstract class EventCompensateRouteSpec(
         get() = "$topicKind/{${MessageRecords.VERSION}}/compensate"
     override val requestBody: RequestBody? = COMPENSATION_TARGET_REQUEST
     override val responses: ApiResponses
-        get() = IntegerSchema().asResponse().let {
+        get() = IntegerSchema().toResponse().let {
             it.description("Number of event streams compensated")
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }.withBadRequest()
@@ -60,7 +60,7 @@ abstract class EventCompensateRouteSpec(
 
 abstract class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
-        val COMPENSATION_TARGET_SCHEMA = CompensationTarget::class.java.asSchemaRef()
-        val COMPENSATION_TARGET_REQUEST = CompensationTarget::class.java.asRequestBody()
+        val COMPENSATION_TARGET_SCHEMA = CompensationTarget::class.java.toSchemaRef()
+        val COMPENSATION_TARGET_REQUEST = CompensationTarget::class.java.toRequestBody()
     }
 }

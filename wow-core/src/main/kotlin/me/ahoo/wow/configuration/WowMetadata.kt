@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.configuration
 
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 
 data class WowMetadata(
     /**
@@ -36,7 +36,7 @@ data class WowMetadata(
             it.key.isNullOrBlank().not()
         }.forEach { (alias, contextNames) ->
             check(contextNames.size == 1) {
-                "The alias[$alias] conflicts with the bounded contexts${contextNames.asJsonString()}."
+                "The alias[$alias] conflicts with the bounded contexts${contextNames.toJsonString()}."
             }
         }
     }

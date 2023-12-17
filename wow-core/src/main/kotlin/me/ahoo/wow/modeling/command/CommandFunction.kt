@@ -16,7 +16,7 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
 
@@ -34,7 +34,7 @@ class CommandFunction<C : Any>(
         return delegate
             .invoke(exchange)
             .map {
-                it.asDomainEventStream(exchange.message, commandAggregate.version)
+                it.toDomainEventStream(exchange.message, commandAggregate.version)
             }
     }
 

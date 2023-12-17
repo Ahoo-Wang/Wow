@@ -14,7 +14,7 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.configuration.asRequiredNamedAggregate
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -22,7 +22,7 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ import reactor.core.publisher.Sinks
 import java.time.Duration
 
 internal class DomainEventDispatcherTest {
-    private val namedAggregate = DomainEventDispatcherTest::class.java.asRequiredNamedAggregate()
+    private val namedAggregate = DomainEventDispatcherTest::class.java.requiredNamedAggregate()
     private val domainEventBus: DomainEventBus = InMemoryDomainEventBus()
     private val stateEventBus: StateEventBus = InMemoryStateEventBus()
     private val handlerRegistrar = DomainEventFunctionRegistrar()
@@ -71,11 +71,11 @@ internal class DomainEventDispatcherTest {
                 eventHandler = DefaultDomainEventHandler(chain).metrizable(),
             )
         domainEventProcessor.run()
-        val aggregateId = namedAggregate.asAggregateId()
+        val aggregateId = namedAggregate.aggregateId()
         val eventStream =
             MockAggregateCreated(
                 GlobalIdGenerator.generateAsString(),
-            ).asDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
+            ).toDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
         domainEventBus.send(eventStream).block()
 
         sink.asMono().block(Duration.ofSeconds(1))

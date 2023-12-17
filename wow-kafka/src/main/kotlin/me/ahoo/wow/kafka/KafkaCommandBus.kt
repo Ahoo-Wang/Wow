@@ -39,7 +39,7 @@ class KafkaCommandBus(
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
 
-    override fun CommandMessage<*>.asExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
+    override fun CommandMessage<*>.toExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
         return KafkaServerCommandExchange(this, receiverOffset)
     }
 }
