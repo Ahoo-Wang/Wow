@@ -30,6 +30,16 @@ internal class CommandFactoryTest {
     }
 
     @Test
+    fun asCommand() {
+        val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
+        val commandMessage = command.asCommandMessage()
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 2000))
+    }
+
+    @Test
     fun createGivenCreateAggregate() {
         val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
         val commandMessage = command.toCommandMessage()
