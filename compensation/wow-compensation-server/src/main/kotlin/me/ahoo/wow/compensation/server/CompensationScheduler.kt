@@ -21,6 +21,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 
+/**
+ * TODO Timer scheduling
+ */
 @Service
 class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val commandGateway: CommandGateway) {
     companion object {
