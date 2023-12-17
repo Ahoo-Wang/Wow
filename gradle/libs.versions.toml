@@ -1,7 +1,7 @@
 [versions]
 # libraries
-springBoot = "3.2.0"
-cosid = "2.6.2"
+springBoot = "3.1.6"
+cosid = "2.5.6"
 testcontainers = "1.19.3"
 opentelemetry = "1.33.0"
 opentelemetryInstrumentation = "1.32.0"
@@ -11,7 +11,7 @@ hamcrest = "2.2"
 mockk = "1.13.8"
 kotlinCompileTesting = "0.4.0"
 swagger = "2.2.19"
-springDoc = "2.3.0"
+springDoc = "2.2.0"
 # plugins
 testRetry= "1.5.8"
 detekt = "1.23.4"
