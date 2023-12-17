@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.compensation.domain
 
+import me.ahoo.wow.compensation.api.IExecutionFailedState
 import reactor.core.publisher.Flux
 
 interface ToRetryQuery {

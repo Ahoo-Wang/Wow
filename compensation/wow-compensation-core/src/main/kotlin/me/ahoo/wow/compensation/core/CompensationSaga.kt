@@ -39,7 +39,7 @@ class CompensationSaga(
         val isLocal = compensationPrepared.eventId.aggregateId.isLocal()
         if (!isLocal) {
             if (log.isDebugEnabled) {
-                log.debug("skip compensationPrepared:[{}] for aggregateId:[{}].", compensationPrepared, aggregateId)
+                log.debug("Skip compensationPrepared:[{}] for aggregateId:[{}].", compensationPrepared, aggregateId)
             }
             return Mono.empty()
         }

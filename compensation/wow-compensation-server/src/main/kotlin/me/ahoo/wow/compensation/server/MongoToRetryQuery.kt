@@ -18,8 +18,8 @@ import com.mongodb.reactivestreams.client.MongoClient
 import me.ahoo.wow.compensation.CompensationService
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
-import me.ahoo.wow.compensation.api.ToRetryQuery
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
+import me.ahoo.wow.compensation.domain.ToRetryQuery
 import me.ahoo.wow.mongo.toSnapshotState
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
@@ -38,27 +38,40 @@ class MongoToRetryQuery(mongoClient: MongoClient) : ToRetryQuery {
         .getCollection(COLLECTION_NAME)
 
     override fun findToRetry(limit: Int): Flux<out IExecutionFailedState> {
+        val currentTime = System.currentTimeMillis()
         val pipelineShell = """
             {
-              "state.retryState.isRetryable": true,
-              "state.status": {
-                ${'$'}ne: "${ExecutionFailedStatus.SUCCEEDED}"
-              },
-              ${'$'}or: [{
-                "state.status": "${ExecutionFailedStatus.FAILED}"
-              }, {
-                ${'$'}and: [{
-                  "state.status": "${ExecutionFailedStatus.PREPARED}"
-                }, {
-                  "state.retryState.timoutAt": {
-                    ${'$'}lte: ${System.currentTimeMillis()}
+              ${'$'}and: [{
+                  "state.retryState.isRetryable": true
+                },
+                {
+                  "state.status": {
+                    ${'$'}ne: "${ExecutionFailedStatus.SUCCEEDED}"
                   }
-                }]
-              }]
+                },
+                {
+                  ${'$'}or: [{
+                      "state.status": "${ExecutionFailedStatus.FAILED}"
+                    },
+                    {
+                      ${'$'}and: [{
+                        "state.status": "${ExecutionFailedStatus.PREPARED}"
+                      }, {
+                        "state.retryState.timoutAt": {
+                          ${'$'}lte: $currentTime
+                        }
+                      }, {
+                        "state.retryState.nextRetryAt": {
+                          ${'$'}lte: $currentTime
+                        }
+                      }]
+                    }
+                  ]
+                }
+              ]
             }
         """.trimIndent()
         val pipeline = Document.parse(pipelineShell)
-
         return snapshotCollection.find(pipeline)
             .limit(limit)
             .sort(Sorts.ascending(MessageRecords.VERSION))
