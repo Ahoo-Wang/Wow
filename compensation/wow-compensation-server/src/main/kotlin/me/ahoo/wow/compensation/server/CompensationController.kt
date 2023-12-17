@@ -14,19 +14,29 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.wow.compensation.api.IExecutionFailedState
-import me.ahoo.wow.compensation.api.ToRetryQuery
+import me.ahoo.wow.compensation.domain.ToRetryQuery
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @RestController
 @RequestMapping("/compensation")
-class CompensationController(private val toRetryQuery: ToRetryQuery) {
+class CompensationController(
+    private val toRetryQuery: ToRetryQuery,
+    private val compensationScheduler: CompensationScheduler
+) {
 
     @GetMapping("/to-retry/{limit}")
     fun findToRetry(@PathVariable limit: Int): Flux<out IExecutionFailedState> {
         return toRetryQuery.findToRetry(limit)
+    }
+
+    @PutMapping("/retry")
+    fun retry(): Mono<Long> {
+        return compensationScheduler.retry()
     }
 }

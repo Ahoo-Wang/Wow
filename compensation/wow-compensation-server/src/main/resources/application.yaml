@@ -14,7 +14,9 @@ management:
           - cosidStringGenerator
 springdoc:
   show-actuator: true
-
+logging:
+  level:
+    me.ahoo.wow: debug
 spring:
   application:
     name: compensation-service
