@@ -18,16 +18,16 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
 class LoadEventStreamRouteSpec(
@@ -36,7 +36,7 @@ class LoadEventStreamRouteSpec(
 ) : AggregateRouteSpec {
 
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.loadEventStream"
+        get() = "${aggregateMetadata.toStringWithAlias()}.loadEventStream"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
@@ -68,8 +68,8 @@ class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     }
 
     companion object {
-        val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.asSchemaRef()
-        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.asResponse().let {
+        val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.toSchemaRef()
+        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.toResponse().let {
             ResponseRef("${Wow.WOW_PREFIX}EventStreamArray", it)
         }
     }

@@ -25,9 +25,9 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 
 class CommandWaitRouteSpec(
     override val id: String,
@@ -54,7 +54,7 @@ class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
             METHOD,
             SUMMARY,
             DESCRIPTION,
-            WaitSignal::class.java.asRequestBody(),
+            WaitSignal::class.java.toRequestBody(),
             ApiResponses().addApiResponse(
                 Https.Code.OK,
                 ApiResponse().description(ErrorInfo.SUCCEEDED)
@@ -65,7 +65,7 @@ class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     override val components: Components = createComponents()
 
     init {
-        WaitSignal::class.java.asSchemas().mergeSchemas()
+        WaitSignal::class.java.toSchemas().mergeSchemas()
     }
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {

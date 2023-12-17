@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandOperator.withOperator
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -60,7 +60,7 @@ object CommandParser {
         return principal()
             .map {
                 val header = DefaultHeader.empty().withOperator(it.name)
-                commandBody.asCommandMessage(
+                commandBody.toCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
                     aggregateId = aggregateId,
@@ -69,7 +69,7 @@ object CommandParser {
                     header = header,
                 )
             }.switchIfEmpty {
-                commandBody.asCommandMessage(
+                commandBody.toCommandMessage(
                     requestId = requestId,
                     namedAggregate = aggregateMetadata,
                     aggregateId = aggregateId,

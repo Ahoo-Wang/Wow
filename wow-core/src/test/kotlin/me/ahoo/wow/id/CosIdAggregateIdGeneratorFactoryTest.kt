@@ -4,13 +4,13 @@ import io.mockk.mockk
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.toNamedAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CosIdAggregateIdGeneratorFactoryTest {
-    private val namedAggregate = "test.test".asNamedAggregate()
+    private val namedAggregate = "test.test".toNamedAggregate()
 
     @Test
     fun create() {

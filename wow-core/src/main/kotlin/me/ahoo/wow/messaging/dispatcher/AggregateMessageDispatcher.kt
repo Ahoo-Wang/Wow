@@ -38,14 +38,14 @@ abstract class AggregateMessageDispatcher<T : MessageExchange<*, *>> : MessageDi
             log.info("[$name] Run subscribe to $namedAggregate.")
         }
         messageFlux
-            .groupBy { it.asGroupKey() }
+            .groupBy { it.toGroupKey() }
             .flatMap({
                 handleGroupedExchange(it)
             }, Int.MAX_VALUE, Int.MAX_VALUE)
             .subscribe(this)
     }
 
-    abstract fun T.asGroupKey(): Int
+    abstract fun T.toGroupKey(): Int
 
     private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> {
         return grouped.name(Wow.WOW_PREFIX + "dispatcher")

@@ -28,11 +28,11 @@ object ProjectionProcessorMetadataParser :
         )
     )
 
-fun <P : Any> Class<out P>.asProjectionProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
+fun <P : Any> Class<out P>.projectionProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
     @Suppress("UNCHECKED_CAST")
     return ProjectionProcessorMetadataParser.parse(this) as ProcessorMetadata<P, DomainEventExchange<*>>
 }
 
 inline fun <reified P : Any> projectionProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return P::class.java.asProjectionProcessorMetadata()
+    return P::class.java.projectionProcessorMetadata()
 }

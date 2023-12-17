@@ -22,7 +22,7 @@ internal class CommandFactoryTest {
     @Test
     fun create() {
         val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
-        val commandMessage = command.asCommandMessage()
+        val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
@@ -32,7 +32,7 @@ internal class CommandFactoryTest {
     @Test
     fun createGivenCreateAggregate() {
         val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
-        val commandMessage = command.asCommandMessage()
+        val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.isCreate, equalTo(true))
@@ -43,7 +43,7 @@ internal class CommandFactoryTest {
     @Test
     fun createGivenNamed() {
         val command = MockNamedCommand(GlobalIdGenerator.generateAsString())
-        val commandMessage = command.asCommandMessage()
+        val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
@@ -54,7 +54,7 @@ internal class CommandFactoryTest {
     @Test
     fun createTenantCommand() {
         val command = MockTenantIdCommand(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
-        val commandMessage = command.asCommandMessage()
+        val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateId.tenantId, equalTo(command.tenantId))
     }

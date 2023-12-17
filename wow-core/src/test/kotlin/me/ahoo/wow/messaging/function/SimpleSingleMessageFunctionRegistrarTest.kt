@@ -14,7 +14,7 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -25,8 +25,8 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
     fun register() {
         val registrar = SimpleSingleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
         val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-            .asFunctionMetadata<Any, Any>()
-            .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
+            .toFunctionMetadata<Any, Any>()
+            .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
         var actual = registrar.getFunction(handler.supportedType)
         assertThat(actual, nullValue())
@@ -36,8 +36,8 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
         assertThat(actual, equalTo(handler))
 
         val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-            .asFunctionMetadata<Any, Any>()
-            .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
+            .toFunctionMetadata<Any, Any>()
+            .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
         registrar.register(anotherHandler)
         actual = registrar.getFunction(handler.supportedType)
@@ -49,8 +49,8 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
         val registrar = SimpleSingleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
         val handler =
             MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .asFunctionMetadata<Any, Any>()
-                .asMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
+                .toFunctionMetadata<Any, Any>()
+                .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
         registrar.register(handler)
         var actual = registrar.getFunction(handler.supportedType)

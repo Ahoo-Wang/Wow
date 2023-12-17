@@ -16,7 +16,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.slf4j.LoggerFactory
@@ -47,7 +47,7 @@ class EventSourcingStateAggregateRepository(
         val loadStateAggregate = if (tailVersion == Int.MAX_VALUE) {
             snapshotRepository.load<S>(aggregateId)
                 .map {
-                    it.asStateAggregate()
+                    it.toStateAggregate()
                 }
                 .switchIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
         } else {

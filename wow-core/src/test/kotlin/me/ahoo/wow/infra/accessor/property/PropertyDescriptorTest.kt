@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.infra.accessor.property
 
-import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.asPropertySetter
+import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.toPropertyGetter
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -28,18 +28,18 @@ class PropertyDescriptorTest {
 
     @Test
     fun asGetterName() {
-        assertThat(PropertyDescriptor.asGetterName("name"), `is`("getName"))
+        assertThat(PropertyDescriptor.toGetterName("name"), `is`("getName"))
     }
 
     @Test
     fun asSetterName() {
-        assertThat(PropertyDescriptor.asSetterName("name"), `is`("setName"))
+        assertThat(PropertyDescriptor.toSetterName("name"), `is`("setName"))
     }
 
     @Test
     fun asPropertyGetter() {
         val idField = MockPropertyGetter::class.java.getDeclaredField("id")
-        val propertyGetter = idField.asPropertyGetter<MockPropertyGetter, String>()
+        val propertyGetter = idField.toPropertyGetter<MockPropertyGetter, String>()
         assertThat(propertyGetter, instanceOf(MethodPropertyGetter::class.java))
         assertThat(propertyGetter.get(MockPropertyGetter("1")), equalTo("1"))
     }
@@ -61,14 +61,14 @@ class PropertyDescriptorTest {
         assertThat(propertySetter, instanceOf(FieldPropertySetter::class.java))
         val mockProperty = MockPropertyWithoutMethod("1")
         propertySetter[mockProperty] = "2"
-        val propertyGetter = idField.asPropertyGetter<MockPropertyWithoutMethod, String>()
+        val propertyGetter = idField.toPropertyGetter<MockPropertyWithoutMethod, String>()
         assertThat(propertyGetter[mockProperty], equalTo("2"))
     }
 
     @Test
     fun asPropertyGetterWhenMethodNotFound() {
         val idField = MockPropertyWithoutMethod::class.java.getDeclaredField("id")
-        val propertyGetter = idField.asPropertyGetter<MockPropertyWithoutMethod, String>()
+        val propertyGetter = idField.toPropertyGetter<MockPropertyWithoutMethod, String>()
         assertThat(propertyGetter, instanceOf(FieldPropertyGetter::class.java))
         assertThat(propertyGetter[MockPropertyWithoutMethod("1")], equalTo("1"))
     }

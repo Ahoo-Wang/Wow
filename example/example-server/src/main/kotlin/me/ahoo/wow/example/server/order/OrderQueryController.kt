@@ -18,7 +18,7 @@ import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -35,7 +35,7 @@ class OrderQueryController(
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
         val metadata = aggregateMetadata<Order, OrderState>()
-        val aggregateId = metadata.asAggregateId(id = orderId, tenantId = tenantId)
+        val aggregateId = metadata.aggregateId(id = orderId, tenantId = tenantId)
         return stateAggregateRepository.load(aggregateId, metadata.state)
             .filter {
                 it.initialized

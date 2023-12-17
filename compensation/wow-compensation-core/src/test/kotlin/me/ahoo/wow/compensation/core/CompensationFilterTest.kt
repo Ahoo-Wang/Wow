@@ -10,8 +10,8 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -81,7 +81,7 @@ class CompensationFilterTest {
         }
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateId } returns "test.test".asNamedAggregate().asAggregateId()
+            every { message.aggregateId } returns "test.test".toNamedAggregate().aggregateId()
             every { message.version } returns 1
             every { message.header } returns DefaultHeader.empty()
             every { getEventFunction() } returns eventFunction
@@ -107,7 +107,7 @@ class CompensationFilterTest {
         }
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.aggregateId } returns "test.test".asNamedAggregate().asAggregateId()
+            every { message.aggregateId } returns "test.test".toNamedAggregate().aggregateId()
             every { message.version } returns 1
             every { message.header } returns DefaultHeader.empty()
                 .with(COMPENSATION_ID, GlobalIdGenerator.generateAsString())

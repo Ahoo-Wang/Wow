@@ -16,12 +16,12 @@ package me.ahoo.wow.event.upgrader
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.MockNamedEvent
-import me.ahoo.wow.event.asDomainEvent
-import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
+import me.ahoo.wow.event.toDomainEvent
+import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -30,7 +30,7 @@ class EventUpgraderFactoryTest {
     @Test
     fun getWhenEmpty() {
         val eventNamedAggregate = requiredNamedAggregate<MockNamedEvent>()
-            .asEventNamedAggregate("MockNamedEvent")
+            .toEventNamedAggregate("MockNamedEvent")
         assertThat(EventUpgraderFactory.get(eventNamedAggregate), empty())
     }
 
@@ -50,21 +50,21 @@ class EventUpgraderFactoryTest {
     @Test
     fun asDomainEvent() {
         val aggregateId =
-            MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE.asAggregateId(GlobalIdGenerator.generateAsString())
+            MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE.aggregateId(GlobalIdGenerator.generateAsString())
         val mockEventJson = MockNamedEvent()
-            .asDomainEvent(
+            .toDomainEvent(
                 aggregateId = aggregateId,
                 commandId = GlobalIdGenerator.generateAsString(),
             )
-            .asJsonString()
-        val droppedEvent = mockEventJson.asObject<DomainEvent<Any>>()
+            .toJsonString()
+        val droppedEvent = mockEventJson.toObject<DomainEvent<Any>>()
         assertThat(droppedEvent.id, equalTo(droppedEvent.id))
         assertThat(droppedEvent.aggregateId, equalTo(aggregateId))
         assertThat(droppedEvent.revision, equalTo(MockEventChangeRevisionUpgrader.REVISION))
         assertThat(droppedEvent.body, instanceOf(DroppedEvent::class.java))
 
-        val droppedEventJson = droppedEvent.asJsonString()
-        val droppedEvent2 = droppedEventJson.asObject<DomainEvent<Any>>()
+        val droppedEventJson = droppedEvent.toJsonString()
+        val droppedEvent2 = droppedEventJson.toObject<DomainEvent<Any>>()
         assertThat(droppedEvent2.id, equalTo(droppedEvent.id))
         assertThat(droppedEvent2.aggregateId, equalTo(droppedEvent.aggregateId))
         assertThat(droppedEvent2.revision, equalTo(droppedEvent.revision))

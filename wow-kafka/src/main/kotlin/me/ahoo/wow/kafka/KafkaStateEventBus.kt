@@ -35,7 +35,7 @@ class KafkaStateEventBus(
     override val messageType: Class<StateEvent<*>>
         get() = StateEvent::class.java
 
-    override fun StateEvent<*>.asExchange(receiverOffset: ReceiverOffset): StateEventExchange<*> {
+    override fun StateEvent<*>.toExchange(receiverOffset: ReceiverOffset): StateEventExchange<*> {
         return KafkaStateEventExchange(this, receiverOffset)
     }
 }

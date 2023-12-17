@@ -44,6 +44,6 @@ interface CommandRecord :
 
 class DelegatingCommandRecord(override val actual: ObjectNode) : CommandRecord
 
-fun ObjectNode.asCommandRecord(): CommandRecord {
+fun ObjectNode.toCommandRecord(): CommandRecord {
     return DelegatingCommandRecord(this)
 }

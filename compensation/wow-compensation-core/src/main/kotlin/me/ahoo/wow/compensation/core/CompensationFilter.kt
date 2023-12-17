@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.messaging.processor.materialize
 import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
@@ -28,7 +28,7 @@ import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId.Companion.toEventId
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
@@ -51,7 +51,7 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
         return next.filter(exchange)
             .onErrorResume {
                 val eventFunction = exchange.getEventFunction() ?: return@onErrorResume it.toMono()
-                val errorInfo = it.asErrorInfo()
+                val errorInfo = it.toErrorInfo()
                 val errorDetails = ErrorDetails(
                     errorCode = errorInfo.errorCode,
                     errorMsg = errorInfo.errorMsg,
@@ -69,14 +69,14 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                 } else {
                     ApplyExecutionFailed(executionId, errorDetails, executionTime)
                 }
-                val commandMessage = command.asCommandMessage()
+                val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())
             }
             .then(
                 Mono.defer {
                     executionId ?: return@defer Mono.empty()
                     val commandMessage = ApplyExecutionSuccess(executionId, System.currentTimeMillis())
-                        .asCommandMessage()
+                        .toCommandMessage()
                     commandBus.send(commandMessage)
                 }
             )

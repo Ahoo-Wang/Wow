@@ -1,13 +1,13 @@
 package me.ahoo.wow.annotation
 
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asAggregateNameGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asAggregateVersionGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asIntGetter
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asStringGetter
-import me.ahoo.wow.annotation.AggregateAnnotationParser.asTenantIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AggregateAnnotationParser.staticAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AggregateAnnotationParser.staticTenantIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateNameGetterIfAnnotated
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateVersionGetterIfAnnotated
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toIntGetter
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toStringGetter
+import me.ahoo.wow.annotation.AggregateAnnotationParser.toTenantIdGetterIfAnnotated
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateName
 import me.ahoo.wow.api.annotation.AggregateVersion
@@ -25,101 +25,101 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun fieldAsStringGetter() {
-        val propertyGetter = Mock::stringField.javaField!!.asStringGetter<Mock>()
+        val propertyGetter = Mock::stringField.javaField!!.toStringGetter<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsStringGetterIfInt() {
         assertThrows(IllegalArgumentException::class.java) {
-            Mock::intField.javaField!!.asStringGetter<Mock>()
+            Mock::intField.javaField!!.toStringGetter<Mock>()
         }
     }
 
     @Test
     fun methodAsStringGetter() {
-        val propertyGetter = Mock::stringField.getter.javaMethod!!.asStringGetter<Mock>()
+        val propertyGetter = Mock::stringField.getter.javaMethod!!.toStringGetter<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodAsStringGetterIfInt() {
         assertThrows(IllegalArgumentException::class.java) {
-            Mock::intField.getter.javaMethod!!.asStringGetter<Mock>()
+            Mock::intField.getter.javaMethod!!.toStringGetter<Mock>()
         }
     }
 
     @Test
     fun fieldAsIntGetter() {
-        val propertyGetter = Mock::intField.javaField!!.asIntGetter<Mock>()
+        val propertyGetter = Mock::intField.javaField!!.toIntGetter<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsIntGetterIfString() {
         assertThrows(IllegalArgumentException::class.java) {
-            Mock::stringField.javaField!!.asIntGetter<Mock>()
+            Mock::stringField.javaField!!.toIntGetter<Mock>()
         }
     }
 
     @Test
     fun methodAsIntGetter() {
-        val propertyGetter = Mock::intField.getter.javaMethod!!.asIntGetter<Mock>()
+        val propertyGetter = Mock::intField.getter.javaMethod!!.toIntGetter<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodAsIntGetterIfString() {
         assertThrows(IllegalArgumentException::class.java) {
-            Mock::stringField.getter.javaMethod!!.asIntGetter<Mock>()
+            Mock::stringField.getter.javaMethod!!.toIntGetter<Mock>()
         }
     }
 
     @Test
     fun fieldAsAggregateNameGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateName.javaField!!.asAggregateNameGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateName.javaField!!.toAggregateNameGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsAggregateNameGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.javaField!!.asAggregateNameGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.javaField!!.toAggregateNameGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
     @Test
     fun methodAsAggregateNameGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateName.getter.javaMethod!!.asAggregateNameGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateName.getter.javaMethod!!.toAggregateNameGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodAsAggregateNameGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.asAggregateNameGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.toAggregateNameGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
     @Test
     fun fieldAsAggregateIdGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateId.javaField!!.asAggregateIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.javaField!!.toAggregateIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsAggregateIdGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateName.javaField!!.asAggregateIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateName.javaField!!.toAggregateIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
     @Test
     fun methodsAggregateIdGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.asAggregateIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.toAggregateIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodsAggregateIdGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateName.getter.javaMethod!!.asAggregateIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateName.getter.javaMethod!!.toAggregateIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
@@ -131,13 +131,13 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun fieldAsTenantIdGetterIfAnnotated() {
-        val propertyGetter = Mock::tenantId.javaField!!.asTenantIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::tenantId.javaField!!.toTenantIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsTenantIdGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.javaField!!.asTenantIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.javaField!!.toTenantIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
@@ -149,37 +149,37 @@ class AggregateAnnotationParserTest {
 
     @Test
     fun methodAsTenantIdGetterIfAnnotated() {
-        val propertyGetter = Mock::tenantId.getter.javaMethod!!.asTenantIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::tenantId.getter.javaMethod!!.toTenantIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodAsTenantIdGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.asTenantIdGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.toTenantIdGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
     @Test
     fun fieldAsAggregateVersionGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateVersion.javaField!!.asAggregateVersionGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateVersion.javaField!!.toAggregateVersionGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun fieldAsAggregateVersionGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.javaField!!.asAggregateVersionGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.javaField!!.toAggregateVersionGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 
     @Test
     fun methodAsAggregateVersionGetterIfAnnotated() {
-        val propertyGetter = Mock::aggregateVersion.getter.javaMethod!!.asAggregateVersionGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateVersion.getter.javaMethod!!.toAggregateVersionGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, notNullValue())
     }
 
     @Test
     fun methodAsAggregateVersionGetterIfUnAnnotated() {
-        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.asAggregateVersionGetterIfAnnotated<Mock>()
+        val propertyGetter = Mock::aggregateId.getter.javaMethod!!.toAggregateVersionGetterIfAnnotated<Mock>()
         assertThat(propertyGetter, nullValue())
     }
 

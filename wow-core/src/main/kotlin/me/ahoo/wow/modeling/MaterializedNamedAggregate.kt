@@ -47,7 +47,7 @@ fun NamedAggregate.materialize(): MaterializedNamedAggregate {
 }
 
 const val NAMED_AGGREGATE_DELIMITER = "."
-fun String.asNamedAggregate(contextName: String? = null): MaterializedNamedAggregate {
+fun String.toNamedAggregate(contextName: String? = null): MaterializedNamedAggregate {
     val split = split(NAMED_AGGREGATE_DELIMITER)
     if (split.size == 2) {
         return MaterializedNamedAggregate(split[0], split[1])
@@ -58,10 +58,10 @@ fun String.asNamedAggregate(contextName: String? = null): MaterializedNamedAggre
     return MaterializedNamedAggregate(contextName, this)
 }
 
-fun NamedAggregate.asNamedAggregateString(): String {
+fun NamedAggregate.toNamedAggregateString(): String {
     return "$contextName$NAMED_AGGREGATE_DELIMITER$aggregateName"
 }
 
-fun NamedAggregate.asStringWithAlias(): String {
+fun NamedAggregate.toStringWithAlias(): String {
     return "${getContextAlias()}$NAMED_AGGREGATE_DELIMITER$aggregateName"
 }

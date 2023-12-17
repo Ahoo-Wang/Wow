@@ -19,7 +19,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
-import me.ahoo.wow.saga.annotation.asStatelessSagaMetadata
+import me.ahoo.wow.saga.annotation.statelessSagaMetadata
 import reactor.core.publisher.Mono
 
 class StatelessSagaFunctionRegistrar(
@@ -29,8 +29,8 @@ class StatelessSagaFunctionRegistrar(
 
     fun registerStatelessSaga(statelessSaga: Any, commandGateway: CommandGateway) {
         statelessSaga.javaClass
-            .asStatelessSagaMetadata()
-            .asMessageFunctionRegistry(statelessSaga)
+            .statelessSagaMetadata()
+            .toMessageFunctionRegistry(statelessSaga)
             .forEach {
                 val statelessSagaHandler = StatelessSagaFunction(it, commandGateway)
                 register(statelessSagaHandler)

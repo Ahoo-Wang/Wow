@@ -19,7 +19,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -175,7 +175,7 @@ abstract class CommandDispatcherSpec {
             data = GlobalIdGenerator.generateAsString(),
         )
         commandGateway
-            .sendAndWaitForProcessed(mockCreateAggregate.asCommandMessage())
+            .sendAndWaitForProcessed(mockCreateAggregate.toCommandMessage())
             .then()
             .test()
             .verifyComplete()
@@ -205,7 +205,7 @@ abstract class CommandDispatcherSpec {
             .flatMap({
                 // 生成聚合
                 commandGateway
-                    .sendAndWaitForProcessed(it!!.asCommandMessage())
+                    .sendAndWaitForProcessed(it!!.toCommandMessage())
             }, Int.MAX_VALUE).doOnNext {
                 assertThat(it.succeeded, equalTo(true))
             }
@@ -233,7 +233,7 @@ abstract class CommandDispatcherSpec {
         }.toFlux()
             .subscribeOn(Schedulers.single())
             .flatMap({
-                commandGateway.sendAndWaitForProcessed(it.asCommandMessage())
+                commandGateway.sendAndWaitForProcessed(it.toCommandMessage())
             }, Int.MAX_VALUE)
             .doOnNext {
                 assertThat(it.succeeded, equalTo(true))

@@ -22,7 +22,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
@@ -52,7 +52,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         return MockCreateAggregate(
             id = GlobalIdGenerator.generateAsString(),
             data = GlobalIdGenerator.generateAsString(),
-        ).asCommandMessage()
+        ).toCommandMessage()
     }
 
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar

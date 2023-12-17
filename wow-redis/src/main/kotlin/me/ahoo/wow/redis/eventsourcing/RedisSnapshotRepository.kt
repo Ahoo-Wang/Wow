@@ -16,8 +16,8 @@ package me.ahoo.wow.redis.eventsourcing
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Mono
 
@@ -30,13 +30,13 @@ class RedisSnapshotRepository(
         val snapshotKey = keyConverter.convert(aggregateId)
         return redisTemplate.opsForValue()
             .get(snapshotKey)
-            .map { it.asObject<Snapshot<S>>() }
+            .map { it.toObject<Snapshot<S>>() }
     }
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         val snapshotKey = keyConverter.convert(snapshot.aggregateId)
         return redisTemplate.opsForValue()
-            .set(snapshotKey, snapshot.asJsonString())
+            .set(snapshotKey, snapshot.toJsonString())
             .then()
     }
 }

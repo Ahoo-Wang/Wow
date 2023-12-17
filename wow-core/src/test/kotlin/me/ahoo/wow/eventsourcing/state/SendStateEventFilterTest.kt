@@ -7,12 +7,12 @@ import io.mockk.verify
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.SimpleDomainEventStream
-import me.ahoo.wow.event.asDomainEvent
+import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
@@ -100,7 +100,7 @@ class SendStateEventFilterTest {
             every { send(any()) } returns Mono.empty()
         }
         val stateEventFilter = SendStateEventFilter(stateEventBus)
-        val eventStream = MockNamedEvent().asDomainEvent(
+        val eventStream = MockNamedEvent().toDomainEvent(
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = GlobalIdGenerator.generateAsString(),
             commandId = GlobalIdGenerator.generateAsString(),
@@ -109,7 +109,7 @@ class SendStateEventFilterTest {
             SimpleDomainEventStream(requestId = GlobalIdGenerator.generateAsString(), body = listOf(it))
         }
         val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
-        val stateAggregate = MOCK_AGGREGATE_METADATA.asStateAggregate(mockAggregate, 1)
+        val stateAggregate = MOCK_AGGREGATE_METADATA.toStateAggregate(mockAggregate, 1)
         val exchange = mockk<ServerCommandExchange<*>> {
             every { getEventStream() } returns eventStream
             every { getCommandAggregate<Any, Any>() } returns mockk {

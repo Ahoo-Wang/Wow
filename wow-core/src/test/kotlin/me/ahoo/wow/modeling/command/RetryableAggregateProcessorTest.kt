@@ -14,8 +14,8 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.command.asCommandMessage
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -23,7 +23,7 @@ import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
@@ -47,7 +47,7 @@ internal class RetryableAggregateProcessorTest {
 
     @Test
     fun onCommand() {
-        val aggregateId = aggregateMetadata.asAggregateId()
+        val aggregateId = aggregateMetadata.aggregateId()
 
         val retryableAggregateCommandHandler = RetryableAggregateProcessor(
             aggregateId = aggregateId,
@@ -57,7 +57,7 @@ internal class RetryableAggregateProcessorTest {
             commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
         )
         val create = MockCreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
-            .asCommandMessage()
+            .toCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(create).setServiceProvider(serviceProvider),
         )
@@ -74,7 +74,7 @@ internal class RetryableAggregateProcessorTest {
             }
             .verify()
 
-        val change = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val change = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).toCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(change).setServiceProvider(serviceProvider),
         )
@@ -82,12 +82,12 @@ internal class RetryableAggregateProcessorTest {
             .expectNextCount(1)
             .verifyComplete()
 
-        val change2 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val change2 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).toCommandMessage()
         val eventStream = MockAggregateChanged(change2.body.data)
-            .asDomainEventStream(change2, aggregateVersion = 2)
+            .toDomainEventStream(change2, aggregateVersion = 2)
         eventStore.append(eventStream).block()
 
-        val change3 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val change3 = MockChangeAggregate(aggregateId.id, GlobalIdGenerator.generateAsString()).toCommandMessage()
         retryableAggregateCommandHandler.process(
             SimpleServerCommandExchange(
                 change3,

@@ -14,7 +14,7 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.domain.ToRetryQuery
 import org.slf4j.LoggerFactory
@@ -43,7 +43,7 @@ class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val 
                         it.functionKind
                     )
                 }
-                val commandMessage = PrepareCompensation(it.id).asCommandMessage()
+                val commandMessage = PrepareCompensation(it.id).toCommandMessage()
                 commandGateway.send(commandMessage).thenReturn(commandMessage)
             }
             .count()

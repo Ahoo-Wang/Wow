@@ -18,13 +18,13 @@ import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.event.annotation.asEventMetadata
+import me.ahoo.wow.event.annotation.eventMetadata
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 
 @Suppress("LongParameterList")
-fun <T : Any> T.asDomainEvent(
+fun <T : Any> T.toDomainEvent(
     aggregateId: AggregateId,
     commandId: String,
     id: String = GlobalIdGenerator.generateAsString(),
@@ -34,7 +34,7 @@ fun <T : Any> T.asDomainEvent(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
-    val metadata = javaClass.asEventMetadata()
+    val metadata = javaClass.eventMetadata()
 
     return SimpleDomainEvent(
         id = id,
@@ -52,7 +52,7 @@ fun <T : Any> T.asDomainEvent(
 }
 
 @Suppress("LongParameterList")
-fun <T : Any> T.asDomainEvent(
+fun <T : Any> T.toDomainEvent(
     aggregateId: String,
     tenantId: String,
     commandId: String,
@@ -63,14 +63,14 @@ fun <T : Any> T.asDomainEvent(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
-    val metadata = javaClass.asEventMetadata()
+    val metadata = javaClass.eventMetadata()
     checkNotNull(metadata.namedAggregateGetter)
     val namedAggregate = metadata.namedAggregateGetter.getNamedAggregate(this)
     return SimpleDomainEvent(
         id = id,
         version = version,
         revision = metadata.revision,
-        aggregateId = namedAggregate.asAggregateId(id = aggregateId, tenantId = tenantId),
+        aggregateId = namedAggregate.aggregateId(id = aggregateId, tenantId = tenantId),
         commandId = commandId,
         name = metadata.name,
         sequence = sequence,

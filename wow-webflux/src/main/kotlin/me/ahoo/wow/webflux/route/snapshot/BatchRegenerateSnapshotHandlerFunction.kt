@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -61,7 +61,7 @@ class BatchRegenerateSnapshotHandlerFunction(
                 }
                 BatchResult(nextCursorId, acc.size + 1)
             }
-            .asServerResponse(exceptionHandler)
+            .toServerResponse(exceptionHandler)
     }
 }
 

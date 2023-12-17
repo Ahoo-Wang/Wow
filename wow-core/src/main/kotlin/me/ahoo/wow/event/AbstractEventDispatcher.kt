@@ -23,7 +23,7 @@ import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -139,7 +139,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
 
     override fun run() {
         if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to Event:${eventStreamTopics.asJsonString()}.")
+            log.info("[$name] Run subscribe to Event:${eventStreamTopics.toJsonString()}.")
         }
         if (eventStreamTopics.isEmpty()) {
             if (log.isWarnEnabled) {
@@ -150,7 +150,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         }
 
         if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to State Event:${stateEventTopics.asJsonString()}.")
+            log.info("[$name] Run subscribe to State Event:${stateEventTopics.toJsonString()}.")
         }
         if (stateEventTopics.isEmpty()) {
             if (log.isWarnEnabled) {

@@ -18,15 +18,15 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.configuration.asRequiredAggregateType
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_EVENT_TIME
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_OPERATOR
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
+import me.ahoo.wow.serialization.toObject
 
 object StateEventJsonSerializer :
     AbstractEventStreamJsonSerializer<StateEvent<*>>(StateEvent::class.java) {
@@ -42,15 +42,15 @@ object StateEventJsonSerializer :
 object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): StateEvent<*> {
         val stateEventRecord = p.codec.readTree<ObjectNode>(p)
-        val eventStream = stateEventRecord.asEventStreamRecord()
-            .asDomainEventStream()
-        val metadata = eventStream.asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, Any>().state
+        val eventStream = stateEventRecord.toEventStreamRecord()
+            .toDomainEventStream()
+        val metadata = eventStream.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, Any>().state
         val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asText().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateEventRecord[DELETED].asBoolean()
-        val stateRoot = stateEventRecord[STATE].asObject(metadata.aggregateType)
-        return eventStream.asStateEvent(
+        val stateRoot = stateEventRecord[STATE].toObject(metadata.aggregateType)
+        return eventStream.toStateEvent(
             state = stateRoot,
             firstOperator = firstOperator,
             firstEventTime = firstEventTime,

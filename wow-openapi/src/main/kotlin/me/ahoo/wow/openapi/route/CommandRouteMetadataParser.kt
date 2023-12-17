@@ -17,7 +17,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.command.annotation.asCommandMetadata
+import me.ahoo.wow.command.annotation.toCommandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
@@ -25,16 +25,16 @@ import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import org.springframework.web.util.UriTemplate
 import java.lang.reflect.Field
 
 object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRouteMetadata<*>>() {
-    override fun parseAsMetadata(type: Class<*>): CommandRouteMetadata<*> {
+    override fun parseToMetadata(type: Class<*>): CommandRouteMetadata<*> {
         val visitor = CommandRouteMetadataVisitor(type)
         ClassMetadata.visit(type, visitor)
-        return visitor.asMetadata()
+        return visitor.toMetadata()
     }
 }
 
@@ -47,7 +47,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
     private var pathVariables: MutableSet<VariableMetadata> = mutableSetOf()
     private var headerVariables: MutableSet<VariableMetadata> = mutableSetOf()
 
-    private fun Field.asVariableMetadata(name: String, nestedPath: Array<String>, required: Boolean): VariableMetadata {
+    private fun Field.toVariableMetadata(name: String, nestedPath: Array<String>, required: Boolean): VariableMetadata {
         val fieldName = scan<JsonProperty>()?.value
             .orEmpty()
             .ifBlank {
@@ -67,16 +67,16 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 
     override fun visitField(field: Field) {
         field.scan<CommandRoute.PathVariable>()?.let {
-            val variableMetadata = field.asVariableMetadata(it.name, it.nestedPath, it.required)
+            val variableMetadata = field.toVariableMetadata(it.name, it.nestedPath, it.required)
             pathVariables.add(variableMetadata)
         }
         field.scan<CommandRoute.HeaderVariable>()?.let {
-            val variableMetadata = field.asVariableMetadata(it.name, it.nestedPath, it.required)
+            val variableMetadata = field.toVariableMetadata(it.name, it.nestedPath, it.required)
             headerVariables.add(variableMetadata)
         }
     }
 
-    private fun CommandMetadata<*>.asMethod(routeMethod: CommandRoute.Method = CommandRoute.Method.DEFAULT): String {
+    private fun CommandMetadata<*>.toMethod(routeMethod: CommandRoute.Method = CommandRoute.Method.DEFAULT): String {
         if (routeMethod != CommandRoute.Method.DEFAULT) {
             return routeMethod.name
         }
@@ -89,13 +89,13 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
         return Https.Method.PUT
     }
 
-    fun asMetadata(): CommandRouteMetadata<C> {
-        val commandMetadata = commandType.asCommandMetadata()
+    fun toMetadata(): CommandRouteMetadata<C> {
+        val commandMetadata = commandType.toCommandMetadata()
         val summary = commandType.scan<Summary>()?.value ?: ""
         val commandRoute = commandType.scan<CommandRoute>() ?: return CommandRouteMetadata(
             enabled = true,
             path = commandMetadata.name,
-            method = commandMetadata.asMethod(),
+            method = commandMetadata.toMethod(),
             appendIdPath = CommandRoute.AppendPath.DEFAULT,
             appendTenantPath = CommandRoute.AppendPath.DEFAULT,
             ignoreAggregateNamePrefix = false,
@@ -110,7 +110,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
         return CommandRouteMetadata(
             enabled = commandRoute.enabled,
             path = path,
-            method = commandMetadata.asMethod(commandRoute.method),
+            method = commandMetadata.toMethod(commandRoute.method),
             prefix = commandRoute.prefix,
             appendIdPath = commandRoute.appendIdPath,
             appendTenantPath = commandRoute.appendTenantPath,
@@ -142,7 +142,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
                 log.warn(
                     "Command[{}] Route PathVariables{} is not bound to fields.",
                     commandMetadata.commandType,
-                    missedVariableNames.asJsonString(),
+                    missedVariableNames.toJsonString(),
                 )
             }
             missedVariableNames.forEach {
@@ -160,11 +160,11 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
     }
 }
 
-fun <C> Class<out C>.asCommandRouteMetadata(): CommandRouteMetadata<C> {
+fun <C> Class<out C>.commandRouteMetadata(): CommandRouteMetadata<C> {
     @Suppress("UNCHECKED_CAST")
     return CommandRouteMetadataParser.parse(this) as CommandRouteMetadata<C>
 }
 
 inline fun <reified C> commandRouteMetadata(): CommandRouteMetadata<C> {
-    return C::class.java.asCommandRouteMetadata()
+    return C::class.java.commandRouteMetadata()
 }

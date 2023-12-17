@@ -15,7 +15,7 @@ package me.ahoo.wow.r2dbc
 
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.sharding.CosIdShardingDecorator
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
@@ -41,7 +41,7 @@ internal class ShardingDatabaseTest {
 
     @Test
     fun create() {
-        shardingDatabase.createConnection(namedAggregate.asAggregateId("0TEpCw9e0001001")).toMono()
+        shardingDatabase.createConnection(namedAggregate.aggregateId("0TEpCw9e0001001")).toMono()
             .test()
             .consumeNextWith {
                 it.close().toMono().subscribe()

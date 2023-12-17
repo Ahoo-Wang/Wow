@@ -3,7 +3,7 @@ package me.ahoo.wow.webflux.exception
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
 import org.hamcrest.MatcherAssert.assertThat
@@ -19,7 +19,7 @@ class ResponsesKtTest {
     @Test
     fun asResponseEntity() {
         val responseEntity = IllegalArgumentException()
-            .asResponseEntity()
+            .toResponseEntity()
         assertThat(responseEntity.statusCode, equalTo(HttpStatus.BAD_REQUEST))
         assertThat(responseEntity.headers.contentType, equalTo(MediaType.APPLICATION_JSON))
         assertThat(responseEntity.headers.getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.ILLEGAL_ARGUMENT))
@@ -28,8 +28,8 @@ class ResponsesKtTest {
     @Test
     fun asServerResponse() {
         IllegalArgumentException()
-            .asErrorInfo()
-            .asServerResponse()
+            .toErrorInfo()
+            .toServerResponse()
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.BAD_REQUEST))
@@ -50,7 +50,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
-            .asServerResponse(DefaultExceptionHandler)
+            .toServerResponse(DefaultExceptionHandler)
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.OK))

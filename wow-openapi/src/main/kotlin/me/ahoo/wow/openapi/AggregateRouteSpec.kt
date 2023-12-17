@@ -19,8 +19,8 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendIdPathParameter
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
@@ -39,7 +39,7 @@ interface AggregateRouteSpec : RouteSpec {
     override val tags: List<String>
         get() {
             val tags = mutableListOf<String>()
-            tags.add(aggregateMetadata.asStringWithAlias())
+            tags.add(aggregateMetadata.toStringWithAlias())
             aggregateMetadata.command.aggregateType.asTags().let {
                 tags.addAll(it)
             }

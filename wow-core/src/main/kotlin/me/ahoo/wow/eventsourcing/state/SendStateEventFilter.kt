@@ -16,7 +16,7 @@ package me.ahoo.wow.eventsourcing.state
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.asStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.messaging.function.logErrorResume
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
@@ -39,7 +39,7 @@ class SendStateEventFilter(private val stateEventBus: StateEventBus) : Filter<Se
             if (!state.initialized) {
                 return@defer next.filter(exchange)
             }
-            val stateEvent = eventStream.copy().asStateEvent(state)
+            val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
                 .logErrorResume()
                 .then(next.filter(exchange))

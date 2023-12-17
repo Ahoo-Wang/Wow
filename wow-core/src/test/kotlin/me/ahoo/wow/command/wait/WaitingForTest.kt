@@ -14,7 +14,7 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
-import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.asWaitSignal
+import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -28,7 +28,7 @@ internal class WaitingForTest {
     @Test
     fun processed() {
         val waitStrategy = WaitingFor.processed(contextName)
-        val waitSignal = ProcessorInfoData(contextName, "processorName").asWaitSignal(
+        val waitSignal = ProcessorInfoData(contextName, "processorName").toWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
         )

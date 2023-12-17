@@ -35,12 +35,12 @@ class CommandValidationException(
 ) :
     WowException(
         COMMAND_VALIDATION,
-        constraintViolations.asErrorMessage(),
+        constraintViolations.toErrorMessage(),
     ),
     NamedAggregate by commandMessage {
 
     companion object {
-        private fun Set<ConstraintViolation<*>>.asErrorMessage(): String {
+        private fun Set<ConstraintViolation<*>>.toErrorMessage(): String {
             return joinToString(separator = System.lineSeparator()) {
                 "[${it.propertyPath}]:${it.message}"
             }

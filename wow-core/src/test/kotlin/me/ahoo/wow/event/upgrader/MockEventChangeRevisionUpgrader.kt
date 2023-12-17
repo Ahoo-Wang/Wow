@@ -15,7 +15,7 @@ package me.ahoo.wow.event.upgrader
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
+import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
 import me.ahoo.wow.serialization.event.DomainEventRecord
 
 @Order(ORDER_FIRST)
@@ -28,7 +28,7 @@ class MockEventChangeRevisionUpgrader : EventUpgrader {
         get() = MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE
 
     override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-        val mutableDomainEventRecord = domainEventRecord.asMutableDomainEventRecord()
+        val mutableDomainEventRecord = domainEventRecord.toMutableDomainEventRecord()
         mutableDomainEventRecord.revision = REVISION
         return mutableDomainEventRecord
     }

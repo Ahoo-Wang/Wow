@@ -55,7 +55,7 @@ interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : 
     override val name: String get() = metadata.name
 }
 
-fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.asMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
+fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.toMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
     return if (injectParameterLength == 0) {
         SimpleMethodMessageFunction(processor, this)
     } else {

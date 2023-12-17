@@ -14,7 +14,7 @@
 package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.wow.messaging.MessageDispatcher
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 
 abstract class AbstractMessageDispatcher<T : Any> : MessageDispatcher, SafeSubscriber<T>() {
@@ -26,7 +26,7 @@ abstract class AbstractMessageDispatcher<T : Any> : MessageDispatcher, SafeSubsc
 
     override fun run() {
         if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to topics:${topics.asJsonString()}.")
+            log.info("[$name] Run subscribe to topics:${topics.toJsonString()}.")
         }
         if (topics.isEmpty()) {
             if (log.isWarnEnabled) {

@@ -14,17 +14,17 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.asErrorInfo
+import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
-import me.ahoo.wow.serialization.asJsonString
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-fun Throwable.asResponseEntity(): ResponseEntity<ErrorInfo> {
-    val errorInfo = asErrorInfo()
+fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
+    val errorInfo = toErrorInfo()
     val status = errorInfo.asHttpStatus()
     return ResponseEntity.status(status)
         .contentType(MediaType.APPLICATION_JSON)
@@ -32,23 +32,23 @@ fun Throwable.asResponseEntity(): ResponseEntity<ErrorInfo> {
         .body(errorInfo)
 }
 
-fun ErrorInfo.asServerResponse(): Mono<ServerResponse> {
+fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
     val status = asHttpStatus()
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
         .header(WOW_ERROR_CODE, errorCode)
-        .bodyValue(this.asJsonString())
+        .bodyValue(this.toJsonString())
 }
 
-fun Mono<*>.asServerResponse(exceptionHandler: ExceptionHandler = DefaultExceptionHandler): Mono<ServerResponse> {
+fun Mono<*>.toServerResponse(exceptionHandler: ExceptionHandler = DefaultExceptionHandler): Mono<ServerResponse> {
     return flatMap {
         if (it is ErrorInfo) {
-            return@flatMap it.asServerResponse()
+            return@flatMap it.toServerResponse()
         }
         ServerResponse.ok()
             .contentType(MediaType.APPLICATION_JSON)
             .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
-            .bodyValue(it.asJsonString())
+            .bodyValue(it.toJsonString())
     }.onErrorResume {
         exceptionHandler.handle(it)
     }

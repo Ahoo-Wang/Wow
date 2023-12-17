@@ -14,7 +14,7 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ internal class SimpleSnapshotSchemaTest {
     @Test
     fun load() {
         assertThat(
-            streamSchema.load(namedAggregate.asAggregateId("")),
+            streamSchema.load(namedAggregate.aggregateId("")),
             equalTo("select * from test_snapshot where aggregate_id=? order by version desc limit 1"),
         )
     }
@@ -34,7 +34,7 @@ internal class SimpleSnapshotSchemaTest {
     @Test
     fun loadVersion() {
         assertThat(
-            streamSchema.loadByVersion(namedAggregate.asAggregateId("")),
+            streamSchema.loadByVersion(namedAggregate.aggregateId("")),
             equalTo("select * from test_snapshot where aggregate_id=? and version=?"),
         )
     }
@@ -42,7 +42,7 @@ internal class SimpleSnapshotSchemaTest {
     @Test
     fun save() {
         assertThat(
-            streamSchema.save(namedAggregate.asAggregateId("")),
+            streamSchema.save(namedAggregate.aggregateId("")),
             equalTo(
                 """
      replace into test_snapshot

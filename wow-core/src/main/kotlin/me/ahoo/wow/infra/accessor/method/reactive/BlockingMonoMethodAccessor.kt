@@ -28,11 +28,11 @@ class BlockingMonoMethodAccessor<T, D>(
         get() = monoMethodAccessor.method
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return monoMethodAccessor.invoke(target, args).asBlockable(scheduler)
+        return monoMethodAccessor.invoke(target, args).toBlockable(scheduler)
     }
 }
 
-fun <T> Mono<T>.asBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
+fun <T> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
     if (Schedulers.isInNonBlockingThread()) {
         return this.subscribeOn(scheduler)
     }

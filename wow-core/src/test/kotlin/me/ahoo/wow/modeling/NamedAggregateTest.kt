@@ -25,7 +25,7 @@ internal class NamedAggregateTest {
     @Test
     fun materialize() {
         assertThat(namedTypedAggregate.materialize(), sameInstance(namedTypedAggregate.materialize()))
-        val aggregateId = namedTypedAggregate.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
         assertThat(aggregateId.materialize(), sameInstance(aggregateId.materialize()))
     }
 }

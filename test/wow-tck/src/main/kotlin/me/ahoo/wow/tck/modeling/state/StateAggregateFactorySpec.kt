@@ -15,8 +15,8 @@ package me.ahoo.wow.tck.modeling.state
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -36,7 +36,7 @@ abstract class StateAggregateFactorySpec {
         verify: (StateAggregate<S>) -> Unit = {}
     ) {
         val aggregateFactory = createStateAggregateFactory()
-        val aggregateId = aggregateMetadata.asAggregateId(id = GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(id = GlobalIdGenerator.generateAsString())
         aggregateFactory.create(aggregateMetadata.state, aggregateId)
             .test()
             .consumeNextWith { stateAggregate: StateAggregate<S> ->

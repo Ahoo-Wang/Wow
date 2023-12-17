@@ -12,9 +12,9 @@ import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_PROCESSOR
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -27,7 +27,7 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenNotLocal() {
         val compensationPrepared = mockk<CompensationPrepared> {
-            every { eventId.aggregateId } returns "test.not_local".asNamedAggregate().asAggregateId()
+            every { eventId.aggregateId } returns "test.not_local".toNamedAggregate().aggregateId()
         }
         sagaVerifier<CompensationSaga>()
             .inject(mockk<DomainEventCompensator>())
@@ -39,7 +39,7 @@ class CompensationSagaTest {
 
     @Test
     fun onCompensationPreparedWhenEvent() {
-        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.asAggregateId(), 1)
+        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
         val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.EVENT, mockk())
         val domainEventCompensator = mockk<DomainEventCompensator> {
             every {
@@ -68,7 +68,7 @@ class CompensationSagaTest {
 
     @Test
     fun onCompensationPreparedWhenStateEvent() {
-        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.asAggregateId(), 1)
+        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
         val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.STATE_EVENT, mockk())
         val stateEventCompensator = mockk<StateEventCompensator> {
             every {
@@ -97,7 +97,7 @@ class CompensationSagaTest {
 
     @Test
     fun onCompensationPreparedWhenOther() {
-        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.asAggregateId(), 1)
+        val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
         val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.ERROR, mockk())
         sagaVerifier<CompensationSaga>()
             .inject(mockk<StateEventCompensator>())

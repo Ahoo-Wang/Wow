@@ -17,7 +17,7 @@ import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
+import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import me.ahoo.wow.messaging.handler.MessageExchange
 
@@ -41,7 +41,7 @@ data class MethodFunctionMetadata<P, out R>(
     val processorType: Class<P> = accessor.targetType
     val processorName = checkNotNull(processorType.simpleName)
     override val name: String = "$processorName.${supportedType.simpleName}"
-    override val contextName: String = processorType.asRequiredNamedBoundedContext().contextName
+    override val contextName: String = processorType.requiredNamedBoundedContext().contextName
 
     fun extractFirstArgument(exchange: MessageExchange<*, *>): Any {
         return when (firstParameterKind) {

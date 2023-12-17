@@ -17,7 +17,7 @@ import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
-import me.ahoo.wow.messaging.function.asMessageFunction
+import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.Metadata
 import reactor.core.publisher.Mono
@@ -29,10 +29,10 @@ data class ProcessorMetadata<P : Any, in M : MessageExchange<*, *>>(
     val functionRegistry: Set<MethodFunctionMetadata<P, Mono<*>>>
 ) : NamedBoundedContext by namedBoundedContext, Named, Metadata {
 
-    fun asMessageFunctionRegistry(processor: P): Set<MessageFunction<P, M, Mono<*>>> {
+    fun toMessageFunctionRegistry(processor: P): Set<MessageFunction<P, M, Mono<*>>> {
         return functionRegistry
             .map {
-                it.asMessageFunction<P, M, Mono<*>>(processor)
+                it.toMessageFunction<P, M, Mono<*>>(processor)
             }.toSet()
     }
 

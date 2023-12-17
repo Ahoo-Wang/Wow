@@ -20,16 +20,16 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
-import me.ahoo.wow.configuration.asRequiredAggregateType
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.asObject
 import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
+import me.ahoo.wow.serialization.toObject
 
 object StateAggregateRecords {
     const val STATE: String = "state"
@@ -72,8 +72,8 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
             stateRecord[MessageRecords.CONTEXT_NAME].asText(),
             stateRecord[MessageRecords.AGGREGATE_NAME].asText(),
         )
-        val metadata = namedAggregate.asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, Any>().state
+        val metadata = namedAggregate.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
         val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
         val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asText().orEmpty()
@@ -81,14 +81,14 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val firstEventTime = stateRecord.get(StateAggregateRecords.FIRST_EVENT_TIME)?.asLong() ?: 0L
         val eventTime = stateRecord.get(StateAggregateRecords.EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateRecord[DELETED].asBoolean()
-        val stateRoot = stateRecord[STATE].asObject(metadata.aggregateType)
+        val stateRoot = stateRecord[STATE].toObject(metadata.aggregateType)
 
-        val aggregateId = namedAggregate.asAggregateId(
+        val aggregateId = namedAggregate.aggregateId(
             id = stateRecord[MessageRecords.AGGREGATE_ID].asText(),
             tenantId = stateRecord[MessageRecords.TENANT_ID].asText(),
         )
         val stateAggregate =
-            metadata.asStateAggregate(
+            metadata.toStateAggregate(
                 aggregateId = aggregateId,
                 state = stateRoot,
                 version = version,

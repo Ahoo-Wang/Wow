@@ -16,22 +16,22 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class LoadSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.getSnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.getSnapshot"
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean
@@ -42,13 +42,13 @@ class LoadSnapshotRouteSpec(
 
     override val summary: String
         get() = "Get snapshot"
-    val responseSchemaRef = Snapshot::class.java.asSchemaRef(
+    val responseSchemaRef = Snapshot::class.java.toSchemaRef(
         Snapshot<*>::state.name,
         aggregateMetadata.state.aggregateType
     )
 
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.asResponse().let {
+        get() = responseSchemaRef.ref.toResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
         }.withNotFound()
 }

@@ -1,8 +1,8 @@
 package me.ahoo.wow.webflux.route.event.state
 
-import me.ahoo.wow.command.asCommandMessage
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -20,9 +20,9 @@ class ResendStateEventHandlerTest {
     @Test
     fun handle() {
         val eventStore = InMemoryEventStore()
-        val commandMessage = MockCreateAggregate("1", "data").asCommandMessage()
+        val commandMessage = MockCreateAggregate("1", "data").toCommandMessage()
         val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
-            .asDomainEventStream(commandMessage, 0)
+            .toDomainEventStream(commandMessage, 0)
         eventStore.appendStream(eventStream).test().verifyComplete()
         val handlerFunction = ResendStateEventHandler(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,

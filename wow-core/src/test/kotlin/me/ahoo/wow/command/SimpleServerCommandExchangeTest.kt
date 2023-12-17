@@ -12,7 +12,7 @@ class SimpleServerCommandExchangeTest {
 
     @Test
     fun set() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         assertThat(commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor(), notNullValue())
         assertThat(commandExchange.setEventStream(mockk()).getEventStream(), notNullValue())
@@ -20,14 +20,14 @@ class SimpleServerCommandExchangeTest {
 
     @Test
     fun extractDeclaredCommand() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         assertThat(commandExchange.extractDeclared(CommandMessage::class.java), notNullValue())
     }
 
     @Test
     fun extractDeclaredEventStream() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
             .setEventStream(mockk())
         assertThat(commandExchange.extractDeclared(DomainEventStream::class.java), notNullValue())
@@ -35,7 +35,7 @@ class SimpleServerCommandExchangeTest {
 
     @Test
     fun extractDeclaredError() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
             .setError(IllegalArgumentException())
         assertThat(commandExchange.extractDeclared(RuntimeException::class.java), notNullValue())

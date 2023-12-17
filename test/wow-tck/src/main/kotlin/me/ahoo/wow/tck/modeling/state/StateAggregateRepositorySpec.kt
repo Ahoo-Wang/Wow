@@ -14,19 +14,19 @@ package me.ahoo.wow.tck.modeling.state
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.event.asDomainEventStream
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.asNamedAggregate
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -50,11 +50,11 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun load() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
 
         val command = GivenInitializationCommand(aggregateId)
         val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
-        val eventStream = stateChanged.asDomainEventStream(command = command, aggregateVersion = 0)
+        val eventStream = stateChanged.toDomainEventStream(command = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
         assertThat(stateAggregate, notNullValue())
@@ -73,7 +73,7 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun loadWhenNotFound() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
         aggregateRepository.load(aggregateMetadata.state, aggregateId)
             .test()
             .consumeNextWith {
@@ -85,7 +85,7 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun loadWhenAggregateTypeNull() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = "test.test".asNamedAggregate().asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = "test.test".toNamedAggregate().aggregateId(GlobalIdGenerator.generateAsString())
         Assertions.assertThrows(IllegalStateException::class.java) {
             aggregateRepository.load<MockStateAggregate>(aggregateId)
         }
@@ -101,12 +101,12 @@ abstract class StateAggregateRepositorySpec {
                 ): Mono<StateAggregate<S>> {
                     val stateRoot = MockStateAggregate(aggregateId.id)
                     @Suppress("UNCHECKED_CAST")
-                    return Mono.just(aggregateMetadata.asStateAggregate(stateRoot, 1) as StateAggregate<S>)
+                    return Mono.just(aggregateMetadata.toStateAggregate(stateRoot, 1) as StateAggregate<S>)
                 }
             }
         val aggregateRepository = createStateAggregateRepository(stateAggregateFactory, TEST_EVENT_STORE)
 
-        val aggregateId = aggregateMetadata.asAggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
         aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .assertNext { stateAggregate: StateAggregate<MockStateAggregate> ->

@@ -14,7 +14,7 @@
 package me.ahoo.wow.redis.bus
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.asStringWithAlias
+import me.ahoo.wow.modeling.toStringWithAlias
 
 fun interface AggregateTopicConverter {
     fun convert(namedAggregate: NamedAggregate): String
@@ -28,7 +28,7 @@ object DefaultCommandTopicConverter : CommandTopicConverter {
     const val COMMAND_TOPIC_SUFFIX = "command"
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.asStringWithAlias()}:$COMMAND_TOPIC_SUFFIX"
+        return "${namedAggregate.toStringWithAlias()}:$COMMAND_TOPIC_SUFFIX"
     }
 }
 
@@ -36,7 +36,7 @@ object DefaultEventStreamTopicConverter : EventStreamTopicConverter {
     const val EVENT_TOPIC_SUFFIX = "event"
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.asStringWithAlias()}:$EVENT_TOPIC_SUFFIX"
+        return "${namedAggregate.toStringWithAlias()}:$EVENT_TOPIC_SUFFIX"
     }
 }
 
@@ -44,6 +44,6 @@ object DefaultStateEventTopicConverter : StateEventTopicConverter {
     const val STATE_EVENT_TOPIC_SUFFIX = "state"
 
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.asStringWithAlias()}:$STATE_EVENT_TOPIC_SUFFIX"
+        return "${namedAggregate.toStringWithAlias()}:$STATE_EVENT_TOPIC_SUFFIX"
     }
 }

@@ -33,7 +33,7 @@ class RedisCommandBus(
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
 
-    override fun CommandMessage<*>.asExchange(acknowledgePublisher: Mono<Void>): ServerCommandExchange<*> {
+    override fun CommandMessage<*>.toExchange(acknowledgePublisher: Mono<Void>): ServerCommandExchange<*> {
         return RedisServerCommandExchange(
             this,
             acknowledgePublisher,

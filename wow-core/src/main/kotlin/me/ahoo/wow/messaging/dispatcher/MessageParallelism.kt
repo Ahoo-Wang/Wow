@@ -20,7 +20,7 @@ object MessageParallelism {
     val DEFAULT_PARALLELISM = System.getProperty("wow.parallelism")?.toInt()
         ?: (100 * Runtime.getRuntime().availableProcessors())
 
-    fun AggregateIdCapable.asGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int {
+    fun AggregateIdCapable.toGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int {
         return aggregateId.mod(parallelism)
     }
 }

@@ -33,7 +33,7 @@ interface EventNamedAggregate : NamedAggregate, Named {
     override val name: String
 
     companion object {
-        fun NamedAggregate.asEventNamedAggregate(eventName: String): EventNamedAggregate {
+        fun NamedAggregate.toEventNamedAggregate(eventName: String): EventNamedAggregate {
             return MaterializedEventNamedAggregate(materialize(), eventName)
         }
     }

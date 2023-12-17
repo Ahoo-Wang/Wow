@@ -23,7 +23,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
-import me.ahoo.wow.messaging.function.asMessageFunction
+import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
@@ -43,11 +43,11 @@ data class CommandAggregateMetadata<C : Any>(
             DeleteAggregate::class.java.isAssignableFrom(it)
         }
 
-    fun asCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
+    fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
         val registry = commandFunctionRegistry
             .map {
                 val actualMessageFunction = it.value
-                    .asMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                 it.key to CommandFunction(actualMessageFunction, commandAggregate)
             }
             .toMap()
@@ -57,11 +57,11 @@ data class CommandAggregateMetadata<C : Any>(
         return registry.plus(DefaultDeleteAggregate::class.java to DefaultDeleteAggregateFunction(commandAggregate))
     }
 
-    fun asErrorFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
+    fun toErrorFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
         return errorFunctionRegistry
             .map {
                 val actualMessageFunction = it.value
-                    .asMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                 it.key to actualMessageFunction
             }
             .toMap()

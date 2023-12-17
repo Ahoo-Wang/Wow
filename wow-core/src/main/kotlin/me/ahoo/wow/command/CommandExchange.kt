@@ -17,7 +17,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.event.DomainEventException.Companion.asException
+import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
@@ -72,7 +72,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
             it.body is ErrorInfo
         } ?: return null
         @Suppress("UNCHECKED_CAST")
-        return (errorEvent as DomainEvent<ErrorInfo>).asException()
+        return (errorEvent as DomainEvent<ErrorInfo>).toException()
     }
 
     override fun <T : Any> extractDeclared(type: Class<T>): T? {

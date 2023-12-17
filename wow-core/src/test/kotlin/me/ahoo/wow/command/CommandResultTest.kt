@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test
 class CommandResultTest {
     @Test
     fun throwableAsResult() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
-        val actual = IllegalStateException("test").asResult(command, processorName = "test")
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
+        val actual = IllegalStateException("test").toResult(command, processorName = "test")
         assertThat(actual.stage, equalTo(CommandStage.SENT))
         assertThat(actual.aggregateId, equalTo(command.aggregateId.id))
         assertThat(actual.tenantId, equalTo(command.aggregateId.tenantId))

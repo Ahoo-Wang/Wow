@@ -36,7 +36,7 @@ class NamedAggregateTypeSearcher(private val source: Map<MaterializedNamedAggreg
     AggregateSearcher,
     Map<MaterializedNamedAggregate, Class<*>> by source
 
-fun WowMetadata.asTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
+fun WowMetadata.toTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
     val source = mutableMapOf<Class<*>, NamedAggregate>().apply {
         contexts.forEach { contextEntry ->
             val contextName = contextEntry.key
@@ -66,8 +66,8 @@ fun WowMetadata.asTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
     return TypeNamedAggregateSearcher(source)
 }
 
-fun WowMetadata.asNamedAggregateTypeSearcher(): NamedAggregateTypeSearcher {
-    val source = asTypeNamedAggregateSearcher().map {
+fun WowMetadata.toNamedAggregateTypeSearcher(): NamedAggregateTypeSearcher {
+    val source = toTypeNamedAggregateSearcher().map {
         it.value.materialize() to it.key
     }.toMap()
     return NamedAggregateTypeSearcher(source)

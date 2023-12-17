@@ -14,8 +14,8 @@
 package me.ahoo.wow.event.upgrader
 
 import me.ahoo.wow.annotation.sortedByOrder
-import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.asEventNamedAggregate
-import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.asMutableDomainEventRecord
+import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
+import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.event.DomainEventRecord
 import org.slf4j.LoggerFactory
@@ -55,18 +55,18 @@ object EventUpgraderFactory {
     }
 
     fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
-        val namedAggregate = domainEventRecord.asAggregateId().namedAggregate.materialize()
-        val eventNamedAggregate = namedAggregate.asEventNamedAggregate(domainEventRecord.name)
+        val namedAggregate = domainEventRecord.toAggregateId().namedAggregate.materialize()
+        val eventNamedAggregate = namedAggregate.toEventNamedAggregate(domainEventRecord.name)
         val eventUpgraders = get(eventNamedAggregate)
         if (eventUpgraders.isEmpty()) {
             return domainEventRecord
         }
-        var mutableDomainEventRecord = domainEventRecord.asMutableDomainEventRecord()
+        var mutableDomainEventRecord = domainEventRecord.toMutableDomainEventRecord()
         eventUpgraders.forEach {
             if (log.isDebugEnabled) {
                 log.debug("Upgrade [${domainEventRecord.id}]@[$eventNamedAggregate] by $it.")
             }
-            mutableDomainEventRecord = it.upgrade(mutableDomainEventRecord).asMutableDomainEventRecord()
+            mutableDomainEventRecord = it.upgrade(mutableDomainEventRecord).toMutableDomainEventRecord()
         }
         return domainEventRecord
     }

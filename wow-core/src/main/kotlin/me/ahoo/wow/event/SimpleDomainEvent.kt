@@ -21,7 +21,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.naming.annotation.asName
+import me.ahoo.wow.naming.annotation.toName
 
 data class SimpleDomainEvent<T : Any>(
     override val id: String = GlobalIdGenerator.generateAsString(),
@@ -32,7 +32,7 @@ data class SimpleDomainEvent<T : Any>(
     override val sequence: Int = DEFAULT_EVENT_SEQUENCE,
     override val revision: String = DEFAULT_REVISION,
     override val commandId: String,
-    override val name: String = body.javaClass.asName(),
+    override val name: String = body.javaClass.toName(),
     override val isLast: Boolean = true,
     override val createTime: Long = System.currentTimeMillis()
 ) : DomainEvent<T>, NamedAggregate by aggregateId

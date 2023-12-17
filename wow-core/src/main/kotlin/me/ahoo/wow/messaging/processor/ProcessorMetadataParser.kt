@@ -14,11 +14,11 @@
 package me.ahoo.wow.messaging.processor
 
 import me.ahoo.wow.api.annotation.OnMessage
-import me.ahoo.wow.configuration.asRequiredNamedBoundedContext
+import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.messaging.function.FunctionMetadataParser.asMonoFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.CacheableMetadataParser
@@ -52,11 +52,11 @@ open class ProcessorMetadataParser<M : MessageExchange<*, *>>(
     private val functionCondition: (Method) -> Boolean = { true }
 ) : CacheableMetadataParser<Class<*>, ProcessorMetadata<*, *>>() {
 
-    override fun parseAsMetadata(type: Class<*>): ProcessorMetadata<*, *> {
+    override fun parseToMetadata(type: Class<*>): ProcessorMetadata<*, *> {
         @Suppress("UNCHECKED_CAST")
         val visitor = ProcessorMetadataVisitor<Any, M>(type as Class<Any>, functionCondition)
         ClassMetadata.visit(type, visitor)
-        return visitor.asMetadata()
+        return visitor.toMetadata()
     }
 }
 
@@ -71,13 +71,13 @@ internal class ProcessorMetadataVisitor<P : Any, M : MessageExchange<*, *>>(
             return
         }
 
-        val handler = method.asMonoFunctionMetadata<P, Any>()
+        val handler = method.toMonoFunctionMetadata<P, Any>()
         functionRegistry.add(handler)
     }
 
-    fun asMetadata(): ProcessorMetadata<P, M> {
+    fun toMetadata(): ProcessorMetadata<P, M> {
         return ProcessorMetadata(
-            namedBoundedContext = processorType.asRequiredNamedBoundedContext(),
+            namedBoundedContext = processorType.requiredNamedBoundedContext(),
             name = processorType.simpleName,
             processorType = processorType,
             functionRegistry = functionRegistry,

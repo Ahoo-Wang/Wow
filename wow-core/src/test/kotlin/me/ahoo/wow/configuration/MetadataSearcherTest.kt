@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.configuration
 
-import me.ahoo.wow.naming.asNamedBoundedContext
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.naming.toNamedBoundedContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -35,7 +35,7 @@ internal class MetadataSearcherTest {
 
     @Test
     fun getContextAliasIfNofFound() {
-        assertThat("not-found".asNamedBoundedContext().getContextAlias(), equalTo("not-found"))
+        assertThat("not-found".toNamedBoundedContext().getContextAlias(), equalTo("not-found"))
     }
 
     @Test

@@ -19,7 +19,7 @@ import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.annotation.asEventProcessorMetadata
+import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -45,11 +45,11 @@ object SagaVerifier {
     }
 
     @JvmStatic
-    fun <T : Any> Class<T>.asSagaVerifier(
+    fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway()
     ): WhenStage<T> {
-        val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = asEventProcessorMetadata()
+        val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
@@ -62,6 +62,6 @@ object SagaVerifier {
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway()
     ): WhenStage<T> {
-        return T::class.java.asSagaVerifier(serviceProvider, commandGateway)
+        return T::class.java.sagaVerifier(serviceProvider, commandGateway)
     }
 }

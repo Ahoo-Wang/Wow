@@ -28,14 +28,14 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.configuration.asNamedBoundedContext
+import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.ComponentRef.Companion.COMPONENTS_REF
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
-import me.ahoo.wow.openapi.SchemaRef.Companion.asArraySchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asRefSchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
+import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
+import me.ahoo.wow.openapi.SchemaRef.Companion.toRefSchema
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 import me.ahoo.wow.openapi.command.CommandHeaders
 
 interface ComponentRef<C> {
@@ -66,45 +66,45 @@ class SchemaRef(
     override val component: Schema<*>,
     val schemas: Map<String, Schema<*>> = mapOf(name to component)
 ) : ComponentRef<Schema<*>> {
-    override val ref: Schema<*> = name.asRefSchema()
+    override val ref: Schema<*> = name.toRefSchema()
 
     companion object {
         val COMPONENTS_SCHEMAS_REF: String = COMPONENTS_REF + "schemas/"
-        val ERROR_INFO = ErrorInfo::class.java.asSchemaRef()
+        val ERROR_INFO = ErrorInfo::class.java.toSchemaRef()
 
-        fun Class<out Enum<*>>.asSchemaRef(default: String? = null): SchemaRef {
+        fun Class<out Enum<*>>.toSchemaRef(default: String? = null): SchemaRef {
             val enumSchema = StringSchema()
             enumSchema._enum(this.enumConstants.map { it.toString() })
-            val schemaName = requireNotNull(this.asSchemaName())
+            val schemaName = requireNotNull(this.toSchemaName())
             if (default.isNullOrBlank().not()) {
                 enumSchema.setDefault(default)
             }
             return SchemaRef(schemaName, enumSchema)
         }
 
-        fun Class<*>.asSchemas(): Map<String, Schema<*>> {
+        fun Class<*>.toSchemas(): Map<String, Schema<*>> {
             return ModelConverters.getInstance().readAll(this)
         }
 
-        fun String.asRefSchema(): Schema<*> {
+        fun String.toRefSchema(): Schema<*> {
             return Schema<Any>().`$ref`(COMPONENTS_SCHEMAS_REF + this)
         }
 
-        fun Class<*>.asRefSchema(): Schema<*> {
-            return requireNotNull(this.asSchemaName()).asRefSchema()
+        fun Class<*>.toRefSchema(): Schema<*> {
+            return requireNotNull(this.toSchemaName()).toRefSchema()
         }
 
-        fun Schema<*>.asArraySchema(): ArraySchema {
+        fun Schema<*>.toArraySchema(): ArraySchema {
             return ArraySchema().items(this)
         }
 
-        fun Class<*>.asSchemaName(): String? {
+        fun Class<*>.toSchemaName(): String? {
             this.scan<io.swagger.v3.oas.annotations.media.Schema>()?.let {
                 if (it.name.isNotBlank()) {
                     return it.name
                 }
             }
-            asNamedBoundedContext()?.let {
+            namedBoundedContext()?.let {
                 it.getContextAlias().let { alias ->
                     return "$alias.$simpleName"
                 }
@@ -115,20 +115,20 @@ class SchemaRef(
             return null
         }
 
-        fun Class<*>.asSchemaRef(): SchemaRef {
-            val schemaName = requireNotNull(this.asSchemaName())
-            val schemas = asSchemas()
+        fun Class<*>.toSchemaRef(): SchemaRef {
+            val schemaName = requireNotNull(this.toSchemaName())
+            val schemas = toSchemas()
             val component = requireNotNull(schemas[schemaName])
             return SchemaRef(schemaName, component, schemas)
         }
 
-        fun Class<*>.asSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
-            val genericSchemaName = requireNotNull(this.asSchemaName())
-            val genericSchemas = asSchemas()
+        fun Class<*>.toSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
+            val genericSchemaName = requireNotNull(this.toSchemaName())
+            val genericSchemas = toSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
-            genericSchema.properties[propertyName] = propertyType.asSchemaRef().ref
-            val propertySchemas = propertyType.asSchemas()
-            val propertySchemaName = propertyType.asSchemaName()
+            genericSchema.properties[propertyName] = propertyType.toSchemaRef().ref
+            val propertySchemas = propertyType.toSchemas()
+            val propertySchemaName = propertyType.toSchemaName()
             val schemaName = propertySchemaName + simpleName
             genericSchema.name = schemaName
             val schemas = (genericSchemas + propertySchemas)
@@ -139,7 +139,7 @@ class SchemaRef(
     }
 }
 
-fun Schema<*>.asContent(
+fun Schema<*>.toContent(
     name: String = "*",
     customize: (Content) -> Unit = {}
 ): Content {
@@ -149,28 +149,28 @@ fun Schema<*>.asContent(
     return content
 }
 
-fun Schema<*>.asJsonContent(
+fun Schema<*>.toJsonContent(
     customize: (Content) -> Unit = {}
 ): Content {
-    return this.asContent(Https.MediaType.APPLICATION_JSON, customize = customize)
+    return this.toContent(Https.MediaType.APPLICATION_JSON, customize = customize)
 }
 
 class HeaderRef(
     override val name: String,
     override val component: Header
 ) : ComponentRef<Header> {
-    override val ref: Header = name.asRefHeader()
+    override val ref: Header = name.toRefHeader()
 
     companion object {
         const val COMPONENTS_HEADERS_REF: String = COMPONENTS_REF + "headers/"
         val ERROR_CODE_HEADER = HeaderRef(
             name = CommandHeaders.WOW_ERROR_CODE,
             component = Header()
-                .content(StringSchema().asContent())
+                .content(StringSchema().toContent())
                 .description("Error Code"),
         )
 
-        fun String.asRefHeader(): Header {
+        fun String.toRefHeader(): Header {
             return Header().`$ref`(COMPONENTS_HEADERS_REF + this)
         }
 
@@ -182,11 +182,11 @@ class HeaderRef(
 }
 
 class ParameterRef(override val name: String, override val component: Parameter) : ComponentRef<Parameter> {
-    override val ref: Parameter = name.asRefParameter()
+    override val ref: Parameter = name.toRefParameter()
 
     companion object {
         const val COMPONENTS_PARAMETERS_REF: String = COMPONENTS_REF + "parameters/"
-        fun String.asRefParameter(): Parameter {
+        fun String.toRefParameter(): Parameter {
             return Parameter().`$ref`(COMPONENTS_PARAMETERS_REF + this)
         }
 
@@ -220,30 +220,30 @@ class ParameterRef(override val name: String, override val component: Parameter)
 }
 
 class RequestBodyRef(override val name: String, override val component: RequestBody) : ComponentRef<RequestBody> {
-    override val ref: RequestBody = name.asRefRequestBody()
+    override val ref: RequestBody = name.toRefRequestBody()
 
     companion object {
         const val COMPONENTS_REQUEST_BODIES_REF: String = COMPONENTS_REF + "requestBodies/"
-        fun String.asRefRequestBody(): RequestBody {
+        fun String.toRefRequestBody(): RequestBody {
             return RequestBody().`$ref`(COMPONENTS_REQUEST_BODIES_REF + this)
         }
 
-        fun Schema<*>.asRequestBody(): RequestBody {
+        fun Schema<*>.toRequestBody(): RequestBody {
             return RequestBody()
                 .required(true)
                 .content(
-                    asJsonContent()
+                    toJsonContent()
                 )
         }
 
-        fun Class<*>.asRequestBody(): RequestBody {
-            return asRefSchema().asRequestBody()
+        fun Class<*>.toRequestBody(): RequestBody {
+            return toRefSchema().toRequestBody()
         }
 
-        fun Class<*>.asRequestBodyRef(): RequestBodyRef {
+        fun Class<*>.toRequestBodyRef(): RequestBodyRef {
             return RequestBodyRef(
-                name = requireNotNull(asSchemaName()),
-                component = asRequestBody()
+                name = requireNotNull(toSchemaName()),
+                component = toRequestBody()
             )
         }
 
@@ -256,54 +256,54 @@ class RequestBodyRef(override val name: String, override val component: RequestB
 
 class ResponseRef(override val name: String, override val component: ApiResponse, val code: String = Https.Code.OK) :
     ComponentRef<ApiResponse> {
-    override val ref: ApiResponse = name.asRefResponse()
+    override val ref: ApiResponse = name.toRefResponse()
 
     companion object {
         val COMPONENTS_RESPONSES_REF: String = COMPONENTS_REF + "responses/"
-        fun String.asRefResponse(): ApiResponse {
+        fun String.toRefResponse(): ApiResponse {
             return ApiResponse().`$ref`(COMPONENTS_RESPONSES_REF + this)
         }
 
-        val ERROR_INFO_CONTENT = ErrorInfo::class.java.asRefSchema().asJsonContent()
+        val ERROR_INFO_CONTENT = ErrorInfo::class.java.toRefSchema().toJsonContent()
 
-        fun Content.asResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
+        fun Content.toResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
             return ApiResponse()
                 .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
                 .description(description)
                 .content(this)
         }
 
-        fun Schema<*>.asResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
-            return asJsonContent().asResponse(description)
+        fun Schema<*>.toResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
+            return toJsonContent().toResponse(description)
         }
 
-        fun Class<*>.asResponse(isArray: Boolean = false, description: String = ErrorInfo.SUCCEEDED): ApiResponse {
-            val responseSchema = this.asRefSchema()
+        fun Class<*>.toResponse(isArray: Boolean = false, description: String = ErrorInfo.SUCCEEDED): ApiResponse {
+            val responseSchema = this.toRefSchema()
             return if (isArray) {
-                responseSchema.asArraySchema()
+                responseSchema.toArraySchema()
             } else {
                 responseSchema
-            }.asResponse(description)
+            }.toResponse(description)
         }
 
         val BAD_REQUEST = ResponseRef(
             name = "${Wow.WOW_PREFIX}BadRequest",
-            component = ERROR_INFO_CONTENT.asResponse("Bad Request"),
+            component = ERROR_INFO_CONTENT.toResponse("Bad Request"),
             code = Https.Code.BAD_REQUEST
         )
         val NOT_FOUND = ResponseRef(
             name = "${Wow.WOW_PREFIX}NotFound",
-            component = ERROR_INFO_CONTENT.asResponse("Not Found"),
+            component = ERROR_INFO_CONTENT.toResponse("Not Found"),
             code = Https.Code.NOT_FOUND
         )
         val REQUEST_TIMEOUT = ResponseRef(
             name = "${Wow.WOW_PREFIX}RequestTimeout",
-            component = ERROR_INFO_CONTENT.asResponse("Request Timeout"),
+            component = ERROR_INFO_CONTENT.toResponse("Request Timeout"),
             code = Https.Code.REQUEST_TIMEOUT
         )
         val TOO_MANY_REQUESTS = ResponseRef(
             name = "${Wow.WOW_PREFIX}TooManyRequests",
-            component = ERROR_INFO_CONTENT.asResponse("Too Many Requests"),
+            component = ERROR_INFO_CONTENT.toResponse("Too Many Requests"),
             code = Https.Code.TOO_MANY_REQUESTS
         )
 

@@ -41,7 +41,7 @@ val Throwable.retryable: Boolean
         else -> false
     }
 
-fun Throwable.asErrorInfo(): ErrorInfo {
+fun Throwable.toErrorInfo(): ErrorInfo {
     return when (this) {
         is ErrorInfo -> this.materialize()
         is IllegalArgumentException -> ErrorInfo.of(

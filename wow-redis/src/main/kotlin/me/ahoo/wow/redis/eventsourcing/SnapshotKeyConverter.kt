@@ -14,13 +14,13 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.modeling.asStringWithAlias
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 fun interface SnapshotKeyConverter : AggregateKeyConverter
 
 object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.asStringWithAlias()}:snapshot:${aggregateId.id.wrap()}"
+        return "${aggregateId.toStringWithAlias()}:snapshot:${aggregateId.id.wrap()}"
     }
 }

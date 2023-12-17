@@ -14,7 +14,7 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ internal class SimpleEventStreamSchemaTest {
     @Test
     fun loadEventStream() {
         assertThat(
-            eventStreamSchema.load(namedAggregate.asAggregateId("")),
+            eventStreamSchema.load(namedAggregate.aggregateId("")),
             equalTo("select * from test_event_stream where aggregate_id=? and version between ? and ?"),
         )
     }
@@ -34,7 +34,7 @@ internal class SimpleEventStreamSchemaTest {
     @Test
     fun appendEventStream() {
         assertThat(
-            eventStreamSchema.append(namedAggregate.asAggregateId("")),
+            eventStreamSchema.append(namedAggregate.aggregateId("")),
             equalTo(
                 """
         insert into test_event_stream (id,aggregate_id,tenant_id,request_id,command_id,version,header,body,size,create_time) 

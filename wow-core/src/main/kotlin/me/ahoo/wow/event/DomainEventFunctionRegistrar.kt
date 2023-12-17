@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.event
 
-import me.ahoo.wow.event.annotation.asEventProcessorMetadata
+import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
@@ -34,8 +34,8 @@ class DomainEventFunctionRegistrar(
 
     fun registerProcessor(processor: Any) {
         processor.javaClass
-            .asEventProcessorMetadata()
-            .asMessageFunctionRegistry(processor)
+            .eventProcessorMetadata()
+            .toMessageFunctionRegistry(processor)
             .forEach {
                 register(it)
             }

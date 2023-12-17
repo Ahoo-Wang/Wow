@@ -14,8 +14,8 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.asStateAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*
@@ -28,7 +28,7 @@ class StateAggregatesTest {
     @Test
     fun asStateAggregate() {
         val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
-        val stateAggregate = aggregateMetadata.asStateAggregate(
+        val stateAggregate = aggregateMetadata.toStateAggregate(
             state = state,
             version = 1,
             eventId = "eventId",
@@ -51,8 +51,8 @@ class StateAggregatesTest {
     @Test
     fun asStateAggregateGivenAggregateId() {
         val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
-        val stateAggregate = aggregateMetadata.state.asStateAggregate(
-            aggregateId = aggregateMetadata.asAggregateId(state.id),
+        val stateAggregate = aggregateMetadata.state.toStateAggregate(
+            aggregateId = aggregateMetadata.aggregateId(state.id),
             state = state,
             version = 1,
             eventId = "eventId",
@@ -75,8 +75,8 @@ class StateAggregatesTest {
     @Test
     fun asStateAggregateGivenReadOnly() {
         val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
-        val stateAggregate = aggregateMetadata.state.asStateAggregate(
-            aggregateId = aggregateMetadata.asAggregateId(state.id),
+        val stateAggregate = aggregateMetadata.state.toStateAggregate(
+            aggregateId = aggregateMetadata.aggregateId(state.id),
             state = state,
             version = 1,
             eventId = "eventId",
@@ -87,7 +87,7 @@ class StateAggregatesTest {
             deleted = false
         )
         val readOnlyStateAggregate = stateAggregate as ReadOnlyStateAggregate<MockStateAggregate>
-        val fromReadyOnly = readOnlyStateAggregate.asStateAggregate()
+        val fromReadyOnly = readOnlyStateAggregate.toStateAggregate()
         assertThat(fromReadyOnly.aggregateId, equalTo(stateAggregate.aggregateId))
         assertThat(fromReadyOnly.state, equalTo(stateAggregate.state))
         assertThat(fromReadyOnly.version, equalTo(stateAggregate.version))

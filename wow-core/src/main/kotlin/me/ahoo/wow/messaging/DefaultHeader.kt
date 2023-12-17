@@ -92,7 +92,7 @@ class DefaultHeader(
     }
 }
 
-fun Map<String, String>?.asHeader(): Header {
+fun Map<String, String>?.toHeader(): Header {
     if (isNullOrEmpty()) {
         return DefaultHeader.empty()
     }

@@ -44,6 +44,6 @@ object MonoMethodAccessorFactory {
     }
 }
 
-fun <T, D> Method.asMonoMethodAccessor(): MonoMethodAccessor<T, Mono<D>> {
+fun <T, D> Method.toMonoMethodAccessor(): MonoMethodAccessor<T, Mono<D>> {
     return MonoMethodAccessorFactory.create(this)
 }

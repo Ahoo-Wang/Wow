@@ -15,15 +15,15 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
-import me.ahoo.wow.modeling.asStringWithAlias
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 object EventStreamKeyConverter : AggregateKeyConverter {
     private const val ID_DELIMITER = "@"
     fun NamedAggregate.toKeyPrefix(): String {
-        return "${asStringWithAlias()}${DELIMITER}es$DELIMITER"
+        return "${toStringWithAlias()}${DELIMITER}es$DELIMITER"
     }
 
     fun toAggregateIdKey(aggregateId: AggregateId): String {
@@ -34,7 +34,7 @@ object EventStreamKeyConverter : AggregateKeyConverter {
         val prefix = namedAggregate.toKeyPrefix()
         val idWithTenantId = key.removePrefix(prefix).unwrap()
         idWithTenantId.split(ID_DELIMITER).let {
-            return namedAggregate.asAggregateId(it[0], it[1])
+            return namedAggregate.aggregateId(it[0], it[1])
         }
     }
 

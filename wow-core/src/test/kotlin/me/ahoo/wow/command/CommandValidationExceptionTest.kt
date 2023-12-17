@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 class CommandValidationExceptionTest {
     @Test
     fun test() {
-        val commandMessage = MockCreateCommand(GlobalIdGenerator.generateAsString()).asCommandMessage()
+        val commandMessage = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
         val path = mockk<Path>()
         every { path.toString() } returns "name"
         val constraintViolation = mockk<ConstraintViolation<MockCreateCommand>> {

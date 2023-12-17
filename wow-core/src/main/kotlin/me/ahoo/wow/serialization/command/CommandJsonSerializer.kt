@@ -20,15 +20,15 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.SimpleCommandMessage
-import me.ahoo.wow.infra.TypeNameMapper.asType
+import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.MessageSerializer
-import me.ahoo.wow.serialization.asObject
 import me.ahoo.wow.serialization.command.CommandRecords.AGGREGATE_VERSION
 import me.ahoo.wow.serialization.command.CommandRecords.ALLOW_CREATE
 import me.ahoo.wow.serialization.command.CommandRecords.IS_CREATE
+import me.ahoo.wow.serialization.toObject
 
 object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessage::class.java) {
 
@@ -46,19 +46,19 @@ object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessa
 
 object CommandJsonDeserializer : StdDeserializer<CommandMessage<*>>(CommandMessage::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): CommandMessage<*> {
-        val commandRecord = p.codec.readTree<ObjectNode>(p).asCommandRecord()
+        val commandRecord = p.codec.readTree<ObjectNode>(p).toCommandRecord()
         val contextName = commandRecord.contextName
         val aggregateName = commandRecord.aggregateName
         val aggregateId = MaterializedNamedAggregate(contextName, aggregateName)
-            .asAggregateId(
+            .aggregateId(
                 id = commandRecord.aggregateId,
                 tenantId = commandRecord.tenantId,
             )
-        val bodyType = commandRecord.bodyType.asType<Any>()
+        val bodyType = commandRecord.bodyType.toType<Any>()
         return SimpleCommandMessage(
             id = commandRecord.id,
-            header = commandRecord.asMessageHeader(),
-            body = commandRecord.body.asObject(bodyType),
+            header = commandRecord.toMessageHeader(),
+            body = commandRecord.body.toObject(bodyType),
             aggregateId = aggregateId,
             requestId = commandRecord.requestId,
             aggregateVersion = commandRecord.aggregateVersion,

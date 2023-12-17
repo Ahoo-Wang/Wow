@@ -25,8 +25,8 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -34,15 +34,14 @@ import me.ahoo.wow.openapi.ParameterRef
 import me.ahoo.wow.openapi.ParameterRef.Companion.with
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.asRequestBody
+import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.asResponse
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaRef
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemas
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.Tags.asTags
-import me.ahoo.wow.openapi.asJsonContent
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
@@ -58,7 +57,8 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCES
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_OUT_PARAMETER
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
-import me.ahoo.wow.openapi.route.asCommandRouteMetadata
+import me.ahoo.wow.openapi.route.commandRouteMetadata
+import me.ahoo.wow.openapi.toJsonContent
 
 class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -67,7 +67,7 @@ class CommandRouteSpec(
 ) : AggregateRouteSpec {
 
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.${commandRouteMetadata.commandMetadata.name}"
+        get() = "${aggregateMetadata.toStringWithAlias()}.${commandRouteMetadata.commandMetadata.name}"
     override val method: String
         get() {
             return commandRouteMetadata.method
@@ -149,7 +149,7 @@ class CommandRouteSpec(
                 }
             }
         }
-    override val requestBody: RequestBody = commandRouteMetadata.commandMetadata.commandType.asRequestBody()
+    override val requestBody: RequestBody = commandRouteMetadata.commandMetadata.commandType.toRequestBody()
     override val responses: ApiResponses
         get() = ApiResponses()
             .with(COMMAND_RESULT_RESPONSE)
@@ -163,7 +163,7 @@ class CommandRouteSpec(
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
-        val COMMAND_STAGE_SCHEMA = CommandStage::class.java.asSchemaRef(CommandStage.PROCESSED.name)
+        val COMMAND_STAGE_SCHEMA = CommandStage::class.java.toSchemaRef(CommandStage.PROCESSED.name)
         val WAIT_STAGE_PARAMETER = Parameter()
             .name(CommandHeaders.WAIT_STAGE)
             .`in`(ParameterIn.HEADER.toString())
@@ -207,47 +207,47 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
-        val COMMAND_RESULT_CONTENT = CommandResult::class.java.asSchemaRef().ref.asJsonContent()
+        val COMMAND_RESULT_CONTENT = CommandResult::class.java.toSchemaRef().ref.toJsonContent()
         val COMMAND_RESULT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandResult",
-            component = COMMAND_RESULT_CONTENT.asResponse(),
+            component = COMMAND_RESULT_CONTENT.toResponse(),
             code = Https.Code.OK
         )
         val BAD_REQUEST_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandBadRequest",
-            component = COMMAND_RESULT_CONTENT.asResponse(description = "Bad Request"),
+            component = COMMAND_RESULT_CONTENT.toResponse(description = "Bad Request"),
             code = Https.Code.BAD_REQUEST
         )
         val NOT_FOUND_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandNotFound",
-            component = COMMAND_RESULT_CONTENT.asResponse("Not Found"),
+            component = COMMAND_RESULT_CONTENT.toResponse("Not Found"),
             code = Https.Code.NOT_FOUND
         )
         val REQUEST_TIMEOUT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandRequestTimeout",
-            component = COMMAND_RESULT_CONTENT.asResponse("Request Timeout"),
+            component = COMMAND_RESULT_CONTENT.toResponse("Request Timeout"),
             code = Https.Code.REQUEST_TIMEOUT
         )
         val TOO_MANY_REQUESTS_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandTooManyRequests",
-            component = COMMAND_RESULT_CONTENT.asResponse("Too Many Requests"),
+            component = COMMAND_RESULT_CONTENT.toResponse("Too Many Requests"),
             code = Https.Code.TOO_MANY_REQUESTS
         )
         val VERSION_CONFLICT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}VersionConflict",
-            component = COMMAND_RESULT_CONTENT.asResponse(description = "Version Conflict"),
+            component = COMMAND_RESULT_CONTENT.toResponse(description = "Version Conflict"),
             code = Https.Code.CONFLICT
         )
         val ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}IllegalAccessDeletedAggregate",
-            component = COMMAND_RESULT_CONTENT.asResponse(description = "Illegal Access Deleted Aggregate"),
+            component = COMMAND_RESULT_CONTENT.toResponse(description = "Illegal Access Deleted Aggregate"),
             code = Https.Code.GONE
         )
     }
 
     init {
         COMMAND_STAGE_SCHEMA.schemas.mergeSchemas()
-        CommandResult::class.java.asSchemas().mergeSchemas()
+        CommandResult::class.java.toSchemas().mergeSchemas()
         components.parameters
             .with(WAIT_STAGE_PARAMETER)
             .with(WAIT_CONTEXT_PARAMETER)
@@ -271,7 +271,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): CommandRouteSpec? {
-        val commandRouteMetadata = asCommandRouteMetadata()
+        val commandRouteMetadata = commandRouteMetadata()
         if (!commandRouteMetadata.enabled) {
             return null
         }
@@ -286,18 +286,18 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        aggregateMetadata.state.aggregateType.asSchemaRef().schemas.mergeSchemas()
+        aggregateMetadata.state.aggregateType.toSchemaRef().schemas.mergeSchemas()
         return buildList {
             aggregateMetadata.command.commandFunctionRegistry
                 .forEach { entry ->
                     entry.key.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
-                        it.commandRouteMetadata.commandMetadata.commandType.asSchemas().mergeSchemas()
+                        it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
-                    it.commandRouteMetadata.commandMetadata.commandType.asSchemas().mergeSchemas()
+                    it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }
             }

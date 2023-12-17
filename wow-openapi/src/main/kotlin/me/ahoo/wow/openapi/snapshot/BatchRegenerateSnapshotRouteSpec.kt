@@ -14,8 +14,8 @@
 package me.ahoo.wow.openapi.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
@@ -27,7 +27,7 @@ class BatchRegenerateSnapshotRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : BatchRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.batchRegenerateSnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.batchRegenerateSnapshot"
     override val summary: String
         get() = "Batch regenerate aggregate snapshot"
 

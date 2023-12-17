@@ -18,7 +18,7 @@ import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.openapi.SchemaRef.Companion.asSchemaName
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 import me.ahoo.wow.serialization.JsonSerializer
 
 class BoundedContextSchemaNameConverter : ModelConverter {
@@ -54,7 +54,7 @@ class BoundedContextSchemaNameConverter : ModelConverter {
     ): Schema<*>? {
         if (type.name.isNullOrBlank()) {
             type.getRawClass()?.let {
-                type.name = it.asSchemaName()
+                type.name = it.toSchemaName()
             }
         }
         if (chain.hasNext()) {

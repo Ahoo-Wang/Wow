@@ -18,8 +18,7 @@ import me.ahoo.wow.example.transfer.api.CreateAccount;
 import me.ahoo.wow.test.AggregateVerifier;
 import org.junit.jupiter.api.Test;
 
-import static me.ahoo.wow.test.AggregateVerifier.asAggregateVerifier;
-import static org.junit.jupiter.api.Assertions.*;
+import static me.ahoo.wow.test.AggregateVerifier.aggregateVerifier;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -27,7 +26,7 @@ class AccountTest {
 
     @Test
     void createAccount() {
-        AggregateVerifier.asAggregateVerifier(Account.class)
+        AggregateVerifier.aggregateVerifier(Account.class)
                 .given()
                 .when(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)

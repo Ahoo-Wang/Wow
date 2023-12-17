@@ -15,7 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.asEventStreamCollectionName
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 
 class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
 
@@ -30,6 +30,6 @@ class EventStreamSchemaInitializerTest : SchemaInitializerSpec() {
     }
 
     override fun getCollectionName(namedAggregate: NamedAggregate): String {
-        return namedAggregate.asEventStreamCollectionName()
+        return namedAggregate.toEventStreamCollectionName()
     }
 }

@@ -16,14 +16,14 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.configuration.asRequiredAggregateType
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
@@ -57,8 +57,8 @@ class CommandDispatcher(
         messageFlux: Flux<ServerCommandExchange<*>>
     ): MessageDispatcher {
         val aggregateMetadata = namedAggregate
-            .asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, Any>()
+            .requiredAggregateType<Any>()
+            .aggregateMetadata<Any, Any>()
         return AggregateCommandDispatcher(
             aggregateMetadata = aggregateMetadata,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),

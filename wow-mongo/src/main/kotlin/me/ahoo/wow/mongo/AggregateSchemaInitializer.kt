@@ -18,7 +18,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.accessor.method.reactive.asBlockable
+import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.slf4j.LoggerFactory
@@ -32,16 +32,16 @@ object AggregateSchemaInitializer {
     private val uniqueIndexOptions = IndexOptions().unique(true)
     private const val EVENT_STREAM_COLLECTION_SUFFIX = "_event_stream"
     private const val SNAPSHOT_COLLECTION_SUFFIX = "_snapshot"
-    fun NamedAggregate.asEventStreamCollectionName(): String {
+    fun NamedAggregate.toEventStreamCollectionName(): String {
         return "${this.aggregateName}$EVENT_STREAM_COLLECTION_SUFFIX"
     }
 
-    fun NamedAggregate.asSnapshotCollectionName(): String {
+    fun NamedAggregate.toSnapshotCollectionName(): String {
         return "${this.aggregateName}$SNAPSHOT_COLLECTION_SUFFIX"
     }
 
     fun MongoDatabase.ensureCollection(collectionName: String): Boolean {
-        listCollectionNames().toFlux().collectList().asBlockable().block()!!.let {
+        listCollectionNames().toFlux().collectList().toBlockable().block()!!.let {
             if (it.contains(collectionName)) {
                 if (log.isInfoEnabled) {
                     log.info("Ensure Collection {} already exists,ignore create.", collectionName)
@@ -61,26 +61,26 @@ object AggregateSchemaInitializer {
 
     fun MongoCollection<Document>.createAggregateIdIndex() {
         createIndex(Indexes.hashed(MessageRecords.AGGREGATE_ID))
-            .toMono().asBlockable().block()
+            .toMono().toBlockable().block()
     }
 
     fun MongoCollection<Document>.createAggregateIdAndVersionUniqueIndex() {
         createIndex(Indexes.ascending(MessageRecords.AGGREGATE_ID, MessageRecords.VERSION), uniqueIndexOptions)
-            .toMono().asBlockable().block()
+            .toMono().toBlockable().block()
     }
 
     fun MongoCollection<Document>.createRequestIdUniqueIndex() {
         createIndex(Indexes.ascending(MessageRecords.REQUEST_ID), uniqueIndexOptions)
-            .toMono().asBlockable().block()
+            .toMono().toBlockable().block()
     }
 
     fun MongoCollection<Document>.createAggregateIdAndRequestIdUniqueIndex() {
         createIndex(Indexes.ascending(MessageRecords.AGGREGATE_ID, MessageRecords.REQUEST_ID), uniqueIndexOptions)
-            .toMono().asBlockable().block()
+            .toMono().toBlockable().block()
     }
 
     fun MongoCollection<Document>.createTenantIdIndex() {
         createIndex(Indexes.hashed(MessageRecords.TENANT_ID))
-            .toMono().asBlockable().block()
+            .toMono().toBlockable().block()
     }
 }

@@ -35,7 +35,7 @@ data class DefaultAggregateId(
     }
 }
 
-fun NamedAggregate.asAggregateId(
+fun NamedAggregate.aggregateId(
     id: String = generateId(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID
 ) =
@@ -45,7 +45,7 @@ fun NamedAggregate.asAggregateId(
         tenantId = tenantId,
     )
 
-fun AggregateMetadata<*, *>.asAggregateId(
+fun AggregateMetadata<*, *>.aggregateId(
     id: String = generateId(),
     tenantId: String = staticTenantId ?: TenantId.DEFAULT_TENANT_ID
-) = namedAggregate.asAggregateId(id, tenantId)
+) = namedAggregate.aggregateId(id, tenantId)

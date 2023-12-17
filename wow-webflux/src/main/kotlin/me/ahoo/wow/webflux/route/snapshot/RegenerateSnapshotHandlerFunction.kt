@@ -16,13 +16,13 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -47,11 +47,11 @@ class RegenerateSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         return handler.handle(aggregateId)
             .throwNotFoundIfEmpty()
             .then()
-            .asServerResponse(exceptionHandler)
+            .toServerResponse(exceptionHandler)
     }
 }
 

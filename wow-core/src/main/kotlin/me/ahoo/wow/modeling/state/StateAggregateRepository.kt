@@ -13,8 +13,8 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.asRequiredAggregateType
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
+import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 
@@ -32,8 +32,8 @@ interface StateAggregateRepository {
      */
     fun <S : Any> load(
         aggregateId: AggregateId,
-        metadata: StateAggregateMetadata<S> = aggregateId.asRequiredAggregateType<Any>()
-            .asAggregateMetadata<Any, S>().state,
+        metadata: StateAggregateMetadata<S> = aggregateId.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, S>().state,
         tailVersion: Int = Int.MAX_VALUE
     ): Mono<StateAggregate<S>>
 

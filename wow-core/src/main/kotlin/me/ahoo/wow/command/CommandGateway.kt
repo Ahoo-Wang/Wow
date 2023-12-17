@@ -44,12 +44,12 @@ interface CommandGateway : CommandBus {
     ): Mono<CommandResult> {
         return send(command, waitStrategy)
             .onErrorMap {
-                CommandResultException(it.asResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME))
+                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME))
             }
             .flatMap {
                 waitStrategy.waiting()
                     .map { waitSignal ->
-                        waitSignal.asResult(it.message)
+                        waitSignal.toResult(it.message)
                             .apply {
                                 if (!succeeded) {
                                     throw CommandResultException(this)
@@ -74,7 +74,7 @@ interface CommandGateway : CommandBus {
                     commandId = command.commandId,
                 ),
             ).onErrorResume {
-                it.asResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME)
+                it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME)
                     .toMono()
             }
     }

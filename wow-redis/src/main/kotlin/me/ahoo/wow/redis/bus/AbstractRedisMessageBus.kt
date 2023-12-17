@@ -21,8 +21,8 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.getReceiverGroup
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.serialization.asJsonString
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.springframework.data.redis.connection.stream.Consumer
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.ReadOffset
@@ -48,7 +48,7 @@ abstract class AbstractRedisMessageBus<M, E>(
         return Mono.defer {
             message.withReadOnly()
             val topic = topicConverter.convert(message)
-            streamOps.add(topic, mapOf(MESSAGE_FIELD to message.asJsonString())).then()
+            streamOps.add(topic, mapOf(MESSAGE_FIELD to message.toJsonString())).then()
         }
     }
 
@@ -93,12 +93,12 @@ abstract class AbstractRedisMessageBus<M, E>(
         val streamOffset = StreamOffset.create(topic, ReadOffset.lastConsumed())
         return StreamReceiver.create(redisTemplate.connectionFactory, options)
             .receive(consumer, streamOffset).map {
-                val message = requireNotNull(it.value[MESSAGE_FIELD]).asObject(messageType)
+                val message = requireNotNull(it.value[MESSAGE_FIELD]).toObject(messageType)
                 message.withReadOnly()
                 val acknowledgePublisher = streamOps.acknowledge(topic, group, it.id).then()
-                message.asExchange(acknowledgePublisher)
+                message.toExchange(acknowledgePublisher)
             }
     }
 
-    abstract fun M.asExchange(acknowledgePublisher: Mono<Void>): E
+    abstract fun M.toExchange(acknowledgePublisher: Mono<Void>): E
 }

@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.core.ParameterizedTypeReference
@@ -39,7 +39,7 @@ class IdsQueryAggregateHandlerFunction(
         return request.bodyToMono(IdList)
             .flatMapIterable {
                 it.map { id ->
-                    aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+                    aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
                 }
             }
             .flatMap {
@@ -49,7 +49,7 @@ class IdsQueryAggregateHandlerFunction(
             }
             .map { it.state }
             .collectList()
-            .asServerResponse(exceptionHandler)
+            .toServerResponse(exceptionHandler)
     }
 }
 

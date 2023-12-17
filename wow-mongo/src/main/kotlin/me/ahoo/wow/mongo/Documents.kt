@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyAsAggregateId
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.asObject
+import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -47,35 +47,35 @@ object Documents {
     }
 }
 
-fun <S : Any> Document.asSnapshot(): Snapshot<S> {
+fun <S : Any> Document.toSnapshot(): Snapshot<S> {
     val snapshotJsonString = this.replacePrimaryKeyAsAggregateId().toJson()
-    return snapshotJsonString.asObject()
+    return snapshotJsonString.toObject()
 }
 
-fun <S : Any> Document.asSnapshotState(): S {
-    return asSnapshot<S>().state
+fun <S : Any> Document.toSnapshotState(): S {
+    return toSnapshot<S>().state
 }
 
 fun <S : Any> Mono<Document>.toSnapshot(): Mono<Snapshot<S>> {
     return map {
-        it.asSnapshot()
+        it.toSnapshot()
     }
 }
 
 fun <S : Any> Mono<Document>.toSnapshotState(): Mono<S> {
     return map {
-        it.asSnapshotState<S>()
+        it.toSnapshotState<S>()
     }
 }
 
 fun <S : Any> Flux<Document>.toSnapshot(): Flux<Snapshot<S>> {
     return map {
-        it.asSnapshot()
+        it.toSnapshot()
     }
 }
 
 fun <S : Any> Flux<Document>.toSnapshotState(): Flux<S> {
     return map {
-        it.asSnapshotState<S>()
+        it.toSnapshotState<S>()
     }
 }

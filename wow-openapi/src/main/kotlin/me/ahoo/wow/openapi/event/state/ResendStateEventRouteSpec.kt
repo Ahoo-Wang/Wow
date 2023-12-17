@@ -14,8 +14,8 @@
 package me.ahoo.wow.openapi.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.asStringWithAlias
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
@@ -26,7 +26,7 @@ class ResendStateEventRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : BatchRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.asStringWithAlias()}.resendStateEvent"
+        get() = "${aggregateMetadata.toStringWithAlias()}.resendStateEvent"
     override val method: String
         get() = Https.Method.POST
     override val summary: String

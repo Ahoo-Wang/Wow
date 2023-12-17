@@ -15,12 +15,12 @@ package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.ExceptionHandler
-import me.ahoo.wow.webflux.exception.asServerResponse
+import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -41,12 +41,12 @@ abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> 
                     "CompensationTarget is required!"
                 }
                 val version = request.pathVariable(MessageRecords.VERSION).toInt()
-                val aggregateId = aggregateMetadata.asAggregateId(id = id, tenantId = tenantId)
+                val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
                 eventCompensator.compensate(
                     aggregateId = aggregateId,
                     target = it,
                     version = version
                 )
-            }.asServerResponse(exceptionHandler)
+            }.toServerResponse(exceptionHandler)
     }
 }

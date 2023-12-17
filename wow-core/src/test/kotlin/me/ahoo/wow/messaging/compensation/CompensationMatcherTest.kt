@@ -1,7 +1,7 @@
 package me.ahoo.wow.messaging.compensation
 
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
-import me.ahoo.wow.command.asCommandMessage
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
@@ -23,7 +23,7 @@ class CompensationMatcherTest {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
-        ).asCommandMessage().withCompensation(target)
+        ).toCommandMessage().withCompensation(target)
         assertThat(command.header.compensationId, equalTo(target.id))
         assertThat(command.header[COMPENSATION_CONTEXT], equalTo(contextName))
         assertThat(command.header[COMPENSATION_PROCESSOR], equalTo(processorName))

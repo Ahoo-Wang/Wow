@@ -13,10 +13,10 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.asRequiredAggregateType
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.annotation.asAggregateMetadata
-import me.ahoo.wow.modeling.asAggregateId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 
@@ -39,7 +39,7 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
     companion object {
 
         @JvmStatic
-        fun <S : Any> AggregateMetadata<*, S>.asStateAggregate(
+        fun <S : Any> AggregateMetadata<*, S>.toStateAggregate(
             state: S,
             version: Int,
             eventId: String = "",
@@ -49,8 +49,8 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
             eventTime: Long = 0,
             deleted: Boolean = false
         ): StateAggregate<S> {
-            val aggregateId = asAggregateId(this.state.aggregateIdAccessor[state])
-            return this.state.asStateAggregate(
+            val aggregateId = aggregateId(this.state.aggregateIdAccessor[state])
+            return this.state.toStateAggregate(
                 aggregateId = aggregateId,
                 state = state,
                 version = version,
@@ -64,7 +64,7 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
         }
 
         @JvmStatic
-        fun <S : Any> StateAggregateMetadata<S>.asStateAggregate(
+        fun <S : Any> StateAggregateMetadata<S>.toStateAggregate(
             aggregateId: AggregateId,
             state: S,
             version: Int,
@@ -90,10 +90,10 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
         }
 
         @JvmStatic
-        fun <S : Any> ReadOnlyStateAggregate<S>.asStateAggregate(): StateAggregate<S> {
-            val metadata = aggregateId.asRequiredAggregateType<Any>()
-                .asAggregateMetadata<Any, S>().state
-            return metadata.asStateAggregate(
+        fun <S : Any> ReadOnlyStateAggregate<S>.toStateAggregate(): StateAggregate<S> {
+            val metadata = aggregateId.requiredAggregateType<Any>()
+                .aggregateMetadata<Any, S>().state
+            return metadata.toStateAggregate(
                 aggregateId = aggregateId,
                 state = state,
                 version = version,

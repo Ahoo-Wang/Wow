@@ -27,7 +27,7 @@ class BlockingMonoMethodAccessorTest {
     @Test
     fun invoke() {
         val blockingMonoMethodAccessor =
-            BlockingMethod::class.java.getMethod("blocking").asMonoMethodAccessor<BlockingMethod, String>()
+            BlockingMethod::class.java.getMethod("blocking").toMonoMethodAccessor<BlockingMethod, String>()
         Schedulers.parallel().schedule {
             blockingMonoMethodAccessor.invoke(BlockingMethod())
                 .test()

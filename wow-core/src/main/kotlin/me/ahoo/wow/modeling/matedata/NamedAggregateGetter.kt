@@ -14,10 +14,10 @@
 package me.ahoo.wow.modeling.matedata
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.configuration.asNamedAggregate
-import me.ahoo.wow.configuration.asNamedBoundedContext
+import me.ahoo.wow.configuration.namedAggregate
+import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.modeling.asNamedAggregate
+import me.ahoo.wow.modeling.toNamedAggregate
 
 interface NamedAggregateGetter<T> {
     fun getNamedAggregate(target: T): NamedAggregate
@@ -35,13 +35,13 @@ class SimpleNamedAggregateGetter<T>(
 
     override fun getNamedAggregate(target: T): NamedAggregate {
         val aggregateName = aggregateNameGetter[target]
-        return aggregateName.asNamedAggregate(contextName)
+        return aggregateName.toNamedAggregate(contextName)
     }
 }
 
-fun <T> PropertyGetter<T, String>?.asNamedAggregateGetter(type: Class<T>): NamedAggregateGetter<T>? {
+fun <T> PropertyGetter<T, String>?.toNamedAggregateGetter(type: Class<T>): NamedAggregateGetter<T>? {
     if (this != null) {
-        return SimpleNamedAggregateGetter(type.asNamedBoundedContext()?.contextName, this)
+        return SimpleNamedAggregateGetter(type.namedBoundedContext()?.contextName, this)
     }
-    return type.asNamedAggregate()?.let { return MetadataNamedAggregateGetter(it) }
+    return type.namedAggregate()?.let { return MetadataNamedAggregateGetter(it) }
 }

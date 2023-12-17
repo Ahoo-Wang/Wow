@@ -18,7 +18,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
-import me.ahoo.wow.projection.annotation.asProjectionProcessorMetadata
+import me.ahoo.wow.projection.annotation.projectionProcessorMetadata
 import reactor.core.publisher.Mono
 
 class ProjectionFunctionRegistrar(
@@ -28,8 +28,8 @@ class ProjectionFunctionRegistrar(
 
     fun registerProcessor(processor: Any) {
         processor.javaClass
-            .asProjectionProcessorMetadata()
-            .asMessageFunctionRegistry(processor)
+            .projectionProcessorMetadata()
+            .toMessageFunctionRegistry(processor)
             .forEach {
                 register(it)
             }

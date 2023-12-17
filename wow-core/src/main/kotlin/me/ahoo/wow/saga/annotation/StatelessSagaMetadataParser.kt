@@ -24,11 +24,11 @@ object StatelessSagaMetadataParser : ProcessorMetadataParser<DomainEventExchange
     MessageAnnotationFunctionCondition(OnEvent::class.java, OnStateEvent::class.java)
 )
 
-fun <P : Any> Class<out P>.asStatelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
+fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
     @Suppress("UNCHECKED_CAST")
     return StatelessSagaMetadataParser.parse(this) as ProcessorMetadata<P, DomainEventExchange<*>>
 }
 
 inline fun <reified P : Any> statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return P::class.java.asStatelessSagaMetadata()
+    return P::class.java.statelessSagaMetadata()
 }

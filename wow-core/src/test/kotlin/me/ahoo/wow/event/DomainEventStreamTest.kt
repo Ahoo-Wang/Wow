@@ -9,7 +9,7 @@ class DomainEventStreamTest {
 
     @Test
     fun ignoreSourcingIfNotInitialVersion() {
-        val eventStream = MockNamedEvent().asDomainEvent(
+        val eventStream = MockNamedEvent().toDomainEvent(
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = GlobalIdGenerator.generateAsString(),
             commandId = GlobalIdGenerator.generateAsString(),
@@ -24,7 +24,7 @@ class DomainEventStreamTest {
 
     @Test
     fun ignoreSourcing() {
-        val eventStream = MockNamedEvent().asDomainEvent(
+        val eventStream = MockNamedEvent().toDomainEvent(
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = GlobalIdGenerator.generateAsString(),
             commandId = GlobalIdGenerator.generateAsString(),
@@ -41,7 +41,7 @@ class DomainEventStreamTest {
         val eventStream = ErrorIgnoreEvent(
             errorCode = GlobalIdGenerator.generateAsString(),
             errorMsg = GlobalIdGenerator.generateAsString()
-        ).asDomainEvent(
+        ).toDomainEvent(
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
