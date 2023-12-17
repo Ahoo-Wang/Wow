@@ -143,11 +143,11 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     }
 }
 
-fun <C> Class<out C>.toCommandMetadata(): CommandMetadata<C> {
+fun <C> Class<out C>.commandMetadata(): CommandMetadata<C> {
     @Suppress("UNCHECKED_CAST")
     return CommandMetadataParser.parse(this) as CommandMetadata<C>
 }
 
 inline fun <reified C> commandMetadata(): CommandMetadata<C> {
-    return C::class.java.toCommandMetadata()
+    return C::class.java.commandMetadata()
 }

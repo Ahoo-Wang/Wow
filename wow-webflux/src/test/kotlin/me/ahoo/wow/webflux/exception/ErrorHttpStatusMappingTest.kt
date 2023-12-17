@@ -2,7 +2,7 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
+import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -25,15 +25,15 @@ class ErrorHttpStatusMappingTest {
     }
 
     @Test
-    fun asHttpStatus() {
-        IllegalArgumentException().toErrorInfo().asHttpStatus().let {
+    fun toHttpStatus() {
+        IllegalArgumentException().toErrorInfo().toHttpStatus().let {
             assertThat(it, equalTo(HttpStatus.BAD_REQUEST))
         }
     }
 
     @Test
-    fun asHttpStatusIfMissing() {
-        ErrorInfo.of("asHttpStatusIfMissing", "").asHttpStatus().let {
+    fun toHttpStatusIfMissing() {
+        ErrorInfo.of("asHttpStatusIfMissing", "").toHttpStatus().let {
             assertThat(it, equalTo(HttpStatus.BAD_REQUEST))
         }
     }

@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 internal class MethodFunctionMetadataTest {
 
     @Test
-    fun asCommandFunctionMetadata() {
+    fun toCommandFunctionMetadata() {
         val metadata = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,

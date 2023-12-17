@@ -17,7 +17,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.asHttpStatus
+import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
-    val status = errorInfo.asHttpStatus()
+    val status = errorInfo.toHttpStatus()
     return ResponseEntity.status(status)
         .contentType(MediaType.APPLICATION_JSON)
         .header(WOW_ERROR_CODE, errorInfo.errorCode)
@@ -33,7 +33,7 @@ fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
 }
 
 fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
-    val status = asHttpStatus()
+    val status = toHttpStatus()
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
         .header(WOW_ERROR_CODE, errorCode)

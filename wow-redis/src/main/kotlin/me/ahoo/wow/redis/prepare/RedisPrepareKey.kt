@@ -15,7 +15,7 @@ package me.ahoo.wow.redis.prepare
 
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 import me.ahoo.wow.redis.prepare.PrepareKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
@@ -64,7 +64,7 @@ class RedisPrepareKey<V : Any>(
         }
         val ttlAt = checkNotNull(this[TTL_AT_FIELD]).toLong()
         val value = checkNotNull(this[VALUE_FIELD]).toObject(valueType)
-        return value.asTtlAt(ttlAt)
+        return value.toTtlAt(ttlAt)
     }
 
     override fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean> {

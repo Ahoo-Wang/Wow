@@ -14,7 +14,7 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyAsAggregateId
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toObject
 import org.bson.Document
@@ -24,22 +24,22 @@ import reactor.core.publisher.Mono
 object Documents {
     const val ID_FIELD = "_id"
 
-    fun Document.replaceIdAsPrimaryKey(): Document = replaceAsPrimaryKey(MessageRecords.ID)
+    fun Document.replaceIdToPrimaryKey(): Document = replaceToPrimaryKey(MessageRecords.ID)
 
-    fun Document.replacePrimaryKeyAsId(): Document = replacePrimaryKeyAs(MessageRecords.ID)
+    fun Document.replacePrimaryKeyToId(): Document = replacePrimaryKeyTo(MessageRecords.ID)
 
-    fun Document.replaceAggregateIdAsPrimaryKey(): Document = replaceAsPrimaryKey(MessageRecords.AGGREGATE_ID)
+    fun Document.replaceAggregateIdToPrimaryKey(): Document = replaceToPrimaryKey(MessageRecords.AGGREGATE_ID)
 
-    fun Document.replacePrimaryKeyAsAggregateId(): Document = replacePrimaryKeyAs(MessageRecords.AGGREGATE_ID)
+    fun Document.replacePrimaryKeyToAggregateId(): Document = replacePrimaryKeyTo(MessageRecords.AGGREGATE_ID)
 
-    fun Document.replaceAsPrimaryKey(key: String): Document {
+    fun Document.replaceToPrimaryKey(key: String): Document {
         val id = checkNotNull(getString(key))
         append(ID_FIELD, id)
         remove(key)
         return this
     }
 
-    fun Document.replacePrimaryKeyAs(key: String): Document {
+    fun Document.replacePrimaryKeyTo(key: String): Document {
         val primaryKey = checkNotNull(getString(ID_FIELD))
         append(key, primaryKey)
         remove(ID_FIELD)
@@ -48,7 +48,7 @@ object Documents {
 }
 
 fun <S : Any> Document.toSnapshot(): Snapshot<S> {
-    val snapshotJsonString = this.replacePrimaryKeyAsAggregateId().toJson()
+    val snapshotJsonString = this.replacePrimaryKeyToAggregateId().toJson()
     return snapshotJsonString.toObject()
 }
 

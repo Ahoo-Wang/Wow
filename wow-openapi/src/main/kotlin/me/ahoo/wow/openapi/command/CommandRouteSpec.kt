@@ -41,7 +41,7 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
-import me.ahoo.wow.openapi.Tags.asTags
+import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
@@ -120,7 +120,7 @@ class CommandRouteSpec(
         get() {
             val tags = mutableListOf<String>()
             tags.addAll(super.tags)
-            commandRouteMetadata.commandMetadata.commandType.asTags().let {
+            commandRouteMetadata.commandMetadata.commandType.toTags().let {
                 tags.addAll(it)
             }
             return tags
@@ -267,7 +267,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
     }
 
-    private fun Class<*>.asCommandRouteSpec(
+    private fun Class<*>.toCommandRouteSpec(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): CommandRouteSpec? {
@@ -290,13 +290,13 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         return buildList {
             aggregateMetadata.command.commandFunctionRegistry
                 .forEach { entry ->
-                    entry.key.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                    entry.key.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                         it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
-                DefaultDeleteAggregate::class.java.asCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }

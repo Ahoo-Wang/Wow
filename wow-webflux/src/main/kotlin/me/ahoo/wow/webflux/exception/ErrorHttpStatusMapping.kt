@@ -59,7 +59,7 @@ object ErrorHttpStatusMapping {
         return registrar[errorCode]
     }
 
-    fun ErrorInfo.asHttpStatus(default: HttpStatus = HttpStatus.BAD_REQUEST): HttpStatus {
+    fun ErrorInfo.toHttpStatus(default: HttpStatus = HttpStatus.BAD_REQUEST): HttpStatus {
         return getHttpStatus(this.errorCode) ?: default
     }
 }

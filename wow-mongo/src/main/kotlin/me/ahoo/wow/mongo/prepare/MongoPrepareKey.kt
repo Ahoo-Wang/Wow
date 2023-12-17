@@ -26,8 +26,8 @@ import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.TTL_FOREVER
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asForever
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toForever
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.prepare.PrepareRecords.TTL_AT_FIELD
@@ -111,7 +111,7 @@ class MongoPrepareKey<V : Any>(
     }
 
     override fun rollback(key: String, value: V): Mono<Boolean> {
-        val document = value.asForever().toDocument()
+        val document = value.toForever().toDocument()
         return prepareCollection.deleteOne(
             Filters.and(
                 Filters.eq(Documents.ID_FIELD, key),
@@ -141,7 +141,7 @@ class MongoPrepareKey<V : Any>(
     }
 
     override fun reprepare(key: String, oldValue: V, newValue: PreparedValue<V>): Mono<Boolean> {
-        val oldValueDocument = oldValue.asForever().toDocument()
+        val oldValueDocument = oldValue.toForever().toDocument()
         val newValueDocument = newValue.toDocument()
         return prepareCollection
             .updateOne(
@@ -187,6 +187,6 @@ object PrepareRecords {
         }
 
         val ttlAt = this.getDate(TTL_AT_FIELD)?.time ?: TTL_FOREVER
-        return value.asTtlAt(ttlAt)
+        return value.toTtlAt(ttlAt)
     }
 }

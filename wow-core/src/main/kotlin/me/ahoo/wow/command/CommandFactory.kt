@@ -18,7 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.TenantId
-import me.ahoo.wow.command.annotation.toCommandMetadata
+import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -35,7 +35,7 @@ fun <C : Any> C.toCommandMessage(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): CommandMessage<C> {
-    val metadata = javaClass.toCommandMetadata()
+    val metadata = javaClass.commandMetadata()
     val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)
     requireNotNull(commandNamedAggregate) {
         "The command[$javaClass] must be associated with a named aggregate!"

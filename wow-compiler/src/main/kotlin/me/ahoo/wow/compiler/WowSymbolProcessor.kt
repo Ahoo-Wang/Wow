@@ -68,7 +68,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 it.containingFile?.let { file ->
                     dependencyFiles.add(file)
                 }
-                val aggregateName = it.asName()
+                val aggregateName = it.toName()
                 val aggregate = it.resolveAggregateRoot(resolver)
                 wowMetadataMerger.merge(aggregateName, aggregate)
             }

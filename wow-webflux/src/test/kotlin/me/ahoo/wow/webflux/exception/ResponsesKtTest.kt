@@ -6,8 +6,8 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -17,7 +17,7 @@ import reactor.kotlin.test.test
 class ResponsesKtTest {
 
     @Test
-    fun asResponseEntity() {
+    fun toResponseEntity() {
         val responseEntity = IllegalArgumentException()
             .toResponseEntity()
         assertThat(responseEntity.statusCode, equalTo(HttpStatus.BAD_REQUEST))
@@ -26,7 +26,7 @@ class ResponsesKtTest {
     }
 
     @Test
-    fun asServerResponse() {
+    fun toServerResponse() {
         IllegalArgumentException()
             .toErrorInfo()
             .toServerResponse()

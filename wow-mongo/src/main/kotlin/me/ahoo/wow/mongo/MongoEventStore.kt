@@ -30,8 +30,8 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
-import me.ahoo.wow.mongo.Documents.replaceIdAsPrimaryKey
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyAsId
+import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -50,7 +50,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
         val eventStreamCollectionName = eventStream.toEventStreamCollectionName()
         val eventStreamJson = eventStream.toJsonString()
         val document = Document.parse(eventStreamJson)
-            .replaceIdAsPrimaryKey()
+            .replaceIdToPrimaryKey()
             .append(SIZE_FIELD, eventStream.size)
 
         return database.getCollection(eventStreamCollectionName)
@@ -94,7 +94,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .batchSize(limit)
             .toFlux()
             .map {
-                val domainEventStream = it.replacePrimaryKeyAsId().toJson().toObject<DomainEventStream>()
+                val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
                 require(domainEventStream.aggregateId == aggregateId) {
                     "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
                 }

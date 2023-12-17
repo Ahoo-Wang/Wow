@@ -16,7 +16,7 @@ package me.ahoo.wow.tck.prepare
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asTtlAt
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.BeforeEach
@@ -131,7 +131,7 @@ abstract class PrepareKeySpec<V : Any> {
         val key = GlobalIdGenerator.generateAsString()
         val expireAfter = Duration.ofSeconds(2)
         val ttlAt = System.currentTimeMillis() + expireAfter.toMillis()
-        val preparedValue = generateValue().asTtlAt(ttlAt)
+        val preparedValue = generateValue().toTtlAt(ttlAt)
         prepareKey.prepare(key, preparedValue)
             .test()
             .expectNext(true)
@@ -141,7 +141,7 @@ abstract class PrepareKeySpec<V : Any> {
             .test()
             .verifyComplete()
         val ttlAt2 = System.currentTimeMillis() + expireAfter.toMillis()
-        val preparedValue2 = generateValue().asTtlAt(ttlAt2)
+        val preparedValue2 = generateValue().toTtlAt(ttlAt2)
         prepareKey.prepare(key, preparedValue2)
             .test()
             .expectNext(true)

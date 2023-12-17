@@ -41,11 +41,11 @@ interface PreparedValue<V> {
          */
         const val TTL_FOREVER = 148204944000000L
 
-        fun <V> V.asForever(): PreparedValue<V> {
-            return asTtlAt(TTL_FOREVER)
+        fun <V> V.toForever(): PreparedValue<V> {
+            return toTtlAt(TTL_FOREVER)
         }
 
-        fun <V> V.asTtlAt(ttlAt: Long): PreparedValue<V> {
+        fun <V> V.toTtlAt(ttlAt: Long): PreparedValue<V> {
             return DefaultPreparedValue(this, ttlAt)
         }
     }

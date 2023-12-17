@@ -14,13 +14,13 @@
 package me.ahoo.wow.infra.prepare
 
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.infra.prepare.PreparedValue.Companion.asForever
+import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toForever
 import reactor.core.publisher.Mono
 
 interface PrepareKey<V : Any> : Named {
 
     fun prepare(key: String, value: V): Mono<Boolean> {
-        return prepare(key, value.asForever())
+        return prepare(key, value.toForever())
     }
 
     fun prepare(key: String, value: PreparedValue<V>): Mono<Boolean>
@@ -41,19 +41,19 @@ interface PrepareKey<V : Any> : Named {
     fun rollback(key: String, value: V): Mono<Boolean>
 
     fun reprepare(key: String, oldValue: V, newValue: V): Mono<Boolean> {
-        return reprepare(key, oldValue, newValue.asForever())
+        return reprepare(key, oldValue, newValue.toForever())
     }
 
     fun reprepare(key: String, oldValue: V, newValue: PreparedValue<V>): Mono<Boolean>
 
     fun reprepare(key: String, value: V): Mono<Boolean> {
-        return reprepare(key, value.asForever())
+        return reprepare(key, value.toForever())
     }
 
     fun reprepare(key: String, value: PreparedValue<V>): Mono<Boolean>
 
     fun <R> usingPrepare(key: String, value: V, block: (Boolean) -> Mono<R>): Mono<R> {
-        return usingPrepare(key, value.asForever(), block)
+        return usingPrepare(key, value.toForever(), block)
     }
 
     fun <R> usingPrepare(key: String, value: PreparedValue<V>, block: (Boolean) -> Mono<R>): Mono<R> {

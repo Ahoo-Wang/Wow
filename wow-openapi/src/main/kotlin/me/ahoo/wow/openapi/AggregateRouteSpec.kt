@@ -26,7 +26,7 @@ import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendIdP
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
-import me.ahoo.wow.openapi.Tags.asTags
+import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
@@ -40,7 +40,7 @@ interface AggregateRouteSpec : RouteSpec {
         get() {
             val tags = mutableListOf<String>()
             tags.add(aggregateMetadata.toStringWithAlias())
-            aggregateMetadata.command.aggregateType.asTags().let {
+            aggregateMetadata.command.aggregateType.toTags().let {
                 tags.addAll(it)
             }
             return tags
