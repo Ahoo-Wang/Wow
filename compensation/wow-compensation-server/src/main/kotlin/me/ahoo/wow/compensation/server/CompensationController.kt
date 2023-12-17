@@ -35,8 +35,8 @@ class CompensationController(
         return toRetryQuery.findToRetry(limit)
     }
 
-    @PutMapping("/retry")
-    fun retry(): Mono<Long> {
-        return compensationScheduler.retry()
+    @PutMapping("/retry/{limit}")
+    fun retry(@PathVariable limit: Int): Mono<Long> {
+        return compensationScheduler.retry(limit)
     }
 }

@@ -30,8 +30,8 @@ class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val 
         private val log = LoggerFactory.getLogger(CompensationScheduler::class.java)
     }
 
-    fun retry(): Mono<Long> {
-        return toRetryQuery.findToRetry()
+    fun retry(limit: Int = 10): Mono<Long> {
+        return toRetryQuery.findToRetry(limit)
             .flatMap {
                 if (log.isDebugEnabled) {
                     log.debug(
