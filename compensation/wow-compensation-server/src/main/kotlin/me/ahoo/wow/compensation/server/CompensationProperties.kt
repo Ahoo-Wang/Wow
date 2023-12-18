@@ -18,9 +18,21 @@ import me.ahoo.wow.compensation.domain.DefaultCompensationSpec
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
-@ConfigurationProperties(prefix = me.ahoo.wow.spring.boot.starter.compensation.CompensationProperties.PREFIX)
+@ConfigurationProperties(prefix = CompensationProperties.PREFIX)
 data class CompensationProperties(
     override val maxRetries: Int = DefaultCompensationSpec.maxRetries,
     override val minBackoff: Duration = DefaultCompensationSpec.minBackoff,
     override val executionTimeout: Duration = DefaultCompensationSpec.executionTimeout,
-) : CompensationSpec
+    val mutex: String = "compensation_mutex",
+    val batchSize: Int = 100,
+    val schedule: ScheduleProperties = ScheduleProperties()
+) : CompensationSpec {
+    companion object {
+        const val PREFIX = me.ahoo.wow.spring.boot.starter.compensation.CompensationProperties.PREFIX
+    }
+
+    data class ScheduleProperties(
+        val initialDelay: Duration = Duration.ofSeconds(60),
+        val period: Duration = Duration.ofSeconds(60),
+    )
+}

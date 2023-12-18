@@ -68,6 +68,8 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-mongo")
     implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.simba:simba-spring-redis")
+    implementation("me.ahoo.simba:simba-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")

@@ -13,24 +13,36 @@
 
 package me.ahoo.wow.compensation.server
 
+import me.ahoo.simba.core.MutexContendServiceFactory
+import me.ahoo.simba.schedule.AbstractScheduler
+import me.ahoo.simba.schedule.ScheduleConfig
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.domain.ToRetryQuery
 import org.slf4j.LoggerFactory
+import org.springframework.context.SmartLifecycle
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 
-/**
- * TODO Timer scheduling
- */
 @Service
-class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val commandGateway: CommandGateway) {
+class CompensationScheduler(
+    private val toRetryQuery: ToRetryQuery,
+    private val commandGateway: CommandGateway,
+    private val compensationProperties: CompensationProperties,
+    contendServiceFactory: MutexContendServiceFactory
+) :
+    AbstractScheduler(
+        mutex = compensationProperties.mutex,
+        contendServiceFactory = contendServiceFactory
+    ),
+    SmartLifecycle {
     companion object {
         private val log = LoggerFactory.getLogger(CompensationScheduler::class.java)
+        const val WORKER_NAME = "CompensationScheduler"
     }
 
-    fun retry(limit: Int = 10): Mono<Long> {
+    fun retry(limit: Int = 100): Mono<Long> {
         return toRetryQuery.findToRetry(limit)
             .flatMap {
                 if (log.isDebugEnabled) {
@@ -47,5 +59,25 @@ class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val 
                 commandGateway.send(commandMessage).thenReturn(commandMessage)
             }
             .count()
+    }
+
+    override val config: ScheduleConfig =
+        ScheduleConfig.delay(compensationProperties.schedule.initialDelay, compensationProperties.schedule.period)
+    override val worker: String
+        get() = WORKER_NAME
+
+    override fun work() {
+        if (log.isInfoEnabled) {
+            log.info("Start retry - batchSize:[{}].", compensationProperties.batchSize)
+        }
+        val count = retry(compensationProperties.batchSize)
+            .block()
+        if (log.isInfoEnabled) {
+            log.info("Complete retry - batchSize:[{}] - count:[{}].", compensationProperties.batchSize, count)
+        }
+    }
+
+    override fun isRunning(): Boolean {
+        return super.running
     }
 }
