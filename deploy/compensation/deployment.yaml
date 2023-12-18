@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: compensation-service
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.2
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.3
           env:
             - name: LANG
               value: C.utf8
