@@ -24,6 +24,9 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.RetrySpec
+import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
+import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.compensation.api.RetryState
 
 class ExecutionFailedState(override val id: String) : IExecutionFailedState {
@@ -36,6 +39,8 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     override lateinit var error: ErrorDetails
         private set
     override var executionTime: Long = 0
+        private set
+    override lateinit var retrySpec: RetrySpec
         private set
     override lateinit var retryState: RetryState
         private set
@@ -51,6 +56,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.executionTime = event.executionTime
         this.retryState = event.retryState
         this.status = ExecutionFailedStatus.FAILED
+        this.retrySpec = event.retrySpec
     }
 
     @Suppress("UnusedParameter")
@@ -70,5 +76,10 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     fun onSuccess(event: ExecutionSuccessApplied) {
         this.executionTime = event.executionTime
         this.status = ExecutionFailedStatus.SUCCEEDED
+    }
+
+    @OnSourcing
+    fun onRetrySpecApplied(event: RetrySpecApplied) {
+        this.retrySpec = event.materialize()
     }
 }
