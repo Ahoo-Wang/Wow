@@ -21,7 +21,7 @@ spec:
   selector:
     app: compensation-service
   ports:
-    - nodePort: 32768
+    - nodePort: 32765
       port: 80
       protocol: TCP
       targetPort: http
