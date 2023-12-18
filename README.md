@@ -55,13 +55,17 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 - [Detailed Report(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
 - [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
-> `WaitStrategy`: `SENT`
+> `WaitStrategy`:`SENT` Mode, The `AddCartItem` command write request API After 2 minutes of stress testing, the average TPS was 59625, the peak was 82312, and the average response time was 29 ms.
 
-![SENT](./document/example/perf/Example.Cart.Add@SENT.png)
+<p align="center" style="text-align:center">
+  <img src="./document/example/perf/Example.Cart.Add@SENT.png" alt="AddCartItem-SENT"/>
+</p>
 
-> `WaitStrategy`: `PROCESSED`
+> `WaitStrategy`:`PROCESSED` Mode, The `AddCartItem` command write request API After 2 minutes of stress testing, the average TPS was 18696, the peak was 24141, and the average response time was 239 ms.
 
-![PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.png) 
+<p align="center" style="text-align:center">
+  <img src="./document/example/perf/Example.Cart.Add@PROCESSED.png" alt="AddCartItem-PROCESSED"/>
+</p>
 
 #### Create Order
 
@@ -69,13 +73,17 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 - [Detailed Report(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
 - [Detailed Report(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
-> `WaitStrategy`: `SENT`
+> `WaitStrategy`:`SENT` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was 47838, the peak was 86200, and the average response time was 217 ms.
 
-![SENT](./document/example/perf/Example.Order.Create@SENT.png)
+<p align="center" style="text-align:center">
+  <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
+</p>
 
-> `WaitStrategy`: `PROCESSED`
+> `WaitStrategy`:`PROCESSED` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was 180230, the peak was 25506, and the average response time was 268 ms.
 
-![PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.png)
+<p align="center" style="text-align:center">
+  <img src="./document/example/perf/Example.Order.Create@PROCESSED.png" alt="CreateOrder-PROCESSED"/>
+</p>
 
 ## Event Sourcing
 
