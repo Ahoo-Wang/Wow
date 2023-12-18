@@ -55,7 +55,8 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .inject(DefaultCompensationSpec)
+            .inject(DefaultNextRetryAtCalculatorTest.testRetrySpec)
+            .inject(DefaultNextRetryAtCalculator)
             .`when`(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
@@ -67,7 +68,7 @@ class ExecutionFailedTest {
                 assertThat(it.executionTime, equalTo(createExecutionFailed.executionTime))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
                 assertThat(it.retryState.retries, equalTo(0))
-                assertThat(it.retryState.isRetryable, equalTo(true))
+                assertThat(it.isRetryable, equalTo(true))
                 assertThat(it.retryState.timeout(), equalTo(false))
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.shouldToRetry(), equalTo(false))
@@ -84,10 +85,12 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = DefaultCompensationSpec.nextRetryState(0)
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
+
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .inject(DefaultCompensationSpec)
+            .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
             .`when`(prepareCompensation)
             .expectNoError()
@@ -121,18 +124,21 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = DefaultCompensationSpec.nextRetryState(0)
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+        )
+
+        val compensationPrepared = CompensationPrepared(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 1)
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .given(
                 executionFailedCreated,
-                CompensationPrepared(
-                    eventId = EVENT_ID,
-                    processor = processor,
-                    functionKind = functionKind,
-                    retryState = DefaultCompensationSpec.nextRetryState(1)
-                )
+                compensationPrepared
             )
             .`when`(applyExecutionFailed)
             .expectNoError()
@@ -167,7 +173,8 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = error,
             executionTime = System.currentTimeMillis(),
-            retryState = DefaultCompensationSpec.nextRetryState(0)
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -177,7 +184,10 @@ class ExecutionFailedTest {
                     eventId = EVENT_ID,
                     processor = processor,
                     functionKind = functionKind,
-                    retryState = DefaultCompensationSpec.nextRetryState(1)
+                    retryState = DefaultNextRetryAtCalculator.nextRetryState(
+                        DefaultNextRetryAtCalculatorTest.testRetrySpec,
+                        1
+                    )
                 )
             )
             .`when`(applyExecutionSuccess)

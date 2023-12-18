@@ -21,6 +21,7 @@ import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.api.naming.Materialized
 
 data class ErrorDetails(override val errorCode: String, override val errorMsg: String, val stackTrace: String) :
     ErrorInfo
@@ -54,41 +55,83 @@ interface ExecutionFailedInfo : ExecutionFailedErrorInfo {
     val functionKind: FunctionKind
 }
 
-data class RetryState(
+interface IRetrySpec {
     /**
      * 最大重试次数
      */
-    val maxRetries: Int,
+    val maxRetries: Int
+
+    /**
+     * the minimum Duration for the first backoff
+     *
+     * @see java.time.temporal.ChronoUnit.SECONDS
+     */
+    val minBackoff: Int
+
+    /**
+     * 执行超时时间
+     *
+     * @see java.time.temporal.ChronoUnit.SECONDS
+     */
+    val executionTimeout: Int
+}
+
+data class RetrySpec(
+    override val maxRetries: Int,
+    override val minBackoff: Int,
+    override val executionTimeout: Int,
+) : IRetrySpec, Materialized {
+    companion object {
+
+        fun IRetrySpec.materialize(): RetrySpec {
+            if (this is RetrySpec) {
+                return this
+            }
+            return RetrySpec(maxRetries = maxRetries, minBackoff = minBackoff, executionTimeout = executionTimeout)
+        }
+    }
+}
+
+data class RetryState(
     /**
      * 当前已尝试次数
      */
     val retries: Int,
     /**
      * 当前尝试执行点
+     *
+     * @see java.time.temporal.ChronoUnit.MILLIS
      */
     val retryAt: Long,
     /**
-     * 当前执行超时时间点
+     * 执行超时时间点
+     *
+     * @see java.time.temporal.ChronoUnit.MILLIS
      */
     val timoutAt: Long,
     /**
-     * 下次尝试执行时间,For Scheduled
+     * 下次重试时间点
+     *
+     * @see java.time.temporal.ChronoUnit.MILLIS
      */
     val nextRetryAt: Long,
 ) {
-    val isRetryable: Boolean
-        get() = retries < maxRetries
-
     fun timeout(): Boolean {
         return System.currentTimeMillis() > timoutAt
     }
 }
 
 interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
+    /**
+     * 最大重试次数
+     */
+    val retrySpec: RetrySpec
     val status: ExecutionFailedStatus
+    val isRetryable: Boolean
+        get() = retryState.retries < retrySpec.maxRetries
 
     fun canRetry(): Boolean {
-        if (!retryState.isRetryable) {
+        if (!isRetryable) {
             return false
         }
 

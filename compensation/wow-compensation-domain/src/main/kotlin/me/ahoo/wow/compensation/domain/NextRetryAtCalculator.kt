@@ -13,44 +13,29 @@
 
 package me.ahoo.wow.compensation.domain
 
+import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.RetryState
-import reactor.util.retry.RetrySpec
-import java.time.Duration
 import kotlin.math.pow
 
-/**
- * 补偿重试规范
- *
- *
- * @see RetrySpec.backoff
- */
-interface CompensationSpec {
-
-    val maxRetries: Int
-
-    /**
-     * the minimum Duration for the first backoff
-     *
-     */
-    val minBackoff: Duration
-
-    /**
-     * 补偿执行超时时间
-     *
-     */
-    val executionTimeout: Duration
-
-    fun nextRetryAt(retries: Int, currentRetryAt: Long = System.currentTimeMillis()): Long {
+interface NextRetryAtCalculator {
+    fun nextRetryAt(
+        minBackoff: Int,
+        retries: Int,
+        currentRetryAt: Long = System.currentTimeMillis()
+    ): Long {
         val multiple = 2.0.pow(retries.toDouble()).toLong()
-        val nextRetryDuration = minBackoff.toMillis() * multiple
+        val nextRetryDuration = minBackoff * multiple * 1000
         return currentRetryAt + nextRetryDuration
     }
 
-    fun nextRetryState(retries: Int, retryAt: Long = System.currentTimeMillis()): RetryState {
-        val nextRetryAt = nextRetryAt(retries, retryAt)
-        val timoutAt = retryAt + executionTimeout.toMillis()
+    fun nextRetryState(
+        retrySpec: IRetrySpec,
+        retries: Int,
+        retryAt: Long = System.currentTimeMillis()
+    ): RetryState {
+        val nextRetryAt = nextRetryAt(retrySpec.minBackoff, retries, retryAt)
+        val timoutAt = retryAt + retrySpec.executionTimeout * 1000
         return RetryState(
-            maxRetries = maxRetries,
             retries = retries,
             retryAt = retryAt,
             timoutAt = timoutAt,
@@ -59,11 +44,4 @@ interface CompensationSpec {
     }
 }
 
-object DefaultCompensationSpec : CompensationSpec {
-    override val maxRetries: Int
-        get() = 10
-    override val minBackoff: Duration
-        get() = Duration.ofSeconds(180)
-    override val executionTimeout: Duration
-        get() = Duration.ofSeconds(120)
-}
+object DefaultNextRetryAtCalculator : NextRetryAtCalculator

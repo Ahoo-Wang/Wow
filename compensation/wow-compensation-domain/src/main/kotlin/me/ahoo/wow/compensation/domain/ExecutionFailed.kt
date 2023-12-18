@@ -17,38 +17,47 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
+import me.ahoo.wow.compensation.api.ApplyRetrySpec
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
+import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.PrepareCompensation
+import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
+import me.ahoo.wow.compensation.api.RetrySpecApplied
 
 @AggregateRoot
 class ExecutionFailed(private val state: ExecutionFailedState) {
 
     @OnCommand
-    fun onCreate(command: CreateExecutionFailed, compensationSpec: CompensationSpec): ExecutionFailedCreated {
-        val retryState = compensationSpec.nextRetryState(0, command.executionTime)
+    fun onCreate(
+        command: CreateExecutionFailed,
+        retrySpec: IRetrySpec,
+        nextRetryAtCalculator: NextRetryAtCalculator
+    ): ExecutionFailedCreated {
+        val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executionTime)
         return ExecutionFailedCreated(
             eventId = command.eventId,
             processor = command.processor,
             functionKind = command.functionKind,
             error = command.error,
             executionTime = command.executionTime,
-            retryState = retryState
+            retryState = retryState,
+            retrySpec = retrySpec.materialize()
         )
     }
 
     @Suppress("UnusedParameter")
     @OnCommand
-    fun onPrepare(command: PrepareCompensation, compensationSpec: CompensationSpec): CompensationPrepared {
+    fun onPrepare(command: PrepareCompensation, nextRetryAtCalculator: NextRetryAtCalculator): CompensationPrepared {
         check(this.state.canRetry()) {
             "ExecutionFailed can not retry."
         }
         val retries = this.state.retryState.retries + 1
-        val retryState = compensationSpec.nextRetryState(retries)
+        val retryState = nextRetryAtCalculator.nextRetryState(this.state.retrySpec, retries)
         return CompensationPrepared(
             eventId = this.state.eventId,
             processor = this.state.processor,
@@ -71,6 +80,15 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
         return ExecutionSuccessApplied(
             executionTime = command.executionTime
+        )
+    }
+
+    @OnCommand
+    fun onApplyRetrySpec(applyRetrySpec: ApplyRetrySpec): RetrySpecApplied {
+        return RetrySpecApplied(
+            maxRetries = applyRetrySpec.maxRetries,
+            minBackoff = applyRetrySpec.minBackoff,
+            executionTimeout = applyRetrySpec.executionTimeout
         )
     }
 }

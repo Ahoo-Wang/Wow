@@ -11,20 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.api
 
-import me.ahoo.wow.compensation.domain.DefaultNextRetryAtCalculator
-import me.ahoo.wow.compensation.domain.NextRetryAtCalculator
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
+import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
+import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 
-@Configuration
-@EnableConfigurationProperties(CompensationProperties::class)
-class CompensationConfiguration {
+@CommandRoute(appendIdPath = AppendPath.ALWAYS)
+data class ApplyRetrySpec(
+    @PathVariable
+    override val id: String,
+    override val maxRetries: Int,
+    override val minBackoff: Int,
+    override val executionTimeout: Int
+) : Identifier, IRetrySpec
 
-    @Bean
-    fun nextRetryAtCalculator(): NextRetryAtCalculator {
-        return DefaultNextRetryAtCalculator
-    }
-}
+data class RetrySpecApplied(
+    override val maxRetries: Int,
+    override val minBackoff: Int,
+    override val executionTimeout: Int
+) : IRetrySpec

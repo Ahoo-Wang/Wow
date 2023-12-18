@@ -23,7 +23,8 @@ data class CreateExecutionFailed(
     override val processor: ProcessorInfoData,
     override val functionKind: FunctionKind,
     override val error: ErrorDetails,
-    override val executionTime: Long
+    override val executionTime: Long,
+    val retrySpec: RetrySpec? = null
 ) : ExecutionFailedInfo
 
 data class ExecutionFailedCreated(
@@ -33,4 +34,5 @@ data class ExecutionFailedCreated(
     override val error: ErrorDetails,
     override val executionTime: Long,
     override val retryState: RetryState,
+    val retrySpec: RetrySpec
 ) : ExecutionFailedInfo, IRetryState
