@@ -1,8 +1,8 @@
 [versions]
 # libraries
-springBoot = "3.2.0"
-cosid = "2.6.2"
-simba = "2.2.2"
+springBoot = "3.1.6"
+cosid = "2.5.6"
+simba = "2.1.0"
 testcontainers = "1.19.3"
 opentelemetry = "1.33.0"
 opentelemetryInstrumentation = "1.32.0"
