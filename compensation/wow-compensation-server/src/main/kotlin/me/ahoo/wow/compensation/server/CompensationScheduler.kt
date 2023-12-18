@@ -21,29 +21,28 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.domain.ToRetryQuery
 import org.slf4j.LoggerFactory
+import org.springframework.context.SmartLifecycle
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 
-/**
- * TODO Timer scheduling
- */
 @Service
 class CompensationScheduler(
     private val toRetryQuery: ToRetryQuery,
     private val commandGateway: CommandGateway,
-    compensationProperties: CompensationProperties,
+    private val compensationProperties: CompensationProperties,
     contendServiceFactory: MutexContendServiceFactory
 ) :
     AbstractScheduler(
         mutex = compensationProperties.mutex,
         contendServiceFactory = contendServiceFactory
-    ) {
+    ),
+    SmartLifecycle {
     companion object {
         private val log = LoggerFactory.getLogger(CompensationScheduler::class.java)
+        const val WORKER_NAME = "CompensationScheduler"
     }
 
-
-    fun retry(limit: Int = 10): Mono<Long> {
+    fun retry(limit: Int = 100): Mono<Long> {
         return toRetryQuery.findToRetry(limit)
             .flatMap {
                 if (log.isDebugEnabled) {
@@ -62,12 +61,23 @@ class CompensationScheduler(
             .count()
     }
 
-    override val config: ScheduleConfig
-        get() = TODO("Not yet implemented")
+    override val config: ScheduleConfig =
+        ScheduleConfig.delay(compensationProperties.schedule.initialDelay, compensationProperties.schedule.period)
     override val worker: String
-        get() = "CompensationScheduler"
+        get() = WORKER_NAME
 
     override fun work() {
-        TODO("Not yet implemented")
+        if (log.isInfoEnabled) {
+            log.info("Start retry - batchSize:[{}].", compensationProperties.batchSize)
+        }
+        val count = retry(compensationProperties.batchSize)
+            .block()
+        if (log.isInfoEnabled) {
+            log.info("Complete retry - batchSize:[{}] - count:[{}].", compensationProperties.batchSize, count)
+        }
+    }
+
+    override fun isRunning(): Boolean {
+        return super.running
     }
 }
