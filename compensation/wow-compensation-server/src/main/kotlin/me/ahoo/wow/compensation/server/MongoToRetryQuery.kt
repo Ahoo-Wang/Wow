@@ -42,7 +42,7 @@ class MongoToRetryQuery(mongoClient: MongoClient) : ToRetryQuery {
         val pipelineShell = """
             {
               ${'$'}and: [{
-                  "state.retryState.isRetryable": true
+                  "state.isRetryable": true
                 },
                 {
                   "state.status": {
