@@ -311,6 +311,12 @@ class CartSagaTest {
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
+### Event Compensation
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
+</p>
+
 ### Saga - OrderProcessManager (Demo)
 
 <p align="center" style="text-align:center">

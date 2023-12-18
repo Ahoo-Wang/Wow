@@ -2,6 +2,7 @@
 # libraries
 springBoot = "3.1.6"
 cosid = "2.5.6"
+simba = "2.1.0"
 testcontainers = "1.19.3"
 opentelemetry = "1.33.0"
 opentelemetryInstrumentation = "1.32.0"
@@ -11,9 +12,9 @@ hamcrest = "2.2"
 mockk = "1.13.8"
 kotlinCompileTesting = "0.4.0"
 swagger = "2.2.19"
-springDoc = "2.2.0"
+springDoc = "2.3.0"
 # plugins
-testRetry= "1.5.8"
+testRetry = "1.5.8"
 detekt = "1.23.4"
 dokka = "1.9.10"
 kotlin = "1.9.21"
@@ -23,6 +24,7 @@ ksp = "1.9.21-1.0.16"
 [libraries]
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
+simbaBom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
 opentelemetryBom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetryInstrumentationBom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetryInstrumentation" }
 opentelemetrySemconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetrySemconv" }
