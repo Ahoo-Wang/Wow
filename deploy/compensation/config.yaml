@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wow-compensation-server-config
+data:
+  application.yaml: >-
+    management:
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      endpoints:
+        web:
+          exposure:
+            include:
+              - health
+              - cosid
+              - cosidGenerator
+              - cosidStringGenerator
+    springdoc:
+      show-actuator: true
+    logging:
+      level:
+        me.ahoo.wow: debug
+    spring:
+      application:
+        name: compensation-service
+      data:
+        mongodb:
+          uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+        redis:
+          cluster:
+            max-redirects: 3
+            nodes:
+                - redis-test-redis-cluster-0.redis-test-redis-cluster-headless.test.svc.cluster.local:6379
+          password: VPI7MsrrF7beIg
+    cosid:
+      machine:
+        enabled: true
+        distributor:
+          type: redis
+      generator:
+        enabled: true
+    wow:
+      kafka:
+        bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
