@@ -75,12 +75,12 @@ spec:
             - mountPath: /etc/localtime
               name: volume-localtime
             - mountPath: /opt/wow-compensation-server/config/
-              name: wow-compensation-server-config
+              name: compensation-service-config
       volumes:
         - hostPath:
             path: /etc/localtime
             type: ""
           name: volume-localtime
-        - name: wow-compensation-server-config
+        - name: compensation-service-config
           configMap:
-            name: wow-compensation-server-config
+            name: compensation-service-config
