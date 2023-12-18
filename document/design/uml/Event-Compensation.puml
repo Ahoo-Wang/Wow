@@ -2,32 +2,45 @@
 !include layout.puml
 title
 EventCompensation
-(CompensationScheduler)
 end title
 hide footbox
 
-actor ExternalService
-participant ExecutionFailed
+box Subscriber Service
+participant EventProcessor
+participant CompensationFilter
+end box
+
+box Compensation Server
+participant "ExecutionFailed \n AggregateRoot" as ExecutionFailed
 participant CompensationScheduler
+end box
+
+box Publisher Service
+participant CompensationSaga
 participant EventCompensator
+end box
+
 autonumber "[0]"
 
-ExternalService++
+EventProcessor++
 CompensationScheduler++
 
-ExternalService -> ExecutionFailed --++ : CreateFailed \n(执行失败)
+EventProcessor -> CompensationFilter --++ : Invoke \n(Failed)
+CompensationFilter -> ExecutionFailed --++ : CreateFailed
 ExecutionFailed --
-CompensationScheduler -> CompensationScheduler ++ : 定时重试失败的执行
+CompensationScheduler -> CompensationScheduler ++ : FindToRetry \n (查询待重试的失败)
 CompensationScheduler -> ExecutionFailed  --: Prepare \n(准备重试)
-ExecutionFailed --> EventCompensator --++ : Prepared \n(已准备就绪)
-EventCompensator -> EventCompensator ++-- : 发起补偿
-EventCompensator --> ExternalService++-- : 接收补偿事件
-ExternalService-> ExternalService ++-- : Invoke \n(执行补偿)
+ExecutionFailed --> CompensationSaga --++ : Prepared \n(已准备就绪)
+CompensationSaga -> EventCompensator ++-- : Compensate \n(补偿)
+EventCompensator --> EventProcessor++-- : DomainEvent / StateEvent
+EventProcessor-> EventProcessor ++-- : Invoke \n(执行补偿)
 alt success：成功
-ExternalService -> ExecutionFailed++ : ApplySuccess \n(执行成功)
+EventProcessor -> CompensationFilter ++ : Invoke \n(Success)
+CompensationFilter -> ExecutionFailed++-- : ApplySuccess \n(执行成功)
 ExecutionFailed--
 else fail：失败
-ExternalService -> ExecutionFailed++ : ApplyFailed \n(执行失败)
+EventProcessor -> CompensationFilter ++-- : Invoke \n(Failed)
+CompensationFilter -> ExecutionFailed++-- : ApplyFailed \n(执行失败)
 end
 @enduml
 
