@@ -41,16 +41,12 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "openapi-support", version.toString())
     }
-    registerFeature("compensationSupport") {
-        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "compensation-support", version.toString())
-    }
-
 }
 dependencies {
     kapt(platform(project(":wow-dependencies")))
     api(project(":wow-core"))
     api(project(":wow-spring"))
+    implementation(project(":wow-compensation-core"))
     "mongoSupportImplementation"(project(":wow-mongo"))
     "redisSupportImplementation"(project(":wow-redis"))
     "r2dbcSupportImplementation"(project(":wow-r2dbc"))
@@ -60,7 +56,6 @@ dependencies {
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
     "openapiSupportImplementation"(project(":wow-openapi"))
-    "compensationSupportImplementation"(project(":wow-compensation-core"))
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     kapt("org.springframework.boot:spring-boot-configuration-processor")

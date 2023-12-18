@@ -59,7 +59,6 @@ dependencies {
     kapt(platform(project(":wow-dependencies")))
     ksp(project(":wow-compiler"))
     implementation("io.netty:netty-all")
-    implementation(project(":wow-compensation-core"))
     implementation(project(":wow-compensation-domain"))
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-webflux"))
