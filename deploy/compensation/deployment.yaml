@@ -5,7 +5,7 @@ metadata:
   labels:
     app: compensation-service
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     rollingUpdate:
       maxSurge: 25%
