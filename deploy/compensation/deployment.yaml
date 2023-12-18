@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compensation-service
+  labels:
+    app: compensation-service
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: compensation-service
+  template:
+    metadata:
+      labels:
+        app: compensation-service
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      containers:
+        - name: compensation-service
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.2
+          env:
+            - name: LANG
+              value: C.utf8
+            - name: TZ
+              value: Asia/Shanghai
+            - name: JAVA_OPTS
+              value: -Xms1792M  -Xmx1792M
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          startupProbe:
+            failureThreshold: 15
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2560Mi
+            requests:
+              cpu: '2'
+              memory: 1792Mi
+          volumeMounts:
+            - mountPath: /etc/localtime
+              name: volume-localtime
+            - mountPath: /opt/wow-compensation-server/config/
+              name: wow-compensation-server-config
+      volumes:
+        - hostPath:
+            path: /etc/localtime
+            type: ""
+          name: volume-localtime
+        - name: wow-compensation-server-config
+          configMap:
+            name: wow-compensation-server-config
