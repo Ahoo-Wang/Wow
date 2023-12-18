@@ -1,7 +1,7 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: wow-compensation-hpa
+  name: compensation-service-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

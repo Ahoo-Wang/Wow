@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: wow-compensation-server-config
+  name: compensation-service-config
 data:
   application.yaml: >-
     management:
