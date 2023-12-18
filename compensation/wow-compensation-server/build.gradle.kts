@@ -32,7 +32,7 @@ tasks.jar.configure {
     }
 }
 application {
-    mainClass.set("me.ahoo.wow.compensation.server.CompensationServer")
+    mainClass.set("me.ahoo.wow.compensation.server.CompensationServerKt")
     applicationDefaultJvmArgs = listOf(
         "-Xms1792M",
         "-Xmx1792M",

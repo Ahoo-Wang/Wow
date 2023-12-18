@@ -54,13 +54,13 @@
 - [详细报告(PDF)-SENT](./document/example/perf/Example.Cart.Add@SENT.pdf)
 - [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Cart.Add@PROCESSED.pdf)
 
-> 命令等待策略（`WaitStrategy`）为`SENT`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 59625，峰值为 82312，平均响应时间为 29 毫秒。
+> 命令等待策略（`WaitStrategy`）为`SENT`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *59625*，峰值为 *82312*，平均响应时间为 *29* 毫秒。
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Cart.Add@SENT.png" alt="AddCartItem-SENT"/>
 </p>
 
-> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 18696，峰值为 24141，平均响应时间为 239 毫秒。
+> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18696*，峰值为 *24141*，平均响应时间为 *239* 毫秒。
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Cart.Add@PROCESSED.png" alt="AddCartItem-PROCESSED"/>
@@ -72,13 +72,13 @@
 - [详细报告(PDF)-SENT](./document/example/perf/Example.Order.Create@SENT.pdf)
 - [详细报告(PDF)-PROCESSED](./document/example/perf/Example.Order.Create@PROCESSED.pdf)
 
-> 命令等待策略（`WaitStrategy`）为`SENT`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 47838，峰值为 86200，平均响应时间为 217 毫秒。
+> 命令等待策略（`WaitStrategy`）为`SENT`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *47838*，峰值为 *86200*，平均响应时间为 *217* 毫秒。
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
 </p>
 
-> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 180230，峰值为 25506，平均响应时间为 268 毫秒。
+> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *180230*，峰值为 *25506*，平均响应时间为 *268* 毫秒。
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Order.Create@PROCESSED.png" alt="CreateOrder-PROCESSED"/>
