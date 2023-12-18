@@ -17,6 +17,7 @@ import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
+import me.ahoo.wow.compensation.api.ApplyRetrySpec
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ErrorDetails
@@ -26,6 +27,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.PrepareCompensation
+import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -207,6 +209,39 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
                 assertThat(it.retryState.retries, equalTo(1))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onApplyRetrySpec() {
+        val applyRetrySpec = ApplyRetrySpec(
+            id = GlobalIdGenerator.generateAsString(),
+            maxRetries = 20,
+            minBackoff = 180,
+            executionTimeout = 100
+        )
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = error,
+            executionTime = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculator)
+            .given(executionFailedCreated)
+            .`when`(applyRetrySpec)
+            .expectNoError()
+            .expectEventType(RetrySpecApplied::class.java)
+            .expectState {
+                assertThat(it.id, equalTo(applyRetrySpec.id))
+                assertThat(it.retrySpec.maxRetries, equalTo(applyRetrySpec.maxRetries))
+                assertThat(it.retrySpec.minBackoff, equalTo(applyRetrySpec.minBackoff))
+                assertThat(it.retrySpec.executionTimeout, equalTo(applyRetrySpec.executionTimeout))
             }
             .verify()
     }

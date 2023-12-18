@@ -35,9 +35,6 @@ class DefaultNextRetryAtCalculatorTest {
     @Test
     fun nextRetryState() {
         val retryState = DefaultNextRetryAtCalculator.nextRetryState(testRetrySpec, 1, 0)
-        assertThat(retryState.spec.maxRetries, equalTo(testRetrySpec.maxRetries))
-        assertThat(retryState.spec.minBackoff, equalTo(testRetrySpec.minBackoff))
-        assertThat(retryState.spec.executionTimeout, equalTo(testRetrySpec.executionTimeout))
         assertThat(retryState.retries, equalTo(1))
         assertThat(retryState.retryAt, equalTo(0))
         assertThat(
