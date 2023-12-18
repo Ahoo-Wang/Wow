@@ -93,6 +93,7 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectState {
+                assertThat(it.id, equalTo(prepareCompensation.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.shouldToRetry(), equalTo(false))
@@ -137,6 +138,7 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionFailedApplied::class.java)
             .expectState {
+                assertThat(it.id, equalTo(applyExecutionFailed.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(true))
@@ -182,6 +184,7 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionSuccessApplied::class.java)
             .expectState {
+                assertThat(it.id, equalTo(applyExecutionSuccess.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(false))
