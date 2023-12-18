@@ -14,6 +14,7 @@
 dependencies {
     api(platform(libs.springBootDependencies))
     api(platform(libs.cosidBom))
+    api(platform(libs.simbaBom))
     api(platform(libs.opentelemetryBom))
     api(platform(libs.opentelemetryInstrumentationBom))
     api(platform(libs.testcontainersBom))

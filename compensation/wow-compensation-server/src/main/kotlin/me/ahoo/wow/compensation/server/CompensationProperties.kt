@@ -23,4 +23,5 @@ data class CompensationProperties(
     override val maxRetries: Int = DefaultCompensationSpec.maxRetries,
     override val minBackoff: Duration = DefaultCompensationSpec.minBackoff,
     override val executionTimeout: Duration = DefaultCompensationSpec.executionTimeout,
+    val mutex: String = "compensation_mutex",
 ) : CompensationSpec

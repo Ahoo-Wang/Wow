@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.compensation.server
 
+import me.ahoo.simba.core.MutexContendServiceFactory
+import me.ahoo.simba.schedule.AbstractScheduler
+import me.ahoo.simba.schedule.ScheduleConfig
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
@@ -25,10 +28,20 @@ import reactor.core.publisher.Mono
  * TODO Timer scheduling
  */
 @Service
-class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val commandGateway: CommandGateway) {
+class CompensationScheduler(
+    private val toRetryQuery: ToRetryQuery,
+    private val commandGateway: CommandGateway,
+    compensationProperties: CompensationProperties,
+    contendServiceFactory: MutexContendServiceFactory
+) :
+    AbstractScheduler(
+        mutex = compensationProperties.mutex,
+        contendServiceFactory = contendServiceFactory
+    ) {
     companion object {
         private val log = LoggerFactory.getLogger(CompensationScheduler::class.java)
     }
+
 
     fun retry(limit: Int = 10): Mono<Long> {
         return toRetryQuery.findToRetry(limit)
@@ -47,5 +60,14 @@ class CompensationScheduler(private val toRetryQuery: ToRetryQuery, private val 
                 commandGateway.send(commandMessage).thenReturn(commandMessage)
             }
             .count()
+    }
+
+    override val config: ScheduleConfig
+        get() = TODO("Not yet implemented")
+    override val worker: String
+        get() = "CompensationScheduler"
+
+    override fun work() {
+        TODO("Not yet implemented")
     }
 }
