@@ -27,19 +27,19 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @RestController
-@RequestMapping("/compensation")
-class CompensationController(
+@RequestMapping("/retry")
+class RetryController(
     private val retryQuery: RetryQuery,
     private val compensationScheduler: CompensationScheduler
 ) : QueryApi {
 
-    @PutMapping("retry/{limit}")
+    @PutMapping("{limit}")
     fun retry(@PathVariable limit: Int): Mono<Long> {
         return compensationScheduler.retry(limit)
     }
 
     @PostMapping("all")
-    override fun findAll(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findAll(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         return retryQuery.findAll(pagedQuery)
     }
 
