@@ -49,6 +49,11 @@ class MongoToRetryQuery(mongoClient: MongoClient) : ToRetryQuery {
                     ${'$'}ne: "${ExecutionFailedStatus.SUCCEEDED}"
                   }
                 },
+                 {
+                   "state.retryState.nextRetryAt": {
+                      ${'$'}lte: $currentTime
+                  }
+                },
                 {
                   ${'$'}or: [{
                       "state.status": "${ExecutionFailedStatus.FAILED}"
@@ -58,10 +63,6 @@ class MongoToRetryQuery(mongoClient: MongoClient) : ToRetryQuery {
                         "state.status": "${ExecutionFailedStatus.PREPARED}"
                       }, {
                         "state.retryState.timoutAt": {
-                          ${'$'}lte: $currentTime
-                        }
-                      }, {
-                        "state.retryState.nextRetryAt": {
                           ${'$'}lte: $currentTime
                         }
                       }]
