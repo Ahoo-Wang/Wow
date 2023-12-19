@@ -1,0 +1,82 @@
+<nz-table #retryTable [nzData]="data" nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }">
+  <thead>
+  <tr>
+    <th rowspan="2" nzLeft>Id</th>
+    <th colspan="5">EventId</th>
+    <th colspan="3">Processor</th>
+    <th rowspan="2">Error</th>
+    <th rowspan="2">MaxRetries</th>
+    <th colspan="3">RetryState</th>
+    <th rowspan="2">Status</th>
+    <th rowspan="2" nzRight>Operation</th>
+  </tr>
+  <tr>
+    <th>Context</th>
+    <th>Aggregate</th>
+    <th>AggregateId</th>
+    <th>Id</th>
+    <th>Version</th>
+    <th>Context</th>
+    <th>Name</th>
+    <th>ExecutionTime</th>
+    <th>Retries</th>
+    <th>RetryAt</th>
+    <th>NextRetryAt</th>
+  </tr>
+  <tbody>
+  <tr *ngFor="let item of retryTable.data">
+    <td nzLeft>{{ item.id }}</td>
+    <td>{{ item.eventId.aggregateId.contextName }}</td>
+    <td>{{ item.eventId.aggregateId.aggregateName }}</td>
+    <td>{{ item.eventId.aggregateId.aggregateId }}</td>
+    <td>{{ item.eventId.id }}</td>
+    <td>{{ item.eventId.version }}</td>
+    <td>{{ item.processor.contextName }}</td>
+    <td>{{ item.processor.processorName }}</td>
+    <td>{{ item.executionTime|date:'yyyy-MM-dd HH:mm:ss' }}</td>
+    <td>{{ item.error.errorCode }}</td>
+    <td>{{ item.retrySpec.maxRetries }}</td>
+    <td>{{ item.retryState.retries }}</td>
+    <td>{{ item.retryState.retryAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
+    <td>{{ item.retryState.nextRetryAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
+    <td>{{ item.status }}</td>
+    <td nzRight>
+      <nz-button-group>
+        <button
+          nz-popconfirm
+          [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
+          nzPopconfirmPlacement="top"
+          nzType="dashed"
+          nz-button
+          (nzOnConfirm)="prepare(item.id)"
+          nzDanger
+        >
+          Prepare
+        </button>
+      </nz-button-group>
+
+      <nz-button-group>
+        <button
+          nz-button
+          (click)="openStackTrace(item)"
+        >
+          StackTrace
+        </button>
+      </nz-button-group>
+    </td>
+  </tr>
+  </tbody>
+</nz-table>
+
+<nz-drawer
+  [nzClosable]="false"
+  [nzVisible]="stackTraceVisible"
+  nzPlacement="right"
+  nzTitle="StackTrace"
+  (nzOnClose)="closeStackTrace()"
+  nzWidth="1000px"
+>
+  <ng-container *nzDrawerContent>
+    <span nz-typography><code>{{ current?.error?.stackTrace }}</code></span>
+  </ng-container>
+</nz-drawer>

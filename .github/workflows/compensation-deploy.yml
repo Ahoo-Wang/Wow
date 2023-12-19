@@ -39,6 +39,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Set up NodeJs 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Dashboard-UI
+        working-directory: compensation/wow-compensation-dashboard
+        run: npm install && npm install -g @angular/cli && ng build
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
