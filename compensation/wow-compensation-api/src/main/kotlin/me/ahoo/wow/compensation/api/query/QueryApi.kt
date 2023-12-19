@@ -11,14 +11,6 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.domain
+package me.ahoo.wow.compensation.api.query
 
-import me.ahoo.wow.compensation.api.IExecutionFailedState
-import reactor.core.publisher.Flux
-
-interface ToRetryQuery {
-    /**
-     * @see IExecutionFailedState.shouldToRetry
-     */
-    fun findToRetry(limit: Int = 10): Flux<out IExecutionFailedState>
-}
+interface QueryApi : RetryQuery

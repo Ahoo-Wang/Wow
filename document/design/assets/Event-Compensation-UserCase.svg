@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="us-ascii" standalone="no"?><!--
+<?xml version="1.0" encoding="us-ascii" standalone="no"?>
+<!--
   - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
   - Licensed under the Apache License, Version 2.0 (the "License");
   - you may not use this file except in compliance with the License.
@@ -87,8 +88,8 @@
                   x="307.5559" y="847.0647">FindCompletedFailures
             </text>
             <line style="stroke:#181818;stroke-width:1.0;" x1="271.1931" x2="506.9187" y1="850.0178" y2="850.0178"/>
-            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="47"
-                  x="363.5559" y="867.553">FAILED
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="86"
+                  x="344.0559" y="867.553">!SUCCEEDED
             </text>
             <line style="stroke:#181818;stroke-width:1.0;" x1="262.9445" x2="515.1672" y1="874.5061" y2="874.5061"/>
             <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167"
@@ -270,6 +271,6 @@
                   text-decoration="underline" textLength="183" x="289.055" y="1176.9336">
                 https://github.com/Ahoo-Wang/Wow
             </text>
-        </a><!--SRC=[fLFBRi8m4BpxAmm7H0_f5m0I2a6jL5KKw0SOPmjM7IUoruYezD_hl21EA8SsbsHtPxqppkn0A2vj35IoFBNucDb44XGeWKH7K4Z3DCb06OOYLIvGg5D9GCMq0X497qWnfLhi3qXZeO4NK48OnrJJZTqPhiKET9FW1uYjlCGBE89CCnUJZF5FjWVwPa7dNuIwnnhWp01T2XM_mWdNW3gdpD2XbocnGL2-j4i8C9E4dTRLPxiw6j71vZqCesWHBOf8DMVCSJ8DhTPEz5Oaq6aQB-VFBwxZVARZrJfQpTTLEpgekxTEyyD3sJViQTYcle8w_YF_VtBiqoj-jWI4UCc4j1hCXMYlqfvTpUsmgNNCfbSX_O4RopcOwvWwRXzrKUjtBm0T4o_r98npL4w-hrPoj1EcOjzCeGQ649s0syAgXIA8FSHAGyOqjBtlrUTP9lDx1vI0yjTkCk1tUXl1ZlDrLPpqsIyiEw2RHEvYce7aieWbo5ydltRhDaZRpPCWQEtn3NW7uTzEftZRXtrCOns_KjcYawoDuMT_0000]-->
+        </a><!--SRC=[fLD1Ri8m4Bpx5OO3WWDz0I158QYLgeeI-W3ZRC6guqJs6X6L_hrE810dmA7D9TdTsVMCCziJYakR09Mio2m-vJQL10LA8D4U5D8mItDGXg78b0iKwamIK0azWOY4JwIOKIssEwI9qC1BA26COwPfR3U6Qx41NIVu3X8hB_4SzY2ptCKaP_oBRO6-Mz35Dw7kiGOuCq0NGYLlSC0Le2ueCxJlPIhiU5ozj4i8C9EK7LQdpsPrCA2z-2CCesWUpSj8rJC2d4n3gxKJlHOfj9g6Y-3brNKSZtIuN4NBO7LgHmTrzzPg7esgldv7mphp5PpZF_B_9ySklV9dIq185an8gy5SY7OgpRFlCZfhcKslOhg7nfPpCDUZpd5pr6M-tpq7T6oyrBCmpbK5-RdQoL5FcKfyGuKQ649q06vBkvQg8F4GImqvqz3qlrSFybmMZmPKWEhtnZdm1xsrOCVvkYvE-kmEonRe9f67cFf0Sbd62kIlb5-xTHkawUZ9UDpOvHlm5iA_dLRnjXUxcDewVkLaYrRoR0m_-mi0]-->
     </g>
 </svg>

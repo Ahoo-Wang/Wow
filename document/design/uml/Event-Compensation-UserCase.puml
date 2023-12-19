@@ -28,7 +28,7 @@ package Query{
     && (FAILED || (PREPARED && timeoutAt<=CurrentTime))"
     usecase FindCompletedFailures as "FindCompletedFailures
     --
-    FAILED
+    !SUCCEEDED
     --
     && retries>=maxRetries"
     usecase FindSuccess as "FindSuccess

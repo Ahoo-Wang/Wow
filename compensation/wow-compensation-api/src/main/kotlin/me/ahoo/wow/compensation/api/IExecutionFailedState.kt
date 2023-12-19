@@ -142,7 +142,7 @@ interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
         }
     }
 
-    fun shouldToRetry(): Boolean {
+    fun nextRetry(): Boolean {
         if (!canRetry()) {
             return false
         }
