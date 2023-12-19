@@ -1,0 +1,21 @@
+.logo {
+  position: relative;
+  height: 64px;
+  overflow: hidden;
+  line-height: 64px;
+  background: #001529;
+  transition: all .3s;
+}
+
+.logo img {
+  display: inline-block;
+  height: 48px;
+  width: 48px;
+  vertical-align: middle;
+}
+
+.inner-content {
+  padding: 18px;
+  background: #fff;
+  min-height: 500px;
+}
