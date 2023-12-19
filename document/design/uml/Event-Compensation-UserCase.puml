@@ -1,0 +1,65 @@
+@startuml EventCompensation
+!include layout.puml
+title
+Event Compensation Control
+end title
+
+left to right direction
+
+actor Subscriber
+actor Scheduler
+actor Developer
+
+package Query{
+    usecase FindNextRetry as "FindNextRetry
+    --
+    retries<maxRetries
+    --
+    && !SUCCEEDED && nextRetryAt<=CurrentTime
+    --
+    && (FAILED || (PREPARED && timeoutAt<=CurrentTime))
+    "
+    usecase FindToRetry as "FindToRetry
+    --
+    retries<maxRetries
+    --
+    && !SUCCEEDED
+    --
+    && (FAILED || (PREPARED && timeoutAt<=CurrentTime))"
+    usecase FindCompletedFailures as "FindCompletedFailures
+    --
+    FAILED
+    --
+    && retries>=maxRetries"
+    usecase FindSuccess as "FindSuccess
+    --
+    SUCCEEDED"
+    usecase Detail
+    usecase History
+}
+
+package Command{
+    usecase CreateExecutionFailed
+    usecase PrepareCompensation
+    usecase ApplyExecutionFailed
+    usecase ApplyRetrySpec
+    usecase ApplyExecutionSuccess
+}
+
+Subscriber --> CreateExecutionFailed
+Subscriber --> ApplyExecutionFailed
+Subscriber --> ApplyExecutionSuccess
+
+Scheduler --> FindNextRetry
+Scheduler --> PrepareCompensation
+
+FindToRetry <-- Developer
+PrepareCompensation <-- Developer
+ApplyRetrySpec <-- Developer
+FindCompletedFailures <-- Developer
+FindSuccess <-- Developer
+Detail <-- Developer
+History <-- Developer
+@enduml
+
+

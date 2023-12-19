@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="us-ascii" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="1187px" preserveAspectRatio="none" style="width:775px;height:1187px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 775 1187" width="775px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="578.11" y="9.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="207" x="277.055" y="36.3125">Event Compensation Control
+        </text><!--cluster Query-->
+        <g id="cluster_Query">
+            <path d="M125.5,478.2656 L169.5,478.2656 A3.75,3.75 0 0 1 172,480.7656 L179,500.7539 L652.61,500.7539 A2.5,2.5 0 0 1 655.11,503.2539 L655.11,1158.7656 A2.5,2.5 0 0 1 652.61,1161.2656 L125.5,1161.2656 A2.5,2.5 0 0 1 123,1158.7656 L123,480.7656 A2.5,2.5 0 0 1 125.5,478.2656 "
+                  fill="none" style="stroke:#000000;stroke-width:1.5;"/>
+            <line style="stroke:#000000;stroke-width:1.5;" x1="123" x2="179" y1="500.7539" y2="500.7539"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+                  textLength="43" x="127" y="493.8008">Query
+            </text>
+        </g><!--cluster Command-->
+        <g id="cluster_Command">
+            <path d="M277.19,56.2656 L351.19,56.2656 A3.75,3.75 0 0 1 353.69,58.7656 L360.69,78.7539 L500.92,78.7539 A2.5,2.5 0 0 1 503.42,81.2539 L503.42,451.7656 A2.5,2.5 0 0 1 500.92,454.2656 L277.19,454.2656 A2.5,2.5 0 0 1 274.69,451.7656 L274.69,58.7656 A2.5,2.5 0 0 1 277.19,56.2656 "
+                  fill="none" style="stroke:#000000;stroke-width:1.5;"/>
+            <line style="stroke:#000000;stroke-width:1.5;" x1="274.69" x2="360.69" y1="78.7539" y2="78.7539"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+                  textLength="73" x="278.69" y="71.8008">Command
+            </text>
+        </g>
+        <g id="elem_FindNextRetry">
+            <ellipse cx="389.0557" cy="572.2654" fill="#F1F1F1" rx="250.0557" ry="59.1198"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="97"
+                  x="328.265" y="530.8593">FindNextRetry
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="200.1206" x2="577.9908" y1="533.8125" y2="533.8125"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="132"
+                  x="310.765" y="551.3476">retries&lt;maxRetries
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="147.076" x2="631.0353" y1="558.3007" y2="558.3007"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="328"
+                  x="212.765" y="575.8359">&amp;&amp; !SUCCEEDED &amp;&amp; nextRetryAt&lt;=CurrentTime
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="143.9935" x2="634.1178" y1="582.789" y2="582.789"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="384"
+                  x="184.765" y="600.3242">&amp;&amp; (FAILED || (PREPARED &amp;&amp; timeoutAt&lt;=CurrentTime))
+            </text>
+        </g>
+        <g id="elem_FindToRetry">
+            <ellipse cx="389.0626" cy="725.2616" fill="#F1F1F1" rx="249.4226" ry="58.976"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="83"
+                  x="335.3356" y="683.6205">FindToRetry
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="201.807" x2="576.3182" y1="686.5737" y2="686.5737"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="132"
+                  x="310.8356" y="704.1088">retries&lt;maxRetries
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="147.9775" x2="630.1478" y1="711.062" y2="711.062"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="110"
+                  x="321.8356" y="728.5971">&amp;&amp; !SUCCEEDED
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="144.4648" x2="633.6604" y1="735.5502" y2="735.5502"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="384"
+                  x="184.8356" y="753.0854">&amp;&amp; (FAILED || (PREPARED &amp;&amp; timeoutAt&lt;=CurrentTime))
+            </text>
+        </g>
+        <g id="elem_FindCompletedFailures">
+            <ellipse cx="389.0559" cy="868.262" fill="#F1F1F1" rx="128.1659" ry="48.7763"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="159"
+                  x="307.5559" y="847.0647">FindCompletedFailures
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="271.1931" x2="506.9187" y1="850.0178" y2="850.0178"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="47"
+                  x="363.5559" y="867.553">FAILED
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="262.9445" x2="515.1672" y1="874.5061" y2="874.5061"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167"
+                  x="303.5559" y="892.0413">&amp;&amp; retries&gt;=maxRetries
+            </text>
+        </g>
+        <g id="elem_FindSuccess">
+            <ellipse cx="389.0586" cy="984.2643" fill="#F1F1F1" rx="69.9986" ry="31.8987"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="83"
+                  x="347.8086" y="975.3112">FindSuccess
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="321.3094" x2="456.8078" y1="978.2643" y2="978.2643"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="348.3086" y="995.7994">SUCCEEDED
+            </text>
+        </g>
+        <g id="elem_Detail">
+            <ellipse cx="389.0624" cy="1066.2646" fill="#F1F1F1" rx="39.0624" ry="14.659"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="39"
+                  x="369.5624" y="1069.5556">Detail
+            </text>
+        </g>
+        <g id="elem_History">
+            <ellipse cx="389.0572" cy="1130.2703" fill="#F1F1F1" rx="45.4472" ry="14.6647"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="48"
+                  x="364.1168" y="1133.8198">History
+            </text>
+        </g>
+        <g id="elem_CreateExecutionFailed">
+            <ellipse cx="389.0623" cy="269.2701" fill="#F1F1F1" rx="95.6723" ry="21.5345"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="154"
+                  x="312.0623" y="272.5611">CreateExecutionFailed
+            </text>
+        </g>
+        <g id="elem_PrepareCompensation">
+            <ellipse cx="389.0647" cy="417.2706" fill="#F1F1F1" rx="95.2247" ry="21.4449"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="153"
+                  x="312.5647" y="420.5616">PrepareCompensation
+            </text>
+        </g>
+        <g id="elem_ApplyExecutionFailed">
+            <ellipse cx="389.0553" cy="112.2647" fill="#F1F1F1" rx="92.9953" ry="20.9991"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="148"
+                  x="315.0553" y="115.5557">ApplyExecutionFailed
+            </text>
+        </g>
+        <g id="elem_ApplyRetrySpec">
+            <ellipse cx="389.0632" cy="343.2703" fill="#F1F1F1" rx="74.9732" ry="17.3946"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="106"
+                  x="336.0632" y="346.5613">ApplyRetrySpec
+            </text>
+        </g>
+        <g id="elem_ApplyExecutionSuccess">
+            <ellipse cx="389.0585" cy="190.2693" fill="#F1F1F1" rx="98.3685" ry="22.0737"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="160"
+                  x="309.0585" y="193.5603">ApplyExecutionSuccess
+            </text>
+        </g><!--entity Subscriber-->
+        <g id="elem_Subscriber">
+            <ellipse cx="42.5" cy="160.5256" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+            <path d="M42.5,168.5256 L42.5,195.5256 M29.5,176.5256 L55.5,176.5256 M42.5,195.5256 L29.5,210.5256 M42.5,195.5256 L55.5,210.5256 "
+                  fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="6"
+                  y="225.5608">Subscriber
+            </text>
+        </g><!--entity Scheduler-->
+        <g id="elem_Scheduler">
+            <ellipse cx="42.5" cy="464.5256" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+            <path d="M42.5,472.5256 L42.5,499.5256 M29.5,480.5256 L55.5,480.5256 M42.5,499.5256 L29.5,514.5256 M42.5,499.5256 L55.5,514.5256 "
+                  fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="68" x="8.5"
+                  y="529.5608">Scheduler
+            </text>
+        </g><!--entity Developer-->
+        <g id="elem_Developer">
+            <ellipse cx="733.61" cy="838.5256" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+            <path d="M733.61,846.5256 L733.61,873.5256 M720.61,854.5256 L746.61,854.5256 M733.61,873.5256 L720.61,888.5256 M733.61,873.5256 L746.61,888.5256 "
+                  fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="69"
+                  x="699.11" y="903.5608">Developer
+            </text>
+        </g><!--link Subscriber to CreateExecutionFailed-->
+        <g id="link_Subscriber_CreateExecutionFailed">
+            <path d="M79.4,213.7356 C90.44,220.0056 102.87,226.1656 115,230.2656 C173.18,249.9356 235.624,259.149 289.414,263.979 "
+                  fill="none" id="Subscriber-to-CreateExecutionFailed" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="295.39,264.5156,286.7838,259.7267,290.41,264.0685,286.0683,267.6947,295.39,264.5156"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link Subscriber to ApplyExecutionFailed-->
+        <g id="link_Subscriber_ApplyExecutionFailed">
+            <path d="M79.4,166.7656 C90.43,160.4956 102.87,154.3456 115,150.2656 C173.98,130.4456 237.491,121.4572 291.611,116.9172 "
+                  fill="none" id="Subscriber-to-ApplyExecutionFailed" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="297.59,116.4156,288.2871,113.182,292.6075,116.8336,288.9559,121.154,297.59,116.4156"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link Subscriber to ApplyExecutionSuccess-->
+        <g id="link_Subscriber_ApplyExecutionSuccess">
+            <path d="M79.4,190.2656 C128.87,190.2656 213.86,190.2656 284.28,190.2656 " fill="none"
+                  id="Subscriber-to-ApplyExecutionSuccess" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="290.28,190.2656,281.28,186.2656,285.28,190.2656,281.28,194.2656,290.28,190.2656"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link Scheduler to FindNextRetry-->
+        <g id="link_Scheduler_FindNextRetry">
+            <path d="M76.85,501.8156 C108.01,508.8656 151.2681,518.6608 201.3581,530.0008 " fill="none"
+                  id="Scheduler-to-FindNextRetry" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="207.21,531.3256,199.3154,525.4371,202.3334,530.2216,197.5489,533.2397,207.21,531.3256"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link Scheduler to PrepareCompensation-->
+        <g id="link_Scheduler_PrepareCompensation">
+            <path d="M76.85,486.8156 C132.84,474.3056 240.9244,450.1441 314.3144,433.7441 " fill="none"
+                  id="Scheduler-to-PrepareCompensation" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="320.17,432.4356,310.5143,430.4947,315.2904,433.526,312.259,438.3021,320.17,432.4356"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link FindToRetry to Developer-->
+        <g id="link_FindToRetry_Developer">
+            <path d="M581.7025,766.4219 C611.8425,776.4619 636.25,786.9856 663.11,802.2656 C675.98,809.5856 688.31,819.7956 698.9,829.9956 "
+                  fill="none" id="FindToRetry-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="576.01,764.5256,583.2846,771.165,580.7537,766.1058,585.8129,763.575,576.01,764.5256"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link PrepareCompensation to Developer-->
+        <g id="link_PrepareCompensation_Developer">
+            <path d="M489.3865,421.3267 C549.1965,428.5667 617.87,447.2656 663.11,497.2656 C707.08,545.8556 724.77,744.9656 730.4,829.7456 "
+                  fill="none" id="PrepareCompensation-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="483.43,420.6056,491.8841,425.6582,488.3938,421.2065,492.8455,417.7162,483.43,420.6056"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link ApplyRetrySpec to Developer-->
+        <g id="link_ApplyRetrySpec_Developer">
+            <path d="M454.5514,331.5231 C516.6014,323.5731 607.23,323.1356 663.11,378.2656 C726.72,441.0256 732.85,725.2756 732.91,829.6656 "
+                  fill="none" id="ApplyRetrySpec-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="448.6,332.2856,458.0354,335.1094,453.5595,331.6502,457.0187,327.1743,448.6,332.2856"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link FindCompletedFailures to Developer-->
+        <g id="link_FindCompletedFailures_Developer">
+            <path d="M523.61,868.2656 C588.67,868.2656 656.74,868.2656 698.76,868.2656 " fill="none"
+                  id="FindCompletedFailures-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="517.61,868.2656,526.61,872.2656,522.61,868.2656,526.61,864.2656,517.61,868.2656"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link FindSuccess to Developer-->
+        <g id="link_FindSuccess_Developer">
+            <path d="M465.1457,982.0416 C522.5357,978.0716 598.89,966.9156 663.11,934.2656 C676.46,927.4756 689.01,917.3056 699.68,906.9656 "
+                  fill="none" id="FindSuccess-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="459.16,982.4556,468.4146,985.825,464.1481,982.1106,467.8625,977.8441,459.16,982.4556"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link Detail to Developer-->
+        <g id="link_Detail_Developer">
+            <path d="M431.085,1073.1463 C487.335,1080.8163 592.58,1086.4556 663.11,1033.2656 C703.19,1003.0356 720.36,945.2856 727.58,906.7556 "
+                  fill="none" id="Detail-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="425.14,1072.3356,433.5171,1077.5149,430.0942,1073.0112,434.5979,1069.5882,425.14,1072.3356"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--reverse link History to Developer-->
+        <g id="link_History_Developer">
+            <path d="M434.5504,1138.6771 C492.5204,1147.5871 596.5,1154.0256 663.11,1098.2656 C719.72,1050.8656 731.28,959.0656 733.01,906.9156 "
+                  fill="none" id="History-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="428.62,1137.7656,436.9079,1143.0864,433.562,1138.5252,438.1232,1135.1793,428.62,1137.7656"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="289.055" y="1176.9336">
+                https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--SRC=[fLFBRi8m4BpxAmm7H0_f5m0I2a6jL5KKw0SOPmjM7IUoruYezD_hl21EA8SsbsHtPxqppkn0A2vj35IoFBNucDb44XGeWKH7K4Z3DCb06OOYLIvGg5D9GCMq0X497qWnfLhi3qXZeO4NK48OnrJJZTqPhiKET9FW1uYjlCGBE89CCnUJZF5FjWVwPa7dNuIwnnhWp01T2XM_mWdNW3gdpD2XbocnGL2-j4i8C9E4dTRLPxiw6j71vZqCesWHBOf8DMVCSJ8DhTPEz5Oaq6aQB-VFBwxZVARZrJfQpTTLEpgekxTEyyD3sJViQTYcle8w_YF_VtBiqoj-jWI4UCc4j1hCXMYlqfvTpUsmgNNCfbSX_O4RopcOwvWwRXzrKUjtBm0T4o_r98npL4w-hrPoj1EcOjzCeGQ649s0syAgXIA8FSHAGyOqjBtlrUTP9lDx1vI0yjTkCk1tUXl1ZlDrLPpqsIyiEw2RHEvYce7aieWbo5ydltRhDaZRpPCWQEtn3NW7uTzEftZRXtrCOns_KjcYawoDuMT_0000]-->
+    </g>
+</svg>
