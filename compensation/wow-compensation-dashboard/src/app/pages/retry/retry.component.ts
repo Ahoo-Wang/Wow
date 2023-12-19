@@ -1,5 +1,5 @@
 import {Component, OnInit} from '@angular/core';
-import {NzCellFixedDirective, NzTableModule} from "ng-zorro-antd/table";
+import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
 import {ExecutionFailedState} from "../../api/ExecutionFailedState";
 import {DatePipe, NgForOf} from "@angular/common";
 import {CompensationClient} from "../../api/CompensationClient";
@@ -8,6 +8,8 @@ import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
+import {PagedQuery} from "../../api/PagedQuery";
+import {PagedList} from "../../api/PagedList";
 
 @Component({
   selector: 'app-retry',
@@ -28,7 +30,8 @@ import {NzTypographyComponent} from "ng-zorro-antd/typography";
   styleUrls: ['./retry.component.scss']
 })
 export class RetryComponent implements OnInit {
-  data: ExecutionFailedState[] = [];
+  pagedQuery: PagedQuery = {pageIndex: 1, pageSize: 10}
+  pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
   current: ExecutionFailedState | undefined;
   stackTraceVisible = false
 
@@ -36,14 +39,20 @@ export class RetryComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.load();
+
   }
 
   load() {
-    this.compensationClient.scan().subscribe(resp => {
-        this.data = resp;
+    this.compensationClient.findAll(this.pagedQuery).subscribe(resp => {
+        this.pagedList = resp
       }
     )
+  }
+
+  onQueryParamsChange(params: NzTableQueryParams): void {
+    console.log(params);
+    this.pagedQuery = {pageIndex: params.pageIndex, pageSize: params.pageSize}
+    this.load()
   }
 
   prepare(id: string): void {

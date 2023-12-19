@@ -1,4 +1,9 @@
-<nz-table #retryTable [nzData]="data" nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }">
+<nz-table nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }"
+          nzShowSizeChanger [nzFrontPagination]="false"
+          [nzPageIndex]="pagedQuery.pageIndex" [nzPageSize]="pagedQuery.pageSize"
+          [nzData]="pagedList.list" [nzTotal]="pagedList.total"
+          (nzQueryParams)="onQueryParamsChange($event)"
+>
   <thead>
   <tr>
     <th rowspan="2" nzLeft>Id</th>
@@ -24,7 +29,7 @@
     <th>NextRetryAt</th>
   </tr>
   <tbody>
-  <tr *ngFor="let item of retryTable.data">
+  <tr *ngFor="let item of pagedList.list">
     <td nzLeft>{{ item.id }}</td>
     <td>{{ item.eventId.aggregateId.contextName }}</td>
     <td>{{ item.eventId.aggregateId.aggregateName }}</td>
@@ -46,10 +51,8 @@
           nz-popconfirm
           [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
           nzPopconfirmPlacement="top"
-          nzType="dashed"
           nz-button
           (nzOnConfirm)="prepare(item.id)"
-          nzDanger
         >
           Prepare
         </button>

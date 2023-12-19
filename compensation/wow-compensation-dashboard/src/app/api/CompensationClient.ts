@@ -16,22 +16,52 @@ import {HttpClient} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {ExecutionFailedState} from "./ExecutionFailedState";
 import {CommandResult} from "./CommandResult";
+import {ApplyRetrySpec} from "./ApplyRetrySpec";
+import {PagedQuery} from "./PagedQuery";
+import {PagedList} from "./PagedList";
 
 @Injectable({providedIn: 'root'})
 export class CompensationClient {
-  apiPrefix = environment.host + '/execution_failed';
+  aggregateName = 'execution_failed';
+  commandApi = environment.host + `/${this.aggregateName}`;
+  retryApi = environment.host + '/retry';
 
   constructor(private httpClient: HttpClient) {
 
   }
 
-  scan(cursorId: string = "(0)", limit: number = 100): Observable<ExecutionFailedState[]> {
-    const apiUrl = `${this.apiPrefix}/state/${cursorId}/${limit}`;
-    return this.httpClient.get<ExecutionFailedState[]>(apiUrl);
+  prepare(id: string): Observable<CommandResult> {
+    const apiUrl = `${this.commandApi}/${id}/prepare_compensation`;
+    return this.httpClient.put<CommandResult>(apiUrl, {});
   }
 
-  prepare(id: string): Observable<CommandResult> {
-    const apiUrl = `${this.apiPrefix}/${id}/prepare_compensation`;
-    return this.httpClient.put<CommandResult>(apiUrl, {});
+  applyRetrySpec(id: string, appRetrySpec: ApplyRetrySpec): Observable<CommandResult> {
+    const apiUrl = `${this.commandApi}/${id}/apply_retry_spec`;
+    return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec);
+  }
+
+  findAll(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/all`;
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+  }
+
+  findNextRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/next-retry`;
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+  }
+
+  findToRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/to-retry`;
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+  }
+
+  findCompletedFailures(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/completed-failures`;
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+  }
+
+  findSuccess(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/success`;
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
   }
 }

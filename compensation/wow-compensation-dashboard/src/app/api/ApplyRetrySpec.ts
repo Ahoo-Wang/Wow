@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-export interface PagedList<T> {
-  total: number;
-  list: T[];
+export interface ApplyRetrySpec {
+  maxRetries: number
+  minBackoff: number
+  executionTimeout: number
 }

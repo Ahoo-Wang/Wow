@@ -8,7 +8,7 @@ import me.ahoo.wow.compensation.api.query.IPagedQuery.Companion.DEFAULT_PAGE_SIZ
 
 interface IPagedQuery {
     @get:PositiveOrZero
-    @get:Schema(example = "0")
+    @get:Schema(example = "1")
     val pageIndex: Int
 
     @get:Schema(example = "10")
