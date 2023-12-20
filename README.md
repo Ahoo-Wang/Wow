@@ -319,21 +319,21 @@ class CartSagaTest {
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
-### Event Compensation
+## Event Compensation
 
-#### Use Case
+### Use Case
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation-UserCase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
-#### Execution Sequence Diagram
+### Execution Sequence Diagram
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
 </p>
 
-#### Dashboard
+### Dashboard
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/compensation-dashboard.png" alt="Compensation-Dashboard"/>

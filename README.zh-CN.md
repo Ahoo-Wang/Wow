@@ -318,21 +318,21 @@ class CartSagaTest {
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
-### 事件补偿
+## 事件补偿
 
-#### 用例图
+### 用例图
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation-UserCase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
-#### 执行时序图
+### 执行时序图
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
 </p>
 
-#### Dashboard
+### Dashboard
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/compensation-dashboard.png" alt="Compensation-Dashboard"/>
