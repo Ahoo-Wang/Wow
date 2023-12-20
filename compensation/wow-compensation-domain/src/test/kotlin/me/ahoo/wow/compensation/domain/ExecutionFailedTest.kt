@@ -54,7 +54,7 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis()
+            executeAt = System.currentTimeMillis()
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -68,7 +68,7 @@ class ExecutionFailedTest {
                 assertThat(it.processor, equalTo(createExecutionFailed.processor))
                 assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
                 assertThat(it.error, equalTo(createExecutionFailed.error))
-                assertThat(it.executionTime, equalTo(createExecutionFailed.executionTime))
+                assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
                 assertThat(it.retryState.retries, equalTo(0))
                 assertThat(it.isRetryable, equalTo(true))
@@ -87,7 +87,7 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
@@ -122,7 +122,7 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
                 DefaultNextRetryAtCalculatorTest.testRetrySpec,
                 10
@@ -152,7 +152,7 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
                 DefaultNextRetryAtCalculatorTest.testRetrySpec,
                 10
@@ -180,14 +180,14 @@ class ExecutionFailedTest {
         val applyExecutionFailed = ApplyExecutionFailed(
             id = GlobalIdGenerator.generateAsString(),
             error = error,
-            executionTime = System.currentTimeMillis()
+            executeAt = System.currentTimeMillis()
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
@@ -229,14 +229,14 @@ class ExecutionFailedTest {
     fun onSucceed() {
         val applyExecutionSuccess = ApplyExecutionSuccess(
             id = GlobalIdGenerator.generateAsString(),
-            executionTime = System.currentTimeMillis()
+            executeAt = System.currentTimeMillis()
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
@@ -288,7 +288,7 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executionTime = System.currentTimeMillis(),
+            executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
         )
