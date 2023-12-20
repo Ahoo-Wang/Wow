@@ -22,10 +22,10 @@ import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 data class ApplyExecutionFailed(
     @PathVariable override val id: String,
     override val error: ErrorDetails,
-    override val executionTime: Long
+    override val executeAt: Long
 ) : Identifier, ExecutionFailedErrorInfo
 
 data class ExecutionFailedApplied(
     override val error: ErrorDetails,
-    override val executionTime: Long
+    override val executeAt: Long
 ) : ExecutionFailedErrorInfo
