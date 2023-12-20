@@ -24,7 +24,7 @@ import {PagedList} from "./PagedList";
 export class CompensationClient {
   aggregateName = 'execution_failed';
   commandApi = environment.host + `/${this.aggregateName}`;
-  retryApi = environment.host + '/retry';
+  retryApi = environment.host + '/failed';
 
   constructor(private httpClient: HttpClient) {
 
@@ -55,8 +55,8 @@ export class CompensationClient {
     return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
   }
 
-  findCompletedFailures(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/completed-failures`;
+  findNonRetryable(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/non-retryable`;
     return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
   }
 

@@ -122,19 +122,14 @@ data class RetryState(
 }
 
 interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
-    /**
-     * 最大重试次数
-     */
     val retrySpec: RetrySpec
     val status: ExecutionFailedStatus
-    val isRetryable: Boolean
+    val isBelowRetryThreshold: Boolean
         get() = retryState.retries < retrySpec.maxRetries
+    val isRetryable: Boolean
+        get() = status != ExecutionFailedStatus.SUCCEEDED && isBelowRetryThreshold
 
-    fun canRetry(): Boolean {
-        if (!isRetryable) {
-            return false
-        }
-
+    fun canForceRetry(): Boolean {
         return when (status) {
             ExecutionFailedStatus.SUCCEEDED -> false
             ExecutionFailedStatus.FAILED -> true
@@ -142,7 +137,11 @@ interface IExecutionFailedState : Identifier, ExecutionFailedInfo, IRetryState {
         }
     }
 
-    fun nextRetry(): Boolean {
+    fun canRetry(): Boolean {
+        return canForceRetry() && isBelowRetryThreshold
+    }
+
+    fun canNextRetry(): Boolean {
         if (!canRetry()) {
             return false
         }

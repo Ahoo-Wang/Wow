@@ -11,7 +11,23 @@
  * limitations under the License.
  */
 
+export interface Sort {
+  field: string
+  order: SortOrder
+}
+
+export enum SortOrder {
+  ASC = "ASC", DESC = "DESC"
+}
+
 export interface PagedQuery {
+  sort: Sort[]
   pageIndex: number
   pageSize: number
 }
+
+export const initialPagedQuery: PagedQuery = {
+  sort: [{field: "_id", order: SortOrder.DESC}],
+  pageIndex: 1,
+  pageSize: 10
+};

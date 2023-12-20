@@ -1,10 +1,8 @@
 .logo {
-  position: relative;
-  height: 64px;
-  overflow: hidden;
-  line-height: 64px;
-  background: #001529;
-  transition: all .3s;
+  width: 48px;
+  height: 48px;
+  margin: 0 16px;
+  float: left;
 }
 
 .logo img {
@@ -14,8 +12,24 @@
   vertical-align: middle;
 }
 
+[nz-menu] {
+  line-height: 64px;
+}
+
+nz-breadcrumb {
+  margin: 16px 0;
+}
+
+nz-content {
+  padding: 0 50px;
+}
+
+nz-footer {
+  text-align: center;
+}
+
 .inner-content {
-  padding: 18px;
   background: #fff;
-  min-height: 500px;
+  padding: 24px;
+  min-height: 280px;
 }

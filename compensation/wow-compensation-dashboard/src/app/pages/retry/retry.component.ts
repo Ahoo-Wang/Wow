@@ -8,8 +8,12 @@ import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
-import {PagedQuery} from "../../api/PagedQuery";
+import {initialPagedQuery, PagedQuery, SortOrder} from "../../api/PagedQuery";
 import {PagedList} from "../../api/PagedList";
+import {NzTabComponent, NzTabSetComponent} from "ng-zorro-antd/tabs";
+import {NzDescriptionsComponent, NzDescriptionsItemComponent} from "ng-zorro-antd/descriptions";
+import {NzBadgeComponent} from "ng-zorro-antd/badge";
+import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 
 @Component({
   selector: 'app-retry',
@@ -25,13 +29,20 @@ import {PagedList} from "../../api/PagedList";
     DatePipe,
     NzDrawerComponent,
     NzDrawerContentDirective,
-    NzTypographyComponent
+    NzTypographyComponent,
+    NzTabSetComponent,
+    NzTabComponent,
+    NzDescriptionsComponent,
+    NzDescriptionsItemComponent,
+    NzBadgeComponent,
+    NzCountdownComponent
   ],
   styleUrls: ['./retry.component.scss']
 })
 export class RetryComponent implements OnInit {
-  pagedQuery: PagedQuery = {pageIndex: 1, pageSize: 10}
+  pagedQuery: PagedQuery = initialPagedQuery;
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
+
   current: ExecutionFailedState | undefined;
   stackTraceVisible = false
 
@@ -51,7 +62,15 @@ export class RetryComponent implements OnInit {
 
   onQueryParamsChange(params: NzTableQueryParams): void {
     console.log(params);
-    this.pagedQuery = {pageIndex: params.pageIndex, pageSize: params.pageSize}
+    let sort = params.sort
+      .filter(sort => sort.value != null)
+      .map(sort => {
+        return {field: sort.key, order: sort.value === "ascend" ? SortOrder.ASC : SortOrder.DESC}
+      });
+    if (sort.length == 0) {
+      sort = initialPagedQuery.sort
+    }
+    this.pagedQuery = {sort: sort, pageIndex: params.pageIndex, pageSize: params.pageSize}
     this.load()
   }
 

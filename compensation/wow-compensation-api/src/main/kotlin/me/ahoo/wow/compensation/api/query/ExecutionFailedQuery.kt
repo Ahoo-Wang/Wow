@@ -16,10 +16,10 @@ package me.ahoo.wow.compensation.api.query
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import reactor.core.publisher.Mono
 
-interface RetryQuery {
+interface ExecutionFailedQuery {
     fun findAll(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findToRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
-    fun findCompletedFailures(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
+    fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
 }

@@ -26,6 +26,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
+import me.ahoo.wow.compensation.api.ForcePrepareCompensation
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -73,7 +74,7 @@ class ExecutionFailedTest {
                 assertThat(it.isRetryable, equalTo(true))
                 assertThat(it.retryState.timeout(), equalTo(false))
                 assertThat(it.canRetry(), equalTo(true))
-                assertThat(it.nextRetry(), equalTo(false))
+                assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify()
     }
@@ -101,7 +102,7 @@ class ExecutionFailedTest {
                 assertThat(it.id, equalTo(prepareCompensation.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
                 assertThat(it.retryState.retries, equalTo(1))
-                assertThat(it.nextRetry(), equalTo(false))
+                assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify().then()
             .given()
@@ -109,6 +110,67 @@ class ExecutionFailedTest {
             .expectErrorType(IllegalStateException::class.java)
             .expectState {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onPrepareGivenMaxRetry() {
+        val prepareCompensation = PrepareCompensation(id = GlobalIdGenerator.generateAsString())
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = error,
+            executionTime = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(
+                DefaultNextRetryAtCalculatorTest.testRetrySpec,
+                10
+            ),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculator)
+            .given(executionFailedCreated)
+            .`when`(prepareCompensation)
+            .expectErrorType(IllegalStateException::class.java)
+            .expectState {
+                assertThat(it.id, equalTo(prepareCompensation.id))
+                assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
+                assertThat(it.retryState.retries, equalTo(10))
+                assertThat(it.canNextRetry(), equalTo(false))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onForcePrepare() {
+        val prepareCompensation = ForcePrepareCompensation(id = GlobalIdGenerator.generateAsString())
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = error,
+            executionTime = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(
+                DefaultNextRetryAtCalculatorTest.testRetrySpec,
+                10
+            ),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculator)
+            .given(executionFailedCreated)
+            .`when`(prepareCompensation)
+            .expectNoError()
+            .expectEventType(CompensationPrepared::class.java)
+            .expectState {
+                assertThat(it.id, equalTo(prepareCompensation.id))
+                assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
+                assertThat(it.retryState.retries, equalTo(11))
+                assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify()
     }
@@ -150,7 +212,7 @@ class ExecutionFailedTest {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(true))
-                assertThat(it.nextRetry(), equalTo(false))
+                assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify().then()
             .given()
@@ -200,7 +262,7 @@ class ExecutionFailedTest {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(false))
-                assertThat(it.nextRetry(), equalTo(false))
+                assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify().then()
             .given()
