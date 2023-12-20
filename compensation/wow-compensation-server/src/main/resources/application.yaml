@@ -20,6 +20,9 @@ logging:
 spring:
   application:
     name: compensation-service
+  web:
+    resources:
+      static-locations: file:./compensation/wow-compensation-dashboard/dist/browser/
   data:
     mongodb:
       uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000

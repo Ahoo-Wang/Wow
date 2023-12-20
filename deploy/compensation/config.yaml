@@ -26,6 +26,9 @@ data:
     spring:
       application:
         name: compensation-service
+      web:
+        resources:
+          static-locations: file:./browser/
       data:
         mongodb:
           uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000

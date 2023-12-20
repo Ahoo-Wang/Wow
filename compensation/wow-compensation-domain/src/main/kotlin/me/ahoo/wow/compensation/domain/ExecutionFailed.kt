@@ -24,6 +24,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
+import me.ahoo.wow.compensation.api.ForcePrepareCompensation
 import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
@@ -56,6 +57,22 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         check(this.state.canRetry()) {
             "ExecutionFailed can not retry."
         }
+        return compensationPrepared(nextRetryAtCalculator)
+    }
+
+    @Suppress("UnusedParameter")
+    @OnCommand
+    fun onForcePrepare(
+        command: ForcePrepareCompensation,
+        nextRetryAtCalculator: NextRetryAtCalculator
+    ): CompensationPrepared {
+        check(this.state.canForceRetry()) {
+            "ExecutionFailed can not force retry."
+        }
+        return compensationPrepared(nextRetryAtCalculator)
+    }
+
+    private fun compensationPrepared(nextRetryAtCalculator: NextRetryAtCalculator): CompensationPrepared {
         val retries = this.state.retryState.retries + 1
         val retryState = nextRetryAtCalculator.nextRetryState(this.state.retrySpec, retries)
         return CompensationPrepared(

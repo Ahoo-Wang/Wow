@@ -16,9 +16,9 @@ package me.ahoo.wow.compensation.domain
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import reactor.core.publisher.Flux
 
-interface ToRetryQuery {
+interface FindNextRetry {
     /**
-     * @see IExecutionFailedState.shouldToRetry
+     * @see IExecutionFailedState.canNextRetry
      */
-    fun findToRetry(limit: Int = 10): Flux<out IExecutionFailedState>
+    fun findNextRetry(limit: Int = 10): Flux<out IExecutionFailedState>
 }

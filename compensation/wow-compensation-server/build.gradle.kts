@@ -31,6 +31,14 @@ tasks.jar.configure {
         )
     }
 }
+distributions {
+    main {
+        contents {
+            val dashboardDistPath = "${rootDir.absolutePath}/compensation/wow-compensation-dashboard/dist"
+            from(dashboardDistPath).include("**")
+        }
+    }
+}
 application {
     mainClass.set("me.ahoo.wow.compensation.server.CompensationServerKt")
     applicationDefaultJvmArgs = listOf(

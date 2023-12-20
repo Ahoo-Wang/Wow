@@ -19,7 +19,7 @@ import me.ahoo.simba.schedule.ScheduleConfig
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
-import me.ahoo.wow.compensation.domain.ToRetryQuery
+import me.ahoo.wow.compensation.domain.FindNextRetry
 import org.slf4j.LoggerFactory
 import org.springframework.context.SmartLifecycle
 import org.springframework.stereotype.Service
@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono
 
 @Service
 class CompensationScheduler(
-    private val toRetryQuery: ToRetryQuery,
+    private val findNextRetry: FindNextRetry,
     private val commandGateway: CommandGateway,
     private val compensationProperties: CompensationProperties,
     contendServiceFactory: MutexContendServiceFactory
@@ -43,7 +43,7 @@ class CompensationScheduler(
     }
 
     fun retry(limit: Int = 100): Mono<Long> {
-        return toRetryQuery.findToRetry(limit)
+        return findNextRetry.findNextRetry(limit)
             .flatMap {
                 if (log.isDebugEnabled) {
                     log.debug(
