@@ -1,16 +1,21 @@
 <nz-layout>
   <nz-header>
     <div class="logo">
-      <a href="https://github.com/Ahoo-Wang/Wow" target="_blank"
-         title="Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing">
-        <img ngSrc="assets/Logo-Full.svg" height="470" width="406" alt="Wow">
-      </a>
+      <img ngSrc="assets/Logo-Full.svg" height="470" width="406" alt="Wow">
     </div>
     <ul nz-menu nzTheme="dark" nzMode="horizontal">
-      <li nz-menu-item>ToRetry</li>
-      <li nz-menu-item>NextRetry</li>
-      <li nz-menu-item>NonRetryable</li>
-      <li nz-menu-item>Succeeded</li>
+      <li nz-menu-item [nzMatchRouter] nzSelected routerLink="/to-retry">ToRetry</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/next-retry">NextRetry</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/non-retryable">NonRetryable</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/succeeded">Succeeded</li>
+      <li nz-menu-item [style]="{float:'right'}">
+        <a href="https://gitee.com/AhooWang/Wow" target="_blank" rel="noopener noreferrer">Gitee</a>
+      </li>
+      <li nz-menu-item [style]="{float:'right'}">
+        <span nz-icon nzType="github">
+        </span>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_blank" rel="noopener noreferrer"> GitHub</a>
+      </li>
     </ul>
   </nz-header>
   <nz-content>

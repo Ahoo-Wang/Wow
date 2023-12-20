@@ -20,6 +20,14 @@ import {ApplyRetrySpec} from "./ApplyRetrySpec";
 import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
 
+export enum FindCategory {
+  ALL = 'all',
+  TO_RETRY = 'to-retry',
+  NEXT_RETRY = 'next-retry',
+  NON_RETRYABLE = 'non-retryable',
+  SUCCESS = 'success',
+}
+
 @Injectable({providedIn: 'root'})
 export class CompensationClient {
   aggregateName = 'execution_failed';
@@ -34,37 +42,39 @@ export class CompensationClient {
     const apiUrl = `${this.commandApi}/${id}/prepare_compensation`;
     return this.httpClient.put<CommandResult>(apiUrl, {});
   }
+
   forcePrepare(id: string): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/force_prepare_compensation`;
     return this.httpClient.put<CommandResult>(apiUrl, {});
   }
+
   applyRetrySpec(id: string, appRetrySpec: ApplyRetrySpec): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/apply_retry_spec`;
     return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec);
   }
 
-  findAll(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/all`;
+  find(category: FindCategory, pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    const apiUrl = `${this.retryApi}/${category}`;
     return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+  }
+
+  findAll(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    return this.find(FindCategory.ALL, pagedQuery);
   }
 
   findNextRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/next-retry`;
-    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+    return this.find(FindCategory.NEXT_RETRY, pagedQuery);
   }
 
   findToRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/to-retry`;
-    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+    return this.find(FindCategory.TO_RETRY, pagedQuery);
   }
 
   findNonRetryable(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/non-retryable`;
-    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+    return this.find(FindCategory.NON_RETRYABLE, pagedQuery);
   }
 
   findSuccess(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/success`;
-    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
+    return this.find(FindCategory.SUCCESS, pagedQuery);
   }
 }

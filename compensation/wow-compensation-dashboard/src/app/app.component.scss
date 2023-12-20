@@ -1,7 +1,7 @@
 .logo {
   width: 48px;
   height: 48px;
-  margin: 0 16px;
+  margin: 0 24px 0 0;
   float: left;
 }
 
@@ -16,8 +16,8 @@
   line-height: 64px;
 }
 
-nz-breadcrumb {
-  margin: 16px 0;
+nz-header {
+  width: 100%;
 }
 
 nz-content {
@@ -31,5 +31,5 @@ nz-footer {
 .inner-content {
   background: #fff;
   padding: 10px;
-  min-height: 580px;
+  min-height: 800px;
 }

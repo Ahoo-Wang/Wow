@@ -31,7 +31,7 @@ interface IPagedQuery {
     val sort: List<Sort>
 
     companion object {
-        const val DEFAULT_PAGE_INDEX = 0
+        const val DEFAULT_PAGE_INDEX = 1
         const val DEFAULT_PAGE_SIZE = 10
         const val DEFAULT_SORT_FIELD = "_id"
         val DEFAULT_SORT = listOf(Sort(field = DEFAULT_SORT_FIELD, order = Sort.Order.DESC))
