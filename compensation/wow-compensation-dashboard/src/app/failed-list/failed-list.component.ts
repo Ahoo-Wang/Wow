@@ -1,6 +1,6 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {ExecutionFailedState} from "../api/ExecutionFailedState";
+import {ExecutionFailedState, ExecutionFailedStatus} from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
@@ -13,7 +13,6 @@ import {PagedList} from "../api/PagedList";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
-import {Observable} from "rxjs";
 
 @Component({
   selector: 'app-failed-list',
@@ -33,7 +32,7 @@ import {Observable} from "rxjs";
     NzBadgeComponent,
     NzCountdownComponent,
     ErrorComponent,
-    NgIf
+    NgIf,
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -99,4 +98,7 @@ export class FailedListComponent implements OnInit {
   closeErrorInfo() {
     this.errorInfoVisible = false
   }
+
+  protected readonly FindCategory = FindCategory;
+  protected readonly ExecutionFailedStatus = ExecutionFailedStatus;
 }

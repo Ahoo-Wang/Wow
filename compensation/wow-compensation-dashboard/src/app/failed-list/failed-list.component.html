@@ -11,12 +11,12 @@
     <th colspan="5">EventId</th>
     <th colspan="3">RetryState</th>
     <th rowspan="2">Status</th>
-    <th rowspan="2" nzWidth="200px" nzRight width="200px">Operation</th>
+    <th rowspan="2" nzWidth="150px" nzRight width="150px">Operation</th>
   </tr>
   <tr>
     <th nzColumnKey="state.processor.contextName" [nzSortFn]="true" [nzSortPriority]="9">Context</th>
     <th nzColumnKey="state.processor.processorName" [nzSortFn]="true" [nzSortPriority]="8">Name</th>
-    <th nzColumnKey="state.executionTime" [nzSortFn]="true" [nzSortPriority]="4">ExecutionAt</th>
+    <th nzColumnKey="state.executeAt" [nzSortFn]="true" [nzSortPriority]="4">ExecuteAt</th>
     <th nzColumnKey="state.eventId.aggregateId.contextName">Context</th>
     <th nzColumnKey="state.eventId.aggregateId.aggregateName">Aggregate</th>
     <th nzColumnKey="state.eventId.aggregateId.aggregateId">AggregateId</th>
@@ -34,45 +34,68 @@
     </td>
     <td>{{ item.processor.contextName }}</td>
     <td>{{ item.processor.processorName }}</td>
-    <td>{{ item.executionTime|date:'yyyy-MM-dd HH:mm:ss' }}</td>
+    <td>{{ item.executeAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
     <td>{{ item.eventId.aggregateId.contextName }}</td>
     <td>{{ item.eventId.aggregateId.aggregateName }}</td>
     <td>{{ item.eventId.aggregateId.aggregateId }}</td>
     <td>{{ item.eventId.id }}</td>
-    <td>{{ item.eventId.version }}</td>
+    <td> {{ item.eventId.version }}</td>
     <td>{{ item.retryState.retries }}({{ item.retrySpec.maxRetries }})</td>
     <td>{{ item.retryState.retryAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
     <td>
-      <nz-countdown [nzValue]="item.retryState.nextRetryAt"
-                    [nzValueStyle]="{ color: '#3F8600','font-size':'medium' }"></nz-countdown>
+      @switch (category) {
+        @case (FindCategory.TO_RETRY) {
+          <nz-countdown [nzValue]="item.retryState.nextRetryAt"
+                        [nzValueStyle]="{ color: '#3F8600','font-size':'medium' }"></nz-countdown>
+        }
+        @default {
+          -
+        }
+      }
     </td>
-    <td>{{ item.status }}</td>
+    <td>
+      @switch (item.status) {
+        @case (ExecutionFailedStatus.FAILED) {
+          <nz-badge nzStatus="error" nzText="{{item.status}}"></nz-badge>
+        }
+        @case (ExecutionFailedStatus.PREPARED) {
+          <nz-badge nzStatus="processing" nzText="{{item.status}}"></nz-badge>
+        }
+        @case (ExecutionFailedStatus.SUCCEEDED) {
+          <nz-badge nzStatus="success" nzText="{{item.status}}"></nz-badge>
+        }
+      }
+    </td>
     <td nzRight>
       <nz-button-group>
-        <button
-          nz-popconfirm
-          [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
-          nzPopconfirmPlacement="top"
-          nz-button
-          (nzOnConfirm)="prepare(item.id)"
-          nzSize="small"
-        >
-          Retry
-        </button>
         <button nz-button (click)="openErrorInfo(item)" nzSize="small">
           Error
         </button>
-        <button
-          nz-popconfirm
-          [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
-          nzPopconfirmPlacement="top"
-          nz-button
-          (nzOnConfirm)="forcePrepare(item.id)"
-          nzSize="small"
-          nzDanger
-        >
-          ForceRetry
-        </button>
+        @switch (category) {
+          @case (FindCategory.TO_RETRY) {
+            <button nz-popconfirm
+                    [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="prepare(item.id)"
+                    nzSize="small"
+            >
+              Retry
+            </button>
+          }
+          @case (FindCategory.NON_RETRYABLE) {
+            <button nz-popconfirm
+                    [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="forcePrepare(item.id)"
+                    nzSize="small"
+                    nzDanger
+            >
+              ForceRetry
+            </button>
+          }
+        }
       </nz-button-group>
     </td>
   </tr>
