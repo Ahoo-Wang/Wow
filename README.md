@@ -79,7 +79,7 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
   <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
 </p>
 
-> `WaitStrategy`:`PROCESSED` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was *180230*, the peak was *25506*, and the average response time was *268* ms.
+> `WaitStrategy`:`PROCESSED` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was *18230*, the peak was *25506*, and the average response time was *268* ms.
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Order.Create@PROCESSED.png" alt="CreateOrder-PROCESSED"/>
@@ -319,15 +319,27 @@ class CartSagaTest {
   <img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow"/>
 </p>
 
-### Event Compensation
+## Event Compensation
+
+### Use Case
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Event-Compensation-UserCase.svg" alt="Event-Compensation-UserCase"/>
+</p>
+
+### Execution Sequence Diagram
 
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
 </p>
 
-### Saga - OrderProcessManager (Demo)
+### Dashboard
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
+  <img src="./document/design/assets/compensation-dashboard.png" alt="Compensation-Dashboard"/>
+</p>
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/compensation-dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 

@@ -39,13 +39,13 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         retrySpec: IRetrySpec,
         nextRetryAtCalculator: NextRetryAtCalculator
     ): ExecutionFailedCreated {
-        val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executionTime)
+        val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executeAt)
         return ExecutionFailedCreated(
             eventId = command.eventId,
             processor = command.processor,
             functionKind = command.functionKind,
             error = command.error,
-            executionTime = command.executionTime,
+            executeAt = command.executeAt,
             retryState = retryState,
             retrySpec = retrySpec.materialize()
         )
@@ -88,7 +88,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
         return ExecutionFailedApplied(
             error = command.error,
-            executionTime = command.executionTime
+            executeAt = command.executeAt
         )
     }
 
@@ -96,7 +96,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     fun onSucceed(command: ApplyExecutionSuccess): ExecutionSuccessApplied {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
         return ExecutionSuccessApplied(
-            executionTime = command.executionTime
+            executeAt = command.executeAt
         )
     }
 

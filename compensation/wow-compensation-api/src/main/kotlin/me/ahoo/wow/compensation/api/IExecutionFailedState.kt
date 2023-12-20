@@ -41,11 +41,11 @@ interface IRetryState {
     val retryState: RetryState
 }
 
-interface ExecutionTime {
-    val executionTime: Long
+interface ExecuteAt {
+    val executeAt: Long
 }
 
-interface ExecutionFailedErrorInfo : ExecutionTime {
+interface ExecutionFailedErrorInfo : ExecuteAt {
     val error: ErrorDetails
 }
 

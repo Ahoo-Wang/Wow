@@ -38,7 +38,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         private set
     override lateinit var error: ErrorDetails
         private set
-    override var executionTime: Long = 0
+    override var executeAt: Long = 0
         private set
     override lateinit var retrySpec: RetrySpec
         private set
@@ -53,7 +53,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.processor = event.processor
         this.functionKind = event.functionKind
         this.error = event.error
-        this.executionTime = event.executionTime
+        this.executeAt = event.executeAt
         this.retryState = event.retryState
         this.status = ExecutionFailedStatus.FAILED
         this.retrySpec = event.retrySpec
@@ -68,13 +68,13 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
 
     @OnSourcing
     fun onFailed(event: ExecutionFailedApplied) {
-        this.executionTime = event.executionTime
+        this.executeAt = event.executeAt
         this.status = ExecutionFailedStatus.FAILED
     }
 
     @OnSourcing
     fun onSuccess(event: ExecutionSuccessApplied) {
-        this.executionTime = event.executionTime
+        this.executeAt = event.executeAt
         this.status = ExecutionFailedStatus.SUCCEEDED
     }
 

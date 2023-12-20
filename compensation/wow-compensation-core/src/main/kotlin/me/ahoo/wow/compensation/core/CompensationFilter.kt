@@ -64,10 +64,10 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                         processor = eventFunction.materialize(),
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
-                        executionTime = executionTime
+                        executeAt = executionTime
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executionTime = executionTime)
+                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executionTime)
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())
@@ -77,7 +77,7 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                     executionId ?: return@defer Mono.empty()
                     val commandMessage = ApplyExecutionSuccess(
                         id = executionId,
-                        executionTime = System.currentTimeMillis()
+                        executeAt = System.currentTimeMillis()
                     ).toCommandMessage()
                     commandBus.send(commandMessage)
                 }
