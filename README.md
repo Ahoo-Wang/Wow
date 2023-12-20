@@ -79,7 +79,7 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
   <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
 </p>
 
-> `WaitStrategy`:`PROCESSED` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was *180230*, the peak was *25506*, and the average response time was *268* ms.
+> `WaitStrategy`:`PROCESSED` Mode, The `CreateOrder` command write request API After 2 minutes of stress testing, the average TPS was *18230*, the peak was *25506*, and the average response time was *268* ms.
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Order.Create@PROCESSED.png" alt="CreateOrder-PROCESSED"/>

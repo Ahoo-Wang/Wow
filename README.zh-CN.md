@@ -78,7 +78,7 @@
   <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
 </p>
 
-> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *180230*，峰值为 *25506*，平均响应时间为 *268* 毫秒。
+> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18230*，峰值为 *25506*，平均响应时间为 *268* 毫秒。
 
 <p align="center" style="text-align:center">
   <img src="./document/example/perf/Example.Order.Create@PROCESSED.png" alt="CreateOrder-PROCESSED"/>
