@@ -18,13 +18,13 @@ export interface ExecutionFailedState {
   id: string;
   eventId: EventId;
   error: ErrorDetails;
-  executionTime: number;
+  executeAt: number;
   functionKind: FunctionKind;
   isRetryable: boolean;
   processor: ProcessorInfoData;
   retrySpec: RetrySpec;
   retryState: RetryState;
-  status: Status;
+  status: ExecutionFailedStatus;
 }
 
 /**
@@ -91,8 +91,8 @@ export interface RetryState {
   timoutAt: number;
 }
 
-export enum Status {
-  Failed = "FAILED",
-  Prepared = "PREPARED",
-  Succeeded = "SUCCEEDED",
+export enum ExecutionFailedStatus {
+  FAILED = "FAILED",
+  PREPARED = "PREPARED",
+  SUCCEEDED = "SUCCEEDED",
 }
