@@ -13,4 +13,4 @@
 
 package me.ahoo.wow.compensation.api.query
 
-interface QueryApi : RetryQuery
+interface QueryApi : ExecutionFailedQuery

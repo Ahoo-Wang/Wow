@@ -13,20 +13,18 @@ actor Developer
 package Query{
     usecase FindNextRetry as "FindNextRetry
     --
-    retries<maxRetries
+    !SUCCEEDED && retries<maxRetries
     --
-    && !SUCCEEDED && nextRetryAt<=CurrentTime
+    && nextRetryAt<=CurrentTime
     --
     && (FAILED || (PREPARED && timeoutAt<=CurrentTime))
     "
     usecase FindToRetry as "FindToRetry
     --
-    retries<maxRetries
-    --
-    && !SUCCEEDED
+    !SUCCEEDED && retries<maxRetries
     --
     && (FAILED || (PREPARED && timeoutAt<=CurrentTime))"
-    usecase FindCompletedFailures as "FindCompletedFailures
+    usecase FindNonRetryable as "FindNonRetryable
     --
     !SUCCEEDED
     --
@@ -41,6 +39,7 @@ package Query{
 package Command{
     usecase CreateExecutionFailed
     usecase PrepareCompensation
+    usecase ForcePrepareCompensation
     usecase ApplyExecutionFailed
     usecase ApplyRetrySpec
     usecase ApplyExecutionSuccess
@@ -55,8 +54,9 @@ Scheduler --> PrepareCompensation
 
 FindToRetry <-- Developer
 PrepareCompensation <-- Developer
+ForcePrepareCompensation <-- Developer
 ApplyRetrySpec <-- Developer
-FindCompletedFailures <-- Developer
+FindNonRetryable <-- Developer
 FindSuccess <-- Developer
 Detail <-- Developer
 History <-- Developer

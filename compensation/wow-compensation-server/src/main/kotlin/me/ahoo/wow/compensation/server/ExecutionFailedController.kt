@@ -14,10 +14,10 @@
 package me.ahoo.wow.compensation.server
 
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.query.ExecutionFailedQuery
 import me.ahoo.wow.compensation.api.query.PagedList
 import me.ahoo.wow.compensation.api.query.PagedQuery
 import me.ahoo.wow.compensation.api.query.QueryApi
-import me.ahoo.wow.compensation.api.query.RetryQuery
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -27,9 +27,9 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @RestController
-@RequestMapping("/retry")
-class RetryController(
-    private val retryQuery: RetryQuery,
+@RequestMapping("/failed")
+class ExecutionFailedController(
+    private val executionFailedQuery: ExecutionFailedQuery,
     private val compensationScheduler: CompensationScheduler
 ) : QueryApi {
 
@@ -40,26 +40,26 @@ class RetryController(
 
     @PostMapping("all")
     override fun findAll(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        return retryQuery.findAll(pagedQuery)
+        return executionFailedQuery.findAll(pagedQuery)
     }
 
     @PostMapping("next-retry")
     override fun findNextRetry(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        return retryQuery.findNextRetry(pagedQuery)
+        return executionFailedQuery.findNextRetry(pagedQuery)
     }
 
     @PostMapping("to-retry")
     override fun findToRetry(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        return retryQuery.findToRetry(pagedQuery)
+        return executionFailedQuery.findToRetry(pagedQuery)
     }
 
-    @PostMapping("completed-failures")
-    override fun findCompletedFailures(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        return retryQuery.findCompletedFailures(pagedQuery)
+    @PostMapping("non-retryable")
+    override fun findNonRetryable(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        return executionFailedQuery.findNonRetryable(pagedQuery)
     }
 
     @PostMapping("success")
     override fun findSuccess(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        return retryQuery.findSuccess(pagedQuery)
+        return executionFailedQuery.findSuccess(pagedQuery)
     }
 }

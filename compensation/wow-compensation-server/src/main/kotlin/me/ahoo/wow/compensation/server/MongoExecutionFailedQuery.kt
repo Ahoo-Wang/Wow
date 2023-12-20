@@ -19,9 +19,10 @@ import com.mongodb.reactivestreams.client.MongoClient
 import me.ahoo.wow.compensation.CompensationService
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.query.ExecutionFailedQuery
 import me.ahoo.wow.compensation.api.query.PagedList
 import me.ahoo.wow.compensation.api.query.PagedQuery
-import me.ahoo.wow.compensation.api.query.RetryQuery
+import me.ahoo.wow.compensation.api.query.Sort
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.mongo.toSnapshotState
@@ -37,7 +38,7 @@ import reactor.kotlin.core.publisher.toMono
 
 @Primary
 @Repository
-class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, RetryQuery {
+class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, ExecutionFailedQuery {
     companion object {
         const val DATABASE_NAME = "compensation_db"
         const val COLLECTION_NAME = CompensationService.EXECUTION_FAILED_AGGREGATE_NAME + "_snapshot"
@@ -61,11 +62,6 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Retry
             {
               ${'$'}and: [{
                   "state.isRetryable": true
-                },
-                {
-                  "state.status": {
-                    ${'$'}ne: "${ExecutionFailedStatus.SUCCEEDED}"
-                  }
                 },
                  {
                    "state.retryState.nextRetryAt": {
@@ -101,11 +97,6 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Retry
                   "state.isRetryable": true
                 },
                 {
-                  "state.status": {
-                    ${'$'}ne: "${ExecutionFailedStatus.SUCCEEDED}"
-                  }
-                },
-                {
                   ${'$'}or: [{
                       "state.status": "${ExecutionFailedStatus.FAILED}"
                     },
@@ -126,10 +117,10 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Retry
         return Document.parse(pipelineShell);
     }
 
-    fun completedFailuresFilter(): Bson {
+    fun nonRetryableFilter(): Bson {
         return Filters.and(
             Filters.ne("state.status", ExecutionFailedStatus.SUCCEEDED.name),
-            Filters.eq("state.isRetryable", false)
+            Filters.eq("state.isBelowRetryThreshold", false)
         )
     }
 
@@ -152,8 +143,8 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Retry
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findCompletedFailures(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
-        val filter = completedFailuresFilter()
+    override fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        val filter = nonRetryableFilter()
         return findPagedList(filter, pagedQuery)
     }
 
@@ -166,8 +157,17 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Retry
         filter: Bson,
         pagedQuery: PagedQuery
     ): Mono<PagedList<out IExecutionFailedState>> {
+        val sort = pagedQuery.sort.map {
+            when (it.order) {
+                Sort.Order.ASC -> Sorts.ascending(it.field)
+                Sort.Order.DESC -> Sorts.descending(it.field)
+            }
+        }.toList().let {
+            Sorts.orderBy(it)
+        }
         val totalPublisher = snapshotCollection.countDocuments(filter).toMono()
         val listPublisher = snapshotCollection.find(filter)
+            .sort(sort)
             .skip(pagedQuery.offset())
             .limit(pagedQuery.pageSize)
             .toFlux()
