@@ -34,7 +34,10 @@ export class CompensationClient {
     const apiUrl = `${this.commandApi}/${id}/prepare_compensation`;
     return this.httpClient.put<CommandResult>(apiUrl, {});
   }
-
+  forcePrepare(id: string): Observable<CommandResult> {
+    const apiUrl = `${this.commandApi}/${id}/force_prepare_compensation`;
+    return this.httpClient.put<CommandResult>(apiUrl, {});
+  }
   applyRetrySpec(id: string, appRetrySpec: ApplyRetrySpec): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/apply_retry_spec`;
     return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec);

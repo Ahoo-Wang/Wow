@@ -1,0 +1,10 @@
+<nz-descriptions [nzColumn]="2" nzBordered nzLayout="vertical">
+  <nz-descriptions-item nzTitle="Id">{{ state.id }}</nz-descriptions-item>
+  <nz-descriptions-item nzTitle="Error Code">{{ state.error.errorCode }}</nz-descriptions-item>
+  <nz-descriptions-item nzTitle="Error Message" [nzSpan]="2">{{ state.error.errorMsg }}</nz-descriptions-item>
+  <nz-descriptions-item nzTitle="Stack Trace" [nzSpan]="2">
+    <nz-code-editor class="editor" [ngModel]="state.error.stackTrace"
+                    [nzEditorOption]="{ language: 'log',theme:'vs-dark',readOnly:true }"></nz-code-editor>
+  </nz-descriptions-item>
+
+</nz-descriptions>

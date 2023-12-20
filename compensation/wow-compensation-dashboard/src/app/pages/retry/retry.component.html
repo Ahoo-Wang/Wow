@@ -11,7 +11,7 @@
     <th colspan="5">EventId</th>
     <th colspan="3">RetryState</th>
     <th rowspan="2">Status</th>
-    <th rowspan="2" nzWidth="250px" nzRight width="250px">Operation</th>
+    <th rowspan="2" nzWidth="200px" nzRight width="200px">Operation</th>
   </tr>
   <tr>
     <th nzColumnKey="state.processor.contextName" [nzSortFn]="true" [nzSortPriority]="9">Context</th>
@@ -22,7 +22,9 @@
     <th nzColumnKey="state.eventId.aggregateId.aggregateId">AggregateId</th>
     <th nzColumnKey="state.eventId.id" [nzSortFn]="true" [nzSortPriority]="2">Id</th>
     <th nzColumnKey="state.eventId.version" [nzSortFn]="true" [nzSortPriority]="3">Version</th>
-    <th nzColumnKey="state.retryState.retries" [nzSortFn]="true" [nzSortPriority]="5" nzWidth="80px" width="80px">Retries</th>
+    <th nzColumnKey="state.retryState.retries" [nzSortFn]="true" [nzSortPriority]="5" nzWidth="80px" width="80px">
+      Retries
+    </th>
     <th nzColumnKey="state.retryState.retryAt" [nzSortFn]="true" [nzSortPriority]="6">RetryAt</th>
     <th nzColumnKey="state.retryState.nextRetryAt" [nzSortFn]="true" [nzSortPriority]="7">NextRetryAt</th>
   </tr>
@@ -53,20 +55,23 @@
           nzPopconfirmPlacement="top"
           nz-button
           (nzOnConfirm)="prepare(item.id)"
+          nzSize="small"
         >
           Retry
         </button>
-                <button
+        <button nz-button (click)="openErrorInfo(item)" nzSize="small">
+          Error
+        </button>
+        <button
           nz-popconfirm
-          [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
+          [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
           nzPopconfirmPlacement="top"
           nz-button
-          (nzOnConfirm)="prepare(item.id)"
+          (nzOnConfirm)="forcePrepare(item.id)"
+          nzSize="small"
+          nzDanger
         >
           ForceRetry
-        </button>
-        <button nz-button (click)="openStackTrace(item)">
-          Error
         </button>
       </nz-button-group>
     </td>
@@ -76,13 +81,15 @@
 
 <nz-drawer
   [nzClosable]="false"
-  [nzVisible]="stackTraceVisible"
+  [nzVisible]="errorInfoVisible"
   nzPlacement="right"
-  nzTitle="Error"
-  (nzOnClose)="closeStackTrace()"
-  nzWidth="1000px"
+  nzTitle="Error Info"
+  (nzOnClose)="closeErrorInfo()"
+  nzWidth="1200px"
 >
   <ng-container *nzDrawerContent>
-    <span nz-typography><code>{{ current?.error?.stackTrace }}</code></span>
+    <ng-template [ngIf]="current">
+      <app-error [state]="current!"></app-error>
+    </ng-template>
   </ng-container>
 </nz-drawer>

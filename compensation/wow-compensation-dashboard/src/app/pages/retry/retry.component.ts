@@ -1,7 +1,7 @@
 import {Component, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
 import {ExecutionFailedState} from "../../api/ExecutionFailedState";
-import {DatePipe, NgForOf} from "@angular/common";
+import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient} from "../../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
 import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
@@ -10,10 +10,9 @@ import {NzDrawerComponent, NzDrawerContentDirective} from "ng-zorro-antd/drawer"
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
 import {initialPagedQuery, PagedQuery, SortOrder} from "../../api/PagedQuery";
 import {PagedList} from "../../api/PagedList";
-import {NzTabComponent, NzTabSetComponent} from "ng-zorro-antd/tabs";
-import {NzDescriptionsComponent, NzDescriptionsItemComponent} from "ng-zorro-antd/descriptions";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
+import {ErrorComponent} from "../../error/error.component";
 
 @Component({
   selector: 'app-retry',
@@ -30,12 +29,10 @@ import {NzCountdownComponent} from "ng-zorro-antd/statistic";
     NzDrawerComponent,
     NzDrawerContentDirective,
     NzTypographyComponent,
-    NzTabSetComponent,
-    NzTabComponent,
-    NzDescriptionsComponent,
-    NzDescriptionsItemComponent,
     NzBadgeComponent,
-    NzCountdownComponent
+    NzCountdownComponent,
+    ErrorComponent,
+    NgIf
   ],
   styleUrls: ['./retry.component.scss']
 })
@@ -44,7 +41,7 @@ export class RetryComponent implements OnInit {
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
 
   current: ExecutionFailedState | undefined;
-  stackTraceVisible = false
+  errorInfoVisible = false
 
   constructor(private compensationClient: CompensationClient, private message: NzMessageService) {
   }
@@ -84,12 +81,22 @@ export class RetryComponent implements OnInit {
       })
   }
 
-  openStackTrace(state: ExecutionFailedState) {
-    this.current = state;
-    this.stackTraceVisible = true
+  forcePrepare(id: string): void {
+    this.compensationClient.forcePrepare(id)
+      .subscribe(resp => {
+        this.message.success("Force Prepare succeeded.");
+        this.load();
+      }, error => {
+        this.message.error(error.error.errorMsg);
+      })
   }
 
-  closeStackTrace() {
-    this.stackTraceVisible = false
+  openErrorInfo(state: ExecutionFailedState) {
+    this.current = state;
+    this.errorInfoVisible = true
+  }
+
+  closeErrorInfo() {
+    this.errorInfoVisible = false
   }
 }
