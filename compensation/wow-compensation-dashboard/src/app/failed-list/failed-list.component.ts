@@ -1,23 +1,24 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {ExecutionFailedState} from "../../api/ExecutionFailedState";
+import {ExecutionFailedState} from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
-import {CompensationClient} from "../../api/CompensationClient";
+import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
 import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
-import {initialPagedQuery, PagedQuery, SortOrder} from "../../api/PagedQuery";
-import {PagedList} from "../../api/PagedList";
+import {initialPagedQuery, PagedQuery, SortOrder} from "../api/PagedQuery";
+import {PagedList} from "../api/PagedList";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
-import {ErrorComponent} from "../../error/error.component";
+import {ErrorComponent} from "../error/error.component";
+import {Observable} from "rxjs";
 
 @Component({
-  selector: 'app-retry',
+  selector: 'app-failed-list',
   standalone: true,
-  templateUrl: './retry.component.html',
+  templateUrl: './failed-list.component.html',
   imports: [
     NzTableModule,
     NzCellFixedDirective,
@@ -34,31 +35,30 @@ import {ErrorComponent} from "../../error/error.component";
     ErrorComponent,
     NgIf
   ],
-  styleUrls: ['./retry.component.scss']
+  styleUrls: ['./failed-list.component.scss']
 })
-export class RetryComponent implements OnInit {
+export class FailedListComponent implements OnInit {
   pagedQuery: PagedQuery = initialPagedQuery;
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
-
+  @Input({required: true}) category: FindCategory = FindCategory.TO_RETRY;
   current: ExecutionFailedState | undefined;
   errorInfoVisible = false
 
-  constructor(private compensationClient: CompensationClient, private message: NzMessageService) {
+  constructor(private compensationClient: CompensationClient,
+              private message: NzMessageService) {
   }
 
   ngOnInit() {
-
   }
 
   load() {
-    this.compensationClient.findAll(this.pagedQuery).subscribe(resp => {
+    this.compensationClient.find(this.category, this.pagedQuery).subscribe(resp => {
         this.pagedList = resp
       }
     )
   }
 
   onQueryParamsChange(params: NzTableQueryParams): void {
-    console.log(params);
     let sort = params.sort
       .filter(sort => sort.value != null)
       .map(sort => {

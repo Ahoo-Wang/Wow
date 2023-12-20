@@ -7,10 +7,10 @@
       </a>
     </div>
     <ul nz-menu nzTheme="dark" nzMode="horizontal">
-      <li nz-menu-item>ToRetry</li>
-      <li nz-menu-item>NextRetry</li>
-      <li nz-menu-item>NonRetryable</li>
-      <li nz-menu-item>Succeeded</li>
+      <li nz-menu-item [nzMatchRouter] nzSelected routerLink="/to-retry">ToRetry</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/next-retry">NextRetry</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/non-retryable">NonRetryable</li>
+      <li nz-menu-item [nzMatchRouter] routerLink="/succeeded">Succeeded</li>
     </ul>
   </nz-header>
   <nz-content>

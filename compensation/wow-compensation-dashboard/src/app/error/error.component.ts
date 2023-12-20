@@ -16,5 +16,5 @@ import {NgStyle} from "@angular/common";
   styleUrl: './error.component.scss'
 })
 export class ErrorComponent {
-  @Input() state!: ExecutionFailedState
+  @Input({ required: true })  state!: ExecutionFailedState
 }
