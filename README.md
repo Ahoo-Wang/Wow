@@ -321,13 +321,25 @@ class CartSagaTest {
 
 ### Event Compensation
 
+#### Use Case
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/Event-Compensation-UserCase.svg" alt="Event-Compensation-UserCase"/>
+</p>
+
+#### Execution Sequence Diagram
+
 <p align="center" style="text-align:center">
   <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
 </p>
 
-### Saga - OrderProcessManager (Demo)
+#### Dashboard
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Saga-Order.svg" alt="OrderProcessManager"/>
+  <img src="./document/design/assets/compensation-dashboard.png" alt="Compensation-Dashboard"/>
+</p>
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/compensation-dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 
