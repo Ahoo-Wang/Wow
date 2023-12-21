@@ -14,6 +14,7 @@ package me.ahoo.wow.messaging.function
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -72,6 +73,10 @@ internal class MethodMessageFunctionTest {
                 "MockCommandAggregate"
             ),
         )
+        val retry = messageFunction.getAnnotation(Retry::class.java)
+        assertThat(retry, nullValue())
+        val onCommand = messageFunction.getAnnotation(OnCommand::class.java)
+        assertThat(onCommand, notNullValue())
     }
 
     @Test
@@ -98,6 +103,8 @@ internal class MethodMessageFunctionTest {
                 MockEventBody::class.java,
             ),
         )
+        val retry = messageFunction.getAnnotation(Retry::class.java)
+        assertThat(retry, nullValue())
     }
 
     @Test
