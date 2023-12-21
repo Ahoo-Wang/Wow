@@ -31,6 +31,9 @@ class DefaultDeleteAggregateFunction<C : Any>(
     override val processor: C = commandAggregate.commandRoot
     override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
+        return null
+    }
 
     override fun invoke(
         exchange: ServerCommandExchange<*>

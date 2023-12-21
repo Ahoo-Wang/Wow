@@ -15,6 +15,7 @@ package me.ahoo.wow.compensation.core
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.messaging.processor.materialize
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.toCommandMessage
@@ -26,6 +27,7 @@ import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId.Companion.toEventId
+import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.toErrorInfo
@@ -51,23 +53,28 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
         return next.filter(exchange)
             .onErrorResume {
                 val eventFunction = exchange.getEventFunction() ?: return@onErrorResume it.toMono()
+                val retry = eventFunction.getAnnotation(Retry::class.java)
+                if (retry?.enabled == false) {
+                    return@onErrorResume it.toMono()
+                }
                 val errorInfo = it.toErrorInfo()
                 val errorDetails = ErrorDetails(
                     errorCode = errorInfo.errorCode,
                     errorMsg = errorInfo.errorMsg,
                     stackTrace = it.stackTraceToString()
                 )
-                val executeAt = System.currentTimeMillis()
+                val executionTime = System.currentTimeMillis()
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
                         eventId = exchange.message.toEventId(),
                         processor = eventFunction.materialize(),
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
-                        executeAt = executeAt
+                        executeAt = executionTime,
+                        retrySpec = retry?.toSpec()
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)
+                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executionTime)
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())

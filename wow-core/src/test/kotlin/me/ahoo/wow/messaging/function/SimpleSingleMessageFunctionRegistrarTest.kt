@@ -24,23 +24,23 @@ internal class SimpleSingleMessageFunctionRegistrarTest {
     @Test
     fun register() {
         val registrar = SimpleSingleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
-        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
+        val function = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
-        var actual = registrar.getFunction(handler.supportedType)
+        var actual = registrar.getFunction(function.supportedType)
         assertThat(actual, nullValue())
 
-        registrar.register(handler)
-        actual = registrar.getFunction(handler.supportedType)
-        assertThat(actual, equalTo(handler))
+        registrar.register(function)
+        actual = registrar.getFunction(function.supportedType)
+        assertThat(actual, equalTo(function))
 
         val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
 
         registrar.register(anotherHandler)
-        actual = registrar.getFunction(handler.supportedType)
+        actual = registrar.getFunction(function.supportedType)
         assertThat(actual, equalTo(anotherHandler))
     }
 
