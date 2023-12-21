@@ -30,6 +30,10 @@ class CommandFunction<C : Any>(
     override val supportedType: Class<*> = delegate.supportedType
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
+        return delegate.getAnnotation(annotationClass)
+    }
+
     override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return delegate
             .invoke(exchange)

@@ -2,6 +2,7 @@ package me.ahoo.wow.compensation.core
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.event.DomainEventExchange
@@ -78,6 +79,7 @@ class CompensationFilterTest {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
             every { processorName } returns "processorName"
+            every { getAnnotation(Retry::class.java) } returns Retry(true, 1, 1, 1)
         }
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()
@@ -104,6 +106,35 @@ class CompensationFilterTest {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
             every { processorName } returns "processorName"
+            every { getAnnotation(Retry::class.java) } returns Retry()
+        }
+        val exchange = mockk<DomainEventExchange<*>> {
+            every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.aggregateId } returns "test.test".toNamedAggregate().aggregateId()
+            every { message.version } returns 1
+            every { message.header } returns DefaultHeader.empty()
+                .with(COMPENSATION_ID, GlobalIdGenerator.generateAsString())
+            every { getEventFunction() } returns eventFunction
+        }
+        val error = IllegalStateException()
+        val next: FilterChain<DomainEventExchange<*>> = mockk {
+            every { filter(exchange) } returns error.toMono()
+        }
+        compensationFilter.filter(exchange, next)
+            .test()
+            .expectErrorMatches { it === error }
+            .verify()
+    }
+
+    @Test
+    fun filterErrorRetryDisable() {
+        val commandBus = InMemoryCommandBus()
+        val compensationFilter = CompensationFilter(commandBus)
+        val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+            every { functionKind } returns FunctionKind.EVENT
+            every { contextName } returns "contextName"
+            every { processorName } returns "processorName"
+            every { getAnnotation(Retry::class.java) } returns Retry(false)
         }
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.id } returns GlobalIdGenerator.generateAsString()

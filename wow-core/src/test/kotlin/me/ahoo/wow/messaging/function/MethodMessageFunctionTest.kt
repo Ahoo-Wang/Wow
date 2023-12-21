@@ -14,6 +14,7 @@ package me.ahoo.wow.messaging.function
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
@@ -31,7 +32,7 @@ import org.junit.jupiter.api.Test
 
 internal class MethodMessageFunctionTest {
     @Test
-    fun asMessageFunction() {
+    fun toMessageFunction() {
         val messageFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
@@ -74,7 +75,7 @@ internal class MethodMessageFunctionTest {
     }
 
     @Test
-    fun asMessageFunctionWhenInjectable() {
+    fun toMessageFunctionWhenInjectable() {
         val messageFunction = MockWithInjectableFunction::class.java.getDeclaredMethod(
             "onEvent",
             MockEventBody::class.java,
@@ -100,7 +101,7 @@ internal class MethodMessageFunctionTest {
     }
 
     @Test
-    fun asMonoMessageFunction() {
+    fun toMonoMessageFunction() {
         val messageFunction = MockFunction::class.java.getDeclaredMethod(
             "onEvent",
             MockEventBody::class.java,
@@ -128,5 +129,11 @@ internal class MethodMessageFunctionTest {
                 MonoMethodAccessor::class.java,
             ),
         )
+        val retry = messageFunction.getAnnotation(Retry::class.java)
+        assertThat(retry, notNullValue())
+        assertThat(retry!!.enabled, equalTo(true))
+        assertThat(retry!!.maxRetries, equalTo(Retry.DEFAULT_MAX_RETRIES))
+        assertThat(retry!!.minBackoff, equalTo(Retry.DEFAULT_MIN_BACKOFF))
+        assertThat(retry!!.executionTimeout, equalTo(Retry.DEFAULT_EXECUTION_TIMEOUT))
     }
 }

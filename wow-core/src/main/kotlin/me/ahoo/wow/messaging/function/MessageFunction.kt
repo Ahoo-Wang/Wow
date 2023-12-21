@@ -38,6 +38,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
+    fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A?
     operator fun invoke(exchange: M): R
 
     fun handle(exchange: M): R {
@@ -53,6 +54,10 @@ interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : 
     override val supportedType: Class<*> get() = metadata.supportedType
     override val processorName: String get() = metadata.processorName
     override val name: String get() = metadata.name
+
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
+        return metadata.accessor.method.getAnnotation(annotationClass)
+    }
 }
 
 fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.toMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
