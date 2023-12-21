@@ -15,6 +15,7 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.FunctionKind
@@ -87,6 +88,10 @@ data class RetrySpec(
             if (this is RetrySpec) {
                 return this
             }
+            return RetrySpec(maxRetries = maxRetries, minBackoff = minBackoff, executionTimeout = executionTimeout)
+        }
+
+        fun Retry.toSpec(): RetrySpec {
             return RetrySpec(maxRetries = maxRetries, minBackoff = minBackoff, executionTimeout = executionTimeout)
         }
     }

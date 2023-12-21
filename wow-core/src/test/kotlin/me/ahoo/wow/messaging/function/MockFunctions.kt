@@ -18,10 +18,12 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnStateEvent
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
 
 internal class MockEventBody
 internal class MockFunction {
+    @Retry
     fun onEvent(mockEventBody: MockEventBody) = Unit
 }
 

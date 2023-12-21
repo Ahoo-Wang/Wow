@@ -34,6 +34,9 @@ class StatelessSagaFunction(
     override val supportedType: Class<*> = actual.supportedType
     override val supportedTopics: Set<Any> = actual.supportedTopics
     override val functionKind: FunctionKind = actual.functionKind
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
+        return actual.getAnnotation(annotationClass)
+    }
 
     override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
         return actual.invoke(exchange)
