@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.failed
 
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts

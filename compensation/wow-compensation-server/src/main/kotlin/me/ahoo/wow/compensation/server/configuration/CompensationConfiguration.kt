@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.configuration
 
 import me.ahoo.wow.compensation.domain.DefaultNextRetryAtCalculator
 import me.ahoo.wow.compensation.domain.NextRetryAtCalculator

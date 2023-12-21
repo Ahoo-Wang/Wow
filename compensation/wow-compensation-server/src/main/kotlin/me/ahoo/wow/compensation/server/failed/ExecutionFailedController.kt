@@ -11,16 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.failed
 
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.query.ExecutionFailedQuery
 import me.ahoo.wow.compensation.api.query.PagedList
 import me.ahoo.wow.compensation.api.query.PagedQuery
 import me.ahoo.wow.compensation.api.query.QueryApi
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -29,14 +27,8 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/failed")
 class ExecutionFailedController(
-    private val executionFailedQuery: ExecutionFailedQuery,
-    private val compensationScheduler: CompensationScheduler
+    private val executionFailedQuery: ExecutionFailedQuery
 ) : QueryApi {
-
-    @PutMapping("{limit}")
-    fun retry(@PathVariable limit: Int): Mono<Long> {
-        return compensationScheduler.retry(limit)
-    }
 
     @PostMapping("all")
     override fun findAll(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
