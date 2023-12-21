@@ -12,11 +12,14 @@ import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.time.Duration
 
 class CompensationFilterTest {
 
@@ -102,6 +105,12 @@ class CompensationFilterTest {
     fun filterErrorExecutionIdNotNull() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = CompensationFilter(commandBus)
+        val sink = Sinks.empty<Void>()
+        commandBus.receive(setOf(CompensationSagaTest.LOCAL_AGGREGATE.materialize()))
+            .doOnNext {
+                sink.tryEmitEmpty()
+            }
+            .subscribe()
         val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
@@ -124,11 +133,20 @@ class CompensationFilterTest {
             .test()
             .expectErrorMatches { it === error }
             .verify()
+        sink.asMono()
+            .test()
+            .verifyComplete()
     }
 
     @Test
     fun filterErrorRetryDisable() {
         val commandBus = InMemoryCommandBus()
+        val sink = Sinks.empty<Void>()
+        commandBus.receive(setOf(CompensationSagaTest.LOCAL_AGGREGATE.materialize()))
+            .doOnNext {
+                sink.tryEmitEmpty()
+            }
+            .subscribe()
         val compensationFilter = CompensationFilter(commandBus)
         val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
             every { functionKind } returns FunctionKind.EVENT
@@ -151,6 +169,10 @@ class CompensationFilterTest {
         compensationFilter.filter(exchange, next)
             .test()
             .expectErrorMatches { it === error }
+            .verify()
+        sink.asMono()
+            .test()
+            .expectTimeout(Duration.ofSeconds(1))
             .verify()
     }
 }
