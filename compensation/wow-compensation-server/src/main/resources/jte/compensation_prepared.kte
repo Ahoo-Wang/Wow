@@ -1,0 +1,35 @@
+@import java.time.LocalDateTime
+@import java.time.Instant
+@import java.time.ZoneId
+@import java.time.format.DateTimeFormatter
+
+@import me.ahoo.wow.api.event.DomainEvent
+@import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+@import me.ahoo.wow.compensation.api.IExecutionFailedState
+@import me.ahoo.wow.compensation.api.CompensationPrepared
+
+@param event: DomainEvent<CompensationPrepared>
+@param state: ReadOnlyStateAggregate<IExecutionFailedState>
+
+!{val root = state.state}
+!{val processor = root.processor}
+!{val eventId = root.eventId}
+!{val retryState = root.retryState}
+
+# Compensation Prepared - ${retryState.retries}
+- Id：${"`"}${root.id}${"`"}
+- Processor：${processor.processorName}@${processor.contextName}
+- ExecuteAt：${LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
+## Event Id
+- AggregateName: ${eventId.aggregateId.aggregateName}@${eventId.aggregateId.contextName}
+- AggregateId: ${"`"}${eventId.aggregateId.id}${"`"}
+- Id: ${"`"}${eventId.id}${"`"}
+- Version: ${"`"}${eventId.version}${"`"}
+## Retry State
+- Retries: ${retryState.retries}(${root.retrySpec.maxRetries})
+- RetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.retryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
+- NextRetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.nextRetryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
+- Status: <font color="warning">${root.status.toString()}</font>
+
+
+
