@@ -36,6 +36,6 @@ cosid:
     enabled: true
 wow:
   kafka:
-    bootstrap-servers: PLAINTEXT://localhost:58526
+    bootstrap-servers: PLAINTEXT://localhost:62294
 
 
