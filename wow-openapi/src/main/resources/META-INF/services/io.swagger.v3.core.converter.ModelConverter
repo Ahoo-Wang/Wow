@@ -15,3 +15,4 @@ me.ahoo.wow.openapi.converter.MarkNullableConverter
 me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter
 me.ahoo.wow.openapi.converter.HiddenVariableConverter
 me.ahoo.wow.openapi.converter.AggregateIdConverter
+me.ahoo.wow.openapi.converter.SnapshotConverter
