@@ -48,6 +48,7 @@ import reactor.kotlin.core.publisher.toMono
     before = [RetryableFilter::class]
 )
 class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEventExchange<*>> {
+
     override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
         val executionId = exchange.message.header.compensationId
         return next.filter(exchange)
@@ -63,18 +64,18 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                     errorMsg = errorInfo.errorMsg,
                     stackTrace = it.stackTraceToString()
                 )
-                val executionTime = System.currentTimeMillis()
+                val executeAt = System.currentTimeMillis()
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
                         eventId = exchange.message.toEventId(),
                         processor = eventFunction.materialize(),
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
-                        executeAt = executionTime,
+                        executeAt = executeAt,
                         retrySpec = retry?.toSpec()
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executionTime)
+                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())

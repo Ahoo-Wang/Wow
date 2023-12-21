@@ -14,6 +14,7 @@
 package me.ahoo.wow.compensation.server.webhook.weixin
 
 import me.ahoo.wow.api.annotation.OnStateEvent
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ExecutionFailedApplied
@@ -37,6 +38,7 @@ class WeiXinWebHook(
 
     private val webClient = webclientBuilder.build()
 
+    @Retry(false)
     @OnStateEvent
     fun onExecutionFailedCreated(
         event: DomainEvent<ExecutionFailedCreated>,
@@ -49,6 +51,7 @@ class WeiXinWebHook(
         return sendMessage(sendMessage)
     }
 
+    @Retry(false)
     @OnStateEvent
     fun onExecutionFailedApplied(
         event: DomainEvent<ExecutionFailedApplied>,
@@ -61,6 +64,7 @@ class WeiXinWebHook(
         return sendMessage(sendMessage)
     }
 
+    @Retry(false)
     @OnStateEvent
     fun onExecutionSuccessApplied(
         event: DomainEvent<ExecutionSuccessApplied>,
@@ -73,6 +77,7 @@ class WeiXinWebHook(
         return sendMessage(sendMessage)
     }
 
+    @Retry(false)
     @OnStateEvent
     fun onCompensationPrepared(
         event: DomainEvent<CompensationPrepared>,

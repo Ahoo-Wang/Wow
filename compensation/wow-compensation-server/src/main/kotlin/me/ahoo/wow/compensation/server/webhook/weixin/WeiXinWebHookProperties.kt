@@ -26,9 +26,7 @@ data class WeiXinWebHookProperties(
         HookEvent.EXECUTION_FAILED_CREATED,
         HookEvent.EXECUTION_FAILED_APPLIED,
         HookEvent.EXECUTION_SUCCESS_APPLIED,
-        HookEvent.COMPENSATION_PREPARED,
-    ),
-
+    )
 ) {
     companion object {
         const val PREFIX = CompensationProperties.PREFIX + ".webhook.weixin"
