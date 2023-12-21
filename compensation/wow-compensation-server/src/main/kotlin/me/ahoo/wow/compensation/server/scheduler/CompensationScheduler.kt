@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.scheduler
 
 import me.ahoo.simba.core.MutexContendServiceFactory
 import me.ahoo.simba.schedule.AbstractScheduler
@@ -26,14 +26,15 @@ import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 
 @Service
+@ConditionalOnSchedulerEnabled
 class CompensationScheduler(
     private val findNextRetry: FindNextRetry,
     private val commandGateway: CommandGateway,
-    private val compensationProperties: CompensationProperties,
+    private val schedulerProperties: SchedulerProperties,
     contendServiceFactory: MutexContendServiceFactory
 ) :
     AbstractScheduler(
-        mutex = compensationProperties.mutex,
+        mutex = schedulerProperties.mutex,
         contendServiceFactory = contendServiceFactory
     ),
     SmartLifecycle {
@@ -62,18 +63,18 @@ class CompensationScheduler(
     }
 
     override val config: ScheduleConfig =
-        ScheduleConfig.delay(compensationProperties.schedule.initialDelay, compensationProperties.schedule.period)
+        ScheduleConfig.delay(schedulerProperties.initialDelay, schedulerProperties.period)
     override val worker: String
         get() = WORKER_NAME
 
     override fun work() {
         if (log.isInfoEnabled) {
-            log.info("Start retry - batchSize:[{}].", compensationProperties.batchSize)
+            log.info("Start retry - batchSize:[{}].", schedulerProperties.batchSize)
         }
-        val count = retry(compensationProperties.batchSize)
+        val count = retry(schedulerProperties.batchSize)
             .block()
         if (log.isInfoEnabled) {
-            log.info("Complete retry - batchSize:[{}] - count:[{}].", compensationProperties.batchSize, count)
+            log.info("Complete retry - batchSize:[{}] - count:[{}].", schedulerProperties.batchSize, count)
         }
     }
 

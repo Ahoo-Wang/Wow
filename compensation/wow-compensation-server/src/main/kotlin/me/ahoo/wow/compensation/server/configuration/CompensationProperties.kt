@@ -11,27 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.configuration
 
 import me.ahoo.wow.compensation.api.IRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
-import java.time.Duration
+import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = CompensationProperties.PREFIX)
 data class CompensationProperties(
+    @DefaultValue("10")
     override val maxRetries: Int = 10,
+    @DefaultValue("180")
     override val minBackoff: Int = 180,
+    @DefaultValue("120")
     override val executionTimeout: Int = 120,
-    val mutex: String = "compensation_mutex",
-    val batchSize: Int = 100,
-    val schedule: ScheduleProperties = ScheduleProperties()
 ) : IRetrySpec {
     companion object {
         const val PREFIX = me.ahoo.wow.spring.boot.starter.compensation.CompensationProperties.PREFIX
     }
 
-    data class ScheduleProperties(
-        val initialDelay: Duration = Duration.ofSeconds(60),
-        val period: Duration = Duration.ofSeconds(60),
-    )
 }

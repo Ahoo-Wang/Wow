@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server
+package me.ahoo.wow.compensation.server.dashboard
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpResponse
