@@ -73,6 +73,8 @@ dependencies {
     implementation(project(":wow-spring-boot-starter"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-mongo"))
+    implementation(libs.jte)
+    implementation(libs.jte.kotlin)
     implementation("me.ahoo.cosid:cosid-mongo")
     implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -87,6 +89,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("io.mockk:mockk") {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
 }
 
 tasks.withType<Test> {

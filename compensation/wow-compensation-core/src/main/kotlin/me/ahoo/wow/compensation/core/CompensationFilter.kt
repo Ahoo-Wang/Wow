@@ -57,17 +57,17 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                     errorMsg = errorInfo.errorMsg,
                     stackTrace = it.stackTraceToString()
                 )
-                val executionTime = System.currentTimeMillis()
+                val executeAt = System.currentTimeMillis()
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
                         eventId = exchange.message.toEventId(),
                         processor = eventFunction.materialize(),
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
-                        executeAt = executionTime
+                        executeAt = executeAt
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executionTime)
+                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())

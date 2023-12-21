@@ -13,6 +13,7 @@ mockk = "1.13.8"
 kotlinCompileTesting = "0.4.0"
 swagger = "2.2.20"
 springDoc = "2.3.0"
+jte = "3.1.6"
 # plugins
 testRetry = "1.5.8"
 detekt = "1.23.4"
@@ -37,6 +38,8 @@ swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "s
 springDocStarterCommon = { module = "org.springdoc:springdoc-openapi-starter-common", version.ref = "springDoc" }
 springDocStarterWebfluxApi = { module = "org.springdoc:springdoc-openapi-starter-webflux-api", version.ref = "springDoc" }
 springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
+jte = { module = "gg.jte:jte", version.ref = "jte" }
+jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 detektFormatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }

@@ -1,0 +1,13 @@
+@import me.ahoo.wow.api.event.DomainEvent
+@import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+@import me.ahoo.wow.compensation.api.ExecutionFailedCreated
+@import me.ahoo.wow.compensation.api.IExecutionFailedState
+
+@param event: DomainEvent<ExecutionFailedCreated>
+@param state: ReadOnlyStateAggregate<IExecutionFailedState>
+
+# 执行失败
+- 处理器：${event.body.processor.toString()}
+
+
+
