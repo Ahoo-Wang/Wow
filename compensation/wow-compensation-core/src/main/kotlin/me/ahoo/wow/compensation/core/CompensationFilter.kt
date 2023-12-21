@@ -54,7 +54,7 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
             .onErrorResume {
                 val eventFunction = exchange.getEventFunction() ?: return@onErrorResume it.toMono()
                 val retry = eventFunction.getAnnotation(Retry::class.java)
-                if (retry?.enabled == true) {
+                if (retry?.enabled == false) {
                     return@onErrorResume it.toMono()
                 }
                 val errorInfo = it.toErrorInfo()
