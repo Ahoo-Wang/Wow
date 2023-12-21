@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono
 
 class CompensationSagaTest {
     companion object {
-        private val LOCAL_AGGREGATE = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
+        internal val LOCAL_AGGREGATE = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
     }
 
     @Test
