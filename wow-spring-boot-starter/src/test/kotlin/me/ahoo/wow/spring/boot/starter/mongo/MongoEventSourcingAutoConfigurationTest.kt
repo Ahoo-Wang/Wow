@@ -19,6 +19,7 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.tck.container.MongoLauncher
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext

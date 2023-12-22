@@ -2,6 +2,7 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.tck.container.KafkaLauncher
 import me.ahoo.wow.tck.eventsourcing.state.StateEventBusSpec
 import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Flux

@@ -18,6 +18,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 
 class MongoCommandDispatcherTest : CommandDispatcherSpec() {

@@ -11,22 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.it
+package me.ahoo.wow.tck.container
 
-import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.utility.DockerImageName
 
-object MongoLauncher {
-    private const val DEV_CONNECTION_STRING = "mongodb://root:root@localhost"
-    private val MONGO_CONTAINER: MongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
-        .withNetworkAliases("mongo")
+object ElasticsearchLauncher {
+    const val ELASTIC_PWD = "wow"
+    val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
+        DockerImageName
+            .parse("docker.elastic.co/elasticsearch/elasticsearch")
+            .withTag("8.7.1"),
+    )
+        .withPassword(ELASTIC_PWD)
+        .withNetworkAliases("elasticsearch")
         .withReuse(true)
 
-    fun getConnectionString(): String {
-        if (System.getenv("CI").isNullOrBlank()) {
-            return DEV_CONNECTION_STRING
-        }
-        MONGO_CONTAINER.start()
-        return MONGO_CONTAINER.connectionString
+    init {
+        ELASTICSEARCH_CONTAINER.start()
     }
+
+    val isRunning = ELASTICSEARCH_CONTAINER.isRunning
 }

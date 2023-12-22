@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.tck.container
 
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName

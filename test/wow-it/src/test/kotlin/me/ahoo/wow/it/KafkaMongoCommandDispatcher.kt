@@ -22,6 +22,8 @@ import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
+import me.ahoo.wow.tck.container.KafkaLauncher
+import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
 import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Mono
