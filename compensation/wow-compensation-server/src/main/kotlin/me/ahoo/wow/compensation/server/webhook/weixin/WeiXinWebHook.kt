@@ -21,6 +21,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.server.configuration.CompensationProperties
 import me.ahoo.wow.compensation.server.webhook.TemplateEngine
 import me.ahoo.wow.compensation.server.webhook.weixin.HookEvent.Companion.toHookEvent
 import me.ahoo.wow.compensation.server.webhook.weixin.WeiXinSendMessage.Companion.markdown
@@ -30,6 +31,7 @@ import reactor.core.publisher.Mono
 
 @me.ahoo.wow.api.annotation.StatelessSaga
 class WeiXinWebHook(
+    private val compensationProperties: CompensationProperties,
     private val hookProperties: WeiXinWebHookProperties,
     private val webclientBuilder: WebClient.Builder
 ) {
@@ -83,7 +85,7 @@ class WeiXinWebHook(
             }
             return Mono.empty()
         }
-        val sendMessage = TemplateEngine.renderOnEvent(event, state).markdown()
+        val sendMessage = TemplateEngine.renderOnEvent(event, state, compensationProperties.host).markdown()
         return sendMessage(sendMessage)
     }
 

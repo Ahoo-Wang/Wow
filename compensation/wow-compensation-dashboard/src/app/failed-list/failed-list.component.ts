@@ -16,6 +16,7 @@ import {ErrorComponent} from "../error/error.component";
 import {FailedHistoryComponent} from "../failed-history/failed-history.component";
 import {NzIconDirective} from "ng-zorro-antd/icon";
 import {ApplyRetrySpecComponent} from "../apply-retry-spec/apply-retry-spec.component";
+import {ActivatedRoute} from "@angular/router";
 
 @Component({
   selector: 'app-failed-list',
@@ -38,7 +39,7 @@ import {ApplyRetrySpecComponent} from "../apply-retry-spec/apply-retry-spec.comp
     NgIf,
     FailedHistoryComponent,
     NzIconDirective,
-    NzDrawerModule,
+    NzDrawerModule
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -52,10 +53,12 @@ export class FailedListComponent implements OnInit {
 
   constructor(private compensationClient: CompensationClient,
               private message: NzMessageService,
-              private drawerService: NzDrawerService) {
+              private drawerService: NzDrawerService,
+              private activatedRoute: ActivatedRoute) {
   }
 
   ngOnInit() {
+    this.showErrorInfoIfId()
   }
 
   onExpandChange(id: string, checked: boolean): void {
@@ -71,6 +74,16 @@ export class FailedListComponent implements OnInit {
         this.pagedList = resp
       }
     )
+  }
+
+  showErrorInfoIfId() {
+    const id = this.activatedRoute.snapshot.queryParams['id']
+    if (!id) {
+      return
+    }
+    this.compensationClient.loadState(id).subscribe(resp => {
+      this.openErrorInfo(resp)
+    })
   }
 
   onQueryParamsChange(params: NzTableQueryParams): void {
@@ -116,7 +129,10 @@ export class FailedListComponent implements OnInit {
   }
 
   editRetrySpec(id: string, retrySpec: RetrySpec) {
-    const editRetrySpecModal = this.drawerService.create<ApplyRetrySpecComponent, { id: string, retrySpec: RetrySpec }>({
+    const editRetrySpecModal = this.drawerService.create<ApplyRetrySpecComponent, {
+      id: string,
+      retrySpec: RetrySpec
+    }>({
       nzTitle: `Apply Retry Spec`,
       nzWidth: '280px',
       nzContent: ApplyRetrySpecComponent,

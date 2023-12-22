@@ -8,6 +8,7 @@
 @import me.ahoo.wow.compensation.api.IExecutionFailedState
 @import me.ahoo.wow.compensation.api.CompensationPrepared
 
+@param host: String
 @param event: DomainEvent<CompensationPrepared>
 @param state: ReadOnlyStateAggregate<IExecutionFailedState>
 
@@ -17,7 +18,11 @@
 !{val retryState = root.retryState}
 
 # Compensation Prepared - ${retryState.retries}
+@if(host.isNotBlank())
+- Id：[${root.id}](${host}/executing?id=${root.id})
+@else
 - Id：${"`"}${root.id}${"`"}
+@endif
 - Processor：${processor.processorName}@${processor.contextName}
 - ExecuteAt：${LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
 ## Event Id
@@ -30,6 +35,5 @@
 - RetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.retryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
 - NextRetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.nextRetryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
 - Status: <font color="warning">${root.status.toString()}</font>
-
 
 
