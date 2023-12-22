@@ -36,7 +36,7 @@
 
       </td>
       <td nzLeft>
-        <p nz-typography nzCopyable [(nzContent)]="item.id"></p>
+        <p nz-typography nzEllipsis nzCopyable [(nzContent)]="item.id"></p>
       </td>
       <td>{{ item.processor.contextName }}</td>
       <td>{{ item.processor.processorName }}</td>
@@ -44,10 +44,10 @@
       <td>{{ item.eventId.aggregateId.contextName }}</td>
       <td>{{ item.eventId.aggregateId.aggregateName }}</td>
       <td>
-        <p nz-typography nzCopyable [(nzContent)]="item.eventId.aggregateId.aggregateId"></p>
+        <p nz-typography nzEllipsis nzCopyable [(nzContent)]="item.eventId.aggregateId.aggregateId"></p>
       </td>
       <td>
-        <p nz-typography nzCopyable [(nzContent)]="item.eventId.id"></p>
+        <p nz-typography nzEllipsis nzCopyable [(nzContent)]="item.eventId.id"></p>
       </td>
       <td> {{ item.eventId.version }}</td>
       <td>
