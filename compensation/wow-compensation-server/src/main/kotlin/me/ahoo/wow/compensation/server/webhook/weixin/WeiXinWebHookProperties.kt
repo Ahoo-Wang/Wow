@@ -38,5 +38,19 @@ enum class HookEvent(val value: String) {
     EXECUTION_FAILED_CREATED("execution_failed_created"),
     EXECUTION_FAILED_APPLIED("execution_failed_applied"),
     EXECUTION_SUCCESS_APPLIED("execution_success_applied"),
-    COMPENSATION_PREPARED("compensation_prepared"),
+    COMPENSATION_PREPARED("compensation_prepared");
+
+    companion object {
+        fun String.toHookEvent(): HookEvent {
+            return when (this) {
+                EXECUTION_FAILED_CREATED.value -> EXECUTION_FAILED_CREATED
+                EXECUTION_FAILED_APPLIED.value -> EXECUTION_FAILED_APPLIED
+                EXECUTION_SUCCESS_APPLIED.value -> EXECUTION_SUCCESS_APPLIED
+                COMPENSATION_PREPARED.value -> COMPENSATION_PREPARED
+                else -> {
+                    throw IllegalArgumentException("Unknown HookEvent - $this")
+                }
+            }
+        }
+    }
 }
