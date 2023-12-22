@@ -18,16 +18,17 @@ import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
-import me.ahoo.wow.api.Version
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
 import me.ahoo.wow.serialization.MessageRecords
 
 /**
- * Snapshot Converter
- * @see me.ahoo.wow.serialization.state.SnapshotSerializer
+ * StateEvent Converter
+ * @see me.ahoo.wow.serialization.event.DomainEventJsonSerializer
+ * @see me.ahoo.wow.serialization.event.EventStreamJsonSerializer
+ * @see me.ahoo.wow.serialization.event.StateEventJsonSerializer
  */
-class SnapshotConverter : ModelConverter {
+class StateEventConverter : ModelConverter {
     override fun resolve(
         type: AnnotatedType,
         context: ModelConverterContext,
@@ -37,22 +38,25 @@ class SnapshotConverter : ModelConverter {
             return null
         }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isSnapshot(type)) {
+        if (!isStateEvent(type)) {
             return resolvedSchema
         }
-        resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
-        resolvedSchema.properties.remove(Snapshot<*>::expectedNextVersion.name)
-        resolvedSchema.properties.remove(Version::initialized.name)
+        resolvedSchema.properties.remove(StateEvent<*>::operator.name)
+        resolvedSchema.properties.remove(StateEvent<*>::eventTime.name)
+        resolvedSchema.properties.remove(StateEvent<*>::eventId.name)
+        resolvedSchema.properties.remove(StateEvent<*>::size.name)
+        resolvedSchema.properties.remove(StateEvent<*>::aggregateId.name)
+        resolvedSchema.properties.remove("readOnly")
         resolvedSchema.properties.remove("initialVersion")
-        resolvedSchema.properties[MessageRecords.CONTEXT_NAME] = StringSchema()
-        resolvedSchema.properties[MessageRecords.AGGREGATE_NAME] = StringSchema()
+        resolvedSchema.properties.remove("initialized")
+        resolvedSchema.properties.remove(StateEvent<*>::expectedNextVersion.name)
         resolvedSchema.properties[MessageRecords.AGGREGATE_ID] = StringSchema()
         resolvedSchema.properties[MessageRecords.TENANT_ID] = StringSchema()
         return resolvedSchema
     }
 
-    private fun isSnapshot(type: AnnotatedType): Boolean {
+    private fun isStateEvent(type: AnnotatedType): Boolean {
         val rawClass = type.getRawClass() ?: return false
-        return rawClass == Snapshot::class.java
+        return rawClass == StateEvent::class.java
     }
 }
