@@ -1,12 +1,12 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {ExecutionFailedState, ExecutionFailedStatus} from "../api/ExecutionFailedState";
+import {ExecutionFailedState, ExecutionFailedStatus, RetrySpec} from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
 import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
-import {NzDrawerComponent, NzDrawerContentDirective} from "ng-zorro-antd/drawer";
+import {NzDrawerComponent, NzDrawerContentDirective, NzDrawerModule, NzDrawerService} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
 import {initialPagedQuery, PagedQuery, SortOrder} from "../api/PagedQuery";
 import {PagedList} from "../api/PagedList";
@@ -14,6 +14,8 @@ import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
 import {FailedHistoryComponent} from "../failed-history/failed-history.component";
+import {NzIconDirective} from "ng-zorro-antd/icon";
+import {ApplyRetrySpecComponent} from "../apply-retry-spec/apply-retry-spec.component";
 
 @Component({
   selector: 'app-failed-list',
@@ -35,6 +37,8 @@ import {FailedHistoryComponent} from "../failed-history/failed-history.component
     ErrorComponent,
     NgIf,
     FailedHistoryComponent,
+    NzIconDirective,
+    NzDrawerModule,
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -47,7 +51,8 @@ export class FailedListComponent implements OnInit {
   expandSet = new Set<string>();
 
   constructor(private compensationClient: CompensationClient,
-              private message: NzMessageService) {
+              private message: NzMessageService,
+              private drawerService: NzDrawerService) {
   }
 
   ngOnInit() {
@@ -108,6 +113,30 @@ export class FailedListComponent implements OnInit {
 
   closeErrorInfo() {
     this.errorInfoVisible = false
+  }
+
+  editRetrySpec(id: string, retrySpec: RetrySpec) {
+    const editRetrySpecModal = this.drawerService.create<ApplyRetrySpecComponent, { id: string, retrySpec: RetrySpec }>({
+      nzTitle: `Apply Retry Spec`,
+      nzWidth: '280px',
+      nzContent: ApplyRetrySpecComponent,
+      nzData: {
+        id: id,
+        retrySpec: {
+          maxRetries: retrySpec.maxRetries,
+          minBackoff: retrySpec.minBackoff,
+          executionTimeout: retrySpec.executionTimeout
+        }
+      }
+    });
+
+    editRetrySpecModal.afterOpen.subscribe(() => {
+      const instance = editRetrySpecModal.getContentComponent();
+      instance!.afterApply.subscribe(result => {
+        editRetrySpecModal.close()
+        this.load()
+      })
+    });
   }
 
   protected readonly FindCategory = FindCategory;
