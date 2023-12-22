@@ -13,6 +13,7 @@ import {PagedList} from "../api/PagedList";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
+import {FailedHistoryComponent} from "../failed-history/failed-history.component";
 
 @Component({
   selector: 'app-failed-list',
@@ -33,6 +34,7 @@ import {ErrorComponent} from "../error/error.component";
     NzCountdownComponent,
     ErrorComponent,
     NgIf,
+    FailedHistoryComponent,
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -42,12 +44,21 @@ export class FailedListComponent implements OnInit {
   @Input({required: true}) category: FindCategory = FindCategory.TO_RETRY;
   current: ExecutionFailedState | undefined;
   errorInfoVisible = false
+  expandSet = new Set<string>();
 
   constructor(private compensationClient: CompensationClient,
               private message: NzMessageService) {
   }
 
   ngOnInit() {
+  }
+
+  onExpandChange(id: string, checked: boolean): void {
+    if (checked) {
+      this.expandSet.add(id);
+    } else {
+      this.expandSet.delete(id);
+    }
   }
 
   load() {
