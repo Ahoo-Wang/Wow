@@ -1,5 +1,5 @@
 <nz-table nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }"
-          nzShowSizeChanger [nzFrontPagination]="false"
+          nzShowSizeChanger [nzFrontPagination]="false" [nzHideOnSinglePage]="true"
           [nzPageIndex]="pagedQuery.pageIndex" [nzPageSize]="pagedQuery.pageSize"
           [nzData]="pagedList.list" [nzTotal]="pagedList.total"
           (nzQueryParams)="onQueryParamsChange($event)"
@@ -31,7 +31,7 @@
   </tr>
   <tbody>
   <ng-container *ngFor="let item of pagedList.list">
-    <tr *ngFor="let item of pagedList.list">
+    <tr>
       <td [nzExpand]="expandSet.has(item.id)" (nzExpandChange)="onExpandChange(item.id, $event)">
 
       </td>
