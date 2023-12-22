@@ -22,6 +22,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.server.webhook.TemplateEngine
+import me.ahoo.wow.compensation.server.webhook.weixin.HookEvent.Companion.toHookEvent
 import me.ahoo.wow.compensation.server.webhook.weixin.WeiXinSendMessage.Companion.markdown
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import org.springframework.web.reactive.function.client.WebClient
@@ -44,11 +45,7 @@ class WeiXinWebHook(
         event: DomainEvent<ExecutionFailedCreated>,
         state: ReadOnlyStateAggregate<IExecutionFailedState>
     ): Mono<Void> {
-        if (!hookProperties.events.contains(HookEvent.EXECUTION_FAILED_CREATED)) {
-            return Mono.empty()
-        }
-        val sendMessage = TemplateEngine.renderOnEvent(event, state).markdown()
-        return sendMessage(sendMessage)
+        return sendMessage(event, state)
     }
 
     @Retry(false)
@@ -57,11 +54,7 @@ class WeiXinWebHook(
         event: DomainEvent<ExecutionFailedApplied>,
         state: ReadOnlyStateAggregate<IExecutionFailedState>
     ): Mono<Void> {
-        if (!hookProperties.events.contains(HookEvent.EXECUTION_FAILED_APPLIED)) {
-            return Mono.empty()
-        }
-        val sendMessage = TemplateEngine.renderOnEvent(event, state).markdown()
-        return sendMessage(sendMessage)
+        return sendMessage(event, state)
     }
 
     @Retry(false)
@@ -70,11 +63,7 @@ class WeiXinWebHook(
         event: DomainEvent<ExecutionSuccessApplied>,
         state: ReadOnlyStateAggregate<IExecutionFailedState>
     ): Mono<Void> {
-        if (!hookProperties.events.contains(HookEvent.EXECUTION_SUCCESS_APPLIED)) {
-            return Mono.empty()
-        }
-        val sendMessage = TemplateEngine.renderOnEvent(event, state).markdown()
-        return sendMessage(sendMessage)
+        return sendMessage(event, state)
     }
 
     @Retry(false)
@@ -83,7 +72,15 @@ class WeiXinWebHook(
         event: DomainEvent<CompensationPrepared>,
         state: ReadOnlyStateAggregate<IExecutionFailedState>
     ): Mono<Void> {
-        if (!hookProperties.events.contains(HookEvent.COMPENSATION_PREPARED)) {
+        return sendMessage(event, state)
+    }
+
+    private fun sendMessage(event: DomainEvent<*>, state: ReadOnlyStateAggregate<IExecutionFailedState>): Mono<Void> {
+        val currentEvent = event.name.toHookEvent()
+        if (!hookProperties.events.contains(currentEvent)) {
+            if (log.isInfoEnabled) {
+                log.info("Skip send message. event: $currentEvent")
+            }
             return Mono.empty()
         }
         val sendMessage = TemplateEngine.renderOnEvent(event, state).markdown()

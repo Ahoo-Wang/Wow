@@ -21,7 +21,7 @@
 - Processor：${processor.processorName}@${processor.contextName}
 - ExecuteAt：${LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
 ## Event Id
-- AggregateName: ${eventId.aggregateId.aggregateName}@${eventId.aggregateId.contextName}
+- Aggregate: ${eventId.aggregateId.aggregateName}@${eventId.aggregateId.contextName}
 - AggregateId: ${"`"}${eventId.aggregateId.id}${"`"}
 - Id: ${"`"}${eventId.id}${"`"}
 - Version: ${"`"}${eventId.version}${"`"}
