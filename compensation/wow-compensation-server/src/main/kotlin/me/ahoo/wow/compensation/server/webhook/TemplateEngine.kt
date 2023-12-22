@@ -26,6 +26,7 @@ object TemplateEngine {
     const val TEMPLATE_SUFFIX = ".kte"
     const val EVENT_PARAM = "event"
     const val EVENT_STATE = "state"
+    const val HOST = "host"
     private val engine: TemplateEngine by lazy {
         val codeResolver = ResourceCodeResolver(TEMPLATE_ROOT)
         TemplateEngine.create(codeResolver, ContentType.Plain)
@@ -41,10 +42,15 @@ object TemplateEngine {
         return renderTemplate(templateName + TEMPLATE_SUFFIX, params)
     }
 
-    fun renderOnEvent(event: DomainEvent<*>, state: ReadOnlyStateAggregate<IExecutionFailedState>): String {
+    fun renderOnEvent(
+        event: DomainEvent<*>,
+        state: ReadOnlyStateAggregate<IExecutionFailedState>,
+        host: String
+    ): String {
         val context = mapOf(
             EVENT_PARAM to event,
-            EVENT_STATE to state
+            EVENT_STATE to state,
+            HOST to host
         )
         return render(event.name, context)
     }
