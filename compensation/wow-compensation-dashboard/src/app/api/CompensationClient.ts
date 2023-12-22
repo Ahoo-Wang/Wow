@@ -83,4 +83,8 @@ export class CompensationClient {
   loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {
     return this.httpClient.get<DomainEventStream[]>(`${this.commandApi}/${id}/event/${headVersion}/${tailVersion}`)
   }
+
+  loadState(id: string): Observable<ExecutionFailedState> {
+    return this.httpClient.get<ExecutionFailedState>(`${this.commandApi}/${id}/state`)
+  }
 }
