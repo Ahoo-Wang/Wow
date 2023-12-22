@@ -21,6 +21,7 @@ dokka = "1.9.10"
 kotlin = "1.9.22"
 publishPlugin = "1.3.0"
 ksp = "1.9.21-1.0.16"
+kover= "0.7.5"
 
 [libraries]
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -52,4 +53,5 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinSpring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 kotlinkapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 publishPlugin = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publishPlugin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 

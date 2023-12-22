@@ -42,7 +42,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Build Code Coverage Report
-        run: ./gradlew codeCoverageReport --stacktrace
+        run: ./gradlew code-coverage-report:koverXmlReport --stacktrace
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.11.0
@@ -78,5 +78,5 @@ jobs:
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)
 #          directory: ./build/reports/jacoco/codeCoverageReport/
-          files: ./test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+          files: ./test/code-coverage-report/build/reports/kover/report.xml
           path_to_write_report: ./coverage/codecov_report.txt
