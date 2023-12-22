@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.tck.container.ElasticsearchLauncher
 import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
 import org.junit.jupiter.api.BeforeAll
 import org.springframework.data.elasticsearch.client.ClientConfiguration

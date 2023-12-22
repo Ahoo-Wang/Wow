@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
+import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 class MongoEventStoreTest : EventStoreSpec() {
