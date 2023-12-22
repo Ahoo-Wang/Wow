@@ -19,6 +19,9 @@ import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -28,6 +31,13 @@ import me.ahoo.wow.serialization.MessageRecords
  * @see me.ahoo.wow.serialization.event.EventStreamJsonSerializer
  */
 class DomainEventConverter : ModelConverter {
+    companion object {
+        private val wrapTypes: Set<String> = setOf(
+            DomainEventStream::class.java.toSchemaName()!!,
+            StateEvent::class.java.toSchemaName()!!
+        )
+    }
+
     override fun resolve(
         type: AnnotatedType,
         context: ModelConverterContext,
@@ -36,18 +46,31 @@ class DomainEventConverter : ModelConverter {
         if (!chain.hasNext()) {
             return null
         }
+        val isDomainEvent = isDomainEvent(type)
+        val isWrapped = (type.parent?.name ?: "") in wrapTypes
+        if (isDomainEvent && isWrapped) {
+            type.name = "wow.WrappedDomainEvent"
+        }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isDomainEvent(type)) {
+        if (!isDomainEvent) {
             return resolvedSchema
         }
-        resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
-        resolvedSchema.properties.remove("expectedNextVersion")
-        resolvedSchema.properties.remove("initialized")
-        resolvedSchema.properties.remove("initialVersion")
-        resolvedSchema.properties[MessageRecords.CONTEXT_NAME] = StringSchema()
-        resolvedSchema.properties[MessageRecords.AGGREGATE_NAME] = StringSchema()
-        resolvedSchema.properties[MessageRecords.AGGREGATE_ID] = StringSchema()
-        resolvedSchema.properties[MessageRecords.TENANT_ID] = StringSchema()
+        if (isWrapped) {
+            resolvedSchema.properties["bodyType"] = StringSchema()
+            resolvedSchema.properties.remove("last")
+            resolvedSchema.properties.remove(DomainEvent<*>::header.name)
+            resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
+            resolvedSchema.properties.remove(DomainEvent<*>::sequence.name)
+            resolvedSchema.properties.remove("readOnly")
+            resolvedSchema.properties.remove(DomainEvent<*>::createTime.name)
+            resolvedSchema.properties.remove(DomainEvent<*>::contextName.name)
+            resolvedSchema.properties.remove(DomainEvent<*>::commandId.name)
+            resolvedSchema.properties.remove(DomainEvent<*>::aggregateName.name)
+            resolvedSchema.properties.remove(DomainEvent<*>::version.name)
+            resolvedSchema.properties.remove("initialVersion")
+            resolvedSchema.properties.remove(DomainEvent<*>::initialized.name)
+        }
+
         return resolvedSchema
     }
 

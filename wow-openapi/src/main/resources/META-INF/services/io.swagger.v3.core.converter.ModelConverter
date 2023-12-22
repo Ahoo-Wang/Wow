@@ -16,4 +16,6 @@ me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter
 me.ahoo.wow.openapi.converter.HiddenVariableConverter
 me.ahoo.wow.openapi.converter.AggregateIdConverter
 me.ahoo.wow.openapi.converter.SnapshotConverter
+me.ahoo.wow.openapi.converter.EventStreamConverter
 me.ahoo.wow.openapi.converter.DomainEventConverter
+me.ahoo.wow.openapi.converter.StateEventConverter

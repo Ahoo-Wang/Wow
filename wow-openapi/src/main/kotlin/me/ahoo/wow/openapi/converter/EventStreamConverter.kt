@@ -18,16 +18,16 @@ import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
-import me.ahoo.wow.api.Version
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
 import me.ahoo.wow.serialization.MessageRecords
 
 /**
- * Snapshot Converter
- * @see me.ahoo.wow.serialization.state.SnapshotSerializer
+ * EventStream Converter
+ * @see me.ahoo.wow.serialization.event.DomainEventJsonSerializer
+ * @see me.ahoo.wow.serialization.event.EventStreamJsonSerializer
  */
-class SnapshotConverter : ModelConverter {
+class EventStreamConverter : ModelConverter {
     override fun resolve(
         type: AnnotatedType,
         context: ModelConverterContext,
@@ -37,22 +37,21 @@ class SnapshotConverter : ModelConverter {
             return null
         }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isSnapshot(type)) {
+        if (!isEventStream(type)) {
             return resolvedSchema
         }
         resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
-        resolvedSchema.properties.remove(Snapshot<*>::expectedNextVersion.name)
-        resolvedSchema.properties.remove(Version::initialized.name)
+        resolvedSchema.properties.remove(DomainEventStream::size.name)
+        resolvedSchema.properties.remove("readOnly")
+        resolvedSchema.properties.remove("initialized")
         resolvedSchema.properties.remove("initialVersion")
-        resolvedSchema.properties[MessageRecords.CONTEXT_NAME] = StringSchema()
-        resolvedSchema.properties[MessageRecords.AGGREGATE_NAME] = StringSchema()
         resolvedSchema.properties[MessageRecords.AGGREGATE_ID] = StringSchema()
         resolvedSchema.properties[MessageRecords.TENANT_ID] = StringSchema()
         return resolvedSchema
     }
 
-    private fun isSnapshot(type: AnnotatedType): Boolean {
+    private fun isEventStream(type: AnnotatedType): Boolean {
         val rawClass = type.getRawClass() ?: return false
-        return rawClass == Snapshot::class.java
+        return rawClass == DomainEventStream::class.java
     }
 }
