@@ -36,17 +36,27 @@
 
       </td>
       <td nzLeft>
-        {{ item.id }}
+        <p nz-typography nzCopyable [(nzContent)]="item.id"></p>
       </td>
       <td>{{ item.processor.contextName }}</td>
       <td>{{ item.processor.processorName }}</td>
       <td>{{ item.executeAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ item.eventId.aggregateId.contextName }}</td>
       <td>{{ item.eventId.aggregateId.aggregateName }}</td>
-      <td>{{ item.eventId.aggregateId.aggregateId }}</td>
-      <td>{{ item.eventId.id }}</td>
+      <td>
+        <p nz-typography nzCopyable [(nzContent)]="item.eventId.aggregateId.aggregateId"></p>
+      </td>
+      <td>
+        <p nz-typography nzCopyable [(nzContent)]="item.eventId.id"></p>
+      </td>
       <td> {{ item.eventId.version }}</td>
-      <td>{{ item.retryState.retries }}({{ item.retrySpec.maxRetries }})</td>
+      <td>
+        {{ item.retryState.retries }}({{ item.retrySpec.maxRetries }})
+        <button nz-button nzType="dashed" nzDanger nzShape="circle" nzSize="small"
+                (click)="editRetrySpec(item.id,item.retrySpec)">
+          <span nz-icon nzType="edit"></span>
+        </button>
+      </td>
       <td>{{ item.retryState.retryAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>
         @switch (category) {
@@ -111,7 +121,6 @@
       </tr>
     </ng-template>
   </ng-container>
-
   </tbody>
 </nz-table>
 
@@ -124,7 +133,7 @@
   nzWidth="1200px"
 >
   <ng-container *nzDrawerContent>
-    <ng-template [ngIf]="current">
+    <ng-template [ngIf]="errorInfoVisible">
       <app-error [state]="current!"></app-error>
     </ng-template>
   </ng-container>

@@ -11,8 +11,12 @@
   <tbody>
   <ng-container *ngFor="let eventStream of eventStreams">
     <tr *ngFor="let event of eventStream.body">
-      <td>{{ eventStream.id }}</td>
-      <td>{{ event.id }}</td>
+      <td>
+        <p nz-typography nzCopyable [(nzContent)]="eventStream.id"></p>
+      </td>
+      <td>
+        <p nz-typography nzCopyable [(nzContent)]="event.id"></p>
+      </td>
       <td>{{ eventStream.version }}</td>
       <td>{{ event.name }}</td>
       <td>{{ eventStream.createTime|date:'yyyy-MM-dd HH:mm:ss' }}</td>

@@ -3,16 +3,18 @@ import {CompensationClient} from "../api/CompensationClient";
 import {DomainEventStream} from "../api/DomainEventStream";
 import {NzTableCellDirective, NzTableModule} from "ng-zorro-antd/table";
 import {DatePipe, NgForOf} from "@angular/common";
+import {NzTypographyComponent} from "ng-zorro-antd/typography";
 
 @Component({
   selector: 'app-failed-history',
   standalone: true,
-  imports: [
-    NzTableModule,
-    NgForOf,
-    DatePipe,
-    NzTableCellDirective
-  ],
+    imports: [
+        NzTableModule,
+        NgForOf,
+        DatePipe,
+        NzTableCellDirective,
+        NzTypographyComponent
+    ],
   templateUrl: './failed-history.component.html',
   styleUrl: './failed-history.component.scss'
 })
