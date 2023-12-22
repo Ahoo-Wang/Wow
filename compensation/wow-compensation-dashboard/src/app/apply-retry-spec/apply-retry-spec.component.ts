@@ -61,8 +61,6 @@ export class ApplyRetrySpecComponent implements OnInit {
       minBackoff: [this.retrySpec.minBackoff, [Validators.required]],
       executionTimeout: [this.retrySpec.executionTimeout, [Validators.required]]
     });
-    console.log(this.id)
-    console.log(this.retrySpec)
   }
 
   applyRetrySpec() {
