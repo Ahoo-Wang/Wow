@@ -340,6 +340,14 @@ class CartSagaTest {
 </p>
 
 <p align="center" style="text-align:center">
+  <img src="./document/design/assets/compensation-dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
+</p>
+
+<p align="center" style="text-align:center">
+  <img src="./document/design/assets/compensation-dashboard-succeeded.png" alt="Compensation-Dashboard"/>
+</p>
+
+<p align="center" style="text-align:center">
   <img src="./document/design/assets/compensation-dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 

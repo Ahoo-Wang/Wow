@@ -38,6 +38,8 @@ import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
+import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
+import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
@@ -49,8 +51,6 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RES
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_TIMEOUT_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.TOO_MANY_REQUESTS_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEXT_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
@@ -155,8 +155,8 @@ class CommandRouteSpec(
             .with(COMMAND_RESULT_RESPONSE)
             .with(BAD_REQUEST_RESPONSE)
             .with(NOT_FOUND_RESPONSE)
-            .with(REQUEST_TIMEOUT_RESPONSE)
-            .with(TOO_MANY_REQUESTS_RESPONSE)
+            .withRequestTimeout()
+            .withTooManyRequests()
             .with(VERSION_CONFLICT_RESPONSE)
             .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
 }
