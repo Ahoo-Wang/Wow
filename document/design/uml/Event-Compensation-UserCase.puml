@@ -19,6 +19,10 @@ package Query{
     --
     && (FAILED || (PREPARED && timeoutAt<=CurrentTime))
     "
+    usecase FindExecuting as "FindExecuting
+    --
+    PREPARED && timeoutAt > CurrentTime
+    "
     usecase FindToRetry as "FindToRetry
     --
     !SUCCEEDED && retries<maxRetries
@@ -53,6 +57,7 @@ Scheduler --> FindNextRetry
 Scheduler --> PrepareCompensation
 
 FindToRetry <-- Developer
+FindExecuting <-- Developer
 PrepareCompensation <-- Developer
 ForcePrepareCompensation <-- Developer
 ApplyRetrySpec <-- Developer

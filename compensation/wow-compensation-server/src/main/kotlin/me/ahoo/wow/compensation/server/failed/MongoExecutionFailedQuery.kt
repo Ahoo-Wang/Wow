@@ -117,6 +117,14 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
         return Document.parse(pipelineShell);
     }
 
+    fun executingFilter(): Bson {
+        val currentTime = System.currentTimeMillis()
+        return Filters.and(
+            Filters.eq("state.status", ExecutionFailedStatus.PREPARED.name),
+            Filters.gt("state.retryState.timoutAt", currentTime)
+        )
+    }
+
     fun nonRetryableFilter(): Bson {
         return Filters.and(
             Filters.ne("state.status", ExecutionFailedStatus.SUCCEEDED.name),
@@ -135,6 +143,11 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
 
     override fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         val filter = nextRetryFilter()
+        return findPagedList(filter, pagedQuery)
+    }
+
+    override fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        val filter = executingFilter()
         return findPagedList(filter, pagedQuery)
     }
 

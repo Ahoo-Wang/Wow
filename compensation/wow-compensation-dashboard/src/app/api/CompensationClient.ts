@@ -19,10 +19,12 @@ import {CommandResult} from "./CommandResult";
 import {ApplyRetrySpec} from "./ApplyRetrySpec";
 import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
+import {DomainEventStream} from "./DomainEventStream";
 
 export enum FindCategory {
   ALL = 'all',
   TO_RETRY = 'to-retry',
+  EXECUTING = 'executing',
   NEXT_RETRY = 'next-retry',
   NON_RETRYABLE = 'non-retryable',
   SUCCESS = 'success',
@@ -76,5 +78,9 @@ export class CompensationClient {
 
   findSuccess(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
     return this.find(FindCategory.SUCCESS, pagedQuery);
+  }
+
+  loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {
+    return this.httpClient.get<DomainEventStream[]>(`${this.commandApi}/${id}/event/${headVersion}/${tailVersion}`)
   }
 }

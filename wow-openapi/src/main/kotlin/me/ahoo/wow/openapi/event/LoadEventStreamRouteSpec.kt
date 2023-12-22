@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.ResponseRef
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
@@ -69,7 +70,7 @@ class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     companion object {
         val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.toSchemaRef()
-        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.toResponse().let {
+        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.toArraySchema().toResponse().let {
             ResponseRef("${Wow.WOW_PREFIX}EventStreamArray", it)
         }
     }
