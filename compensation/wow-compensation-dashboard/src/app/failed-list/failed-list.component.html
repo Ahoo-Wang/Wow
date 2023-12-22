@@ -52,10 +52,12 @@
       <td> {{ item.eventId.version }}</td>
       <td>
         {{ item.retryState.retries }}({{ item.retrySpec.maxRetries }})
-        <button nz-button nzType="dashed" nzDanger nzShape="circle" nzSize="small"
-                (click)="editRetrySpec(item.id,item.retrySpec)">
-          <span nz-icon nzType="edit"></span>
-        </button>
+        <ng-template [ngIf]="category!=FindCategory.SUCCESS">
+          <button nz-button nzType="dashed" nzDanger nzShape="circle" nzSize="small"
+                  (click)="editRetrySpec(item.id,item.retrySpec)">
+            <span nz-icon nzType="edit"></span>
+          </button>
+        </ng-template>
       </td>
       <td>{{ item.retryState.retryAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>
