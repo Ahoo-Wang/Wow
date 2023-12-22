@@ -39,6 +39,10 @@ class ExecutionFailedController(
     override fun findNextRetry(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         return executionFailedQuery.findNextRetry(pagedQuery)
     }
+    @PostMapping("executing")
+    override fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        return executionFailedQuery.findExecuting(pagedQuery)
+    }
 
     @PostMapping("to-retry")
     override fun findToRetry(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {

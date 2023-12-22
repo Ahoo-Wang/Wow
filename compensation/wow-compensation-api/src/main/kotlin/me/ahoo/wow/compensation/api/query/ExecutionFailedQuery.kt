@@ -19,6 +19,7 @@ import reactor.core.publisher.Mono
 interface ExecutionFailedQuery {
     fun findAll(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
+    fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findToRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>

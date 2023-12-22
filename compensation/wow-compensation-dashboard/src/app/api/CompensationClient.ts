@@ -24,6 +24,7 @@ import {DomainEventStream} from "./DomainEventStream";
 export enum FindCategory {
   ALL = 'all',
   TO_RETRY = 'to-retry',
+  EXECUTING = 'executing',
   NEXT_RETRY = 'next-retry',
   NON_RETRYABLE = 'non-retryable',
   SUCCESS = 'success',
