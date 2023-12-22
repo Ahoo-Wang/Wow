@@ -20,6 +20,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = CompensationProperties.PREFIX)
 data class CompensationProperties(
+    val host: String = "",
     @DefaultValue("10")
     override val maxRetries: Int = Retry.DEFAULT_MAX_RETRIES,
     @DefaultValue("180")
