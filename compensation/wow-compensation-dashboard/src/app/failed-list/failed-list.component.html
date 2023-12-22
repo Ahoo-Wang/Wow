@@ -31,7 +31,7 @@
   </tr>
   <tbody>
   <ng-container *ngFor="let item of pagedList.list">
-    <tr *ngFor="let item of pagedList.list">
+    <tr>
       <td [nzExpand]="expandSet.has(item.id)" (nzExpandChange)="onExpandChange(item.id, $event)">
 
       </td>
