@@ -25,6 +25,7 @@ plugins {
     alias(libs.plugins.kotlin)
     alias(libs.plugins.dokka)
     jacoco
+    alias(libs.plugins.kover)
 }
 
 val dependenciesProject = project(":wow-dependencies")
@@ -85,7 +86,7 @@ configure(libraryProjects) {
         withSourcesJar()
     }
     apply(plugin = "org.jetbrains.kotlin.jvm")
-//    apply<KotlinPlatformJvmPlugin>()
+    apply(plugin = "org.jetbrains.kotlinx.kover")
     configure<KotlinJvmProjectExtension> {
         jvmToolchain(17)
     }
