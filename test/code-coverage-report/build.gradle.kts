@@ -27,6 +27,10 @@ dependencies {
     }
 }
 
+kover {
+    useJacoco()
+}
+
 reporting {
     reports {
         val codeCoverageReport by creating(JacocoCoverageReport::class) {
