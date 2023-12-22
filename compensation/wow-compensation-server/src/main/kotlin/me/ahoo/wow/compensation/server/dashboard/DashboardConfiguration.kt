@@ -36,6 +36,7 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
         *[
             "/",
             "/to-retry",
+            "/executing",
             "/next-retry",
             "/non-retryable",
             "/succeeded",
