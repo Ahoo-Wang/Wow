@@ -35,6 +35,8 @@ internal class EventMetadataParserTest {
             ),
         )
         assertThat(eventMetadata.revision, equalTo(DEFAULT_REVISION))
+        assertThat(eventMetadata.hashCode(), not(equalTo(0)))
+        assertThat(eventMetadata.toString(), notNullValue())
     }
 
     @Test
@@ -76,5 +78,16 @@ internal class EventMetadataParserTest {
         )
         assertThat(eventMetadata.name, equalTo(NAMED_EVENT))
         assertThat(eventMetadata.revision, equalTo(REVISED_EVENT))
+    }
+
+    @Test
+    fun eq() {
+        val eventMetadata = eventMetadata<MockAggregateCreated>()
+        assertThat(eventMetadata, equalTo(eventMetadata))
+        assertThat(eventMetadata, not(equalTo(Any())))
+        val eventMetadata2 = eventMetadata<MockNamedAndRevisedEvent>()
+        assertThat(eventMetadata, not(equalTo(eventMetadata2)))
+        val eventMetadata3 = eventMetadata<MockAggregateCreated>()
+        assertThat(eventMetadata, equalTo(eventMetadata3))
     }
 }

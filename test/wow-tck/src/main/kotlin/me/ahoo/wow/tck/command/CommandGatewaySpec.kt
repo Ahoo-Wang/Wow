@@ -97,6 +97,17 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     }
 
     @Test
+    fun sendAndWaitForSnapshot() {
+        val message = createMessage()
+        verify {
+            sendAndWaitForSnapshot(message)
+                .timeout(Duration.ofMillis(100))
+                .test()
+                .verifyTimeout(Duration.ofMillis(150))
+        }
+    }
+
+    @Test
     fun sendGivenDuplicate() {
         val message = createMessage()
         verify {
