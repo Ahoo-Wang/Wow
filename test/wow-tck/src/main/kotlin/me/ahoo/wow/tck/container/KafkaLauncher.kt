@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kafka
+package me.ahoo.wow.tck.container
 
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.apache.kafka.clients.CommonClientConfigs

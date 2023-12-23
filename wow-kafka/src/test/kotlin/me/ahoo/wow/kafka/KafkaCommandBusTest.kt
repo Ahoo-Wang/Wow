@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.tck.command.CommandBusSpec
+import me.ahoo.wow.tck.container.KafkaLauncher
 import org.junit.jupiter.api.BeforeAll
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks

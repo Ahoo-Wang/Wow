@@ -16,8 +16,8 @@ package me.ahoo.wow.mongo.prepare
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
-import me.ahoo.wow.mongo.MongoLauncher
 import me.ahoo.wow.mongo.SchemaInitializerSpec
+import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.prepare.PrepareKeySpec
 
 abstract class MongoPrepareKeySpec<V : Any> : PrepareKeySpec<V>() {
