@@ -1,0 +1,32 @@
+@startuml
+
+!include layout.puml
+
+left to right direction
+
+title
+ExecutionFailed State Flow
+__State Diagram__
+end title
+
+state FAILED
+state PREPARED
+state ExecutionStatus <<choice>>
+state SUCCEEDED
+state COMPLETED
+
+[*] --> FAILED
+
+FAILED --> PREPARED: PrepareCompensation
+PREPARED --> ExecutionStatus: Execute
+ExecutionStatus --> FAILED: ApplyExecutionFailed
+ExecutionStatus --> SUCCEEDED: ApplyExecutionSuccess
+SUCCEEDED --> COMPLETED
+FAILED --> COMPLETED: MarkCompleted
+
+json CompletedCategory {
+   "SUCCEEDED":"Succeeded",
+   "FAILED":"Cannot be successful"
+}
+
+@enduml
