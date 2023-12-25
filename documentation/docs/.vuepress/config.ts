@@ -13,11 +13,16 @@
 
 import {defaultTheme, defineUserConfig} from 'vuepress'
 import {searchPlugin} from '@vuepress/plugin-search'
+import {head, navbarZh, sidebarZh} from "./configs";
+
+const siteBase: `/${string}/` = process.env.SITE_BASE || "/"
 
 export default defineUserConfig({
+    base: siteBase,
     lang: 'zh-CN',
     title: '领域模型即服务 | Wow',
     description: '领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing. | 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架',
+    head: head,
     theme: defaultTheme({
             repo: 'Ahoo-Wang/Wow',
             docsBranch: 'main',
@@ -25,6 +30,8 @@ export default defineUserConfig({
             editLink: true,
             lastUpdatedText: '上次更新',
             logo: '/images/logo.svg',
+            navbar: navbarZh,
+            sidebar: sidebarZh
         }
     ),
     plugins: [searchPlugin()],

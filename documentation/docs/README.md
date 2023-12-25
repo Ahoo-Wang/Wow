@@ -4,10 +4,10 @@ heroImage: /images/logo.svg
 heroText: Wow
 tagline: 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 actions:
-  - text: 快速上手 →
+  - text: 快速上手
     link: /guide/getting-started.html
     type: primary
-  - text: Introduction
+  - text: 项目介绍
     link: /guide/introduction.html
     type: secondary
 features:
