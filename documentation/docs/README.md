@@ -14,7 +14,7 @@ features:
 - title: 领域模型即服务
   details: 仅需编写领域模型，即可完成服务开发，Wow 自动为您准备好 OpenAPI 接口
 - title: 测试套件
-  details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现80%以上的测试覆盖率，确保高质量应用交付
+  details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上的测试覆盖率，确保高质量应用交付
 - title: 高性能
   details: 相较与面向数据的传统架构，Wow 采用面向领域的架构，使得系统更适应异步和并发操作，提高整体响应性能
 - title: 无缝伸缩性
