@@ -51,6 +51,8 @@ jobs:
 
       - name: Build VuePress site
         working-directory: documentation
+        env:
+          SITE_BASE: /wow/
         run: npm install -D vuepress@next && npm run docs:build
 
       - name: Deploy to gh-pages
@@ -66,8 +68,6 @@ jobs:
         uses: crazy-max/ghaction-github-pages@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SITE_BASE: /wow/
         with:
           target_branch: gh-pages-with-site-base
           build_dir: documentation/docs/.vuepress/dist/
-          fqdn: wow.ahoo.me
