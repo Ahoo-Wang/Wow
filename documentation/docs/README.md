@@ -24,7 +24,7 @@ features:
 - title: 事件补偿
   details: 提供可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性
 - title: 可观测 (Observability)
-  details: 集成OpenTelemetry，实现系统的端到端可观测性，助力监控和调试，解决CQRS模式可能引起的系统复杂性问题
+  details: 集成 OpenTelemetry，实现系统的端到端可观测性，助力监控和调试，解决CQRS模式可能引起的系统复杂性问题
 - title: 响应式编程 (Reactive)
   details: 采用响应式编程思想，使系统更适应异步和并发操作，提高整体响应性能
 - title: 商业智能
