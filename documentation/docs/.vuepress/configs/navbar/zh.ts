@@ -58,6 +58,19 @@ export const navbarZh: NavbarConfig = [
             '/advanced/metrics.md',
             '/advanced/observability.md',
             '/advanced/aggregate-scheduler.md',
+            {
+                text: "博客资源",
+                children: [
+                    {
+                        text: 'Event Sourcing - Specifications',
+                        link: 'https://abdullin.com/post/event-sourcing-specifications/'
+                    },
+                    {
+                        text: 'Testing Event Sourcing',
+                        link: 'https://event-driven.io/en/testing_event_sourcing/'
+                    }
+                ]
+            }
         ],
     }, {
         text: 'JavaDoc',

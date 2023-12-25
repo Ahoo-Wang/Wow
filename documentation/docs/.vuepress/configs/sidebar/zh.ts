@@ -32,6 +32,7 @@ export const sidebarZh: SidebarConfig = {
                 '/guide/test-suite.md',
                 '/guide/bi.md',
                 '/guide/event-compensation.md',
+                '/guide/best-practices.md',
                 '/guide/deployment.md',
             ],
         },
@@ -51,9 +52,9 @@ export const sidebarZh: SidebarConfig = {
             ],
         }
     ],
-    '/integration/': [
+    '/extensions/': [
         {
-            text: '集成',
+            text: '扩展',
             children: [
                 '/extensions/kafka.md',
                 '/extensions/mongo.md',
