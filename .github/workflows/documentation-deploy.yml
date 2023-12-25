@@ -42,24 +42,29 @@ jobs:
         with:
           # choose node.js version to use
           node-version: 18
+          # cache deps for pnpm
+          cache: pnpm
 
-      - name: Build and Deploy
-        uses: jenkey2011/vuepress-deploy@master
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          TARGET_REPO: Ahoo-Wang/Wow
-          TARGET_BRANCH: gh-pages
-          BUILD_SCRIPT: cd documentation && yarn && yarn docs:build
-          BUILD_DIR: docs/.vuepress/dist/
-          CNAME: wow.ahoo.me
+      # run build script
+      - name: Build VuePress site
+        working-directory: documentation
+        run: pnpm docs:build
 
-      - name: Build and Deploy With Site Base
-        uses: jenkey2011/vuepress-deploy@master
+      - name: Deploy to gh-pages
+        uses: crazy-max/ghaction-github-pages@v4
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          target_branch: gh-pages
+          build_dir: documentation/docs/.vuepress/dist/
+          fqdn: wow.ahoo.me
+
+      - name: Deploy to gh-pages-with-site-base
+        uses: crazy-max/ghaction-github-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE_BASE: /wow/
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          TARGET_REPO: Ahoo-Wang/Wow
-          TARGET_BRANCH: gh-pages-with-site-base
-          BUILD_SCRIPT: cd documentation && yarn && yarn docs:build
-          BUILD_DIR: docs/.vuepress/dist/
-          CNAME: wow.ahoo.me
+        with:
+          target_branch: gh-pages-with-site-base
+          build_dir: documentation/docs/.vuepress/dist/
+          fqdn: wow.ahoo.me
