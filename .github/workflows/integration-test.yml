@@ -16,10 +16,12 @@ on:
   push:
     paths-ignore:
       - 'document/**'
+      - 'documentation/**'
       - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
+      - 'documentation/**'
       - 'wow-example/**'
 env:
   CI: GITHUB_ACTIONS
