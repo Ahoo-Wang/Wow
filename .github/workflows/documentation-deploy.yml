@@ -16,6 +16,9 @@ on:
   push:
     paths:
       - 'documentation/**'
+  pull_request:
+    paths:
+      - 'documentation/**'
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -43,12 +46,11 @@ jobs:
           # choose node.js version to use
           node-version: 18
           # cache deps for pnpm
-          cache: pnpm
 
       # run build script
       - name: Build VuePress site
         working-directory: documentation
-        run: pnpm docs:build
+        run: npm run docs:build
 
       - name: Deploy to gh-pages
         uses: crazy-max/ghaction-github-pages@v4
