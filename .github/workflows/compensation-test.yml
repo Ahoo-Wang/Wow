@@ -17,10 +17,12 @@ on:
     paths-ignore:
       - 'document/**'
       - 'wow-example/**'
+      - 'documentation/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'wow-example/**'
+      - 'documentation/**'
 env:
   CI: GITHUB_ACTIONS
 
