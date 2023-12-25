@@ -34,6 +34,9 @@ jobs:
       - name: Generate KotlinDoc
         run: ./gradlew dokkaHtmlMultimodule
 
+      - name: Copy To Documentation
+        run: cp -R build/dokka/htmlMultiModule documentation/docs/.vuepress/public/dokka
+
       - name: Build and Deploy
         uses: jenkey2011/vuepress-deploy@master
         env:
