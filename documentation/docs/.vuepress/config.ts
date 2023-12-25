@@ -13,6 +13,7 @@
 
 import {defaultTheme, defineUserConfig} from 'vuepress'
 import {searchPlugin} from '@vuepress/plugin-search'
+import { googleAnalyticsPlugin } from '@vuepress/plugin-google-analytics'
 import {head, navbarZh, sidebarZh} from "./configs";
 
 const siteBase: `/${string}/` = process.env.SITE_BASE || "/"
@@ -34,6 +35,10 @@ export default defineUserConfig({
             sidebar: sidebarZh
         }
     ),
-    plugins: [searchPlugin()],
+    plugins: [searchPlugin(),googleAnalyticsPlugin(
+        {
+            id:'G-9HYEC088Y1'
+        }
+    )],
     port: 8555
 })
