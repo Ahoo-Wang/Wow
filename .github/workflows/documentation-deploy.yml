@@ -33,7 +33,7 @@ jobs:
 
       - name: Build VuePress site
         working-directory: documentation
-        run: npm run docs:build
+        run: npm install -D vuepress@next && npm run docs:build
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
