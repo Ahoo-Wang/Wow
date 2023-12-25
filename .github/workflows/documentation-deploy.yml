@@ -19,6 +19,10 @@ on:
   pull_request:
     paths:
       - 'documentation/**'
+
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
