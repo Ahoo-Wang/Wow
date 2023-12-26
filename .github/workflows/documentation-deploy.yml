@@ -1,0 +1,77 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Documentation Build and Deploy
+on:
+  push:
+    paths:
+      - 'documentation/**'
+  pull_request:
+    paths:
+      - 'documentation/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Generate KotlinDoc
+        run: ./gradlew dokkaHtmlMultimodule
+
+      - name: Copy To Documentation
+        run: cp -R build/dokka/htmlMultiModule documentation/docs/.vuepress/public/dokka
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Build VuePress site
+        working-directory: documentation
+        run: npm install -D vuepress@next && npm run docs:build
+
+      - name: Deploy to gh-pages
+        uses: crazy-max/ghaction-github-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          target_branch: gh-pages
+          build_dir: documentation/docs/.vuepress/dist/
+          fqdn: wow.ahoo.me
+
+      - name: Build VuePress site with SITE_BASE
+        working-directory: documentation
+        env:
+          SITE_BASE: /wow/
+        run: npm install -D vuepress@next && npm run docs:build
+
+      - name: Deploy to gh-pages-with-site-base
+        uses: crazy-max/ghaction-github-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          target_branch: gh-pages-with-site-base
+          build_dir: documentation/docs/.vuepress/dist/

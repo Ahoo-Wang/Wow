@@ -3,11 +3,14 @@ on:
   push:
     paths-ignore:
       - 'document/**'
+      - 'documentation/**'
       - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
+      - 'documentation/**'
       - 'wow-example/**'
+  workflow_dispatch:
 permissions:
   contents: read
   issues: read

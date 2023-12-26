@@ -18,6 +18,7 @@ on:
   push:
     paths-ignore:
       - 'examples/**'
+      - 'documentation/**'
     branches:
       - '**'
     tags:
@@ -25,9 +26,10 @@ on:
   pull_request:
     paths-ignore:
       - 'document/**'
+      - 'documentation/**'
     branches:
       - 'main'
-
+  workflow_dispatch:
 jobs:
   compensation-docker-deploy:
     name: Push Docker image
