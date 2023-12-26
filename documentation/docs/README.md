@@ -16,7 +16,7 @@ features:
 - title: 测试套件
   details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上的测试覆盖率，确保高质量应用交付
 - title: 高性能
-  details: A+ES、CQRS 架构，写操作仅需进行 AppendOnly 操作，读操作则利用面向查询的搜索引擎
+  details: Aggregate+EventSourcing、CQRS 架构，写操作仅需进行 AppendOnly 操作，读操作则利用面向查询的搜索引擎
 - title: 可伸缩性
   details: 无需考虑数据库关系模式、分片规则等问题，代码无需变更，即可轻松实现水平伸缩
 - title: 分布式事务 (Saga)
