@@ -19,7 +19,7 @@ on:
   pull_request:
     paths:
       - 'documentation/**'
-
+  workflow_dispatch:
 permissions:
   contents: write
 

@@ -10,6 +10,7 @@ on:
       - 'document/**'
       - 'documentation/**'
       - 'wow-example/**'
+  workflow_dispatch:
 permissions:
   contents: read
   issues: read
