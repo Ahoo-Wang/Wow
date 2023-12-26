@@ -1,6 +1,6 @@
 # 快速上手
 
-> 使用[Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
+> 使用[ Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)快速创建基于 _Wow_ 框架的 _DDD_ 项目。
 
 ## 安装模板
 
@@ -8,12 +8,12 @@
 
 [IDEA 配置目录](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
 
-- IDEA 项目模板目录：`<IDE config home>/projectTemplates`
-    - Windows: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
-    - Mac OS:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
-    - Linux: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
-- 将模板压缩包放到 IDEA 项目模板目录下
-    - 模板压缩包: https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.3/wow-project-template.zip
+- _IDEA_ 项目模板目录：`<IDE config home>/projectTemplates`
+    - _Windows_: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
+    - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
+    - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
+- 将模板压缩包放到 _IDEA_ 项目模板目录下
+    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.4/wow-project-template.zip)
 
 ## 创建项目
 
@@ -42,7 +42,7 @@
 
 ## 安装 _server_ 依赖
 
-> 使用 Kafka 作为消息引擎：命令总线以及事件总线
+> 使用 _Kafka_ 作为消息引擎：命令总线以及事件总线
 
 <CodeGroup>
   <CodeGroupItem title="Gradle(Kotlin)" active>
@@ -73,7 +73,7 @@ implementation 'me.ahoo.wow:wow-kafka'
   </CodeGroupItem>
 </CodeGroup>
 
-> 使用 MongoDB 作为事件存储以及快照仓库
+> 使用 _MongoDB_ 作为事件存储以及快照仓库
 
 <CodeGroup>
   <CodeGroupItem title="Gradle(Kotlin)" active>
@@ -199,7 +199,7 @@ wow:
 
 ### 命令聚合根
 
-> 命令聚合根负责接收并处理命令并返回领域事件，同时也是领域事件的发布者。
+> *命令聚合根*负责接收并处理命令并返回领域事件，同时也是领域事件的发布者。
 
 ```kotlin
 @Suppress("unused")
@@ -224,7 +224,7 @@ class Demo(private val state: DemoState) {
 
 ### 状态聚合根
 
-> 状态聚合根负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
+> *状态聚合根*负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
 
 ::: warning 
 状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
