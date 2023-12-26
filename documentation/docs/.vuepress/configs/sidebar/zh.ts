@@ -20,7 +20,7 @@ export const sidebarZh: SidebarConfig = {
             children: [
                 '/guide/introduction.md',
                 '/guide/getting-started.md',
-                '/guide/configuration.md',
+                // '/guide/configuration.md',
                 '/guide/modeling.md',
                 '/guide/command-gateway.md',
                 '/guide/eventstore.md',

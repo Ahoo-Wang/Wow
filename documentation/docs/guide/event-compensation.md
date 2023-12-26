@@ -7,9 +7,21 @@
 
 事件补偿模块提供了可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性。
 
-## 客户端
+### 用例场景
 
-> 默认情况下，客户端模块已经启用了事件补偿功能。
+<p align="center" style="text-align:center">
+  <img src="../.vuepress/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
+</p>
+
+### 执行时序图
+
+<p align="center" style="text-align:center">
+  <img src="../.vuepress/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
+</p>
+
+## 订阅者(客户端)
+
+> 默认情况下，*订阅者(客户端)* 模块已经启用了事件补偿功能。
 > 
 > 如果你希望全局关闭该功能，只需在配置文件中设置 `wow.compensation.enabled=false` 即可。
 > 
@@ -67,18 +79,20 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 
 ## 控制台
 
-*事件补偿控制台*不仅提供了分布式定时调度自动补偿功能，还搭载直观可视化的补偿事件管理功能以及 _OpenAPI_ 接口。
+*事件补偿控制台*的强大功能不仅包括分布式定时调度自动补偿，还搭载直观可视化的补偿事件管理功能、事件补偿通知（企业微信）以及 _OpenAPI_ 接口。
 
-通过分布式定时自动补偿，_Wow_ 框架巧妙解决了系统数据最终一致性的问题，从而摆脱了手动补偿的繁琐过程。
-而可视化的补偿事件管理功能为开发者提供了极大的便利，使其能够更轻松地监控和操作补偿事件。
+通过分布式定时自动补偿，_Wow_ 框架智能地解决了系统数据最终一致性的难题，摆脱了手动补偿的繁琐过程。
+而可视化的补偿事件管理功能为开发者提供了巨大便利，轻松监控和处理补偿事件。
 
-在控制台上，开发者可轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或者删除不再需要的补偿事件，提供了灵活而直观的操作手段。
+在控制台上，开发者能轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或删除不再需要的补偿事件，提供了灵活而直观的操作手段。
 
 这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
 
 :::tip
 [事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。
 ::: 
+
+### UI
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
@@ -96,18 +110,28 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
   <img src="../.vuepress/public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 
-### 用例场景
+### 通知（企业微信）
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
-</p>
+通过配置 *企业微信群机器人* *WebHook地址* 即可开启*企业微信*通知功能。
+同时，通过配置 `events` 属性，可选择只接收特定事件的通知。
+`events` 默认包括：`execution_failed_created`/`execution_failed_applied`/`execution_success_applied`
 
-### 执行时序图
+```yaml
+wow:
+  compensation:
+    host:  # 可选，配置该选项后，开发者可以通过通知消息快速导航到该异常
+    webhook:
+      weixin:
+        url: # 群机器人 Webhook 地址
+        events:
+          - execution_failed_created
+          - execution_failed_applied
+          - execution_success_applied
+```
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
-</p>
-
+| 失败                                                                   | 成功                                                                    |
+|----------------------------------------------------------------------|-----------------------------------------------------------------------|
+| ![执行失败](../.vuepress/public/images/compensation/execution-failed.png) | ![执行成功](../.vuepress/public/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
@@ -117,9 +141,9 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
   <img src="../.vuepress/public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
 </p>
 
-## 部署控制台 (Kubernetes)
+### 部署 (Kubernetes)
 
-### ConfigMap 
+#### ConfigMap
 
 ```yaml
 apiVersion: v1
@@ -174,7 +198,7 @@ data:
         bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
 ```
 
-### Deployment
+#### Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -265,7 +289,7 @@ spec:
             name: compensation-service-config
 ```
 
-### HPA
+#### HPA
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -288,7 +312,7 @@ spec:
         averageUtilization: 80
 ```
 
-### Service
+#### Service
 
 ```yaml
 apiVersion: v1
