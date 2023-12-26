@@ -21,6 +21,7 @@ import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -124,6 +125,60 @@ abstract class PrepareKeySpec<V : Any> {
             .test()
             .expectNext(true)
             .verifyComplete()
+    }
+
+    @Test
+    fun reprepareNewKey() {
+        val oldKey = GlobalIdGenerator.generateAsString()
+        val oldValue = generateValue()
+
+        val key = GlobalIdGenerator.generateAsString()
+        val value = generateValue()
+
+        prepareKey.prepare(oldKey, oldValue)
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+
+        prepareKey.reprepare(oldKey, oldValue, key, value)
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+
+        prepareKey.get(key)
+            .test()
+            .expectNext(value)
+            .verifyComplete()
+
+        prepareKey.reprepare(oldKey, oldValue, key, value)
+            .test()
+            .expectNext(false)
+            .verifyComplete()
+    }
+
+    @Test
+    fun reprepareNewKeyNotFoundKey() {
+        val key = GlobalIdGenerator.generateAsString()
+        val value = generateValue()
+
+        val notFoundKey = GlobalIdGenerator.generateAsString()
+        prepareKey.reprepare(notFoundKey, value, key, value)
+            .test()
+            .expectError(IllegalStateException::class.java)
+            .verify()
+
+        prepareKey.getValue(key)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun reprepareNewKeyEqKey() {
+        val key = GlobalIdGenerator.generateAsString()
+        val value = generateValue()
+        assertThrows<IllegalArgumentException> {
+            prepareKey.reprepare(key, value, key, value)
+        }
     }
 
     @Test

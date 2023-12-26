@@ -52,14 +52,36 @@ interface PrepareKey<V : Any> : Named {
 
     fun reprepare(key: String, value: PreparedValue<V>): Mono<Boolean>
 
-    fun <R> usingPrepare(key: String, value: V, block: (Boolean) -> Mono<R>): Mono<R> {
-        return usingPrepare(key, value.toForever(), block)
+    fun reprepare(oldKey: String, oldValue: V, newKey: String, newValue: V): Mono<Boolean> {
+        return reprepare(oldKey, oldValue, newKey, newValue.toForever())
     }
 
-    fun <R> usingPrepare(key: String, value: PreparedValue<V>, block: (Boolean) -> Mono<R>): Mono<R> {
+    fun reprepare(oldKey: String, oldValue: V, newKey: String, newValue: PreparedValue<V>): Mono<Boolean> {
+        require(oldKey != newKey) {
+            "oldKey must not be equals to newKey. oldKey:[$oldKey]"
+        }
+        return usingPrepare(newKey, newValue) { prepared ->
+            if (!prepared) {
+                return@usingPrepare Mono.just(false)
+            }
+            rollback(oldKey, oldValue).doOnNext {
+                if (!it) {
+                    throw IllegalStateException(
+                        "Reprepare - Rollback failed. newKey:[$newKey] oldKey:[$oldKey],oldValue:[$oldValue]"
+                    )
+                }
+            }
+        }
+    }
+
+    fun <R> usingPrepare(key: String, value: V, then: (Boolean) -> Mono<R>): Mono<R> {
+        return usingPrepare(key, value.toForever(), then)
+    }
+
+    fun <R> usingPrepare(key: String, value: PreparedValue<V>, then: (Boolean) -> Mono<R>): Mono<R> {
         return prepare(key, value)
             .flatMap { prepared ->
-                block(prepared).onErrorResume {
+                then(prepared).onErrorResume {
                     val errorMono = Mono.error<R>(it)
                     if (!prepared) {
                         return@onErrorResume errorMono
