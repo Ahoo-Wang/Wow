@@ -12,6 +12,7 @@
  */
 
 export * from './SITE_BASE.js'
+export * from './meta.js'
 export * from './head.js'
 export * from './navbar/index.js'
 export * from './sidebar/index.js'

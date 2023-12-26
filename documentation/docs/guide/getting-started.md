@@ -2,7 +2,30 @@
 
 > 使用[Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
 
-## 模块介绍
+## 安装模板
+
+[IDEA 项目模板](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
+
+[IDEA 配置目录](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
+
+- IDEA 项目模板目录：`<IDE config home>/projectTemplates`
+    - Windows: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
+    - Mac OS:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
+    - Linux: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
+- 将模板压缩包放到 IDEA 项目模板目录下
+    - 模板压缩包: https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.3/wow-project-template.zip
+
+## 创建项目
+
+> [使用模板创建项目](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
+
+![创建项目](../.vuepress/public/images/getting-started/new-project.png)
+
+- 修改 `settings.gradle.kts` 文件，将 `rootProject.name` 修改为项目名称
+- 修改 `api/{package}/DemoService`
+- 修改 `domain/{package}/DemoBoundedContext`
+
+## 项目模块
 
 | 模块                   | 说明                                                                                                                                |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------|
@@ -17,28 +40,144 @@
 | Dockerfile           | **server Docker 构建镜像**，通过 Dockerfile 文件定义了应用程序的容器化构建步骤，方便部署和扩展。                                                                   |
 | document             | **项目文档**，包括 UML 图和上下文映射图，为团队成员提供了对整个项目结构和业务逻辑的清晰理解。                                                                               |
 
-## 安装模板
+## 安装 _server_ 依赖
 
-[IDEA 项目模板](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
+> 使用 Kafka 作为消息引擎：命令总线以及事件总线
 
-[IDEA 配置目录](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
+<CodeGroup>
+  <CodeGroupItem title="Gradle(Kotlin)" active>
 
-- IDEA 项目模板目录：`<IDE config home>/projectTemplates`
-  - Windows: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
-  - Mac OS:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
-  - Linux: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
-- 将模板压缩包放到 IDEA 项目模板目录下
-    - 模板压缩包: https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.3/wow-project-template.zip
+```kotlin
+implementation("me.ahoo.wow:wow-kafka")
+```
 
-## 创建项目
+  </CodeGroupItem>
+  <CodeGroupItem title="Gradle(Groovy)">
 
-> [使用模板创建项目](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
-> 
-![创建项目](../.vuepress/public/images/getting-started/new-project.png)
+```groovy
+implementation 'me.ahoo.wow:wow-kafka'
+```
 
-- 修改 `settings.gradle.kts` 文件，将 `rootProject.name` 修改为项目名称
-- 修改 `api/{package}/DemoService`
-- 修改 `domain/{package}/DemoBoundedContext`
+  </CodeGroupItem>
+  <CodeGroupItem title="Maven">
+
+```xml
+
+<dependency>
+    <groupId>me.ahoo.wow</groupId>
+    <artifactId>wow-kafka</artifactId>
+    <version>${wow.version}</version>
+</dependency>
+```
+
+  </CodeGroupItem>
+</CodeGroup>
+
+> 使用 MongoDB 作为事件存储以及快照仓库
+
+<CodeGroup>
+  <CodeGroupItem title="Gradle(Kotlin)" active>
+
+```kotlin
+implementation("me.ahoo.wow:wow-mongo")
+implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+```
+
+  </CodeGroupItem>
+  <CodeGroupItem title="Gradle(Groovy)">
+
+```groovy
+implementation 'me.ahoo.wow:wow-mongo'
+implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
+```
+
+  </CodeGroupItem>
+  <CodeGroupItem title="Maven">
+
+```xml
+
+<dependency>
+    <groupId>me.ahoo.wow</groupId>
+    <artifactId>wow-mongo</artifactId>
+    <version>${wow.version}</version>
+</dependency>
+<dependency>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+</dependency>
+```
+
+  </CodeGroupItem>
+</CodeGroup>
+
+> 使用 [CosId](https://github.com/Ahoo-Wang/CosId) 作为全局、聚合根 ID 生成器
+
+<CodeGroup>
+  <CodeGroupItem title="Gradle(Kotlin)" active>
+
+```kotlin
+implementation("me.ahoo.cosid:cosid-mongo")
+```
+
+  </CodeGroupItem>
+  <CodeGroupItem title="Gradle(Groovy)">
+
+```groovy
+implementation 'me.ahoo.cosid:cosid-mongo'
+```
+
+  </CodeGroupItem>
+  <CodeGroupItem title="Maven">
+
+```xml
+
+<dependency>
+    <groupId>me.ahoo.cosid</groupId>
+    <artifactId>cosid-mongo</artifactId>
+    <version>${cosid.version}</version>
+</dependency>
+```
+
+  </CodeGroupItem>
+</CodeGroup>
+
+## 应用配置
+
+```yaml
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
+spring:
+  application:
+    name: <your-service-name>
+  data:
+    mongodb:
+      uri: <mongodb-uri>
+
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: mongo
+  generator:
+    enabled: true
+wow:
+  kafka:
+    bootstrap-servers: <kafka-bootstrap-servers>
+```
 
 ## 启动服务
 
@@ -52,156 +191,103 @@
   <img src="../.vuepress/public/images/getting-started/swagger-ui.png" alt="Swagger-UI"/>
 </p>
 
-## 验证测试覆盖率
+## 领域建模
 
-```shell
-./gradlew domain:jacocoTestCoverageVerification
+::: tip 聚合模式
+接下来的案例中，我们将使用[聚合模式](modeling.md)来建模。
+:::
+
+### 命令聚合根
+
+> 命令聚合根负责接收并处理命令并返回领域事件，同时也是领域事件的发布者。
+
+```kotlin
+@Suppress("unused")
+@AggregateRoot
+class Demo(private val state: DemoState) {
+
+    @OnCommand
+    fun onCreate(command: CreateDemo): DemoCreated {
+        return DemoCreated(
+            data = command.data,
+        )
+    }
+
+    @OnCommand
+    fun onUpdate(command: UpdateDemo): DemoUpdated {
+        return DemoUpdated(
+            data = command.data
+        )
+    }
+}
 ```
 
-> 查看测试覆盖率报告：`domain/build/reports/jacoco/test/html/index.html`
+### 状态聚合根
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/test-coverage.png" alt="Wow-CI-Flow"/>
-</p>
+> 状态聚合根负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
 
-## CI/CD 流水线
+::: warning 
+状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
+:::
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/ci-flow.png" alt="Wow-CI-Flow"/>
-</p>
+```kotlin
+class DemoState(override val id: String) : Identifier {
+    var data: String? = null
+        private set
 
-### 测试阶段
+    @OnSourcing
+    fun onCreated(event: DemoCreated) {
+        data = event.data
+    }
 
-> 代码风格检查(Check CodeStyle)
-
-```shell
-./gradlew detekt
-```
-> 领域模型单元测试 (Check Domain)
-
-```shell
-./gradlew domain:check
-```
-> 测试覆盖率验证(Check CodeCoverage)
-
-```shell
-./gradlew domain:jacocoTestCoverageVerification
-```
-### 构建阶段
-
-> 生成部署包 (Build Server)
-
-```shell
-./gradlew server:installDist
+    @OnSourcing
+    fun onUpdated(event: DemoUpdated) {
+        data = event.data
+    }
+}
 ```
 
-> 发布 Docker 镜像 (Push Image)
+## 编写单元测试
 
-### 部署阶段
+> 为了保证代码质量，我们需要编写单元测试来验证聚合根的行为是否符合预期。
 
-> 部署到 Kubernetes (Deploy Kubernetes)
+### 测试聚合根
 
-### 流水线配置（阿里云效）
+```kotlin
+class DemoTest {
 
-```yaml
-sources:
-  wow_project_template_repo:
-    type: codeup
-    name: Wow 项目模板代码源
-    endpoint: <your-project-repo>
-    branch: main
-    certificate:
-      type: serviceConnection
-      serviceConnection: <your-service-connection-id>
-stages:
-  test:
-    name: "测试"
-    jobs:
-      code_style:
-        name: "Check CodeStyle"
-        runsOn: public/cn-hongkong
-        steps:
-          code_style:
-            name: "代码风格检查"
-            step: "JavaBuild"
-            runsOn: public/
-            with:
-              jdkVersion: "17"
-              run: ./gradlew detekt
+    @Test
+    fun onCreate() {
+        val command = CreateDemo(
+            data = "data"
+        )
 
-      test:
-        name: "Check Domain"
-        runsOn: public/cn-hongkong
-        steps:
-          test:
-            name: "Check Domain"
-            step: "GradleUnitTest"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:check
-              reportDir: "domain/build/reports/tests/test"
-              reportIndex: "index.html"
-          coverage:
-            name: "Check CodeCoverage"
-            step: "JaCoCo"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew domain:jacocoTestCoverageVerification
-              reportDir: "domain/build/reports/jacoco/test/html"
-  build:
-    name: "构建"
-    jobs:
-      build:
-        name: "Build Server And Push Image"
-        runsOn: public/cn-hongkong
-        steps:
-          build:
-            name: "Build Server"
-            step: "JavaBuild"
-            with:
-              jdkVersion: "17"
-              run: ./gradlew server:installDist
-          publish_image:
-            name: "Push Image"
-            step: "ACRDockerBuild"
-            with:
-              artifact: "image"
-              dockerfilePath: "server/Dockerfile"
-              dockerRegistry: "<your-docker-registry—url>"
-              dockerTag: ${DATETIME}
-              region: "cn-hangzhou"
-              serviceConnection: "<your-service-connection-id>"
-  deploy:
-    name: "部署"
-    jobs:
-      deploy:
-        name: "Deploy"
-        runsOn: public/cn-hongkong
-        steps:
-          deploy:
-            name: "Deploy"
-            step: "KubectlApply"
-            with:
-              skipTlsVerify: false
-              kubernetesCluster: "<your-kubernetes-id>"
-              useReplace: false
-              namespace: "dev"
-              kubectlVersion: "1.22.9"
-              yamlPath: "deploy"
-              skipVariableVerify: false
-              variables:
-                - key: IMAGE
-                  value: $[stages.build.build.publish_image.artifacts.image]
-                - key: REPLICAS
-                  value: 2
-                - key: SERVICE_NAME
-                  value: demo-service
+        aggregateVerifier<Demo, DemoState>()
+            .`when`(command)
+            .expectNoError()
+            .expectEventType(DemoCreated::class.java)
+            .expectState {
+                assertThat(it.data, equalTo(command.data))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onUpdate() {
+        val command = UpdateDemo(
+            id = GlobalIdGenerator.generateAsString(),
+            data = "data"
+        )
+
+        aggregateVerifier<Demo, DemoState>()
+            .given(DemoCreated("old"))
+            .`when`(command)
+            .expectNoError()
+            .expectEventType(DemoUpdated::class.java)
+            .expectState {
+                assertThat(it.data, equalTo(command.data))
+            }
+            .verify()
+    }
+}
 ```
-
-## 设计文档
-
-### 用例图
-
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/usecase.svg" alt="Wow-UseCase"/>
-</p>
