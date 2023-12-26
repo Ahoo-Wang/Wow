@@ -17,7 +17,7 @@ on:
     - cron: '0 10 * * *'
   push:
     paths-ignore:
-      - 'examples/**'
+      - 'document/**'
       - 'documentation/**'
     branches:
       - '**'
