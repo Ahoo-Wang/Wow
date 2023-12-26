@@ -14,12 +14,10 @@
 import {defaultTheme, defineUserConfig} from 'vuepress'
 import {searchPlugin} from '@vuepress/plugin-search'
 import {googleAnalyticsPlugin} from '@vuepress/plugin-google-analytics'
-import {head, navbarZh, sidebarZh} from "./configs";
-
-const siteBase: `/${string}/` = process.env.SITE_BASE || "/"
+import {head, navbarZh, sidebarZh, SITE_BASE} from "./configs";
 
 export default defineUserConfig({
-    base: siteBase,
+    base: SITE_BASE,
     lang: 'zh-CN',
     title: '领域模型即服务 | Wow',
     description: '领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing. | 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架',
