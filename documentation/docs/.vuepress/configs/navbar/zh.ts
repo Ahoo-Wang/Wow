@@ -69,6 +69,10 @@ export const navbarZh: NavbarConfig = [
                     {
                         text: 'Testing Event Sourcing',
                         link: 'https://event-driven.io/en/testing_event_sourcing/'
+                    },
+                    {
+                        text: '响应式宣言',
+                        link: 'https://www.reactivemanifesto.org/zh-CN'
                     }
                 ]
             }
