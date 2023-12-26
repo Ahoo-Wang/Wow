@@ -29,7 +29,7 @@ on:
       - 'documentation/**'
     branches:
       - 'main'
-
+  workflow_dispatch:
 jobs:
   compensation-docker-deploy:
     name: Push Docker image
