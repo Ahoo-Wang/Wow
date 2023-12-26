@@ -13,33 +13,14 @@
 
 import type {HeadConfig} from '@vuepress/core'
 
+const siteBase: string = process.env.SITE_BASE || "/"
+
 export const head: HeadConfig[] = [
-    ['link', {rel: 'icon', href: `/favicon.ico`}],
-    [
-        'link',
-        {
-            rel: 'icon',
-            type: 'image/png',
-            sizes: '32x32',
-            href: `/favicon.png`,
-        },
-    ],
-    ['link', {rel: 'manifest', href: '/manifest.webmanifest'}],
+    ['link', {rel: 'icon', href: `${siteBase}favicon.ico`}],
+    ['link', {rel: 'manifest', href: `${siteBase}manifest.webmanifest`}],
     ['meta', {name: 'application-name', content: 'Wow'}],
     ['meta', {name: 'apple-mobile-web-app-title', content: 'Wow'}],
     ['meta', {name: 'apple-mobile-web-app-status-bar-style', content: 'black'}],
-    [
-        'link',
-        {rel: 'apple-touch-icon', href: `/images/icons/apple-touch-icon.png`},
-    ],
-    [
-        'link',
-        {
-            rel: 'mask-icon',
-            href: '/images/icons/safari-pinned-tab.svg',
-            color: '#3eaf7c',
-        },
-    ],
     ['meta', {name: 'msapplication-TileColor', content: '#3eaf7c'}],
     ['meta', {name: 'theme-color', content: '#3eaf7c'}],
 ]

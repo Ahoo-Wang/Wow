@@ -16,7 +16,7 @@ import {searchPlugin} from '@vuepress/plugin-search'
 import {googleAnalyticsPlugin} from '@vuepress/plugin-google-analytics'
 import {head, navbarZh, sidebarZh} from "./configs";
 
-const siteBase: `/${string}/` = process.env.SITE_BASE || "/"
+const siteBase: '/' | `/${string}/` = process.env.SITE_BASE || '/'
 
 export default defineUserConfig({
     base: siteBase,
