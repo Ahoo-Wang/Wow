@@ -24,12 +24,7 @@
 
 ## 继承模式
 
-继承模式为具体聚合根创建了一个抽象基类，该抽象基类包含了聚合根的命令函数、溯源函数以及聚合状态数据。好处是当存在多个具体聚合根共用相同的命令函数、溯源函数以及聚合状态数据时，可以减少代码重复。
-
-::: danger 
-但依然没有办法避免命令函数直接变更聚合状态数据的问题。
-:::
-
+继承模式将状态聚合根作为基类，并且将`setter`访问器设置为`private`。以避免命令聚合根在命令函数中修改聚合状态数据。
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/modeling/inheritance-pattern.svg" alt="Inheritance - Modeling"/>
