@@ -9,7 +9,11 @@
 
 ## 客户端
 
-> 默认情况下客户端模块已经开启了事件补偿功能，如果需要关闭，可以在配置文件中设置 `wow.compensation.enabled=false`。
+> 默认情况下，客户端模块已经启用了事件补偿功能。
+> 
+> 如果你希望全局关闭该功能，只需在配置文件中设置 `wow.compensation.enabled=false` 即可。
+> 
+> 这一简便的配置选项为开发者提供了在整个系统范围内轻松管理事件补偿功能的途径。
 
 <CodeGroup>
   <CodeGroupItem title="Gradle(Kotlin)" active>
@@ -41,9 +45,40 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 
 ### 自定义重试机制
 
-> 另外也可以通过 `@Retry` 注解来自定义补偿机制。
+> _Wow_ 框架的灵活性不仅体现在事件补偿控制台的设计上，还可以通过 `@Retry` 注解进行自定义补偿机制。
+> 
+> 如果有特定处理函数不需要补偿，只需简单设置 `@Retry(false)` 即可关闭该函数的补偿功能。
+> 
+> 这种细粒度的控制让开发者能够更加精准地配置系统的行为，确保补偿机制仅在需要的地方发挥作用，进一步提升系统的可定制性和适应性。
+
+```kotlin{1}
+    @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
+    @OnEvent
+    fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem? {
+        if (!orderCreated.fromCart) {
+            return null
+        }
+        return RemoveCartItem(
+            id = orderCreated.customerId,
+            productIds = orderCreated.items.map { it.productId }.toSet(),
+        )
+    }
+```
 
 ## 控制台
+
+*事件补偿控制台*不仅提供了分布式定时调度自动补偿功能，还搭载直观可视化的补偿事件管理功能以及 _OpenAPI_ 接口。
+
+通过分布式定时自动补偿，_Wow_ 框架巧妙解决了系统数据最终一致性的问题，从而摆脱了手动补偿的繁琐过程。
+而可视化的补偿事件管理功能为开发者提供了极大的便利，使其能够更轻松地监控和操作补偿事件。
+
+在控制台上，开发者可轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或者删除不再需要的补偿事件，提供了灵活而直观的操作手段。
+
+这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
+
+:::tip
+[事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。
+::: 
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
@@ -61,15 +96,210 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
   <img src="../.vuepress/public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 
-## 用例场景
+### 用例场景
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
-## 执行时序图
+### 执行时序图
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
 </p>
 
+
+### OpenAPI
+
+> [OpenAPI 文档](https://wow-compensation.apifox.cn/)
+
+<p align="center" style="text-align:center">
+  <img src="../.vuepress/public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
+</p>
+
+## 部署控制台 (Kubernetes)
+
+### ConfigMap 
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compensation-service-config
+data:
+  application.yaml: >-
+    management:
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      endpoints:
+        web:
+          exposure:
+            include:
+              - health
+              - cosid
+              - cosidGenerator
+              - cosidStringGenerator
+    springdoc:
+      show-actuator: true
+    logging:
+      level:
+        me.ahoo.wow: debug
+    spring:
+      application:
+        name: compensation-service
+      web:
+        resources:
+          static-locations: file:./browser/
+      data:
+        mongodb:
+          uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+        redis:
+          cluster:
+            max-redirects: 3
+            nodes:
+                - redis-test-redis-cluster-0.redis-test-redis-cluster-headless.test.svc.cluster.local:6379
+          password: VPI7MsrrF7beIg
+    cosid:
+      machine:
+        enabled: true
+        distributor:
+          type: redis
+      generator:
+        enabled: true
+    wow:
+      kafka:
+        bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
+```
+
+### Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compensation-service
+  labels:
+    app: compensation-service
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: compensation-service
+  template:
+    metadata:
+      labels:
+        app: compensation-service
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      containers:
+        - name: compensation-service
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-compensation-server:2.10.4
+          env:
+            - name: LANG
+              value: C.utf8
+            - name: TZ
+              value: Asia/Shanghai
+            - name: JAVA_OPTS
+              value: -Xms1792M  -Xmx1792M
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          startupProbe:
+            failureThreshold: 15
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /actuator/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2560Mi
+            requests:
+              cpu: '2'
+              memory: 1792Mi
+          volumeMounts:
+            - mountPath: /etc/localtime
+              name: volume-localtime
+            - mountPath: /opt/wow-compensation-server/config/
+              name: compensation-service-config
+      volumes:
+        - hostPath:
+            path: /etc/localtime
+            type: ""
+          name: volume-localtime
+        - name: compensation-service-config
+          configMap:
+            name: compensation-service-config
+```
+
+### HPA
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: compensation-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compensation-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+### Service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: compensation-service
+spec:
+  selector:
+    app: compensation-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http
+```
