@@ -33,3 +33,5 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
 <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
 </dependency>
 ```
+  </CodeGroupItem>
+</CodeGroup>

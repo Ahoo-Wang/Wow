@@ -28,3 +28,5 @@ implementation 'me.ahoo.wow:wow-spring-boot-starter'
     <version>${wow.version}</version>
 </dependency>
 ```
+  </CodeGroupItem>
+</CodeGroup>

@@ -27,3 +27,5 @@ implementation 'me.ahoo.wow:wow-opentelemetry'
     <version>${wow.version}</version>
 </dependency>
 ```
+  </CodeGroupItem>
+</CodeGroup>
