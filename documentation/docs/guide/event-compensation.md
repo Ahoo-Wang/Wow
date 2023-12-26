@@ -15,14 +15,14 @@
   <CodeGroupItem title="Gradle(Kotlin)" active>
 
 ```kotlin
-testImplementation("me.ahoo.wow:wow-compensation-core:2.12.1")
+implementation("me.ahoo.wow:wow-compensation-core:2.12.1")
 ```
 
   </CodeGroupItem>
   <CodeGroupItem title="Gradle(Groovy)">
 
 ```groovy
-testImplementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
+implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 ```
 
   </CodeGroupItem>
