@@ -12,8 +12,7 @@
  */
 
 import type {NavbarConfig} from '@vuepress/theme-default'
-
-const siteBase: string = process.env.SITE_BASE || "/"
+import {SITE_BASE} from "../SITE_BASE";
 
 export const navbarZh: NavbarConfig = [
     {
@@ -76,7 +75,7 @@ export const navbarZh: NavbarConfig = [
         ],
     }, {
         text: 'JavaDoc',
-        link: `${siteBase}dokka/index.html`,
+        link: `${SITE_BASE}dokka/index.html`,
         target: '_blank'
     },
     {
