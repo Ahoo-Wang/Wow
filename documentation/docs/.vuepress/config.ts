@@ -18,6 +18,7 @@ import {searchPlugin} from '@vuepress/plugin-search'
 import {googleAnalyticsPlugin} from '@vuepress/plugin-google-analytics'
 import {registerComponentsPlugin} from '@vuepress/plugin-register-components'
 import {head, navbarZh, sidebarZh, SITE_BASE} from "./configs";
+import {copyCodePlugin} from "vuepress-plugin-copy-code2";
 
 export default defineUserConfig({
     base: SITE_BASE,
@@ -45,6 +46,8 @@ export default defineUserConfig({
             {
                 id: 'G-9HYEC088Y1'
             }
-        )],
+        ),
+        copyCodePlugin()
+    ],
     port: 8555
 })
