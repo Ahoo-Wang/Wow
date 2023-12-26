@@ -10,10 +10,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import {getDirname, path} from '@vuepress/utils'
 
+const __dirname = getDirname(import.meta.url)
 import {defaultTheme, defineUserConfig} from 'vuepress'
 import {searchPlugin} from '@vuepress/plugin-search'
 import {googleAnalyticsPlugin} from '@vuepress/plugin-google-analytics'
+import {registerComponentsPlugin} from '@vuepress/plugin-register-components'
 import {head, navbarZh, sidebarZh, SITE_BASE} from "./configs";
 
 export default defineUserConfig({
@@ -33,10 +36,15 @@ export default defineUserConfig({
             sidebar: sidebarZh
         }
     ),
-    plugins: [searchPlugin(), googleAnalyticsPlugin(
-        {
-            id: 'G-9HYEC088Y1'
-        }
-    )],
+    plugins: [
+        searchPlugin(),
+        registerComponentsPlugin({
+            componentsDir: path.resolve(__dirname, './components'),
+        }),
+        googleAnalyticsPlugin(
+            {
+                id: 'G-9HYEC088Y1'
+            }
+        )],
     port: 8555
 })
