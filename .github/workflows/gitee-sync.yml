@@ -1,4 +1,4 @@
-name: Publish
+name: Sync to Gitee
 on:
   push:
     branches:
@@ -17,4 +17,3 @@ jobs:
         with:
           source-repo: "git@github.com:Ahoo-Wang/Wow.git"
           destination-repo: "git@gitee.com:AhooWang/Wow.git"
-          dry-run: true
