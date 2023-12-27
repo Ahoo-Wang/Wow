@@ -4,6 +4,10 @@ import {sidebar} from "./configs/sidebar";
 import {head} from "./configs/head";
 import {SITE_BASE} from "./configs/SITE_BASE";
 
+let hostname = 'https://wow.ahoo.me/';
+if (SITE_BASE == '/wow/') {
+    hostname = 'https://ahoowang.gitee.io/wow/'
+}
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
     lang: 'zh-CN',
@@ -12,6 +16,9 @@ export default defineConfig({
     ignoreDeadLinks: 'localhostLinks',
     head: head,
     base: SITE_BASE,
+    sitemap: {
+        hostname: hostname
+    },
     themeConfig: {
         logo: '/images/logo.svg',
         siteTitle: '领域模型即服务 | Wow',
