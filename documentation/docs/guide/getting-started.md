@@ -193,7 +193,7 @@ class Demo(private val state: DemoState) {
 状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
 :::
 
-```kotlin {5}
+```kotlin {3,5}
 class DemoState(override val id: String) : Identifier {
     var data: String? = null
         private set

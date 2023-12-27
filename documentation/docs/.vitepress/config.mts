@@ -28,6 +28,9 @@ export default defineConfig({
         lastUpdated: {
             text: '上次更新'
         },
+        outline: {
+            level: [2, 3]
+        },
         aside: true,
         search: {provider: 'local',},
         // https://vitepress.dev/reference/default-theme-config
