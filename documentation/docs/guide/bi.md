@@ -1,5 +1,12 @@
 # 商业智能
 
+## 传统架构 VS 事件溯源
+
+<center>
+
+![事件溯源 VS 传统架构](../public/images/eventstore/eventsourcing.svg)
+</center>
+
 与传统架构有着明显区别，_Wow_ 提供了实时聚合根状态事件（`StateEvent`）和聚合命令（`Command`）作为数据分析的数据源，同时极大降低了实时 _ETL_（`Extract`, `Transform`, `Load`）的难度。
 
 在传统架构中，实现实时 _ETL_ 通常需要经过繁琐的流程，包括 `DB->CDC->Process->DB`，而在 _Wow_ 框架中，仅需一段简单的 _SQL_ 脚本即可完成这一过程。
@@ -15,10 +22,6 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 > 状态事件、聚合命令同步流程
 
 ![商业智能](../public/images/bi/bi.svg)
-
-> 事件溯源 VS 传统架构
-
-![事件溯源 VS 传统架构](../public/images/eventstore/eventsourcing.svg)
 
 ## 创建数据库
 
