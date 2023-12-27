@@ -22,14 +22,14 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 
 ## 新建数据库
 
-```clickhouse
+```sql
 create database if not exists bi_db on cluster '{cluster}';
 create database if not exists bi_db_consumer on cluster '{cluster}';
 ```
 
 ## 同步状态事件
 
-```clickhouse
+```sql
 CREATE TABLE bi_db.order_order_state_local on cluster '{cluster}'
 (
     id             String,
@@ -91,7 +91,7 @@ FROM bi_db_consumer.order_order_state_queue
 
 ## 最新状态快照
 
-```clickhouse
+```sql
 CREATE TABLE bi_db.order_order_state_last_local on cluster '{cluster}'
 (
     id             String,
@@ -132,7 +132,7 @@ FROM bi_db.order_order_state
 
 ## 同步聚合命令
 
-```clickhouse
+```sql
 CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
 (
     id            String,

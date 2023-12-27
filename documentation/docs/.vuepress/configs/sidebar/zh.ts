@@ -33,7 +33,6 @@ export const sidebarZh: SidebarConfig = {
                 '/guide/bi.md',
                 '/guide/event-compensation.md',
                 '/guide/best-practices.md',
-                '/guide/deployment.md',
             ],
         },
     ],

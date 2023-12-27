@@ -7,21 +7,39 @@
 
 事件补偿模块提供了可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性。
 
-### 用例场景
+## 用例场景
+
+- 订阅者服务：
+  - 订阅领域事件，执行业务逻辑。
+  - 在执行失败时，发送执行失败记录。
+  - 在执行成功时，发送执行成功记录。
+- 控制台：
+  - 分布式补偿调度器： 定时检查待补偿事件并执行准备补偿操作。
+  - 通知： 在发生执行失败异常时，发送通知消息。
+- 开发者：
+  - 监控： 监控补偿事件，执行重试操作以重新触发补偿逻辑，或标记不再需要的补偿事件。
+  - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
+  - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
-### 执行时序图
+## 状态图
+
+<p align="center" style="text-align:center">
+  <img src="../.vuepress/public/images/compensation/state-diagram.svg" alt="Event-Compensation"/>
+</p>
+
+## 执行时序图
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
 </p>
 
-## 订阅者(客户端)
+## 订阅者服务
 
-> 默认情况下，*订阅者(客户端)* 模块已经启用了事件补偿功能。
+> 默认情况下，*订阅者服务* 模块已经启用了事件补偿功能。
 > 
 > 如果你希望全局关闭该功能，只需在配置文件中设置 `wow.compensation.enabled=false` 即可。
 > 
@@ -129,13 +147,14 @@ wow:
           - execution_success_applied
 ```
 
-| 失败                                                                   | 成功                                                                    |
-|----------------------------------------------------------------------|-----------------------------------------------------------------------|
+| 失败                                                                    | 成功                                                                     |
+|-----------------------------------------------------------------------|------------------------------------------------------------------------|
 | ![执行失败](../.vuepress/public/images/compensation/execution-failed.png) | ![执行成功](../.vuepress/public/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
-> [OpenAPI 文档](https://wow-compensation.apifox.cn/)
+_事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wow-compensation.apifox.cn/)，方便集成和调用事件补偿功能。
+通过这个接口，开发者可以在自己的系统中实现对补偿事件的管理和控制。增强了系统的扩展性和定制性，使开发者能够更灵活地应对各种应用场景。
 
 <p align="center" style="text-align:center">
   <img src="../.vuepress/public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
