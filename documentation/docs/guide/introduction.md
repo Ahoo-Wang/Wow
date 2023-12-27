@@ -1,23 +1,18 @@
-# 项目简介
+# 介绍
 
-<p align="center" style="text-align:center;">
-  <img width="150" src="../.vuepress/public/images/logo.svg" alt="Wow:基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
-</p>
-
-[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
-[![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/cfc724df22db4f9387525258c8a59609)](https://app.codacy.com/gh/Ahoo-Wang/Wow/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-[![codecov](https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir)](https://codecov.io/gh/Ahoo-Wang/Wow)
-[![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
-[![Awesome Kotlin Badge](https://kotlin.link/awesome-kotlin.svg)](https://github.com/KotlinBy/awesome-kotlin)
+<center>
+  <img width="150" src="../public/images/logo.svg" alt="Wow:基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
+</center>
 
 > **领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** | **响应式编程** | **命令查询职责分离** | **事件溯源**
 
 _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 微服务开发框架，历经多年生产环境验证。
+
 旨在帮助开发者构建现代化的、高性能且易于维护的微服务应用程序，充分发挥领域驱动设计和事件溯源等模式优势的同时降低应用的复杂性以及实践成本。
 
-## 特性概览
+## 背景
+
+## _Wow_ 提供了哪些特性？
 
 在*Wow*框架中，有许多关键特性，包括但不限于：
 
@@ -37,11 +32,15 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
 为了解决该问题，*Wow* 集成了 *OpenTelemetry* 以实现系统的端到端可观测性，有助于监控和调试。
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/Features.png" alt="Wow-Features"/>
+  <img src="../public/images/Features.png" alt="Wow-Features"/>
 </p>
 
-## 架构图
+## _Wow_ 是如何工作的？
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img src="../public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
+
+## _Wow_ 适用于哪些场景？
+
+## 

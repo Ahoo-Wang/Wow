@@ -22,19 +22,19 @@
   - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
+  <img src="../public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
 ## 状态图
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/state-diagram.svg" alt="Event-Compensation"/>
+  <img src="../public/images/compensation/state-diagram.svg" alt="Event-Compensation"/>
 </p>
 
 ## 执行时序图
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
+  <img src="../public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
 </p>
 
 ## 订阅者服务
@@ -113,19 +113,19 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 ### UI
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
+  <img src="../public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
+  <img src="../public/images/compensation/dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/dashboard-succeeded.png" alt="Compensation-Dashboard"/>
+  <img src="../public/images/compensation/dashboard-succeeded.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
+  <img src="../public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 
 ### 通知（企业微信）
@@ -149,7 +149,7 @@ wow:
 
 | 失败                                                                    | 成功                                                                     |
 |-----------------------------------------------------------------------|------------------------------------------------------------------------|
-| ![执行失败](../.vuepress/public/images/compensation/execution-failed.png) | ![执行成功](../.vuepress/public/images/compensation/execution-success.png) |
+| ![执行失败](../public/images/compensation/execution-failed.png) | ![执行成功](../public/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
@@ -157,7 +157,7 @@ _事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wo
 通过这个接口，开发者可以在自己的系统中实现对补偿事件的管理和控制。增强了系统的扩展性和定制性，使开发者能够更灵活地应对各种应用场景。
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
+  <img src="../public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
 </p>
 
 ### 部署 (Kubernetes)

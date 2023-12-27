@@ -14,11 +14,11 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 
 > 状态事件、聚合命令同步流程
 
-![商业智能](../.vuepress/public/images/bi/bi.svg)
+![商业智能](../public/images/bi/bi.svg)
 
 > 事件溯源 VS 传统架构
 
-![事件溯源 VS 传统架构](../.vuepress/public/images/eventstore/eventsourcing.svg)
+![事件溯源 VS 传统架构](../public/images/eventstore/eventsourcing.svg)
 
 ## 创建数据库
 

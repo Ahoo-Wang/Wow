@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import type {HeadConfig} from '@vuepress/core'
 import {SITE_BASE} from "./SITE_BASE";
+import {HeadConfig} from "vitepress";
 
 export const head: HeadConfig[] = [
     ['link', {rel: 'icon', href: `${SITE_BASE}favicon.ico`}],
@@ -22,4 +22,16 @@ export const head: HeadConfig[] = [
     ['meta', {name: 'apple-mobile-web-app-status-bar-style', content: 'black'}],
     ['meta', {name: 'msapplication-TileColor', content: '#3eaf7c'}],
     ['meta', {name: 'theme-color', content: '#3eaf7c'}],
+    [
+        'script',
+        {async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-9HYEC088Y1'}
+    ],
+    [
+        'script',
+        {},
+        `window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9HYEC088Y1');`
+    ]
 ]

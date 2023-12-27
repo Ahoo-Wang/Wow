@@ -1,5 +1,5 @@
 node_modules
 .temp
-.cache
-docs/.vuepress/dist
-docs/.vuepress/public/dokka
+cache
+docs/.vitepress/dist
+docs/.vitepress/public/dokka

@@ -9,13 +9,13 @@
 > 查看测试覆盖率报告：`domain/build/reports/jacoco/test/html/index.html`
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/test-coverage.png" alt="Wow-CI-Flow"/>
+  <img src="../public/images/getting-started/test-coverage.png" alt="Wow-CI-Flow"/>
 </p>
 
 ## CI/CD 流水线
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/ci-flow.png" alt="Wow-CI-Flow"/>
+  <img src="../public/images/getting-started/ci-flow.png" alt="Wow-CI-Flow"/>
 </p>
 
 ### 测试阶段
@@ -154,5 +154,5 @@ stages:
 ### 用例图
 
 <p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/usecase.svg" alt="Wow-UseCase"/>
+  <img src="../public/images/getting-started/usecase.svg" alt="Wow-UseCase"/>
 </p>

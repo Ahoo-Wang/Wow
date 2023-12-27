@@ -4,8 +4,9 @@
   "description": "领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.",
   "main": "index.js",
   "scripts": {
-    "docs:dev": "vuepress dev docs",
-    "docs:build": "vuepress build docs"
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [
     "Domain-Driven",
@@ -19,10 +20,6 @@
   "author": "ahoo-wang",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@vuepress/plugin-google-analytics": "^2.0.0-rc.0",
-    "@vuepress/plugin-register-components": "^2.0.0-rc.0",
-    "@vuepress/plugin-search": "^2.0.0-rc.0",
-    "vuepress": "^2.0.0-rc.0",
-    "vuepress-plugin-copy-code2": "^2.0.0-rc.6"
+    "vitepress": "^1.0.0-rc.33"
   }
 }

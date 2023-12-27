@@ -2,30 +2,18 @@
 
 ## 安装
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-r2dbc")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.wow:wow-r2dbc'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
-
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-r2dbc</artifactId>
     <version>${wow.version}</version>
 </dependency>
 ```
-  </CodeGroupItem>
-</CodeGroup>
+:::

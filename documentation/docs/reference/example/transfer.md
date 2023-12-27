@@ -13,7 +13,7 @@
     2. 失败路径（Fail）： 如果入账失败，执行解锁金额操作，并处理失败情况。
 
 <p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-saga.svg" alt="Saga-Transfer"/>
+  <img src="../../public/images/example/transfer-saga.svg" alt="Saga-Transfer"/>
 </p>
 
 ## 运行案例
@@ -28,7 +28,7 @@
 > 该 RESTful API 端点是由 Wow 自动生成的，无需手动编写。
 
 <p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-swagger.png" alt="Saga-Transfer"/>
+  <img src="../../public/images/example/transfer-swagger.png" alt="Saga-Transfer"/>
 </p>
 
 ## 模块划分
@@ -202,7 +202,7 @@ public class TransferSaga {
 借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
 
 <p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-jacoco.png" alt="example-transfer-jacoco"/>
+  <img src="../../public/images/example/transfer-jacoco.png" alt="example-transfer-jacoco"/>
 </p>
 
 > 使用 `aggregateVerifier` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
