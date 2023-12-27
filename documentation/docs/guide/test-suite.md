@@ -6,37 +6,25 @@
 - When：当前执行的命令，用于触发聚合根状态变更。
 - Expect：期望的结果，用于验证聚合根状态变更是否符合预期。
 
-![Test Coverage](../.vuepress/public/images/getting-started/test-coverage.png)
+![Test Coverage](../public/images/getting-started/test-coverage.png)
 
 ## 安装
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
-testImplementation("me.ahoo.wow:wow-test:2.12.1")
+::: code-group
+```kotlin [Gradle(Kotlin)]
+testImplementation("me.ahoo.wow:wow-test")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
-testImplementation 'me.ahoo.wow:wow-test:2.12.1'
+```groovy [Gradle(Groovy)]
+testImplementation 'me.ahoo.wow:wow-test'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-test</artifactId>
-    <version>2.12.1</version>
+    <version>${wow.version}</version>
 </dependency>
 ```
-
-  </CodeGroupItem>
-</CodeGroup>
+:::
 
 ## 测试聚合根
 

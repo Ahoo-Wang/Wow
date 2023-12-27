@@ -4,33 +4,21 @@
 
 ## 安装
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
-implementation("me.ahoo.wow:wow-openapi:2.12.1")
+::: code-group
+```kotlin [Gradle(Kotlin)]
+implementation("me.ahoo.wow:wow-openapi")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
-implementation 'me.ahoo.wow:wow-openapi:2.12.1'
+```groovy [Gradle(Groovy)]
+implementation 'me.ahoo.wow:wow-openapi'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-openapi</artifactId>
-    <version>2.12.1</version>
+    <version>${wow.version}</version>
 </dependency>
 ```
-
-  </CodeGroupItem>
-</CodeGroup>
+:::
 
 ## Swagger-UI
 

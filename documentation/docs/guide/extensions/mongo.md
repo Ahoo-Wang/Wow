@@ -2,27 +2,16 @@
 
 ## 安装
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-mongo")
 implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.wow:wow-mongo'
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
-
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-mongo</artifactId>
@@ -33,5 +22,4 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
 <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
 </dependency>
 ```
-  </CodeGroupItem>
-</CodeGroup>
+:::
