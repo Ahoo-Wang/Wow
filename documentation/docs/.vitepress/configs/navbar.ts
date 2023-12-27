@@ -15,7 +15,7 @@ export const navbar: DefaultTheme.NavItem[] = [
             {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
         ],
     }, {
-        text: 'JavaDoc',
+        text: 'API',
         link: `/dokka/index.html`,
         target: '_blank'
     },
