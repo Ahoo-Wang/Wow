@@ -45,8 +45,8 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'Redis', link: 'redis',},
                 {text: 'R2bdc', link: 'r2bdc',},
                 {text: 'Elasticsearch', link: 'elasticsearch',},
-                {text: 'Opentelemetry', link: 'opentelemetry',},
-                {text: 'Webflux', link: 'webflux',},
+                {text: 'OpenTelemetry', link: 'opentelemetry',},
+                {text: 'WebFlux', link: 'webflux',},
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter',},
             ],
         }, {

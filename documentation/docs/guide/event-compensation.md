@@ -21,21 +21,15 @@
   - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
   - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
-</p>
+![Event-Compensation-UserCase](../public/images/compensation/usercase.svg)
 
 ## 状态图
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/state-diagram.svg" alt="Event-Compensation"/>
-</p>
+![Event-Compensation](../public/images/compensation/state-diagram.svg)
 
 ## 执行时序图
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
-</p>
+![Event-Compensation](../public/images/compensation/process-sequence-diagram.svg)
 
 ## 订阅者服务
 
@@ -45,33 +39,21 @@
 > 
 > 这一简便的配置选项为开发者提供了在整个系统范围内轻松管理事件补偿功能的途径。
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-compensation-core:2.12.1")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-compensation-core</artifactId>
     <version>2.12.1</version>
 </dependency>
 ```
-
-  </CodeGroupItem>
-</CodeGroup>
+:::
 
 ### 自定义重试机制
 
@@ -112,21 +94,13 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 
 ### UI
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
-</p>
+![Event-Compensation-Dashboard](../public/images/compensation/dashboard.png)
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
-</p>
+![Event-Compensation-Dashboard](../public/images/compensation/dashboard-apply-retry-spec.png)
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/dashboard-succeeded.png" alt="Compensation-Dashboard"/>
-</p>
+![Event-Compensation-Dashboard](../public/images/compensation/dashboard-succeeded.png)
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
-</p>
+![Event-Compensation-Dashboard](../public/images/compensation/dashboard-error.png)
 
 ### 通知（企业微信）
 
@@ -147,8 +121,8 @@ wow:
           - execution_success_applied
 ```
 
-| 失败                                                                    | 成功                                                                     |
-|-----------------------------------------------------------------------|------------------------------------------------------------------------|
+| 失败                                                          | 成功                                                           |
+|-------------------------------------------------------------|--------------------------------------------------------------|
 | ![执行失败](../public/images/compensation/execution-failed.png) | ![执行成功](../public/images/compensation/execution-success.png) |
 
 ### OpenAPI
@@ -156,9 +130,7 @@ wow:
 _事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wow-compensation.apifox.cn/)，方便集成和调用事件补偿功能。
 通过这个接口，开发者可以在自己的系统中实现对补偿事件的管理和控制。增强了系统的扩展性和定制性，使开发者能够更灵活地应对各种应用场景。
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/compensation/open-api.png" alt="Compensation-Dashboard"/>
-</p>
+![Event-Compensation-OpenAPI](../public/images/compensation/open-api.png)
 
 ### 部署 (Kubernetes)
 

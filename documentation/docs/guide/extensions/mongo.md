@@ -18,8 +18,8 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
     <version>${wow.version}</version>
 </dependency>
 <dependency>
-<groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
 </dependency>
 ```
 :::

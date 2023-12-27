@@ -9,5 +9,4 @@ ksp("me.ahoo.wow:wow-compiler")
 ```groovy [Gradle(Groovy)]
 ksp 'me.ahoo.wow:wow-compiler'
 ```
-
 :::

@@ -1,6 +1,6 @@
 # 快速上手
 
-> 使用[ Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)快速创建基于 _Wow_ 框架的 _DDD_ 项目。
+> 使用 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 快速创建基于 _Wow_ 框架的 _DDD_ 项目。
 
 ## 安装模板
 
@@ -144,15 +144,11 @@ wow:
 
 ## 启动服务
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/getting-started/run-server.png" alt="启动服务"/>
-</p>
+![启动服务](../public/images/getting-started/run-server.png)
 
 > 访问：[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-<p align="center" style="text-align:center">
-  <img src="../public/images/getting-started/swagger-ui.png" alt="Swagger-UI"/>
-</p>
+![Swagger-UI](../public/images/getting-started/swagger-ui.png)
 
 ## 领域建模
 
