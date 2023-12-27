@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      - gh-pages
+      - gh-pages-with-site-base
   workflow_dispatch:
 jobs:
   build:
