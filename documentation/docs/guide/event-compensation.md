@@ -107,7 +107,7 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
 
 :::tip
-[事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。
+[事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。可以作为 _Wow_ 框架的参考实现来学习。
 ::: 
 
 ### UI
@@ -132,9 +132,9 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
 
 通过配置 *企业微信群机器人* *WebHook地址* 即可开启*企业微信*通知功能。
 同时，通过配置 `events` 属性，可选择只接收特定事件的通知。
-`events` 默认包括：`execution_failed_created`/`execution_failed_applied`/`execution_success_applied`
+`events` 默认包括：`[execution_failed_created ,execution_failed_applied, execution_success_applied]`
 
-```yaml
+```yaml{3,6,7}
 wow:
   compensation:
     host:  # 可选，配置该选项后，开发者可以通过通知消息快速导航到该异常
