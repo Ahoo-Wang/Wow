@@ -22,7 +22,7 @@
 class OrderProjector {
 
     fun onEvent(orderCreated: OrderCreated) {
-        // 将领域模型映射成读模型
+        // 根据领域事件更新读模型
     }
 }
 ```
