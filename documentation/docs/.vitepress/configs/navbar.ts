@@ -7,7 +7,7 @@ export const navbar: DefaultTheme.NavItem[] = [
     },
     {
         text: '配置',
-        link: '/reference/configuration',
+        link: '/reference/config/basic',
     },
     {
         text: '示例',
