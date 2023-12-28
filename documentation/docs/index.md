@@ -1,10 +1,9 @@
 ---
 layout: home
-
+title: 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 hero:
-  name: "Wow"
-  text: "领域模型即服务"
-  tagline: 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架
+  name: "领域模型即服务"
+  text: "基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架"
   image:
     src: /images/logo.svg
     alt: Wow

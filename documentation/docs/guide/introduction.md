@@ -1,10 +1,18 @@
-# 介绍
+# 简介
 
 <center>
   <img width="150" src="../public/images/logo.svg" alt="Wow:基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
 </center>
 
-> **领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** | **响应式编程** | **命令查询职责分离** | **事件溯源**
+:::info Keywords
+**<Badge type="tip" text="领域驱动" />**
+**<Badge type="tip" text="事件驱动" />**
+**<Badge type="tip" text="测试驱动" />**
+**<Badge type="tip" text="声明式设计" />**
+**<Badge type="tip" text="响应式编程" />**
+**<Badge type="tip" text="命令查询职责分离" />**
+**<Badge type="tip" text="事件溯源" />**
+:::
 
 _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 微服务开发框架，历经多年生产环境验证。
 

@@ -16,6 +16,10 @@ import {HeadConfig} from "vitepress";
 
 export const head: HeadConfig[] = [
     ['link', {rel: 'icon', href: `${SITE_BASE}favicon.ico`}],
+    ['meta', {
+        name: 'keywords',
+        content: '领域驱动, 事件驱动, 测试驱动, 声明式设计, 响应式编程, 命令查询职责分离, 事件溯源'
+    }],
     ['link', {rel: 'manifest', href: `${SITE_BASE}manifest.webmanifest`}],
     ['meta', {name: 'application-name', content: 'Wow'}],
     [

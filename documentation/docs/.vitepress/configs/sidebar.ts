@@ -20,7 +20,7 @@ export const sidebar: DefaultTheme.Sidebar = {
             text: '指南',
             collapsed: false,
             items: [
-                {text: '介绍', link: 'introduction'},
+                {text: '简介', link: 'introduction'},
                 {text: '快速上手', link: 'getting-started'},
                 {text: '聚合建模', link: 'modeling'},
                 {text: '命令网关', link: 'command-gateway'},
