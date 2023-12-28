@@ -1,6 +1,6 @@
 # Kafka
 
-_Kafka_ 扩展实现了 `CommandBus`、`DomainEventBus` 和 `StateEventBus`。
+_Kafka_ 扩展提供了对 Kafka 的支持，实现了 `CommandBus`、`DomainEventBus` 和 `StateEventBus`。
 
 ## 安装
 
@@ -37,6 +37,9 @@ implementation 'me.ahoo.wow:wow-kafka'
 
 ```yaml
 wow:
+  command:
+    bus:
+      type: kafka
   kafka:
     bootstrap-servers: localhost:61530
     topic-prefix: 'wow.'

@@ -1,5 +1,7 @@
 # Elasticsearch
 
+_Elasticsearch_ 扩展提供了对 _Elasticsearch_ 的支持，实现了  `SnapshotRepository`.
+
 ## 安装
 
 ::: code-group
@@ -17,3 +19,14 @@ implementation 'me.ahoo.wow:wow-elasticsearch'
 </dependency>
 ```
 :::
+
+## 配置
+
+**YAML 配置样例**
+
+```yaml
+wow:
+  eventsourcing:
+    snapshot:
+      storage: elasticsearch
+```

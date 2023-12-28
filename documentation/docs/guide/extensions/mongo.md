@@ -1,6 +1,6 @@
 # Mongo
 
-Mongo 扩展提供了对 MongoDB 的支持，实现了 `EventStore` 、 `SnapshotRepository` 和 `PrepareKey`.
+_Mongo_ 扩展提供了对 MongoDB 的支持，实现了 `EventStore` 、 `SnapshotRepository` 和 `PrepareKey`.
 
 ## 安装
 
