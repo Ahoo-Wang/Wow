@@ -41,11 +41,11 @@ Command-Request-Id: {{$uuid}}
 
 > 命令等待策略（`WaitStrategy`）为`SENT`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *59625*，峰值为 *82312*，平均响应时间为 *29* 毫秒。
 
-[AddCartItem-SENT](../public/images/perf/Example.Cart.Add@SENT.png)
+![AddCartItem-SENT](../public/images/perf/Example.Cart.Add@SENT.png)
 
 > 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18696*，峰值为 *24141*，平均响应时间为 *239* 毫秒。
 
-[AddCartItem-PROCESSED](../public/images/perf/Example.Cart.Add@PROCESSED.png)
+![AddCartItem-PROCESSED](../public/images/perf/Example.Cart.Add@PROCESSED.png)
 
 ### 下单
 
