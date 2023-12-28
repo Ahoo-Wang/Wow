@@ -19,6 +19,7 @@ export default defineConfig({
     sitemap: {
         hostname: hostname
     },
+    appearance: 'dark',
     themeConfig: {
         logo: '/images/logo.svg',
         siteTitle: '领域模型即服务 | Wow',

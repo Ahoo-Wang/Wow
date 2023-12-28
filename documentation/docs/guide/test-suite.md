@@ -22,6 +22,7 @@ testImplementation 'me.ahoo.wow:wow-test'
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-test</artifactId>
     <version>${wow.version}</version>
+    <scope>test</scope>
 </dependency>
 ```
 :::
