@@ -27,7 +27,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 // {text: '事件存储', link: 'eventstore'},
                 // {text: '快照', link: 'snapshot'},
                 // {text: '投影', link: 'projection'},
-                // {text: '分布式事务(Saga)', link: 'saga'},
+                {text: '分布式事务(Saga)', link: 'saga'},
                 {text: 'Open API', link: 'open-api'},
                 {text: '测试套件', link: 'test-suite'},
                 {text: '商业智能', link: 'bi'},
