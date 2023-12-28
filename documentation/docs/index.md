@@ -13,7 +13,7 @@ hero:
       text: 快速上手
       link: /guide/getting-started
     - theme: alt
-      text: 项目介绍
+      text: 简介
       link: /guide/introduction
 
 features:
