@@ -70,6 +70,55 @@ enum class Type {
 | `snapshot`     | `Map<String, ShardingRule>`      | 快照分片规则  |     |
 | `algorithms`   | `Map<String, ShardingAlgorithm>` | 分片算法    |     |
 
+
+**YAML 配置样例**
+
+```yaml
+wow:
+  r2dbc:
+    datasource:
+      type: sharding
+      sharding:
+        databases:
+          event_stream_0:
+            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+          event_stream_1:
+            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+          snapshot_0:
+            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+          snapshot_1:
+            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+        event-stream:
+          order:
+            database-algorithm: event_stream_db
+            table-algorithm: order_event_stream_table
+        snapshot:
+          order:
+            database-algorithm: snapshot_db
+            table-algorithm: order_snapshot_table
+        algorithms:
+          event_stream_db:
+            type: mod
+            mod:
+              logic-name-prefix: event_stream_
+              divisor: 2
+          snapshot_db:
+            type: mod
+            mod:
+              logic-name-prefix: snapshot_
+              divisor: 2
+          order_event_stream_table:
+            type: mod
+            mod:
+              logic-name-prefix: order_event_stream_
+              divisor: 4
+          order_snapshot_table:
+            type: mod
+            mod:
+              logic-name-prefix: order_snapshot_
+              divisor: 4
+```
+
 ### Database
 
 | 名称    | 数据类型     | 说明      | 默认值 |
