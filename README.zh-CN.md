@@ -24,6 +24,10 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
 
 > 值得一提的是，领域驱动设计和事件溯源并非微服务架构的专属，_Wow_ 框架不仅适用于微服务开发，同样也可用于构建基于领域驱动设计的单体应用程序。
 
+## 快速开始
+
+[使用 Wow 项目模板快速创建基于 Wow 框架的 DDD 项目](https://ahoowang.gitee.io/wow/guide/getting-started.html) 
+
 ## 特性概览
 
 <p align="center" style="text-align:center">
