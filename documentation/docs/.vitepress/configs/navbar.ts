@@ -57,6 +57,9 @@ export const navbar: DefaultTheme.NavItem[] = [
             {
                 text: '响应式宣言',
                 link: 'https://www.reactivemanifesto.org/zh-CN'
+            }, {
+                text: 'R2DBC',
+                link: 'https://r2dbc.io/'
             }
         ]
     },
