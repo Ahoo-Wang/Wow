@@ -60,6 +60,9 @@ export const navbar: DefaultTheme.NavItem[] = [
             }, {
                 text: 'R2DBC',
                 link: 'https://r2dbc.io/'
+            }, {
+                text: 'CQRS Journey',
+                link: 'https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj554200(v=pandp.10)'
             }
         ]
     },

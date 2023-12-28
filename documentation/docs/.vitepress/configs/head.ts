@@ -20,8 +20,12 @@ export const head: HeadConfig[] = [
         name: 'keywords',
         content: '领域驱动, 事件驱动, 测试驱动, 声明式设计, 响应式编程, 命令查询职责分离, 事件溯源'
     }],
+    ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
+    ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],
+    ['meta', {'http-equiv': 'expires', content: '0'}],
     ['link', {rel: 'manifest', href: `${SITE_BASE}manifest.webmanifest`}],
     ['meta', {name: 'application-name', content: 'Wow'}],
+    ['meta', {name: 'theme-color', content: '#5f67ee'}],
     [
         'script',
         {async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-9HYEC088Y1'}
