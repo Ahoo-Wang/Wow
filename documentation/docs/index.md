@@ -24,6 +24,7 @@ hero:
 features:
 - title: 领域模型即服务
   details: 仅需编写领域模型，即可完成服务开发，Wow 自动为您准备好 OpenAPI 接口。因为高效，CRUD 也值得 DDD。
+  link: /guide/modeling
 - title: 测试套件
   details: 基于 Given->When->Expect 模式的测试套件，助力开发者轻松实现 80% 以上的测试覆盖率，确保高质量应用交付
   link: /guide/test-suite
@@ -32,6 +33,7 @@ features:
   link: /guide/perf-test
 - title: 可伸缩性
   details: 无需考虑数据库关系模式、分片规则等问题，代码无需变更，即可轻松实现水平伸缩
+  link: /guide/introduction.html#性能与伸缩性
 - title: 分布式事务 (Saga)
   details: 利用 Saga 编排模式精心管理复杂多服务之间的事务流程，以降低分布式事务的复杂性
   link: /guide/saga
@@ -40,7 +42,7 @@ features:
   link: /guide/event-compensation
 - title: 端到端可观测 (Observability)
   details: 集成 OpenTelemetry，实现系统的端到端可观测性，助力监控和调试，解决CQRS模式可能引起的系统复杂性问题
-  link: /guide/advanced/observability
+  link: /guide/extensions/opentelemetry
 - title: 响应式编程 (Reactive)
   details: 基于响应式编程模型使系统更适应异步和并发操作，提高整体响应性能。通过异步消息传递，系统组件以非阻塞方式通信，降低系统开销、增强系统弹性，确保高负载和低负载时均能保持即时响应性。
 - title: 商业智能
