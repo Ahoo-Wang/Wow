@@ -4,9 +4,9 @@
 
 ## 安装模板
 
-[IDEA 项目模板](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
+[IDEA 项目模板指南](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
 
-[IDEA 配置目录](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
+[IDEA 配置目录指南](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
 
 - _IDEA_ 项目模板目录：`<IDE config home>/projectTemplates`
     - _Windows_: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
@@ -59,7 +59,6 @@ implementation 'me.ahoo.wow:wow-kafka'
 </dependency>
 ```
 :::
-
 
 > 使用 _MongoDB_ 作为事件存储以及快照仓库
 
@@ -158,7 +157,7 @@ wow:
 
 ### 命令聚合根
 
-> *命令聚合根*负责接收并处理命令并返回领域事件，同时也是领域事件的发布者。
+> *命令聚合根* 负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
 
 ```kotlin {2,5}
 @Suppress("unused")
@@ -183,7 +182,7 @@ class Demo(private val state: DemoState) {
 
 ### 状态聚合根
 
-> *状态聚合根*负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
+> *状态聚合根* 负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
 
 ::: warning 
 状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
