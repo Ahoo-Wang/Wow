@@ -63,11 +63,18 @@ export const sidebar: DefaultTheme.Sidebar = {
                 // {text: '可观测性', link: 'observability'},
                 // {text: '聚合调度器', link: 'aggregate-scheduler'},
             ],
-        },
+        }, {
+            text: '配置',
+            link: '/reference/config/basic'
+        }, {
+            text: '案例',
+            link: '/reference/example/transfer'
+        }
     ],
     '/reference/': [
         {
-            text: '配置', base: '/reference/config/',
+            text: '配置',
+            base: '/reference/config/',
             collapsed: false,
             items: [
                 {text: '基础', link: 'basic'},

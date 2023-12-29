@@ -3,14 +3,17 @@ import {DefaultTheme} from "vitepress/types/default-theme";
 export const navbar: DefaultTheme.NavItem[] = [
     {
         text: '指南',
-        link: '/guide/getting-started'
+        link: '/guide/getting-started',
+        activeMatch: '^/guide/'
     },
     {
         text: '配置',
         link: '/reference/config/basic',
+        activeMatch: '^/reference/config/'
     },
     {
         text: '示例',
+        activeMatch: '^/reference/example/',
         items: [
             {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
         ],
