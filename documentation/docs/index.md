@@ -15,7 +15,12 @@ hero:
     - theme: alt
       text: 简介
       link: /guide/introduction
-
+    - theme: alt
+      text: GitHub
+      link: https://github.com/Ahoo-Wang/Wow
+    - theme: alt
+      text: Gitee
+      link: https://gitee.com/AhooWang/Wow
 features:
 - title: 领域模型即服务
   details: 仅需编写领域模型，即可完成服务开发，Wow 自动为您准备好 OpenAPI 接口。因为高效，CRUD 也值得 DDD。
