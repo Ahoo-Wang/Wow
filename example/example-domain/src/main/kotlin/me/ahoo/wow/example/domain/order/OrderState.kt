@@ -15,7 +15,6 @@
 package me.ahoo.wow.example.domain.order
 
 import io.swagger.v3.oas.annotations.media.Schema
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
@@ -77,12 +76,11 @@ class OrderState(
      * [me.ahoo.wow.api.annotation.OnSourcing] 注解是可选的，约定默认使用方法名 `onSourcing` .
      *
      */
-    fun onSourcing(orderCreated: DomainEvent<OrderCreated>) {
-        val eventBody = orderCreated.body
-        customerId = eventBody.customerId
-        address = eventBody.address
-        items = eventBody.items
-        totalAmount = eventBody
+    fun onSourcing(orderCreated: OrderCreated) {
+        customerId = orderCreated.customerId
+        address = orderCreated.address
+        items = orderCreated.items
+        totalAmount = orderCreated
             .items
             .map { it.totalPrice }
             .reduce { totalPrice, moneyToAdd -> totalPrice + moneyToAdd }
