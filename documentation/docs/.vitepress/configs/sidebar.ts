@@ -58,7 +58,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 // {text: '架构', link: 'architecture'},
                 {text: 'Id 生成器', link: 'id-generator'},
                 {text: '编译器', link: 'compiler'},
-                {text: '唯一性 Key', link: 'prepare-key'},
+                {text: '预分配 Key', link: 'prepare-key'},
                 // {text: '指标', link: 'metrics'},
                 // {text: '可观测性', link: 'observability'},
                 // {text: '聚合调度器', link: 'aggregate-scheduler'},
