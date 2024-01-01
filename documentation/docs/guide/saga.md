@@ -10,7 +10,10 @@ Saga 模式是一种分布式事务协调方法，通过一系列事务步骤来
 
 ### 流程编舞 (Choreography)
 
+<center>
+
 ![Choreography](../public/images/saga/choreography.png)
+</center>
 
 > 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
 
@@ -29,7 +32,10 @@ Saga 模式是一种分布式事务协调方法，通过一系列事务步骤来
 
 ### 流程编排 (Orchestration)
 
+<center>
+
 ![Orchestration](../public/images/saga/orchestration.png)
+</center>
 
 > 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
 
@@ -59,6 +65,11 @@ _Saga_ 通过订阅事件完成处理逻辑后返回聚合命令。
 - 领域事件处理函数的返回值为一个或者多个聚合命令，该聚合命令将会被发送到命令总线。当然也可以不返回任何命令。
 
 ## 银行转账案例中的转账流程管理器
+
+<center>
+
+![银行转账案例中的转账流程管理器](../public/images/example/transfer-saga.svg)
+</center>
 
 转账流程管理器（`TransferSaga`）负责协调处理转账的事件，并生成相应的命令。
 
