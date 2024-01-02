@@ -18,6 +18,7 @@
           <option value="Command-Wait-Timeout" />
           <option value="Command-Wait-Stage" />
           <option value="Command-Request-Id" />
+          <option value="Command-Aggregate-Id" />
         </set>
       </option>
     </inspection_tool>

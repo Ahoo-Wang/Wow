@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
@@ -24,6 +25,7 @@ class CartSaga {
     /**
      * 下单之后删除购物车相应商品
      */
+    @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
     @OnEvent
     fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem? {
         if (!orderCreated.fromCart) {

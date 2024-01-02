@@ -28,7 +28,7 @@ enum class CommandStage {
     },
 
     /**
-     * 当命令被处理后，生成完成信号.
+     * 当命令被聚合根处理完成后，生成完成信号.
      */
     PROCESSED {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
@@ -56,7 +56,7 @@ enum class CommandStage {
     },
 
     /**
-     * 当命令产生的事件已被投影时，生成完成信号.
+     * 当命令产生的事件*投影*完成后，生成完成信号.
      */
     PROJECTED {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
@@ -69,6 +69,10 @@ enum class CommandStage {
             return SENT == processingStage || PROCESSED == processingStage
         }
     },
+
+    /**
+     * 当命令产生的事件被*事件处理器*处理完成后，生成完成信号.
+     */
     EVENT_HANDLED {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
             return this == processingStage ||
@@ -80,6 +84,10 @@ enum class CommandStage {
             return SENT == processingStage || PROCESSED == processingStage
         }
     },
+
+    /**
+     * 当命令产生的事件被*Saga*处理完成后，生成完成信号.
+     */
     SAGA_HANDLED {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
             return this == processingStage ||

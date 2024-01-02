@@ -4,35 +4,24 @@
 
 ## 安装
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
-implementation("me.ahoo.wow:wow-openapi:2.12.1")
+::: code-group
+```kotlin [Gradle(Kotlin)]
+implementation("me.ahoo.wow:wow-openapi")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
-implementation 'me.ahoo.wow:wow-openapi:2.12.1'
+```groovy [Gradle(Groovy)]
+implementation 'me.ahoo.wow:wow-openapi'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-openapi</artifactId>
-    <version>2.12.1</version>
+    <version>${wow.version}</version>
 </dependency>
 ```
-
-  </CodeGroupItem>
-</CodeGroup>
+:::
 
 ## Swagger-UI
 
 > Swagger-UI 是一个基于 OpenAPI 规范的 API 文档工具，可以通过 Swagger-UI 来查看和测试 API 接口。
 
+![Swagger-UI](../public/images/compensation/open-api.png)

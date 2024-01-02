@@ -4,7 +4,7 @@
 
 # Wow : Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing
 
-> [中文文档](https://github.com/Ahoo-Wang/Wow/blob/main/README.zh-CN.md)
+> [中文文档](https://ahoowang.gitee.io/wow/)
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)

@@ -42,16 +42,16 @@ jobs:
         run: ./gradlew dokkaHtmlMultimodule
 
       - name: Copy To Documentation
-        run: cp -R build/dokka/htmlMultiModule documentation/docs/.vuepress/public/dokka
+        run: cp -R build/dokka/htmlMultiModule documentation/docs/public/dokka
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Build VuePress site
+      - name: Build VitePress site
         working-directory: documentation
-        run: npm install -D vuepress@next && npm run docs:build
+        run: npm add -D vitepress && npm run docs:build
 
       - name: Deploy to gh-pages
         uses: crazy-max/ghaction-github-pages@v4
@@ -59,14 +59,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           target_branch: gh-pages
-          build_dir: documentation/docs/.vuepress/dist/
+          build_dir: documentation/docs/.vitepress/dist/
           fqdn: wow.ahoo.me
 
-      - name: Build VuePress site with SITE_BASE
+      - name: Build VitePress site with SITE_BASE
         working-directory: documentation
         env:
           SITE_BASE: /wow/
-        run: npm install -D vuepress@next && npm run docs:build
+        run: npm add -D vitepress && npm run docs:build
 
       - name: Deploy to gh-pages-with-site-base
         uses: crazy-max/ghaction-github-pages@v4
@@ -74,4 +74,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           target_branch: gh-pages-with-site-base
-          build_dir: documentation/docs/.vuepress/dist/
+          build_dir: documentation/docs/.vitepress/dist/
+
+      - name: Sync to Gitee
+        uses: wearerequired/git-mirror-action@master
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        with:
+          source-repo: "git@github.com:Ahoo-Wang/Wow.git"
+          destination-repo: "git@gitee.com:AhooWang/Wow.git"

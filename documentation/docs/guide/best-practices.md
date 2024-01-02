@@ -1,5 +1,13 @@
 # 最佳实践
 
+## 推荐组合
+
+- _MongoDb_: 作为事件存储（EventStore）、快照存储（SnapshotRepository）
+  - 伸缩性: MongoDb 的一大优势是自动分片特性，极大的降低了系统的伸缩成本。
+  - 读模型: 将快照策略设置为 `all`，可以直接将 _MongoDb_ 存储的快照作为读模型使用，无需额外编写投影处理器。
+  结合等待策略设置为 `SNAPSHOT`，实现请求的同步等待。一般情况下，除了一些特殊查询场景（如商品搜索引擎），不需要额外编写投影处理器。
+- Kafka： 作为消息引擎，包括 `CommandBus` 、`DomainEventBus`、`StateEventBus`。
+
 ## 验证测试覆盖率
 
 ```shell
@@ -8,15 +16,11 @@
 
 > 查看测试覆盖率报告：`domain/build/reports/jacoco/test/html/index.html`
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/test-coverage.png" alt="Wow-CI-Flow"/>
-</p>
+![test-coverage](../public/images/getting-started/test-coverage.png)
 
 ## CI/CD 流水线
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/ci-flow.png" alt="Wow-CI-Flow"/>
-</p>
+![Wow-CI-Flow](../public/images/getting-started/ci-flow.png)
 
 ### 测试阶段
 
@@ -153,6 +157,7 @@ stages:
 
 ### 用例图
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/usecase.svg" alt="Wow-UseCase"/>
-</p>
+<center>
+
+![UseCase](../public/images/getting-started/usecase.svg)
+</center>

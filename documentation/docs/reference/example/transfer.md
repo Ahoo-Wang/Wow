@@ -1,6 +1,6 @@
 # 银行账户转账(JAVA)
 
-银行账户转账案例是一个经典的领域驱动设计（DDD）应用场景。接下来我们通过一个简单的银行账户转账案例，来了解如何使用 Wow 进行领域驱动设计以及服务开发。
+_[银行账户转账案例](https://github.com/Ahoo-Wang/Wow/blob/main/example/transfer/)_ 是一个经典的领域驱动设计（DDD）应用场景。接下来我们通过一个简单的银行账户转账案例，来了解如何使用 Wow 进行领域驱动设计以及服务开发。
 
 ## 银行转账流程
 
@@ -12,9 +12,11 @@
     1. 成功路径（Success）： 如果一切顺利，完成转账流程。
     2. 失败路径（Fail）： 如果入账失败，执行解锁金额操作，并处理失败情况。
 
-<p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-saga.svg" alt="Saga-Transfer"/>
-</p>
+<center>
+
+![Saga-Transfer](../../public/images/example/transfer-saga.svg)
+</center>
+
 
 ## 运行案例
 
@@ -27,9 +29,7 @@
 > 运行之后，访问 Swagger-UI : [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) 。
 > 该 RESTful API 端点是由 Wow 自动生成的，无需手动编写。
 
-<p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-swagger.png" alt="Saga-Transfer"/>
-</p>
+![example-transfer-swagger](../../public/images/example/transfer-swagger.png)
 
 ## 模块划分
 
@@ -201,9 +201,7 @@ public class TransferSaga {
 
 借助 Wow 单元测试套件，可以轻松的编写聚合根和 Saga 的单元测试。从而提升代码覆盖率，保证代码质量。
 
-<p align="center" style="text-align:center">
-  <img src="../../.vuepress/public/images/example/transfer-jacoco.png" alt="example-transfer-jacoco"/>
-</p>
+![example-transfer-jacoco](../../public/images/example/transfer-jacoco.png)
 
 > 使用 `aggregateVerifier` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
 

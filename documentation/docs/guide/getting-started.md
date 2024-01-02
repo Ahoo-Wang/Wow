@@ -1,25 +1,25 @@
 # 快速上手
 
-> 使用[Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)快速创建基于 Wow 框架的 DDD 项目。
+> 使用 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 快速创建基于 _Wow_ 框架的 _DDD_ 项目。
 
 ## 安装模板
 
-[IDEA 项目模板](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
+[IDEA 项目模板指南](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
 
-[IDEA 配置目录](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
+[IDEA 配置目录指南](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
 
-- IDEA 项目模板目录：`<IDE config home>/projectTemplates`
-    - Windows: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
-    - Mac OS:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
-    - Linux: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
-- 将模板压缩包放到 IDEA 项目模板目录下
-    - 模板压缩包: https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.3/wow-project-template.zip
+- _IDEA_ 项目模板目录：`<IDE config home>/projectTemplates`
+    - _Windows_: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
+    - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
+    - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
+- 将模板压缩包放到 _IDEA_ 项目模板目录下
+    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v0.0.4/wow-project-template.zip)
 
 ## 创建项目
 
 > [使用模板创建项目](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
 
-![创建项目](../.vuepress/public/images/getting-started/new-project.png)
+![创建项目](../public/images/getting-started/new-project.png)
 
 - 修改 `settings.gradle.kts` 文件，将 `rootProject.name` 修改为项目名称
 - 修改 `api/{package}/DemoService`
@@ -42,108 +42,70 @@
 
 ## 安装 _server_ 依赖
 
-> 使用 Kafka 作为消息引擎：命令总线以及事件总线
+> 使用 _Kafka_ 作为消息引擎：命令总线以及事件总线
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-kafka")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.wow:wow-kafka'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
-
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-kafka</artifactId>
     <version>${wow.version}</version>
 </dependency>
 ```
+:::
 
-  </CodeGroupItem>
-</CodeGroup>
+> 使用 _MongoDB_ 作为事件存储以及快照仓库
 
-> 使用 MongoDB 作为事件存储以及快照仓库
-
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-mongo")
 implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.wow:wow-mongo'
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
-
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-mongo</artifactId>
     <version>${wow.version}</version>
 </dependency>
 <dependency>
-<groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
 </dependency>
 ```
-
-  </CodeGroupItem>
-</CodeGroup>
+:::
 
 > 使用 [CosId](https://github.com/Ahoo-Wang/CosId) 作为全局、聚合根 ID 生成器
 
-<CodeGroup>
-  <CodeGroupItem title="Gradle(Kotlin)" active>
-
-```kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.cosid:cosid-mongo")
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Gradle(Groovy)">
-
-```groovy
+```groovy [Gradle(Groovy)]
 implementation 'me.ahoo.cosid:cosid-mongo'
 ```
-
-  </CodeGroupItem>
-  <CodeGroupItem title="Maven">
-
-```xml
-
+```xml [Maven]
 <dependency>
     <groupId>me.ahoo.cosid</groupId>
     <artifactId>cosid-mongo</artifactId>
     <version>${cosid.version}</version>
 </dependency>
 ```
+:::
 
-  </CodeGroupItem>
-</CodeGroup>
 
 ## 应用配置
 
-```yaml
+```yaml {19,22,28,33}
 management:
   endpoint:
     health:
@@ -181,27 +143,23 @@ wow:
 
 ## 启动服务
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/run-server.png" alt="启动服务"/>
-</p>
+![启动服务](../public/images/getting-started/run-server.png)
 
 > 访问：[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-<p align="center" style="text-align:center">
-  <img src="../.vuepress/public/images/getting-started/swagger-ui.png" alt="Swagger-UI"/>
-</p>
+![Swagger-UI](../public/images/getting-started/swagger-ui.png)
 
 ## 领域建模
 
 ::: tip 聚合模式
-接下来的案例中，我们将使用[聚合模式](modeling.md)来建模。
+接下来的案例中，我们将使用[聚合模式](modeling)来建模。
 :::
 
 ### 命令聚合根
 
-> 命令聚合根负责接收并处理命令并返回领域事件，同时也是领域事件的发布者。
+> *命令聚合根* 负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
 
-```kotlin
+```kotlin {2,5}
 @Suppress("unused")
 @AggregateRoot
 class Demo(private val state: DemoState) {
@@ -224,13 +182,13 @@ class Demo(private val state: DemoState) {
 
 ### 状态聚合根
 
-> 状态聚合根负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
+> *状态聚合根* 负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
 
 ::: warning 
 状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
 :::
 
-```kotlin
+```kotlin {3,5}
 class DemoState(override val id: String) : Identifier {
     var data: String? = null
         private set
