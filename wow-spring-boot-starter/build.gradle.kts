@@ -41,6 +41,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "openapi-support", version.toString())
     }
+    registerFeature("actuatorSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "actuator-support", version.toString())
+    }
 }
 dependencies {
     kapt(platform(project(":wow-dependencies")))
@@ -56,6 +60,7 @@ dependencies {
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
     "openapiSupportImplementation"(project(":wow-openapi"))
+    "actuatorSupportImplementation"("org.springframework.boot:spring-boot-starter-actuator")
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
