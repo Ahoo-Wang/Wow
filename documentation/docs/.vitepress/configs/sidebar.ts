@@ -32,7 +32,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '测试套件', link: 'test-suite'},
                 {text: '商业智能', link: 'bi'},
                 {text: '事件补偿', link: 'event-compensation'},
-                {text: '最佳实践', link: 'best-practices'},
+                // {text: '最佳实践', link: 'best-practices'},
                 {text: '性能评测', link: 'perf-test'},
             ],
         }, {
