@@ -34,6 +34,22 @@ Command-Aggregate-Id: sourceId
 }
 ```
 
+### 配置
+
+```yaml {5-10}
+wow:
+  command:
+    bus:
+      type: kafka
+    idempotency:
+      enabled: true
+      bloom-filter:
+        expected-insertions: 1000000
+        ttl: PT60S
+        fpp: 0.00001
+```
+
+
 ## 等待策略
 
 *命令等待策略*指的是命令网关在发送命令后，等待命令执行结果的一种策略。
@@ -94,3 +110,14 @@ commamdGateway.sendAndWaitForProcessed(message)
 4. 聚合根处理器发送处理完成信号给客户端.
 
 通过 _LocalFirst 模式_，命令发送至本地总线以及完成信号通知均不需要网络IO。
+
+### 配置
+
+```yaml {5-6}
+wow:
+  command:
+    bus:
+      type: kafka
+      local-first:
+        enabled: true # 默认已开启
+```
