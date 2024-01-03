@@ -7,9 +7,9 @@ export const navbar: DefaultTheme.NavItem[] = [
         activeMatch: '^/guide/'
     },
     {
-        text: '配置',
+        text: '参考',
         link: '/reference/config/basic',
-        activeMatch: '^/reference/config/'
+        activeMatch: '^/reference/'
     },
     {
         text: '示例',
@@ -53,36 +53,6 @@ export const navbar: DefaultTheme.NavItem[] = [
                         link: 'https://github.com/Ahoo-Wang/Simba'
                     }
                 ]
-            },
-            {
-                text: 'CQRS',
-                items: [
-                    {
-                        text: 'Event Sourcing - Specifications',
-                        link: 'https://abdullin.com/post/event-sourcing-specifications/'
-                    },
-                    {
-                        text: 'Testing Event Sourcing',
-                        link: 'https://event-driven.io/en/testing_event_sourcing/'
-                    }, {
-                        text: 'CQRS Journey',
-                        link: 'https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj554200(v=pandp.10)'
-                    }, {
-                        text: 'Saga distributed transactions pattern',
-                        link: 'https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga'
-                    }
-                ]
-            },
-            {
-                text: '响应式编程',
-                items: [
-                    {
-                        text: '响应式宣言',
-                        link: 'https://www.reactivemanifesto.org/zh-CN'
-                    }, {
-                        text: 'R2DBC',
-                        link: 'https://r2dbc.io/'
-                    }]
             }
         ]
     },
