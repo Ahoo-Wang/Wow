@@ -69,6 +69,9 @@ export const sidebar: DefaultTheme.Sidebar = {
         }, {
             text: '案例',
             link: '/reference/example/transfer'
+        }, {
+            text: 'Awesome',
+            link: '/reference/awesome/cqrs'
         }
     ],
     '/reference/': [
