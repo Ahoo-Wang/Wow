@@ -42,7 +42,7 @@
 
 ## 安装 _server_ 依赖
 
-> 使用 _Kafka_ 作为消息引擎：命令总线以及事件总线
+1. 使用 _Kafka_ 作为消息引擎：命令总线以及事件总线
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -60,7 +60,7 @@ implementation 'me.ahoo.wow:wow-kafka'
 ```
 :::
 
-> 使用 _MongoDB_ 作为事件存储以及快照仓库
+2. 使用 _MongoDB_ 作为事件存储以及快照仓库
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -72,19 +72,21 @@ implementation 'me.ahoo.wow:wow-mongo'
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 ```
 ```xml [Maven]
-<dependency>
-    <groupId>me.ahoo.wow</groupId>
-    <artifactId>wow-mongo</artifactId>
-    <version>${wow.version}</version>
-</dependency>
-<dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
-</dependency>
+  <dependencies>
+    <dependency>
+        <groupId>me.ahoo.wow</groupId>
+        <artifactId>wow-mongo</artifactId>
+        <version>${wow.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+    </dependency>
+  </dependencies>
 ```
 :::
 
-> 使用 [CosId](https://github.com/Ahoo-Wang/CosId) 作为全局、聚合根 ID 生成器
+3. 使用 [CosId](https://github.com/Ahoo-Wang/CosId) 作为全局、聚合根 ID 生成器
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -101,7 +103,6 @@ implementation 'me.ahoo.cosid:cosid-mongo'
 </dependency>
 ```
 :::
-
 
 ## 应用配置
 
@@ -157,7 +158,7 @@ wow:
 
 ### 命令聚合根
 
-> *命令聚合根* 负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
+*命令聚合根* 负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
 
 ```kotlin {2,5}
 @Suppress("unused")
@@ -182,7 +183,7 @@ class Demo(private val state: DemoState) {
 
 ### 状态聚合根
 
-> *状态聚合根* 负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
+*状态聚合根* 负责维护聚合状态数据，接收并处理领域事件并变更聚合状态数据。
 
 ::: warning 
 状态聚合根 `setter` 访问器设置为 `private`，避免命令聚合根直接变更聚合状态数据。
@@ -207,7 +208,7 @@ class DemoState(override val id: String) : Identifier {
 
 ## 编写单元测试
 
-> 为了保证代码质量，我们需要编写单元测试来验证聚合根的行为是否符合预期。
+为了保证代码质量，我们需要编写单元测试来验证聚合根的行为是否符合预期。
 
 ### 测试聚合根
 
@@ -249,3 +250,140 @@ class DemoTest {
     }
 }
 ```
+
+## CI/CD 流水线
+
+![Wow-CI-Flow](../public/images/getting-started/ci-flow.png)
+
+### 测试阶段
+
+![test-coverage](../public/images/getting-started/test-coverage.png)
+
+::: code-group
+```shell [代码风格检查]
+./gradlew detekt
+```
+```shell [领域模型单元测试]
+./gradlew domain:check
+```
+```shell [测试覆盖率验证]
+./gradlew domain:jacocoTestCoverageVerification
+```
+:::
+
+### 构建阶段
+
+::: code-group
+```shell [生成部署包]
+./gradlew server:installDist
+```
+```shell [发布 Docker 镜像]
+docker login --username=<username> --password=<******> <registry>
+docker build -t <registry>/<image>:<tag> server
+docker push <registry>/<image>:<tag>
+```
+:::
+
+### 部署阶段
+
+```shell [部署到 Kubernetes]
+kubectl apply -f deploy
+```
+
+### 流水线配置（阿里云效）
+
+```yaml
+sources:
+  wow_project_template_repo:
+    type: codeup
+    name: Wow 项目模板代码源
+    endpoint: <your-project-repo>
+    branch: main
+    certificate:
+      type: serviceConnection
+      serviceConnection: <your-service-connection-id>
+stages:
+  test:
+    name: "测试"
+    jobs:
+      code_style:
+        name: "Check CodeStyle"
+        runsOn: public/cn-hongkong
+        steps:
+          code_style:
+            name: "代码风格检查"
+            step: "JavaBuild"
+            runsOn: public/
+            with:
+              jdkVersion: "17"
+              run: ./gradlew detekt
+
+      test:
+        name: "Check Domain"
+        runsOn: public/cn-hongkong
+        steps:
+          test:
+            name: "Check Domain"
+            step: "GradleUnitTest"
+            with:
+              jdkVersion: "17"
+              run: ./gradlew domain:check
+              reportDir: "domain/build/reports/tests/test"
+              reportIndex: "index.html"
+          coverage:
+            name: "Check CodeCoverage"
+            step: "JaCoCo"
+            with:
+              jdkVersion: "17"
+              run: ./gradlew domain:jacocoTestCoverageVerification
+              reportDir: "domain/build/reports/jacoco/test/html"
+  build:
+    name: "构建"
+    jobs:
+      build:
+        name: "Build Server And Push Image"
+        runsOn: public/cn-hongkong
+        steps:
+          build:
+            name: "Build Server"
+            step: "JavaBuild"
+            with:
+              jdkVersion: "17"
+              run: ./gradlew server:installDist
+          publish_image:
+            name: "Push Image"
+            step: "ACRDockerBuild"
+            with:
+              artifact: "image"
+              dockerfilePath: "server/Dockerfile"
+              dockerRegistry: "<your-docker-registry—url>"
+              dockerTag: ${DATETIME}
+              region: "cn-hangzhou"
+              serviceConnection: "<your-service-connection-id>"
+  deploy:
+    name: "部署"
+    jobs:
+      deploy:
+        name: "Deploy"
+        runsOn: public/cn-hongkong
+        steps:
+          deploy:
+            name: "Deploy"
+            step: "KubectlApply"
+            with:
+              skipTlsVerify: false
+              kubernetesCluster: "<your-kubernetes-id>"
+              useReplace: false
+              namespace: "dev"
+              kubectlVersion: "1.22.9"
+              yamlPath: "deploy"
+              skipVariableVerify: false
+              variables:
+                - key: IMAGE
+                  value: $[stages.build.build.publish_image.artifacts.image]
+                - key: REPLICAS
+                  value: 2
+                - key: SERVICE_NAME
+                  value: demo-service
+```
+
