@@ -38,6 +38,6 @@ wow:
 
 | 名称                    | 数据类型       | 说明   | 默认值                     |
 |-----------------------|------------|------|-------------------------|
-| `ttl`                 | `Duration` | 是否启用 | `Duration.ofMinutes(1)` |
+| `ttl`                 | `Duration` | 存活时间 | `Duration.ofMinutes(1)` |
 | `expected-insertions` | `Long`     |      | `1000_000`              |
 | `fpp`                 | `Double`   |      | `0.00001`               |
