@@ -64,14 +64,14 @@ export const sidebar: DefaultTheme.Sidebar = {
                 // {text: '聚合调度器', link: 'aggregate-scheduler'},
             ],
         }, {
-            text: '配置',
-            link: '/reference/config/basic'
-        }, {
-            text: '案例',
-            link: '/reference/example/transfer'
-        }, {
-            text: 'Awesome',
-            link: '/reference/awesome/cqrs'
+            text: '参考',
+            base: '/reference/',
+            collapsed: false,
+            items: [
+                {text: '配置', link: 'config/basic'},
+                {text: '示例', link: 'example/transfer'},
+                {text: 'Awesome', link: 'awesome/cqrs'},
+            ]
         }
     ],
     '/reference/': [

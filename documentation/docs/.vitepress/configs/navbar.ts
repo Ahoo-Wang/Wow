@@ -8,16 +8,24 @@ export const navbar: DefaultTheme.NavItem[] = [
     },
     {
         text: '参考',
-        link: '/reference/config/basic',
-        activeMatch: '^/reference/'
-    },
-    {
-        text: '示例',
-        activeMatch: '^/reference/example/',
+        activeMatch: '^/reference/',
         items: [
-            {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
-        ],
-    }, {
+            {
+                text: '配置',
+                link: '/reference/config/basic',
+            },
+            {
+                text: '示例',
+                items: [
+                    {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
+                ],
+            },
+            {
+                text: 'Awesome', link: '/reference/awesome/cqrs',
+            },
+        ]
+    }
+    , {
         text: 'API',
         link: `/dokka/index.html`,
         target: '_blank'
