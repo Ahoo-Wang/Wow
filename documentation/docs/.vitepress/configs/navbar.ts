@@ -12,16 +12,27 @@ export const navbar: DefaultTheme.NavItem[] = [
         items: [
             {
                 text: '配置',
-                link: '/reference/config/basic',
+                items: [
+                    {text: '基础配置', link: '/reference/config/basic'},
+                    {text: '命令总线', link: '/reference/config/command'},
+                    {text: '事件总线', link: '/reference/config/event'},
+                    {text: '事件溯源', link: '/reference/config/eventsourcing'},
+                ],
             },
             {
                 text: '示例',
                 items: [
                     {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
+                    {text: '订单系统', link: '/reference/example/order'},
                 ],
             },
             {
-                text: 'Awesome', link: '/reference/awesome/cqrs',
+                text: 'Awesome',
+                items: [
+                    {text: 'CQRS', link: '/reference/awesome/cqrs'},
+                    {text: 'Microservices', link: '/reference/awesome/microservices'},
+                    {text: 'Reactive', link: '/reference/awesome/reactive'},
+                ],
             },
         ]
     }
