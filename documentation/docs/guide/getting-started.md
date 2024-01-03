@@ -118,6 +118,7 @@ management:
       exposure:
         include:
           - health
+          - wow
           - cosid
           - cosidGenerator
           - cosidStringGenerator
