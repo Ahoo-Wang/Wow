@@ -1,0 +1,3 @@
+
+create database if not exists bi_db on cluster '{cluster}';
+create database if not exists bi_db_consumer on cluster '{cluster}';

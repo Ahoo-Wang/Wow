@@ -1,0 +1,37 @@
+
+
+CREATE TABLE bi_db.order_order_state_last_local on cluster '{cluster}'
+(
+    id             String,
+    contextName    String,
+    aggregateName  String,
+    header         String,
+    aggregateId    String,
+    tenantId       String,
+    commandId      String,
+    requestId      String,
+    version        UInt32,
+    state          String,
+    body           String,
+    firstOperator  String,
+    firstEventTime DateTime('Asia/Shanghai'),
+    createTime     DateTime('Asia/Shanghai'),
+    deleted        Bool
+) ENGINE = ReplicatedReplacingMergeTree(
+           '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}',
+           version)
+      PARTITION BY sipHash64(aggregateId) % 8
+      ORDER BY (aggregateId)
+;
+
+create table bi_db.order_order_state_last on cluster '{cluster}'
+    as bi_db.order_order_state_last_local
+        ENGINE = Distributed('{cluster}', bi_db, order_order_state_last_local, sipHash64(aggregateId));
+
+CREATE MATERIALIZED VIEW bi_db.order_order_state_last_consumer
+            on cluster '{cluster}'
+            TO bi_db.order_order_state_last
+AS
+SELECT *
+FROM bi_db.order_order_state
+;

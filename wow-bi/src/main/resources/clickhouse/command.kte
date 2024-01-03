@@ -1,0 +1,69 @@
+@import me.ahoo.wow.api.modeling.NamedAggregate
+@import me.ahoo.wow.naming.getContextAlias
+
+@param namedAggregate: NamedAggregate
+@param topicPrefix: String = "wow."
+@param kafkaBootstrapServers: String
+@param serviceNameSuffix="-service"
+@param commandSuffix: String = "_command"
+
+!{val distributedTableName = "${namedAggregate.getContextAlias().trimEnd(serviceNameSuffix)}_${namedAggregate.aggregateName}${commandSuffix}"}
+!{val localTableName = "${distributedTableName}_local"}
+!{val queueTableName = "${distributedTableName}_queue"}
+!{val consumerTableName = "${distributedTableName}_consumer"}
+
+CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
+(
+    id            String,
+    contextName   String,
+    aggregateName String,
+    name          String,
+    header        String,
+    aggregateId   String,
+    tenantId      String,
+    requestId     String,
+    aggregateVersion Nullable(UInt32),
+    isCreate      Bool,
+    allowCreate   Bool,
+    bodyType      String,
+    body          String,
+    createTime    DateTime('Asia/Shanghai')
+) ENGINE = ReplicatedMergeTree(
+           '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+      PARTITION BY toYYYYMM(createTime)
+      ORDER BY id
+;
+
+create table bi_db.order_order_command on cluster '{cluster}'
+    as bi_db.order_order_command_local
+        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local, sipHash64(aggregateId));
+
+CREATE TABLE bi_db_consumer.order_order_command_queue on cluster '{cluster}'
+(
+    data String
+) ENGINE = Kafka('kafka-bootstrap-servers:9092', 'wow.order-service.order.command',
+           'clickhouse_order_order_command_consumer', 'JSONAsString');
+
+CREATE MATERIALIZED VIEW bi_db_consumer.order_order_command_consumer
+            on cluster '{cluster}'
+            TO bi_db.order_order_command
+AS
+SELECT JSONExtractString(data, 'id')            AS id,
+       JSONExtractString(data, 'contextName')   AS contextName,
+       JSONExtractString(data, 'aggregateName') AS aggregateName,
+       JSONExtractString(data, 'name')          AS name,
+       JSONExtractString(data, 'header')        AS header,
+       JSONExtractString(data, 'aggregateId')   AS aggregateId,
+       JSONExtractString(data, 'tenantId')      AS tenantId,
+       JSONExtractString(data, 'requestId')     AS requestId,
+       JSONExtract(data, 'aggregateVersion',
+                   'Nullable(UInt32)')          AS aggregateVersion,
+       JSONExtractBool(data, 'isCreate')        AS isCreate,
+       JSONExtractBool(data, 'allowCreate')     AS allowCreate,
+       JSONExtractString(data, 'bodyType')      AS bodyType,
+       JSONExtractString(data, 'body')          AS body,
+       toDateTime64(
+                   JSONExtractUInt(data, 'createTime') / 1000.0
+           , 3, 'Asia/Shanghai')                AS createTime
+FROM bi_db_consumer.order_order_command_queue
+;;
