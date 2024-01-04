@@ -5,14 +5,16 @@
 @param topicPrefix: String = "wow."
 @param kafkaBootstrapServers: String
 @param serviceNameSuffix="-service"
-@param commandSuffix: String = "_command"
+@param commandSuffix: String = "command"
 
-!{val distributedTableName = "${namedAggregate.getContextAlias().trimEnd(serviceNameSuffix)}_${namedAggregate.aggregateName}${commandSuffix}"}
+!{val topic = "${topicPrefix}${namedAggregate.getContextAlias()}.${namedAggregate.aggregateName}.${commandSuffix}"}
+!{val distributedTableName = "${namedAggregate.getContextAlias().trimEnd(serviceNameSuffix)}_${namedAggregate.aggregateName}_${commandSuffix}"}
 !{val localTableName = "${distributedTableName}_local"}
 !{val queueTableName = "${distributedTableName}_queue"}
 !{val consumerTableName = "${distributedTableName}_consumer"}
 
-CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
+
+CREATE TABLE bi_db.${localTableName} on cluster '{cluster}'
 (
     id            String,
     contextName   String,
@@ -34,19 +36,19 @@ CREATE TABLE bi_db.order_order_command_local on cluster '{cluster}'
       ORDER BY id
 ;
 
-create table bi_db.order_order_command on cluster '{cluster}'
-    as bi_db.order_order_command_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_command_local, sipHash64(aggregateId));
+create table bi_db.${distributedTableName} on cluster '{cluster}'
+    as bi_db.${localTableName}
+        ENGINE = Distributed('{cluster}', bi_db, ${localTableName}, sipHash64(aggregateId));
 
-CREATE TABLE bi_db_consumer.order_order_command_queue on cluster '{cluster}'
+CREATE TABLE bi_db_consumer.${queueTableName} on cluster '{cluster}'
 (
     data String
-) ENGINE = Kafka('kafka-bootstrap-servers:9092', 'wow.order-service.order.command',
-           'clickhouse_order_order_command_consumer', 'JSONAsString');
+) ENGINE = Kafka('${kafkaBootstrapServers}', '${topic}',
+           'clickhouse_${consumerTableName}', 'JSONAsString');
 
-CREATE MATERIALIZED VIEW bi_db_consumer.order_order_command_consumer
+CREATE MATERIALIZED VIEW bi_db_consumer.${consumerTableName}
             on cluster '{cluster}'
-            TO bi_db.order_order_command
+            TO bi_db.${distributedTableName}
 AS
 SELECT JSONExtractString(data, 'id')            AS id,
        JSONExtractString(data, 'contextName')   AS contextName,
@@ -65,5 +67,5 @@ SELECT JSONExtractString(data, 'id')            AS id,
        toDateTime64(
                    JSONExtractUInt(data, 'createTime') / 1000.0
            , 3, 'Asia/Shanghai')                AS createTime
-FROM bi_db_consumer.order_order_command_queue
-;;
+FROM bi_db_consumer.${queueTableName}
+;

@@ -2,20 +2,20 @@
 @import java.time.Instant
 @import java.time.ZoneId
 @import java.time.format.DateTimeFormatter
-
 @import me.ahoo.wow.api.event.DomainEvent
 @import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 @import me.ahoo.wow.compensation.api.IExecutionFailedState
 @import me.ahoo.wow.compensation.api.ExecutionFailedCreated
-
 @param host: String
 @param event: DomainEvent<ExecutionFailedCreated>
 @param state: ReadOnlyStateAggregate<IExecutionFailedState>
 
-!{val root = state.state}
-!{val processor = root.processor}
-!{val eventId = root.eventId}
-!{val retryState = root.retryState}
+!{
+val root = state.state
+val processor = root.processor
+val eventId = root.eventId
+val retryState = root.retryState
+}
 
 # Execution Failed - ${retryState.retries}
 @if(host.isNotBlank())
