@@ -64,33 +64,52 @@ export const sidebar: DefaultTheme.Sidebar = {
                 // {text: '聚合调度器', link: 'aggregate-scheduler'},
             ],
         }, {
-            text: '配置',
-            link: '/reference/config/basic'
-        }, {
-            text: '案例',
-            link: '/reference/example/transfer'
+            text: '参考',
+            base: '/reference/',
+            collapsed: false,
+            items: [
+                {text: '配置', link: 'config/basic'},
+                {text: '示例', link: 'example/transfer'},
+                {text: 'Awesome', link: 'awesome/cqrs'},
+            ]
         }
     ],
     '/reference/': [
         {
-            text: '配置',
-            base: '/reference/config/',
-            collapsed: false,
+            text: '参考',
             items: [
-                {text: '基础', link: 'basic'},
-                {text: '命令总线', link: 'command'},
-                {text: '事件总线', link: 'event'},
-                {text: '事件源', link: 'eventsourcing'},
-            ],
+                {
+                    text: '配置',
+                    base: '/reference/config/',
+                    collapsed: false,
+                    items: [
+                        {text: '基础配置', link: 'basic'},
+                        {text: '命令总线', link: 'command'},
+                        {text: '事件总线', link: 'event'},
+                        {text: '事件溯源', link: 'eventsourcing'},
+                    ],
+                },
+                {
+                    text: '示例',
+                    base: '/reference/example/',
+                    collapsed: false,
+                    items: [
+                        {text: '银行转账（JAVA）', link: 'transfer'},
+                        {text: '订单系统', link: 'order'},
+                    ],
+                },
+                {
+                    text: 'Awesome',
+                    base: '/reference/awesome/',
+                    collapsed: false,
+                    items: [
+                        {text: 'CQRS', link: 'cqrs'},
+                        {text: 'Microservices', link: 'microservices'},
+                        {text: 'Reactive', link: 'reactive'},
+                    ]
+                }
+            ]
         },
-        {
-            text: '示例',
-            base: '/reference/example/',
-            collapsed: false,
-            items: [
-                {text: '订单系统', link: 'order'},
-                {text: '银行转账（JAVA）', link: 'transfer'},
-            ],
-        }
+
     ]
 }

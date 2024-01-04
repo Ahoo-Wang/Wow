@@ -7,17 +7,36 @@ export const navbar: DefaultTheme.NavItem[] = [
         activeMatch: '^/guide/'
     },
     {
-        text: '配置',
-        link: '/reference/config/basic',
-        activeMatch: '^/reference/config/'
-    },
-    {
-        text: '示例',
-        activeMatch: '^/reference/example/',
+        text: '参考',
+        activeMatch: '^/reference/',
         items: [
-            {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
-        ],
-    }, {
+            {
+                text: '配置',
+                items: [
+                    {text: '基础配置', link: '/reference/config/basic'},
+                    {text: '命令总线', link: '/reference/config/command'},
+                    {text: '事件总线', link: '/reference/config/event'},
+                    {text: '事件溯源', link: '/reference/config/eventsourcing'},
+                ],
+            },
+            {
+                text: '示例',
+                items: [
+                    {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
+                    {text: '订单系统', link: '/reference/example/order'},
+                ],
+            },
+            {
+                text: 'Awesome',
+                items: [
+                    {text: 'CQRS', link: '/reference/awesome/cqrs'},
+                    {text: 'Microservices', link: '/reference/awesome/microservices'},
+                    {text: 'Reactive', link: '/reference/awesome/reactive'},
+                ],
+            },
+        ]
+    }
+    , {
         text: 'API',
         link: `/dokka/index.html`,
         target: '_blank'
@@ -53,36 +72,6 @@ export const navbar: DefaultTheme.NavItem[] = [
                         link: 'https://github.com/Ahoo-Wang/Simba'
                     }
                 ]
-            },
-            {
-                text: 'CQRS',
-                items: [
-                    {
-                        text: 'Event Sourcing - Specifications',
-                        link: 'https://abdullin.com/post/event-sourcing-specifications/'
-                    },
-                    {
-                        text: 'Testing Event Sourcing',
-                        link: 'https://event-driven.io/en/testing_event_sourcing/'
-                    }, {
-                        text: 'CQRS Journey',
-                        link: 'https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj554200(v=pandp.10)'
-                    }, {
-                        text: 'Saga distributed transactions pattern',
-                        link: 'https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga'
-                    }
-                ]
-            },
-            {
-                text: '响应式编程',
-                items: [
-                    {
-                        text: '响应式宣言',
-                        link: 'https://www.reactivemanifesto.org/zh-CN'
-                    }, {
-                        text: 'R2DBC',
-                        link: 'https://r2dbc.io/'
-                    }]
             }
         ]
     },
