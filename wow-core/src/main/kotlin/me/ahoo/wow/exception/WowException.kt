@@ -41,27 +41,43 @@ val Throwable.retryable: Boolean
         else -> false
     }
 
+fun Throwable.toErrorCode(): String {
+    return when (this) {
+        is ErrorInfo -> this.errorCode
+        is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
+        is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
+        is TimeoutException -> ErrorCodes.REQUEST_TIMEOUT
+        else -> ErrorCodes.BAD_REQUEST
+    }
+}
+
+fun Throwable.toErrorMsg(): String {
+    return when (this) {
+        is ErrorInfo -> this.errorMsg
+        else -> message ?: ""
+    }
+}
+
 fun Throwable.toErrorInfo(): ErrorInfo {
     return when (this) {
         is ErrorInfo -> this.materialize()
-        is IllegalArgumentException -> ErrorInfo.of(
-            ErrorCodes.ILLEGAL_ARGUMENT,
-            message,
-        )
-
-        is IllegalStateException -> ErrorInfo.of(
-            ErrorCodes.ILLEGAL_STATE,
-            message,
-        )
-
-        is TimeoutException -> ErrorInfo.of(
-            ErrorCodes.REQUEST_TIMEOUT,
-            message,
-        )
-
         else -> ErrorInfo.of(
-            ErrorCodes.BAD_REQUEST,
-            message,
+            toErrorCode(),
+            toErrorMsg()
+        )
+    }
+}
+
+fun Throwable.toWowException(
+    errorCode: String = this.toErrorCode(),
+    errorMsg: String = this.toErrorMsg()
+): WowException {
+    return when (this) {
+        is WowException -> this
+        else -> WowException(
+            errorCode,
+            errorMsg,
+            this,
         )
     }
 }

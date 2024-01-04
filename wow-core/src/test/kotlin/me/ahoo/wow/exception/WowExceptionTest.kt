@@ -24,8 +24,16 @@ import java.util.stream.Stream
 class WowExceptionTest {
     @ParameterizedTest
     @MethodSource("argsProvider")
-    fun asErrorInfo(throwable: Throwable, errorCode: String) {
+    fun toErrorInfo(throwable: Throwable, errorCode: String) {
         val actual = throwable.toErrorInfo()
+        assertThat(actual.errorCode, equalTo(errorCode))
+        assertThat(actual.errorMsg, equalTo(throwable.message))
+    }
+
+    @ParameterizedTest
+    @MethodSource("argsProvider")
+    fun toWowException(throwable: Throwable, errorCode: String) {
+        val actual = throwable.toWowException()
         assertThat(actual.errorCode, equalTo(errorCode))
         assertThat(actual.errorMsg, equalTo(throwable.message))
     }
