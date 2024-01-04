@@ -15,6 +15,7 @@ package me.ahoo.wow.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
+import me.ahoo.wow.exception.ErrorCodeMapping.getErrorCode
 import java.util.concurrent.TimeoutException
 
 open class WowException(
@@ -41,9 +42,16 @@ val Throwable.retryable: Boolean
         else -> false
     }
 
-fun Throwable.toErrorCode(): String {
+fun Throwable.getErrorCode(): String {
+    if (this is ErrorInfo) {
+        return this.errorCode
+    }
+    val errorCode = getErrorCode(this::class.java)
+    if (errorCode != null) {
+        return errorCode
+    }
+
     return when (this) {
-        is ErrorInfo -> this.errorCode
         is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
         is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
         is TimeoutException -> ErrorCodes.REQUEST_TIMEOUT
@@ -51,7 +59,7 @@ fun Throwable.toErrorCode(): String {
     }
 }
 
-fun Throwable.toErrorMsg(): String {
+fun Throwable.getErrorMsg(): String {
     return when (this) {
         is ErrorInfo -> this.errorMsg
         else -> message ?: ""
@@ -62,15 +70,15 @@ fun Throwable.toErrorInfo(): ErrorInfo {
     return when (this) {
         is ErrorInfo -> this.materialize()
         else -> ErrorInfo.of(
-            toErrorCode(),
-            toErrorMsg()
+            getErrorCode(),
+            getErrorMsg()
         )
     }
 }
 
 fun Throwable.toWowException(
-    errorCode: String = this.toErrorCode(),
-    errorMsg: String = this.toErrorMsg()
+    errorCode: String = this.getErrorCode(),
+    errorMsg: String = this.getErrorMsg()
 ): WowException {
     return when (this) {
         is WowException -> this

@@ -49,10 +49,10 @@ object ErrorHttpStatusMapping {
     }
 
     fun unregister(errorCode: String) {
+        val removed = registrar.remove(errorCode)
         if (log.isInfoEnabled) {
-            log.info("Unregister - errorCode:[{}].", errorCode)
+            log.info("Unregister - errorCode:[{}] - removed:[{}].", errorCode, removed)
         }
-        registrar.remove(errorCode)
     }
 
     fun getHttpStatus(errorCode: String): HttpStatus? {
