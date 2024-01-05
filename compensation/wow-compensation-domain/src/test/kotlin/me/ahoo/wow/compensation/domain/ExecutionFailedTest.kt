@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.ApplyRetrySpec
+import me.ahoo.wow.compensation.api.ChangeFunctionKind
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ErrorDetails
@@ -28,6 +29,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
+import me.ahoo.wow.compensation.api.FunctionKindChanged
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RecoverableMarked
@@ -342,6 +344,40 @@ class ExecutionFailedTest {
             .verify().then()
             .given()
             .`when`(markRecoverable)
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun onChangeFunctionKind() {
+        val changeFunctionKind = ChangeFunctionKind(
+            id = GlobalIdGenerator.generateAsString(),
+            functionKind = FunctionKind.STATE_EVENT
+        )
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = error,
+            executeAt = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
+            recoverable = RecoverableType.UNKNOWN
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculator)
+            .given(executionFailedCreated)
+            .`when`(changeFunctionKind)
+            .expectNoError()
+            .expectEventType(FunctionKindChanged::class.java)
+            .expectState {
+                assertThat(it.id, equalTo(changeFunctionKind.id))
+                assertThat(it.functionKind, equalTo(changeFunctionKind.functionKind))
+            }
+            .verify().then()
+            .given()
+            .`when`(changeFunctionKind)
             .expectErrorType(IllegalArgumentException::class.java)
             .verify()
     }

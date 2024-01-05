@@ -24,6 +24,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
+import me.ahoo.wow.compensation.api.FunctionKindChanged
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
@@ -91,5 +92,10 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     @OnSourcing
     fun onRecoverableMarked(event: RecoverableMarked) {
         this.recoverable = event.recoverable
+    }
+
+    @OnSourcing
+    fun onFunctionKindChanged(event: FunctionKindChanged) {
+        this.functionKind = event.functionKind
     }
 }
