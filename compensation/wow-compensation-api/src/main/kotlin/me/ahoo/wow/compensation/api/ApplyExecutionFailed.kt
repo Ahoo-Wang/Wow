@@ -17,15 +17,18 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
 import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
+import me.ahoo.wow.api.exception.RecoverableType
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class ApplyExecutionFailed(
     @PathVariable override val id: String,
     override val error: ErrorDetails,
-    override val executeAt: Long
-) : Identifier, ExecutionFailedErrorInfo
+    override val executeAt: Long,
+    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
+) : Identifier, IRecoverable, ExecutionFailedErrorInfo
 
 data class ExecutionFailedApplied(
     override val error: ErrorDetails,
-    override val executeAt: Long
-) : ExecutionFailedErrorInfo
+    override val executeAt: Long,
+    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
+) : IRecoverable, ExecutionFailedErrorInfo
