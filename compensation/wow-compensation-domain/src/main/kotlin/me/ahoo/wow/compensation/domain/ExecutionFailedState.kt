@@ -14,6 +14,7 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.annotation.OnSourcing
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.CompensationPrepared
@@ -24,6 +25,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
 import me.ahoo.wow.compensation.api.RetrySpecApplied
@@ -46,6 +48,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         private set
     override var status: ExecutionFailedStatus = ExecutionFailedStatus.FAILED
         private set
+    override var recoverable: RecoverableType = RecoverableType.UNKNOWN
 
     @OnSourcing
     fun onCreated(event: ExecutionFailedCreated) {
@@ -57,6 +60,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.retryState = event.retryState
         this.status = ExecutionFailedStatus.FAILED
         this.retrySpec = event.retrySpec
+        this.recoverable = event.recoverable
     }
 
     @Suppress("UnusedParameter")
@@ -81,5 +85,10 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     @OnSourcing
     fun onRetrySpecApplied(event: RetrySpecApplied) {
         this.retrySpec = event.materialize()
+    }
+
+    @OnSourcing
+    fun onRecoverableMarked(event: RecoverableMarked) {
+        this.recoverable = event.recoverable
     }
 }

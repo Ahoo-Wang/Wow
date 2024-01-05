@@ -4,6 +4,7 @@ import {NextRetryComponent} from "./next-retry/next-retry.component";
 import {NonRetryableComponent} from "./non-retryable/non-retryable.component";
 import {SucceededComponent} from "./succeeded/succeeded.component";
 import {ExecutingComponent} from "./executing/executing.component";
+import {UnrecoverableComponent} from "./unrecoverable/unrecoverable.component";
 
 export const routes: Routes = [
   {path: '', pathMatch: 'full', redirectTo: 'to-retry'},
@@ -12,4 +13,5 @@ export const routes: Routes = [
   {path: 'next-retry', component: NextRetryComponent},
   {path: 'non-retryable', component: NonRetryableComponent},
   {path: 'succeeded', component: SucceededComponent},
+  {path: 'unrecoverable', component: UnrecoverableComponent},
 ];

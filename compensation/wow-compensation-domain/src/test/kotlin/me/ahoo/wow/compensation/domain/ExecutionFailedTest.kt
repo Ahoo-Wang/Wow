@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.domain
 
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
@@ -27,7 +28,9 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
+import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
+import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
@@ -305,6 +308,40 @@ class ExecutionFailedTest {
                 assertThat(it.retrySpec.minBackoff, equalTo(applyRetrySpec.minBackoff))
                 assertThat(it.retrySpec.executionTimeout, equalTo(applyRetrySpec.executionTimeout))
             }
+            .verify()
+    }
+
+    @Test
+    fun onMarkRecoverable() {
+        val markRecoverable = MarkRecoverable(
+            id = GlobalIdGenerator.generateAsString(),
+            recoverable = RecoverableType.RECOVERABLE
+        )
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = error,
+            executeAt = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
+            recoverable = RecoverableType.UNKNOWN
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculator)
+            .given(executionFailedCreated)
+            .`when`(markRecoverable)
+            .expectNoError()
+            .expectEventType(RecoverableMarked::class.java)
+            .expectState {
+                assertThat(it.id, equalTo(markRecoverable.id))
+                assertThat(it.recoverable, equalTo(markRecoverable.recoverable))
+            }
+            .verify().then()
+            .given()
+            .`when`(markRecoverable)
+            .expectErrorType(IllegalArgumentException::class.java)
             .verify()
     }
 }

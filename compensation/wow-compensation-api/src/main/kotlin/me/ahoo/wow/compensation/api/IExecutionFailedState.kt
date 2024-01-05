@@ -18,6 +18,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.modeling.AggregateId
@@ -42,6 +43,10 @@ interface IRetryState {
     val retryState: RetryState
 }
 
+interface IRecoverable {
+    val recoverable: RecoverableType
+}
+
 interface ExecuteAt {
     val executeAt: Long
 }
@@ -50,7 +55,7 @@ interface ExecutionFailedErrorInfo : ExecuteAt {
     val error: ErrorDetails
 }
 
-interface ExecutionFailedInfo : ExecutionFailedErrorInfo {
+interface ExecutionFailedInfo : IRecoverable, ExecutionFailedErrorInfo {
     val eventId: EventId
     val processor: ProcessorInfoData
     val functionKind: FunctionKind
@@ -113,7 +118,7 @@ data class RetryState(
      *
      * @see java.time.temporal.ChronoUnit.MILLIS
      */
-    val timoutAt: Long,
+    val timeoutAt: Long,
     /**
      * 下次重试时间点
      *
@@ -122,7 +127,7 @@ data class RetryState(
     val nextRetryAt: Long,
 ) {
     fun timeout(): Boolean {
-        return System.currentTimeMillis() > timoutAt
+        return System.currentTimeMillis() > timeoutAt
     }
 }
 

@@ -12,14 +12,15 @@
  */
 import {Injectable} from "@angular/core";
 import {environment} from "../../environments/environment";
-import {HttpClient} from "@angular/common/http";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {ExecutionFailedState} from "./ExecutionFailedState";
-import {CommandResult} from "./CommandResult";
+import {CommandResult, Stage} from "./CommandResult";
 import {ApplyRetrySpec} from "./ApplyRetrySpec";
 import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
 import {DomainEventStream} from "./DomainEventStream";
+import {MarkRecoverable} from "./MarkRecoverable";
 
 export enum FindCategory {
   ALL = 'all',
@@ -28,6 +29,13 @@ export enum FindCategory {
   NEXT_RETRY = 'next-retry',
   NON_RETRYABLE = 'non-retryable',
   SUCCESS = 'success',
+  UNRECOVERABLE = 'unrecoverable',
+}
+
+const COMMAND_HEADERS = {
+  headers: {
+    'Command-Wait-Stage': Stage.Snapshot
+  }
 }
 
 @Injectable({providedIn: 'root'})
@@ -42,17 +50,22 @@ export class CompensationClient {
 
   prepare(id: string): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/prepare_compensation`;
-    return this.httpClient.put<CommandResult>(apiUrl, {});
+    return this.httpClient.put<CommandResult>(apiUrl, {}, COMMAND_HEADERS);
   }
 
   forcePrepare(id: string): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/force_prepare_compensation`;
-    return this.httpClient.put<CommandResult>(apiUrl, {});
+    return this.httpClient.put<CommandResult>(apiUrl, {}, COMMAND_HEADERS);
   }
 
   applyRetrySpec(id: string, appRetrySpec: ApplyRetrySpec): Observable<CommandResult> {
     const apiUrl = `${this.commandApi}/${id}/apply_retry_spec`;
-    return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec);
+    return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec, COMMAND_HEADERS);
+  }
+
+  markRecoverable(id: string, markRecoverable: MarkRecoverable): Observable<CommandResult> {
+    const apiUrl = `${this.commandApi}/${id}/mark_recoverable`;
+    return this.httpClient.put<CommandResult>(apiUrl, markRecoverable, COMMAND_HEADERS);
   }
 
   find(category: FindCategory, pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
@@ -78,6 +91,10 @@ export class CompensationClient {
 
   findSuccess(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
     return this.find(FindCategory.SUCCESS, pagedQuery);
+  }
+
+  findUnrecoverable(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    return this.find(FindCategory.UNRECOVERABLE, pagedQuery);
   }
 
   loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {

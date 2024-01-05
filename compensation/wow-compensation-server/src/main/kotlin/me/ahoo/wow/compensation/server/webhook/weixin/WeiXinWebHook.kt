@@ -77,6 +77,15 @@ class WeiXinWebHook(
         return sendMessage(event, state)
     }
 
+    @Retry(false)
+    @OnStateEvent
+    fun onRecoverableMarked(
+        event: DomainEvent<CompensationPrepared>,
+        state: ReadOnlyStateAggregate<IExecutionFailedState>
+    ): Mono<Void> {
+        return sendMessage(event, state)
+    }
+
     private fun sendMessage(event: DomainEvent<*>, state: ReadOnlyStateAggregate<IExecutionFailedState>): Mono<Void> {
         val currentEvent = event.name.toHookEvent()
         if (!hookProperties.events.contains(currentEvent)) {

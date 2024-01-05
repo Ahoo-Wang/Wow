@@ -26,7 +26,9 @@ import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
 import me.ahoo.wow.compensation.api.IRetrySpec
+import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
+import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 
@@ -107,5 +109,13 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             minBackoff = applyRetrySpec.minBackoff,
             executionTimeout = applyRetrySpec.executionTimeout
         )
+    }
+
+    @OnCommand
+    fun onMarkRecoverable(command: MarkRecoverable): RecoverableMarked {
+        require(this.state.recoverable != command.recoverable) {
+            "ExecutionFailed recoverable is already marked to ${this.state.recoverable}."
+        }
+        return RecoverableMarked(command.recoverable)
     }
 }

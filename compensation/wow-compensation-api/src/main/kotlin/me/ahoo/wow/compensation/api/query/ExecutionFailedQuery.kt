@@ -23,4 +23,5 @@ interface ExecutionFailedQuery {
     fun findToRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
     fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
+    fun findUnrecoverable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>>
 }

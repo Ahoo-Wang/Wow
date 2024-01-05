@@ -39,8 +39,9 @@ class ExecutionFailedController(
     override fun findNextRetry(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         return executionFailedQuery.findNextRetry(pagedQuery)
     }
+
     @PostMapping("executing")
-    override fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findExecuting(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         return executionFailedQuery.findExecuting(pagedQuery)
     }
 
@@ -57,5 +58,10 @@ class ExecutionFailedController(
     @PostMapping("success")
     override fun findSuccess(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         return executionFailedQuery.findSuccess(pagedQuery)
+    }
+
+    @PostMapping("unrecoverable")
+    override fun findUnrecoverable(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        return executionFailedQuery.findUnrecoverable(pagedQuery)
     }
 }
