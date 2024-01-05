@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.ApplyRetrySpec
+import me.ahoo.wow.compensation.api.ChangeFunctionKind
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ExecutionFailedApplied
@@ -25,6 +26,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
+import me.ahoo.wow.compensation.api.FunctionKindChanged
 import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
@@ -118,5 +120,13 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             "ExecutionFailed recoverable is already marked to ${this.state.recoverable}."
         }
         return RecoverableMarked(command.recoverable)
+    }
+
+    @OnCommand
+    fun onChangeFunctionKind(command: ChangeFunctionKind): FunctionKindChanged {
+        require(this.state.functionKind != command.functionKind) {
+            "ExecutionFailed functionKind is already changed to ${this.state.functionKind}."
+        }
+        return FunctionKindChanged(command.functionKind)
     }
 }
