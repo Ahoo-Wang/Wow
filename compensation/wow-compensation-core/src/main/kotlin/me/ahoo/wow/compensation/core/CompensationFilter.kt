@@ -16,6 +16,7 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.processor.materialize
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.toCommandMessage
@@ -30,6 +31,7 @@ import me.ahoo.wow.compensation.api.EventId.Companion.toEventId
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.handler.Filter
@@ -72,7 +74,8 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
                         executeAt = executeAt,
-                        retrySpec = retry?.toSpec()
+                        retrySpec = retry?.toSpec(),
+                        recoverable = RecoverableType.first(retry?.recoverable, it.recoverable)
                     )
                 } else {
                     ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)

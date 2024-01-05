@@ -18,6 +18,10 @@
 - [Wow](https://github.com/Ahoo-Wang/Wow): 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 - [Axon Framework](https://github.com/AxonFramework/AxonFramework): 一个基于领域驱动设计 (DDD)、命令查询职责分离 (CQRS) 和事件溯源原则构建演进式事件驱动微服务系统的框架。
 
+## Awesome
+
+- [awesome-ddd](https://github.com/heynickc/awesome-ddd?tab=readme-ov-file#jvm): A curated list of Domain-Driven Design (DDD), Command Query Responsibility Segregation (CQRS), Event Sourcing, and Event Storming resources.
+
 ## 博客
 
 - [Event Sourcing - Specifications](https://abdullin.com/post/event-sourcing-specifications/) @abdullin

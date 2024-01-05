@@ -15,6 +15,7 @@ package me.ahoo.wow.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.exception.ErrorCodeMapping.getErrorCode
 import java.util.concurrent.TimeoutException
 
@@ -28,29 +29,39 @@ open class WowException(
 }
 
 /**
- *  RetryableException can be recovered by retrying.
+ *  RecoverableException can be recovered by retrying.
+ *
+ *  @see RecoverableType.RECOVERABLE
  */
-interface RetryableException
+interface RecoverableException
 
 /**
- * @see RetryableException
+ * @see RecoverableException
  */
-val Throwable.retryable: Boolean
-    get() = when (this) {
-        is RetryableException -> true
-        is TimeoutException -> true
-        else -> false
+val Throwable.recoverable: RecoverableType
+    get() {
+        return this.javaClass.recoverable
+    }
+
+val Class<out Throwable>.recoverable: RecoverableType
+    get() {
+        RecoverableExceptionRegistrar.getRecoverableType(this)?.let {
+            return it
+        }
+        return when {
+            RecoverableException::class.java.isAssignableFrom(this) -> RecoverableType.RECOVERABLE
+            TimeoutException::class.java.isAssignableFrom(this) -> RecoverableType.RECOVERABLE
+            else -> RecoverableType.UNKNOWN
+        }
     }
 
 fun Throwable.getErrorCode(): String {
     if (this is ErrorInfo) {
         return this.errorCode
     }
-    val errorCode = getErrorCode(this::class.java)
-    if (errorCode != null) {
-        return errorCode
+    getErrorCode(this::class.java)?.let {
+        return it
     }
-
     return when (this) {
         is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
         is IllegalStateException -> ErrorCodes.ILLEGAL_STATE

@@ -15,20 +15,15 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
-import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 import me.ahoo.wow.api.exception.RecoverableType
 
-@CommandRoute(appendIdPath = AppendPath.ALWAYS)
-data class ApplyExecutionFailed(
-    @PathVariable override val id: String,
-    override val error: ErrorDetails,
-    override val executeAt: Long,
-    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
-) : Identifier, IRecoverable, ExecutionFailedErrorInfo
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
+data class MarkRecoverable(
+    @CommandRoute.PathVariable
+    override val id: String,
+    override val recoverable: RecoverableType,
+) : Identifier, IRecoverable
 
-data class ExecutionFailedApplied(
-    override val error: ErrorDetails,
-    override val executeAt: Long,
-    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
-) : IRecoverable, ExecutionFailedErrorInfo
+data class RecoverableMarked(
+    override val recoverable: RecoverableType
+) : IRecoverable

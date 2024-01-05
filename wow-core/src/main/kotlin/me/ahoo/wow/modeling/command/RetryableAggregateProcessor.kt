@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.exception.retryable
+import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -43,7 +44,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
         .filter {
-            val retryable = it.retryable
+            val retryable = it.recoverable == RecoverableType.RECOVERABLE
             if (retryable && log.isWarnEnabled) {
                 log.warn("Retry {}.", aggregateId, it)
             }

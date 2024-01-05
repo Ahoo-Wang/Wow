@@ -48,7 +48,7 @@ class TemplateEngineTest {
             every { body } returns executionFailedCreated
         }
 
-        val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate)
+        val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, "http://localhost:8080")
         assertThat(rendered, notNullValue())
     }
 }

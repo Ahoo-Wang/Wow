@@ -34,11 +34,11 @@ interface NextRetryAtCalculator {
         retryAt: Long = System.currentTimeMillis()
     ): RetryState {
         val nextRetryAt = nextRetryAt(retrySpec.minBackoff, retries, retryAt)
-        val timoutAt = retryAt + retrySpec.executionTimeout * 1000
+        val timeoutAt = retryAt + retrySpec.executionTimeout * 1000
         return RetryState(
             retries = retries,
             retryAt = retryAt,
-            timoutAt = timoutAt,
+            timeoutAt = timeoutAt,
             nextRetryAt = nextRetryAt,
         )
     }

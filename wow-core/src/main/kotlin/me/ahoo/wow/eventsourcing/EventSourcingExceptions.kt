@@ -16,11 +16,11 @@ package me.ahoo.wow.eventsourcing
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_AGGREGATE_ID
 import me.ahoo.wow.exception.ErrorCodes.EVENT_VERSION_CONFLICT
-import me.ahoo.wow.exception.RetryableException
+import me.ahoo.wow.exception.RecoverableException
 import me.ahoo.wow.exception.WowException
 
 class EventVersionConflictException(val eventStream: DomainEventStream, cause: Throwable? = null) :
-    RetryableException,
+    RecoverableException,
     WowException(
         EVENT_VERSION_CONFLICT,
         "Event Version[${eventStream.version}] conflict.",

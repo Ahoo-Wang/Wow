@@ -9,7 +9,7 @@
 [IDEA 配置目录指南](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
 
 - _IDEA_ 项目模板目录：`<IDE config home>/projectTemplates`
-    - _Windows_: `%APPDATA%\JetBrains\<product><version>\projectTemplates`
+    - _Windows_: `C:\Users\<USERNAME>\AppData\Roaming\JetBrains\<PRODUCT><VERSION>\projectTemplates\`
     - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
     - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
 - 将模板压缩包放到 _IDEA_ 项目模板目录下
