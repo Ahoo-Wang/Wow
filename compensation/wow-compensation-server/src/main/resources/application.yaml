@@ -9,6 +9,7 @@ management:
       exposure:
         include:
           - health
+          - wow
           - cosid
           - cosidGenerator
           - cosidStringGenerator
@@ -36,6 +37,6 @@ cosid:
     enabled: true
 wow:
   kafka:
-    bootstrap-servers: PLAINTEXT://localhost:61530
+    bootstrap-servers: PLAINTEXT://localhost:56993
 
 

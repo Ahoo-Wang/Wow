@@ -15,8 +15,9 @@ package me.ahoo.wow.messaging.handler
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.exception.retryable
+import me.ahoo.wow.exception.recoverable
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
@@ -49,7 +50,7 @@ internal class RetryableFilterTest {
     fun filterGivenTimeout() {
         val retryableFilter = RetryableFilter<ServerCommandExchange<Any>>(
             Retry.backoff(3, Duration.ofMillis(100))
-                .filter { it.retryable },
+                .filter { it.recoverable == RecoverableType.RECOVERABLE },
         )
 
         val exchange = mockk<ServerCommandExchange<Any>>()
@@ -70,7 +71,7 @@ internal class RetryableFilterTest {
     fun filterGivenTimeoutNextSuccess() {
         val retryableFilter = RetryableFilter<ServerCommandExchange<Any>>(
             Retry.backoff(3, Duration.ofMillis(100))
-                .filter { it.retryable },
+                .filter { it.recoverable == RecoverableType.RECOVERABLE },
         )
         val exchange = mockk<ServerCommandExchange<Any>>()
         val chain = mockk<FilterChain<ServerCommandExchange<Any>>>()

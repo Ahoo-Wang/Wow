@@ -14,9 +14,10 @@
 package me.ahoo.wow.messaging.handler
 
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
-import me.ahoo.wow.exception.retryable
+import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
@@ -24,7 +25,7 @@ import reactor.util.retry.RetryBackoffSpec
 import java.time.Duration
 
 val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2))
-    .filter { it.retryable }
+    .filter { it.recoverable == RecoverableType.RECOVERABLE }
 
 @Order(
     before = [

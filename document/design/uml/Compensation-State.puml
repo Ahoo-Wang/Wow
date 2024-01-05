@@ -13,7 +13,7 @@ state FAILED
 state PREPARED
 state ExecutionStatus <<choice>>
 state SUCCEEDED
-state COMPLETED
+state COMPLETED #line.dotted;
 
 [*] --> FAILED
 
@@ -22,11 +22,11 @@ PREPARED --> ExecutionStatus: Execute
 ExecutionStatus --> FAILED: ApplyExecutionFailed
 ExecutionStatus --> SUCCEEDED: ApplyExecutionSuccess
 SUCCEEDED --> COMPLETED
-FAILED --> COMPLETED: MarkCompleted
+FAILED --> COMPLETED: MarkUnrecoverable
 
 json CompletedCategory {
    "SUCCEEDED":"Succeeded",
-   "FAILED":"Cannot be successful"
+   "UNRECOVERABLE":"Unrecoverable"
 }
 
 @enduml

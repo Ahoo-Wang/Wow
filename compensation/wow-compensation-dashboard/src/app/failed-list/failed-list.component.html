@@ -11,7 +11,8 @@
     <th colspan="3">Processor</th>
     <th colspan="5">EventId</th>
     <th colspan="3">RetryState</th>
-    <th rowspan="2">Status</th>
+    <th rowspan="2" width="80px">Status</th>
+    <th rowspan="2" width="150px">Recoverable</th>
     <th rowspan="2" nzWidth="150px" nzRight width="150px">Operation</th>
   </tr>
   <tr>
@@ -71,18 +72,29 @@
           }
         }
       </td>
-      <td>
+      <td style="text-align: center;font-size: large">
         @switch (item.status) {
           @case (ExecutionFailedStatus.FAILED) {
-            <nz-badge nzStatus="error" nzText="{{item.status}}"></nz-badge>
+            <span nz-icon nzType="close" style="color: #b62a3c" nz-tooltip nzTooltipPlacement="left"
+                  nzTooltipTitle="{{item.status}}"></span>
           }
           @case (ExecutionFailedStatus.PREPARED) {
-            <nz-badge nzStatus="processing" nzText="{{item.status}}"></nz-badge>
+            <span nz-icon nzType="sync" [nzSpin]="true" style="color: #00a4ff" nz-tooltip nzTooltipPlacement="left"
+                  nzTooltipTitle="{{item.status}}"></span>
           }
           @case (ExecutionFailedStatus.SUCCEEDED) {
-            <nz-badge nzStatus="success" nzText="{{item.status}}"></nz-badge>
+            <span nz-icon nzType="check" style="color: #52c41a" nz-tooltip nzTooltipPlacement="left"
+                  nzTooltipTitle="{{item.status}}"></span>
           }
         }
+      </td>
+      <td>
+        <nz-select [(ngModel)]="item.recoverable" [nzBorderless]="true" nzSize="small"
+                   (ngModelChange)="markRecoverable(item.id,$event)">
+          <nz-option nzValue="RECOVERABLE" nzLabel="Recoverable"></nz-option>
+          <nz-option nzValue="UNRECOVERABLE" nzLabel="Unrecoverable"></nz-option>
+          <nz-option nzValue="UNKNOWN" nzLabel="Unknown"></nz-option>
+        </nz-select>
       </td>
       <td nzRight>
         <nz-button-group>
@@ -92,7 +104,7 @@
           @switch (category) {
             @case (FindCategory.TO_RETRY) {
               <button nz-popconfirm
-                      [nzPopconfirmTitle]="'Are you sure retry this Failed?'"
+                      nzPopconfirmTitle="Are you sure retry this Failed?"
                       nzPopconfirmPlacement="top"
                       nz-button
                       (nzOnConfirm)="prepare(item.id)"

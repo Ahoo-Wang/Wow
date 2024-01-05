@@ -13,21 +13,22 @@
 
 package me.ahoo.wow.exception
 
+import me.ahoo.wow.api.exception.RecoverableType
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-object ErrorCodeMapping {
-    private val log = LoggerFactory.getLogger(ErrorCodeMapping::class.java)
-    private val registrar = ConcurrentHashMap<Class<out Throwable>, String>()
+object RecoverableExceptionRegistrar {
+    private val log = LoggerFactory.getLogger(RecoverableExceptionRegistrar::class.java)
+    private val registrar = ConcurrentHashMap<Class<out Throwable>, RecoverableType>()
 
-    fun register(throwableClass: Class<out Throwable>, errorCode: String) {
-        val previous = registrar.put(throwableClass, errorCode)
+    fun register(throwableClass: Class<out Throwable>, recoverableType: RecoverableType) {
+        val previous = registrar.put(throwableClass, recoverableType)
         if (log.isInfoEnabled) {
             log.info(
                 "Register - throwableClass:[{}] - previous:[{}],current:[{}].",
                 throwableClass,
-                previous,
-                errorCode
+                recoverableType,
+                previous
             )
         }
     }
@@ -39,7 +40,8 @@ object ErrorCodeMapping {
         }
     }
 
-    fun getErrorCode(throwableClass: Class<out Throwable>): String? {
+    fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? {
         return registrar[throwableClass]
     }
+
 }
