@@ -90,7 +90,8 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         check(this.state.status == ExecutionFailedStatus.PREPARED) { "ExecutionFailed is not prepared." }
         return ExecutionFailedApplied(
             error = command.error,
-            executeAt = command.executeAt
+            executeAt = command.executeAt,
+            recoverable = command.recoverable
         )
     }
 

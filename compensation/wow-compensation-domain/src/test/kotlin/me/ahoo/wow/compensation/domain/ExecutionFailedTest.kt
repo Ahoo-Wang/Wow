@@ -78,6 +78,7 @@ class ExecutionFailedTest {
                 assertThat(it.retryState.timeout(), equalTo(false))
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.canNextRetry(), equalTo(false))
+                assertThat(it.recoverable, equalTo(RecoverableType.UNKNOWN))
             }
             .verify()
     }
