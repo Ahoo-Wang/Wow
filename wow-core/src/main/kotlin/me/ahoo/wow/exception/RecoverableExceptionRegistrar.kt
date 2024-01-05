@@ -43,5 +43,4 @@ object RecoverableExceptionRegistrar {
     fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? {
         return registrar[throwableClass]
     }
-
 }
