@@ -40,12 +40,17 @@ interface RecoverableException
  */
 val Throwable.recoverable: RecoverableType
     get() {
-        RecoverableExceptionRegistrar.getRecoverableType(this::class.java)?.let {
+        return this.javaClass.recoverable
+    }
+
+val Class<out Throwable>.recoverable: RecoverableType
+    get() {
+        RecoverableExceptionRegistrar.getRecoverableType(this)?.let {
             return it
         }
-        return when (this) {
-            is RecoverableException -> RecoverableType.RECOVERABLE
-            is TimeoutException -> RecoverableType.RECOVERABLE
+        return when {
+            RecoverableException::class.java.isAssignableFrom(this) -> RecoverableType.RECOVERABLE
+            TimeoutException::class.java.isAssignableFrom(this) -> RecoverableType.RECOVERABLE
             else -> RecoverableType.UNKNOWN
         }
     }
