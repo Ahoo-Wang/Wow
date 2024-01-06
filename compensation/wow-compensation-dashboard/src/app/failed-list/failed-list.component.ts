@@ -1,6 +1,12 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {ExecutionFailedState, ExecutionFailedStatus, RetrySpec} from "../api/ExecutionFailedState";
+import {
+  ExecutionFailedState,
+  ExecutionFailedStatus,
+  FunctionKind,
+  RecoverableType,
+  RetrySpec
+} from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
@@ -14,9 +20,14 @@ import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
 import {FailedHistoryComponent} from "../failed-history/failed-history.component";
-import {NzIconDirective} from "ng-zorro-antd/icon";
+import {NzIconModule} from 'ng-zorro-antd/icon';
 import {ApplyRetrySpecComponent} from "../apply-retry-spec/apply-retry-spec.component";
 import {ActivatedRoute} from "@angular/router";
+import {NzSelectModule} from 'ng-zorro-antd/select';
+import {NzToolTipModule} from 'ng-zorro-antd/tooltip';
+import {NzDropDownModule} from 'ng-zorro-antd/dropdown';
+import {FormsModule} from "@angular/forms";
+
 
 @Component({
   selector: 'app-failed-list',
@@ -38,8 +49,12 @@ import {ActivatedRoute} from "@angular/router";
     ErrorComponent,
     NgIf,
     FailedHistoryComponent,
-    NzIconDirective,
-    NzDrawerModule
+    NzIconModule,
+    NzDrawerModule,
+    NzSelectModule,
+    NzToolTipModule,
+    NzDropDownModule,
+    FormsModule
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -119,6 +134,26 @@ export class FailedListComponent implements OnInit {
       })
   }
 
+  markRecoverable(id: string, recoverable: RecoverableType): void {
+    this.compensationClient.markRecoverable(id, {recoverable})
+      .subscribe(resp => {
+        this.message.success("Mark Recoverable succeeded.");
+        this.load();
+      }, error => {
+        this.message.error(error.error.errorMsg);
+      })
+  }
+
+  changeFunctionKind(id: string, functionKind: FunctionKind): void {
+    this.compensationClient.changeFunctionKind(id, {functionKind})
+      .subscribe(resp => {
+        this.message.success("Change FunctionKind succeeded.");
+        this.load();
+      }, error => {
+        this.message.error(error.error.errorMsg);
+      })
+  }
+
   openErrorInfo(state: ExecutionFailedState) {
     this.current = state;
     this.errorInfoVisible = true
@@ -157,4 +192,5 @@ export class FailedListComponent implements OnInit {
 
   protected readonly FindCategory = FindCategory;
   protected readonly ExecutionFailedStatus = ExecutionFailedStatus;
+  protected readonly RecoverableType = RecoverableType;
 }

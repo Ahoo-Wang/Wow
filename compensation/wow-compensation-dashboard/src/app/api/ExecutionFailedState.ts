@@ -25,6 +25,7 @@ export interface ExecutionFailedState {
   retrySpec: RetrySpec;
   retryState: RetryState;
   status: ExecutionFailedStatus;
+  recoverable: RecoverableType;
 }
 
 /**
@@ -88,11 +89,28 @@ export interface RetryState {
   nextRetryAt: number;
   retries: number;
   retryAt: number;
-  timoutAt: number;
+  timeoutAt: number;
 }
 
 export enum ExecutionFailedStatus {
   FAILED = "FAILED",
   PREPARED = "PREPARED",
   SUCCEEDED = "SUCCEEDED",
+}
+
+export enum RecoverableType {
+  /**
+   * The exception is recoverable.
+   */
+  RECOVERABLE = "RECOVERABLE",
+
+  /**
+   * The exception is not recoverable.
+   */
+  UNRECOVERABLE = "UNRECOVERABLE",
+
+  /**
+   * The exception is unknown.
+   */
+  UNKNOWN = "UNKNOWN"
 }

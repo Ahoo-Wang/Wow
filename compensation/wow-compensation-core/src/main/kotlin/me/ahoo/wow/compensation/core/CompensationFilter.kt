@@ -30,6 +30,7 @@ import me.ahoo.wow.compensation.api.EventId.Companion.toEventId
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.handler.Filter
@@ -64,6 +65,7 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                     errorMsg = errorInfo.errorMsg,
                     stackTrace = it.stackTraceToString()
                 )
+                val recoverable = retry.recoverable(throwableClass = it.javaClass)
                 val executeAt = System.currentTimeMillis()
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
@@ -72,10 +74,16 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                         functionKind = eventFunction.functionKind,
                         error = errorDetails,
                         executeAt = executeAt,
-                        retrySpec = retry?.toSpec()
+                        retrySpec = retry?.toSpec(),
+                        recoverable = recoverable
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)
+                    ApplyExecutionFailed(
+                        id = executionId,
+                        error = errorDetails,
+                        executeAt = executeAt,
+                        recoverable = recoverable
+                    )
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())

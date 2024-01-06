@@ -16,6 +16,7 @@ package me.ahoo.wow.compensation.server.failed
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoClient
+import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.CompensationService
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
@@ -27,7 +28,6 @@ import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.mongo.toSnapshotState
 import me.ahoo.wow.serialization.MessageRecords
-import org.bson.Document
 import org.bson.conversions.Bson
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
@@ -42,6 +42,16 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
     companion object {
         const val DATABASE_NAME = "compensation_db"
         const val COLLECTION_NAME = CompensationService.EXECUTION_FAILED_AGGREGATE_NAME + "_snapshot"
+
+        private const val STATE_FIELD_PREFIX = "state."
+        private const val STATUS_FIELD = STATE_FIELD_PREFIX + "status"
+        private const val RECOVERABLE_FIELD = STATE_FIELD_PREFIX + "recoverable"
+        private const val IS_RETRYABLE_FIELD = STATE_FIELD_PREFIX + "isRetryable"
+        private const val IS_BELOW_RETRY_THRESHOLD_FIELD = STATE_FIELD_PREFIX + "isBelowRetryThreshold"
+        private const val RETRY_STATE_FIELD = STATE_FIELD_PREFIX + "retryState"
+        private const val RETRY_STATE_FIELD_PREFIX = "$RETRY_STATE_FIELD."
+        private const val NEXT_RETRY_AT_FIELD = RETRY_STATE_FIELD_PREFIX + "nextRetryAt"
+        private const val TIMEOUT_AT_FIELD = RETRY_STATE_FIELD_PREFIX + "timeoutAt"
     }
 
     private val snapshotCollection = mongoClient.getDatabase(DATABASE_NAME)
@@ -58,82 +68,58 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
 
     fun nextRetryFilter(): Bson {
         val currentTime = System.currentTimeMillis()
-        val pipelineShell = """
-            {
-              ${'$'}and: [{
-                  "state.isRetryable": true
-                },
-                 {
-                   "state.retryState.nextRetryAt": {
-                      ${'$'}lte: $currentTime
-                  }
-                },
-                {
-                  ${'$'}or: [{
-                      "state.status": "${ExecutionFailedStatus.FAILED}"
-                    },
-                    {
-                      ${'$'}and: [{
-                        "state.status": "${ExecutionFailedStatus.PREPARED}"
-                      }, {
-                        "state.retryState.timoutAt": {
-                          ${'$'}lte: $currentTime
-                        }
-                      }]
-                    }
-                  ]
-                }
-              ]
-            }
-        """.trimIndent()
-        return Document.parse(pipelineShell);
+
+        return Filters.and(
+            Filters.ne(RECOVERABLE_FIELD, RecoverableType.UNRECOVERABLE.name),
+            Filters.eq(IS_RETRYABLE_FIELD, true),
+            Filters.lte(NEXT_RETRY_AT_FIELD, currentTime),
+            Filters.or(
+                Filters.eq(STATUS_FIELD, ExecutionFailedStatus.FAILED.name),
+                Filters.and(
+                    Filters.eq(STATUS_FIELD, ExecutionFailedStatus.PREPARED.name),
+                    Filters.lte(TIMEOUT_AT_FIELD, currentTime)
+                )
+            )
+        )
     }
 
     fun toRetryFilter(): Bson {
         val currentTime = System.currentTimeMillis()
-        val pipelineShell = """
-            {
-              ${'$'}and: [{
-                  "state.isRetryable": true
-                },
-                {
-                  ${'$'}or: [{
-                      "state.status": "${ExecutionFailedStatus.FAILED}"
-                    },
-                    {
-                      ${'$'}and: [{
-                        "state.status": "${ExecutionFailedStatus.PREPARED}"
-                      }, {
-                        "state.retryState.timoutAt": {
-                          ${'$'}lte: $currentTime
-                        }
-                      }]
-                    }
-                  ]
-                }
-              ]
-            }
-        """.trimIndent()
-        return Document.parse(pipelineShell);
+        return Filters.and(
+            Filters.ne(RECOVERABLE_FIELD, RecoverableType.UNRECOVERABLE.name),
+            Filters.eq(IS_RETRYABLE_FIELD, true),
+            Filters.or(
+                Filters.eq(STATUS_FIELD, ExecutionFailedStatus.FAILED.name),
+                Filters.and(
+                    Filters.eq(STATUS_FIELD, ExecutionFailedStatus.PREPARED.name),
+                    Filters.lte(TIMEOUT_AT_FIELD, currentTime)
+                )
+            )
+        )
     }
 
     fun executingFilter(): Bson {
         val currentTime = System.currentTimeMillis()
         return Filters.and(
-            Filters.eq("state.status", ExecutionFailedStatus.PREPARED.name),
-            Filters.gt("state.retryState.timoutAt", currentTime)
+            Filters.eq(STATUS_FIELD, ExecutionFailedStatus.PREPARED.name),
+            Filters.gt(TIMEOUT_AT_FIELD, currentTime)
         )
     }
 
     fun nonRetryableFilter(): Bson {
         return Filters.and(
-            Filters.ne("state.status", ExecutionFailedStatus.SUCCEEDED.name),
-            Filters.eq("state.isBelowRetryThreshold", false)
+            Filters.ne(RECOVERABLE_FIELD, RecoverableType.UNRECOVERABLE.name),
+            Filters.ne(STATUS_FIELD, ExecutionFailedStatus.SUCCEEDED.name),
+            Filters.eq(IS_BELOW_RETRY_THRESHOLD_FIELD, false)
         )
     }
 
     fun successFilter(): Bson {
-        return Filters.eq("state.status", ExecutionFailedStatus.SUCCEEDED.name)
+        return Filters.eq(STATUS_FIELD, ExecutionFailedStatus.SUCCEEDED.name)
+    }
+
+    fun unrecoverableFilter(): Bson {
+        return Filters.eq(RECOVERABLE_FIELD, RecoverableType.UNRECOVERABLE.name)
     }
 
     override fun findAll(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
@@ -163,6 +149,11 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
 
     override fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
         val filter = successFilter()
+        return findPagedList(filter, pagedQuery)
+    }
+
+    override fun findUnrecoverable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+        val filter = unrecoverableFilter()
         return findPagedList(filter, pagedQuery)
     }
 

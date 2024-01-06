@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.annotation
 
+import kotlin.reflect.KClass
+
 @Target(AnnotationTarget.FUNCTION)
 annotation class Retry(
     val enabled: Boolean = true,
@@ -34,6 +36,8 @@ annotation class Retry(
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
     val executionTimeout: Int = DEFAULT_EXECUTION_TIMEOUT,
+    val recoverable: Array<KClass<out Throwable>> = [],
+    val unrecoverable: Array<KClass<out Throwable>> = []
 ) {
     companion object {
         const val DEFAULT_MAX_RETRIES = 10

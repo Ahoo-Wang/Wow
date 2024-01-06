@@ -26,6 +26,7 @@ data class WeiXinWebHookProperties(
         HookEvent.EXECUTION_FAILED_CREATED,
         HookEvent.EXECUTION_FAILED_APPLIED,
         HookEvent.EXECUTION_SUCCESS_APPLIED,
+        HookEvent.RECOVERABLE_MARKED,
     )
 ) {
     companion object {
@@ -38,7 +39,8 @@ enum class HookEvent(val value: String) {
     EXECUTION_FAILED_CREATED("execution_failed_created"),
     EXECUTION_FAILED_APPLIED("execution_failed_applied"),
     EXECUTION_SUCCESS_APPLIED("execution_success_applied"),
-    COMPENSATION_PREPARED("compensation_prepared");
+    COMPENSATION_PREPARED("compensation_prepared"),
+    RECOVERABLE_MARKED("recoverable_marked");
 
     companion object {
         fun String.toHookEvent(): HookEvent {
@@ -47,6 +49,7 @@ enum class HookEvent(val value: String) {
                 EXECUTION_FAILED_APPLIED.value -> EXECUTION_FAILED_APPLIED
                 EXECUTION_SUCCESS_APPLIED.value -> EXECUTION_SUCCESS_APPLIED
                 COMPENSATION_PREPARED.value -> COMPENSATION_PREPARED
+                RECOVERABLE_MARKED.value -> RECOVERABLE_MARKED
                 else -> {
                     throw IllegalArgumentException("Unknown HookEvent - $this")
                 }

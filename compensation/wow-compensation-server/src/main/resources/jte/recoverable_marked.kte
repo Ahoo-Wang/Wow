@@ -6,14 +6,14 @@
 @import me.ahoo.wow.api.event.DomainEvent
 @import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 @import me.ahoo.wow.compensation.api.IExecutionFailedState
-@import me.ahoo.wow.compensation.api.ExecutionFailedCreated
+@import me.ahoo.wow.compensation.api.RecoverableMarked
 
 @param host: String
-@param event: DomainEvent<ExecutionFailedCreated>
+@param event: DomainEvent<RecoverableMarked>
 @param state: ReadOnlyStateAggregate<IExecutionFailedState>
 
 @template.layout(
-    title = "Execution Failed",
+    title = "Recoverable Marked",
     host= host,
-    state = state,
+    state = state
 )

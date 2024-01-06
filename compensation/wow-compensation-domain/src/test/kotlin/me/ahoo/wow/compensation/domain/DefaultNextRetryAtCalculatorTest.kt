@@ -38,7 +38,7 @@ class DefaultNextRetryAtCalculatorTest {
         assertThat(retryState.retries, equalTo(1))
         assertThat(retryState.retryAt, equalTo(0))
         assertThat(
-            retryState.timoutAt,
+            retryState.timeoutAt,
             equalTo(testRetrySpec.executionTimeout * 1000L)
         )
         assertThat(
