@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.exception
 
+import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.exception.RecoverableType
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -36,6 +39,26 @@ class WowExceptionTest {
         val actual = throwable.toWowException()
         assertThat(actual.errorCode, equalTo(errorCode))
         assertThat(actual.errorMsg, equalTo(throwable.message))
+    }
+
+    @Test
+    fun recoverable() {
+        null.recoverable(TimeoutException::class.java).let {
+            assertThat(it, equalTo(RecoverableType.RECOVERABLE))
+        }
+        Retry().recoverable(TimeoutException::class.java).let {
+            assertThat(it, equalTo(RecoverableType.RECOVERABLE))
+        }
+        Retry(recoverable = arrayOf(IllegalStateException::class)).recoverable(IllegalStateException::class.java)
+            .let {
+                assertThat(it, equalTo(RecoverableType.RECOVERABLE))
+            }
+        Retry(
+            unrecoverable = arrayOf(IllegalArgumentException::class)
+        ).recoverable(IllegalArgumentException::class.java)
+            .let {
+                assertThat(it, equalTo(RecoverableType.UNRECOVERABLE))
+            }
     }
 
     companion object {
