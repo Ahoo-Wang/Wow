@@ -21,6 +21,7 @@ import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
 import {DomainEventStream} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
+import {ChangeFunctionKind} from "./ChangeFunctionKind";
 
 export enum FindCategory {
   ALL = 'all',
@@ -67,6 +68,12 @@ export class CompensationClient {
     const apiUrl = `${this.commandApi}/${id}/mark_recoverable`;
     return this.httpClient.put<CommandResult>(apiUrl, markRecoverable, COMMAND_HEADERS);
   }
+
+  changeFunctionKind(id: string, changeFunctionKind: ChangeFunctionKind): Observable<CommandResult> {
+    const apiUrl = `${this.commandApi}/${id}/change_function_kind`;
+    return this.httpClient.put<CommandResult>(apiUrl, changeFunctionKind, COMMAND_HEADERS);
+  }
+
 
   find(category: FindCategory, pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
     const apiUrl = `${this.retryApi}/${category}`;

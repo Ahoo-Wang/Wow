@@ -1,6 +1,12 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {ExecutionFailedState, ExecutionFailedStatus, RecoverableType, RetrySpec} from "../api/ExecutionFailedState";
+import {
+  ExecutionFailedState,
+  ExecutionFailedStatus,
+  FunctionKind,
+  RecoverableType,
+  RetrySpec
+} from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
@@ -132,6 +138,16 @@ export class FailedListComponent implements OnInit {
     this.compensationClient.markRecoverable(id, {recoverable})
       .subscribe(resp => {
         this.message.success("Mark Recoverable succeeded.");
+        this.load();
+      }, error => {
+        this.message.error(error.error.errorMsg);
+      })
+  }
+
+  changeFunctionKind(id: string, functionKind: FunctionKind): void {
+    this.compensationClient.changeFunctionKind(id, {functionKind})
+      .subscribe(resp => {
+        this.message.success("Change FunctionKind succeeded.");
         this.load();
       }, error => {
         this.message.error(error.error.errorMsg);
