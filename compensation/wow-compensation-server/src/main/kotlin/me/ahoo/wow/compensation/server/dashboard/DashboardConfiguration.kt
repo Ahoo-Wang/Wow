@@ -23,6 +23,12 @@ import org.springframework.web.bind.annotation.GetMapping
 class DashboardConfiguration(private val webProperties: WebProperties) {
     companion object {
         const val HOME_FILE = "index.html"
+        const val TO_RETRY_NAV = "/to-retry"
+        const val EXECUTING_NAV = "/executing"
+        const val NEXT_RETRY_NAV = "/next-retry"
+        const val NON_RETRYABLE_NAV = "/non-retryable"
+        const val SUCCEEDED_NAV = "/succeeded"
+        const val UNRECOVERABLE_NAV = "/unrecoverable"
     }
 
     private val homePageContent by lazy {
@@ -35,12 +41,12 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
     @GetMapping(
         *[
             "/",
-            "/to-retry",
-            "/executing",
-            "/next-retry",
-            "/non-retryable",
-            "/succeeded",
-            "/unrecoverable",
+            TO_RETRY_NAV,
+            EXECUTING_NAV,
+            NEXT_RETRY_NAV,
+            NON_RETRYABLE_NAV,
+            SUCCEEDED_NAV,
+            UNRECOVERABLE_NAV,
         ],
     )
     fun home(): ResponseEntity<ByteArray> {
