@@ -11,21 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.exception
+import {FunctionKind} from "./ExecutionFailedState";
 
-enum class RecoverableType {
-    /**
-     * The exception is recoverable.
-     */
-    RECOVERABLE,
-
-    /**
-     * The exception is not recoverable.
-     */
-    UNRECOVERABLE,
-
-    /**
-     * The exception is unknown.
-     */
-    UNKNOWN
+export interface ChangeFunctionKind {
+  functionKind: FunctionKind
 }
