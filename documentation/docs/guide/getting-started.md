@@ -106,7 +106,7 @@ implementation 'me.ahoo.cosid:cosid-mongo'
 
 ## 应用配置
 
-```yaml {19,22,28,33}
+```yaml {20,23,29,34}
 management:
   endpoint:
     health:

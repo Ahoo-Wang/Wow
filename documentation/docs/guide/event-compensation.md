@@ -41,27 +41,59 @@
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-implementation("me.ahoo.wow:wow-compensation-core:2.12.1")
+implementation("me.ahoo.wow:wow-compensation-core")
 ```
 ```groovy [Gradle(Groovy)]
-implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
+implementation 'me.ahoo.wow:wow-compensation-core'
 ```
 ```xml [Maven]
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-compensation-core</artifactId>
-    <version>2.12.1</version>
 </dependency>
 ```
 :::
 
 ### 自定义重试机制
 
-> _Wow_ 框架的灵活性不仅体现在事件补偿控制台的设计上，还可以通过 `@Retry` 注解进行自定义补偿机制。
-> 
-> 如果有特定处理函数不需要补偿，只需简单设置 `@Retry(false)` 即可关闭该函数的补偿功能。
-> 
-> 这种细粒度的控制让开发者能够更加精准地配置系统的行为，确保补偿机制仅在需要的地方发挥作用，进一步提升系统的可定制性和适应性。
+_Wow_ 框架的灵活性不仅体现在事件补偿控制台的设计上，还可以通过 `@Retry` 注解进行自定义补偿机制。
+
+```kotlin
+@Target(AnnotationTarget.FUNCTION)
+annotation class Retry(
+    val enabled: Boolean = true,
+    /**
+     * 最大重试次数
+     */
+    val maxRetries: Int = DEFAULT_MAX_RETRIES,
+
+    /**
+     * the minimum Duration for the first backoff
+     *
+     * @see java.time.temporal.ChronoUnit.SECONDS
+     */
+    val minBackoff: Int = DEFAULT_MIN_BACKOFF,
+
+    /**
+     * 执行超时时间
+     *
+     * @see java.time.temporal.ChronoUnit.SECONDS
+     */
+    val executionTimeout: Int = DEFAULT_EXECUTION_TIMEOUT,
+    val recoverable: Array<KClass<out Throwable>> = [],
+    val unrecoverable: Array<KClass<out Throwable>> = []
+) {
+    companion object {
+        const val DEFAULT_MAX_RETRIES = 10
+        const val DEFAULT_MIN_BACKOFF = 180
+        const val DEFAULT_EXECUTION_TIMEOUT = 120
+    }
+}
+```
+
+如果有特定处理函数不需要补偿，只需简单设置 `@Retry(false)` 即可关闭该函数的补偿功能。
+
+这种细粒度的控制让开发者能够更加精准地配置系统的行为，确保补偿机制仅在需要的地方发挥作用，进一步提升系统的可定制性和适应性。
 
 ```kotlin{1}
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
@@ -76,6 +108,12 @@ implementation 'me.ahoo.wow:wow-compensation-core:2.12.1'
         )
     }
 ```
+
+:::tip
+`@Retry` 同时支持 `recoverable` 和 `unrecoverable` 两类参数，用于标记执行函数发生异常时的可恢复性：
+- `recoverable`：表示可以通过重试来修复的异常。
+- `unrecoverable`：表示无法通过重试来修复的异常。
+:::
 
 ## 控制台
 
