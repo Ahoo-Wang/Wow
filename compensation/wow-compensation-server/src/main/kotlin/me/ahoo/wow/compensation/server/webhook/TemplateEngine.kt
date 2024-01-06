@@ -35,7 +35,7 @@ object TemplateEngine {
     fun renderTemplate(template: String, params: Map<String, Any>): String {
         val output = StringOutput()
         engine.render(template, params, output)
-        return output.toString()
+        return output.toString().trim()
     }
 
     fun render(templateName: String, params: Map<String, Any>): String {
