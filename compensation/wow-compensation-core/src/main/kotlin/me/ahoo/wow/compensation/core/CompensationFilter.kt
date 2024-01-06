@@ -16,7 +16,6 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.processor.materialize
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.toCommandMessage
@@ -66,6 +65,7 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                     errorMsg = errorInfo.errorMsg,
                     stackTrace = it.stackTraceToString()
                 )
+                val recoverable = retry.recoverable(throwableClass = it.javaClass)
                 val executeAt = System.currentTimeMillis()
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
@@ -75,10 +75,15 @@ class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEven
                         error = errorDetails,
                         executeAt = executeAt,
                         retrySpec = retry?.toSpec(),
-                        recoverable = RecoverableType.first(retry?.recoverable, it.recoverable)
+                        recoverable = recoverable
                     )
                 } else {
-                    ApplyExecutionFailed(id = executionId, error = errorDetails, executeAt = executeAt)
+                    ApplyExecutionFailed(
+                        id = executionId,
+                        error = errorDetails,
+                        executeAt = executeAt,
+                        recoverable = recoverable
+                    )
                 }
                 val commandMessage = command.toCommandMessage()
                 commandBus.send(commandMessage).then(it.toMono())

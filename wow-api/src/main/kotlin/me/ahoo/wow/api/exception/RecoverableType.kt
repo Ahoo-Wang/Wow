@@ -27,11 +27,5 @@ enum class RecoverableType {
     /**
      * The exception is unknown.
      */
-    UNKNOWN;
-
-    companion object {
-        fun first(vararg recoverableTypes: RecoverableType?): RecoverableType {
-            return recoverableTypes.firstOrNull { it != null && it != UNKNOWN } ?: UNKNOWN
-        }
-    }
+    UNKNOWN
 }

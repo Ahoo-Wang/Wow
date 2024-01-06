@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.exception
 
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import me.ahoo.wow.api.exception.RecoverableType
@@ -54,6 +55,20 @@ val Class<out Throwable>.recoverable: RecoverableType
             else -> RecoverableType.UNKNOWN
         }
     }
+
+fun Retry?.recoverable(throwableClass: Class<out Throwable>): RecoverableType {
+    if (this == null) {
+        return throwableClass.recoverable
+    }
+
+    if (recoverable.any { it.java == throwableClass }) {
+        return RecoverableType.RECOVERABLE
+    }
+    if (unrecoverable.any { it.java == throwableClass }) {
+        return RecoverableType.UNRECOVERABLE
+    }
+    return throwableClass.recoverable
+}
 
 fun Throwable.getErrorCode(): String {
     if (this is ErrorInfo) {
