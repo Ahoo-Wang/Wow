@@ -58,6 +58,7 @@ package Command{
     usecase ApplyRetrySpec
     usecase ApplyExecutionSuccess
     usecase MarkRecoverable
+    usecase ChangeFunctionKind
 }
 
 Subscriber --> CreateExecutionFailed
@@ -72,6 +73,7 @@ FindExecuting <-- Developer
 PrepareCompensation <-- Developer
 ForcePrepareCompensation <-- Developer
 MarkRecoverable <-- Developer
+ChangeFunctionKind <-- Developer
 ApplyRetrySpec <-- Developer
 FindNonRetryable <-- Developer
 FindSuccess <-- Developer
