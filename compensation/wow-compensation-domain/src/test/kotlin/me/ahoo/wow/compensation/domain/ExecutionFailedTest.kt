@@ -59,7 +59,8 @@ class ExecutionFailedTest {
             processor = processor,
             functionKind = functionKind,
             error = error,
-            executeAt = System.currentTimeMillis()
+            executeAt = System.currentTimeMillis(),
+            recoverable = RecoverableType.RECOVERABLE
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -80,7 +81,7 @@ class ExecutionFailedTest {
                 assertThat(it.retryState.timeout(), equalTo(false))
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.canNextRetry(), equalTo(false))
-                assertThat(it.recoverable, equalTo(RecoverableType.UNKNOWN))
+                assertThat(it.recoverable, equalTo(createExecutionFailed.recoverable))
             }
             .verify()
     }
@@ -186,7 +187,8 @@ class ExecutionFailedTest {
         val applyExecutionFailed = ApplyExecutionFailed(
             id = GlobalIdGenerator.generateAsString(),
             error = error,
-            executeAt = System.currentTimeMillis()
+            executeAt = System.currentTimeMillis(),
+            recoverable = RecoverableType.RECOVERABLE
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
@@ -195,7 +197,8 @@ class ExecutionFailedTest {
             error = error,
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
-            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
+            recoverable = RecoverableType.UNKNOWN
         )
 
         val compensationPrepared = CompensationPrepared(
@@ -216,6 +219,7 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.id, equalTo(applyExecutionFailed.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
+                assertThat(it.recoverable, equalTo(applyExecutionFailed.recoverable))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.canNextRetry(), equalTo(false))
@@ -266,6 +270,7 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.id, equalTo(applyExecutionSuccess.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
+                assertThat(it.recoverable, equalTo(executionFailedCreated.recoverable))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(false))
                 assertThat(it.canNextRetry(), equalTo(false))
@@ -362,7 +367,7 @@ class ExecutionFailedTest {
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
-            recoverable = RecoverableType.UNKNOWN
+            recoverable = RecoverableType.RECOVERABLE
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -373,6 +378,7 @@ class ExecutionFailedTest {
             .expectEventType(FunctionKindChanged::class.java)
             .expectState {
                 assertThat(it.id, equalTo(changeFunctionKind.id))
+                assertThat(it.recoverable, equalTo(executionFailedCreated.recoverable))
                 assertThat(it.functionKind, equalTo(changeFunctionKind.functionKind))
             }
             .verify().then()

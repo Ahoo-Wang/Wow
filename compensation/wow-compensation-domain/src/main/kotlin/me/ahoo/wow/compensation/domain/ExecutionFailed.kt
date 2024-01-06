@@ -51,7 +51,8 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             error = command.error,
             executeAt = command.executeAt,
             retryState = retryState,
-            retrySpec = retrySpec.materialize()
+            retrySpec = retrySpec.materialize(),
+            recoverable = command.recoverable
         )
     }
 
