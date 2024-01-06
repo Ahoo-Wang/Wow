@@ -21,6 +21,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.server.configuration.CompensationProperties
 import me.ahoo.wow.compensation.server.webhook.TemplateEngine
 import me.ahoo.wow.compensation.server.webhook.weixin.HookEvent.Companion.toHookEvent
@@ -80,7 +81,7 @@ class WeiXinWebHook(
     @Retry(false)
     @OnStateEvent
     fun onRecoverableMarked(
-        event: DomainEvent<CompensationPrepared>,
+        event: DomainEvent<RecoverableMarked>,
         state: ReadOnlyStateAggregate<IExecutionFailedState>
     ): Mono<Void> {
         return sendMessage(event, state)

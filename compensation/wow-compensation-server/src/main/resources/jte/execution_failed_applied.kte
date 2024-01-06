@@ -12,28 +12,8 @@
 @param event: DomainEvent<ExecutionFailedApplied>
 @param state: ReadOnlyStateAggregate<IExecutionFailedState>
 
-!{val root = state.state}
-!{val processor = root.processor}
-!{val eventId = root.eventId}
-!{val retryState = root.retryState}
-
-# Execution Failed - ${retryState.retries}
-@if(host.isNotBlank())
-- Id：[${root.id}](${host}/to-retry?id=${root.id})
-@else
-- Id：${"`"}${root.id}${"`"}
-@endif
-- Processor：${processor.processorName}@${processor.contextName}
-- ExecuteAt：${LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
-## Event Id
-- Aggregate: ${eventId.aggregateId.aggregateName}@${eventId.aggregateId.contextName}
-- AggregateId: ${"`"}${eventId.aggregateId.id}${"`"}
-- Id: ${"`"}${eventId.id}${"`"}
-- Version: ${"`"}${eventId.version}${"`"}
-## Retry State
-- Retries: ${retryState.retries}(${root.retrySpec.maxRetries})
-- RetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.retryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
-- NextRetryAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.nextRetryAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
-- Status: <font color="warning">${root.status.toString()}</font>
-
-
+@template.layout(
+    title = "Execution Failed",
+    host= host,
+    state = state,
+)
