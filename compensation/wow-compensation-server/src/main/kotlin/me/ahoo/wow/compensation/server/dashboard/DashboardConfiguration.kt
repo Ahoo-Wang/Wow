@@ -40,6 +40,7 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
             "/next-retry",
             "/non-retryable",
             "/succeeded",
+            "/unrecoverable",
         ],
     )
     fun home(): ResponseEntity<ByteArray> {
