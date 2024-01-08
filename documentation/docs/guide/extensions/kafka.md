@@ -30,7 +30,8 @@ implementation 'me.ahoo.wow:wow-kafka'
 | `enabled`           | `Boolean`             | 是否启用        | `true` |
 | `bootstrap-servers` | `List<String>`        | Kafka 服务器地址 |        |
 | `topic-prefix`      | `String`              | 主题前缀        | `wow.` |
-| `properties`        | `Map<String, String>` | 生产者配置       |        |
+| `properties`        | `Map<String, String>` | 公共配置        |        |
+| `producer`          | `Map<String, String>` | 生产者配置       |        |
 | `consumer`          | `Map<String, String>` | 消费者配置       |        |
 
 **YAML 配置样例**
