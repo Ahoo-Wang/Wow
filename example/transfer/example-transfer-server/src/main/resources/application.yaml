@@ -13,6 +13,8 @@ management:
           - cosid
           - cosidGenerator
           - cosidStringGenerator
+          - metrics
+
 springdoc:
   show-actuator: true
 

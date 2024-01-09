@@ -28,6 +28,7 @@ include(":wow-spring")
 include(":wow-webflux")
 include(":wow-spring-boot-starter")
 include(":wow-opentelemetry")
+include(":wow-bi")
 //region test
 include(":wow-test")
 project(":wow-test").projectDir = file("test/wow-test")
