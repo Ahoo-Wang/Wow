@@ -24,11 +24,11 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 class WowBIEndpoint(private val kafkaProperties: KafkaProperties) {
 
     @ReadOperation
-    fun script(): String {
+    fun generate(): String {
         return ScriptEngine.generate(
-            MetadataSearcher.localAggregates,
-            kafkaProperties.bootstrapServersToString(),
-            kafkaProperties.topicPrefix
+            namedAggregates = MetadataSearcher.localAggregates,
+            kafkaBootstrapServers = kafkaProperties.bootstrapServersToString(),
+            topicPrefix = kafkaProperties.topicPrefix
         )
     }
 }
