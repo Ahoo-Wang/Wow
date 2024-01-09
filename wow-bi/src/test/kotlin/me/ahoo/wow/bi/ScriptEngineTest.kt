@@ -1,8 +1,8 @@
 package me.ahoo.wow.bi
 
 import me.ahoo.wow.configuration.MetadataSearcher
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class ScriptEngineTest {
@@ -10,6 +10,6 @@ class ScriptEngineTest {
     @Test
     fun generate() {
         val syncScript = ScriptEngine.generate(MetadataSearcher.localAggregates)
-        MatcherAssert.assertThat(syncScript, Matchers.notNullValue())
+        assertThat(syncScript, notNullValue())
     }
 }

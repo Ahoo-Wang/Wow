@@ -27,12 +27,14 @@ import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.jetbrains.kotlin.descriptors.runtime.structure.parameterizedTypeArguments
 import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.Type
+import java.util.*
 
 class StateExpansionScriptGenerator(
     private val column: Column,
-    private val sqlBuilder: SqlBuilder,
-    private val visited: MutableSet<Field> = mutableSetOf()
+    private val sqlBuilder: SqlBuilder
 ) :
     ClassVisitor {
     companion object {
@@ -48,56 +50,96 @@ class StateExpansionScriptGenerator(
     private var isBuilt = false
     private val sqlBuilders = mutableListOf<SqlBuilder>()
     private val generators: MutableList<StateExpansionScriptGenerator> = mutableListOf()
-
+    private val visitedProperties = mutableSetOf<String>()
     override fun start() {
         if (this.column is ArrayJoinColumn) {
             sqlBuilder.append(this.column)
         }
     }
 
+    private val Column.isTooDeep: Boolean
+        get() {
+            return parent?.parent?.parent?.parent?.parent?.parent != null
+        }
+
     override fun visitField(field: Field) {
-        if (visited.contains(field)) {
+        if (Modifier.isStatic(field.modifiers)) {
             return
         }
-        visited.add(field)
-        if (Modifier.isStatic(field.modifiers) || !Modifier.isPublic(field.modifiers)) {
+        visitProperty(field.name, field.type, field.genericType.parameterizedTypeArguments)
+    }
+
+    private fun visitProperty(propertyName: String, returnType: Class<*>, parameterizedTypeArguments: List<Type>) {
+        if (visitedProperties.contains(propertyName)) {
             return
         }
-        val column = StatePropertyColumn(field.name, type = field.type, parent = this.column)
+        visitedProperties.add(propertyName)
+        val column = StatePropertyColumn(propertyName, type = returnType, parent = this.column)
         if (column.isSimple) {
             sqlBuilder.append(column)
             return
         }
         if (column.isNested) {
             sqlBuilder.append(column)
-            val generator = StateExpansionScriptGenerator(column, sqlBuilder, visited)
+            if (column.isTooDeep) {
+                return
+            }
+            val generator = StateExpansionScriptGenerator(column, sqlBuilder)
             generators.add(generator)
             return
         }
 
         if (column.isCollection) {
-            val genericType = field.genericType.parameterizedTypeArguments.first() as Class<*>
+            val genericType = parameterizedTypeArguments.first() as Class<*>
             if (genericType.isSimple) {
-                val simpleArrayColumn = SimpleArrayColumn(field.name, type = genericType, parent = this.column)
+                val simpleArrayColumn = SimpleArrayColumn(propertyName, type = genericType, parent = this.column)
                 sqlBuilder.append(simpleArrayColumn)
                 return
             }
             val collectionTargetTableName = sqlBuilder.targetTableName + "_" + column.targetName
             val collectionSqlBuilder = sqlBuilder.copy(collectionTargetTableName)
             val collectionColumn = ArrayJoinColumn(column.name, type = genericType, parent = this.column)
-            val generator = StateExpansionScriptGenerator(collectionColumn, collectionSqlBuilder, visited)
+            if (collectionColumn.isTooDeep) {
+                return
+            }
+            val generator = StateExpansionScriptGenerator(collectionColumn, collectionSqlBuilder)
             generators.add(generator)
             return
         }
 
         if (column.isMap) {
-            val valueType = field.genericType.parameterizedTypeArguments[1] as Class<*>
+            val valueType = parameterizedTypeArguments[1] as Class<*>
             if (valueType.isSimple) {
-                val simpleMapColumn = SimpleMapColumn(field.name, type = valueType, parent = this.column)
+                val simpleMapColumn = SimpleMapColumn(propertyName, type = valueType, parent = this.column)
                 sqlBuilder.append(simpleMapColumn)
                 return
             }
         }
+    }
+
+    private fun Method.inferPropertyName(): String? {
+        if (parameterTypes.isNotEmpty()) {
+            return null
+        }
+        if (returnType == Void.TYPE) {
+            return null
+        }
+        if (Modifier.isStatic(this.modifiers)) {
+            return null
+        }
+
+        val methodName = name
+        if (methodName.startsWith("get")) {
+            return methodName.substring(3, 4).lowercase(Locale.getDefault()) + methodName.substring(4)
+        } else if (methodName.startsWith("is")) {
+            return methodName.substring(2, 3).lowercase(Locale.getDefault()) + methodName.substring(3)
+        }
+        return null
+    }
+
+    override fun visitMethod(method: Method) {
+        val propertyName = method.inferPropertyName() ?: return
+        visitProperty(propertyName, method.returnType, method.genericReturnType.parameterizedTypeArguments)
     }
 
     override fun toString(): String {

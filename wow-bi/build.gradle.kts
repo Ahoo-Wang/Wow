@@ -5,5 +5,5 @@ dependencies {
     implementation(libs.jte)
     implementation(libs.jte.kotlin)
     testImplementation(project(":example-domain"))
-    implementation(kotlin("reflect"))
+    testImplementation(project(":wow-compensation-domain"))
 }
