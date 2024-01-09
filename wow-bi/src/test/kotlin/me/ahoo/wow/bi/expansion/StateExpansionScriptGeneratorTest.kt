@@ -30,6 +30,7 @@ class StateExpansionMetadataVisitorTest {
         val sql = biAggregateMetadata.toScriptGenerator().toString()
         assertThat(sql, equalTo(EXPECTED_SCRIPT))
     }
+
 }
 
 private const val EXPECTED_SCRIPT = """CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root AS
@@ -195,6 +196,7 @@ create_time AS __create_time,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 """
+
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
