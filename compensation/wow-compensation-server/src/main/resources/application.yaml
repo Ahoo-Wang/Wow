@@ -10,6 +10,7 @@ management:
         include:
           - health
           - wow
+          - wowBI
           - cosid
           - cosidGenerator
           - cosidStringGenerator
@@ -37,6 +38,6 @@ cosid:
     enabled: true
 wow:
   kafka:
-    bootstrap-servers: PLAINTEXT://localhost:56993
+    bootstrap-servers: localhost:56993
 
 

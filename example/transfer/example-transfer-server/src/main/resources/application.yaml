@@ -10,9 +10,12 @@ management:
         include:
           - health
           - wow
+          - wowBI
           - cosid
           - cosidGenerator
           - cosidStringGenerator
+          - metrics
+
 springdoc:
   show-actuator: true
 

@@ -102,6 +102,25 @@ jobs:
       - name: Test Wow-Compiler
         run: ./gradlew wow-compiler:clean wow-compiler:check --stacktrace
 
+  wow-bi-test:
+    name: Wow BI Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-BI
+        run: ./gradlew wow-bi:clean wow-bi:check --stacktrace
+
   wow-kafka-test:
     name: Wow Kafka Test
     needs: [ wow-core-test ]
