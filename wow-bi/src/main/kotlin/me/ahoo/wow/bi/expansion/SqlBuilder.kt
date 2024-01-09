@@ -65,7 +65,7 @@ class SqlBuilder(
 
     fun build(): String {
         return buildString {
-            appendLine("CREATE VIEW IF NOT EXISTS bi_db.$targetTableName AS")
+            appendLine("CREATE VIEW IF NOT EXISTS bi_db.$targetTableName ON CLUSTER '{cluster}' AS")
             val withSql = withSql()
             if (withSql.isNotBlank()) {
                 appendLine("WITH")
