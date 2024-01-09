@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.bi.expansion
 
+import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
@@ -22,21 +23,13 @@ import me.ahoo.wow.bi.expansion.column.SimpleArrayColumn
 import me.ahoo.wow.bi.expansion.column.SimpleMapColumn
 import me.ahoo.wow.bi.expansion.column.StatePropertyColumn
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.infra.reflection.ClassMetadata
-import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import org.jetbrains.kotlin.descriptors.runtime.structure.parameterizedTypeArguments
-import java.lang.reflect.Field
-import java.lang.reflect.Method
-import java.lang.reflect.Modifier
-import java.lang.reflect.Type
-import java.util.*
+import me.ahoo.wow.serialization.JsonSerializer
 
 class StateExpansionScriptGenerator(
     private val column: Column,
     private val sqlBuilder: SqlBuilder
-) :
-    ClassVisitor {
+) {
     companion object {
         fun NamedAggregate.toScriptGenerator(): StateExpansionScriptGenerator {
             val type = this.requiredAggregateType<Any>().aggregateMetadata<Any, Any>().state.aggregateType
@@ -50,8 +43,8 @@ class StateExpansionScriptGenerator(
     private var isBuilt = false
     private val sqlBuilders = mutableListOf<SqlBuilder>()
     private val generators: MutableList<StateExpansionScriptGenerator> = mutableListOf()
-    private val visitedProperties = mutableSetOf<String>()
-    override fun start() {
+
+    private fun start() {
         if (this.column is ArrayJoinColumn) {
             sqlBuilder.append(this.column)
         }
@@ -62,18 +55,12 @@ class StateExpansionScriptGenerator(
             return parent?.parent?.parent?.parent?.parent?.parent != null
         }
 
-    override fun visitField(field: Field) {
-        if (Modifier.isStatic(field.modifiers)) {
-            return
+    private fun visitProperty(beanPropertyDefinition: BeanPropertyDefinition) {
+        val propertyName = beanPropertyDefinition.name
+        val returnType = beanPropertyDefinition.rawPrimaryType
+        val parameterizedTypeArguments = beanPropertyDefinition.primaryType.bindings.typeParameters.map {
+            it.rawClass
         }
-        visitProperty(field.name, field.type, field.genericType.parameterizedTypeArguments)
-    }
-
-    private fun visitProperty(propertyName: String, returnType: Class<*>, parameterizedTypeArguments: List<Type>) {
-        if (visitedProperties.contains(propertyName)) {
-            return
-        }
-        visitedProperties.add(propertyName)
         val column = StatePropertyColumn(propertyName, type = returnType, parent = this.column)
         if (column.isSimple) {
             sqlBuilder.append(column)
@@ -117,31 +104,6 @@ class StateExpansionScriptGenerator(
         }
     }
 
-    private fun Method.inferPropertyName(): String? {
-        if (parameterTypes.isNotEmpty()) {
-            return null
-        }
-        if (returnType == Void.TYPE) {
-            return null
-        }
-        if (Modifier.isStatic(this.modifiers)) {
-            return null
-        }
-
-        val methodName = name
-        if (methodName.startsWith("get")) {
-            return methodName.substring(3, 4).lowercase(Locale.getDefault()) + methodName.substring(4)
-        } else if (methodName.startsWith("is")) {
-            return methodName.substring(2, 3).lowercase(Locale.getDefault()) + methodName.substring(3)
-        }
-        return null
-    }
-
-    override fun visitMethod(method: Method) {
-        val propertyName = method.inferPropertyName() ?: return
-        visitProperty(propertyName, method.returnType, method.genericReturnType.parameterizedTypeArguments)
-    }
-
     override fun toString(): String {
         return build().distinct().joinToString("\n") {
             it.build()
@@ -152,7 +114,12 @@ class StateExpansionScriptGenerator(
         if (isBuilt) {
             return sqlBuilders
         }
-        ClassMetadata.visit(column.type, this)
+        start()
+        val javaType = JsonSerializer.constructType(column.type)
+        val beanDescription = JsonSerializer.serializationConfig.introspect(javaType)
+        beanDescription.findProperties().forEach {
+            visitProperty(it)
+        }
         sqlBuilders.add(sqlBuilder)
         generators.forEach {
             sqlBuilders.addAll(it.build())
