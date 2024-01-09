@@ -1,0 +1,18 @@
+{
+  "contexts" : {
+    "bi-service" : {
+      "alias" : "bi",
+      "scopes" : [ "me.ahoo.wow.bi.expansion" ],
+      "aggregates" : {
+        "aggregate" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion" ],
+          "type" : "me.ahoo.wow.bi.expansion.BIAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        }
+      }
+    }
+  }
+}

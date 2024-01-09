@@ -1,37 +1,44 @@
+@import me.ahoo.wow.api.modeling.NamedAggregate
+@import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 
+@param namedAggregate: NamedAggregate
+@param suffix: String = "state_last"
 
-CREATE TABLE bi_db.order_order_state_last_local on cluster '{cluster}'
+!{val distributedTableName = namedAggregate.toDistributedTableName(suffix)}
+!{val localTableName = "${distributedTableName}_local"}
+!{val consumerTableName = "${distributedTableName}_consumer"}
+
+CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
 (
-    id             String,
-    contextName    String,
-    aggregateName  String,
-    header         String,
-    aggregateId    String,
-    tenantId       String,
-    commandId      String,
-    requestId      String,
-    version        UInt32,
-    state          String,
-    body           String,
-    firstOperator  String,
-    firstEventTime DateTime('Asia/Shanghai'),
-    createTime     DateTime('Asia/Shanghai'),
-    deleted        Bool
-) ENGINE = ReplicatedReplacingMergeTree(
-           '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}',
-           version)
-      PARTITION BY sipHash64(aggregateId) % 8
-      ORDER BY (aggregateId)
+    id               String,
+    context_name     String,
+    aggregate_name   String,
+    header           String,
+    aggregate_id     String,
+    tenant_id        String,
+    command_id       String,
+    request_id       String,
+    version          UInt32,
+    state            String,
+    body             String,
+    first_operator   String,
+    first_event_time DateTime('Asia/Shanghai'),
+    create_time      DateTime('Asia/Shanghai'),
+    deleted          Bool
+) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
+                                        '{replica}', version)
+      PARTITION BY sipHash64(aggregate_id) % 8
+      ORDER BY (aggregate_id)
 ;
 
-create table bi_db.order_order_state_last on cluster '{cluster}'
-    as bi_db.order_order_state_last_local
-        ENGINE = Distributed('{cluster}', bi_db, order_order_state_last_local, sipHash64(aggregateId));
+CREATE TABLE IF NOT EXISTS bi_db."${distributedTableName}" ON CLUSTER '{cluster}'
+    AS bi_db."${localTableName}"
+        ENGINE = Distributed('{cluster}', bi_db, "${localTableName}", sipHash64(aggregate_id));
 
-CREATE MATERIALIZED VIEW bi_db.order_order_state_last_consumer
-            on cluster '{cluster}'
-            TO bi_db.order_order_state_last
+CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db."${consumerTableName}"
+            ON CLUSTER '{cluster}'
+            TO bi_db."${distributedTableName}"
 AS
 SELECT *
-FROM bi_db.order_order_state
+FROM bi_db."${distributedTableName}"
 ;

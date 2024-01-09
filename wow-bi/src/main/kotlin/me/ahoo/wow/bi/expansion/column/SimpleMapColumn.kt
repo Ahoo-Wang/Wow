@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.descriptor
+package me.ahoo.wow.bi.expansion.column
 
-interface SyncScriptContext : Map<String, Any> {
-    val contextAlias: String
-    val aggregateName: String
-    val eventName: String
-    val event: Any
-    val state: Any
-    val host: String
+class SimpleMapColumn(override val name: String, override val type: Class<*>, override val parent: Column?) : Column {
+
+    override val isSimple: Boolean
+        get() = true
+
+    override val sqlType: String
+        get() = "Map(String, ${super.sqlType})"
 }

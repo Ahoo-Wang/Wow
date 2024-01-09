@@ -1,3 +1,8 @@
+description = "Wow BI Sync Script Generator"
+
 dependencies {
-    api(project(":wow-core"))
+    implementation(project(":wow-core"))
+    implementation(libs.jte)
+    implementation(libs.jte.kotlin)
+    testImplementation(project(":example-domain"))
 }

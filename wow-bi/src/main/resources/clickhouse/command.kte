@@ -1,71 +1,69 @@
 @import me.ahoo.wow.api.modeling.NamedAggregate
-@import me.ahoo.wow.naming.getContextAlias
+@import me.ahoo.wow.bi.expansion.TableNaming.toTopicName
+@import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 
 @param namedAggregate: NamedAggregate
 @param topicPrefix: String = "wow."
-@param kafkaBootstrapServers: String
-@param serviceNameSuffix="-service"
-@param commandSuffix: String = "command"
+@param kafkaBootstrapServers: String = "localhost:9093"
+@param suffix: String = "command"
 
-!{val topic = "${topicPrefix}${namedAggregate.getContextAlias()}.${namedAggregate.aggregateName}.${commandSuffix}"}
-!{val distributedTableName = "${namedAggregate.getContextAlias().trimEnd(serviceNameSuffix)}_${namedAggregate.aggregateName}_${commandSuffix}"}
+!{val topic = namedAggregate.toTopicName(topicPrefix, suffix)}
+!{val distributedTableName = namedAggregate.toDistributedTableName(suffix)}
 !{val localTableName = "${distributedTableName}_local"}
 !{val queueTableName = "${distributedTableName}_queue"}
 !{val consumerTableName = "${distributedTableName}_consumer"}
 
-
-CREATE TABLE bi_db.${localTableName} on cluster '{cluster}'
+CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
 (
-    id            String,
-    contextName   String,
-    aggregateName String,
-    name          String,
-    header        String,
-    aggregateId   String,
-    tenantId      String,
-    requestId     String,
-    aggregateVersion Nullable(UInt32),
-    isCreate      Bool,
-    allowCreate   Bool,
-    bodyType      String,
-    body          String,
-    createTime    DateTime('Asia/Shanghai')
+    id             String,
+    context_name   String,
+    aggregate_name String,
+    name           String,
+    header         String,
+    aggregate_id   String,
+    tenant_id      String,
+    request_id     String,
+    aggregate_version Nullable(UInt32),
+    is_create      Bool,
+    allow_create   Bool,
+    body_type      String,
+    body           String,
+    create_time    DateTime('Asia/Shanghai')
 ) ENGINE = ReplicatedMergeTree(
-           '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
-      PARTITION BY toYYYYMM(createTime)
+        '/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}')
+      PARTITION BY toYYYYMM(create_time)
       ORDER BY id
 ;
 
-create table bi_db.${distributedTableName} on cluster '{cluster}'
-    as bi_db.${localTableName}
-        ENGINE = Distributed('{cluster}', bi_db, ${localTableName}, sipHash64(aggregateId));
+CREATE TABLE IF NOT EXISTS bi_db."${distributedTableName}" ON CLUSTER '{cluster}'
+    AS bi_db."${localTableName}"
+        ENGINE = Distributed('{cluster}', bi_db, "${localTableName}", sipHash64(aggregate_id));
 
-CREATE TABLE bi_db_consumer.${queueTableName} on cluster '{cluster}'
+CREATE TABLE IF NOT EXISTS bi_db_consumer."${queueTableName}" ON CLUSTER '{cluster}'
 (
     data String
-) ENGINE = Kafka('${kafkaBootstrapServers}', '${topic}',
-           'clickhouse_${consumerTableName}', 'JSONAsString');
+) ENGINE = Kafka('${kafkaBootstrapServers}', '${topic}', 'clickhouse_${consumerTableName}', 'JSONAsString');
 
-CREATE MATERIALIZED VIEW bi_db_consumer.${consumerTableName}
-            on cluster '{cluster}'
-            TO bi_db.${distributedTableName}
+CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer."${consumerTableName}"
+            ON CLUSTER '{cluster}'
+            TO bi_db."${distributedTableName}"
 AS
 SELECT JSONExtractString(data, 'id')            AS id,
-       JSONExtractString(data, 'contextName')   AS contextName,
-       JSONExtractString(data, 'aggregateName') AS aggregateName,
+       JSONExtractString(data, 'contextName')   AS context_name,
+       JSONExtractString(data, 'aggregateName') AS aggregate_name,
        JSONExtractString(data, 'name')          AS name,
        JSONExtractString(data, 'header')        AS header,
-       JSONExtractString(data, 'aggregateId')   AS aggregateId,
-       JSONExtractString(data, 'tenantId')      AS tenantId,
-       JSONExtractString(data, 'requestId')     AS requestId,
+       JSONExtractString(data, 'aggregateId')   AS aggregate_id,
+       JSONExtractString(data, 'tenantId')      AS tenant_id,
+       JSONExtractString(data, 'requestId')     AS request_id,
        JSONExtract(data, 'aggregateVersion',
-                   'Nullable(UInt32)')          AS aggregateVersion,
-       JSONExtractBool(data, 'isCreate')        AS isCreate,
-       JSONExtractBool(data, 'allowCreate')     AS allowCreate,
-       JSONExtractString(data, 'bodyType')      AS bodyType,
+                   'Nullable(UInt32)')          AS aggregate_version,
+       JSONExtractBool(data, 'isCreate')        AS is_create,
+       JSONExtractBool(data, 'allowCreate')     AS allow_create,
+       JSONExtractString(data, 'bodyType')      AS body_type,
        JSONExtractString(data, 'body')          AS body,
        toDateTime64(
-                   JSONExtractUInt(data, 'createTime') / 1000.0
-           , 3, 'Asia/Shanghai')                AS createTime
-FROM bi_db_consumer.${queueTableName}
+               JSONExtractUInt(data, 'createTime') / 1000.0
+           , 3, 'Asia/Shanghai')                AS create_time
+FROM bi_db_consumer."${queueTableName}"
 ;

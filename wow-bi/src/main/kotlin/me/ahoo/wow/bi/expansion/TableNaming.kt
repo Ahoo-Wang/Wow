@@ -11,10 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.descriptor
+package me.ahoo.wow.bi.expansion
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.naming.getContextAlias
 
-interface AggregateDescriptor : NamedAggregate {
-    val contextAlias: String
+object TableNaming {
+    private const val SERVICE_NAME_SUFFIX: String = "-service"
+
+    fun NamedAggregate.toTopicName(prefix: String = Wow.WOW_PREFIX, suffix: String): String {
+        return "${prefix}${getContextAlias()}.$aggregateName.$suffix"
+    }
+
+    fun NamedAggregate.toDistributedTableName(suffix: String): String {
+        return "${getContextAlias().substringBeforeLast(SERVICE_NAME_SUFFIX)}_${aggregateName}_$suffix"
+    }
 }
