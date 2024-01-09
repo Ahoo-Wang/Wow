@@ -2,9 +2,9 @@
 @import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 
 @param namedAggregate: NamedAggregate
-@param suffix: String = "state_last"
 
-!{val distributedTableName = namedAggregate.toDistributedTableName(suffix)}
+!{val stateDistributedTableName = namedAggregate.toDistributedTableName("state")}
+!{val distributedTableName = namedAggregate.toDistributedTableName("state_last")}
 !{val localTableName = "${distributedTableName}_local"}
 !{val consumerTableName = "${distributedTableName}_consumer"}
 
@@ -35,10 +35,10 @@ CREATE TABLE IF NOT EXISTS bi_db."${distributedTableName}" ON CLUSTER '{cluster}
     AS bi_db."${localTableName}"
         ENGINE = Distributed('{cluster}', bi_db, "${localTableName}", sipHash64(aggregate_id));
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db."${consumerTableName}"
+CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer."${consumerTableName}"
             ON CLUSTER '{cluster}'
             TO bi_db."${distributedTableName}"
 AS
 SELECT *
-FROM bi_db."${distributedTableName}"
+FROM bi_db."${stateDistributedTableName}"
 ;

@@ -32,7 +32,7 @@ class StateExpansionMetadataVisitorTest {
     }
 }
 
-private const val EXPECTED_SCRIPT = """CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root AS
+private const val EXPECTED_SCRIPT = """CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root ON CLUSTER '{cluster}' AS
 WITH
 JSONExtractString(state,'item') AS item,
 JSONExtractString(state,'nested') AS nested,
@@ -69,7 +69,7 @@ create_time AS __create_time,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
-CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_items AS
+CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
 JSONExtractString(state,'item') AS item,
 JSONExtractString(state,'nested') AS nested,
@@ -109,7 +109,7 @@ create_time AS __create_time,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
-CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_nested_list AS
+CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_nested_list ON CLUSTER '{cluster}' AS
 WITH
 JSONExtractString(state,'item') AS item,
 JSONExtractString(state,'nested') AS nested,
@@ -149,7 +149,7 @@ create_time AS __create_time,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
-CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_nested_list_list AS
+CREATE VIEW IF NOT EXISTS bi_db.bi_aggregate_state_last_root_nested_list_list ON CLUSTER '{cluster}' AS
 WITH
 JSONExtractString(state,'item') AS item,
 JSONExtractString(state,'nested') AS nested,
