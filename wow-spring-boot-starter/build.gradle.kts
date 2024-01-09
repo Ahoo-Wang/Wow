@@ -51,6 +51,7 @@ dependencies {
     api(project(":wow-core"))
     api(project(":wow-spring"))
     implementation(project(":wow-compensation-core"))
+    implementation(project(":wow-bi"))
     "mongoSupportImplementation"(project(":wow-mongo"))
     "redisSupportImplementation"(project(":wow-redis"))
     "r2dbcSupportImplementation"(project(":wow-r2dbc"))

@@ -27,8 +27,13 @@ import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.jetbrains.kotlin.descriptors.runtime.structure.parameterizedTypeArguments
 import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 
-class StateExpansionScriptGenerator(private val column: Column, private val sqlBuilder: SqlBuilder) :
+class StateExpansionScriptGenerator(
+    private val column: Column,
+    private val sqlBuilder: SqlBuilder,
+    private val visited: MutableSet<Field> = mutableSetOf()
+) :
     ClassVisitor {
     companion object {
         fun NamedAggregate.toScriptGenerator(): StateExpansionScriptGenerator {
@@ -51,6 +56,13 @@ class StateExpansionScriptGenerator(private val column: Column, private val sqlB
     }
 
     override fun visitField(field: Field) {
+        if (visited.contains(field)) {
+            return
+        }
+        visited.add(field)
+        if (Modifier.isStatic(field.modifiers) || !Modifier.isPublic(field.modifiers)) {
+            return
+        }
         val column = StatePropertyColumn(field.name, type = field.type, parent = this.column)
         if (column.isSimple) {
             sqlBuilder.append(column)
@@ -58,7 +70,7 @@ class StateExpansionScriptGenerator(private val column: Column, private val sqlB
         }
         if (column.isNested) {
             sqlBuilder.append(column)
-            val generator = StateExpansionScriptGenerator(column, sqlBuilder)
+            val generator = StateExpansionScriptGenerator(column, sqlBuilder, visited)
             generators.add(generator)
             return
         }
@@ -73,7 +85,7 @@ class StateExpansionScriptGenerator(private val column: Column, private val sqlB
             val collectionTargetTableName = sqlBuilder.targetTableName + "_" + column.targetName
             val collectionSqlBuilder = sqlBuilder.copy(collectionTargetTableName)
             val collectionColumn = ArrayJoinColumn(column.name, type = genericType, parent = this.column)
-            val generator = StateExpansionScriptGenerator(collectionColumn, collectionSqlBuilder)
+            val generator = StateExpansionScriptGenerator(collectionColumn, collectionSqlBuilder, visited)
             generators.add(generator)
             return
         }

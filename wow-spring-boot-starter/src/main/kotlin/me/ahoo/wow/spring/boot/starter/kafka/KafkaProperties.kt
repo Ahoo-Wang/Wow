@@ -40,9 +40,13 @@ class KafkaProperties(
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"
     }
 
+    fun bootstrapServersToString(): String {
+        return bootstrapServers.joinToString(",")
+    }
+
     fun buildSenderOptions(): SenderOptions<String, String> {
         val senderProperties = buildMap {
-            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
+            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServersToString())
             put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
             put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
             putAll(properties)
@@ -53,7 +57,7 @@ class KafkaProperties(
 
     fun buildReceiverOptions(): ReceiverOptions<String, String> {
         val receiverProperties = buildMap {
-            put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.joinToString(","))
+            put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServersToString())
             put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
             put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
             putAll(properties)
