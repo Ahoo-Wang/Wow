@@ -10,29 +10,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.spring.boot.starter.actuate
 
-import me.ahoo.wow.spring.boot.starter.kafka.ConditionalOnKafkaEnabled
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.bi.ScriptEngine
+import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
-import org.springframework.boot.autoconfigure.AutoConfiguration
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.context.annotation.Bean
+import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 
-@AutoConfiguration
-@ConditionalOnClass(Endpoint::class)
-class WowEndpointAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean
-    fun wowEndpoint(): WowEndpoint {
-        return WowEndpoint()
-    }
+@Endpoint(id = Wow.WOW + "BI")
+class WowBIEndpoint(private val kafkaProperties: KafkaProperties) {
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnKafkaEnabled
-    fun wowBIEndpoint(kafkaProperties: KafkaProperties): WowBIEndpoint {
-        return WowBIEndpoint(kafkaProperties)
+    @ReadOperation
+    fun generate(): String {
+        return ScriptEngine.generate(
+            namedAggregates = MetadataSearcher.localAggregates,
+            kafkaBootstrapServers = kafkaProperties.bootstrapServersToString(),
+            topicPrefix = kafkaProperties.topicPrefix
+        )
     }
 }

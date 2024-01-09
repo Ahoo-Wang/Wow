@@ -1,3 +1,23 @@
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - wow
+          - wowBI
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+
+springdoc:
+  show-actuator: true
+
 spring:
   application:
     name: example-service
