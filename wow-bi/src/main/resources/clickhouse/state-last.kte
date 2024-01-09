@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     id               String,
     context_name     String,
     aggregate_name   String,
-    header           String,
+    header           Map(String, String),
     aggregate_id     String,
     tenant_id        String,
     command_id       String,
