@@ -26,6 +26,7 @@ class StateExpansionMetadataVisitorTest {
     @Test
     fun build() {
         val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
+        biAggregateMetadata.toScriptGenerator().toString()
         val sql = biAggregateMetadata.toScriptGenerator().toString()
         assertThat(sql, equalTo(EXPECTED_SCRIPT))
     }
