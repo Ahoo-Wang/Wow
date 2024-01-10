@@ -24,6 +24,7 @@ object ScriptTemplateEngine {
     private const val TEMPLATE_ROOT = "clickhouse"
     private const val TEMPLATE_SUFFIX = ".kte"
     private const val NAMED_AGGREGATE = "namedAggregate"
+    private const val EXPANSION_TABLES = "expansionTables"
     private const val TOPIC_PREFIX = "topicPrefix"
     private const val KAFKA_BOOTSTRAP_SERVERS = "kafkaBootstrapServers"
     const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS = "localhost:9093"
@@ -42,6 +43,19 @@ object ScriptTemplateEngine {
 
     fun render(templateName: String, params: Map<String, Any>): String {
         return renderTemplate(templateName + TEMPLATE_SUFFIX, params)
+    }
+
+    fun renderGlobal(): String {
+        val params: Map<String, Any> = emptyMap()
+        return render("global", params)
+    }
+
+    fun renderClear(namedAggregate: NamedAggregate, expansionTables: List<String>): String {
+        val params: Map<String, Any> = buildMap {
+            put(NAMED_AGGREGATE, namedAggregate)
+            put(EXPANSION_TABLES, expansionTables)
+        }
+        return render("clear", params).replace("\n\n", "\n")
     }
 
     fun renderCommand(

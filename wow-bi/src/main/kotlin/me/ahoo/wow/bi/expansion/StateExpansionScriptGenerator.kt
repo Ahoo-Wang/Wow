@@ -41,9 +41,16 @@ class StateExpansionScriptGenerator(
         }
     }
 
-    private var isBuilt = false
-    private val sqlBuilders = mutableListOf<SqlBuilder>()
+    private val sqlBuilders: List<SqlBuilder> by lazy {
+        build()
+    }
+
     private val generators: MutableList<StateExpansionScriptGenerator> = mutableListOf()
+
+    val targetTables: List<String>
+        get() {
+            return sqlBuilders.map { it.targetTableName }.distinct()
+        }
 
     private fun start() {
         if (this.column is ArrayJoinColumn) {
@@ -106,15 +113,13 @@ class StateExpansionScriptGenerator(
     }
 
     override fun toString(): String {
-        return build().distinct().joinToString("\n") {
+        return sqlBuilders.distinct().joinToString("\n") {
             it.build()
         }
     }
 
-    fun build(): List<SqlBuilder> {
-        if (isBuilt) {
-            return sqlBuilders
-        }
+    private fun build(): List<SqlBuilder> {
+        val builders = mutableListOf<SqlBuilder>()
         start()
         val javaType = JsonSerializer.constructType(column.type)
         val beanDescription = JsonSerializer.serializationConfig.introspect(javaType)
@@ -123,10 +128,10 @@ class StateExpansionScriptGenerator(
         }.forEach {
             visitProperty(it)
         }
-        sqlBuilders.add(sqlBuilder)
+        builders.add(sqlBuilder)
         generators.forEach {
-            sqlBuilders.addAll(it.build())
+            builders.addAll(it.build())
         }
-        return sqlBuilders
+        return builders
     }
 }
