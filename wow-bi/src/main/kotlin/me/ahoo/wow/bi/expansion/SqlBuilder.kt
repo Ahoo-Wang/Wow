@@ -24,7 +24,9 @@ class SqlBuilder(
     private val columns = mutableListOf<Column>()
     private val allColumns: List<Column>
         get() {
-            val parentColumns = parent?.allColumns ?: return columns
+            val parentColumns = parent?.allColumns?.filter {
+                it.inherited
+            } ?: return columns
             return parentColumns + columns
         }
 
