@@ -16,5 +16,8 @@ package me.ahoo.wow.bi.expansion.column
 class ArrayJoinColumn(override val name: String, override val type: Class<*>, override val parent: Column?) : Column {
 
     override val extractExpression: String
-        get() = "arrayJoin(${super.extractExpression})"
+        get() {
+            val parentTargetFullName = parent!!.targetFullName
+            return "arrayJoin(JSONExtractArrayRaw($parentTargetFullName, '$name'))"
+        }
 }
