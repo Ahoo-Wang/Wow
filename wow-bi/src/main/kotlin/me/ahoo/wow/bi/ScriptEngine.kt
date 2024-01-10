@@ -24,7 +24,28 @@ object ScriptEngine {
         kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
         topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX
     ): String {
+        val scriptGenerators = buildMap {
+            namedAggregates.forEach { namedAggregate ->
+                val scriptGenerator = namedAggregate.toScriptGenerator()
+                put(namedAggregate, scriptGenerator)
+            }
+        }
         return buildString {
+            appendLine("-- global --")
+            appendLine(ScriptTemplateEngine.renderGlobal())
+            appendLine("-- global --")
+            appendLine("-- clear --")
+            namedAggregates.forEach { namedAggregate ->
+                appendLine("-- ${namedAggregate.toStringWithAlias()}.clear --")
+                appendLine(
+                    ScriptTemplateEngine.renderClear(
+                        namedAggregate = namedAggregate,
+                        expansionTables = requireNotNull(scriptGenerators[namedAggregate]).targetTables
+                    )
+                )
+                appendLine("-- ${namedAggregate.toStringWithAlias()}.clear --")
+            }
+            appendLine("-- clear --")
             namedAggregates.forEach { namedAggregate ->
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
                 appendLine(ScriptTemplateEngine.renderCommand(namedAggregate, kafkaBootstrapServers, topicPrefix))
@@ -36,7 +57,7 @@ object ScriptEngine {
                 appendLine(ScriptTemplateEngine.renderStateLast(namedAggregate))
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
-                appendLine(namedAggregate.toScriptGenerator().toString())
+                appendLine(requireNotNull(scriptGenerators[namedAggregate]).toString())
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
             }
         }
