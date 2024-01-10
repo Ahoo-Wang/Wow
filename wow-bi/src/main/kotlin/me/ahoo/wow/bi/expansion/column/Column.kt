@@ -23,7 +23,8 @@ interface Column {
      */
     val name: String
     val parent: Column?
-
+    val inherited: Boolean
+        get() = true
     val type: Class<*>
     val isSimple: Boolean
         get() = type.isSimple
