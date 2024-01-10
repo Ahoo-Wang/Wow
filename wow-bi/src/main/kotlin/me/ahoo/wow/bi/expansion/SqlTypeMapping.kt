@@ -14,6 +14,19 @@
 package me.ahoo.wow.bi.expansion
 
 import java.math.BigDecimal
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.MonthDay
+import java.time.OffsetDateTime
+import java.time.OffsetTime
+import java.time.Period
+import java.time.Year
+import java.time.YearMonth
+import java.time.ZonedDateTime
+import java.util.*
 
 private val SQL_TYPE_MAPPING: MutableMap<Class<*>, String> = mutableMapOf()
 
@@ -38,6 +51,23 @@ object SqlTypeMapping : MutableMap<Class<*>, String> by SQL_TYPE_MAPPING {
         SQL_TYPE_MAPPING[Byte::class.java] = "UInt8"
         SQL_TYPE_MAPPING[java.lang.Byte::class.java] = "UInt8"
         SQL_TYPE_MAPPING[BigDecimal::class.java] = "Decimal(38,18)"
+        SQL_TYPE_MAPPING[UUID::class.java] = "UUID"
+
+        SQL_TYPE_MAPPING[Duration::class.java] = "Decimal64(9)"
+        SQL_TYPE_MAPPING[kotlin.time.Duration::class.java] = "UInt64"
+        SQL_TYPE_MAPPING[Date::class.java] = "UInt64"
+        SQL_TYPE_MAPPING[java.sql.Date::class.java] = "UInt64"
+        SQL_TYPE_MAPPING[LocalDate::class.java] = "Array(UInt32)"
+        SQL_TYPE_MAPPING[LocalDateTime::class.java] = "Array(UInt32)"
+        SQL_TYPE_MAPPING[LocalTime::class.java] = "Array(UInt32)"
+        SQL_TYPE_MAPPING[Instant::class.java] = "Decimal64(9)"
+        SQL_TYPE_MAPPING[ZonedDateTime::class.java] = "Decimal64(9)"
+        SQL_TYPE_MAPPING[OffsetDateTime::class.java] = "Decimal64(9)"
+        SQL_TYPE_MAPPING[OffsetTime::class.java] = "Array(String)"
+        SQL_TYPE_MAPPING[YearMonth::class.java] = "Array(UInt16)"
+        SQL_TYPE_MAPPING[MonthDay::class.java] = "String"
+        SQL_TYPE_MAPPING[Period::class.java] = "String"
+        SQL_TYPE_MAPPING[Year::class.java] = "UInt32"
     }
 
     val Class<*>.isSimple: Boolean
