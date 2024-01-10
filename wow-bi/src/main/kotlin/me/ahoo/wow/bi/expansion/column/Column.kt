@@ -45,7 +45,7 @@ interface Column {
             if (parent == null || parent?.parent == null) {
                 return targetName
             }
-            return "${parent!!.targetFullName}_$targetName"
+            return "${parent!!.targetFullName}__$targetName"
         }
     val sqlType: String
         get() = type.toSqlType()
