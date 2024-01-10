@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 import me.ahoo.wow.bi.expansion.column.ArrayJoinColumn
+import me.ahoo.wow.bi.expansion.column.ArrayObjectColumn
 import me.ahoo.wow.bi.expansion.column.Column
 import me.ahoo.wow.bi.expansion.column.SimpleArrayColumn
 import me.ahoo.wow.bi.expansion.column.SimpleMapColumn
@@ -91,6 +92,8 @@ class StateExpansionScriptGenerator(
                 sqlBuilder.append(simpleArrayColumn)
                 return
             }
+            val parentArrayObjectColumn = ArrayObjectColumn(propertyName, type = returnType, parent = this.column)
+            sqlBuilder.append(parentArrayObjectColumn)
             val collectionTargetTableName = sqlBuilder.targetTableName + "_" + column.targetName
             val collectionSqlBuilder = sqlBuilder.copy(collectionTargetTableName)
             val collectionColumn = ArrayJoinColumn(column.name, type = genericType, parent = this.column)
