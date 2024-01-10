@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS bi_db.example_order_command ON CLUSTER '{cluster}'
 CREATE TABLE IF NOT EXISTS bi_db_consumer.example_order_command_queue ON CLUSTER '{cluster}'
 (
     data String
-) ENGINE = Kafka('localhost:61080', 'wow.example.order.command', 'clickhouse_example_order_command_consumer',
+) ENGINE = Kafka('localhost:60886', 'wow.example.order.command', 'clickhouse_example_order_command_consumer',
                  'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer.example_order_command_consumer
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS bi_db.example_order_state ON CLUSTER '{cluster}'
 CREATE TABLE IF NOT EXISTS bi_db_consumer.example_order_state_queue ON CLUSTER '{cluster}'
 (
     data String
-) ENGINE = Kafka('localhost:61080', 'wow.example.order.state', 'clickhouse_example_order_state_consumer',
+) ENGINE = Kafka('localhost:60886', 'wow.example.order.state', 'clickhouse_example_order_state_consumer',
                  'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer.example_order_state_consumer
@@ -236,15 +236,16 @@ WITH
     JSONExtractString(state, 'address') AS address
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
+       JSONExtractArrayRaw(state, 'items')                 AS items,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
        JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
        JSONExtract(state, 'status', 'String')              AS status,
        JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address_country,
-       JSONExtract(address, 'province', 'String')          AS address_province,
-       JSONExtract(address, 'city', 'String')              AS address_city,
-       JSONExtract(address, 'district', 'String')          AS address_district,
-       JSONExtract(address, 'detail', 'String')            AS address_detail,
+       JSONExtract(address, 'country', 'String')           AS address__country,
+       JSONExtract(address, 'province', 'String')          AS address__province,
+       JSONExtract(address, 'city', 'String')              AS address__city,
+       JSONExtract(address, 'district', 'String')          AS address__district,
+       JSONExtract(address, 'detail', 'String')            AS address__detail,
        id                                                  AS __id,
        aggregate_id                                        AS __aggregate_id,
        tenant_id                                           AS __tenant_id,
@@ -259,24 +260,23 @@ FROM bi_db.example_order_state_last;
 
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address, 
-    arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
+    JSONExtractString(state, 'address') AS address, arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
        JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
        JSONExtract(state, 'status', 'String')              AS status,
        JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address_country,
-       JSONExtract(address, 'province', 'String')          AS address_province,
-       JSONExtract(address, 'city', 'String')              AS address_city,
-       JSONExtract(address, 'district', 'String')          AS address_district,
-       JSONExtract(address, 'detail', 'String')            AS address_detail,
-       JSONExtract(items, 'id', 'String')                  AS items_id,
-       JSONExtract(items, 'productId', 'String')           AS items_product_id,
-       JSONExtract(items, 'price', 'Decimal(38,18)')       AS items_price,
-       JSONExtract(items, 'quantity', 'Int32')             AS items_quantity,
-       JSONExtract(items, 'totalPrice', 'Decimal(38,18)')  AS items_total_price,
+       JSONExtract(address, 'country', 'String')           AS address__country,
+       JSONExtract(address, 'province', 'String')          AS address__province,
+       JSONExtract(address, 'city', 'String')              AS address__city,
+       JSONExtract(address, 'district', 'String')          AS address__district,
+       JSONExtract(address, 'detail', 'String')            AS address__detail,
+       JSONExtract(items, 'id', 'String')                  AS items__id,
+       JSONExtract(items, 'productId', 'String')           AS items__product_id,
+       JSONExtract(items, 'price', 'Decimal(38,18)')       AS items__price,
+       JSONExtract(items, 'quantity', 'Int32')             AS items__quantity,
+       JSONExtract(items, 'totalPrice', 'Decimal(38,18)')  AS items__total_price,
        id                                                  AS __id,
        aggregate_id                                        AS __aggregate_id,
        tenant_id                                           AS __tenant_id,
@@ -288,7 +288,6 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        create_time                                         AS __create_time,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
-
 -- example.order.expansion --
 ```
 :::
@@ -357,7 +356,7 @@ CREATE TABLE IF NOT EXISTS bi_db.example_order_command ON CLUSTER '{cluster}'
 CREATE TABLE IF NOT EXISTS bi_db_consumer.example_order_command_queue ON CLUSTER '{cluster}'
 (
     data String
-) ENGINE = Kafka('localhost:61080', 'wow.example.order.command', 'clickhouse_example_order_command_consumer',
+) ENGINE = Kafka('localhost:60886', 'wow.example.order.command', 'clickhouse_example_order_command_consumer',
                  'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer.example_order_command_consumer
@@ -416,7 +415,7 @@ FROM bi_db_consumer.example_order_command_queue
 ### SQL 脚本
 
 ```sql
--- example.order.stateEvent --
+--- example.order.stateEvent --
 CREATE TABLE IF NOT EXISTS bi_db.example_order_state_local ON CLUSTER '{cluster}'
 (
     id               String,
@@ -447,7 +446,7 @@ CREATE TABLE IF NOT EXISTS bi_db.example_order_state ON CLUSTER '{cluster}'
 CREATE TABLE IF NOT EXISTS bi_db_consumer.example_order_state_queue ON CLUSTER '{cluster}'
 (
     data String
-) ENGINE = Kafka('localhost:61080', 'wow.example.order.state', 'clickhouse_example_order_state_consumer',
+) ENGINE = Kafka('localhost:60886', 'wow.example.order.state', 'clickhouse_example_order_state_consumer',
                  'JSONAsString');
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS bi_db_consumer.example_order_state_consumer
@@ -580,20 +579,22 @@ _Wow-ETL_  脚本工具会逐层展开所有的聚合根快照(支持层层嵌�
 ```
 
 ```sql [root 视图]
+-- example.order.expansion --
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root ON CLUSTER '{cluster}' AS
 WITH
     JSONExtractString(state, 'address') AS address
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
+       JSONExtractArrayRaw(state, 'items')                 AS items,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
        JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
        JSONExtract(state, 'status', 'String')              AS status,
        JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address_country,
-       JSONExtract(address, 'province', 'String')          AS address_province,
-       JSONExtract(address, 'city', 'String')              AS address_city,
-       JSONExtract(address, 'district', 'String')          AS address_district,
-       JSONExtract(address, 'detail', 'String')            AS address_detail,
+       JSONExtract(address, 'country', 'String')           AS address__country,
+       JSONExtract(address, 'province', 'String')          AS address__province,
+       JSONExtract(address, 'city', 'String')              AS address__city,
+       JSONExtract(address, 'district', 'String')          AS address__district,
+       JSONExtract(address, 'detail', 'String')            AS address__detail,
        id                                                  AS __id,
        aggregate_id                                        AS __aggregate_id,
        tenant_id                                           AS __tenant_id,
@@ -605,28 +606,26 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        create_time                                         AS __create_time,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
-```
-```sql [items 视图]
+
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address, 
-    arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
+    JSONExtractString(state, 'address') AS address, arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
        JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
        JSONExtract(state, 'status', 'String')              AS status,
        JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address_country,
-       JSONExtract(address, 'province', 'String')          AS address_province,
-       JSONExtract(address, 'city', 'String')              AS address_city,
-       JSONExtract(address, 'district', 'String')          AS address_district,
-       JSONExtract(address, 'detail', 'String')            AS address_detail,
-       JSONExtract(items, 'id', 'String')                  AS items_id,
-       JSONExtract(items, 'productId', 'String')           AS items_product_id,
-       JSONExtract(items, 'price', 'Decimal(38,18)')       AS items_price,
-       JSONExtract(items, 'quantity', 'Int32')             AS items_quantity,
-       JSONExtract(items, 'totalPrice', 'Decimal(38,18)')  AS items_total_price,
+       JSONExtract(address, 'country', 'String')           AS address__country,
+       JSONExtract(address, 'province', 'String')          AS address__province,
+       JSONExtract(address, 'city', 'String')              AS address__city,
+       JSONExtract(address, 'district', 'String')          AS address__district,
+       JSONExtract(address, 'detail', 'String')            AS address__detail,
+       JSONExtract(items, 'id', 'String')                  AS items__id,
+       JSONExtract(items, 'productId', 'String')           AS items__product_id,
+       JSONExtract(items, 'price', 'Decimal(38,18)')       AS items__price,
+       JSONExtract(items, 'quantity', 'Int32')             AS items__quantity,
+       JSONExtract(items, 'totalPrice', 'Decimal(38,18)')  AS items__total_price,
        id                                                  AS __id,
        aggregate_id                                        AS __aggregate_id,
        tenant_id                                           AS __tenant_id,
@@ -638,5 +637,6 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        create_time                                         AS __create_time,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
+-- example.order.expansion --
 ```
 :::
