@@ -25,6 +25,6 @@ object TableNaming {
     }
 
     fun NamedAggregate.toDistributedTableName(suffix: String): String {
-        return "${getContextAlias().replace("-","_").substringBeforeLast(SERVICE_NAME_SUFFIX)}_${aggregateName}_$suffix"
+        return "${getContextAlias().substringBeforeLast(SERVICE_NAME_SUFFIX).replace("-","_")}_${aggregateName}_$suffix"
     }
 }
