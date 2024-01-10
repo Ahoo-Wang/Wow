@@ -31,6 +31,7 @@ class StateExpansionScriptGenerator(
     private val sqlBuilder: SqlBuilder
 ) {
     companion object {
+        private const val KOTLIN_DURATION_SUFFIX = "-LRDsOJo"
         fun NamedAggregate.toScriptGenerator(): StateExpansionScriptGenerator {
             val type = this.requiredAggregateType<Any>().aggregateMetadata<Any, Any>().state.aggregateType
             val sourceTableName = this.toDistributedTableName("state_last")
@@ -117,7 +118,9 @@ class StateExpansionScriptGenerator(
         start()
         val javaType = JsonSerializer.constructType(column.type)
         val beanDescription = JsonSerializer.serializationConfig.introspect(javaType)
-        beanDescription.findProperties().forEach {
+        beanDescription.findProperties().filter {
+            !it.name.endsWith(KOTLIN_DURATION_SUFFIX)
+        }.forEach {
             visitProperty(it)
         }
         sqlBuilders.add(sqlBuilder)
