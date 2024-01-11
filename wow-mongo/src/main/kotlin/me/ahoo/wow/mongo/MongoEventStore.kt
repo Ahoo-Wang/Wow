@@ -151,7 +151,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                     Aggregates.sort(Sorts.ascending(Documents.ID_FIELD)),
                     Aggregates.merge(aggregateIdCollectionName, DEFAULT_MERGE_OPTIONS),
                 ),
-            ).toMono()
+            ).toFlux()
             .then()
     }
 
