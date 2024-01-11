@@ -33,7 +33,7 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
         ).metrizable()
     }
 
-    override fun scanAggregateId(){
+    override fun scanAggregateId() {
         assertThrows<NotImplementedError> { eventStore.scanAggregateId(namedAggregate) }
     }
 
