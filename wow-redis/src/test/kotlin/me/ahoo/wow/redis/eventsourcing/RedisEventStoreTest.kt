@@ -47,4 +47,14 @@ class RedisEventStoreTest : EventStoreSpec() {
             .expectNext(AggregateIdScanner.FIRST_CURSOR_ID)
             .verifyComplete()
     }
+
+    override fun archiveAggregateId() {
+        eventStore.archiveAggregateId(namedAggregate)
+            .test()
+            .verifyComplete()
+
+        eventStore.archiveAggregateId(namedAggregate, AggregateIdScanner.FIRST_CURSOR_ID)
+            .test()
+            .verifyComplete()
+    }
 }
