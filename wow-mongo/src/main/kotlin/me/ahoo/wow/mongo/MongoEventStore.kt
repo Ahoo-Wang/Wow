@@ -99,6 +99,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 ),
             )
             .limit(limit)
+            .batchSize(limit)
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
@@ -151,8 +152,9 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                     Aggregates.sort(Sorts.ascending(Documents.ID_FIELD)),
                     Aggregates.merge(aggregateIdCollectionName, DEFAULT_MERGE_OPTIONS),
                 ),
-            ).toFlux()
-            .then()
+            )
+            .toCollection()
+            .toMono()
     }
 
     override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
@@ -170,6 +172,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .find(Filters.gt(Documents.ID_FIELD, cursorId))
             .sort(Sorts.ascending(Documents.ID_FIELD))
             .limit(limit)
+            .batchSize(limit)
             .toFlux()
             .map {
                 namedAggregate.aggregateId(
