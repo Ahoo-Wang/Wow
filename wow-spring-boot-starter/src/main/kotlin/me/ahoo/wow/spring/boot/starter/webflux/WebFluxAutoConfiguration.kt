@@ -31,6 +31,7 @@ import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
+import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
@@ -75,11 +76,11 @@ class WebFluxAutoConfiguration {
             "loadVersionedAggregateHandlerFunctionFactory"
         const val IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "idsQueryAggregateHandlerFunctionFactory"
+        const val ARCHIVE_AGGREGATE_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "archiveAggregateIdHandlerFunctionFactory"
         const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
-        const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
-            "regenerateSnapshotHandlerFunctionFactory"
+        const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "regenerateSnapshotHandlerFunctionFactory"
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
         const val RESEND_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME = "resendStateEventFunctionFactory"
@@ -134,6 +135,16 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): IdsQueryAggregateHandlerFunctionFactory {
         return IdsQueryAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [ARCHIVE_AGGREGATE_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun archiveAggregateIdHandlerFunctionFactory(
+        eventStore: EventStore,
+        exceptionHandler: ExceptionHandler
+    ): ArchiveAggregateIdHandlerFunctionFactory {
+        return ArchiveAggregateIdHandlerFunctionFactory(eventStore, exceptionHandler)
     }
 
     @Bean

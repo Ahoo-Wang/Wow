@@ -14,10 +14,11 @@
 package me.ahoo.wow.eventsourcing.mock
 
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 
 class DelayEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
-        return DelayEventStore()
+        return DelayEventStore().metrizable()
     }
 }

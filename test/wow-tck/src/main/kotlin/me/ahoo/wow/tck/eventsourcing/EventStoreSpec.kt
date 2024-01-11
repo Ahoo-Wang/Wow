@@ -18,6 +18,7 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
@@ -282,6 +283,32 @@ abstract class EventStoreSpec {
     }
 
     @Test
+    open fun tailCursorId() {
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream)
+            .test()
+            .verifyComplete()
+        eventStore.archiveAggregateId(eventStream.aggregateId)
+            .test()
+            .verifyComplete()
+        eventStore.tailCursorId(namedAggregate)
+            .test()
+            .expectNext(eventStream.aggregateId.id)
+            .verifyComplete()
+    }
+
+    @Test
+    open fun archiveAggregateId() {
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream)
+            .test()
+            .verifyComplete()
+        eventStore.archiveAggregateId(eventStream.aggregateId, AggregateIdScanner.FIRST_CURSOR_ID)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     open fun scanAggregateId() {
         val eventStream = generateEventStream()
         eventStore.append(eventStream)
@@ -291,7 +318,6 @@ abstract class EventStoreSpec {
         eventStore.append(eventStream1)
             .test()
             .verifyComplete()
-
         eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream.aggregateId.id, limit = 1)
             .test()
             .expectNextCount(1)
