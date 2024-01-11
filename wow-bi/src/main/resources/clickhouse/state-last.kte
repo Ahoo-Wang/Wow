@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     request_id       String,
     version          UInt32,
     state            String,
-    body             String,
+    body             Array(String),
     first_operator   String,
     first_event_time DateTime('Asia/Shanghai'),
     create_time      DateTime('Asia/Shanghai'),
