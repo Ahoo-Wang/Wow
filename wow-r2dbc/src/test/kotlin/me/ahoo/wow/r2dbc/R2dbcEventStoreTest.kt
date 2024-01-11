@@ -13,10 +13,12 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.cosid.sharding.ModCycle
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.sharding.CosIdShardingDecorator
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import reactor.kotlin.test.test
 
 internal class R2dbcEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
@@ -31,4 +33,11 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
     }
 
     override fun scanAggregateId() = Unit
+
+    override fun tailCursorId() {
+        eventStore.tailCursorId(namedAggregate)
+            .test()
+            .expectNext(AggregateIdScanner.FIRST_CURSOR_ID)
+            .verifyComplete()
+    }
 }
