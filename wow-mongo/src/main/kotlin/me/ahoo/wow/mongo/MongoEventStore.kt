@@ -18,6 +18,8 @@ import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BsonField
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.MergeOptions
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.AggregateId
@@ -25,10 +27,12 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.toAggregateIdCollectionName
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
@@ -44,6 +48,10 @@ import reactor.kotlin.core.publisher.toMono
 class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore() {
     companion object {
         private const val SIZE_FIELD = "size"
+        private val DEFAULT_MERGE_OPTIONS = MergeOptions()
+            .uniqueIdentifier(Documents.ID_FIELD)
+            .whenMatched(MergeOptions.WhenMatched.KEEP_EXISTING)
+            .whenNotMatched(MergeOptions.WhenNotMatched.INSERT)
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
@@ -91,7 +99,6 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 ),
             )
             .limit(limit)
-            .batchSize(limit)
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
@@ -103,23 +110,66 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             }
     }
 
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
+        val aggregateIdCollectionName = namedAggregate.toAggregateIdCollectionName()
+        return database.getCollection(aggregateIdCollectionName)
+            .find()
+            .sort(Sorts.descending(Documents.ID_FIELD))
+            .projection(Projections.include(Documents.ID_FIELD))
+            .limit(1)
+            .first()
+            .toMono()
+            .map {
+                it.getString(Documents.ID_FIELD)
+            }.switchIfEmpty(Mono.just(AggregateIdScanner.FIRST_CURSOR_ID))
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
+        return tailCursorId(namedAggregate)
+            .flatMap {
+                archiveAggregateId(namedAggregate, it)
+            }
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
+        val aggregateIdCollectionName = namedAggregate.toAggregateIdCollectionName()
         val eventStreamCollectionName = namedAggregate.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
             .aggregate(
                 listOf(
-                    Aggregates.match(
-                        Filters.gt(MessageRecords.AGGREGATE_ID, cursorId),
+                    Aggregates.match(Filters.gt(MessageRecords.AGGREGATE_ID, tailCursorId)),
+                    Aggregates.project(
+                        Projections.fields(
+                            Projections.excludeId(),
+                            Projections.include(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID),
+                        )
                     ),
                     Aggregates.group(
                         "\$${MessageRecords.AGGREGATE_ID}",
                         BsonField(MessageRecords.TENANT_ID, Document("\$first", "\$${MessageRecords.TENANT_ID}")),
                     ),
                     Aggregates.sort(Sorts.ascending(Documents.ID_FIELD)),
-                    Aggregates.limit(limit),
+                    Aggregates.merge(aggregateIdCollectionName, DEFAULT_MERGE_OPTIONS),
                 ),
-            )
-            .batchSize(limit)
+            ).toMono()
+            .then()
+    }
+
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return archiveAggregateId(namedAggregate)
+            .thenMany(findAggregateId(namedAggregate, cursorId, limit))
+    }
+
+    private fun findAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        val aggregateIdCollectionName = namedAggregate.toAggregateIdCollectionName()
+        return database.getCollection(aggregateIdCollectionName)
+            .find(Filters.gt(Documents.ID_FIELD, cursorId))
+            .sort(Sorts.ascending(Documents.ID_FIELD))
+            .limit(limit)
             .toFlux()
             .map {
                 namedAggregate.aggregateId(

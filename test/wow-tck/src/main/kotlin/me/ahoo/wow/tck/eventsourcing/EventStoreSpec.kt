@@ -291,7 +291,6 @@ abstract class EventStoreSpec {
         eventStore.append(eventStream1)
             .test()
             .verifyComplete()
-
         eventStore.scanAggregateId(eventStream.aggregateId, cursorId = eventStream.aggregateId.id, limit = 1)
             .test()
             .expectNextCount(1)
