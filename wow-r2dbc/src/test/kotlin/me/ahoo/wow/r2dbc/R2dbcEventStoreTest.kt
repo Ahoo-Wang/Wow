@@ -18,6 +18,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.sharding.CosIdShardingDecorator
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.assertThrows
 import reactor.kotlin.test.test
 
 internal class R2dbcEventStoreTest : EventStoreSpec() {
@@ -32,7 +33,9 @@ internal class R2dbcEventStoreTest : EventStoreSpec() {
         ).metrizable()
     }
 
-    override fun scanAggregateId() = Unit
+    override fun scanAggregateId(){
+        assertThrows<NotImplementedError> { eventStore.scanAggregateId(namedAggregate) }
+    }
 
     override fun tailCursorId() {
         eventStore.tailCursorId(namedAggregate)
