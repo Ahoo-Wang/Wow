@@ -73,6 +73,16 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
+    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
+        val tailCursorId = events.keys()
+            .asSequence()
+            .map {
+                it.id
+            }
+            .maxOrNull() ?: AggregateIdScanner.FIRST_CURSOR_ID
+        return Mono.just(tailCursorId)
+    }
+
     override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return events.keys()
             .asSequence()

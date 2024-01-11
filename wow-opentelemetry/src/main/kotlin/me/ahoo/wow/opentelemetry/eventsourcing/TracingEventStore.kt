@@ -33,6 +33,18 @@ class TracingEventStore(override val delegate: EventStore) : EventStore, Decorat
         }
     }
 
+    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
+        return delegate.tailCursorId(namedAggregate)
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
+        return delegate.archiveAggregateId(namedAggregate)
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
+        return delegate.archiveAggregateId(namedAggregate, tailCursorId)
+    }
+
     override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return Flux.defer {
             val parentContext = Context.current()

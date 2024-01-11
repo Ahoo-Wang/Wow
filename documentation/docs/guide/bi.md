@@ -579,7 +579,6 @@ _Wow-ETL_  脚本工具会逐层展开所有的聚合根快照(支持层层嵌�
 ```
 
 ```sql [root 视图]
--- example.order.expansion --
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root ON CLUSTER '{cluster}' AS
 WITH
     JSONExtractString(state, 'address') AS address
@@ -606,10 +605,12 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        create_time                                         AS __create_time,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
-
+```
+```sql [列表视图]
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address, arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
+    JSONExtractString(state, 'address') AS address, 
+    arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
@@ -637,6 +638,5 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        create_time                                         AS __create_time,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
--- example.order.expansion --
 ```
 :::

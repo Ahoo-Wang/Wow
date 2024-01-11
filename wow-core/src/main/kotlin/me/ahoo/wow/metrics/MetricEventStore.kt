@@ -38,6 +38,26 @@ class MetricEventStore(delegate: EventStore) : EventStore, AbstractMetricDecorat
             .metrics()
     }
 
+    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
+        return delegate.tailCursorId(namedAggregate)
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
+        return delegate.archiveAggregateId(namedAggregate)
+            .name(Wow.WOW_PREFIX + "eventstore.archiveAggregateId")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
+            .metrics()
+    }
+
+    override fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
+        return delegate.archiveAggregateId(namedAggregate)
+            .name(Wow.WOW_PREFIX + "eventstore.archiveAggregateId")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
+            .metrics()
+    }
+
     override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
         return delegate.scanAggregateId(namedAggregate, cursorId, limit)
             .name(Wow.WOW_PREFIX + "eventstore.scanAggregateId")
