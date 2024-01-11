@@ -30,6 +30,10 @@ open class DomainEventFunctionFilter(
 
     override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
         exchange.setServiceProvider(serviceProvider)
-        return checkNotNull(exchange.getEventFunction()).invoke(exchange).then(next.filter(exchange))
+        val eventFunction = checkNotNull(exchange.getEventFunction())
+        return eventFunction
+            .invoke(exchange)
+            .checkpoint("Invoke ${eventFunction.name} [DomainEventFunctionFilter]")
+            .then(next.filter(exchange))
     }
 }

@@ -9,6 +9,7 @@
 !{val commandQueueTableName = "${commandDistributedTableName}_queue"}
 !{val commandConsumerTableName = "${commandDistributedTableName}_consumer"}
 !{val stateDistributedTableName = namedAggregate.toDistributedTableName("state")}
+!{val stateEventTableName = "${stateDistributedTableName}_event"}
 !{val stateLocalTableName = "${stateDistributedTableName}_local"}
 !{val stateQueueTableName = "${stateDistributedTableName}_queue"}
 !{val stateConsumerTableName = "${stateDistributedTableName}_consumer"}
@@ -23,6 +24,7 @@ DROP TABLE IF EXISTS bi_db_consumer.${commandConsumerTableName} ON CLUSTER '{clu
 ------------------command------------------
 ------------------state------------------
 DROP TABLE IF EXISTS bi_db.${stateDistributedTableName} ON CLUSTER '{cluster}' SYNC;
+DROP TABLE IF EXISTS bi_db.${stateEventTableName} ON CLUSTER '{cluster}' SYNC;
 DROP TABLE IF EXISTS bi_db.${stateLocalTableName} ON CLUSTER '{cluster}' SYNC;
 DROP TABLE IF EXISTS bi_db_consumer.${stateQueueTableName} ON CLUSTER '{cluster}' SYNC;
 DROP TABLE IF EXISTS bi_db_consumer.${stateConsumerTableName} ON CLUSTER '{cluster}' SYNC;
