@@ -49,7 +49,10 @@ class ExecutionFailedTest {
         val EVENT_ID = EventId(GlobalIdGenerator.generateAsString(), EVENT_AGGREGATE.aggregateId(), 1)
         val processor = ProcessorInfoData("order", "OrderProjector")
         val functionKind = FunctionKind.EVENT
-        val error = ErrorDetails("errorCode", "errorMsg", "stackTrace")
+
+        private fun newError(): ErrorDetails {
+            return ErrorDetails(GlobalIdGenerator.generateAsString(), "errorMsg", "stackTrace")
+        }
     }
 
     @Test
@@ -58,7 +61,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE
         )
@@ -93,7 +96,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
@@ -108,7 +111,10 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.id, equalTo(prepareCompensation.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
-                assertThat(it.retryState.retries, equalTo(1))
+                assertThat(it.retryState.retries, equalTo(executionFailedCreated.retryState.retries + 1))
+                assertThat(it.eventId, equalTo(executionFailedCreated.eventId))
+                assertThat(it.processor, equalTo(executionFailedCreated.processor))
+                assertThat(it.functionKind, equalTo(executionFailedCreated.functionKind))
                 assertThat(it.canNextRetry(), equalTo(false))
             }
             .verify().then()
@@ -128,7 +134,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
                 DefaultNextRetryAtCalculatorTest.testRetrySpec,
@@ -158,7 +164,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
                 DefaultNextRetryAtCalculatorTest.testRetrySpec,
@@ -183,10 +189,10 @@ class ExecutionFailedTest {
     }
 
     @Test
-    fun onFailed() {
+    fun onApplyExecutionFailed() {
         val applyExecutionFailed = ApplyExecutionFailed(
             id = GlobalIdGenerator.generateAsString(),
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE
         )
@@ -194,7 +200,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
@@ -219,6 +225,8 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.id, equalTo(applyExecutionFailed.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
+                assertThat(it.error, equalTo(applyExecutionFailed.error))
+                assertThat(it.executeAt, equalTo(applyExecutionFailed.executeAt))
                 assertThat(it.recoverable, equalTo(applyExecutionFailed.recoverable))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(true))
@@ -245,7 +253,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
@@ -270,6 +278,7 @@ class ExecutionFailedTest {
             .expectState {
                 assertThat(it.id, equalTo(applyExecutionSuccess.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
+                assertThat(it.error, equalTo(executionFailedCreated.error))
                 assertThat(it.recoverable, equalTo(executionFailedCreated.recoverable))
                 assertThat(it.retryState.retries, equalTo(1))
                 assertThat(it.canRetry(), equalTo(false))
@@ -298,7 +307,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
@@ -312,6 +321,7 @@ class ExecutionFailedTest {
             .expectEventType(RetrySpecApplied::class.java)
             .expectState {
                 assertThat(it.id, equalTo(applyRetrySpec.id))
+                assertThat(it.error, equalTo(executionFailedCreated.error))
                 assertThat(it.retrySpec.maxRetries, equalTo(applyRetrySpec.maxRetries))
                 assertThat(it.retrySpec.minBackoff, equalTo(applyRetrySpec.minBackoff))
                 assertThat(it.retrySpec.executionTimeout, equalTo(applyRetrySpec.executionTimeout))
@@ -329,7 +339,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
@@ -363,7 +373,7 @@ class ExecutionFailedTest {
             eventId = EVENT_ID,
             processor = processor,
             functionKind = functionKind,
-            error = error,
+            error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
