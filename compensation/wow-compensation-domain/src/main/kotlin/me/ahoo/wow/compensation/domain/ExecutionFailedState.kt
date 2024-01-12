@@ -76,6 +76,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.executeAt = event.executeAt
         this.status = ExecutionFailedStatus.FAILED
         this.recoverable = event.recoverable
+        this.error = event.error
     }
 
     @OnSourcing
