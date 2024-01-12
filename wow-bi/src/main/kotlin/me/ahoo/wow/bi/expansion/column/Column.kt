@@ -68,4 +68,14 @@ interface Column {
 
     val expression: String
         get() = "$extractExpression AS $targetFullName"
+
+    companion object {
+        fun JavaType.mapColumn(name: String, parent: Column?): Column {
+            require(isMapLikeType) { "JavaType [$this] is not map like type." }
+            if (contentType.rawClass.isSimple) {
+                return SimpleMapColumn(name, type = contentType, parent = parent)
+            }
+            return StringMapColumn(name, type = contentType, parent = parent)
+        }
+    }
 }

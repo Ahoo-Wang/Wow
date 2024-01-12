@@ -20,8 +20,8 @@ import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 import me.ahoo.wow.bi.expansion.column.ArrayJoinColumn
 import me.ahoo.wow.bi.expansion.column.ArrayObjectColumn
 import me.ahoo.wow.bi.expansion.column.Column
+import me.ahoo.wow.bi.expansion.column.Column.Companion.mapColumn
 import me.ahoo.wow.bi.expansion.column.SimpleArrayColumn
-import me.ahoo.wow.bi.expansion.column.SimpleMapColumn
 import me.ahoo.wow.bi.expansion.column.StatePropertyColumn
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -83,6 +83,11 @@ class StateExpansionScriptGenerator(
             return
         }
 
+        if (column.isMap) {
+            val mapColumn = returnType.mapColumn(propertyName, parent = this.column)
+            sqlBuilder.append(mapColumn)
+            return
+        }
         if (column.isCollection) {
             val elementType = returnType.contentType
             if (elementType.rawClass.isSimple) {
@@ -101,12 +106,6 @@ class StateExpansionScriptGenerator(
             val generator = StateExpansionScriptGenerator(collectionColumn, collectionSqlBuilder)
             generators.add(generator)
             return
-        }
-
-        if (column.isMap) {
-            val valueType = returnType.contentType
-            val simpleMapColumn = SimpleMapColumn(propertyName, type = valueType, parent = this.column)
-            sqlBuilder.append(simpleMapColumn)
         }
     }
 
