@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.bi.expansion.column
 
+import com.fasterxml.jackson.databind.JavaType
+
 class ArrayObjectColumn(
     override val name: String,
-    override val type: Class<*>,
+    override val type: JavaType,
     override val parent: Column?,
     override val isSimple: Boolean = true,
     override val inherited: Boolean = false

@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-import me.ahoo.wow.bi.expansion.column.MetadataColumn.Companion.STATE_COLUMN
+import com.fasterxml.jackson.databind.JavaType
 
 class StatePropertyColumn(
     override val name: String,
-    override val parent: Column? = STATE_COLUMN,
-    override val type: Class<*>
+    override val parent: Column?,
+    override val type: JavaType
 ) : Column
