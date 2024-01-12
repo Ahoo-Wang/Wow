@@ -35,10 +35,11 @@ class StateExpansionScriptGenerator(
         private const val KOTLIN_DURATION_SUFFIX = "-LRDsOJo"
         fun NamedAggregate.toScriptGenerator(): StateExpansionScriptGenerator {
             val type = this.requiredAggregateType<Any>().aggregateMetadata<Any, Any>().state.aggregateType
+            val javaType = JsonSerializer.constructType(type)
             val sourceTableName = this.toDistributedTableName("state_last")
             val targetTableName = sourceTableName + "_root"
             val sqlBuilder = SqlBuilder(targetTableName = targetTableName, sourceTableName = sourceTableName)
-            return StateExpansionScriptGenerator(StatePropertyColumn("state", null, type), sqlBuilder)
+            return StateExpansionScriptGenerator(StatePropertyColumn("state", null, javaType), sqlBuilder)
         }
     }
 
@@ -66,10 +67,7 @@ class StateExpansionScriptGenerator(
 
     private fun visitProperty(beanPropertyDefinition: BeanPropertyDefinition) {
         val propertyName = beanPropertyDefinition.name
-        val returnType = beanPropertyDefinition.rawPrimaryType
-        val parameterizedTypeArguments = beanPropertyDefinition.primaryType.bindings.typeParameters.map {
-            it.rawClass
-        }
+        val returnType = beanPropertyDefinition.primaryType
         val column = StatePropertyColumn(propertyName, type = returnType, parent = this.column)
         if (column.isSimple) {
             sqlBuilder.append(column)
@@ -86,9 +84,9 @@ class StateExpansionScriptGenerator(
         }
 
         if (column.isCollection) {
-            val genericType = parameterizedTypeArguments.first() as Class<*>
-            if (genericType.isSimple) {
-                val simpleArrayColumn = SimpleArrayColumn(propertyName, type = genericType, parent = this.column)
+            val elementType = returnType.contentType
+            if (elementType.rawClass.isSimple) {
+                val simpleArrayColumn = SimpleArrayColumn(propertyName, type = elementType, parent = this.column)
                 sqlBuilder.append(simpleArrayColumn)
                 return
             }
@@ -96,7 +94,7 @@ class StateExpansionScriptGenerator(
             sqlBuilder.append(parentArrayObjectColumn)
             val collectionTargetTableName = sqlBuilder.targetTableName + "_" + column.targetName
             val collectionSqlBuilder = sqlBuilder.copy(collectionTargetTableName)
-            val collectionColumn = ArrayJoinColumn(column.name, type = genericType, parent = this.column)
+            val collectionColumn = ArrayJoinColumn(column.name, type = elementType, parent = this.column)
             if (collectionColumn.isTooDeep) {
                 return
             }
@@ -106,12 +104,9 @@ class StateExpansionScriptGenerator(
         }
 
         if (column.isMap) {
-            val valueType = parameterizedTypeArguments[1] as Class<*>
-            if (valueType.isSimple) {
-                val simpleMapColumn = SimpleMapColumn(propertyName, type = valueType, parent = this.column)
-                sqlBuilder.append(simpleMapColumn)
-                return
-            }
+            val valueType = returnType.contentType
+            val simpleMapColumn = SimpleMapColumn(propertyName, type = valueType, parent = this.column)
+            sqlBuilder.append(simpleMapColumn)
         }
     }
 
@@ -124,8 +119,7 @@ class StateExpansionScriptGenerator(
     private fun build(): List<SqlBuilder> {
         val builders = mutableListOf<SqlBuilder>()
         start()
-        val javaType = JsonSerializer.constructType(column.type)
-        val beanDescription = JsonSerializer.serializationConfig.introspect(javaType)
+        val beanDescription = JsonSerializer.serializationConfig.introspect(column.type)
         beanDescription.findProperties().filter {
             !it.name.endsWith(KOTLIN_DURATION_SUFFIX)
         }.forEach {

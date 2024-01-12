@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-class SimpleArrayColumn(override val name: String, override val type: Class<*>, override val parent: Column?) : Column {
+import com.fasterxml.jackson.databind.JavaType
+
+class SimpleArrayColumn(override val name: String, override val type: JavaType, override val parent: Column?) : Column {
 
     override val isSimple: Boolean
         get() = true

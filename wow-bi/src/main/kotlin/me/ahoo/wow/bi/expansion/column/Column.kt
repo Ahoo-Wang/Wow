@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.bi.expansion.column
 
+import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.toSqlType
 import me.ahoo.wow.naming.NamingConverter
@@ -25,15 +26,15 @@ interface Column {
     val parent: Column?
     val inherited: Boolean
         get() = true
-    val type: Class<*>
+    val type: JavaType
     val isSimple: Boolean
-        get() = type.isSimple
+        get() = type.rawClass.isSimple
 
     val isCollection: Boolean
-        get() = Collection::class.java.isAssignableFrom(type)
+        get() = type.isCollectionLikeType || type.isArrayType
 
     val isMap: Boolean
-        get() = Map::class.java.isAssignableFrom(type)
+        get() = type.isMapLikeType
     val isNested: Boolean
         get() = !isSimple && !isCollection && !isMap
 
@@ -48,7 +49,7 @@ interface Column {
             return "${parent!!.targetFullName}__$targetName"
         }
     val sqlType: String
-        get() = type.toSqlType()
+        get() = type.rawClass.toSqlType()
     val extractExpression: String
         get() {
             if (parent == null) {
