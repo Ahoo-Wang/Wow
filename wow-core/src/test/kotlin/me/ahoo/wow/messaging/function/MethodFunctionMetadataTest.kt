@@ -58,7 +58,7 @@ internal class MethodFunctionMetadataTest {
         assertThat(metadata.processorType, equalTo(MockCommandAggregate::class.java))
         assertThat(metadata.contextName, equalTo("wow-tck"))
         assertThat(metadata.processorName, equalTo("MockCommandAggregate"))
-        assertThat(metadata.name, equalTo("MockCommandAggregate.MockCreateAggregate"))
+        assertThat(metadata.name, equalTo("MockCommandAggregate.onCommand(MockCreateAggregate)"))
     }
 
     @Test
