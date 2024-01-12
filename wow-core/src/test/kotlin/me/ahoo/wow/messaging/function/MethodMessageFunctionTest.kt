@@ -73,6 +73,7 @@ internal class MethodMessageFunctionTest {
                 "MockCommandAggregate"
             ),
         )
+        assertThat(messageFunction.name, equalTo("MockCommandAggregate.onCommand(MockCreateAggregate)"))
         val retry = messageFunction.getAnnotation(Retry::class.java)
         assertThat(retry, nullValue())
         val onCommand = messageFunction.getAnnotation(OnCommand::class.java)
