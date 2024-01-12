@@ -22,7 +22,6 @@ import me.ahoo.wow.serialization.toObject
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import java.time.Duration
 import java.util.*
 
 class StateExpansionMetadataVisitorTest {
@@ -41,6 +40,7 @@ class StateExpansionMetadataVisitorTest {
                 "bi_aggregate_state_last_root",
                 "bi_aggregate_state_last_root_items",
                 "bi_aggregate_state_last_root_set",
+                "bi_aggregate_state_last_root_like_list_item",
                 "bi_aggregate_state_last_root_nested_list",
                 "bi_aggregate_state_last_root_nested_list_list"
             )
@@ -83,7 +83,7 @@ class StateExpansionMetadataVisitorTest {
         assertThat(stateObj.dayOfWeek, equalTo(state.dayOfWeek))
         assertThat(stateObj.nested, equalTo(state.nested))
         assertThat(stateObj.stringList, equalTo(state.stringList))
-        assertThat(stateObj.intList, equalTo(state.intList))
+        assertThat(stateObj.intArray, equalTo(state.intArray))
         assertThat(stateObj.map, equalTo(state.map))
         assertThat(stateObj.items, equalTo(state.items))
         assertThat(stateObj.nestedList, equalTo(state.nestedList))
@@ -105,7 +105,7 @@ class BIAggregateState(override val id: String) : Identifier {
     var short: Short = 0
     var char: Char = ' '
     var item: Item = Item(id = "", name = "")
-    var duration: Duration = Duration.ofHours(1)
+    var duration: java.time.Duration = java.time.Duration.ofHours(1)
     var kotlinDuration: kotlin.time.Duration = kotlin.time.Duration.parse("PT1H")
     var date = java.util.Date()
     var sqlDate = java.sql.Date(System.currentTimeMillis())
@@ -125,10 +125,14 @@ class BIAggregateState(override val id: String) : Identifier {
     var dayOfWeek = java.time.DayOfWeek.MONDAY
     var nested: Nested = Nested(id = "", name = "", child = NestedChild(id = "", name = ""))
     var stringList: List<String> = emptyList()
-    var intList: List<Int> = emptyList()
+    var intArray: Array<Int> = kotlin.emptyArray()
     var map: Map<String, String> = emptyMap()
     var items: List<Item> = emptyList()
     var set: Set<Item> = emptySet()
+    var likeLinkString = LikeLinkString()
+    var likeListItem = LikeListItem()
+    var likeMapString = LikeMapString()
+    var likeMapItem = LikeMapItem()
     var nestedList: List<NestedList> = emptyList()
 }
 
@@ -136,3 +140,8 @@ data class Item(val id: String, val name: String)
 data class NestedList(val id: String, val name: String, val list: List<Nested>)
 data class Nested(val id: String, val name: String, val child: NestedChild)
 data class NestedChild(val id: String, val name: String)
+
+class LikeLinkString : LinkedList<String>()
+class LikeListItem : LinkedList<Item>()
+class LikeMapString : HashMap<String, String>()
+class LikeMapItem : HashMap<String, String>()

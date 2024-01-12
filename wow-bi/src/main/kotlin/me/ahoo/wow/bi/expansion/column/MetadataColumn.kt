@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.bi.expansion.column
 
+import com.fasterxml.jackson.databind.JavaType
+import me.ahoo.wow.serialization.JsonSerializer
+
 data class MetadataColumn(
     override val name: String,
-    override val type: Class<*>,
+    override val type: JavaType,
     override val sqlType: String
 ) : Column {
     override val parent: Column?
@@ -26,16 +29,19 @@ data class MetadataColumn(
         get() = "__${super.targetName}"
 
     companion object {
-        val ID_COLUMN = MetadataColumn("id", String::class.java, "String")
-        val AGGREGATE_ID_COLUMN = MetadataColumn("aggregate_id", String::class.java, "String")
-        val TENANT_ID_COLUMN = MetadataColumn("tenant_id", String::class.java, "String")
-        val COMMAND_ID_COLUMN = MetadataColumn("command_id", String::class.java, "String")
-        val REQUEST_ID_COLUMN = MetadataColumn("request_id", String::class.java, "String")
-        val VERSION_COLUMN = MetadataColumn("version", Int::class.java, "Int32")
-        val STATE_COLUMN = MetadataColumn("state", String::class.java, "JSON")
-        val FIRST_OPERATOR_COLUMN = MetadataColumn("first_operator", String::class.java, "String")
-        val FIRST_EVENT_TIME_COLUMN = MetadataColumn("first_event_time", Long::class.java, "DateTime('Asia/Shanghai')")
-        val CREATE_TIME_COLUMN = MetadataColumn("create_time", Long::class.java, "DateTime('Asia/Shanghai')")
-        val DELETED_COLUMN = MetadataColumn("deleted", Boolean::class.java, "Bool")
+        private val STRING_JAVA_TYPE = JsonSerializer.constructType(String::class.java)
+        private val INT_JAVA_TYPE = JsonSerializer.constructType(Int::class.java)
+        private val LONG_JAVA_TYPE = JsonSerializer.constructType(Long::class.java)
+        private val BOOLEAN_JAVA_TYPE = JsonSerializer.constructType(Boolean::class.java)
+        val ID_COLUMN = MetadataColumn("id", STRING_JAVA_TYPE, "String")
+        val AGGREGATE_ID_COLUMN = MetadataColumn("aggregate_id", STRING_JAVA_TYPE, "String")
+        val TENANT_ID_COLUMN = MetadataColumn("tenant_id", STRING_JAVA_TYPE, "String")
+        val COMMAND_ID_COLUMN = MetadataColumn("command_id", STRING_JAVA_TYPE, "String")
+        val REQUEST_ID_COLUMN = MetadataColumn("request_id", STRING_JAVA_TYPE, "String")
+        val VERSION_COLUMN = MetadataColumn("version", INT_JAVA_TYPE, "Int32")
+        val FIRST_OPERATOR_COLUMN = MetadataColumn("first_operator", STRING_JAVA_TYPE, "String")
+        val FIRST_EVENT_TIME_COLUMN = MetadataColumn("first_event_time", LONG_JAVA_TYPE, "DateTime('Asia/Shanghai')")
+        val CREATE_TIME_COLUMN = MetadataColumn("create_time", LONG_JAVA_TYPE, "DateTime('Asia/Shanghai')")
+        val DELETED_COLUMN = MetadataColumn("deleted", BOOLEAN_JAVA_TYPE, "Bool")
     }
 }
