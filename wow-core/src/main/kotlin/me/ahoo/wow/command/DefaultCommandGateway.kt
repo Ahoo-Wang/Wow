@@ -23,6 +23,7 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
@@ -35,7 +36,10 @@ class DefaultCommandGateway(
     private fun validate(command: CommandMessage<*>): Mono<Boolean> {
         val constraintViolations = validator.validate(command.body)
         if (constraintViolations.isNotEmpty()) {
-            return Mono.error(CommandValidationException(command, constraintViolations))
+            return CommandValidationException(
+                commandMessage = command,
+                constraintViolations = constraintViolations
+            ).toMono()
         }
         return idempotencyChecker.check(command.requestId)
             .doOnNext {

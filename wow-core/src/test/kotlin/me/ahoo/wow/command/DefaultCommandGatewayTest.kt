@@ -13,10 +13,15 @@
 
 package me.ahoo.wow.command
 
+import io.mockk.every
 import io.mockk.mockk
+import jakarta.validation.Path
+import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.command.CommandGatewaySpec
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -32,6 +37,33 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val commandMessage: CommandMessage<Any> = mockk()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        }
+    }
+
+    @Test
+    fun validateError() {
+        val path = mockk<Path>()
+        every { path.toString() } returns "propertyPath"
+        val constraintViolations = setOf(
+            mockk<jakarta.validation.ConstraintViolation<Any>> {
+                every { propertyPath } returns path
+                every { message } returns "message"
+            }
+        )
+        val validator = mockk<Validator> {
+            every { validate<Any>(any()) } returns constraintViolations
+        }
+        val messageGateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = createCommandBus(),
+            idempotencyChecker = idempotencyChecker,
+            waitStrategyRegistrar = waitStrategyRegistrar,
+            validator,
+        )
+        val commandMessage: CommandMessage<MockCreateCommand> =
+            MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
+        Assertions.assertThrows(CommandValidationException::class.java) {
+            messageGateway.send(commandMessage).block()
         }
     }
 }
