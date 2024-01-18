@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.server.webhook.weixin
+package me.ahoo.wow.compensation.server.webhook.weixin.client
 
 import com.fasterxml.jackson.annotation.JsonProperty
 

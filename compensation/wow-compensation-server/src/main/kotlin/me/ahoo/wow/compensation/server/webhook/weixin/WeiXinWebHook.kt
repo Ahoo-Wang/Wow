@@ -25,22 +25,21 @@ import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.server.configuration.CompensationProperties
 import me.ahoo.wow.compensation.server.webhook.TemplateEngine
 import me.ahoo.wow.compensation.server.webhook.weixin.HookEvent.Companion.toHookEvent
-import me.ahoo.wow.compensation.server.webhook.weixin.WeiXinSendMessage.Companion.markdown
+import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinBotApi
+import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinSendMessage
+import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinSendMessage.Companion.markdown
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
-import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 
 @me.ahoo.wow.api.annotation.StatelessSaga
 class WeiXinWebHook(
     private val compensationProperties: CompensationProperties,
     private val hookProperties: WeiXinWebHookProperties,
-    private val webclientBuilder: WebClient.Builder
+    private val weiXinBotApi: WeiXinBotApi
 ) {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(WeiXinWebHook::class.java)
     }
-
-    private val webClient = webclientBuilder.build()
 
     @Retry(false)
     @OnStateEvent
@@ -100,11 +99,7 @@ class WeiXinWebHook(
     }
 
     private fun sendMessage(sendMessage: WeiXinSendMessage): Mono<Void> {
-        return webClient.post()
-            .uri(hookProperties.url)
-            .bodyValue(sendMessage)
-            .retrieve()
-            .bodyToMono(WeiXinSendResult::class.java)
+        return weiXinBotApi.sendMessage(sendMessage)
             .flatMap { result ->
                 if (!result.isSuccess()) {
                     if (log.isErrorEnabled) {
