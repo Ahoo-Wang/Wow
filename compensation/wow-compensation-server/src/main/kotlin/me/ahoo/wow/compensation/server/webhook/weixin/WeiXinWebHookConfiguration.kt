@@ -14,10 +14,10 @@
 package me.ahoo.wow.compensation.server.webhook.weixin
 
 import me.ahoo.wow.compensation.server.configuration.CompensationProperties
+import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinBotApi
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.web.reactive.function.client.WebClient
 
 @Configuration
 @ConditionalOnWeiXinWebHookEnabled
@@ -28,8 +28,8 @@ class WeiXinWebHookConfiguration {
     fun weiXinWebHook(
         compensationProperties: CompensationProperties,
         hookProperties: WeiXinWebHookProperties,
-        webclientBuilder: WebClient.Builder
+        weiXinBotApi: WeiXinBotApi
     ): WeiXinWebHook {
-        return WeiXinWebHook(compensationProperties, hookProperties, webclientBuilder)
+        return WeiXinWebHook(compensationProperties, hookProperties, weiXinBotApi)
     }
 }

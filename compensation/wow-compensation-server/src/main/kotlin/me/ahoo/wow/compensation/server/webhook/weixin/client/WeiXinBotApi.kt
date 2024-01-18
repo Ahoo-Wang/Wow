@@ -11,23 +11,16 @@
  * limitations under the License.
  */
 
-dependencies {
-    api(platform(libs.springBootDependencies))
-    api(platform(libs.cosidBom))
-    api(platform(libs.simbaBom))
-    api(platform(libs.coapiBom))
-    api(platform(libs.opentelemetryBom))
-    api(platform(libs.opentelemetryInstrumentationBom))
-    api(platform(libs.testcontainersBom))
-    constraints {
-        api(libs.guava)
-        api(libs.opentelemetrySemconv)
-        api(libs.swagger)
-        api(libs.springDocStarterCommon)
-        api(libs.springDocStarterWebfluxApi)
-        api(libs.springDocStarterWebfluxUi)
-        api(libs.hamcrest)
-        api(libs.mockk)
-        api(libs.detektFormatting)
-    }
+package me.ahoo.wow.compensation.server.webhook.weixin.client
+
+import me.ahoo.coapi.api.CoApi
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
+import reactor.core.publisher.Mono
+
+@CoApi(baseUrl = "\${wow.compensation.webhook.weixin.url}")
+interface WeiXinBotApi {
+
+    @PostExchange
+    fun sendMessage(@RequestBody sendMessage: WeiXinSendMessage): Mono<WeiXinSendResult>
 }
