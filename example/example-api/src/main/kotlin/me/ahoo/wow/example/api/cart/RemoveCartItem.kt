@@ -1,5 +1,6 @@
 package me.ahoo.wow.example.api.cart
 
+import jakarta.validation.constraints.NotEmpty
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
@@ -8,6 +9,7 @@ import me.ahoo.wow.api.annotation.Summary
 data class RemoveCartItem(
     @CommandRoute.PathVariable
     val id: String,
+    @field:NotEmpty
     val productIds: Set<String>
 )
 
