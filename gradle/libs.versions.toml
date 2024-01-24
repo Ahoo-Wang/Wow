@@ -3,7 +3,7 @@
 springBoot = "3.2.2"
 cosid = "2.6.5"
 simba = "2.2.2"
-coapi="0.8.0"
+coapi="1.0.0"
 testcontainers = "1.19.3"
 opentelemetry = "1.34.1"
 opentelemetryInstrumentation = "1.32.0"
@@ -27,7 +27,7 @@ ksp = "1.9.22-1.0.17"
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 simbaBom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
-coapiBom = { module = "me.ahoo.coapi:bom", version.ref = "coapi" }
+coapiBom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 opentelemetryBom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetryInstrumentationBom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetryInstrumentation" }
 opentelemetrySemconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetrySemconv" }
