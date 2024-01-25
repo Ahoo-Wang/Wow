@@ -140,7 +140,7 @@ class SchemaRef(
 }
 
 fun Schema<*>.toContent(
-    name: String = "*",
+    name: String = "*/*",
     customize: (Content) -> Unit = {}
 ): Content {
     val content = Content()
