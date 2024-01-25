@@ -33,6 +33,8 @@ interface RouteSpec : Identifier {
         get() = ""
     val tags: List<String>
         get() = listOf(Wow.WOW)
+    val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON)
     val parameters: List<Parameter>
     val requestBody: RequestBody?
         get() = null

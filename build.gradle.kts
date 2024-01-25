@@ -85,7 +85,6 @@ configure(libraryProjects) {
         withSourcesJar()
     }
     apply(plugin = "org.jetbrains.kotlin.jvm")
-//    apply<KotlinPlatformJvmPlugin>()
     configure<KotlinJvmProjectExtension> {
         jvmToolchain(17)
     }
