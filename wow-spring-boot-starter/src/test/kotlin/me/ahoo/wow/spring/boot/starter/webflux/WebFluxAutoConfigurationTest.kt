@@ -32,6 +32,7 @@ import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.test.SagaVerifier
@@ -56,6 +57,37 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasBean("commandRouterFunction")
+                    .hasSingleBean(ExceptionHandler::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsWithKafkaProperties() {
+        contextRunner
+            .enableWow()
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(DomainEventCompensator::class.java, { mockk() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(bootstrapServers = listOf("localhost:9092"))
+            })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,

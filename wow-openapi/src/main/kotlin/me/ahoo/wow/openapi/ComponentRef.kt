@@ -286,7 +286,7 @@ class ResponseRef(override val name: String, override val component: ApiResponse
                 responseSchema.toArraySchema()
             } else {
                 responseSchema
-            }.toResponse(description)
+            }.toResponse(description = description)
         }
 
         val BAD_REQUEST = ResponseRef(

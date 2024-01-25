@@ -9,8 +9,6 @@ management:
       exposure:
         include:
           - health
-          - wow
-          - wowBI
           - cosid
           - cosidGenerator
           - cosidStringGenerator
