@@ -45,6 +45,7 @@ object SagaVerifier {
     }
 
     @JvmStatic
+    @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway()

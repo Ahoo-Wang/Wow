@@ -22,8 +22,8 @@ import me.ahoo.wow.example.transfer.api.CreateAccount;
                 @BoundedContext.Aggregate(name = TransferService.ACCOUNT, tenantId = TenantId.DEFAULT_TENANT_ID, packageScopes = {CreateAccount.class})
         }
 )
-public class TransferService {
-    public static final String SERVICE_NAME = "transfer-service";
-    static final String SERVICE_ALIAS = "transfer";
-    static final String ACCOUNT = "account";
+public interface TransferService {
+    String SERVICE_NAME = "transfer-service";
+    String SERVICE_ALIAS = "transfer";
+    String ACCOUNT = "account";
 }

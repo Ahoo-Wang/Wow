@@ -24,7 +24,7 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-internal class TransferSagaTest {
+internal class TransferSagaKTest {
 
     @Test
     fun onPrepared() {
