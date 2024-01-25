@@ -12,8 +12,6 @@
  */
 package me.ahoo.wow.spring.boot.starter.actuate
 
-import me.ahoo.wow.spring.boot.starter.kafka.ConditionalOnKafkaEnabled
-import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -27,12 +25,5 @@ class WowEndpointAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowEndpoint(): WowEndpoint {
         return WowEndpoint()
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnKafkaEnabled
-    fun wowBIEndpoint(kafkaProperties: KafkaProperties): WowBIEndpoint {
-        return WowBIEndpoint(kafkaProperties)
     }
 }

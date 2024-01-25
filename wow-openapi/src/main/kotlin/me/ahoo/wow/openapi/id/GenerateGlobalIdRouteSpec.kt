@@ -25,13 +25,12 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteSpec
 
-object GlobalIdRouteSpec : RouteSpec {
+object GenerateGlobalIdRouteSpec : RouteSpec {
     override val id: String = "wow.id.global"
     override val path: String = "/${Wow.WOW}/id/global"
     override val method: String = Https.Method.GET
     override val summary: String = "Generate Global ID"
-    override val accept: List<String>
-        get() = listOf(Https.MediaType.TEXT_PLAIN)
+    override val accept: List<String> = listOf(Https.MediaType.TEXT_PLAIN)
     override val parameters: List<Parameter> = emptyList()
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
@@ -39,10 +38,10 @@ object GlobalIdRouteSpec : RouteSpec {
     )
 }
 
-class GlobalIdRouteSpecFactory : GlobalRouteSpecFactory {
+class GenerateGlobalIdRouteSpecFactory : GlobalRouteSpecFactory {
     override val components: Components = ComponentRef.createComponents()
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
-        return listOf(GlobalIdRouteSpec)
+        return listOf(GenerateGlobalIdRouteSpec)
     }
 }

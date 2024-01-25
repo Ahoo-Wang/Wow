@@ -23,12 +23,14 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
+import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
@@ -54,6 +56,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
+import org.springframework.lang.Nullable
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -92,6 +95,7 @@ class WebFluxAutoConfiguration {
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
         const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
+        const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
     }
 
     @Bean
@@ -267,6 +271,21 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun globalIdHandlerFunctionFactory(): GlobalIdHandlerFunctionFactory {
         return GlobalIdHandlerFunctionFactory()
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun generateBIScriptHandlerFunctionFactory(
+        @Nullable kafkaProperties: KafkaProperties?
+    ): GenerateBIScriptHandlerFunctionFactory {
+        if (kafkaProperties == null) {
+            return GenerateBIScriptHandlerFunctionFactory()
+        }
+        return GenerateBIScriptHandlerFunctionFactory(
+            kafkaProperties.bootstrapServersToString(),
+            kafkaProperties.topicPrefix
+        )
     }
 
     @Bean

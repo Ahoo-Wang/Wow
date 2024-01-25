@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.id
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.openapi.id.GlobalIdRouteSpec
+import me.ahoo.wow.openapi.id.GenerateGlobalIdRouteSpec
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -31,11 +31,11 @@ class GlobalIdHandlerFunction : HandlerFunction<ServerResponse> {
     }
 }
 
-class GlobalIdHandlerFunctionFactory : RouteHandlerFunctionFactory<GlobalIdRouteSpec> {
-    override val supportedSpec: Class<GlobalIdRouteSpec>
-        get() = GlobalIdRouteSpec::class.java
+class GlobalIdHandlerFunctionFactory : RouteHandlerFunctionFactory<GenerateGlobalIdRouteSpec> {
+    override val supportedSpec: Class<GenerateGlobalIdRouteSpec>
+        get() = GenerateGlobalIdRouteSpec::class.java
 
-    override fun create(spec: GlobalIdRouteSpec): HandlerFunction<ServerResponse> {
+    override fun create(spec: GenerateGlobalIdRouteSpec): HandlerFunction<ServerResponse> {
         return GlobalIdHandlerFunction()
     }
 }
