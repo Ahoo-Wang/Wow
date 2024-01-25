@@ -36,6 +36,7 @@ import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
@@ -90,6 +91,7 @@ class WebFluxAutoConfiguration {
             "stateEventCompensateHandlerFunctionFactory"
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
+        const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
     }
 
     @Bean
@@ -258,6 +260,13 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadEventStreamHandlerFunctionFactory(eventStore: EventStore): LoadEventStreamHandlerFunctionFactory {
         return LoadEventStreamHandlerFunctionFactory(eventStore)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun globalIdHandlerFunctionFactory(): GlobalIdHandlerFunctionFactory {
+        return GlobalIdHandlerFunctionFactory()
     }
 
     @Bean

@@ -69,7 +69,7 @@ class SchemaRef(
     override val ref: Schema<*> = name.toRefSchema()
 
     companion object {
-        val COMPONENTS_SCHEMAS_REF: String = COMPONENTS_REF + "schemas/"
+        const val COMPONENTS_SCHEMAS_REF: String = COMPONENTS_REF + "schemas/"
         val ERROR_INFO = ErrorInfo::class.java.toSchemaRef()
 
         fun Class<out Enum<*>>.toSchemaRef(default: String? = null): SchemaRef {
@@ -140,7 +140,7 @@ class SchemaRef(
 }
 
 fun Schema<*>.toContent(
-    name: String = "*",
+    name: String = "*/*",
     customize: (Content) -> Unit = {}
 ): Content {
     val content = Content()
@@ -273,8 +273,11 @@ class ResponseRef(override val name: String, override val component: ApiResponse
                 .content(this)
         }
 
-        fun Schema<*>.toResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
-            return toJsonContent().toResponse(description)
+        fun Schema<*>.toResponse(
+            mediaType: String = Https.MediaType.APPLICATION_JSON,
+            description: String = ErrorInfo.SUCCEEDED
+        ): ApiResponse {
+            return toContent(mediaType).toResponse(description)
         }
 
         fun Class<*>.toResponse(isArray: Boolean = false, description: String = ErrorInfo.SUCCEEDED): ApiResponse {
