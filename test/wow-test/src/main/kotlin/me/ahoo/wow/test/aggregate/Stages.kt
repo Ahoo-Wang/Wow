@@ -25,9 +25,9 @@ import org.hamcrest.Matchers.*
 import java.util.function.Consumer
 
 interface GivenStage<S : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.toName()): GivenStage<S>
+    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S>
     fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
-        return inject(service, service.javaClass.toName())
+        return inject(service = service, serviceName = service.javaClass.toName())
     }
 
     /**
@@ -40,10 +40,10 @@ interface WhenStage<S : Any> {
     /**
      * 2. 接收并执行命令.
      */
-    fun `when`(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S>
+    fun `when`(command: Any, header: Header): ExpectStage<S>
 
     fun `when`(command: Any): ExpectStage<S> {
-        return this.`when`(command, DefaultHeader.empty())
+        return this.`when`(command = command, header = DefaultHeader.empty())
     }
 }
 
@@ -170,15 +170,23 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     Decorator<Iterator<DomainEvent<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified E : Any> nextEvent(): DomainEvent<E> {
+    fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
         val nextEvent = next()
-        assertThat("Expect the event body type.", nextEvent.body, instanceOf(E::class.java))
+        assertThat("Expect the event body type.", nextEvent.body, instanceOf(eventType))
         return nextEvent as DomainEvent<E>
     }
 
+    fun <E : Any> nextEventBody(eventType: Class<E>): E {
+        return nextEvent(eventType).body
+    }
+
+    inline fun <reified E : Any> nextEvent(): DomainEvent<E> {
+        return nextEvent(E::class.java)
+    }
+
     inline fun <reified E : Any> nextEventBody(): E {
-        return nextEvent<E>().body
+        return nextEventBody(E::class.java)
     }
 }
 

@@ -39,7 +39,7 @@ interface WhenStage<T : Any> {
     fun `when`(event: Any, state: Any?): ExpectStage<T>
 
     fun `when`(event: Any): ExpectStage<T> {
-        return `when`(event = event, null)
+        return `when`(event = event, state = null)
     }
 }
 
@@ -141,14 +141,22 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Decorator<Iterator<CommandMessage<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
+    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
         val nextCommand = next()
-        assertThat("Expect the command body type.", nextCommand.body, instanceOf(C::class.java))
+        assertThat("Expect the command body type.", nextCommand.body, instanceOf(commandType))
         return nextCommand as CommandMessage<C>
     }
 
+    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
+        return nextCommand(commandType).body
+    }
+
+    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
+        return nextCommand(C::class.java)
+    }
+
     inline fun <reified C : Any> nextCommandBody(): C {
-        return nextCommand<C>().body
+        return nextCommandBody(C::class.java)
     }
 }

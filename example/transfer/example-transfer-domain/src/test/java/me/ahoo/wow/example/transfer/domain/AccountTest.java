@@ -29,6 +29,13 @@ class AccountTest {
                 .given()
                 .when(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)
+                .expectEventIterator(eventIterator -> {
+                    assertThat(eventIterator.hasNext(), equalTo(true));
+                    var eventBody = eventIterator.nextEventBody(AccountCreated.class);
+                    assertThat(eventBody.name(), equalTo("name"));
+                    assertThat(eventBody.balance(), equalTo(100L));
+                    assertThat(eventIterator.hasNext(), equalTo(false));
+                })
                 .expectState(account -> {
                     assertThat(account.getName(), equalTo("name"));
                     assertThat(account.getBalanceAmount(), equalTo(100L));
