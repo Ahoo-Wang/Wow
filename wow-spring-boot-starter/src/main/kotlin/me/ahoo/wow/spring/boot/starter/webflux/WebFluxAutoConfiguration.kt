@@ -39,6 +39,7 @@ import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
@@ -96,6 +97,7 @@ class WebFluxAutoConfiguration {
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
         const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
         const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
+        const val GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "getWowMetadataHandlerFunctionFactory"
     }
 
     @Bean
@@ -286,6 +288,13 @@ class WebFluxAutoConfiguration {
             kafkaProperties.bootstrapServersToString(),
             kafkaProperties.topicPrefix
         )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun getWowMetadataHandlerFunctionFactory(): GetWowMetadataHandlerFunctionFactory {
+        return GetWowMetadataHandlerFunctionFactory()
     }
 
     @Bean
