@@ -36,8 +36,6 @@ import me.ahoo.wow.test.aggregate.GivenStage
  */
 object AggregateVerifier {
 
-    @JvmStatic
-    @JvmOverloads
     fun <C : Any, S : Any> Class<C>.aggregateVerifier(
         aggregateId: String = GlobalIdGenerator.generateAsString(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
@@ -55,6 +53,27 @@ object AggregateVerifier {
             stateAggregateFactory,
             SimpleCommandAggregateFactory(eventStore),
             serviceProvider,
+        )
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    @Suppress("UnusedParameter")
+    fun <C : Any, S : Any> aggregateVerifier(
+        commandAggregateType: Class<C>,
+        stateAggregateType: Class<S>,
+        aggregateId: String = GlobalIdGenerator.generateAsString(),
+        tenantId: String = TenantId.DEFAULT_TENANT_ID,
+        stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+        eventStore: EventStore = InMemoryEventStore(),
+        serviceProvider: ServiceProvider = SimpleServiceProvider()
+    ): GivenStage<S> {
+        return commandAggregateType.aggregateVerifier(
+            aggregateId = aggregateId,
+            tenantId = tenantId,
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            serviceProvider = serviceProvider,
         )
     }
 }

@@ -32,6 +32,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.function.Consumer
 
 internal class DefaultGivenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
@@ -185,9 +186,9 @@ internal class DefaultExpectStage<C : Any, S : Any>(
     private val expectedResultMono: Mono<ExpectedResult<S>>
 ) : ExpectStage<S> {
 
-    private val expectStates: MutableList<(ExpectedResult<S>) -> Unit> = mutableListOf()
+    private val expectStates: MutableList<Consumer<ExpectedResult<S>>> = mutableListOf()
 
-    override fun expect(expected: (ExpectedResult<S>) -> Unit): ExpectStage<S> {
+    override fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S> {
         expectStates.add(expected)
         return this
     }
@@ -209,7 +210,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
                 verifyStateAggregateSerializable(it.stateAggregate)
                 expectedResult = it
                 for (expectState in expectStates) {
-                    expectState(it)
+                    expectState.accept(it)
                 }
             }
             .verifyComplete()

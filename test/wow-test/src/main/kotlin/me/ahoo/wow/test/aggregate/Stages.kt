@@ -22,6 +22,7 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import java.util.function.Consumer
 
 interface GivenStage<S : Any> {
     fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.toName()): GivenStage<S>
@@ -47,49 +48,49 @@ interface WhenStage<S : Any> {
 }
 
 interface ExpectStage<S : Any> {
-    fun expect(expected: (ExpectedResult<S>) -> Unit): ExpectStage<S>
+    fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S>
 
     /**
      * 3.1 期望聚合状态.
      */
-    fun expectStateAggregate(expected: (StateAggregate<S>) -> Unit): ExpectStage<S> {
-        return expect { expected(it.stateAggregate) }
+    fun expectStateAggregate(expected: Consumer<StateAggregate<S>>): ExpectStage<S> {
+        return expect { expected.accept(it.stateAggregate) }
     }
 
-    fun expectState(expected: (S) -> Unit): ExpectStage<S> {
-        return expectStateAggregate { expected(it.state) }
+    fun expectState(expected: Consumer<S>): ExpectStage<S> {
+        return expectStateAggregate { expected.accept(it.state) }
     }
 
     /**
      * 3.2 期望领域事件.
      */
-    fun expectEventStream(expected: (DomainEventStream) -> Unit): ExpectStage<S> {
+    fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
         return expect {
             assertThat("Expect the domain event stream is not null.", it.domainEventStream, notNullValue())
-            expected(it.domainEventStream!!)
+            expected.accept(it.domainEventStream!!)
         }
     }
 
-    fun expectEventIterator(expected: (EventIterator) -> Unit): ExpectStage<S> {
+    fun expectEventIterator(expected: Consumer<EventIterator>): ExpectStage<S> {
         return expectEventStream {
-            expected(EventIterator((it.iterator())))
+            expected.accept(EventIterator((it.iterator())))
         }
     }
 
     /**
      * 期望的第一个领域事件
      */
-    fun <E : Any> expectEvent(expected: (DomainEvent<E>) -> Unit): ExpectStage<S> {
+    fun <E : Any> expectEvent(expected: Consumer<DomainEvent<E>>): ExpectStage<S> {
         return expectEventStream {
             assertThat("Expect the domain event stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
             @Suppress("UNCHECKED_CAST")
-            expected(it.first() as DomainEvent<E>)
+            expected.accept(it.first() as DomainEvent<E>)
         }
     }
 
-    fun <E : Any> expectEventBody(expected: (E) -> Unit): ExpectStage<S> {
+    fun <E : Any> expectEventBody(expected: Consumer<E>): ExpectStage<S> {
         return expectEvent {
-            expected(it.body)
+            expected.accept(it.body)
         }
     }
 
@@ -129,10 +130,10 @@ interface ExpectStage<S : Any> {
     /**
      * 3.3 期望产生异常
      */
-    fun <E : Throwable> expectError(expected: (E) -> Unit): ExpectStage<S> {
+    fun <E : Throwable> expectError(expected: Consumer<E>): ExpectStage<S> {
         return expectError().expect {
             @Suppress("UNCHECKED_CAST")
-            expected(it.error as E)
+            expected.accept(it.error as E)
         }
     }
 

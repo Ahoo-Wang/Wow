@@ -32,6 +32,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
 import java.lang.reflect.Constructor
+import java.util.function.Consumer
 
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
@@ -109,9 +110,9 @@ internal class DefaultWhenStage<T : Any>(
 }
 
 internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<ExpectedResult<T>>) : ExpectStage<T> {
-    private val expectStates: MutableList<(ExpectedResult<T>) -> Unit> = mutableListOf()
+    private val expectStates: MutableList<Consumer<ExpectedResult<T>>> = mutableListOf()
 
-    override fun expect(expected: (ExpectedResult<T>) -> Unit): ExpectStage<T> {
+    override fun expect(expected: Consumer<ExpectedResult<T>>): ExpectStage<T> {
         expectStates.add(expected)
         return this
     }
@@ -121,7 +122,7 @@ internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<Expe
             .test()
             .consumeNextWith {
                 for (expectState in expectStates) {
-                    expectState(it)
+                    expectState.accept(it)
                 }
             }
             .verifyComplete()

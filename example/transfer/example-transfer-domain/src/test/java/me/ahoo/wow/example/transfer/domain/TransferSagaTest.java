@@ -13,27 +13,28 @@
 
 package me.ahoo.wow.example.transfer.domain;
 
-import me.ahoo.wow.example.transfer.api.AccountCreated;
-import me.ahoo.wow.example.transfer.api.CreateAccount;
+import me.ahoo.wow.example.transfer.api.Entry;
+import me.ahoo.wow.example.transfer.api.Prepared;
 import org.junit.jupiter.api.Test;
 
-import static me.ahoo.wow.test.AggregateVerifier.*;
+import static me.ahoo.wow.test.SagaVerifier.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-class AccountTest {
+public class TransferSagaTest {
 
     @Test
-    void createAccount() {
-        aggregateVerifier(Account.class, AccountState.class)
-                .given()
-                .when(new CreateAccount("name", 100L))
-                .expectEventType(AccountCreated.class)
-                .expectState(account -> {
-                    assertThat(account.getName(), equalTo("name"));
-                    assertThat(account.getBalanceAmount(), equalTo(100L));
+    void onPrepared() {
+        var event = new Prepared("to", 1L);
+        sagaVerifier(TransferSaga.class)
+                .when(event)
+                .expectCommandBody((Entry entry) -> {
+                    assertThat(entry.id(), equalTo(event.to()));
+                    assertThat(entry.amount(), equalTo(event.amount()));
                 })
                 .verify();
     }
 
+
 }
+
