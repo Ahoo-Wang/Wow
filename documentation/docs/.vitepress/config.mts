@@ -21,7 +21,7 @@ export default defineConfig({
         hostname: hostname,
         transformItems: (items) => {
             items.push({
-                url: '/dokka/index.html',
+                url: `${hostname}dokka/index.html`,
                 changefreq: 'weekly',
                 priority: 0.8
             })
