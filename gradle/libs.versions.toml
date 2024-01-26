@@ -14,7 +14,7 @@ mockk = "1.13.9"
 kotlinCompileTesting = "0.4.0"
 swagger = "2.2.20"
 springDoc = "2.3.0"
-jte = "3.1.6"
+jte = "3.1.7"
 # plugins
 testRetry = "1.5.8"
 detekt = "1.23.4"
