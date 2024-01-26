@@ -172,9 +172,8 @@ _事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wo
 
 ### 部署 (Kubernetes)
 
-#### ConfigMap
-
-```yaml
+::: code-group
+```yaml [ConfigMap]
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -227,9 +226,7 @@ data:
         bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
 ```
 
-#### Deployment
-
-```yaml
+```yaml [Deployment]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -318,9 +315,7 @@ spec:
             name: compensation-service-config
 ```
 
-#### HPA
-
-```yaml
+```yaml [HPA]
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -341,9 +336,7 @@ spec:
         averageUtilization: 80
 ```
 
-#### Service
-
-```yaml
+```yaml [Service]
 apiVersion: v1
 kind: Service
 metadata:
@@ -356,3 +349,4 @@ spec:
       port: 80
       targetPort: http
 ```
+:::
