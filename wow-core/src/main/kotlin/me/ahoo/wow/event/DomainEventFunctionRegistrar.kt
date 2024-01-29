@@ -25,19 +25,30 @@ abstract class AbstractEventFunctionRegistrar(
         SimpleMultipleMessageFunctionRegistrar()
 ) :
     MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> by delegate,
-    Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>>
+    Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>> {
+
+    fun registerProcessor(processor: Any) {
+        if (processor is MessageFunction<*, *, *>) {
+            @Suppress("UNCHECKED_CAST")
+            register(processor as MessageFunction<Any, DomainEventExchange<*>, Mono<*>>)
+            return
+        }
+        resolveProcessor(processor).forEach {
+            register(it)
+        }
+    }
+
+    abstract fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
+}
 
 class DomainEventFunctionRegistrar(
     actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
-    fun registerProcessor(processor: Any) {
-        processor.javaClass
+    override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+        return processor.javaClass
             .eventProcessorMetadata()
             .toMessageFunctionRegistry(processor)
-            .forEach {
-                register(it)
-            }
     }
 }

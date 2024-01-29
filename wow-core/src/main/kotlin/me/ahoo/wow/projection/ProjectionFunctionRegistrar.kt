@@ -26,12 +26,9 @@ class ProjectionFunctionRegistrar(
         SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
-    fun registerProcessor(processor: Any) {
-        processor.javaClass
+    override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+        return processor.javaClass
             .projectionProcessorMetadata()
             .toMessageFunctionRegistry(processor)
-            .forEach {
-                register(it)
-            }
     }
 }
