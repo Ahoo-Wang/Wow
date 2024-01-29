@@ -63,8 +63,8 @@ internal class DefaultWhenStage<T : Any>(
     override fun `when`(event: Any, state: Any?): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
-        val handlerRegistrar = StatelessSagaFunctionRegistrar()
-        handlerRegistrar.registerStatelessSaga(processor, commandGateway)
+        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway)
+        handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.getFunctions(eventExchange.message.body.javaClass)
             .first()
