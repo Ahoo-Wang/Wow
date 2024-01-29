@@ -39,7 +39,7 @@ internal class DomainEventDispatcherTest {
     @Test
     fun run() {
         val sink = Sinks.empty<Void>()
-        handlerRegistrar.register(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
+        handlerRegistrar.registerProcessor(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
             override val contextName: String
                 get() = "test"
             override val name: String
