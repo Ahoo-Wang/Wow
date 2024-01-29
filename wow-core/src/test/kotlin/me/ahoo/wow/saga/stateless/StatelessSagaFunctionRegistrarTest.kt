@@ -21,6 +21,7 @@ class StatelessSagaFunctionRegistrarTest {
 @StatelessSaga
 class MockSaga {
 
+    @Suppress("UnusedParameter")
     @OnEvent
     fun onCreated(event: MockAggregateCreated) = Unit
 }
