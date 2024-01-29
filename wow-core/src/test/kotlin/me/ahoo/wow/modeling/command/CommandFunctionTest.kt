@@ -22,7 +22,10 @@ class CommandFunctionTest {
             every { contextName } returns "context"
             every { processor } returns "root"
         }
-        val commandAggregate = mockk<CommandAggregate<Any, Any>>()
+        val commandAggregate = mockk<CommandAggregate<Any, Any>> {
+            every { contextName } returns "context"
+            every { aggregateName } returns "aggregate"
+        }
         assertThat(
             CommandFunction(delegate, commandAggregate).getAnnotation(Retry::class.java),
             nullValue()
