@@ -34,12 +34,12 @@ internal class DomainEventDispatcherTest {
     private val namedAggregate = DomainEventDispatcherTest::class.java.requiredNamedAggregate()
     private val domainEventBus: DomainEventBus = InMemoryDomainEventBus()
     private val stateEventBus: StateEventBus = InMemoryStateEventBus()
-    private val handlerRegistrar = DomainEventFunctionRegistrar()
+    private val functionRegistrar = DomainEventFunctionRegistrar()
 
     @Test
     fun run() {
         val sink = Sinks.empty<Void>()
-        handlerRegistrar.registerProcessor(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
+        functionRegistrar.registerProcessor(object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
             override val contextName: String
                 get() = "test"
             override val name: String
@@ -71,7 +71,7 @@ internal class DomainEventDispatcherTest {
                 name = "test.DomainEventProcessor",
                 domainEventBus = domainEventBus,
                 stateEventBus = stateEventBus,
-                functionRegistrar = handlerRegistrar,
+                functionRegistrar = functionRegistrar,
                 eventHandler = DefaultDomainEventHandler(chain).metrizable(),
             )
         domainEventProcessor.run()
