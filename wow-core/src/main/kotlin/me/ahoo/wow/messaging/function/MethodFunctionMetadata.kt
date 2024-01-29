@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
@@ -33,7 +34,7 @@ data class MethodFunctionMetadata<P, out R>(
     override val functionKind: FunctionKind,
     val accessor: MethodAccessor<P, R>,
     val supportedType: Class<*>,
-    val supportedTopics: Set<Any>,
+    val supportedTopics: Set<NamedAggregate>,
     val firstParameterKind: FirstParameterKind,
     val injectParameters: Array<InjectParameter>
 ) : FunctionKindCapable, NamedBoundedContext, Named {

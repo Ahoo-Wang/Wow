@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.server.order
 
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.order.OrderCreated
@@ -32,7 +33,7 @@ class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<OrderCreat
         private val log = LoggerFactory.getLogger(OrderMessageFunction::class.java)
     }
 
-    override val supportedTopics: Set<Any> = setOf(aggregateMetadata<Order, OrderState>().materialize())
+    override val supportedTopics: Set<NamedAggregate> = setOf(aggregateMetadata<Order, OrderState>().materialize())
     override val supportedType: Class<*>
         get() = OrderCreated::class.java
     override val processor: Any

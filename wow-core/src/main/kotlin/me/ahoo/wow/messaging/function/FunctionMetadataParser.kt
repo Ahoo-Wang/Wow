@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
@@ -125,7 +126,7 @@ object FunctionMetadataParser {
         }
     }
 
-    private fun Method.toSupportedTopics(functionKind: FunctionKind, supportedType: Class<*>): Set<Any> {
+    private fun Method.toSupportedTopics(functionKind: FunctionKind, supportedType: Class<*>): Set<NamedAggregate> {
         return when (functionKind) {
             FunctionKind.EVENT -> {
                 val onEvent = scan<OnEvent>()
@@ -144,7 +145,7 @@ object FunctionMetadataParser {
     private fun Method.parseEventTopics(
         bodyType: Class<*>,
         aggregateNames: Array<out String>?
-    ): Set<Any> {
+    ): Set<NamedAggregate> {
         if (aggregateNames.isNullOrEmpty()) {
             return bodyType.typeAsTopics()
         }
@@ -155,7 +156,7 @@ object FunctionMetadataParser {
         }.toSet()
     }
 
-    private fun Class<*>.typeAsTopics(): Set<Any> {
+    private fun Class<*>.typeAsTopics(): Set<NamedAggregate> {
         namedAggregate()?.let {
             return setOf(it)
         }
