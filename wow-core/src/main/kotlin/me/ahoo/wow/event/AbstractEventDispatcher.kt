@@ -46,8 +46,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     private val eventStreamTopics by lazy {
         eventStreamFunctionRegistrar.functions
             .flatMap {
-                @Suppress("UNCHECKED_CAST")
-                it.supportedTopics as Set<NamedAggregate>
+                it.supportedTopics
             }
             .toSet()
     }
@@ -58,8 +57,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     private val stateEventTopics by lazy {
         stateEventFunctionRegistrar.functions
             .flatMap {
-                @Suppress("UNCHECKED_CAST")
-                it.supportedTopics as Set<NamedAggregate>
+                it.supportedTopics
             }
             .toSet()
     }

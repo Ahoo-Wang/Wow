@@ -147,8 +147,8 @@ internal class MethodMessageFunctionTest {
         val retry = messageFunction.getAnnotation(Retry::class.java)
         assertThat(retry, notNullValue())
         assertThat(retry!!.enabled, equalTo(true))
-        assertThat(retry!!.maxRetries, equalTo(Retry.DEFAULT_MAX_RETRIES))
-        assertThat(retry!!.minBackoff, equalTo(Retry.DEFAULT_MIN_BACKOFF))
-        assertThat(retry!!.executionTimeout, equalTo(Retry.DEFAULT_EXECUTION_TIMEOUT))
+        assertThat(retry.maxRetries, equalTo(Retry.DEFAULT_MAX_RETRIES))
+        assertThat(retry.minBackoff, equalTo(Retry.DEFAULT_MIN_BACKOFF))
+        assertThat(retry.executionTimeout, equalTo(Retry.DEFAULT_EXECUTION_TIMEOUT))
     }
 }

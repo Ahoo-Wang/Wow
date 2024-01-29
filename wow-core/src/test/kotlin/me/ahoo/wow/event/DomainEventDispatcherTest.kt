@@ -14,6 +14,7 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -50,7 +51,7 @@ internal class DomainEventDispatcherTest {
                 get() = Any()
             override val functionKind: FunctionKind
                 get() = FunctionKind.EVENT
-            override val supportedTopics: Set<Any>
+            override val supportedTopics: Set<NamedAggregate>
                 get() = setOf(namedAggregate)
 
             override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {

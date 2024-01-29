@@ -16,6 +16,7 @@ package me.ahoo.wow.saga.stateless
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
@@ -32,7 +33,7 @@ class StatelessSagaFunction(
     override val name: String = actual.name
     override val processor: Any = actual.processor
     override val supportedType: Class<*> = actual.supportedType
-    override val supportedTopics: Set<Any> = actual.supportedTopics
+    override val supportedTopics: Set<NamedAggregate> = actual.supportedTopics
     override val functionKind: FunctionKind = actual.functionKind
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
         return actual.getAnnotation(annotationClass)

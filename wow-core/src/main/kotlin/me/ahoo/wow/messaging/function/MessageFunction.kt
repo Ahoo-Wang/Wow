@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.messaging.handler.MessageExchange
 
@@ -32,13 +33,12 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
      * @see me.ahoo.wow.api.annotation.OnEvent.value
      * @see me.ahoo.wow.api.annotation.OnStateEvent.value
      */
-    val supportedTopics: Set<Any>
-        get() = emptySet()
+    val supportedTopics: Set<NamedAggregate>
     val processor: P
     override val processorName: String
         get() = processor::class.java.simpleName
 
-    fun supportTopic(topic: Any): Boolean {
+    fun supportTopic(topic: NamedAggregate): Boolean {
         return supportedTopics.contains(topic)
     }
 
@@ -53,7 +53,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
 interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
     val metadata: MethodFunctionMetadata<P, R>
     override val contextName: String get() = metadata.contextName
-    override val supportedTopics: Set<Any> get() = metadata.supportedTopics
+    override val supportedTopics: Set<NamedAggregate> get() = metadata.supportedTopics
     override val functionKind: FunctionKind get() = metadata.functionKind
     override val supportedType: Class<*> get() = metadata.supportedType
     override val processorName: String get() = metadata.processorName

@@ -14,10 +14,12 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
@@ -28,6 +30,7 @@ class CommandFunction<C : Any>(
     override val contextName: String = delegate.contextName
     override val name: String = delegate.contextName
     override val supportedType: Class<*> = delegate.supportedType
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {

@@ -13,6 +13,7 @@ class DefaultDeleteAggregateFunctionTest {
     fun getAnnotation() {
         val commandAggregate = mockk<CommandAggregate<Any, Any>> {
             every { contextName } returns "context"
+            every { aggregateName } returns "aggregate"
             every { commandRoot } returns "root"
         }
         assertThat(DefaultDeleteAggregateFunction(commandAggregate).getAnnotation(Retry::class.java), nullValue())
