@@ -44,18 +44,17 @@ class StatelessSagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun statelessSagaHandlerRegistrar(): StatelessSagaFunctionRegistrar {
-        return StatelessSagaFunctionRegistrar()
+    fun statelessSagaHandlerRegistrar(commandGateway: CommandGateway): StatelessSagaFunctionRegistrar {
+        return StatelessSagaFunctionRegistrar(commandGateway)
     }
 
     @Bean
     @ConditionalOnMissingBean
     fun statelessSagaProcessorAutoRegistrar(
         handlerRegistrar: StatelessSagaFunctionRegistrar,
-        commandGateway: CommandGateway,
         applicationContext: ApplicationContext
     ): StatelessSagaProcessorAutoRegistrar {
-        return StatelessSagaProcessorAutoRegistrar(handlerRegistrar, commandGateway, applicationContext)
+        return StatelessSagaProcessorAutoRegistrar(handlerRegistrar, applicationContext)
     }
 
     @Bean

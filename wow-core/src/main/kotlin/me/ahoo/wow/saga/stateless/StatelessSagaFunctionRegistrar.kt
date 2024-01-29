@@ -23,17 +23,17 @@ import me.ahoo.wow.saga.annotation.statelessSagaMetadata
 import reactor.core.publisher.Mono
 
 class StatelessSagaFunctionRegistrar(
+    private val commandGateway: CommandGateway,
     actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMultipleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
-    fun registerStatelessSaga(statelessSaga: Any, commandGateway: CommandGateway) {
-        statelessSaga.javaClass
+    override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+        return processor.javaClass
             .statelessSagaMetadata()
-            .toMessageFunctionRegistry(statelessSaga)
-            .forEach {
-                val statelessSagaHandler = StatelessSagaFunction(it, commandGateway)
-                register(statelessSagaHandler)
-            }
+            .toMessageFunctionRegistry(processor)
+            .map {
+                StatelessSagaFunction(it, commandGateway)
+            }.toSet()
     }
 }
