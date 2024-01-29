@@ -38,6 +38,10 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
+    fun supportTopic(topic: Any): Boolean {
+        return supportedTopics.contains(topic)
+    }
+
     fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A?
     operator fun invoke(exchange: M): R
 

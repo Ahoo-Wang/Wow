@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
@@ -129,6 +130,12 @@ internal class MethodMessageFunctionTest {
             messageFunction.supportedType,
             equalTo(
                 MockEventBody::class.java,
+            ),
+        )
+        assertThat(
+            messageFunction.supportTopic(messageFunction.supportedType.requiredNamedAggregate()),
+            equalTo(
+                true
             ),
         )
         assertThat(

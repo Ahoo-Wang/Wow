@@ -27,7 +27,8 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
+abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> :
+    AggregateMessageDispatcher<E>() {
     companion object {
         private val log: Logger = LoggerFactory.getLogger(AbstractAggregateEventDispatcher::class.java)
     }
@@ -53,7 +54,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         val eventType: Class<*> = event.body.javaClass
         val functions = functionRegistrar.getFunctions(eventType)
             .filter {
-                if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
+                if (!it.supportTopic(event.aggregateId.materialize())) {
                     return@filter false
                 }
                 return@filter event.match(it)
