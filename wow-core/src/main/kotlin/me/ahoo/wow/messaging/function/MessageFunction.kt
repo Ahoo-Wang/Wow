@@ -41,11 +41,11 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
         get() = processor::class.java.simpleName
 
     fun <M> supportMessage(message: M): Boolean
-            where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
         return supportedType.isInstance(message.body) &&
-                supportedTopics.any {
-                    it.isSameAggregateName(message)
-                }
+            supportedTopics.any {
+                it.isSameAggregateName(message)
+            }
     }
 
     fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A?
