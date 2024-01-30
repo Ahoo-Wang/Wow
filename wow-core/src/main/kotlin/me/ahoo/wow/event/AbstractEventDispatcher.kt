@@ -18,15 +18,20 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
+import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 
 abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
@@ -40,7 +45,8 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     abstract val functionRegistrar: AbstractEventFunctionRegistrar
     abstract val eventHandler: EventHandler
     protected abstract val schedulerSupplier: AggregateSchedulerSupplier
-
+    private val domainEventDistributionSubscriber = DomainEventDistributionSubscriber()
+    private val stateEventDistributionSubscriber = StateEventDistributionSubscriber()
     private val eventStreamFunctionRegistrar by lazy {
         filterRegistrar(TopicKind.EVENT_STREAM)
     }
@@ -74,36 +80,16 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         return registrar
     }
 
-    private val eventDispatchers by lazy {
-        eventStreamTopics
-            .map {
-                val messageFlux = receiveEventStream(it)
-                    .writeReceiverGroup(name)
-                    .writeMetricsSubscriber(name)
-                newAggregateEventDispatcher(it, messageFlux)
-            }
-    }
-
-    private val stateEventDispatchers by lazy {
-        stateEventTopics
-            .map {
-                val messageFlux = receiveStateEventStream(it)
-                    .writeReceiverGroup(name)
-                    .writeMetricsSubscriber(name)
-                newAggregateStateEventDispatcher(it, messageFlux)
-            }
-    }
-
-    private fun receiveEventStream(namedAggregate: NamedAggregate): Flux<EventStreamExchange> {
+    private fun receiveEventStream(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
         return domainEventBus
-            .receive(setOf(namedAggregate))
+            .receive(namedAggregates)
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
     }
 
-    private fun receiveStateEventStream(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
+    private fun receiveStateEventStream(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> {
         return stateEventBus
-            .receive(setOf(namedAggregate))
+            .receive(namedAggregates)
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
     }
@@ -125,7 +111,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     private fun newAggregateStateEventDispatcher(
         namedAggregate: NamedAggregate,
         messageFlux: Flux<StateEventExchange<*>>
-    ): MessageDispatcher {
+    ): AggregateMessageDispatcher<StateEventExchange<*>> {
         return AggregateStateEventDispatcher(
             namedAggregate = namedAggregate,
             parallelism = parallelism,
@@ -142,21 +128,29 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         }
         if (eventStreamTopics.isEmpty()) {
             if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start [AggregateEventDispatcher] because namedAggregates is empty.")
+                log.warn("[$name] Ignore start [DomainEventDistributionSubscriber] because namedAggregates is empty.")
             }
         } else {
-            eventDispatchers.forEach { it.run() }
+            receiveEventStream(eventStreamTopics)
+                .writeReceiverGroup(name)
+                .writeMetricsSubscriber(name)
+                .groupBy { it.message.materialize() }
+                .subscribe(domainEventDistributionSubscriber)
         }
-
         if (log.isInfoEnabled) {
             log.info("[$name] Run subscribe to State Event:${stateEventTopics.toJsonString()}.")
         }
+
         if (stateEventTopics.isEmpty()) {
             if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start [AggregateStateEventDispatcher] because namedAggregates is empty.")
+                log.warn("[$name] Ignore start [StateEventDistributionSubscriber] because namedAggregates is empty.")
             }
         } else {
-            stateEventDispatchers.forEach { it.run() }
+            receiveStateEventStream(stateEventTopics)
+                .writeReceiverGroup(name)
+                .writeMetricsSubscriber(name)
+                .groupBy { it.message.materialize() }
+                .subscribe(stateEventDistributionSubscriber)
         }
     }
 
@@ -164,7 +158,35 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         if (log.isInfoEnabled) {
             log.info("[$name] Close.")
         }
-        eventDispatchers.forEach { it.close() }
-        stateEventDispatchers.forEach { it.close() }
+        domainEventDistributionSubscriber.cancel()
+        stateEventDistributionSubscriber.cancel()
+    }
+
+    inner class DomainEventDistributionSubscriber :
+        SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>>() {
+
+        override val name: String
+            get() = "${this@AbstractEventDispatcher.name}-DomainEventDistributionSubscriber"
+
+        override fun safeOnNext(value: GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>) {
+            newAggregateEventDispatcher(
+                namedAggregate = value.key(),
+                messageFlux = value,
+            ).run()
+        }
+    }
+
+    inner class StateEventDistributionSubscriber :
+        SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, StateEventExchange<*>>>() {
+
+        override val name: String
+            get() = "${this@AbstractEventDispatcher.name}-DomainEventDistributionSubscriber"
+
+        override fun safeOnNext(value: GroupedFlux<MaterializedNamedAggregate, StateEventExchange<*>>) {
+            newAggregateStateEventDispatcher(
+                namedAggregate = value.key(),
+                messageFlux = value,
+            ).run()
+        }
     }
 }
