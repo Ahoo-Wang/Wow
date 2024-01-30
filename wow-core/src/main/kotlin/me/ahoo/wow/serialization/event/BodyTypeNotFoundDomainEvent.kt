@@ -22,6 +22,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 data class BodyTypeNotFoundDomainEvent(
     override val id: String,
     override val header: Header,
+    val bodyType: String,
     override val body: JsonNode,
     override val aggregateId: AggregateId,
     override val version: Int,

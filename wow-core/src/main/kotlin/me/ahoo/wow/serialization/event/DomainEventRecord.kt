@@ -77,6 +77,7 @@ interface DomainEventRecord :
             return BodyTypeNotFoundDomainEvent(
                 id = id,
                 header = toMessageHeader(),
+                bodyType = bodyType,
                 body = body,
                 aggregateId = aggregateId,
                 version = version,

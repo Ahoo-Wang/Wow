@@ -104,11 +104,12 @@ internal class JsonSerializerTest {
             mockEventJson.toJsonNode<ObjectNode>().toDomainEventRecord().toMutableDomainEventRecord()
         mutableDomainEventRecord.bodyType = "NotFoundClass"
         val failedDomainEvent = mutableDomainEventRecord.actual.toJsonString().toObject<DomainEvent<Any>>()
-        assertThat(mockEvent.id, equalTo(failedDomainEvent.id))
-        assertThat(failedDomainEvent.aggregateId, equalTo(failedDomainEvent.aggregateId))
-        assertThat(failedDomainEvent.revision, equalTo(failedDomainEvent.revision))
         assertThat(failedDomainEvent, instanceOf(BodyTypeNotFoundDomainEvent::class.java))
-
+        val failedBodyTypeNotFoundDomainEvent = failedDomainEvent as BodyTypeNotFoundDomainEvent
+        assertThat(failedBodyTypeNotFoundDomainEvent.id, equalTo(mockEvent.id))
+        assertThat(failedBodyTypeNotFoundDomainEvent.aggregateId, equalTo(mockEvent.aggregateId))
+        assertThat(failedBodyTypeNotFoundDomainEvent.bodyType, equalTo(mutableDomainEventRecord.bodyType))
+        assertThat(failedBodyTypeNotFoundDomainEvent.revision, equalTo(mutableDomainEventRecord.revision))
         val failedDomainEventJson = failedDomainEvent.toJsonString()
         val failedDomainEventRecord =
             failedDomainEventJson.toJsonNode<ObjectNode>().toDomainEventRecord().toMutableDomainEventRecord()
