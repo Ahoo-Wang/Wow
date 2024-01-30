@@ -23,13 +23,13 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 ## Features Overview
 
 <p align="center" style="text-align:center">
-  <img src="document/design/assets/Features.png" alt="Wow-Features"/>
+  <img src="documentation/docs/public/images/Features.png" alt="Wow-Features"/>
 </p>
 
 ## Architecture
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Architecture.svg" alt="Wow-Architecture"/>
+  <img src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ## Performance Test (Example)
@@ -323,30 +323,30 @@ class CartSagaTest {
 ### Use Case
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Event-Compensation-UserCase.svg" alt="Event-Compensation-UserCase"/>
+  <img src="documentation/docs/public/images/compensation/usercase.svg" alt="Event-Compensation-UserCase"/>
 </p>
 
 ### Execution Sequence Diagram
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/Event-Compensation.svg" alt="Event-Compensation"/>
+  <img src="documentation/docs/public/images/compensation/process-sequence-diagram.svg" alt="Event-Compensation"/>
 </p>
 
 ### Dashboard
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/compensation-dashboard.png" alt="Compensation-Dashboard"/>
+  <img src="documentation/docs/public/images/compensation/dashboard.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/compensation-dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
+  <img src="documentation/docs/public/images/compensation/dashboard-apply-retry-spec.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/compensation-dashboard-succeeded.png" alt="Compensation-Dashboard"/>
+  <img src="documentation/docs/public/images/compensation/dashboard-succeeded.png" alt="Compensation-Dashboard"/>
 </p>
 
 <p align="center" style="text-align:center">
-  <img src="./document/design/assets/compensation-dashboard-error.png" alt="Compensation-Dashboard-Error"/>
+  <img src="documentation/docs/public/images/compensation/dashboard-error.png" alt="Compensation-Dashboard-Error"/>
 </p>
 
