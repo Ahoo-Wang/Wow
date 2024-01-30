@@ -19,7 +19,8 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -62,9 +63,9 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
             .toSet()
     }
 
-    private fun filterRegistrar(topicKind: TopicKind): SimpleMultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+    private fun filterRegistrar(topicKind: TopicKind): MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
         val registrar =
-            SimpleMultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>()
+            SimpleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>()
         functionRegistrar.functions.filter {
             it.functionKind.topicKind == topicKind
         }.forEach {

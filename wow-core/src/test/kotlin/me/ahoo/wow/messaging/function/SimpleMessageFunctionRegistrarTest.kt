@@ -12,38 +12,48 @@
  */
 package me.ahoo.wow.messaging.function
 
+import io.mockk.every
+import io.mockk.mockk
+import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-internal class SimpleMultipleMessageFunctionRegistrarTest {
+internal class SimpleMessageFunctionRegistrarTest {
+    private val message = mockk<DomainEvent<MockEventBody>> {
+        every { body } returns MockEventBody()
+        every { contextName } returns requiredNamedAggregate<MockEventBody>().contextName
+        every { aggregateName } returns requiredNamedAggregate<MockEventBody>().aggregateName
+    }
 
     @Test
     fun register() {
-        val handler =
+        val function =
             MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
                 .toFunctionMetadata<Any, Any>()
                 .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
-        val registrar = SimpleMultipleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
-        registrar.register(handler)
-        var actual: Set<MessageFunction<*, *, *>?> = registrar.getFunctions(handler.supportedType)
+        val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
+        registrar.register(function)
+
+        var actual: Set<MessageFunction<*, *, *>?> = registrar.supportedFunctions(message).toSet()
         assertThat(actual.size, equalTo(1))
-        assertThat(actual, hasItem(handler))
+        assertThat(actual, hasItem(function))
 
         // 重复注册相同 handler
-        registrar.register(handler)
-        actual = registrar.getFunctions(handler.supportedType)
+        registrar.register(function)
+        actual = registrar.supportedFunctions(message).toSet()
         assertThat(actual.size, equalTo(1))
-        assertThat(actual, hasItem(handler))
+        assertThat(actual, hasItem(function))
         val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         registrar.register(anotherHandler)
-        actual = registrar.getFunctions(handler.supportedType)
+        actual = registrar.supportedFunctions(message).toSet()
         assertThat(actual.size, equalTo(2))
-        assertThat(actual, hasItems(handler, anotherHandler))
+        assertThat(actual, hasItems(function, anotherHandler))
     }
 
     @Test
@@ -51,10 +61,10 @@ internal class SimpleMultipleMessageFunctionRegistrarTest {
         val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
-        val registrar = SimpleMultipleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
+        val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
         registrar.register(handler)
         registrar.unregister(handler)
-        val actual = registrar.getFunctions(handler.supportedType)
+        val actual = registrar.supportedFunctions(message).toSet()
         assertThat(actual, empty())
     }
 }

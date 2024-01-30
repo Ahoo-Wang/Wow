@@ -66,7 +66,7 @@ internal class DefaultWhenStage<T : Any>(
         val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway)
         handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
-        val expectedResultMono = handlerRegistrar.getFunctions(eventExchange.message.body.javaClass)
+        val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
             .first()
             .invoke(eventExchange)
             .map {

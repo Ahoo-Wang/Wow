@@ -16,14 +16,14 @@ package me.ahoo.wow.projection
 import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
-import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.projection.annotation.projectionProcessorMetadata
 import reactor.core.publisher.Mono
 
 class ProjectionFunctionRegistrar(
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
-        SimpleMultipleMessageFunctionRegistrar()
+    actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
     override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {

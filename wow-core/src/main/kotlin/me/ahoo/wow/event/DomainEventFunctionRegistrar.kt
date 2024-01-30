@@ -16,16 +16,16 @@ package me.ahoo.wow.event
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
-import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import reactor.core.publisher.Mono
 
 abstract class AbstractEventFunctionRegistrar(
-    override val delegate: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
-        SimpleMultipleMessageFunctionRegistrar()
+    override val delegate: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMessageFunctionRegistrar()
 ) :
-    MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> by delegate,
-    Decorator<MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>> {
+    MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> by delegate,
+    Decorator<MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>> {
 
     fun registerProcessor(processor: Any) {
         if (processor is MessageFunction<*, *, *>) {
@@ -42,8 +42,8 @@ abstract class AbstractEventFunctionRegistrar(
 }
 
 class DomainEventFunctionRegistrar(
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
-        SimpleMultipleMessageFunctionRegistrar()
+    actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
     override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
