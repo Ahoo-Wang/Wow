@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventExchange
@@ -67,7 +68,14 @@ internal class DefaultWhenStage<T : Any>(
         handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
-            .first()
+            .filter {
+                if (state != null) {
+                    it.functionKind == FunctionKind.STATE_EVENT
+                } else {
+                    it.functionKind == FunctionKind.EVENT
+                }
+            }
+            .single()
             .invoke(eventExchange)
             .map {
                 ExpectedResult(
