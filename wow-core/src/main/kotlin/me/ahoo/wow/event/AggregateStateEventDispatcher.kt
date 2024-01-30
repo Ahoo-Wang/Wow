@@ -18,7 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -32,7 +32,7 @@ class AggregateStateEventDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val messageFlux: Flux<StateEventExchange<*>>,
     override val functionRegistrar:
-    MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
+    MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler
 ) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {

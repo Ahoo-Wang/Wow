@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.projection
 
+import io.mockk.every
+import io.mockk.mockk
+import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.hamcrest.MatcherAssert.*
@@ -27,13 +31,22 @@ internal class ProjectionProcessorRegistrarTest {
         val mockProjector = MockProjector()
         handlerRegistrar.registerProcessor(mockProjector)
         assertThat(handlerRegistrar.functions, hasSize(2))
-
+        val messageMockAggregateCreated = mockk<DomainEvent<MockAggregateCreated>> {
+            every { body } returns MockAggregateCreated("data")
+            every { contextName } returns requiredNamedAggregate<MockAggregateCreated>().contextName
+            every { aggregateName } returns requiredNamedAggregate<MockAggregateCreated>().aggregateName
+        }
         assertThat(
-            handlerRegistrar.getFunctions(MockAggregateCreated::class.java),
+            handlerRegistrar.supportedFunctions(messageMockAggregateCreated).toSet(),
             hasSize(1),
         )
+        val messageMockAggregateChanged = mockk<DomainEvent<MockAggregateChanged>> {
+            every { body } returns MockAggregateChanged("data")
+            every { contextName } returns requiredNamedAggregate<MockAggregateChanged>().contextName
+            every { aggregateName } returns requiredNamedAggregate<MockAggregateChanged>().aggregateName
+        }
         assertThat(
-            handlerRegistrar.getFunctions(MockAggregateChanged::class.java),
+            handlerRegistrar.supportedFunctions(messageMockAggregateChanged).toSet(),
             hasSize(1),
         )
     }

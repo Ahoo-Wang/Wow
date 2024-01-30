@@ -14,9 +14,11 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
@@ -38,8 +40,12 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
-    fun supportTopic(topic: NamedAggregate): Boolean {
-        return supportedTopics.contains(topic)
+    fun <M> supportMessage(message: M): Boolean
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        return supportedType.isInstance(message.body) &&
+            supportedTopics.any {
+                it.isSameAggregateName(message)
+            }
     }
 
     fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A?

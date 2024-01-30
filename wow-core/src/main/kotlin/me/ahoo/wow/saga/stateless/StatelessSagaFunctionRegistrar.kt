@@ -17,15 +17,15 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
-import me.ahoo.wow.messaging.function.SimpleMultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.saga.annotation.statelessSagaMetadata
 import reactor.core.publisher.Mono
 
 class StatelessSagaFunctionRegistrar(
     private val commandGateway: CommandGateway,
-    actual: MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
-        SimpleMultipleMessageFunctionRegistrar()
+    actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        SimpleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
 
     override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {

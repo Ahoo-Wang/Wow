@@ -14,10 +14,11 @@
 package me.ahoo.wow.example.server.order
 
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.example.api.ExampleService
-import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -28,14 +29,22 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
 @EventProcessor
-class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<OrderCreated>, Mono<Void>> {
+class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<Any>, Mono<Void>> {
     companion object {
         private val log = LoggerFactory.getLogger(OrderMessageFunction::class.java)
     }
 
     override val supportedTopics: Set<NamedAggregate> = setOf(aggregateMetadata<Order, OrderState>().materialize())
     override val supportedType: Class<*>
-        get() = OrderCreated::class.java
+        get() = Any::class.java
+
+    override fun <M> supportMessage(message: M): Boolean
+            where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        return supportedTopics.any {
+            it.isSameAggregateName(message)
+        }
+    }
+
     override val processor: Any
         get() = this
 
@@ -43,7 +52,7 @@ class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<OrderCreat
         return null
     }
 
-    override fun invoke(exchange: DomainEventExchange<OrderCreated>): Mono<Void> {
+    override fun invoke(exchange: DomainEventExchange<Any>): Mono<Void> {
         if (log.isDebugEnabled) {
             log.debug(exchange.message.body.toString())
         }
