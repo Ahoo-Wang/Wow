@@ -132,8 +132,6 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
             }
         } else {
             receiveEventStream(eventStreamTopics)
-                .writeReceiverGroup(name)
-                .writeMetricsSubscriber(name)
                 .groupBy { it.message.materialize() }
                 .subscribe(domainEventDistributionSubscriber)
         }
@@ -147,8 +145,6 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
             }
         } else {
             receiveStateEventStream(stateEventTopics)
-                .writeReceiverGroup(name)
-                .writeMetricsSubscriber(name)
                 .groupBy { it.message.materialize() }
                 .subscribe(stateEventDistributionSubscriber)
         }
