@@ -24,12 +24,14 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import java.time.Duration
+import java.util.concurrent.locks.LockSupport
 
 internal class DomainEventDispatcherTest {
     private val namedAggregate = DomainEventDispatcherTest::class.java.requiredNamedAggregate()
@@ -85,6 +87,14 @@ internal class DomainEventDispatcherTest {
 
         sink.asMono().block(Duration.ofSeconds(1))
 
+        val eventStreamIgnore =
+            MockAggregateChanged(
+                GlobalIdGenerator.generateAsString(),
+            ).toDomainEventStream(GivenInitializationCommand(aggregateId), Version.INITIAL_VERSION)
+
+        domainEventBus.send(eventStreamIgnore).block()
+
+        LockSupport.parkNanos(Duration.ofSeconds(1).toNanos())
         domainEventProcessor.close()
     }
 }
