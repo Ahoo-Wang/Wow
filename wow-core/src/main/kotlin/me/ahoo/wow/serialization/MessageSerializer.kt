@@ -21,7 +21,7 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.serialization.event.BodyTypeNotFoundDomainEvent
+import me.ahoo.wow.serialization.event.JsonDomainEvent
 
 abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : StdSerializer<M>(messageType) {
 
@@ -53,7 +53,7 @@ abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : Std
     }
 
     open fun writeBodyType(generator: JsonGenerator, value: M) {
-        if (value is BodyTypeNotFoundDomainEvent) {
+        if (value is JsonDomainEvent) {
             generator.writeStringField(MessageRecords.BODY_TYPE, value.bodyType)
             return
         }

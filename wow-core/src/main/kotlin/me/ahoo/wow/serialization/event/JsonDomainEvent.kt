@@ -19,7 +19,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 
-data class BodyTypeNotFoundDomainEvent(
+data class JsonDomainEvent(
     override val id: String,
     override val header: Header,
     val bodyType: String,
@@ -31,6 +31,5 @@ data class BodyTypeNotFoundDomainEvent(
     override val commandId: String,
     override val name: String,
     override val isLast: Boolean = true,
-    override val createTime: Long = System.currentTimeMillis(),
-    override val cause: Throwable
-) : DomainEvent<JsonNode>, NamedAggregate by aggregateId, IllegalStateException(cause)
+    override val createTime: Long = System.currentTimeMillis()
+) : DomainEvent<JsonNode>, NamedAggregate by aggregateId
