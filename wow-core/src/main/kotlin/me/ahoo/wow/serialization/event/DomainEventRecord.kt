@@ -74,7 +74,7 @@ interface DomainEventRecord :
             bodyType.toType<Any>()
         } catch (classNotFoundException: ClassNotFoundException) {
             @Suppress("UNCHECKED_CAST")
-            return BodyTypeNotFoundDomainEvent(
+            return JsonDomainEvent(
                 id = id,
                 header = toMessageHeader(),
                 bodyType = bodyType,
@@ -87,7 +87,6 @@ interface DomainEventRecord :
                 commandId = commandId,
                 name = name,
                 createTime = createTime,
-                cause = classNotFoundException,
             ) as DomainEvent<Any>
         }
         return SimpleDomainEvent(
