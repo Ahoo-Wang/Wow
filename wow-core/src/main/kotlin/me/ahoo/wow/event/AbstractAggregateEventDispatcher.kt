@@ -57,10 +57,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
             }.toSet()
         if (functions.isEmpty()) {
             if (log.isDebugEnabled) {
-                log.debug(
-                    "Not find any functions.Ignore this event:[{}].",
-                    event.toJsonString(),
-                )
+                log.debug("Not find any functions.Ignore this event:[{}].", event.toJsonString())
             }
             return Mono.empty()
         }
