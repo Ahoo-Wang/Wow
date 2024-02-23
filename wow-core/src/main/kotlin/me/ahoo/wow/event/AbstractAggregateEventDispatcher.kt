@@ -34,7 +34,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
     }
 
     abstract val functionRegistrar:
-            MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
+        MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
     abstract val eventHandler: EventHandler
 
     override fun E.toGroupKey(): Int {
