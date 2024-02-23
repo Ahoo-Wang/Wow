@@ -71,7 +71,96 @@ enum class Type {
 | `algorithms`   | `Map<String, ShardingAlgorithm>` | 分片算法    |     |
 
 
-**YAML 配置样例**
+### Database
+
+| 名称    | 数据类型     | 说明      | 默认值 |
+|-------|----------|---------|-----|
+| `url` | `String` | 数据库连接地址 |     |
+
+
+### ShardingRule
+
+| 名称                   | 数据类型     | 说明      | 默认值 |
+|----------------------|----------|---------|-----|
+| `database-algorithm` | `String` | 数据库分片算法 |     |
+| `table-algorithm`    | `String` | 表分片算法   |     |
+
+### ShardingAlgorithm
+
+| 名称     | 数据类型           | 说明       | 默认值   |
+|--------|----------------|----------|-------|
+| `type` | `String`       | 分片算法类型   | `mod` |
+| `mod`  | `ModAlgorithm` | 取模分片算法配置 |       |
+
+#### ModAlgorithm
+
+| 名称                  | 数据类型     | 说明    | 默认值 |
+|---------------------|----------|-------|-----|
+| `logic-name-prefix` | `String` | 逻辑名前缀 |     |
+| `divisor`           | `Int`    | 除数    |     |
+
+## 初始化SQL脚本
+
+### 命名约定
+
+- 聚合事件流表: [聚合名称]_event_stream
+- 聚合快照表: [聚合名称]_snapshot
+
+```sql
+create table if not exists aggregate_name_event_stream
+(
+    id           char(15)        not null comment 'event stream id' primary key,
+    aggregate_id char(15)        not null,
+    tenant_id    char(15)        not null,
+    request_id   char(15)        not null,
+    command_id   char(15)        not null,
+    version      int unsigned    not null,
+    header       mediumtext      not null,
+    body         longtext        not null,
+    size         int unsigned    not null,
+    create_time  bigint unsigned not null,
+    constraint u_idx_aggregate_id_version
+        unique (aggregate_id, version),
+    constraint u_idx_request_id
+        unique (request_id),
+    key idx_tenant_id (tenant_id)
+)
+    collate = utf8mb4_bin;
+
+create table if not exists aggregate_name_snapshot
+(
+    aggregate_id     char(15)        not null primary key,
+    tenant_id        char(15)        not null,
+    version          int unsigned    not null comment 'aggregate version',
+    state_type       varchar(255)    not null comment 'aggregate state type',
+    state            longtext        not null comment 'aggregate state',
+    event_id         char(15)        not null default '',
+    first_operator   char(15)        not null default '',
+    operator         char(15)        not null default '',
+    first_event_time bigint unsigned not null default 0,
+    event_time       bigint unsigned not null default 0,
+    snapshot_time    bigint unsigned not null,
+    deleted          tinyint(1)      not null default 0,
+    key idx_tenant_id (tenant_id)
+)
+    collate = utf8mb4_bin;
+```
+
+## 简单模式配置
+
+```yaml
+spring:
+  r2dbc:
+    url: r2dbc:pool:mariadb://root:root@localhost:3306/wow_db?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+wow:
+  eventsourcing:
+    store:
+      storage: r2dbc
+    snapshot:
+      storage: r2dbc
+```
+
+## 分片模式配置
 
 ```yaml
 wow:
@@ -118,31 +207,3 @@ wow:
               logic-name-prefix: order_snapshot_
               divisor: 4
 ```
-
-### Database
-
-| 名称    | 数据类型     | 说明      | 默认值 |
-|-------|----------|---------|-----|
-| `url` | `String` | 数据库连接地址 |     |
-
-
-### ShardingRule
-
-| 名称                   | 数据类型     | 说明      | 默认值 |
-|----------------------|----------|---------|-----|
-| `database-algorithm` | `String` | 数据库分片算法 |     |
-| `table-algorithm`    | `String` | 表分片算法   |     |
-
-### ShardingAlgorithm
-
-| 名称     | 数据类型           | 说明       | 默认值   |
-|--------|----------------|----------|-------|
-| `type` | `String`       | 分片算法类型   | `mod` |
-| `mod`  | `ModAlgorithm` | 取模分片算法配置 |       |
-
-#### ModAlgorithm
-
-| 名称                  | 数据类型     | 说明    | 默认值 |
-|---------------------|----------|-------|-----|
-| `logic-name-prefix` | `String` | 逻辑名前缀 |     |
-| `divisor`           | `Int`    | 除数    |     |
