@@ -13,12 +13,26 @@ import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import org.bson.conversions.Bson
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 class MongoFilterConverterTest {
+
+    @Test
+    fun toMongoFilterBetweenError() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("id", Operator.BETWEEN, listOf<Int>())
+                .toMongoFilter()
+        }
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("id", Operator.BETWEEN, listOf<Int>(1))
+                .toMongoFilter()
+        }
+    }
 
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
