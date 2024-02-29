@@ -123,12 +123,16 @@ class SchemaRef(
         }
 
         fun Class<*>.toSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
+            return toSchemaRef(propertyName, propertyType.toSchemaRef())
+        }
+
+        fun Class<*>.toSchemaRef(propertyName: String, propertySchemaRef: SchemaRef): SchemaRef {
             val genericSchemaName = requireNotNull(this.toSchemaName())
             val genericSchemas = toSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
-            genericSchema.properties[propertyName] = propertyType.toSchemaRef().ref
-            val propertySchemas = propertyType.toSchemas()
-            val propertySchemaName = propertyType.toSchemaName()
+            genericSchema.properties[propertyName] = propertySchemaRef.ref
+            val propertySchemas = propertySchemaRef.schemas
+            val propertySchemaName = propertySchemaRef.name
             val schemaName = propertySchemaName + simpleName
             genericSchema.name = schemaName
             val schemas = (genericSchemas + propertySchemas)
