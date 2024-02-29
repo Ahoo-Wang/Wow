@@ -15,7 +15,7 @@ package me.ahoo.wow.compensation.server.failed
 
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.query.ExecutionFailedQuery
-import me.ahoo.wow.compensation.api.query.PagedList
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.compensation.api.query.PagedQuery
 import me.ahoo.wow.compensation.api.query.QueryApi
 import org.springframework.web.bind.annotation.PostMapping

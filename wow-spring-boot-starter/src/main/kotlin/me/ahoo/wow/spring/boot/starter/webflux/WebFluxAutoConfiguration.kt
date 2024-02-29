@@ -43,9 +43,12 @@ import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunction
 import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
@@ -88,7 +91,10 @@ class WebFluxAutoConfiguration {
         const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
+        const val PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "pagedQuerySnapshotHandlerFunctionFactory"
         const val QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotHandlerFunctionFactory"
+        const val COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countSnapshotHandlerFunctionFactory"
+        const val SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotHandlerFunctionFactory"
         const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "regenerateSnapshotHandlerFunctionFactory"
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
@@ -199,6 +205,39 @@ class WebFluxAutoConfiguration {
     ): QuerySnapshotHandlerFunctionFactory {
         val factory = snapshotQueryServiceFactory.getIfAvailable { NoOpSnapshotQueryServiceFactory }
         return QuerySnapshotHandlerFunctionFactory(factory, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun pagedQuerySnapshotHandlerFunctionFactory(
+        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        exceptionHandler: ExceptionHandler
+    ): PagedQuerySnapshotHandlerFunctionFactory {
+        val factory = snapshotQueryServiceFactory.getIfAvailable { NoOpSnapshotQueryServiceFactory }
+        return PagedQuerySnapshotHandlerFunctionFactory(factory, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun singleSnapshotHandlerFunctionFactory(
+        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        exceptionHandler: ExceptionHandler
+    ): SingleSnapshotHandlerFunctionFactory {
+        val factory = snapshotQueryServiceFactory.getIfAvailable { NoOpSnapshotQueryServiceFactory }
+        return SingleSnapshotHandlerFunctionFactory(factory, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun countSnapshotHandlerFunctionFactory(
+        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        exceptionHandler: ExceptionHandler
+    ): CountSnapshotHandlerFunctionFactory {
+        val factory = snapshotQueryServiceFactory.getIfAvailable { NoOpSnapshotQueryServiceFactory }
+        return CountSnapshotHandlerFunctionFactory(factory, exceptionHandler)
     }
 
     @Bean

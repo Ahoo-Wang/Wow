@@ -17,11 +17,11 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoClient
 import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.compensation.CompensationService
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.query.ExecutionFailedQuery
-import me.ahoo.wow.compensation.api.query.PagedList
 import me.ahoo.wow.compensation.api.query.PagedQuery
 import me.ahoo.wow.compensation.api.query.Sort
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
@@ -122,37 +122,37 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
         return Filters.eq(RECOVERABLE_FIELD, RecoverableType.UNRECOVERABLE.name)
     }
 
-    override fun findAll(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findAll(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = Filters.empty()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = nextRetryFilter()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findExecuting(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = executingFilter()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findToRetry(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findToRetry(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = toRetryFilter()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findNonRetryable(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = nonRetryableFilter()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findSuccess(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = successFilter()
         return findPagedList(filter, pagedQuery)
     }
 
-    override fun findUnrecoverable(pagedQuery: PagedQuery): Mono<PagedList<out IExecutionFailedState>> {
+    override fun findUnrecoverable(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>> {
         val filter = unrecoverableFilter()
         return findPagedList(filter, pagedQuery)
     }
@@ -160,7 +160,7 @@ class MongoExecutionFailedQuery(mongoClient: MongoClient) : FindNextRetry, Execu
     private fun findPagedList(
         filter: Bson,
         pagedQuery: PagedQuery
-    ): Mono<PagedList<out IExecutionFailedState>> {
+    ): Mono<PagedList<IExecutionFailedState>> {
         val sort = pagedQuery.sort.map {
             when (it.order) {
                 Sort.Order.ASC -> Sorts.ascending(it.field)
