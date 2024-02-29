@@ -39,11 +39,20 @@ class MongoSnapshotQueryService(private val collection: MongoCollection<Document
         return Filters.and(tenantIdFilter, this)
     }
 
+    override fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
+        val filter = condition.toMongoFilter().withTenantId(tenantId)
+        return collection.find(filter)
+            .first()
+            .toMono()
+            .toSnapshot()
+    }
+
     override fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
         val filter = query.condition.toMongoFilter().withTenantId(tenantId)
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
             .sort(sort)
+            .limit(query.limit)
             .toFlux()
             .toSnapshot()
     }
@@ -59,7 +68,7 @@ class MongoSnapshotQueryService(private val collection: MongoCollection<Document
         val listPublisher = collection.find(filter)
             .sort(sort)
             .skip(pagedQuery.pagination.offset())
-            .limit(pagedQuery.pagination.size)
+            .limit(pagedQuery.limit)
             .toFlux()
             .toSnapshot<S>()
             .collectList()

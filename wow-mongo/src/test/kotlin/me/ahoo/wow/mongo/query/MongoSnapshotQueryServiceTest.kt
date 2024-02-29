@@ -30,6 +30,16 @@ class MongoSnapshotQueryServiceTest {
     }
 
     @Test
+    fun single() {
+        snapshotQueryService.single<MockStateAggregate>(
+            tenantId = GlobalIdGenerator.generateAsString(),
+            condition = Condition.EMPTY
+        )
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun query() {
         snapshotQueryService.query<MockStateAggregate>(
             tenantId = GlobalIdGenerator.generateAsString(),
