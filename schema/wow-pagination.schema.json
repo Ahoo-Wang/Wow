@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "$id": "https://view.linyikj.com/filter.schema.json",
+  "title": "Paged Query Model Schema",
+  "type": "object",
+  "properties": {
+    "condition": {
+      "$ref": "wow-query.schema.json#/definitions/condition"
+    },
+    "sort": {
+      "type": "array",
+      "items": {
+        "$ref": "wow-query.schema.json#/definitions/sort"
+      },
+      "default": []
+    },
+    "pagination": {
+      "$ref": "wow-query.schema.json#/definitions/pagination"
+    }
+  },
+  "required": [
+    "condition"
+  ]
+}
