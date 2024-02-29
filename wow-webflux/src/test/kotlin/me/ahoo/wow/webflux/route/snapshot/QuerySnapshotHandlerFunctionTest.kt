@@ -2,11 +2,11 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpec
-import me.ahoo.wow.query.Condition
 import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.PagedQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
