@@ -11,8 +11,5 @@
     ]
   },
   "sort": [],
-  "pagination": {
-    "index": 0,
-    "size": 10
-  }
+  "limit": 0
 }

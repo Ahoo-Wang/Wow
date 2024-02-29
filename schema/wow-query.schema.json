@@ -14,8 +14,9 @@
       },
       "default": []
     },
-    "pagination": {
-      "$ref": "#/definitions/pagination"
+    "limit": {
+      "type": "integer",
+      "default": 0
     }
   },
   "required": [
