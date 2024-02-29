@@ -37,6 +37,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
         val snapshotCollectionName = aggregateId.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.eq(Documents.ID_FIELD, aggregateId.id))
+            .limit(1)
             .first()
             .toMono()
             .map {
@@ -49,6 +50,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
         return database.getCollection(snapshotCollectionName)
             .find(Filters.eq(Documents.ID_FIELD, aggregateId.id))
             .projection(Document(MessageRecords.VERSION, 1))
+            .limit(1)
             .first()
             .toMono()
             .map {

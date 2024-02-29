@@ -43,8 +43,31 @@ data class Condition(
     val children: List<Condition> = emptyList()
 ) {
     companion object {
-        val EMPTY = Condition("", Operator.EMPTY, "")
-        val EMPTY_VALUE = Any()
+        const val EMPTY_VALUE = ""
+        val EMPTY = Condition(EMPTY_VALUE, Operator.EMPTY, EMPTY_VALUE)
+
+        fun and(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.AND, children = conditions.toList())
+        fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
+        fun or(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.OR, children = conditions.toList())
+        fun or(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.OR, children = conditions)
+        fun empty() = EMPTY
+        fun eq(field: String, value: Any) = Condition(field, Operator.EQ, value)
+        fun ne(field: String, value: Any) = Condition(field, Operator.NE, value)
+        fun gt(field: String, value: Any) = Condition(field, Operator.GT, value)
+        fun lt(field: String, value: Any) = Condition(field, Operator.LT, value)
+        fun gte(field: String, value: Any) = Condition(field, Operator.GTE, value)
+        fun lte(field: String, value: Any) = Condition(field, Operator.LTE, value)
+        fun like(field: String, value: Any) = Condition(field, Operator.LIKE, value)
+
+        @Suppress("FunctionNaming")
+        fun `in`(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
+        fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
+        fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
+        fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL, value)
+        fun startsWith(field: String, value: Any) = Condition(field, Operator.STATS_WITH, value)
+        fun elemMatch(field: String, value: Condition) = Condition(field, Operator.ELEM_MATCH, children = listOf(value))
+        fun isNull(field: String) = Condition(field, Operator.NULL)
+        fun notNull(field: String) = Condition(field, Operator.NOT_NULL)
     }
 }
 
@@ -56,9 +79,7 @@ data class Sort(val field: String, val direction: Direction) {
 
 data class Pagination(val index: Int, val size: Int) {
     companion object {
-        const val DEFAULT_PAGE_INDEX = 1
-        const val DEFAULT_PAGE_SIZE = 10
-        val DEFAULT_PAGINATION = Pagination(DEFAULT_PAGE_INDEX, DEFAULT_PAGE_SIZE)
+        val DEFAULT_PAGINATION = Pagination(1, 10)
         fun offset(index: Int, size: Int) = (index - 1) * size
     }
 
