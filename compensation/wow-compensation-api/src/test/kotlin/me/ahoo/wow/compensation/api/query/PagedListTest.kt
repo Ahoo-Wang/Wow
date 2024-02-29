@@ -1,5 +1,6 @@
 package me.ahoo.wow.compensation.api.query
 
+import me.ahoo.wow.api.query.PagedList
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
