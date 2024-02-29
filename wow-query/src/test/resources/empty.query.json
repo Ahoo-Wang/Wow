@@ -1,0 +1,11 @@
+{
+  "condition": {
+    "field": "",
+    "operator": "EMPTY"
+  },
+  "sort": [],
+  "pagination": {
+    "index": 0,
+    "size": 10
+  }
+}

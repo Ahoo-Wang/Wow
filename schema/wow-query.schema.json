@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "$id": "https://view.linyikj.com/filter.schema.json",
+  "title": "Query Model Schema",
+  "type": "object",
+  "properties": {
+    "condition": {
+      "$ref": "#/definitions/condition"
+    },
+    "sort": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/sort"
+      },
+      "default": []
+    },
+    "pagination": {
+      "$ref": "#/definitions/pagination"
+    }
+  },
+  "required": [
+    "condition"
+  ],
+  "definitions": {
+    "operator": {
+      "title": "算子/操作符",
+      "enum": [
+        "AND",
+        "OR",
+        "EMPTY",
+        "EQ",
+        "NE",
+        "GT",
+        "LT",
+        "GTE",
+        "LTE",
+        "LIKE",
+        "IN",
+        "NOT_IN",
+        "BETWEEN",
+        "ALL",
+        "STATS_WITH",
+        "ELEM_MATCH",
+        "NULL",
+        "NOT_NULL"
+      ]
+    },
+    "condition": {
+      "title": "查询过滤条件",
+      "type": "object",
+      "properties": {
+        "field": {
+          "title": "字段 id",
+          "type": "string",
+          "default": ""
+        },
+        "operator": {
+          "$ref": "#/definitions/operator"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "array"
+            }
+          ],
+          "default": ""
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "field",
+        "operator"
+      ]
+    },
+    "pagination": {
+      "title": "分页",
+      "type": "object",
+      "properties": {
+        "index": {
+          "title": "page index",
+          "type": "integer",
+          "default": 1
+        },
+        "size": {
+          "title": "page size",
+          "type": "integer",
+          "default": 10
+        }
+      },
+      "required": [
+        "index",
+        "size"
+      ]
+    },
+    "sort": {
+      "title": "排序",
+      "type": "object",
+      "properties": {
+        "field": {
+          "title": "字段 id",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "required": [
+        "field",
+        "direction"
+      ]
+    }
+  }
+}

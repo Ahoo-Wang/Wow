@@ -1,0 +1,18 @@
+{
+  "condition": {
+    "field": "",
+    "operator": "AND",
+    "children": [
+      {
+        "field": "_id",
+        "operator": "EQ",
+        "value": "0TyzPmFV003j001"
+      }
+    ]
+  },
+  "sort": [],
+  "pagination": {
+    "index": 0,
+    "size": 10
+  }
+}
