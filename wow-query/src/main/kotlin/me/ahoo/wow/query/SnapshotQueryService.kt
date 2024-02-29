@@ -19,6 +19,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface SnapshotQueryService {
+    fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>>
     fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>>
     fun <S : Any> pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>>
     fun count(tenantId: String, condition: Condition): Mono<Long>
