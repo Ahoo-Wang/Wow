@@ -42,6 +42,7 @@ class MongoSnapshotQueryService(private val collection: MongoCollection<Document
     override fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
         val filter = condition.toMongoFilter().withTenantId(tenantId)
         return collection.find(filter)
+            .limit(1)
             .first()
             .toMono()
             .toSnapshot()

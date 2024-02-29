@@ -39,7 +39,7 @@ class PagedQuerySnapshotRouteSpec(
         get() = Https.Method.POST
 
     override val appendPathSuffix: String
-        get() = "snapshot/pagedQuery"
+        get() = "snapshot/pagination"
 
     override val summary: String
         get() = "Paged Query snapshot"

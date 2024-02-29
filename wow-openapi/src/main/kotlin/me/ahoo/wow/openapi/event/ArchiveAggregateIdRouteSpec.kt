@@ -35,7 +35,7 @@ class ArchiveAggregateIdRouteSpec(
     override val summary: String
         get() = "Archive AggregateId"
     override val appendPathSuffix: String
-        get() = "event/aggregate_id"
+        get() = "event/aggregateId"
     override val responses: ApiResponses
         get() = ApiResponses().withRequestTimeout()
 

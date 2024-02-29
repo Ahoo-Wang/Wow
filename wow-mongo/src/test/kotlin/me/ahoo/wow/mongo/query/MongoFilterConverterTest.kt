@@ -60,33 +60,33 @@ class MongoFilterConverterTest {
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of(Condition.EMPTY, Filters.empty()),
-                Arguments.of(Condition("id", Operator.EQ, "id"), Filters.eq("id", "id")),
-                Arguments.of(Condition("id", Operator.NE, "id"), Filters.ne("id", "id")),
-                Arguments.of(Condition("id", Operator.GT, 1), Filters.gt("id", 1)),
-                Arguments.of(Condition("id", Operator.LT, 1), Filters.lt("id", 1)),
-                Arguments.of(Condition("id", Operator.GTE, 1), Filters.gte("id", 1)),
-                Arguments.of(Condition("id", Operator.LTE, 1), Filters.lte("id", 1)),
-                Arguments.of(Condition("id", Operator.LIKE, "value"), Filters.regex("id", "value")),
-                Arguments.of(Condition("id", Operator.IN, listOf("value")), Filters.`in`("id", listOf("value"))),
-                Arguments.of(Condition("id", Operator.NOT_IN, listOf("value")), Filters.nin("id", listOf("value"))),
+                Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),
+                Arguments.of(Condition.ne("id", "id"), Filters.ne("id", "id")),
+                Arguments.of(Condition.gt("id", 1), Filters.gt("id", 1)),
+                Arguments.of(Condition.lt("id", 1), Filters.lt("id", 1)),
+                Arguments.of(Condition.gte("id", 1), Filters.gte("id", 1)),
+                Arguments.of(Condition.lte("id", 1), Filters.lte("id", 1)),
+                Arguments.of(Condition.like("id", "value"), Filters.regex("id", "value")),
+                Arguments.of(Condition.`in`("id", listOf("value")), Filters.`in`("id", listOf("value"))),
+                Arguments.of(Condition.notIn("id", listOf("value")), Filters.nin("id", listOf("value"))),
                 Arguments.of(
-                    Condition("id", Operator.BETWEEN, listOf(1, 2)),
+                    Condition.between("id", 1, 2),
                     Filters.and(Filters.gte("id", 1), Filters.lte("id", 2))
                 ),
-                Arguments.of(Condition("id", Operator.ALL, listOf("value")), Filters.all("id", listOf("value"))),
-                Arguments.of(Condition("id", Operator.NULL, ""), Filters.eq("id", null)),
-                Arguments.of(Condition("id", Operator.NOT_NULL, ""), Filters.ne("id", null)),
+                Arguments.of(Condition.all("id", listOf("value")), Filters.all("id", listOf("value"))),
+                Arguments.of(Condition.isNull("id"), Filters.eq("id", null)),
+                Arguments.of(Condition.notNull("id"), Filters.ne("id", null)),
                 Arguments.of(
-                    Condition("id", Operator.ELEM_MATCH, children = listOf(Condition("id", Operator.EQ, "id"))),
+                    Condition.elemMatch("id", Condition("id", Operator.EQ, "id")),
                     Filters.elemMatch("id", Filters.eq("id", "id"))
                 ),
-                Arguments.of(Condition("id", Operator.STATS_WITH, "value"), Filters.regex("id", "^value")),
+                Arguments.of(Condition.startsWith("id", "value"), Filters.regex("id", "^value")),
                 Arguments.of(
-                    Condition("", Operator.AND, children = listOf(Condition("id", Operator.EQ, "id"))),
+                    Condition.and(listOf(Condition("id", Operator.EQ, "id"))),
                     Filters.and(Filters.eq("id", "id"))
                 ),
                 Arguments.of(
-                    Condition("", Operator.OR, children = listOf(Condition("id", Operator.EQ, "id"))),
+                    Condition.or(listOf(Condition("id", Operator.EQ, "id"))),
                     Filters.or(Filters.eq("id", "id"))
                 ),
             )
