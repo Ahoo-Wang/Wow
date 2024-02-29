@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.openapi.snapshot
 
-import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -26,49 +26,48 @@ import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
-class QuerySnapshotRouteSpec(
+class PagedQuerySnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.querySnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.pagedQuerySnapshot"
     override val method: String
         get() = Https.Method.POST
 
     override val appendPathSuffix: String
-        get() = "snapshot/query"
+        get() = "snapshot/pagedQuery"
 
     override val summary: String
-        get() = "Query snapshot"
-    override val requestBody: RequestBody = Query::class.java.toRequestBody()
-
-    val responseSchema = Snapshot::class.java.toSchemaRef(
-        Snapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    ).let {
-        ArraySchema().items(it.ref)
-    }
-
+        get() = "Paged Query snapshot"
+    override val requestBody: RequestBody = PagedQuery::class.java.toRequestBody()
+    val responseSchemaRef = PagedList::class.java.toSchemaRef(
+        PagedList<*>::list.name,
+        Snapshot::class.java.toSchemaRef(
+            Snapshot<*>::state.name,
+            aggregateMetadata.state.aggregateType
+        )
+    )
     override val responses: ApiResponses
-        get() = responseSchema.toResponse().let {
+        get() = responseSchemaRef.ref.toResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withNotFound()
+        }
 }
 
-class QuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+class PagedQuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     init {
-        Query::class.java.toSchemaRef().schemas.mergeSchemas()
+        PagedQuery::class.java.toSchemaRef().schemas.mergeSchemas()
     }
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = QuerySnapshotRouteSpec(currentContext, aggregateMetadata)
+        val routeSpec = PagedQuerySnapshotRouteSpec(currentContext, aggregateMetadata)
+        routeSpec.responseSchemaRef.schemas.mergeSchemas()
         return listOf(routeSpec)
     }
 }

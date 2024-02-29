@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.webflux.exception.ExceptionHandler
@@ -27,7 +27,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class QuerySnapshotHandlerFunction(
+class PagedQuerySnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryService: SnapshotQueryService,
     private val exceptionHandler: ExceptionHandler
@@ -35,22 +35,22 @@ class QuerySnapshotHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(Query::class.java)
+        return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
-                snapshotQueryService.query<Any>(tenantId, it).collectList()
+                snapshotQueryService.pagedQuery<Any>(tenantId, it)
             }.toServerResponse(exceptionHandler)
     }
 }
 
-class QuerySnapshotHandlerFunctionFactory(
+class PagedQuerySnapshotHandlerFunctionFactory(
     private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<QuerySnapshotRouteSpec> {
-    override val supportedSpec: Class<QuerySnapshotRouteSpec>
-        get() = QuerySnapshotRouteSpec::class.java
+) : RouteHandlerFunctionFactory<PagedQuerySnapshotRouteSpec> {
+    override val supportedSpec: Class<PagedQuerySnapshotRouteSpec>
+        get() = PagedQuerySnapshotRouteSpec::class.java
 
-    override fun create(spec: QuerySnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return QuerySnapshotHandlerFunction(
+    override fun create(spec: PagedQuerySnapshotRouteSpec): HandlerFunction<ServerResponse> {
+        return PagedQuerySnapshotHandlerFunction(
             spec.aggregateMetadata,
             snapshotQueryServiceFactory.create(spec.aggregateMetadata),
             exceptionHandler

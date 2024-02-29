@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.openapi.snapshot
 
-import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.Query
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
@@ -26,49 +25,41 @@ import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
-class QuerySnapshotRouteSpec(
+class CountSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.querySnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.countSnapshot"
     override val method: String
         get() = Https.Method.POST
 
     override val appendPathSuffix: String
-        get() = "snapshot/query"
+        get() = "snapshot/count"
 
     override val summary: String
-        get() = "Query snapshot"
-    override val requestBody: RequestBody = Query::class.java.toRequestBody()
-
-    val responseSchema = Snapshot::class.java.toSchemaRef(
-        Snapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    ).let {
-        ArraySchema().items(it.ref)
-    }
+        get() = "Count snapshot"
+    override val requestBody: RequestBody = Condition::class.java.toRequestBody()
 
     override val responses: ApiResponses
-        get() = responseSchema.toResponse().let {
+        get() = IntegerSchema().toResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withNotFound()
+        }
 }
 
-class QuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+class CountSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     init {
-        Query::class.java.toSchemaRef().schemas.mergeSchemas()
+        Condition::class.java.toSchemaRef().schemas.mergeSchemas()
     }
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = QuerySnapshotRouteSpec(currentContext, aggregateMetadata)
+        val routeSpec = CountSnapshotRouteSpec(currentContext, aggregateMetadata)
         return listOf(routeSpec)
     }
 }
