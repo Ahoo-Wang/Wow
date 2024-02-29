@@ -3,10 +3,10 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
-import me.ahoo.wow.query.Condition
-import me.ahoo.wow.query.Operator
-import me.ahoo.wow.query.Projection
-import me.ahoo.wow.query.Sort
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import org.bson.conversions.Bson
 
 object MongoFilterConverter {
@@ -14,7 +14,7 @@ object MongoFilterConverter {
     /**
      * 将 Condition 转换成 Mongo DB 的 Filter Bson 对象
      */
-    @Suppress("UNCHECKED_CAST", "CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod")
     fun Condition.toMongoFilter(): Bson {
         return when (operator) {
             Operator.EMPTY -> Filters.empty()
@@ -28,11 +28,18 @@ object MongoFilterConverter {
             Operator.IN -> Filters.`in`(field, value as List<*>)
             Operator.NOT_IN -> Filters.nin(field, value as List<*>)
             Operator.BETWEEN -> {
-                val values = value as Array<Any>
-                require(values.size == 2) {
+                @Suppress("UNCHECKED_CAST")
+                val valueIterable = value as Iterable<Any>
+                val ite = valueIterable.iterator()
+                require(ite.hasNext()) {
                     "BETWEEN operator value must be a array with 2 elements."
                 }
-                Filters.and(Filters.gte(field, values[0]), Filters.lte(field, values[1]))
+                val first = ite.next()
+                require(ite.hasNext()) {
+                    "BETWEEN operator value must be a array with 2 elements."
+                }
+                val second = ite.next()
+                Filters.and(Filters.gte(field, first), Filters.lte(field, second))
             }
 
             Operator.ALL -> Filters.all(field, value as List<*>)

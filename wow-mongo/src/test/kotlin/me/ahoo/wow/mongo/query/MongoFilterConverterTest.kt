@@ -3,13 +3,13 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoProjection
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
-import me.ahoo.wow.query.Condition
-import me.ahoo.wow.query.Operator
-import me.ahoo.wow.query.Projection
-import me.ahoo.wow.query.Sort
 import org.bson.conversions.Bson
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -56,7 +56,7 @@ class MongoFilterConverterTest {
                 Arguments.of(Condition("id", Operator.IN, listOf("value")), Filters.`in`("id", listOf("value"))),
                 Arguments.of(Condition("id", Operator.NOT_IN, listOf("value")), Filters.nin("id", listOf("value"))),
                 Arguments.of(
-                    Condition("id", Operator.BETWEEN, arrayOf(1, 2)),
+                    Condition("id", Operator.BETWEEN, listOf(1, 2)),
                     Filters.and(Filters.gte("id", 1), Filters.lte("id", 2))
                 ),
                 Arguments.of(Condition("id", Operator.ALL, listOf("value")), Filters.all("id", listOf("value"))),

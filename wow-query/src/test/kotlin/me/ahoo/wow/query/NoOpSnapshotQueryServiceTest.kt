@@ -1,5 +1,9 @@
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.hamcrest.MatcherAssert.*

@@ -1,4 +1,4 @@
-package me.ahoo.wow.query
+package me.ahoo.wow.api.query
 
 interface IPagedList<out T> {
     val total: Long

@@ -16,6 +16,8 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -27,8 +29,6 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
-import me.ahoo.wow.query.PagedList
-import me.ahoo.wow.query.PagedQuery
 
 class QuerySnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,

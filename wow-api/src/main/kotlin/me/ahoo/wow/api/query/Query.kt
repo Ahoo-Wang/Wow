@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query
+package me.ahoo.wow.api.query
 
 enum class Operator {
     AND, OR,

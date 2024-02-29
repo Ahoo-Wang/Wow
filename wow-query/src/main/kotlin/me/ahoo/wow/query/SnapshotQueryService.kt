@@ -14,6 +14,10 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
