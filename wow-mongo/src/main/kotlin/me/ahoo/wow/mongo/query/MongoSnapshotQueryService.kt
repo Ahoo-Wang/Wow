@@ -15,14 +15,14 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import me.ahoo.wow.mongo.toSnapshot
-import me.ahoo.wow.query.Condition
-import me.ahoo.wow.query.IPagedQuery
-import me.ahoo.wow.query.IQuery
-import me.ahoo.wow.query.PagedList
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document

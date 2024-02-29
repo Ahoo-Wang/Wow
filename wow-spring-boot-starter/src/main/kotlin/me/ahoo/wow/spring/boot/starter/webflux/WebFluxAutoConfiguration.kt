@@ -21,6 +21,8 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
@@ -42,6 +44,7 @@ import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
@@ -85,6 +88,7 @@ class WebFluxAutoConfiguration {
         const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
+        const val QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotHandlerFunctionFactory"
         const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "regenerateSnapshotHandlerFunctionFactory"
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
@@ -184,6 +188,17 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): LoadSnapshotHandlerFunctionFactory {
         return LoadSnapshotHandlerFunctionFactory(snapshotRepository, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun querySnapshotHandlerFunctionFactory(
+        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        exceptionHandler: ExceptionHandler
+    ): QuerySnapshotHandlerFunctionFactory {
+        val factory = snapshotQueryServiceFactory.getIfAvailable { NoOpSnapshotQueryServiceFactory }
+        return QuerySnapshotHandlerFunctionFactory(factory, exceptionHandler)
     }
 
     @Bean

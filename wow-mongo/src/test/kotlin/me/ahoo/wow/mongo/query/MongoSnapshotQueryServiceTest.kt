@@ -1,12 +1,12 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.MongoClients
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.SchemaInitializerSpec
-import me.ahoo.wow.query.Condition
-import me.ahoo.wow.query.PagedQuery
-import me.ahoo.wow.query.Query
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.mock.MockCommandAggregate

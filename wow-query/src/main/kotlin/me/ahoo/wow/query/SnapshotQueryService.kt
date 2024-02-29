@@ -14,6 +14,10 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -25,6 +29,30 @@ interface SnapshotQueryService {
     fun count(tenantId: String, condition: Condition): Mono<Long>
 }
 
+object NoOpSnapshotQueryService : SnapshotQueryService {
+    override fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
+        return Mono.empty()
+    }
+
+    override fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
+        return Flux.empty()
+    }
+
+    override fun <S : Any> pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
+        return Mono.just(PagedList(0, emptyList()))
+    }
+
+    override fun count(tenantId: String, condition: Condition): Mono<Long> {
+        return Mono.just(0)
+    }
+}
+
 interface SnapshotQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): SnapshotQueryService
+}
+
+object NoOpSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
+    override fun create(namedAggregate: NamedAggregate): SnapshotQueryService {
+        return NoOpSnapshotQueryService
+    }
 }

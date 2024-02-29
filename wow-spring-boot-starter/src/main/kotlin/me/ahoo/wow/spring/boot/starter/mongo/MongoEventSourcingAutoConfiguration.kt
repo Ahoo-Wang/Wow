@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.mongo
 
 import com.mongodb.reactivestreams.client.MongoClient
+import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
@@ -22,6 +23,8 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
+import me.ahoo.wow.mongo.query.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -80,15 +83,38 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
         mongoClient: MongoClient,
         @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): SnapshotRepository {
+        val snapshotDatabase = getMongoDatabase(dataMongoProperties, mongoClient)
+        if (mongoProperties.autoInitSchema) {
+            SnapshotSchemaInitializer(snapshotDatabase).initAll()
+        }
+        return MongoSnapshotRepository(snapshotDatabase)
+    }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnProperty(
+        SnapshotProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = SnapshotStorage.MONGO_NAME,
+    )
+    fun mongoSnapshotQueryServiceFactory(
+        mongoClient: MongoClient,
+        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+    ): SnapshotQueryServiceFactory {
+        val snapshotDatabase = getMongoDatabase(dataMongoProperties, mongoClient)
+        return MongoSnapshotQueryServiceFactory(snapshotDatabase)
+    }
+
+    private fun getMongoDatabase(
+        dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        mongoClient: MongoClient
+    ): MongoDatabase {
         val snapshotDatabaseName = mongoProperties.snapshotDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(snapshotDatabaseName) {
             "${MongoProperties.PREFIX}.snapshot-database must not be null!"
         }
         val snapshotDatabase = mongoClient.getDatabase(snapshotDatabaseName)
-        if (mongoProperties.autoInitSchema) {
-            SnapshotSchemaInitializer(snapshotDatabase).initAll()
-        }
-        return MongoSnapshotRepository(snapshotDatabase)
+        return snapshotDatabase
     }
 
     @Bean

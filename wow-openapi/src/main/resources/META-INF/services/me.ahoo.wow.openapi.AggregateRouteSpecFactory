@@ -11,6 +11,7 @@ me.ahoo.wow.openapi.state.ScanAggregateRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpecFactory
 #event
 me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpecFactory
 me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory
