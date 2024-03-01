@@ -39,7 +39,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
         return Filters.and(tenantIdFilter, this)
     }
 
-    override fun single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
+    override fun single(condition: Condition, tenantId: String): Mono<Snapshot<S>> {
         val filter = condition.toMongoFilter().withTenantId(tenantId)
         return collection.find(filter)
             .limit(1)
@@ -48,7 +48,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             .toSnapshot()
     }
 
-    override fun query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
+    override fun query(query: IQuery, tenantId: String): Flux<Snapshot<S>> {
         val filter = query.condition.toMongoFilter().withTenantId(tenantId)
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
@@ -58,10 +58,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             .toSnapshot()
     }
 
-    override fun pagedQuery(
-        tenantId: String,
-        pagedQuery: IPagedQuery
-    ): Mono<PagedList<Snapshot<S>>> {
+    override fun pagedQuery(pagedQuery: IPagedQuery, tenantId: String): Mono<PagedList<Snapshot<S>>> {
         val filter = pagedQuery.condition.toMongoFilter().withTenantId(tenantId)
         val sort = pagedQuery.sort.toMongoSort()
 
@@ -79,7 +76,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             }
     }
 
-    override fun count(tenantId: String, condition: Condition): Mono<Long> {
+    override fun count(condition: Condition, tenantId: String): Mono<Long> {
         val filter = condition.toMongoFilter().withTenantId(tenantId)
         return collection.countDocuments(filter).toMono()
     }

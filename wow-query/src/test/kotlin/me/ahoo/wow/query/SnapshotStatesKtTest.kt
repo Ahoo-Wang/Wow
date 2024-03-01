@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
-class SnapshotQueryServiceDslKtTest {
+class SnapshotStatesKtTest {
 
     @Test
     fun toState() {
