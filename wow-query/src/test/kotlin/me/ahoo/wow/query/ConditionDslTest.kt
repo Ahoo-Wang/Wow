@@ -101,6 +101,16 @@ class ConditionDslTest {
     }
 
     @Test
+    fun andEmpty() {
+        val condition = condition {
+            and {
+
+            }
+        }
+        assertThat(condition, equalTo(Condition.empty()))
+    }
+
+    @Test
     fun or() {
         val condition = condition {
             or {
@@ -119,6 +129,16 @@ class ConditionDslTest {
                 )
             )
         )
+    }
+
+    @Test
+    fun orEmpty() {
+        val condition = condition {
+            or {
+
+            }
+        }
+        assertThat(condition, equalTo(Condition.empty()))
     }
 
     @Test

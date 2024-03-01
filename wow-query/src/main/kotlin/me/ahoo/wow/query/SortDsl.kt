@@ -32,11 +32,11 @@ class SortDsl {
     }
 
     fun String.asc() {
-        sorts.add(Sort(this, Sort.Direction.ASC))
+        sort(Sort(this, Sort.Direction.ASC))
     }
 
     fun String.desc() {
-        sorts.add(Sort(this, Sort.Direction.DESC))
+        sort(Sort(this, Sort.Direction.DESC))
     }
 
     fun build(): List<Sort> {
