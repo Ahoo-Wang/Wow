@@ -77,7 +77,7 @@ data class Sort(val field: String, val direction: Direction) {
 
 data class Pagination(val index: Int, val size: Int) {
     companion object {
-        val DEFAULT_PAGINATION = Pagination(1, 10)
+        val DEFAULT = Pagination(1, 10)
         fun offset(index: Int, size: Int) = (index - 1) * size
     }
 

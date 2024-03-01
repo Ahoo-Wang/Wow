@@ -69,7 +69,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
         val listPublisher = collection.find(filter)
             .sort(sort)
             .skip(pagedQuery.pagination.offset())
-            .limit(pagedQuery.limit)
+            .limit(pagedQuery.pagination.size)
             .toFlux()
             .toSnapshot<S>()
             .collectList()
