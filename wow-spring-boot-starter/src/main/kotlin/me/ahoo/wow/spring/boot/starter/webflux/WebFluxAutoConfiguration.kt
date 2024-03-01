@@ -47,6 +47,7 @@ import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
@@ -95,6 +96,7 @@ class WebFluxAutoConfiguration {
         const val PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "pagedQuerySnapshotStateHandlerFunctionFactory"
         const val QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotHandlerFunctionFactory"
+        const val QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotStateHandlerFunctionFactory"
         const val COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countSnapshotHandlerFunctionFactory"
         const val SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotHandlerFunctionFactory"
         const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "regenerateSnapshotHandlerFunctionFactory"
@@ -206,6 +208,16 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): QuerySnapshotHandlerFunctionFactory {
         return QuerySnapshotHandlerFunctionFactory(snapshotQueryServiceFactory, exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun querySnapshotStateHandlerFunctionFactory(
+        snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+        exceptionHandler: ExceptionHandler
+    ): QuerySnapshotStateHandlerFunctionFactory {
+        return QuerySnapshotStateHandlerFunctionFactory(snapshotQueryServiceFactory, exceptionHandler)
     }
 
     @Bean
