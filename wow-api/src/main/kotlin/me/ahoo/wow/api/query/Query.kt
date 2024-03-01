@@ -58,9 +58,7 @@ data class Condition(
         fun gte(field: String, value: Any) = Condition(field, Operator.GTE, value)
         fun lte(field: String, value: Any) = Condition(field, Operator.LTE, value)
         fun like(field: String, value: Any) = Condition(field, Operator.LIKE, value)
-
-        @Suppress("FunctionNaming")
-        fun `in`(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
+        fun isIn(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
         fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
         fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
         fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL, value)
