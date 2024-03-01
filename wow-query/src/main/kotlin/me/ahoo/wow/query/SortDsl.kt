@@ -15,14 +15,6 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Sort
 
-/**
- * ``` kotlin
- * sort {
- *  "field1" eq "value1"
- *  "field2" eq "value2"
- * }
- * ```
- */
 class SortDsl {
 
     private val sorts: MutableList<Sort> = mutableListOf()
