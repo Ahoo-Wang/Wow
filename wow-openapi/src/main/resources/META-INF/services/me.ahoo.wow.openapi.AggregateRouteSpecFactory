@@ -14,6 +14,7 @@ me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpecFactory
+me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpecFactory
 #event
 me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpecFactory
