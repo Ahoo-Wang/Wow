@@ -132,12 +132,4 @@ class ConditionDsl {
         }
         return Condition.and(conditions)
     }
-
-    companion object {
-        fun condition(block: ConditionDsl.() -> Unit): Condition {
-            val dsl = ConditionDsl()
-            dsl.block()
-            return dsl.build()
-        }
-    }
 }

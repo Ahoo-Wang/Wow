@@ -39,12 +39,4 @@ class PaginationDsl {
     fun build(): Pagination {
         return Pagination(index, size)
     }
-
-    companion object {
-        fun pagination(block: PaginationDsl.() -> Unit): Pagination {
-            val dsl = PaginationDsl()
-            dsl.block()
-            return dsl.build()
-        }
-    }
 }

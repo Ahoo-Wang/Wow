@@ -1,7 +1,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.SortDsl.Companion.sort
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

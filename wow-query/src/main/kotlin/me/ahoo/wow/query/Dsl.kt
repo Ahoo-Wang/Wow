@@ -14,31 +14,35 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.Sort
 
-class QueryDsl {
-    private var condition: Condition = Condition.empty()
-    private var sort: List<Sort> = emptyList()
-    private var limit: Int = Int.MAX_VALUE
+fun query(block: QueryDsl.() -> Unit): Query {
+    val dsl = QueryDsl()
+    dsl.block()
+    return dsl.build()
+}
 
-    fun condition(block: ConditionDsl.() -> Unit) {
-        val dsl = ConditionDsl()
-        dsl.block()
-        condition = dsl.build()
-    }
+fun pagedQuery(block: PagedQueryDsl.() -> Unit): PagedQuery {
+    val dsl = PagedQueryDsl()
+    dsl.block()
+    return dsl.build()
+}
+fun condition(block: ConditionDsl.() -> Unit): Condition {
+    val dsl = ConditionDsl()
+    dsl.block()
+    return dsl.build()
+}
+fun pagination(block: PaginationDsl.() -> Unit): Pagination {
+    val dsl = PaginationDsl()
+    dsl.block()
+    return dsl.build()
+}
 
-    fun limit(limit: Int) {
-        this.limit = limit
-    }
-
-    fun sort(block: SortDsl.() -> Unit) {
-        val dsl = SortDsl()
-        dsl.block()
-        sort = dsl.build()
-    }
-
-    fun build(): Query {
-        return Query(condition, sort, limit)
-    }
+fun sort(block: SortDsl.() -> Unit): List<Sort> {
+    val dsl = SortDsl()
+    dsl.block()
+    return dsl.build()
 }

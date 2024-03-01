@@ -1,6 +1,5 @@
 package me.ahoo.wow.query
 
-import me.ahoo.wow.query.PaginationDsl.Companion.pagination
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

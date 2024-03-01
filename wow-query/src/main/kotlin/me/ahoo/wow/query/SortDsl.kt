@@ -42,12 +42,4 @@ class SortDsl {
     fun build(): List<Sort> {
         return sorts.toList()
     }
-
-    companion object {
-        fun sort(block: SortDsl.() -> Unit): List<Sort> {
-            val dsl = SortDsl()
-            dsl.block()
-            return dsl.build()
-        }
-    }
 }

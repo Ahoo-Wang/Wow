@@ -44,12 +44,4 @@ class PagedQueryDsl {
     fun build(): PagedQuery {
         return PagedQuery(condition, sort, pagination)
     }
-
-    companion object {
-        fun pagedQuery(block: PagedQueryDsl.() -> Unit): PagedQuery {
-            val dsl = PagedQueryDsl()
-            dsl.block()
-            return dsl.build()
-        }
-    }
 }
