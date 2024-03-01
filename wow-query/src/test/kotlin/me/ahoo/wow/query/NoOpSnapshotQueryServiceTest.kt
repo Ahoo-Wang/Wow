@@ -14,11 +14,11 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class NoOpSnapshotQueryServiceTest {
-    val snapshotQueryService = NoOpSnapshotQueryServiceFactory.create("test.test".toNamedAggregate())
+    val snapshotQueryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
 
     @Test
     fun single() {
-        val result = snapshotQueryService.single<Any>(
+        val result = snapshotQueryService.single(
             GlobalIdGenerator.generateAsString(),
             Condition("test", Operator.EQ, "test")
         )
@@ -27,7 +27,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun query() {
-        val result = snapshotQueryService.query<Any>(
+        val result = snapshotQueryService.query(
             GlobalIdGenerator.generateAsString(),
             Query(Condition("test", Operator.EQ, "test"))
         )
@@ -36,7 +36,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun pagedQuery() {
-        snapshotQueryService.pagedQuery<Any>(
+        snapshotQueryService.pagedQuery(
             GlobalIdGenerator.generateAsString(),
             PagedQuery(Condition("test", Operator.EQ, "test"))
         ).test()

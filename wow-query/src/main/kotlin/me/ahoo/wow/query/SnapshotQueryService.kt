@@ -22,23 +22,23 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface SnapshotQueryService {
-    fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>>
-    fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>>
-    fun <S : Any> pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>>
+interface SnapshotQueryService<S : Any> {
+    fun single(tenantId: String, condition: Condition): Mono<Snapshot<S>>
+    fun query(tenantId: String, query: IQuery): Flux<Snapshot<S>>
+    fun pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>>
     fun count(tenantId: String, condition: Condition): Mono<Long>
 }
 
-object NoOpSnapshotQueryService : SnapshotQueryService {
-    override fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
+object NoOpSnapshotQueryService : SnapshotQueryService<Any> {
+    override fun single(tenantId: String, condition: Condition): Mono<Snapshot<Any>> {
         return Mono.empty()
     }
 
-    override fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
+    override fun query(tenantId: String, query: IQuery): Flux<Snapshot<Any>> {
         return Flux.empty()
     }
 
-    override fun <S : Any> pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
+    override fun pagedQuery(tenantId: String, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<Any>>> {
         return Mono.just(PagedList(0, emptyList()))
     }
 
@@ -48,11 +48,12 @@ object NoOpSnapshotQueryService : SnapshotQueryService {
 }
 
 interface SnapshotQueryServiceFactory {
-    fun create(namedAggregate: NamedAggregate): SnapshotQueryService
+    fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S>
 }
 
 object NoOpSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
-    override fun create(namedAggregate: NamedAggregate): SnapshotQueryService {
-        return NoOpSnapshotQueryService
+    @Suppress("UNCHECKED_CAST")
+    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
+        return NoOpSnapshotQueryService as SnapshotQueryService<S>
     }
 }

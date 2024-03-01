@@ -28,6 +28,8 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.handler.Filter
 import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
@@ -50,6 +52,15 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
     )
     fun inMemorySnapshotRepository(): SnapshotRepository {
         return InMemorySnapshotRepository()
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = [SnapshotProperties.STORAGE],
+        havingValue = SnapshotStorage.IN_MEMORY_NAME,
+    )
+    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
+        return NoOpSnapshotQueryServiceFactory
     }
 
     @Bean

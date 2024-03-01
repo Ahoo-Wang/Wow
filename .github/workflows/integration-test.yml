@@ -122,7 +122,7 @@ jobs:
         run: ./gradlew wow-bi:clean wow-bi:check --stacktrace
 
   wow-query-test:
-    name: Wow query Test
+    name: Wow Query Test
     needs: [ wow-core-test ]
     runs-on: ubuntu-latest
     steps:
