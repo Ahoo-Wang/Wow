@@ -336,16 +336,9 @@ pagedQuery {
 ```typescript [Typescript]
 Conditions.and(
     [
-        Conditions.ne(RECOVERABLE, RecoverableType.UNRECOVERABLE),
-        Conditions.eq(IS_RETRYABLE, true),
-        Conditions.lte(NEXT_RETRY_AT, currentTime),
-        Conditions.or([
-            Conditions.eq(STATUS, ExecutionFailedStatus.FAILED),
-            Conditions.and([
-                Conditions.eq(STATUS, ExecutionFailedStatus.PREPARED),
-                Conditions.lte(TIMEOUT_AT, currentTime)
-            ])
-        ])
+        Conditions.ne(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
+        Conditions.ne(ExecutionFailedFields.STATUS, ExecutionFailedStatus.SUCCEEDED),
+        Conditions.eq(ExecutionFailedFields.IS_BELOW_RETRY_THRESHOLD, false)
     ]
 )
 ```
