@@ -17,6 +17,26 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.Sort
 
+/**
+ * ```kotlin
+ * query {
+ *     limit(1)
+ *     sort {
+ *         "field1".asc()
+ *     }
+ *     condition {
+ *         "field1" eq "value1"
+ *         "field2" eq "value2"
+ *         and {
+ *             "field3" eq "value3"
+ *         }
+ *         or {
+ *             "field4" eq "value4"
+ *         }
+ *     }
+ * }
+ * ```
+ */
 class QueryDsl {
     private var condition: Condition = Condition.empty()
     private var sort: List<Sort> = emptyList()

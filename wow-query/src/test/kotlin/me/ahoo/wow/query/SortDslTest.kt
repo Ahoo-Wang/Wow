@@ -8,18 +8,19 @@ import org.junit.jupiter.api.Test
 class SortDslTest {
 
     @Test
-    fun asc() {
+    fun sort() {
         val sort = sort {
             "field1".asc()
+            "field2".desc()
         }
-        assertThat(sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
-    }
-
-    @Test
-    fun desc() {
-        val sort = sort {
-            "field1".desc()
-        }
-        assertThat(sort, equalTo(listOf(Sort("field1", Sort.Direction.DESC))))
+        assertThat(
+            sort,
+            equalTo(
+                listOf(
+                    Sort("field1", Sort.Direction.ASC),
+                    Sort("field2", Sort.Direction.DESC)
+                )
+            )
+        )
     }
 }

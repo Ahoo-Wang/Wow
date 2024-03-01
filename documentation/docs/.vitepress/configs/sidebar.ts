@@ -28,6 +28,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '命令网关', link: 'command-gateway'},
                 {text: '分布式事务(Saga)', link: 'saga'},
                 {text: '投影处理器', link: 'projection'},
+                {text: '查询服务', link: 'query'},
                 {text: 'Open API', link: 'open-api'},
                 {text: '测试套件', link: 'test-suite'},
                 {text: '商业智能', link: 'bi'},
