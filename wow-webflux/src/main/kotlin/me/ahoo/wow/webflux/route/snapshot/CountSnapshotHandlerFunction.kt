@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class CountSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService,
+    private val snapshotQueryService: SnapshotQueryService<Any>,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 

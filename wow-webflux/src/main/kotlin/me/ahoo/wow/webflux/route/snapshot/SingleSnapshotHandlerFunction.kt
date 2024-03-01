@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 
 class SingleSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService,
+    private val snapshotQueryService: SnapshotQueryService<Any>,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -38,7 +38,7 @@ class SingleSnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(Condition::class.java)
             .flatMap {
-                snapshotQueryService.single<Any>(tenantId, it).throwNotFoundIfEmpty()
+                snapshotQueryService.single(tenantId, it).throwNotFoundIfEmpty()
             }.toServerResponse(exceptionHandler)
     }
 }

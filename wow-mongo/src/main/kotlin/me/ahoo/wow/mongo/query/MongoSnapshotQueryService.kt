@@ -32,14 +32,14 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
-class MongoSnapshotQueryService(private val collection: MongoCollection<Document>) : SnapshotQueryService {
+class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection<Document>) : SnapshotQueryService<S> {
 
     private fun Bson.withTenantId(tenantId: String): Bson {
         val tenantIdFilter = Filters.eq(MessageRecords.TENANT_ID, tenantId)
         return Filters.and(tenantIdFilter, this)
     }
 
-    override fun <S : Any> single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
+    override fun single(tenantId: String, condition: Condition): Mono<Snapshot<S>> {
         val filter = condition.toMongoFilter().withTenantId(tenantId)
         return collection.find(filter)
             .limit(1)
@@ -48,7 +48,7 @@ class MongoSnapshotQueryService(private val collection: MongoCollection<Document
             .toSnapshot()
     }
 
-    override fun <S : Any> query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
+    override fun query(tenantId: String, query: IQuery): Flux<Snapshot<S>> {
         val filter = query.condition.toMongoFilter().withTenantId(tenantId)
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
@@ -58,7 +58,7 @@ class MongoSnapshotQueryService(private val collection: MongoCollection<Document
             .toSnapshot()
     }
 
-    override fun <S : Any> pagedQuery(
+    override fun pagedQuery(
         tenantId: String,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<Snapshot<S>>> {

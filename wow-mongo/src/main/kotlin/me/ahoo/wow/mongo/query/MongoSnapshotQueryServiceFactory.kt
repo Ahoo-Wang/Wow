@@ -19,7 +19,7 @@ import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 
 class MongoSnapshotQueryServiceFactory(private val database: MongoDatabase) : SnapshotQueryServiceFactory {
-    override fun create(namedAggregate: NamedAggregate): SnapshotQueryService {
+    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
         val collectionName = namedAggregate.aggregateName + "_snapshot"
         val collection = database.getCollection(collectionName)
         return MongoSnapshotQueryService(collection)

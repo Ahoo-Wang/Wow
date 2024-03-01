@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class PagedQuerySnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService,
+    private val snapshotQueryService: SnapshotQueryService<Any>,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -37,7 +37,7 @@ class PagedQuerySnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
-                snapshotQueryService.pagedQuery<Any>(tenantId, it)
+                snapshotQueryService.pagedQuery(tenantId, it)
             }.toServerResponse(exceptionHandler)
     }
 }

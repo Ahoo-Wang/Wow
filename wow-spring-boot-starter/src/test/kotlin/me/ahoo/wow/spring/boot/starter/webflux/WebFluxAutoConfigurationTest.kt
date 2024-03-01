@@ -28,6 +28,8 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -57,6 +59,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -85,6 +88,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
             .withBean(KafkaProperties::class.java, {
                 KafkaProperties(bootstrapServers = listOf("localhost:9092"))
             })
