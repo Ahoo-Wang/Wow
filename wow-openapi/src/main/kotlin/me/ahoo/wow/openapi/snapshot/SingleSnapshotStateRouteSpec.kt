@@ -17,7 +17,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
@@ -29,26 +28,23 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
-class SingleSnapshotRouteSpec(
+class SingleSnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.singleSnapshot"
+        get() = "${aggregateMetadata.toStringWithAlias()}.singleSnapshotState"
     override val method: String
         get() = Https.Method.POST
 
     override val appendPathSuffix: String
-        get() = "snapshot/single"
+        get() = "snapshot/single/state"
 
     override val summary: String
-        get() = "Single snapshot"
+        get() = "Single snapshot state"
     override val requestBody: RequestBody = Condition::class.java.toRequestBody()
 
-    private val responseSchema = Snapshot::class.java.toSchemaRef(
-        Snapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    )
+    private val responseSchema = aggregateMetadata.state.aggregateType.toSchemaRef()
 
     override val responses: ApiResponses
         get() = responseSchema.ref.toResponse().let {
@@ -56,7 +52,7 @@ class SingleSnapshotRouteSpec(
         }.withNotFound()
 }
 
-class SingleSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+class SingleSnapshotStateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     init {
         Condition::class.java.toSchemaRef().schemas.mergeSchemas()
     }
@@ -65,7 +61,7 @@ class SingleSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = SingleSnapshotRouteSpec(currentContext, aggregateMetadata)
+        val routeSpec = SingleSnapshotStateRouteSpec(currentContext, aggregateMetadata)
         return listOf(routeSpec)
     }
 }
