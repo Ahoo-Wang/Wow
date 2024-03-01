@@ -12,7 +12,7 @@
  */
 import {Injectable} from "@angular/core";
 import {environment} from "../../environments/environment";
-import {HttpClient, HttpHeaders} from "@angular/common/http";
+import {HttpClient} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {ExecutionFailedState} from "./ExecutionFailedState";
 import {CommandResult, Stage} from "./CommandResult";
@@ -22,6 +22,7 @@ import {PagedList} from "./PagedList";
 import {DomainEventStream} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunctionKind} from "./ChangeFunctionKind";
+import {RetryConditions} from "./RetryConditions";
 
 export enum FindCategory {
   ALL = 'all',
@@ -33,6 +34,8 @@ export enum FindCategory {
   UNRECOVERABLE = 'unrecoverable',
 }
 
+
+
 const COMMAND_HEADERS = {
   headers: {
     'Command-Wait-Stage': Stage.Snapshot
@@ -42,73 +45,52 @@ const COMMAND_HEADERS = {
 @Injectable({providedIn: 'root'})
 export class CompensationClient {
   aggregateName = 'execution_failed';
-  commandApi = environment.host + `/${this.aggregateName}`;
-  retryApi = environment.host + '/failed';
+  aggregateApi = environment.host + `/${this.aggregateName}`;
+  queryApi = this.aggregateApi + '/snapshot/pagination/state';
 
   constructor(private httpClient: HttpClient) {
 
   }
 
   prepare(id: string): Observable<CommandResult> {
-    const apiUrl = `${this.commandApi}/${id}/prepare_compensation`;
+    const apiUrl = `${this.aggregateApi}/${id}/prepare_compensation`;
     return this.httpClient.put<CommandResult>(apiUrl, {}, COMMAND_HEADERS);
   }
 
   forcePrepare(id: string): Observable<CommandResult> {
-    const apiUrl = `${this.commandApi}/${id}/force_prepare_compensation`;
+    const apiUrl = `${this.aggregateApi}/${id}/force_prepare_compensation`;
     return this.httpClient.put<CommandResult>(apiUrl, {}, COMMAND_HEADERS);
   }
 
   applyRetrySpec(id: string, appRetrySpec: ApplyRetrySpec): Observable<CommandResult> {
-    const apiUrl = `${this.commandApi}/${id}/apply_retry_spec`;
+    const apiUrl = `${this.aggregateApi}/${id}/apply_retry_spec`;
     return this.httpClient.put<CommandResult>(apiUrl, appRetrySpec, COMMAND_HEADERS);
   }
 
   markRecoverable(id: string, markRecoverable: MarkRecoverable): Observable<CommandResult> {
-    const apiUrl = `${this.commandApi}/${id}/mark_recoverable`;
+    const apiUrl = `${this.aggregateApi}/${id}/mark_recoverable`;
     return this.httpClient.put<CommandResult>(apiUrl, markRecoverable, COMMAND_HEADERS);
   }
 
   changeFunctionKind(id: string, changeFunctionKind: ChangeFunctionKind): Observable<CommandResult> {
-    const apiUrl = `${this.commandApi}/${id}/change_function_kind`;
+    const apiUrl = `${this.aggregateApi}/${id}/change_function_kind`;
     return this.httpClient.put<CommandResult>(apiUrl, changeFunctionKind, COMMAND_HEADERS);
   }
 
+  query(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    return this.httpClient.post<PagedList<ExecutionFailedState>>(this.queryApi, pagedQuery);
+  }
 
   find(category: FindCategory, pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    const apiUrl = `${this.retryApi}/${category}`;
-    return this.httpClient.post<PagedList<ExecutionFailedState>>(apiUrl, pagedQuery);
-  }
-
-  findAll(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.ALL, pagedQuery);
-  }
-
-  findNextRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.NEXT_RETRY, pagedQuery);
-  }
-
-  findToRetry(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.TO_RETRY, pagedQuery);
-  }
-
-  findNonRetryable(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.NON_RETRYABLE, pagedQuery);
-  }
-
-  findSuccess(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.SUCCESS, pagedQuery);
-  }
-
-  findUnrecoverable(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    return this.find(FindCategory.UNRECOVERABLE, pagedQuery);
+    pagedQuery.condition = RetryConditions.categoryToCondition(category)
+    return this.query(pagedQuery);
   }
 
   loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {
-    return this.httpClient.get<DomainEventStream[]>(`${this.commandApi}/${id}/event/${headVersion}/${tailVersion}`)
+    return this.httpClient.get<DomainEventStream[]>(`${this.aggregateApi}/${id}/event/${headVersion}/${tailVersion}`)
   }
 
   loadState(id: string): Observable<ExecutionFailedState> {
-    return this.httpClient.get<ExecutionFailedState>(`${this.commandApi}/${id}/state`)
+    return this.httpClient.get<ExecutionFailedState>(`${this.aggregateApi}/${id}/state`)
   }
 }

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import reactor.core.publisher.Mono
 
+@Deprecated("Use SnapshotQuery instead.")
 interface ExecutionFailedQuery {
     fun findAll(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>>
     fun findNextRetry(pagedQuery: PagedQuery): Mono<PagedList<IExecutionFailedState>>

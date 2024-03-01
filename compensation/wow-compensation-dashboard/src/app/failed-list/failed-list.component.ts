@@ -14,7 +14,7 @@ import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective, NzDrawerModule, NzDrawerService} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
-import {initialPagedQuery, PagedQuery, SortOrder} from "../api/PagedQuery";
+import {initialPagedQuery, PagedQuery} from "../api/PagedQuery";
 import {PagedList} from "../api/PagedList";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
@@ -27,6 +27,7 @@ import {NzSelectModule} from 'ng-zorro-antd/select';
 import {NzToolTipModule} from 'ng-zorro-antd/tooltip';
 import {NzDropDownModule} from 'ng-zorro-antd/dropdown';
 import {FormsModule} from "@angular/forms";
+import {Sort, SortDirection} from "../api/Query";
 
 
 @Component({
@@ -102,15 +103,20 @@ export class FailedListComponent implements OnInit {
   }
 
   onQueryParamsChange(params: NzTableQueryParams): void {
-    let sort = params.sort
+    let sort: Sort[] = params.sort
       .filter(sort => sort.value != null)
       .map(sort => {
-        return {field: sort.key, order: sort.value === "ascend" ? SortOrder.ASC : SortOrder.DESC}
+        let direction = sort.value === "ascend" ? SortDirection.ASC : SortDirection.DESC
+        return {field: sort.key, direction: direction}
       });
     if (sort.length == 0) {
       sort = initialPagedQuery.sort
     }
-    this.pagedQuery = {sort: sort, pageIndex: params.pageIndex, pageSize: params.pageSize}
+    this.pagedQuery = {
+      sort: sort,
+      pagination: {index: params.pageIndex, size: params.pageSize},
+      condition: initialPagedQuery.condition
+    }
     this.load()
   }
 
