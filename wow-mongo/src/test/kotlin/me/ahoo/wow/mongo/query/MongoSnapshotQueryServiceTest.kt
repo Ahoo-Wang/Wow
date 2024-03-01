@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 
 class MongoSnapshotQueryServiceTest {
 
-    lateinit var snapshotQueryService: SnapshotQueryService
+    lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
 
     @BeforeEach
     fun init() {
@@ -31,7 +31,7 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun single() {
-        snapshotQueryService.single<MockStateAggregate>(
+        snapshotQueryService.single(
             tenantId = GlobalIdGenerator.generateAsString(),
             condition = Condition.EMPTY
         )
@@ -41,7 +41,7 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun query() {
-        snapshotQueryService.query<MockStateAggregate>(
+        snapshotQueryService.query(
             tenantId = GlobalIdGenerator.generateAsString(),
             query = Query(condition = Condition.EMPTY, sort = emptyList())
         )
@@ -51,7 +51,7 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun pagedQuery() {
-        snapshotQueryService.pagedQuery<MockStateAggregate>(
+        snapshotQueryService.pagedQuery(
             tenantId = GlobalIdGenerator.generateAsString(),
             pagedQuery = PagedQuery(condition = Condition.EMPTY, sort = emptyList())
         )
