@@ -5,8 +5,6 @@ import me.ahoo.wow.modeling.toNamedAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class NoOpSnapshotQueryServiceTest {
@@ -14,22 +12,24 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun single() {
-        val result = snapshotQueryService.single(GlobalIdGenerator.generateAsString()) {
+        snapshotQueryService.single(GlobalIdGenerator.generateAsString()) {
             "test" eq "test"
         }
-        assertThat(result, equalTo(Mono.empty()))
+            .test()
+            .verifyComplete()
     }
 
     @Test
     fun query() {
-        val result = snapshotQueryService.query(
+        snapshotQueryService.query(
             GlobalIdGenerator.generateAsString()
         ) {
             condition {
                 "test" eq "test"
             }
         }
-        assertThat(result, equalTo(Flux.empty()))
+            .test()
+            .verifyComplete()
     }
 
     @Test
@@ -38,7 +38,7 @@ class NoOpSnapshotQueryServiceTest {
             condition {
                 "test" eq "test"
             }
-        }
+        }.toStatePagedList()
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0))
@@ -50,7 +50,8 @@ class NoOpSnapshotQueryServiceTest {
     fun count() {
         snapshotQueryService.count(GlobalIdGenerator.generateAsString()) {
             "test" eq "test"
-        }.test()
+        }
+            .test()
             .expectNext(0L)
             .verifyComplete()
     }

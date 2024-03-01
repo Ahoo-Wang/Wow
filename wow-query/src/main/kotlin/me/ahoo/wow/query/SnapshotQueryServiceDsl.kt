@@ -48,3 +48,15 @@ fun SnapshotQueryService<*>.count(tenantId: String, block: ConditionDsl.() -> Un
     val condition = dsl.build()
     return this.count(tenantId, condition)
 }
+
+fun <S : Any> Mono<Snapshot<S>>.toState(): Mono<S> {
+    return map { it.state }
+}
+
+fun <S : Any> Flux<Snapshot<S>>.toState(): Flux<S> {
+    return map { it.state }
+}
+
+fun <S : Any> Mono<PagedList<Snapshot<S>>>.toStatePagedList(): Mono<PagedList<S>> {
+    return map { PagedList(it.total, it.list.map { snapshot -> snapshot.state }) }
+}
