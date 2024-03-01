@@ -18,8 +18,8 @@ import me.ahoo.wow.api.query.Pagination
 /**
  * ``` kotlin
  * pagination {
- *  "field1" eq "value1"
- *  "field2" eq "value2"
+ *     index(1)
+ *     size(1)
  * }
  * ```
  */

@@ -11,6 +11,7 @@ class SortDslTest {
     fun asc() {
         val sort = sort {
             "field1".asc()
+            "field2".desc()
         }
         assertThat(sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
     }

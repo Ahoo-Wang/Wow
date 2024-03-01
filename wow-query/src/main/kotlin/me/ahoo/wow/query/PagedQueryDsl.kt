@@ -18,6 +18,46 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Sort
 
+/**
+ * ```kotlin
+ * pagedQuery {
+ *     pagination {
+ *         index(1)
+ *         size(10)
+ *     }
+ *     sort {
+ *         "field1".asc()
+ *     }
+ *     condition {
+ *         "field1" eq "value1"
+ *         "field2" ne "value2"
+ *         "filed3" gt 1
+ *         "field4" lt 1
+ *         "field5" gte 1
+ *         "field6" lte 1
+ *         "field7" like "value7"
+ *         "field8" isIn listOf("value8")
+ *         "field9" notIn listOf("value9")
+ *         "field10" between (1 to 2)
+ *         "field11" all listOf("value11")
+ *         "field12" startsWith "value12"
+ *         "field13" elemMatch {
+ *             "field14" eq "value14"
+ *         }
+ *         "field15".isNull()
+ *         "field16".notNull()
+ *         and {
+ *             "field3" eq "value3"
+ *             "field4" eq "value4"
+ *         }
+ *         or {
+ *             "field3" eq "value3"
+ *             "field4" eq "value4"
+ *         }
+ *     }
+ * }
+ * ```
+ */
 class PagedQueryDsl {
     private var condition: Condition = Condition.empty()
     private var sort: List<Sort> = emptyList()
