@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.Sort
 class PagedQueryDsl {
     private var condition: Condition = Condition.empty()
     private var sort: List<Sort> = emptyList()
-    private var pagination: Pagination = Pagination.DEFAULT_PAGINATION
+    private var pagination: Pagination = Pagination.DEFAULT
 
     fun condition(block: ConditionDsl.() -> Unit) {
         val dsl = ConditionDsl()

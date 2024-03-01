@@ -25,8 +25,8 @@ import me.ahoo.wow.api.query.Pagination
  */
 class PaginationDsl {
 
-    private var index = Pagination.DEFAULT_PAGINATION.index
-    private var size = Pagination.DEFAULT_PAGINATION.size
+    private var index = Pagination.DEFAULT.index
+    private var size = Pagination.DEFAULT.size
 
     fun index(index: Int) {
         this.index = index

@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.api.query
 
-interface IPagedQuery : IQuery {
+interface IPagedQuery {
+    val condition: Condition
+    val sort: List<Sort>
     val pagination: Pagination
-    override val limit: Int
-        get() = pagination.size
 }
 
 data class PagedQuery(
     override val condition: Condition,
     override val sort: List<Sort> = emptyList(),
-    override val pagination: Pagination = Pagination.DEFAULT_PAGINATION
+    override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery
