@@ -1,6 +1,5 @@
 package me.ahoo.wow.query
 
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -8,37 +7,35 @@ import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 class NoOpSnapshotQueryServiceTest {
-    val snapshotQueryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
+    private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
 
     @Test
     fun single() {
-        snapshotQueryService.single(GlobalIdGenerator.generateAsString()) {
+        condition {
             "test" eq "test"
-        }
+        }.single(queryService)
             .test()
             .verifyComplete()
     }
 
     @Test
     fun query() {
-        snapshotQueryService.query(
-            GlobalIdGenerator.generateAsString()
-        ) {
+        query {
             condition {
                 "test" eq "test"
             }
-        }
+        }.query(queryService)
             .test()
             .verifyComplete()
     }
 
     @Test
     fun pagedQuery() {
-        snapshotQueryService.pagedQuery(GlobalIdGenerator.generateAsString()) {
+        pagedQuery {
             condition {
                 "test" eq "test"
             }
-        }.toStatePagedList()
+        }.query(queryService)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0))
@@ -48,9 +45,9 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun count() {
-        snapshotQueryService.count(GlobalIdGenerator.generateAsString()) {
+        condition {
             "test" eq "test"
-        }
+        }.count(queryService)
             .test()
             .expectNext(0L)
             .verifyComplete()

@@ -38,7 +38,7 @@ class QuerySnapshotStateHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(Query::class.java)
             .flatMap {
-                snapshotQueryService.query(tenantId, it).toState().collectList()
+                snapshotQueryService.query(it, tenantId).toState().collectList()
             }.toServerResponse(exceptionHandler)
     }
 }
