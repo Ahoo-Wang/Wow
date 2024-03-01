@@ -104,7 +104,6 @@ class ConditionDslTest {
     fun andEmpty() {
         val condition = condition {
             and {
-
             }
         }
         assertThat(condition, equalTo(Condition.empty()))
@@ -135,7 +134,6 @@ class ConditionDslTest {
     fun orEmpty() {
         val condition = condition {
             or {
-
             }
         }
         assertThat(condition, equalTo(Condition.empty()))
