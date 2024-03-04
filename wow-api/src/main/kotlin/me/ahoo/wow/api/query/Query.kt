@@ -43,11 +43,20 @@ data class Condition(
     /**
      * When `operator` is `AND` or `OR`, `children` cannot be empty.
      */
-    val children: List<Condition> = emptyList()
+    val children: List<Condition> = emptyList(),
+    val not: Boolean = false,
 ) {
+
+    fun not(not: Boolean = true): Condition {
+        if (this.not == not) {
+            return this
+        }
+        return copy(not = not)
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
-        val ALL = Condition(EMPTY_VALUE, Operator.ALL, EMPTY_VALUE)
+        val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
 
         fun and(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.AND, children = conditions.toList())
         fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
