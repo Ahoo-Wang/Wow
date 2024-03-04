@@ -15,7 +15,9 @@ class ConditionDslTest {
     @Test
     fun test() {
         val condition = condition {
-            all()
+            not {
+                all()
+            }
             "field1" eq "value1"
             "field2" ne "value2"
             "filed3" gt 1
@@ -49,7 +51,7 @@ class ConditionDslTest {
             equalTo(
                 Condition.and(
                     listOf(
-                        Condition.all(),
+                        Condition.all().not(),
                         Condition.eq("field1", "value1"),
                         Condition.ne("field2", "value2"),
                         Condition.gt("filed3", 1),

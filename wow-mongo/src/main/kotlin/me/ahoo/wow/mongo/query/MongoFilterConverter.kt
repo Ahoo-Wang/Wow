@@ -16,7 +16,7 @@ object MongoFilterConverter {
      */
     @Suppress("CyclomaticComplexMethod")
     fun Condition.toMongoFilter(): Bson {
-        return when (operator) {
+        val filter = when (operator) {
             Operator.ALL -> Filters.empty()
             Operator.EQ -> Filters.eq(field, value)
             Operator.NE -> Filters.ne(field, value)
@@ -63,6 +63,8 @@ object MongoFilterConverter {
                 Filters.or(children.map { it.toMongoFilter() })
             }
         }
+        if (!not) return filter
+        return Filters.not(filter)
     }
 
     fun Projection.toMongoProjection(): Bson? {

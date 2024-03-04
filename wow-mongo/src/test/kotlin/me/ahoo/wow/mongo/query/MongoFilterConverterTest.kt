@@ -29,7 +29,7 @@ class MongoFilterConverterTest {
                 .toMongoFilter()
         }
         Assertions.assertThrows(IllegalArgumentException::class.java) {
-            Condition("id", Operator.BETWEEN, listOf<Int>(1))
+            Condition("id", Operator.BETWEEN, listOf(1))
                 .toMongoFilter()
         }
     }
@@ -59,7 +59,7 @@ class MongoFilterConverterTest {
         @JvmStatic
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of(Condition.ALL, Filters.empty()),
+                Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
                 Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),
                 Arguments.of(Condition.ne("id", "id"), Filters.ne("id", "id")),
                 Arguments.of(Condition.gt("id", 1), Filters.gt("id", 1)),

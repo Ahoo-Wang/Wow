@@ -74,6 +74,16 @@ class ConditionDsl {
         condition(nestedCondition)
     }
 
+    fun not(block: ConditionDsl.() -> Unit) {
+        val nestedDsl = ConditionDsl()
+        nestedDsl.block()
+        if (nestedDsl.conditions.isEmpty()) {
+            return
+        }
+        val nestedCondition = nestedDsl.build()
+        condition(nestedCondition.not())
+    }
+
     fun all() {
         condition(Condition.all())
     }
