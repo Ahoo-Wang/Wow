@@ -30,7 +30,9 @@ enum class Operator {
     STATS_WITH,
     ELEM_MATCH,
     NULL,
-    NOT_NULL
+    NOT_NULL,
+    TRUE,
+    FALSE
 }
 
 data class Condition(
@@ -66,6 +68,8 @@ data class Condition(
         fun elemMatch(field: String, value: Condition) = Condition(field, Operator.ELEM_MATCH, children = listOf(value))
         fun isNull(field: String) = Condition(field, Operator.NULL)
         fun notNull(field: String) = Condition(field, Operator.NOT_NULL)
+        fun isTrue(field: String) = Condition(field, Operator.TRUE)
+        fun isFalse(field: String) = Condition(field, Operator.FALSE)
     }
 }
 

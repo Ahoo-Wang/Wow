@@ -32,6 +32,8 @@ class ConditionDslTest {
             }
             "field15".isNull()
             "field16".notNull()
+            "field17".isTrue()
+            "field18".isFalse()
             and {
                 "field3" eq "value3"
                 "field4" eq "value4"
@@ -61,6 +63,8 @@ class ConditionDslTest {
                         Condition.elemMatch("field13", Condition.eq("field14", "value14")),
                         Condition.isNull("field15"),
                         Condition.notNull("field16"),
+                        Condition.isTrue("field17"),
+                        Condition.isFalse("field18"),
                         Condition.and(
                             listOf(
                                 Condition.eq("field3", "value3"),
