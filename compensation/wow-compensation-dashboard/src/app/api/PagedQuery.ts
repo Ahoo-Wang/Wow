@@ -21,7 +21,7 @@ export interface PagedQuery {
 }
 
 export const initialPagedQuery: PagedQuery = {
-  condition: {field: "", operator: Operator.EMPTY, value: "", children: []},
+  condition: {field: "", operator: Operator.ALL, value: "", children: []},
   sort: [{field: "_id", direction: SortDirection.DESC}],
   pagination: {index: 1, size: 10},
 };

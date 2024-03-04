@@ -74,8 +74,8 @@ class ConditionDsl {
         condition(nestedCondition)
     }
 
-    fun empty() {
-        condition(Condition.empty())
+    fun all() {
+        condition(Condition.all())
     }
 
     infix fun String.eq(value: Any) {
@@ -150,7 +150,7 @@ class ConditionDsl {
 
     fun build(): Condition {
         if (conditions.isEmpty()) {
-            return Condition.empty()
+            return Condition.all()
         }
         if (conditions.size == 1) {
             return conditions.first()

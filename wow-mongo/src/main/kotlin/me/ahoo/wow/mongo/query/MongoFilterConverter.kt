@@ -17,7 +17,7 @@ object MongoFilterConverter {
     @Suppress("CyclomaticComplexMethod")
     fun Condition.toMongoFilter(): Bson {
         return when (operator) {
-            Operator.EMPTY -> Filters.empty()
+            Operator.ALL -> Filters.empty()
             Operator.EQ -> Filters.eq(field, value)
             Operator.NE -> Filters.ne(field, value)
             Operator.GT -> Filters.gt(field, value)
@@ -29,6 +29,11 @@ object MongoFilterConverter {
             Operator.NOT_IN -> Filters.nin(field, value as List<*>)
             Operator.TRUE -> Filters.eq(field, true)
             Operator.FALSE -> Filters.eq(field, false)
+            Operator.ALL_IN -> Filters.all(field, value as List<*>)
+            Operator.NULL -> Filters.eq(field, null)
+            Operator.NOT_NULL -> Filters.ne(field, null)
+            Operator.STATS_WITH -> Filters.regex(field, "^$value")
+            Operator.ELEM_MATCH -> Filters.elemMatch(field, children.first().toMongoFilter())
             Operator.BETWEEN -> {
                 @Suppress("UNCHECKED_CAST")
                 val valueIterable = value as Iterable<Any>
@@ -44,11 +49,6 @@ object MongoFilterConverter {
                 Filters.and(Filters.gte(field, first), Filters.lte(field, second))
             }
 
-            Operator.ALL -> Filters.all(field, value as List<*>)
-            Operator.NULL -> Filters.eq(field, null)
-            Operator.NOT_NULL -> Filters.ne(field, null)
-            Operator.ELEM_MATCH -> Filters.elemMatch(field, children.first().toMongoFilter())
-            Operator.STATS_WITH -> Filters.regex(field, "^$value")
             Operator.AND -> {
                 require(children.isNotEmpty()) {
                     "AND operator children cannot be empty."

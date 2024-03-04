@@ -1,7 +1,7 @@
 export enum Operator {
   AND = "AND",
   OR = "OR",
-  EMPTY = "EMPTY",
+  ALL = "ALL",
   EQ = "EQ",
   NE = "NE",
   GT = "GT",
@@ -12,7 +12,7 @@ export enum Operator {
   IN = "IN",
   NOT_IN = "NOT_IN",
   BETWEEN = "BETWEEN",
-  ALL = "ALL",
+  ALL_IN = "ALL_IN",
   STATS_WITH = "STATS_WITH",
   ELEM_MATCH = "ELEM_MATCH",
   NULL = "NULL",
@@ -52,8 +52,8 @@ export class Conditions {
     return {field: "", operator: Operator.OR, value: "", children: conditions}
   }
 
-  static empty(): Condition {
-    return {field: "", operator: Operator.EMPTY, value: "", children: []}
+  static all(): Condition {
+    return {field: "", operator: Operator.ALL, value: "", children: []}
   }
 
   static eq(field: string, value: any): Condition {
@@ -96,8 +96,8 @@ export class Conditions {
     return {field, operator: Operator.BETWEEN, value: [start, end], children: []}
   }
 
-  static all(field: string, value: any[]): Condition {
-    return {field, operator: Operator.ALL, value, children: []}
+  static allIn(field: string, value: any[]): Condition {
+    return {field, operator: Operator.ALL_IN, value, children: []}
   }
 
   static startsWith(field: string, value: any): Condition {

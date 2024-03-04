@@ -28,7 +28,7 @@
       "enum": [
         "AND",
         "OR",
-        "EMPTY",
+        "ALL",
         "EQ",
         "NE",
         "GT",
@@ -39,7 +39,7 @@
         "IN",
         "NOT_IN",
         "BETWEEN",
-        "ALL",
+        "ALL_IN",
         "STATS_WITH",
         "ELEM_MATCH",
         "NULL",
