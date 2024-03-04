@@ -17,6 +17,8 @@ export enum Operator {
   ELEM_MATCH = "ELEM_MATCH",
   NULL = "NULL",
   NOT_NULL = "NOT_NULL",
+  TRUE = "TRUE",
+  FALSE = "FALSE"
 }
 
 export interface Condition {
@@ -112,5 +114,13 @@ export class Conditions {
 
   static notNull(field: string): Condition {
     return {field, operator: Operator.NOT_NULL, value: "", children: []}
+  }
+
+  static isTrue(field: string): Condition {
+    return {field, operator: Operator.TRUE, value: "", children: []}
+  }
+
+  static isFalse(field: string): Condition {
+    return {field, operator: Operator.FALSE, value: "", children: []}
   }
 }
