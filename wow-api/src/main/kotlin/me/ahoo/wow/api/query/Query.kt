@@ -33,7 +33,7 @@ enum class Operator {
     NULL,
     NOT_NULL,
     TRUE,
-    FALSE
+    FALSE,
 }
 
 data class Condition(
