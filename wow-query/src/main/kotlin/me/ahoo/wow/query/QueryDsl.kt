@@ -38,7 +38,7 @@ import me.ahoo.wow.api.query.Sort
  * ```
  */
 class QueryDsl {
-    private var condition: Condition = Condition.empty()
+    private var condition: Condition = Condition.all()
     private var sort: List<Sort> = emptyList()
     private var limit: Int = Int.MAX_VALUE
 

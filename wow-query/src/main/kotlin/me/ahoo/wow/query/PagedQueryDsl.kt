@@ -59,7 +59,7 @@ import me.ahoo.wow.api.query.Sort
  * ```
  */
 class PagedQueryDsl {
-    private var condition: Condition = Condition.empty()
+    private var condition: Condition = Condition.all()
     private var sort: List<Sort> = emptyList()
     private var pagination: Pagination = Pagination.DEFAULT
 

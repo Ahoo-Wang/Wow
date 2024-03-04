@@ -26,7 +26,7 @@ export enum ExecutionFailedFields {
 
 export class RetryConditions {
 
-  static allCondition = Conditions.empty()
+  static allCondition = Conditions.all()
 
   static toRetryCondition(): Condition {
     return Conditions.and(

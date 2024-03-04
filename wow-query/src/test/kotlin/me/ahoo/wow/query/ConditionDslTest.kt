@@ -15,6 +15,7 @@ class ConditionDslTest {
     @Test
     fun test() {
         val condition = condition {
+            all()
             "field1" eq "value1"
             "field2" ne "value2"
             "filed3" gt 1
@@ -48,6 +49,7 @@ class ConditionDslTest {
             equalTo(
                 Condition.and(
                     listOf(
+                        Condition.all(),
                         Condition.eq("field1", "value1"),
                         Condition.ne("field2", "value2"),
                         Condition.gt("filed3", 1),
@@ -110,7 +112,7 @@ class ConditionDslTest {
             and {
             }
         }
-        assertThat(condition, equalTo(Condition.empty()))
+        assertThat(condition, equalTo(Condition.all()))
     }
 
     @Test
@@ -140,15 +142,15 @@ class ConditionDslTest {
             or {
             }
         }
-        assertThat(condition, equalTo(Condition.empty()))
+        assertThat(condition, equalTo(Condition.all()))
     }
 
     @Test
     fun empty() {
         val condition = condition {
-            empty()
+            all()
         }
-        assertThat(condition, equalTo(Condition.empty()))
+        assertThat(condition, equalTo(Condition.all()))
     }
 
     @Test
@@ -294,20 +296,20 @@ class ConditionDslTest {
                 Arguments.of(
                     condition {
                     },
-                    Condition.empty()
+                    Condition.all()
                 ),
                 Arguments.of(
                     condition {
-                        empty()
+                        all()
                     },
-                    Condition.empty()
+                    Condition.all()
                 ),
                 Arguments.of(
                     condition {
-                        empty()
-                        empty()
+                        all()
+                        all()
                     },
-                    Condition.and(listOf(Condition.empty(), Condition.empty()))
+                    Condition.and(listOf(Condition.all(), Condition.all()))
                 ),
             )
         }

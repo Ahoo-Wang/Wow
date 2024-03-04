@@ -28,7 +28,7 @@ class QuerySnapshotHandlerFunctionTest {
         ).create(QuerySnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
         val request = mockk<ServerRequest> {
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
-            every { bodyToMono(Query::class.java) } returns Query(Condition.EMPTY).toMono()
+            every { bodyToMono(Query::class.java) } returns Query(Condition.ALL).toMono()
         }
 
         handlerFunction.handle(request)

@@ -17,7 +17,7 @@ object MongoFilterConverter {
     @Suppress("CyclomaticComplexMethod")
     fun Condition.toMongoFilter(): Bson {
         return when (operator) {
-            Operator.EMPTY -> Filters.empty()
+            Operator.ALL -> Filters.empty()
             Operator.EQ -> Filters.eq(field, value)
             Operator.NE -> Filters.ne(field, value)
             Operator.GT -> Filters.gt(field, value)
@@ -44,7 +44,7 @@ object MongoFilterConverter {
                 Filters.and(Filters.gte(field, first), Filters.lte(field, second))
             }
 
-            Operator.ALL -> Filters.all(field, value as List<*>)
+            Operator.ALL_IN -> Filters.all(field, value as List<*>)
             Operator.NULL -> Filters.eq(field, null)
             Operator.NOT_NULL -> Filters.ne(field, null)
             Operator.ELEM_MATCH -> Filters.elemMatch(field, children.first().toMongoFilter())

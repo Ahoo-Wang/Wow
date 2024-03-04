@@ -33,7 +33,7 @@ class MongoSnapshotQueryServiceTest {
     fun single() {
         snapshotQueryService.single(
             tenantId = GlobalIdGenerator.generateAsString(),
-            condition = Condition.EMPTY
+            condition = Condition.ALL
         )
             .test()
             .verifyComplete()
@@ -43,7 +43,7 @@ class MongoSnapshotQueryServiceTest {
     fun query() {
         snapshotQueryService.query(
             tenantId = GlobalIdGenerator.generateAsString(),
-            query = Query(condition = Condition.EMPTY, sort = emptyList())
+            query = Query(condition = Condition.ALL, sort = emptyList())
         )
             .test()
             .verifyComplete()
@@ -53,7 +53,7 @@ class MongoSnapshotQueryServiceTest {
     fun pagedQuery() {
         snapshotQueryService.pagedQuery(
             tenantId = GlobalIdGenerator.generateAsString(),
-            pagedQuery = PagedQuery(condition = Condition.EMPTY, sort = emptyList())
+            pagedQuery = PagedQuery(condition = Condition.ALL, sort = emptyList())
         )
             .test()
             .consumeNextWith {
@@ -66,7 +66,7 @@ class MongoSnapshotQueryServiceTest {
     fun count() {
         snapshotQueryService.count(
             tenantId = GlobalIdGenerator.generateAsString(),
-            condition = Condition.EMPTY
+            condition = Condition.ALL
         )
             .test()
             .expectNext(0L)

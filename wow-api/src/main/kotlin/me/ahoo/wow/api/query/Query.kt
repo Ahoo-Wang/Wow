@@ -15,7 +15,8 @@ package me.ahoo.wow.api.query
 
 enum class Operator {
     AND, OR,
-    EMPTY,
+
+    ALL,
     EQ,
     NE,
     GT,
@@ -26,7 +27,7 @@ enum class Operator {
     IN,
     NOT_IN,
     BETWEEN,
-    ALL,
+    ALL_IN,
     STATS_WITH,
     ELEM_MATCH,
     NULL,
@@ -46,13 +47,13 @@ data class Condition(
 ) {
     companion object {
         const val EMPTY_VALUE = ""
-        val EMPTY = Condition(EMPTY_VALUE, Operator.EMPTY, EMPTY_VALUE)
+        val ALL = Condition(EMPTY_VALUE, Operator.ALL, EMPTY_VALUE)
 
         fun and(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.AND, children = conditions.toList())
         fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
         fun or(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.OR, children = conditions.toList())
         fun or(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.OR, children = conditions)
-        fun empty() = EMPTY
+        fun all() = ALL
         fun eq(field: String, value: Any) = Condition(field, Operator.EQ, value)
         fun ne(field: String, value: Any) = Condition(field, Operator.NE, value)
         fun gt(field: String, value: Any) = Condition(field, Operator.GT, value)
@@ -63,7 +64,7 @@ data class Condition(
         fun isIn(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
         fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
         fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
-        fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL, value)
+        fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL_IN, value)
         fun startsWith(field: String, value: Any) = Condition(field, Operator.STATS_WITH, value)
         fun elemMatch(field: String, value: Condition) = Condition(field, Operator.ELEM_MATCH, children = listOf(value))
         fun isNull(field: String) = Condition(field, Operator.NULL)
