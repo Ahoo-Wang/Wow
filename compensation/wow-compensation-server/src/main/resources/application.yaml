@@ -25,6 +25,12 @@ spring:
   web:
     resources:
       static-locations: file:./compensation/wow-compensation-dashboard/dist/browser/
+  jackson:
+    serialization:
+      write-durations-as-timestamps: true
+      write-dates-as-timestamps: true
+    mapper:
+      accept-case-insensitive-enums: true
   data:
     mongodb:
       uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
@@ -38,6 +44,6 @@ cosid:
     enabled: true
 wow:
   kafka:
-    bootstrap-servers: localhost:56993
+    bootstrap-servers: localhost:51466
 
 
