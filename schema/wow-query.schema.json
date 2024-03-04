@@ -83,6 +83,10 @@
             "$ref": "#/definitions/condition"
           },
           "default": []
+        },
+        "not": {
+          "type": "boolean",
+          "default": false
         }
       },
       "required": [
