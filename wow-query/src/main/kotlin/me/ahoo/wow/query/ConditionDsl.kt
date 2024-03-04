@@ -88,6 +88,18 @@ class ConditionDsl {
         condition(Condition.all())
     }
 
+    fun id(value: String) {
+        condition(Condition.id(value))
+    }
+
+    fun ids(value: List<String>) {
+        condition(Condition.ids(value))
+    }
+
+    fun ids(vararg value: String) {
+        condition(Condition.ids(value.toList()))
+    }
+
     infix fun String.eq(value: Any) {
         condition(Condition.eq(this, value))
     }

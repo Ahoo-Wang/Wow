@@ -7,6 +7,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.mongo.Documents
 import org.bson.conversions.Bson
 
 object MongoFilterConverter {
@@ -18,6 +19,8 @@ object MongoFilterConverter {
     fun Condition.toMongoFilter(): Bson {
         val filter = when (operator) {
             Operator.ALL -> Filters.empty()
+            Operator.ID -> Filters.eq(value)
+            Operator.IDS -> Filters.`in`(Documents.ID_FIELD, value as List<*>)
             Operator.EQ -> Filters.eq(field, value)
             Operator.NE -> Filters.ne(field, value)
             Operator.GT -> Filters.gt(field, value)

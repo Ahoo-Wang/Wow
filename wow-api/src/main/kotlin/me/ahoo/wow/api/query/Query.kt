@@ -14,26 +14,115 @@
 package me.ahoo.wow.api.query
 
 enum class Operator {
-    AND, OR,
+    /**
+     * 对提供的条件列表执行逻辑与
+     */
+    AND,
 
+    /**
+     * 对提供的条件列表执行逻辑或
+     */
+    OR,
+
+    /**
+     * 匹配`id`字段值等于指定值的所有文档
+     */
+    ID,
+
+    /**
+     * 匹配`id`字段值等于指定值列表中的任何值的所有文档
+     */
+    IDS,
+
+    /**
+     * 匹配所有文档
+     */
     ALL,
+
+    /**
+     * 匹配字段名称值等于指定值的所有文档
+     */
     EQ,
+
+    /**
+     * 匹配字段名称值不等于指定值的所有文档
+     */
     NE,
+
+    /**
+     * 匹配给定字段的值大于指定值的所有文档
+     */
     GT,
+
+    /**
+     * 匹配给定字段的值小于指定值的所有文档
+     */
     LT,
+
+    /**
+     * 匹配给定字段的值大于或等于指定值的所有文档
+     */
     GTE,
+
+    /**
+     * 匹配给定字段的值小于或等于指定值的所有文档
+     */
     LTE,
+
+    /**
+     * 匹配给定字段的值包含指定值的所有文档
+     */
     LIKE,
+
+    /**
+     * 匹配字段值等于指定值列表中的任何值的所有文档
+     */
     IN,
+
+    /**
+     * 匹配字段值不等于任何指定值或不存在的所有文档
+     */
     NOT_IN,
+
+    /**
+     * 匹配字段值在指定值范围区间的所有文档
+     */
     BETWEEN,
+
+    /**
+     * 匹配所有文档，其中字段值是包含所有指定值的数组
+     */
     ALL_IN,
+
+    /**
+     * 匹配字段值以指定字符串开头的文档
+     */
     STATS_WITH,
+
+    /**
+     * 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。
+     */
     ELEM_MATCH,
+
+    /**
+     * 匹配字段值在指定值为`null`的所有文档
+     */
     NULL,
+
+    /**
+     * 匹配字段值在指定值不为`null`的所有文档
+     */
     NOT_NULL,
+
+    /**
+     * 匹配字段值在指定值为`true`的所有文档
+     */
     TRUE,
-    FALSE,
+
+    /**
+     * 匹配字段值在指定值为`false`的所有文档
+     */
+    FALSE
 }
 
 data class Condition(
@@ -44,6 +133,9 @@ data class Condition(
      * When `operator` is `AND` or `OR`, `children` cannot be empty.
      */
     val children: List<Condition> = emptyList(),
+    /**
+     * 匹配所有与传入条件不匹配的文档
+     */
     val not: Boolean = false,
 ) {
 
@@ -80,6 +172,9 @@ data class Condition(
         fun notNull(field: String) = Condition(field, Operator.NOT_NULL)
         fun isTrue(field: String) = Condition(field, Operator.TRUE)
         fun isFalse(field: String) = Condition(field, Operator.FALSE)
+        fun id(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.ID, value = value)
+        fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
+        fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
     }
 }
 

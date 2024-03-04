@@ -7,6 +7,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoProjection
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
@@ -60,6 +61,8 @@ class MongoFilterConverterTest {
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
+                Arguments.of(Condition.id("id"), Filters.eq("id")),
+                Arguments.of(Condition.ids("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
                 Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),
                 Arguments.of(Condition.ne("id", "id"), Filters.ne("id", "id")),
                 Arguments.of(Condition.gt("id", 1), Filters.gt("id", 1)),

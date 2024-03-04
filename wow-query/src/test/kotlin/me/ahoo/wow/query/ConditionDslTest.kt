@@ -18,6 +18,8 @@ class ConditionDslTest {
             not {
                 all()
             }
+            id("id")
+            ids("id", "id2")
             "field1" eq "value1"
             "field2" ne "value2"
             "filed3" gt 1
@@ -52,6 +54,8 @@ class ConditionDslTest {
                 Condition.and(
                     listOf(
                         Condition.all().not(),
+                        Condition.id("id"),
+                        Condition.ids("id", "id2"),
                         Condition.eq("field1", "value1"),
                         Condition.ne("field2", "value2"),
                         Condition.gt("filed3", 1),
