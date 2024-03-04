@@ -80,7 +80,7 @@ class ConditionDsl {
         if (nestedDsl.conditions.isEmpty()) {
             return
         }
-        val nestedCondition = Condition.and(nestedDsl.conditions)
+        val nestedCondition = nestedDsl.build()
         condition(nestedCondition.not())
     }
 
