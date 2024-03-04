@@ -140,6 +140,14 @@ class ConditionDsl {
         condition(Condition.notNull(this))
     }
 
+    fun String.isTrue() {
+        condition(Condition.isTrue(this))
+    }
+
+    fun String.isFalse() {
+        condition(Condition.isFalse(this))
+    }
+
     fun build(): Condition {
         if (conditions.isEmpty()) {
             return Condition.empty()

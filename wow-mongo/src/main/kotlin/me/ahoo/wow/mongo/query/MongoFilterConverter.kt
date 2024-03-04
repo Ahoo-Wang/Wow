@@ -27,6 +27,8 @@ object MongoFilterConverter {
             Operator.LIKE -> Filters.regex(field, value as String)
             Operator.IN -> Filters.`in`(field, value as List<*>)
             Operator.NOT_IN -> Filters.nin(field, value as List<*>)
+            Operator.TRUE -> Filters.eq(field, true)
+            Operator.FALSE -> Filters.eq(field, false)
             Operator.BETWEEN -> {
                 @Suppress("UNCHECKED_CAST")
                 val valueIterable = value as Iterable<Any>

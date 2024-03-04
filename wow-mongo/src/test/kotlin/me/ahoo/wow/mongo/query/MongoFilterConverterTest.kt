@@ -89,6 +89,14 @@ class MongoFilterConverterTest {
                     Condition.or(listOf(Condition("id", Operator.EQ, "id"))),
                     Filters.or(Filters.eq("id", "id"))
                 ),
+                Arguments.of(
+                    Condition.or(listOf(Condition.isTrue("id"))),
+                    Filters.or(Filters.eq("id", true))
+                ),
+                Arguments.of(
+                    Condition.or(listOf(Condition.isFalse("id"))),
+                    Filters.or(Filters.eq("id", false))
+                ),
             )
         }
 
