@@ -28,6 +28,8 @@
       "enum": [
         "AND",
         "OR",
+        "ID",
+        "IDS",
         "ALL",
         "EQ",
         "NE",
