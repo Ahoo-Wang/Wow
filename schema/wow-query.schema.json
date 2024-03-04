@@ -43,7 +43,9 @@
         "STATS_WITH",
         "ELEM_MATCH",
         "NULL",
-        "NOT_NULL"
+        "NOT_NULL",
+        "TRUE",
+        "FALSE"
       ]
     },
     "condition": {
