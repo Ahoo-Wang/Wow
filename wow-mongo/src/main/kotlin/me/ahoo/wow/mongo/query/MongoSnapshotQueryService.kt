@@ -19,20 +19,24 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import me.ahoo.wow.mongo.toSnapshot
+import me.ahoo.wow.query.ConditionConverter
 import me.ahoo.wow.query.SnapshotQueryService
 import org.bson.Document
+import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
-class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection<Document>) : SnapshotQueryService<S> {
+class MongoSnapshotQueryService<S : Any>(
+    private val collection: MongoCollection<Document>,
+    private val converter: ConditionConverter<Bson> = MongoConditionConverter
+) : SnapshotQueryService<S> {
 
     override fun single(condition: Condition): Mono<Snapshot<S>> {
-        val filter = condition.toMongoFilter()
+        val filter = converter.convert(condition)
         return collection.find(filter)
             .limit(1)
             .first()
@@ -41,7 +45,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
     }
 
     override fun query(query: IQuery): Flux<Snapshot<S>> {
-        val filter = query.condition.toMongoFilter()
+        val filter = converter.convert(query.condition)
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
             .sort(sort)
@@ -51,7 +55,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
     }
 
     override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
-        val filter = pagedQuery.condition.toMongoFilter()
+        val filter = converter.convert(pagedQuery.condition)
         val sort = pagedQuery.sort.toMongoSort()
 
         val totalPublisher = collection.countDocuments(filter).toMono()
@@ -69,7 +73,7 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
     }
 
     override fun count(condition: Condition): Mono<Long> {
-        val filter = condition.toMongoFilter()
+        val filter = converter.convert(condition)
         return collection.countDocuments(filter).toMono()
     }
 }

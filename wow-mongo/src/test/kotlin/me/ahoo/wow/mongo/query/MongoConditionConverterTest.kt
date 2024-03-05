@@ -8,7 +8,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
+import me.ahoo.wow.mongo.query.MongoConditionConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoProjection
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import org.bson.conversions.Bson
@@ -21,7 +21,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
-class MongoFilterConverterTest {
+class MongoConditionConverterTest {
 
     @Test
     fun toMongoFilterBetweenError() {
