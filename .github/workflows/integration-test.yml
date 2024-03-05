@@ -17,11 +17,13 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
 env:
   CI: GITHUB_ACTIONS
