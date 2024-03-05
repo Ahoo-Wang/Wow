@@ -104,6 +104,10 @@ class ConditionDsl {
         condition(Condition.tenantId(value))
     }
 
+    fun deleted(value: Boolean) {
+        condition(Condition.deleted(value))
+    }
+
     infix fun String.eq(value: Any) {
         condition(Condition.eq(this, value))
     }
