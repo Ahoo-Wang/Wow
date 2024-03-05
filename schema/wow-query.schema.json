@@ -49,6 +49,14 @@
         "NOT_NULL",
         "TRUE",
         "FALSE",
+        "TODAY",
+        "TOMORROW",
+        "THIS_WEEK",
+        "NEXT_WEEK",
+        "LAST_WEEK",
+        "THIS_MONTH",
+        "LAST_MONTH",
+        "RECENT_DAYS",
         "RAW"
       ]
     },
