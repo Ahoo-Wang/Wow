@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.query
 
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
@@ -56,30 +55,18 @@ fun sort(block: SortDsl.() -> Unit): List<Sort> {
     return dsl.build()
 }
 
-fun <S : Any> IQuery.query(
-    queryService: SnapshotQueryService<S>,
-    tenantId: String = TenantId.DEFAULT_TENANT_ID
-): Flux<Snapshot<S>> {
-    return queryService.query(this, tenantId)
+fun <S : Any> IQuery.query(queryService: SnapshotQueryService<S>): Flux<Snapshot<S>> {
+    return queryService.query(this)
 }
 
-fun <S : Any> IPagedQuery.query(
-    queryService: SnapshotQueryService<S>,
-    tenantId: String = TenantId.DEFAULT_TENANT_ID
-): Mono<PagedList<Snapshot<S>>> {
-    return queryService.pagedQuery(this, tenantId)
+fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<PagedList<Snapshot<S>>> {
+    return queryService.pagedQuery(this)
 }
 
-fun <S : Any> Condition.single(
-    queryService: SnapshotQueryService<S>,
-    tenantId: String = TenantId.DEFAULT_TENANT_ID
-): Mono<Snapshot<S>> {
-    return queryService.single(this, tenantId)
+fun <S : Any> Condition.single(queryService: SnapshotQueryService<S>): Mono<Snapshot<S>> {
+    return queryService.single(this)
 }
 
-fun Condition.count(
-    queryService: SnapshotQueryService<*>,
-    tenantId: String = TenantId.DEFAULT_TENANT_ID
-): Mono<Long> {
-    return queryService.count(this, tenantId)
+fun Condition.count(queryService: SnapshotQueryService<*>): Mono<Long> {
+    return queryService.count(this)
 }

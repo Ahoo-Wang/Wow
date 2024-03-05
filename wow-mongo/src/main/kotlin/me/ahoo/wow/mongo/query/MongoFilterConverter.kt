@@ -8,6 +8,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -16,12 +17,13 @@ object MongoFilterConverter {
     /**
      * 将 Condition 转换成 Mongo DB 的 Filter Bson 对象
      */
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun Condition.toMongoFilter(): Bson {
         val filter = when (operator) {
             Operator.ALL -> Filters.empty()
             Operator.ID -> Filters.eq(value)
             Operator.IDS -> Filters.`in`(Documents.ID_FIELD, value as List<*>)
+            Operator.TENANT_ID -> Filters.eq(MessageRecords.TENANT_ID, value)
             Operator.EQ -> Filters.eq(field, value)
             Operator.NE -> Filters.ne(field, value)
             Operator.GT -> Filters.gt(field, value)

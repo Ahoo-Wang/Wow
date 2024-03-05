@@ -100,6 +100,10 @@ class ConditionDsl {
         condition(Condition.ids(value.toList()))
     }
 
+    fun tenantId(value: String) {
+        condition(Condition.tenantId(value))
+    }
+
     infix fun String.eq(value: Any) {
         condition(Condition.eq(this, value))
     }

@@ -35,6 +35,11 @@ enum class Operator {
     IDS,
 
     /**
+     * 匹配`tenantId`字段值等于指定值的所有文档
+     */
+    TENANT_ID,
+
+    /**
      * 匹配所有文档
      */
     ALL,
@@ -156,6 +161,10 @@ data class Condition(
         return copy(not = not)
     }
 
+    fun withTenantId(tenantId: String): Condition {
+        return and(listOf(tenantId(tenantId), this))
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
@@ -186,6 +195,7 @@ data class Condition(
         fun id(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.ID, value = value)
         fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
         fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
+        fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }

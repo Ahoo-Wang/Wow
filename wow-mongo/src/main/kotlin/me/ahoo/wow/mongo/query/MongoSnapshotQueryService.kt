@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo.query
 
-import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
@@ -24,9 +23,7 @@ import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import me.ahoo.wow.mongo.toSnapshot
 import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
-import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -34,13 +31,8 @@ import reactor.kotlin.core.publisher.toMono
 
 class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection<Document>) : SnapshotQueryService<S> {
 
-    private fun Bson.withTenantId(tenantId: String): Bson {
-        val tenantIdFilter = Filters.eq(MessageRecords.TENANT_ID, tenantId)
-        return Filters.and(tenantIdFilter, this)
-    }
-
-    override fun single(condition: Condition, tenantId: String): Mono<Snapshot<S>> {
-        val filter = condition.toMongoFilter().withTenantId(tenantId)
+    override fun single(condition: Condition): Mono<Snapshot<S>> {
+        val filter = condition.toMongoFilter()
         return collection.find(filter)
             .limit(1)
             .first()
@@ -48,8 +40,8 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             .toSnapshot()
     }
 
-    override fun query(query: IQuery, tenantId: String): Flux<Snapshot<S>> {
-        val filter = query.condition.toMongoFilter().withTenantId(tenantId)
+    override fun query(query: IQuery): Flux<Snapshot<S>> {
+        val filter = query.condition.toMongoFilter()
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
             .sort(sort)
@@ -58,8 +50,8 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             .toSnapshot()
     }
 
-    override fun pagedQuery(pagedQuery: IPagedQuery, tenantId: String): Mono<PagedList<Snapshot<S>>> {
-        val filter = pagedQuery.condition.toMongoFilter().withTenantId(tenantId)
+    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
+        val filter = pagedQuery.condition.toMongoFilter()
         val sort = pagedQuery.sort.toMongoSort()
 
         val totalPublisher = collection.countDocuments(filter).toMono()
@@ -76,8 +68,8 @@ class MongoSnapshotQueryService<S : Any>(private val collection: MongoCollection
             }
     }
 
-    override fun count(condition: Condition, tenantId: String): Mono<Long> {
-        val filter = condition.toMongoFilter().withTenantId(tenantId)
+    override fun count(condition: Condition): Mono<Long> {
+        val filter = condition.toMongoFilter()
         return collection.countDocuments(filter).toMono()
     }
 }
