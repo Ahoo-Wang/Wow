@@ -160,7 +160,9 @@ enum class Operator {
     /**
      * 匹配数值类型字段在指定值最近天数范围区间的所有文档
      */
-    RECENT_DAYS
+    RECENT_DAYS,
+    RECENT_WEEKS,
+    RECENT_MONTHS,
     // #endregion
 }
 
@@ -230,6 +232,12 @@ data class Condition(
         fun lastMonth(field: String) = Condition(field = field, operator = Operator.LAST_MONTH)
         fun recentDays(field: String, days: Int) =
             Condition(field = field, operator = Operator.RECENT_DAYS, value = days)
+
+        fun recentWeeks(field: String, weeks: Int) =
+            Condition(field = field, operator = Operator.RECENT_WEEKS, value = weeks)
+
+        fun recentMonths(field: String, months: Int) =
+            Condition(field = field, operator = Operator.RECENT_MONTHS, value = months)
 
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }

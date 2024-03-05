@@ -184,6 +184,42 @@ class MongoConditionConverterTest {
         assertThat(actual, equalTo(expected))
     }
 
+    @Test
+    fun recentWeeks() {
+        val actual = Condition.recentWeeks("field", 2).toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().minusWeeks(2).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun recentMonths() {
+        val actual = Condition.recentMonths("field", 3).toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().minusMonths(3).withDayOfMonth(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC)
+                    .toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
     fun toMongoFilter(condition: Condition, expected: Bson) {

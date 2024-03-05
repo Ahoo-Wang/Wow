@@ -57,6 +57,8 @@
         "THIS_MONTH",
         "LAST_MONTH",
         "RECENT_DAYS",
+        "RECENT_WEEKS",
+        "RECENT_MONTHS",
         "RAW"
       ]
     },
