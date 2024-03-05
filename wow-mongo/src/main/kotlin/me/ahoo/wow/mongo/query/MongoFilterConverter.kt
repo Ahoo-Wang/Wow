@@ -27,7 +27,7 @@ object MongoFilterConverter {
             Operator.LT -> Filters.lt(field, value)
             Operator.GTE -> Filters.gte(field, value)
             Operator.LTE -> Filters.lte(field, value)
-            Operator.LIKE -> Filters.regex(field, value as String)
+            Operator.CONTAINS -> Filters.regex(field, value as String)
             Operator.IN -> Filters.`in`(field, value as List<*>)
             Operator.NOT_IN -> Filters.nin(field, value as List<*>)
             Operator.TRUE -> Filters.eq(field, true)

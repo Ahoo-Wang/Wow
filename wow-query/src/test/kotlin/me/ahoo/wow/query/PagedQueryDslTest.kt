@@ -26,7 +26,7 @@ class PagedQueryDslTest {
                 "field4" lt 1
                 "field5" gte 1
                 "field6" lte 1
-                "field7" like "value7"
+                "field7" contains "value7"
                 "field8" isIn listOf("value8")
                 "field9" notIn listOf("value9")
                 "field10" between (1 to 2)
@@ -62,7 +62,7 @@ class PagedQueryDslTest {
                         Condition.lt("field4", 1),
                         Condition.gte("field5", 1),
                         Condition.lte("field6", 1),
-                        Condition.like("field7", "value7"),
+                        Condition.contains("field7", "value7"),
                         Condition.isIn("field8", listOf("value8")),
                         Condition.notIn("field9", listOf("value9")),
                         Condition.between("field10", 1, 2),

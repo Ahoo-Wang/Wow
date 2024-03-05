@@ -10,12 +10,12 @@ export enum Operator {
   LT = "LT",
   GTE = "GTE",
   LTE = "LTE",
-  LIKE = "LIKE",
+  CONTAINS = "CONTAINS",
   IN = "IN",
   NOT_IN = "NOT_IN",
   BETWEEN = "BETWEEN",
   ALL_IN = "ALL_IN",
-  STATS_WITH = "STATS_WITH",
+  STARTS_WITH = "STARTS_WITH",
   ELEM_MATCH = "ELEM_MATCH",
   NULL = "NULL",
   NOT_NULL = "NOT_NULL",
@@ -91,8 +91,8 @@ export class Conditions {
     return {field, operator: Operator.LTE, value, children: [], not: false}
   }
 
-  static like(field: string, value: any): Condition {
-    return {field, operator: Operator.LIKE, value, children: [], not: false}
+  static contains(field: string, value: any): Condition {
+    return {field, operator: Operator.CONTAINS, value, children: [], not: false}
   }
 
   static in(field: string, value: any): Condition {
@@ -112,7 +112,7 @@ export class Conditions {
   }
 
   static startsWith(field: string, value: any): Condition {
-    return {field, operator: Operator.STATS_WITH, value, children: [], not: false}
+    return {field, operator: Operator.STARTS_WITH, value, children: [], not: false}
   }
 
   static elemMatch(field: string, value: Condition): Condition {
