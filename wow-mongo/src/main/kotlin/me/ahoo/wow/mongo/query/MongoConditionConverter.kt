@@ -222,6 +222,29 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         )
     }
 
+    override fun recentWeeks(condition: Condition): Bson {
+        val weeks = condition.value as Number
+        val startOfRecentWeeks =
+            LocalDateTime.now().minusWeeks(weeks.toLong()).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .with(LocalTime.MIN)
+        val endOfRecentWeeks =
+            LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+        return Filters.and(
+            Filters.gte(condition.field, startOfRecentWeeks.toInstant(ZoneOffset.UTC).toEpochMilli()),
+            Filters.lte(condition.field, endOfRecentWeeks.toInstant(ZoneOffset.UTC).toEpochMilli())
+        )
+    }
+
+    override fun recentMonths(condition: Condition): Bson {
+        val months = condition.value as Number
+        val startOfRecentMonths = LocalDateTime.now().minusMonths(months.toLong()).withDayOfMonth(1).with(LocalTime.MIN)
+        val endOfRecentMonths = LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+        return Filters.and(
+            Filters.gte(condition.field, startOfRecentMonths.toInstant(ZoneOffset.UTC).toEpochMilli()),
+            Filters.lte(condition.field, endOfRecentMonths.toInstant(ZoneOffset.UTC).toEpochMilli())
+        )
+    }
+
     override fun raw(condition: Condition): Bson {
         if (condition.value is Bson) {
             return condition.value as Bson

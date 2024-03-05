@@ -214,6 +214,14 @@ class ConditionDsl {
         condition(Condition.recentDays(this, days))
     }
 
+    infix fun String.recentWeeks(weeks: Int) {
+        condition(Condition.recentWeeks(this, weeks))
+    }
+
+    infix fun String.recentMonths(months: Int) {
+        condition(Condition.recentMonths(this, months))
+    }
+
     fun raw(value: Any) {
         condition(Condition.raw(value))
     }
