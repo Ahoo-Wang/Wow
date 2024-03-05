@@ -1,6 +1,8 @@
 export enum Operator {
   AND = "AND",
   OR = "OR",
+  ID = "ID",
+  IDS = "IDS",
   ALL = "ALL",
   EQ = "EQ",
   NE = "NE",
@@ -26,6 +28,7 @@ export interface Condition {
   operator: Operator;
   value: any;
   children: Condition[];
+  not: boolean;
 }
 
 export enum SortDirection {
@@ -45,82 +48,100 @@ export interface Pagination {
 
 export class Conditions {
   static and(conditions: Condition[]): Condition {
-    return {field: "", operator: Operator.AND, value: "", children: conditions}
+    return {field: "", operator: Operator.AND, value: "", children: conditions, not: false}
   }
 
   static or(conditions: Condition[]): Condition {
-    return {field: "", operator: Operator.OR, value: "", children: conditions}
+    return {field: "", operator: Operator.OR, value: "", children: conditions, not: false}
+  }
+
+  static id(value: string): Condition {
+    return {field: "", operator: Operator.ID, value: value, children: [], not: false}
+  }
+
+  static ids(value: string[]): Condition {
+    return {field: "", operator: Operator.IDS, value: value, children: [], not: false}
   }
 
   static all(): Condition {
-    return {field: "", operator: Operator.ALL, value: "", children: []}
+    return {field: "", operator: Operator.ALL, value: "", children: [], not: false}
   }
 
   static eq(field: string, value: any): Condition {
-    return {field, operator: Operator.EQ, value, children: []}
+    return {field, operator: Operator.EQ, value, children: [], not: false}
   }
 
   static ne(field: string, value: any): Condition {
-    return {field, operator: Operator.NE, value, children: []}
+    return {field, operator: Operator.NE, value, children: [], not: false}
   }
 
   static gt(field: string, value: any): Condition {
-    return {field, operator: Operator.GT, value, children: []}
+    return {field, operator: Operator.GT, value, children: [], not: false}
   }
 
   static lt(field: string, value: any): Condition {
-    return {field, operator: Operator.LT, value, children: []}
+    return {field, operator: Operator.LT, value, children: [], not: false}
   }
 
   static gte(field: string, value: any): Condition {
-    return {field, operator: Operator.GTE, value, children: []}
+    return {field, operator: Operator.GTE, value, children: [], not: false}
   }
 
   static lte(field: string, value: any): Condition {
-    return {field, operator: Operator.LTE, value, children: []}
+    return {field, operator: Operator.LTE, value, children: [], not: false}
   }
 
   static like(field: string, value: any): Condition {
-    return {field, operator: Operator.LIKE, value, children: []}
+    return {field, operator: Operator.LIKE, value, children: [], not: false}
   }
 
   static in(field: string, value: any): Condition {
-    return {field, operator: Operator.IN, value, children: []}
+    return {field, operator: Operator.IN, value, children: [], not: false}
   }
 
   static notIn(field: string, value: any): Condition {
-    return {field, operator: Operator.NOT_IN, value, children: []}
+    return {field, operator: Operator.NOT_IN, value, children: [], not: false}
   }
 
   static between(field: string, start: any, end: any): Condition {
-    return {field, operator: Operator.BETWEEN, value: [start, end], children: []}
+    return {field, operator: Operator.BETWEEN, value: [start, end], children: [], not: false}
   }
 
   static allIn(field: string, value: any[]): Condition {
-    return {field, operator: Operator.ALL_IN, value, children: []}
+    return {field, operator: Operator.ALL_IN, value, children: [], not: false}
   }
 
   static startsWith(field: string, value: any): Condition {
-    return {field, operator: Operator.STATS_WITH, value, children: []}
+    return {field, operator: Operator.STATS_WITH, value, children: [], not: false}
   }
 
   static elemMatch(field: string, value: Condition): Condition {
-    return {field, operator: Operator.ELEM_MATCH, value: "", children: [value]}
+    return {field, operator: Operator.ELEM_MATCH, value: "", children: [value], not: false}
   }
 
   static isNull(field: string): Condition {
-    return {field, operator: Operator.NULL, value: "", children: []}
+    return {field, operator: Operator.NULL, value: "", children: [], not: false}
   }
 
   static notNull(field: string): Condition {
-    return {field, operator: Operator.NOT_NULL, value: "", children: []}
+    return {field, operator: Operator.NOT_NULL, value: "", children: [], not: false}
   }
 
   static isTrue(field: string): Condition {
-    return {field, operator: Operator.TRUE, value: "", children: []}
+    return {field, operator: Operator.TRUE, value: "", children: [], not: false}
   }
 
   static isFalse(field: string): Condition {
-    return {field, operator: Operator.FALSE, value: "", children: []}
+    return {field, operator: Operator.FALSE, value: "", children: [], not: false}
+  }
+
+  static not(condition: Condition): Condition {
+    return {
+      field: condition.field,
+      operator: condition.operator,
+      value: condition.value,
+      children: condition.children,
+      not: true
+    }
   }
 }
