@@ -45,6 +45,14 @@ interface ConditionConverter<T> {
             Operator.TRUE -> isTrue(condition)
             Operator.FALSE -> isFalse(condition)
             Operator.DELETED -> deleted(condition)
+            Operator.TODAY -> today(condition)
+            Operator.TOMORROW -> tomorrow(condition)
+            Operator.THIS_WEEK -> thisWeek(condition)
+            Operator.NEXT_WEEK -> nextWeek(condition)
+            Operator.LAST_WEEK -> lastWeek(condition)
+            Operator.THIS_MONTH -> thisMonth(condition)
+            Operator.LAST_MONTH -> lastMonth(condition)
+            Operator.RECENT_DAYS -> recentDays(condition)
             Operator.RAW -> raw(condition)
         }
         return not(condition.not, target)
@@ -75,6 +83,14 @@ interface ConditionConverter<T> {
     fun isTrue(condition: Condition): T
     fun isFalse(condition: Condition): T
     fun deleted(condition: Condition): T
+    fun today(condition: Condition): T
+    fun tomorrow(condition: Condition): T
+    fun thisWeek(condition: Condition): T
+    fun nextWeek(condition: Condition): T
+    fun lastWeek(condition: Condition): T
+    fun thisMonth(condition: Condition): T
+    fun lastMonth(condition: Condition): T
+    fun recentDays(condition: Condition): T
     fun raw(condition: Condition): T
     fun not(not: Boolean, target: T): T
 }

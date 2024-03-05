@@ -53,6 +53,14 @@ class ConditionDslTest {
                 "field3" eq "value3"
                 "field4" eq "value4"
             }
+            "field19".today()
+            "field20".tomorrow()
+            "field21".thisWeek()
+            "field22".nextWeek()
+            "field23".lastWeek()
+            "field24".thisMonth()
+            "field25".lastMonth()
+            "field26".recentDays(1)
             raw("1=1")
         }
         assertThat(
@@ -95,6 +103,14 @@ class ConditionDslTest {
                                 Condition.eq("field4", "value4")
                             )
                         ),
+                        Condition.today("field19"),
+                        Condition.tomorrow("field20"),
+                        Condition.thisWeek("field21"),
+                        Condition.nextWeek("field22"),
+                        Condition.lastWeek("field23"),
+                        Condition.thisMonth("field24"),
+                        Condition.lastMonth("field25"),
+                        Condition.recentDays("field26", 1),
                         Condition.raw("1=1")
                     )
                 )

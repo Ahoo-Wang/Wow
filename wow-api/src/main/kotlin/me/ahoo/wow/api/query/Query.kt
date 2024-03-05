@@ -142,7 +142,26 @@ enum class Operator {
     /**
      * 原始操作符，将条件值直接作为原始的数据库查询条件
      */
-    RAW
+    RAW,
+
+    // #region 日期类型筛选条件
+    /**
+     * 匹配数值类型字段在指定值今天范围区间的所有文档
+     * 字段要求:以毫秒为单位的`long` 类型时间戳
+     */
+    TODAY,
+    TOMORROW,
+    THIS_WEEK,
+    NEXT_WEEK,
+    LAST_WEEK,
+    THIS_MONTH,
+    LAST_MONTH,
+
+    /**
+     * 匹配数值类型字段在指定值最近天数范围区间的所有文档
+     */
+    RECENT_DAYS
+    // #endregion
 }
 
 data class Condition(
@@ -202,6 +221,16 @@ data class Condition(
         fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
         fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
+        fun today(field: String) = Condition(field = field, operator = Operator.TODAY)
+        fun tomorrow(field: String) = Condition(field = field, operator = Operator.TOMORROW)
+        fun thisWeek(field: String) = Condition(field = field, operator = Operator.THIS_WEEK)
+        fun nextWeek(field: String) = Condition(field = field, operator = Operator.NEXT_WEEK)
+        fun lastWeek(field: String) = Condition(field = field, operator = Operator.LAST_WEEK)
+        fun thisMonth(field: String) = Condition(field = field, operator = Operator.THIS_MONTH)
+        fun lastMonth(field: String) = Condition(field = field, operator = Operator.LAST_MONTH)
+        fun recentDays(field: String, days: Int) =
+            Condition(field = field, operator = Operator.RECENT_DAYS, value = days)
+
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }

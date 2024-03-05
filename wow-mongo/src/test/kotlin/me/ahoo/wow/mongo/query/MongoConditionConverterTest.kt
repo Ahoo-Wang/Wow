@@ -19,6 +19,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.temporal.TemporalAdjusters
 import java.util.stream.Stream
 
 class MongoConditionConverterTest {
@@ -49,6 +54,134 @@ class MongoConditionConverterTest {
             Condition("", Operator.OR, "")
                 .toMongoFilter()
         }
+    }
+
+    @Test
+    fun today() {
+        val actual = Condition.today("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte("field", LocalDateTime.now().with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()),
+            Filters.lte("field", LocalDateTime.now().with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli())
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun tomorrow() {
+        val actual = Condition.tomorrow("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().plusDays(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().plusDays(1).with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun thisWeek() {
+        val actual = Condition.thisWeek("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun nextWeek() {
+        val actual = Condition.nextWeek("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                    .with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun lastWeek() {
+        val actual = Condition.lastWeek("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                    .with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun thisMonth() {
+        val actual = Condition.thisMonth("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun lastMonth() {
+        val actual = Condition.lastMonth("field").toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC)
+                    .toEpochMilli()
+            ),
+            Filters.lte(
+                "field",
+                LocalDateTime.now().minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun recentDays() {
+        val actual = Condition.recentDays("field", 1).toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                LocalDateTime.now().minusDays(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+            ),
+            Filters.lte("field", LocalDateTime.now().with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli())
+        )
+        assertThat(actual, equalTo(expected))
     }
 
     @ParameterizedTest
