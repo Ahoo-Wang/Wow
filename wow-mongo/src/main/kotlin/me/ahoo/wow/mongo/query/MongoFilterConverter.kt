@@ -35,7 +35,8 @@ object MongoFilterConverter {
             Operator.ALL_IN -> Filters.all(field, value as List<*>)
             Operator.NULL -> Filters.eq(field, null)
             Operator.NOT_NULL -> Filters.ne(field, null)
-            Operator.STATS_WITH -> Filters.regex(field, "^$value")
+            Operator.STARTS_WITH -> Filters.regex(field, "^$value")
+            Operator.ENDS_WITH -> Filters.regex(field, "$value$")
             Operator.ELEM_MATCH -> Filters.elemMatch(field, children.first().toMongoFilter())
             Operator.BETWEEN -> {
                 @Suppress("UNCHECKED_CAST")

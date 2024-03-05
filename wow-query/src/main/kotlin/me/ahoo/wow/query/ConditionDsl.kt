@@ -148,6 +148,10 @@ class ConditionDsl {
         condition(Condition.startsWith(this, value))
     }
 
+    infix fun String.endsWith(value: Any) {
+        condition(Condition.endsWith(this, value))
+    }
+
     infix fun String.elemMatch(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
         nestedDsl.block()
