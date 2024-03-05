@@ -23,6 +23,16 @@ export enum Operator {
   NOT_NULL = "NOT_NULL",
   TRUE = "TRUE",
   FALSE = "FALSE",
+  TODAY = "TODAY",
+  TOMORROW = "TOMORROW",
+  THIS_WEEK = "THIS_WEEK",
+  NEXT_WEEK = "NEXT_WEEK",
+  LAST_WEEK = "LAST_WEEK",
+  THIS_MONTH = "THIS_MONTH",
+  LAST_MONTH = "LAST_MONTH",
+  RECENT_DAYS = "RECENT_DAYS",
+  RECENT_WEEKS = "RECENT_WEEKS",
+  RECENT_MONTHS = "RECENT_MONTHS",
   RAW = "RAW"
 }
 
@@ -65,9 +75,11 @@ export class Conditions {
   static ids(value: string[]): Condition {
     return {field: "", operator: Operator.IDS, value: value, children: [], not: false}
   }
+
   static deleted(value: boolean): Condition {
     return {field: "", operator: Operator.DELETED, value: value, children: [], not: false}
   }
+
   static tenantId(value: string): Condition {
     return {field: "", operator: Operator.TENANT_ID, value: value, children: [], not: false}
   }
@@ -142,6 +154,46 @@ export class Conditions {
 
   static isFalse(field: string): Condition {
     return {field, operator: Operator.FALSE, value: "", children: [], not: false}
+  }
+
+  static today(field: string): Condition {
+    return {field, operator: Operator.TODAY, value: "", children: [], not: false}
+  }
+
+  static tomorrow(field: string): Condition {
+    return {field, operator: Operator.TOMORROW, value: "", children: [], not: false}
+  }
+
+  static thisWeek(field: string): Condition {
+    return {field, operator: Operator.THIS_WEEK, value: "", children: [], not: false}
+  }
+
+  static nextWeek(field: string): Condition {
+    return {field, operator: Operator.NEXT_WEEK, value: "", children: [], not: false}
+  }
+
+  static lastWeek(field: string): Condition {
+    return {field, operator: Operator.LAST_WEEK, value: "", children: [], not: false}
+  }
+
+  static thisMonth(field: string): Condition {
+    return {field, operator: Operator.THIS_MONTH, value: "", children: [], not: false}
+  }
+
+  static lastMonth(field: string): Condition {
+    return {field, operator: Operator.LAST_MONTH, value: "", children: [], not: false}
+  }
+
+  static recentDays(field: string, days: number): Condition {
+    return {field, operator: Operator.RECENT_DAYS, value: days, children: [], not: false}
+  }
+
+  static recentWeeks(field: string, weeks: number): Condition {
+    return {field, operator: Operator.RECENT_WEEKS, value: weeks, children: [], not: false}
+  }
+
+  static recentMonths(field: string, months: number): Condition {
+    return {field, operator: Operator.RECENT_MONTHS, value: months, children: [], not: false}
   }
 
   static raw(raw: string): Condition {
