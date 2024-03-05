@@ -1,12 +1,11 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.MongoClients
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.SchemaInitializerSpec
 import me.ahoo.wow.query.SnapshotQueryService
+import me.ahoo.wow.query.condition
 import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -31,7 +30,9 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun single() {
         snapshotQueryService.single(
-            condition = Condition.ALL
+            condition = condition {
+                tenantId(GlobalIdGenerator.generateAsString())
+            }
         )
             .test()
             .verifyComplete()
@@ -40,7 +41,11 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun query() {
         snapshotQueryService.query(
-            query = Query(condition = Condition.ALL, sort = emptyList())
+            query = me.ahoo.wow.query.query {
+                condition {
+                    tenantId(GlobalIdGenerator.generateAsString())
+                }
+            }
         )
             .test()
             .verifyComplete()
@@ -49,7 +54,11 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun pagedQuery() {
         snapshotQueryService.pagedQuery(
-            pagedQuery = PagedQuery(condition = Condition.ALL, sort = emptyList())
+            pagedQuery = me.ahoo.wow.query.pagedQuery {
+                condition {
+                    tenantId(GlobalIdGenerator.generateAsString())
+                }
+            }
         )
             .test()
             .consumeNextWith {
@@ -61,7 +70,9 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun count() {
         snapshotQueryService.count(
-            condition = Condition.ALL
+            condition = condition {
+                tenantId(GlobalIdGenerator.generateAsString())
+            }
         )
             .test()
             .expectNext(0L)
