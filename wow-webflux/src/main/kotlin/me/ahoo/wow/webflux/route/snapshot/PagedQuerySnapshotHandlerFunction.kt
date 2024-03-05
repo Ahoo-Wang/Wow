@@ -37,7 +37,8 @@ class PagedQuerySnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
-                snapshotQueryService.pagedQuery(it, tenantId)
+                val pagedQuery = it.copy(condition = it.condition.withTenantId(tenantId))
+                snapshotQueryService.pagedQuery(pagedQuery)
             }.toServerResponse(exceptionHandler)
     }
 }

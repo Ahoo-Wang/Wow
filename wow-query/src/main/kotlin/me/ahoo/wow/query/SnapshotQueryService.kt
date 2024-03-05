@@ -14,7 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
@@ -24,26 +23,26 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface SnapshotQueryService<S : Any> {
-    fun single(condition: Condition, tenantId: String = TenantId.DEFAULT_TENANT_ID): Mono<Snapshot<S>>
-    fun query(query: IQuery, tenantId: String = TenantId.DEFAULT_TENANT_ID): Flux<Snapshot<S>>
-    fun pagedQuery(pagedQuery: IPagedQuery, tenantId: String = TenantId.DEFAULT_TENANT_ID): Mono<PagedList<Snapshot<S>>>
-    fun count(condition: Condition, tenantId: String = TenantId.DEFAULT_TENANT_ID): Mono<Long>
+    fun single(condition: Condition): Mono<Snapshot<S>>
+    fun query(query: IQuery): Flux<Snapshot<S>>
+    fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>>
+    fun count(condition: Condition): Mono<Long>
 }
 
 object NoOpSnapshotQueryService : SnapshotQueryService<Any> {
-    override fun single(condition: Condition, tenantId: String): Mono<Snapshot<Any>> {
+    override fun single(condition: Condition): Mono<Snapshot<Any>> {
         return Mono.empty()
     }
 
-    override fun query(query: IQuery, tenantId: String): Flux<Snapshot<Any>> {
+    override fun query(query: IQuery): Flux<Snapshot<Any>> {
         return Flux.empty()
     }
 
-    override fun pagedQuery(pagedQuery: IPagedQuery, tenantId: String): Mono<PagedList<Snapshot<Any>>> {
+    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<Any>>> {
         return Mono.just(PagedList(0, emptyList()))
     }
 
-    override fun count(condition: Condition, tenantId: String): Mono<Long> {
+    override fun count(condition: Condition): Mono<Long> {
         return Mono.just(0)
     }
 }

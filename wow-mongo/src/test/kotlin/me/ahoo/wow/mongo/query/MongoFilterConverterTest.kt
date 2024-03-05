@@ -60,6 +60,7 @@ class MongoFilterConverterTest {
         @JvmStatic
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
+                Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
                 Arguments.of(Condition.id("id"), Filters.eq("id")),
                 Arguments.of(Condition.ids("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
