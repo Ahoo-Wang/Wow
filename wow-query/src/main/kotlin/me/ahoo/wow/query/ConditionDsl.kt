@@ -174,6 +174,10 @@ class ConditionDsl {
         condition(Condition.isFalse(this))
     }
 
+    fun raw(value: Any) {
+        condition(Condition.raw(value))
+    }
+
     fun build(): Condition {
         if (conditions.isEmpty()) {
             return Condition.all()

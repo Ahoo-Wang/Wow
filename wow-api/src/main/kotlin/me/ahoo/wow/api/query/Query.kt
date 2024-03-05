@@ -127,7 +127,12 @@ enum class Operator {
     /**
      * 匹配字段值在指定值为`false`的所有文档
      */
-    FALSE
+    FALSE,
+
+    /**
+     * 原始操作符，将条件值直接作为原始的数据库查询条件
+     */
+    RAW
 }
 
 data class Condition(
@@ -181,6 +186,7 @@ data class Condition(
         fun id(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.ID, value = value)
         fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
         fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
+        fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }
 
