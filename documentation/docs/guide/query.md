@@ -2,34 +2,42 @@
 
 ## 操作符
 
-| 操作符         | 描述                                      |
-|-------------|-----------------------------------------|
-| AND         | 对提供的条件列表执行逻辑与                           |
-| OR          | 对提供的条件列表执行逻辑或                           |
-| ID          | 匹配`id`字段值等于指定值的所有文档                     |
-| IDS         | 匹配`id`字段值等于指定值列表中的任何值的所有文档              |
-| TENANT_ID   | 匹配`tenantId`字段值等于指定值的所有文档               |
-| DELETED     | 匹配`deleted`字段值等于指定值的所有文档                |
-| ALL         | 匹配所有文档                                  |
-| EQ          | 匹配字段名称值等于指定值的所有文档                       |
-| NE          | 匹配字段名称值不等于指定值的所有文档                      |
-| GT          | 匹配给定字段的值大于指定值的所有文档                      |
-| LT          | 匹配给定字段的值小于指定值的所有文档                      |
-| GTE         | 匹配给定字段的值大于或等于指定值的所有文档                   |
-| LTE         | 匹配给定字段的值小于或等于指定值的所有文档                   |
-| CONTAINS    | 匹配给定字段的值包含指定值的所有文档                      |
-| IN          | 匹配字段值等于指定值列表中的任何值的所有文档                  |
-| NOT_IN      | 匹配字段值不等于任何指定值或不存在的所有文档                  |
-| BETWEEN     | 匹配字段值在指定值范围区间的所有文档                      |
-| ALL_IN      | 匹配所有文档，其中字段值是包含所有指定值的数组                 |
-| STARTS_WITH | 匹配字段值以指定字符串开头的文档                        |
-| ENDS_WITH   | 匹配字段值以指定字符串结尾的文档                        |
-| ELEM_MATCH  | 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。 |
-| NULL        | 匹配字段值在指定值为`null`的所有文档                   |
-| NOT_NULL    | 匹配字段值在指定值不为`null`的所有文档                  |
-| TRUE        | 匹配字段值在指定值为`true`的所有文档                   |
-| FALSE       | 匹配字段值在指定值为`false`的所有文档                  |
-| RAW         | 原始操作符，将条件值直接作为原始的数据库查询条件                |
+| 操作符           | 描述                                      |
+|---------------|-----------------------------------------|
+| AND           | 对提供的条件列表执行逻辑与                           |
+| OR            | 对提供的条件列表执行逻辑或                           |
+| ID            | 匹配`id`字段值等于指定值的所有文档                     |
+| IDS           | 匹配`id`字段值等于指定值列表中的任何值的所有文档              |
+| ALL           | 匹配所有文档                                  |
+| EQ            | 匹配字段名称值等于指定值的所有文档                       |
+| NE            | 匹配字段名称值不等于指定值的所有文档                      |
+| GT            | 匹配给定字段的值大于指定值的所有文档                      |
+| LT            | 匹配给定字段的值小于指定值的所有文档                      |
+| GTE           | 匹配给定字段的值大于或等于指定值的所有文档                   |
+| LTE           | 匹配给定字段的值小于或等于指定值的所有文档                   |
+| CONTAINS      | 匹配给定字段的值包含指定值的所有文档                      |
+| IN            | 匹配字段值等于指定值列表中的任何值的所有文档                  |
+| NOT_IN        | 匹配字段值不等于任何指定值或不存在的所有文档                  |
+| BETWEEN       | 匹配字段值在指定值范围区间的所有文档                      |
+| ALL_IN        | 匹配所有文档，其中字段值是包含所有指定值的数组                 |
+| STARTS_WITH   | 匹配字段值以指定字符串开头的文档                        |
+| ENDS_WITH     | 匹配字段值以指定字符串结尾的文档                        |
+| ELEM_MATCH    | 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。 |
+| NULL          | 匹配字段值在指定值为`null`的所有文档                   |
+| NOT_NULL      | 匹配字段值在指定值不为`null`的所有文档                  |
+| TRUE          | 匹配字段值在指定值为`true`的所有文档                   |
+| FALSE         | 匹配字段值在指定值为`false`的所有文档                  |
+| RAW           | 原始操作符，将条件值直接作为原始的数据库查询条件                |
+| TODAY         | 匹配字段在指定值今天范围区间的所有文档                     |
+| TOMORROW      | 匹配字段在指定值明天范围区间的所有文档                     |
+| THIS_WEEK     | 匹配字段在指定值本周范围区间的所有文档                     |
+| NEXT_WEEK     | 匹配字段在指定值下周范围区间的所有文档                     |
+| LAST_WEEK     | 匹配字段在指定值上周范围区间的所有文档                     |
+| THIS_MONTH    | 匹配字段在指定值本月范围区间的所有文档                     |
+| LAST_MONTH    | 匹配字段在指定值上个月范围区间的所有文档                    |
+| RECENT_DAYS   | 匹配字段在指定值最近天数范围区间的所有文档                   |
+| RECENT_WEEKS  | 匹配字段在指定值最近周数范围区间的所有文档                   |
+| RECENT_MONTHS | 匹配字段在指定值最近月数范围区间的所有文档                   |
 
 ## Query DSL
 
@@ -198,10 +206,10 @@ pagedQuery {
 
 ![Query Service](../public/images/query/open-api-query.png)
 
-
 ### 分页查询
 
 ::: code-group
+
 ```shell [Curl]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/pagination' \
@@ -245,6 +253,7 @@ pagedQuery {
   }
 }'
 ```
+
 ```json [响应]
 {
   "total": 2,
@@ -364,6 +373,7 @@ pagedQuery {
   ]
 }
 ```
+
 ```typescript [Typescript]
 Conditions.and(
     [
@@ -373,11 +383,13 @@ Conditions.and(
     ]
 )
 ```
+
 :::
 
 ### 查询
 
 ::: code-group
+
 ```shell [Curl]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/query' \
@@ -418,6 +430,7 @@ Conditions.and(
   }
 }'
 ```
+
 ```json [响应]
 [
   {
@@ -478,11 +491,13 @@ Conditions.and(
   }
 ]
 ```
+
 :::
 
 ### 计数(`Count`)
 
 ::: code-group
+
 ```shell [Curl]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/count' \
@@ -514,13 +529,17 @@ Conditions.and(
     ]
   }'
 ```
+
 ```json [响应]
 2
 ```
+
 :::
 
 ### 获取单个模型
+
 ::: code-group
+
 ```shell [Curl]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/single' \
@@ -533,6 +552,7 @@ Conditions.and(
     "children": []
   }'
 ```
+
 ```json [响应]
 {
   "contextName": "compensation-service",
@@ -591,5 +611,6 @@ Conditions.and(
   "deleted": false
 }
 ```
+
 :::
 
