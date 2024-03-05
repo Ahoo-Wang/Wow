@@ -97,7 +97,12 @@ enum class Operator {
     /**
      * 匹配字段值以指定字符串开头的文档
      */
-    STATS_WITH,
+    STARTS_WITH,
+
+    /**
+     * 匹配字段值以指定字符串结尾的文档
+     */
+    ENDS_WITH,
 
     /**
      * 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。
@@ -166,7 +171,8 @@ data class Condition(
         fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
         fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
         fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL_IN, value)
-        fun startsWith(field: String, value: Any) = Condition(field, Operator.STATS_WITH, value)
+        fun startsWith(field: String, value: Any) = Condition(field, Operator.STARTS_WITH, value)
+        fun endsWith(field: String, value: Any) = Condition(field, Operator.ENDS_WITH, value)
         fun elemMatch(field: String, value: Condition) = Condition(field, Operator.ELEM_MATCH, children = listOf(value))
         fun isNull(field: String) = Condition(field, Operator.NULL)
         fun notNull(field: String) = Condition(field, Operator.NOT_NULL)

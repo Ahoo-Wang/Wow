@@ -32,6 +32,7 @@ class ConditionDslTest {
             "field10" between (1 to 2)
             "field11" all listOf("value11")
             "field12" startsWith "value12"
+            "field12" endsWith "value12"
             "field13" elemMatch {
                 "field14" eq "value14"
             }
@@ -68,6 +69,7 @@ class ConditionDslTest {
                         Condition.between("field10", 1, 2),
                         Condition.all("field11", listOf("value11")),
                         Condition.startsWith("field12", "value12"),
+                        Condition.endsWith("field12", "value12"),
                         Condition.elemMatch("field13", Condition.eq("field14", "value14")),
                         Condition.isNull("field15"),
                         Condition.notNull("field16"),
