@@ -62,7 +62,7 @@ enum class Operator {
     /**
      * 匹配给定字段的值包含指定值的所有文档
      */
-    LIKE,
+    CONTAINS,
 
     /**
      * 匹配字段值等于指定值列表中的任何值的所有文档
@@ -87,7 +87,12 @@ enum class Operator {
     /**
      * 匹配字段值以指定字符串开头的文档
      */
-    STATS_WITH,
+    STARTS_WITH,
+
+    /**
+     * 匹配字段值以指定字符串结尾的文档
+     */
+    ENDS_WITH,
 
     /**
      * 条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。
@@ -130,7 +135,7 @@ condition {
     "field4" lt 1
     "field5" gte 1
     "field6" lte 1
-    "field7" like "value7"
+    "field7" contains "value7"
     "field8" isIn listOf("value8")
     "field9" notIn listOf("value9")
     "field10" between (1 to 2)
@@ -209,7 +214,7 @@ pagedQuery {
         "field4" lt 1
         "field5" gte 1
         "field6" lte 1
-        "field7" like "value7"
+        "field7" contains "value7"
         "field8" isIn listOf("value8")
         "field9" notIn listOf("value9")
         "field10" between (1 to 2)

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.query.Condition
  *     "field4" lt 1
  *     "field5" gte 1
  *     "field6" lte 1
- *     "field7" like "value7"
+ *     "field7" contains "value7"
  *     "field8" isIn listOf("value8")
  *     "field9" notIn listOf("value9")
  *     "field10" between (1 to 2)
@@ -124,8 +124,8 @@ class ConditionDsl {
         condition(Condition.lte(this, value))
     }
 
-    infix fun String.like(value: Any) {
-        condition(Condition.like(this, value))
+    infix fun String.contains(value: Any) {
+        condition(Condition.contains(this, value))
     }
 
     infix fun String.isIn(value: List<Any>) {

@@ -69,7 +69,7 @@ class MongoFilterConverterTest {
                 Arguments.of(Condition.lt("id", 1), Filters.lt("id", 1)),
                 Arguments.of(Condition.gte("id", 1), Filters.gte("id", 1)),
                 Arguments.of(Condition.lte("id", 1), Filters.lte("id", 1)),
-                Arguments.of(Condition.like("id", "value"), Filters.regex("id", "value")),
+                Arguments.of(Condition.contains("id", "value"), Filters.regex("id", "value")),
                 Arguments.of(Condition.isIn("id", listOf("value")), Filters.`in`("id", listOf("value"))),
                 Arguments.of(Condition.notIn("id", listOf("value")), Filters.nin("id", listOf("value"))),
                 Arguments.of(
@@ -84,6 +84,7 @@ class MongoFilterConverterTest {
                     Filters.elemMatch("id", Filters.eq("id", "id"))
                 ),
                 Arguments.of(Condition.startsWith("id", "value"), Filters.regex("id", "^value")),
+                Arguments.of(Condition.endsWith("id", "value"), Filters.regex("id", "value$")),
                 Arguments.of(
                     Condition.and(listOf(Condition("id", Operator.EQ, "id"))),
                     Filters.and(Filters.eq("id", "id"))

@@ -72,7 +72,7 @@ enum class Operator {
     /**
      * 匹配给定字段的值包含指定值的所有文档
      */
-    LIKE,
+    CONTAINS,
 
     /**
      * 匹配字段值等于指定值列表中的任何值的所有文档
@@ -166,7 +166,7 @@ data class Condition(
         fun lt(field: String, value: Any) = Condition(field, Operator.LT, value)
         fun gte(field: String, value: Any) = Condition(field, Operator.GTE, value)
         fun lte(field: String, value: Any) = Condition(field, Operator.LTE, value)
-        fun like(field: String, value: Any) = Condition(field, Operator.LIKE, value)
+        fun contains(field: String, value: Any) = Condition(field, Operator.CONTAINS, value)
         fun isIn(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
         fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
         fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
