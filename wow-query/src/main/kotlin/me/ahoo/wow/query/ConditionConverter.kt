@@ -44,6 +44,7 @@ interface ConditionConverter<T> {
             Operator.NOT_NULL -> notNull(condition)
             Operator.TRUE -> isTrue(condition)
             Operator.FALSE -> isFalse(condition)
+            Operator.DELETED -> deleted(condition)
             Operator.RAW -> raw(condition)
         }
         return not(condition.not, target)
@@ -73,6 +74,7 @@ interface ConditionConverter<T> {
     fun notNull(condition: Condition): T
     fun isTrue(condition: Condition): T
     fun isFalse(condition: Condition): T
+    fun deleted(condition: Condition): T
     fun raw(condition: Condition): T
     fun not(not: Boolean, target: T): T
 }

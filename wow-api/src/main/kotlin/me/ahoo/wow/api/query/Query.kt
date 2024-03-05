@@ -40,6 +40,11 @@ enum class Operator {
     TENANT_ID,
 
     /**
+     * 匹配`deleted`字段值等于指定值的所有文档
+     */
+    DELETED,
+
+    /**
      * 匹配所有文档
      */
     ALL,
@@ -196,6 +201,7 @@ data class Condition(
         fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
         fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
+        fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }

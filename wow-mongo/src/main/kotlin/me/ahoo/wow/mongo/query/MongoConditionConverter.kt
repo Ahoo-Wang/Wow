@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.ConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -131,6 +132,10 @@ object MongoConditionConverter : ConditionConverter<Bson> {
 
     override fun isFalse(condition: Condition): Bson {
         return Filters.eq(condition.field, false)
+    }
+
+    override fun deleted(condition: Condition): Bson {
+        return Filters.eq(StateAggregateRecords.DELETED, condition.value)
     }
 
     override fun raw(condition: Condition): Bson {

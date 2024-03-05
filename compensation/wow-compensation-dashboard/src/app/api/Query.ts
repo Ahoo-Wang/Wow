@@ -3,6 +3,7 @@ export enum Operator {
   OR = "OR",
   ID = "ID",
   IDS = "IDS",
+  DELETED = "DELETED",
   TENANT_ID = "TENANT_ID",
   ALL = "ALL",
   EQ = "EQ",
@@ -64,7 +65,9 @@ export class Conditions {
   static ids(value: string[]): Condition {
     return {field: "", operator: Operator.IDS, value: value, children: [], not: false}
   }
-
+  static deleted(value: boolean): Condition {
+    return {field: "", operator: Operator.DELETED, value: value, children: [], not: false}
+  }
   static tenantId(value: string): Condition {
     return {field: "", operator: Operator.TENANT_ID, value: value, children: [], not: false}
   }

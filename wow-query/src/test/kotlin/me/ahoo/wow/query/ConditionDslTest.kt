@@ -15,6 +15,7 @@ class ConditionDslTest {
     @Test
     fun test() {
         val condition = condition {
+            deleted(false)
             and {
                 tenantId("tenantId")
                 all()
@@ -59,6 +60,7 @@ class ConditionDslTest {
             equalTo(
                 Condition.and(
                     listOf(
+                        Condition.deleted(false),
                         Condition.all().withTenantId("tenantId"),
                         Condition.all().not(),
                         Condition.id("id"),

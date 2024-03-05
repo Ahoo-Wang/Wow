@@ -76,6 +76,7 @@ class MongoConditionConverterTest {
         @JvmStatic
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
+                Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
                 Arguments.of(Condition.id("id"), Filters.eq("id")),
