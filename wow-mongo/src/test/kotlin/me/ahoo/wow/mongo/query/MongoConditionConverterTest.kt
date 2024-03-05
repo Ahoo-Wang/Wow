@@ -35,6 +35,22 @@ class MongoConditionConverterTest {
         }
     }
 
+    @Test
+    fun toMongoFilterAndError() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("", Operator.AND, "")
+                .toMongoFilter()
+        }
+    }
+
+    @Test
+    fun toMongoFilterOrError() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("", Operator.OR, "")
+                .toMongoFilter()
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
     fun toMongoFilter(condition: Condition, expected: Bson) {
