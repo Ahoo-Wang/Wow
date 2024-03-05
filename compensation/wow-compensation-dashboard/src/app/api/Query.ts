@@ -3,6 +3,7 @@ export enum Operator {
   OR = "OR",
   ID = "ID",
   IDS = "IDS",
+  TENANT_ID = "TENANT_ID",
   ALL = "ALL",
   EQ = "EQ",
   NE = "NE",
@@ -20,7 +21,8 @@ export enum Operator {
   NULL = "NULL",
   NOT_NULL = "NOT_NULL",
   TRUE = "TRUE",
-  FALSE = "FALSE"
+  FALSE = "FALSE",
+  RAW = "RAW"
 }
 
 export interface Condition {
@@ -61,6 +63,10 @@ export class Conditions {
 
   static ids(value: string[]): Condition {
     return {field: "", operator: Operator.IDS, value: value, children: [], not: false}
+  }
+
+  static tenantId(value: string): Condition {
+    return {field: "", operator: Operator.TENANT_ID, value: value, children: [], not: false}
   }
 
   static all(): Condition {
@@ -133,6 +139,10 @@ export class Conditions {
 
   static isFalse(field: string): Condition {
     return {field, operator: Operator.FALSE, value: "", children: [], not: false}
+  }
+
+  static raw(raw: string): Condition {
+    return {field: "", operator: Operator.RAW, value: raw, children: [], not: false}
   }
 
   static not(condition: Condition): Condition {
