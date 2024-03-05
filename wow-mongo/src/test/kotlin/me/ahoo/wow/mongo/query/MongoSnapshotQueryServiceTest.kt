@@ -4,7 +4,6 @@ import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Query
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.SchemaInitializerSpec
 import me.ahoo.wow.query.SnapshotQueryService
@@ -32,7 +31,6 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun single() {
         snapshotQueryService.single(
-            tenantId = GlobalIdGenerator.generateAsString(),
             condition = Condition.ALL
         )
             .test()
@@ -42,7 +40,6 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun query() {
         snapshotQueryService.query(
-            tenantId = GlobalIdGenerator.generateAsString(),
             query = Query(condition = Condition.ALL, sort = emptyList())
         )
             .test()
@@ -52,7 +49,6 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun pagedQuery() {
         snapshotQueryService.pagedQuery(
-            tenantId = GlobalIdGenerator.generateAsString(),
             pagedQuery = PagedQuery(condition = Condition.ALL, sort = emptyList())
         )
             .test()
@@ -65,7 +61,6 @@ class MongoSnapshotQueryServiceTest {
     @Test
     fun count() {
         snapshotQueryService.count(
-            tenantId = GlobalIdGenerator.generateAsString(),
             condition = Condition.ALL
         )
             .test()
