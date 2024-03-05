@@ -182,6 +182,38 @@ class ConditionDsl {
         condition(Condition.isFalse(this))
     }
 
+    fun String.today() {
+        condition(Condition.today(this))
+    }
+
+    fun String.tomorrow() {
+        condition(Condition.tomorrow(this))
+    }
+
+    fun String.thisWeek() {
+        condition(Condition.thisWeek(this))
+    }
+
+    fun String.nextWeek() {
+        condition(Condition.nextWeek(this))
+    }
+
+    fun String.lastWeek() {
+        condition(Condition.lastWeek(this))
+    }
+
+    fun String.thisMonth() {
+        condition(Condition.thisMonth(this))
+    }
+
+    fun String.lastMonth() {
+        condition(Condition.lastMonth(this))
+    }
+
+    infix fun String.recentDays(days: Int) {
+        condition(Condition.recentDays(this, days))
+    }
+
     fun raw(value: Any) {
         condition(Condition.raw(value))
     }
