@@ -37,17 +37,19 @@
         "LT",
         "GTE",
         "LTE",
-        "LIKE",
+        "CONTAINS",
         "IN",
         "NOT_IN",
         "BETWEEN",
         "ALL_IN",
-        "STATS_WITH",
+        "STARTS_WITH",
+        "ENDS_WITH",
         "ELEM_MATCH",
         "NULL",
         "NOT_NULL",
         "TRUE",
-        "FALSE"
+        "FALSE",
+        "RAW"
       ]
     },
     "condition": {
