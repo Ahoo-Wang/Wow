@@ -12,7 +12,7 @@
  */
 
 
-import {Condition, Operator, Pagination, Sort, SortDirection} from "./Query";
+import {Condition, Conditions, Pagination, Sort, SortDirection} from "./Query";
 
 export interface PagedQuery {
   condition: Condition;
@@ -21,7 +21,7 @@ export interface PagedQuery {
 }
 
 export const initialPagedQuery: PagedQuery = {
-  condition: {field: "", operator: Operator.ALL, value: "", children: []},
+  condition: Conditions.all(),
   sort: [{field: "_id", direction: SortDirection.DESC}],
   pagination: {index: 1, size: 10},
 };
