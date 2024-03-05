@@ -101,6 +101,18 @@ class MongoFilterConverterTest {
                     Condition.or(listOf(Condition.isFalse("id"))),
                     Filters.or(Filters.eq("id", false))
                 ),
+                Arguments.of(
+                    Condition.or(listOf(Condition.raw(Filters.eq("id", false)))),
+                    Filters.or(Filters.eq("id", false))
+                ),
+                Arguments.of(
+                    Condition.raw(Filters.eq("id", false)),
+                    Filters.eq("id", false)
+                ),
+                Arguments.of(
+                    Condition.raw("{id:false}"),
+                    Filters.eq("id", false)
+                )
             )
         }
 

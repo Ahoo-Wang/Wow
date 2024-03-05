@@ -8,6 +8,7 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
+import org.bson.Document
 import org.bson.conversions.Bson
 
 object MongoFilterConverter {
@@ -65,6 +66,14 @@ object MongoFilterConverter {
                     "OR operator children cannot be empty."
                 }
                 Filters.or(children.map { it.toMongoFilter() })
+            }
+
+            Operator.RAW -> {
+                if (value is Bson) {
+                    value as Bson
+                } else {
+                    Document.parse(value as String)
+                }
             }
         }
         if (!not) return filter

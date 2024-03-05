@@ -48,6 +48,7 @@ class ConditionDslTest {
                 "field3" eq "value3"
                 "field4" eq "value4"
             }
+            raw("1=1")
         }
         assertThat(
             condition,
@@ -86,7 +87,8 @@ class ConditionDslTest {
                                 Condition.eq("field3", "value3"),
                                 Condition.eq("field4", "value4")
                             )
-                        )
+                        ),
+                        Condition.raw("1=1")
                     )
                 )
             )
