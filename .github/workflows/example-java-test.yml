@@ -17,10 +17,12 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
 env:
   CI: GITHUB_ACTIONS
 

@@ -19,6 +19,7 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
     branches:
       - '**'
     tags:
@@ -27,6 +28,7 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
     branches:
       - 'main'
 

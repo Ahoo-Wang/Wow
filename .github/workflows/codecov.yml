@@ -4,11 +4,13 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
   workflow_dispatch:
 permissions:
