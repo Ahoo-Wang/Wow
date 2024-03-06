@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 
@@ -22,6 +23,6 @@ class MongoSnapshotQueryServiceFactory(private val database: MongoDatabase) : Sn
     override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
         val collectionName = namedAggregate.aggregateName + "_snapshot"
         val collection = database.getCollection(collectionName)
-        return MongoSnapshotQueryService(collection)
+        return MongoSnapshotQueryService(namedAggregate.materialize(), collection)
     }
 }

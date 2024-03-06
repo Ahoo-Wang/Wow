@@ -14,6 +14,7 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
@@ -31,6 +32,7 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 class MongoSnapshotQueryService<S : Any>(
+    override val namedAggregate: NamedAggregate,
     private val collection: MongoCollection<Document>,
     private val converter: ConditionConverter<Bson> = MongoConditionConverter
 ) : SnapshotQueryService<S> {
