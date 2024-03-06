@@ -31,8 +31,6 @@ export enum Operator {
   THIS_MONTH = "THIS_MONTH",
   LAST_MONTH = "LAST_MONTH",
   RECENT_DAYS = "RECENT_DAYS",
-  RECENT_WEEKS = "RECENT_WEEKS",
-  RECENT_MONTHS = "RECENT_MONTHS",
   RAW = "RAW"
 }
 
@@ -186,14 +184,6 @@ export class Conditions {
 
   static recentDays(field: string, days: number): Condition {
     return {field, operator: Operator.RECENT_DAYS, value: days, children: [], not: false}
-  }
-
-  static recentWeeks(field: string, weeks: number): Condition {
-    return {field, operator: Operator.RECENT_WEEKS, value: weeks, children: [], not: false}
-  }
-
-  static recentMonths(field: string, months: number): Condition {
-    return {field, operator: Operator.RECENT_MONTHS, value: months, children: [], not: false}
   }
 
   static raw(raw: string): Condition {

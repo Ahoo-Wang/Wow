@@ -144,25 +144,62 @@ enum class Operator {
      */
     RAW,
 
-    // #region 日期类型筛选条件
+    // #region 日期类型筛选条件，字段要求:以毫秒为单位的 `long` 类型时间戳
     /**
-     * 匹配数值类型字段在指定值今天范围区间的所有文档
-     * 字段要求:以毫秒为单位的`long` 类型时间戳
+     * 匹配*数值类型时间戳*字段在今天范围区间的所有文档
+     * > 比如：`today` 为 `2024-06-06`，则匹配范围 `2024-06-06 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档
+     *
      */
     TODAY,
+
+    /**
+     * 匹配*数值类型时间戳*字段在昨天范围区间的所有文档
+     * > 比如：`today` 为 `2024-06-06`，则匹配范围 `2024-06-05 00:00:00.000` ~ `2024-06-05 23:59:59.999` 的所有文档
+     *
+     */
     TOMORROW,
+
+    /**
+     * 匹配*数值类型时间戳*字段在本周范围区间的所有文档
+     */
     THIS_WEEK,
+
+    /**
+     * 匹配*数值类型时间戳*字段在下周范围区间的所有文档
+     */
     NEXT_WEEK,
+
+    /**
+     * 匹配*数值类型时间戳*字段在上周范围区间的所有文档
+     */
     LAST_WEEK,
+
+    /**
+     * 匹配*数值类型时间戳*字段在本月范围区间的所有文档
+     * > 比如:
+     * - `today` : `2024-06-06`
+     * - 匹配范围 : `2024-06-01 00:00:00.000` ~ `2024-06-30 23:59:59.999` 的所有文档
+     *
+     */
     THIS_MONTH,
+
+    /**
+     * 匹配*数值类型时间戳*字段在上月范围区间的所有文档
+     * > 比如：
+     * - `today` : `2024-06-06`
+     * - 匹配范围 : `2024-05-01 00:00:00.000` ~ `2024-05-31 23:59:59.999` 的所有文档
+     *
+     */
     LAST_MONTH,
 
     /**
-     * 匹配数值类型字段在指定值最近天数范围区间的所有文档
+     * 匹配*数值类型时间戳*字段在指定值最近天数范围区间的所有文档
+     * > 比如：近三天
+     * - `today` : `2024-06-06`
+     * - 匹配范围 : `2024-06-04 00:00:00.000` ~ `2024-06-06 23:59:59.999` 的所有文档
+     * - 即 : 今天、昨天、前天
      */
     RECENT_DAYS,
-    RECENT_WEEKS,
-    RECENT_MONTHS,
     // #endregion
 }
 
@@ -232,12 +269,6 @@ data class Condition(
         fun lastMonth(field: String) = Condition(field = field, operator = Operator.LAST_MONTH)
         fun recentDays(field: String, days: Int) =
             Condition(field = field, operator = Operator.RECENT_DAYS, value = days)
-
-        fun recentWeeks(field: String, weeks: Int) =
-            Condition(field = field, operator = Operator.RECENT_WEEKS, value = weeks)
-
-        fun recentMonths(field: String, months: Int) =
-            Condition(field = field, operator = Operator.RECENT_MONTHS, value = months)
 
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }

@@ -53,8 +53,6 @@ interface ConditionConverter<T> {
             Operator.THIS_MONTH -> thisMonth(condition)
             Operator.LAST_MONTH -> lastMonth(condition)
             Operator.RECENT_DAYS -> recentDays(condition)
-            Operator.RECENT_WEEKS -> recentWeeks(condition)
-            Operator.RECENT_MONTHS -> recentMonths(condition)
             Operator.RAW -> raw(condition)
         }
         return not(condition.not, target)
@@ -93,8 +91,6 @@ interface ConditionConverter<T> {
     fun thisMonth(condition: Condition): T
     fun lastMonth(condition: Condition): T
     fun recentDays(condition: Condition): T
-    fun recentWeeks(condition: Condition): T
-    fun recentMonths(condition: Condition): T
     fun raw(condition: Condition): T
     fun not(not: Boolean, target: T): T
 }

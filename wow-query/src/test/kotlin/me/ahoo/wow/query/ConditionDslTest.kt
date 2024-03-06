@@ -61,8 +61,6 @@ class ConditionDslTest {
             "field24".thisMonth()
             "field25".lastMonth()
             "field26".recentDays(1)
-            "field27".recentWeeks(1)
-            "field28".recentMonths(1)
             raw("1=1")
         }
         assertThat(
@@ -113,8 +111,6 @@ class ConditionDslTest {
                         Condition.thisMonth("field24"),
                         Condition.lastMonth("field25"),
                         Condition.recentDays("field26", 1),
-                        Condition.recentWeeks("field27", 1),
-                        Condition.recentMonths("field28", 1),
                         Condition.raw("1=1")
                     )
                 )
