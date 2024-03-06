@@ -612,3 +612,34 @@ Conditions.and(
 
 :::
 
+## 查询服务注册器
+
+`SnapshotQueryServiceRegistrar` 用于自动注册所有本地聚合根查询服务到 `Spring` 容器，以便于在 `Spring` 中使用 `@Autowired`
+注入。
+
+> Bean 命名规则：`聚合根名称 + ".SnapshotQueryService"`。
+
+使用案例：
+
+::: code-group
+```kotlin [构造函数注入]
+class OrderService(
+    @Qualifier("example.order.SnapshotQueryService")
+    private val queryService: SnapshotQueryService<OrderState>
+){
+    fun getById(id:String): Mono<OrderState> {
+        return condition {
+            id(id)
+        }.single(queryService).toState()
+    }
+}
+```
+
+```kotlin [字段注入]
+@Qualifier("example.order.SnapshotQueryService")
+@Autowired
+private lateinit var queryService: SnapshotQueryService<OrderState>
+```
+:::
+
+
