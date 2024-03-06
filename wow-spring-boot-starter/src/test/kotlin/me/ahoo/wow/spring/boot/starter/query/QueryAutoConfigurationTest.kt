@@ -19,7 +19,28 @@ class QueryAutoConfigurationTest {
             .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasBean("example.order.SnapshotQueryService")
+                    .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
             }
+    }
+
+    @Test
+    fun contextLoadsWhensExists() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
+            .withBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE, ExistsBeanName::class.java)
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasBean("example.order.SnapshotQueryService")
+                    .hasSingleBean(ExistsBeanName::class.java)
+            }
+    }
+}
+
+@Suppress("UtilityClassWithPublicConstructor")
+class ExistsBeanName {
+    companion object {
+        const val SNAPSHOT_QUERY_SERVICE = "example.order.SnapshotQueryService"
     }
 }

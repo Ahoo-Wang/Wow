@@ -29,7 +29,7 @@ class SnapshotQueryServiceRegistrar : ImportBeanDefinitionRegistrar, BeanFactory
         private val log = LoggerFactory.getLogger(SnapshotQueryServiceRegistrar::class.java)
     }
 
-    protected lateinit var appContext: BeanFactory
+    private lateinit var appContext: BeanFactory
     override fun setBeanFactory(beanFactory: BeanFactory) {
         this.appContext = beanFactory
     }
