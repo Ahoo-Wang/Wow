@@ -19,26 +19,29 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface SnapshotQueryService<S : Any> {
+    val namedAggregate: NamedAggregate
     fun single(condition: Condition): Mono<Snapshot<S>>
     fun query(query: IQuery): Flux<Snapshot<S>>
     fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>>
     fun count(condition: Condition): Mono<Long>
 }
 
-object NoOpSnapshotQueryService : SnapshotQueryService<Any> {
-    override fun single(condition: Condition): Mono<Snapshot<Any>> {
+class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
+
+    override fun single(condition: Condition): Mono<Snapshot<S>> {
         return Mono.empty()
     }
 
-    override fun query(query: IQuery): Flux<Snapshot<Any>> {
+    override fun query(query: IQuery): Flux<Snapshot<S>> {
         return Flux.empty()
     }
 
-    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<Any>>> {
+    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
         return Mono.just(PagedList(0, emptyList()))
     }
 
@@ -52,8 +55,7 @@ interface SnapshotQueryServiceFactory {
 }
 
 object NoOpSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
-    @Suppress("UNCHECKED_CAST")
     override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
-        return NoOpSnapshotQueryService as SnapshotQueryService<S>
+        return NoOpSnapshotQueryService(namedAggregate = namedAggregate.materialize())
     }
 }

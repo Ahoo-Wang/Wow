@@ -10,6 +10,11 @@ class NoOpSnapshotQueryServiceTest {
     private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
 
     @Test
+    fun aggregate() {
+        assertThat(queryService.namedAggregate, equalTo("test.test".toNamedAggregate()))
+    }
+
+    @Test
     fun single() {
         condition {
             "test" eq "test"
