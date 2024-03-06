@@ -50,9 +50,7 @@ class SnapshotQueryServiceRegistrar : ImportBeanDefinitionRegistrar, BeanFactory
         }
         if (registry.containsBeanDefinition(beanName)) {
             if (log.isWarnEnabled) {
-                log.warn(
-                    "SnapshotQueryService [$beanName] already exists - Ignore."
-                )
+                log.warn("SnapshotQueryService [$beanName] already exists - Ignore.")
             }
             return
         }
