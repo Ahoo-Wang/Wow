@@ -614,8 +614,6 @@ Conditions.and(
 
 ## 查询服务注册器
 
-## 查询服务注册器
-
 `SnapshotQueryServiceRegistrar` 用于自动将所有本地聚合根查询服务注册到 `Spring` 容器中。
 开发者可以通过指定的 `Bean Name` 从 `BeanFactory` 中获取相应的 `SnapshotQueryService`。
 
