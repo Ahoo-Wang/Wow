@@ -14,14 +14,12 @@
 package me.ahoo.wow.example.server.order
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition
-import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.condition
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.toState
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
