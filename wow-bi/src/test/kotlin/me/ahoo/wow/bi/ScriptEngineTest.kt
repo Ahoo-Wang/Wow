@@ -12,4 +12,15 @@ class ScriptEngineTest {
         val syncScript = ScriptEngine.generate(MetadataSearcher.localAggregates)
         assertThat(syncScript, notNullValue())
     }
+
+    @Test
+    fun generateUseCustomParameters() {
+        val syncScript = ScriptEngine.generate(
+            MetadataSearcher.localAggregates,
+            "kafkaBootstrapServers",
+            "topicPrefix",
+            MessageHeaderSqlType.STRING
+        )
+        assertThat(syncScript, notNullValue())
+    }
 }
