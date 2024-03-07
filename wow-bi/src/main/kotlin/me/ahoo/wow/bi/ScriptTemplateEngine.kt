@@ -26,9 +26,11 @@ object ScriptTemplateEngine {
     private const val NAMED_AGGREGATE = "namedAggregate"
     private const val EXPANSION_TABLES = "expansionTables"
     private const val TOPIC_PREFIX = "topicPrefix"
+    private const val MESSAGE_HEADER_SQL_TYPE = "headerSqlType"
     private const val KAFKA_BOOTSTRAP_SERVERS = "kafkaBootstrapServers"
     const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS = "localhost:9093"
     const val DEFAULT_TOPIC_PREFIX = Wow.WOW_PREFIX
+    val DEFAULT_MESSAGE_HEADER_SQL_TYPE = MessageHeaderSqlType.MAP
 
     private val engine: TemplateEngine by lazy {
         val codeResolver = ResourceCodeResolver(TEMPLATE_ROOT)
@@ -61,12 +63,14 @@ object ScriptTemplateEngine {
     fun renderCommand(
         namedAggregate: NamedAggregate,
         kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-        topicPrefix: String = DEFAULT_TOPIC_PREFIX
+        topicPrefix: String = DEFAULT_TOPIC_PREFIX,
+        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val params: Map<String, Any> = buildMap {
             put(NAMED_AGGREGATE, namedAggregate)
             put(KAFKA_BOOTSTRAP_SERVERS, kafkaBootstrapServers)
             put(TOPIC_PREFIX, topicPrefix)
+            put(MESSAGE_HEADER_SQL_TYPE, headerType)
         }
         return render("command", params)
     }
@@ -74,21 +78,25 @@ object ScriptTemplateEngine {
     fun renderStateEvent(
         namedAggregate: NamedAggregate,
         kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-        topicPrefix: String = DEFAULT_TOPIC_PREFIX
+        topicPrefix: String = DEFAULT_TOPIC_PREFIX,
+        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val params: Map<String, Any> = buildMap {
             put(NAMED_AGGREGATE, namedAggregate)
             put(KAFKA_BOOTSTRAP_SERVERS, kafkaBootstrapServers)
             put(TOPIC_PREFIX, topicPrefix)
+            put(MESSAGE_HEADER_SQL_TYPE, headerType)
         }
         return render("state-event".trimEnd(), params)
     }
 
     fun renderStateLast(
         namedAggregate: NamedAggregate,
+        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val params: Map<String, Any> = buildMap {
             put(NAMED_AGGREGATE, namedAggregate)
+            put(MESSAGE_HEADER_SQL_TYPE, headerType)
         }
         return render("state-last", params)
     }
