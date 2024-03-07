@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.server.order
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.query.SnapshotQueryService
@@ -31,7 +32,6 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
-    @Qualifier("example.order.SnapshotQueryService")
     private val queryService: SnapshotQueryService<OrderState>
 ) {
     @GetMapping("{tenantId}/{orderId}")
