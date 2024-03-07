@@ -20,7 +20,6 @@ import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.condition
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.toState
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -31,7 +30,6 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
-    @Qualifier("example.order.SnapshotQueryService")
     private val queryService: SnapshotQueryService<OrderState>
 ) {
     @GetMapping("{tenantId}/{orderId}")
