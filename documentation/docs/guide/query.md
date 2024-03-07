@@ -627,7 +627,6 @@ Conditions.and(
 
 ```kotlin [构造函数注入]
 class OrderService(
-    @Qualifier("example.order.SnapshotQueryService")
     private val queryService: SnapshotQueryService<OrderState>
 ) {
     fun getById(id: String): Mono<OrderState> {
@@ -639,11 +638,13 @@ class OrderService(
 ```
 
 ```kotlin [字段注入]
-@Qualifier("example.order.SnapshotQueryService")
 @Autowired
 private lateinit var queryService: SnapshotQueryService<OrderState>
 ```
 
+```kotlin [根据 Bean Name 手动获取]
+val queryService = applicationContext.getBean("example.order.SnapshotQueryService") as SnapshotQueryService<OrderState>
+```
 :::
 
 
