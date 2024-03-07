@@ -22,7 +22,8 @@ object ScriptEngine {
     fun generate(
         namedAggregates: Set<NamedAggregate>,
         kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX
+        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
+        headerType: String = ScriptTemplateEngine.DEFAULT_HEADER_TYPE
     ): String {
         val scriptGenerators = buildMap {
             namedAggregates.forEach { namedAggregate ->
@@ -48,13 +49,30 @@ object ScriptEngine {
             appendLine("-- clear --")
             namedAggregates.forEach { namedAggregate ->
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
-                appendLine(ScriptTemplateEngine.renderCommand(namedAggregate, kafkaBootstrapServers, topicPrefix))
+                appendLine(
+                    ScriptTemplateEngine.renderCommand(
+                        namedAggregate = namedAggregate,
+                        kafkaBootstrapServers = kafkaBootstrapServers,
+                        topicPrefix = topicPrefix,
+                        headerType = headerType
+                    )
+                )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
-                appendLine(ScriptTemplateEngine.renderStateEvent(namedAggregate, kafkaBootstrapServers, topicPrefix))
+                appendLine(
+                    ScriptTemplateEngine.renderStateEvent(
+                        namedAggregate = namedAggregate,
+                        kafkaBootstrapServers = kafkaBootstrapServers,
+                        topicPrefix = topicPrefix,
+                        headerType = headerType
+                    )
+                )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
-                appendLine(ScriptTemplateEngine.renderStateLast(namedAggregate))
+                appendLine(ScriptTemplateEngine.renderStateLast(
+                    namedAggregate = namedAggregate,
+                    headerType = headerType
+                ))
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
                 appendLine(requireNotNull(scriptGenerators[namedAggregate]).toString())

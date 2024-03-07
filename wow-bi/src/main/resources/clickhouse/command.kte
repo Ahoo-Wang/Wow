@@ -6,6 +6,7 @@
 @param topicPrefix: String = "wow."
 @param kafkaBootstrapServers: String = "localhost:9093"
 @param suffix: String = "command"
+@param headerType: String = "Map(String, String)"
 
 !{val topic = namedAggregate.toTopicName(topicPrefix, suffix)}
 !{val distributedTableName = namedAggregate.toDistributedTableName(suffix)}
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     context_name   String,
     aggregate_name String,
     name           String,
-    header         Map(String, String),
+    header         ${headerType},
     aggregate_id   String,
     tenant_id      String,
     request_id     String,
@@ -52,7 +53,7 @@ SELECT JSONExtractString(data, 'id')            AS id,
        JSONExtractString(data, 'contextName')   AS context_name,
        JSONExtractString(data, 'aggregateName') AS aggregate_name,
        JSONExtractString(data, 'name')          AS name,
-       JSONExtract(data, 'header','Map(String, String)')        AS header,
+       JSONExtract(data, 'header','${headerType}')        AS header,
        JSONExtractString(data, 'aggregateId')   AS aggregate_id,
        JSONExtractString(data, 'tenantId')      AS tenant_id,
        JSONExtractString(data, 'requestId')     AS request_id,
