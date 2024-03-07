@@ -1,4 +1,5 @@
 @import me.ahoo.wow.api.modeling.NamedAggregate
+@import me.ahoo.wow.bi.MessageHeaderSqlType
 @import me.ahoo.wow.bi.expansion.TableNaming.toTopicName
 @import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 
@@ -6,7 +7,7 @@
 @param topicPrefix: String = "wow."
 @param kafkaBootstrapServers: String = "localhost:9093"
 @param suffix: String = "state"
-@param headerType: String = "Map(String, String)"
+@param headerSqlType: MessageHeaderSqlType = MessageHeaderSqlType.MAP
 
 !{val topic = namedAggregate.toTopicName(topicPrefix, suffix)}
 !{val distributedTableName = namedAggregate.toDistributedTableName(suffix)}
@@ -20,7 +21,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     id               String,
     context_name     String,
     aggregate_name   String,
-    header           ${headerType},
+    header           ${headerSqlType.sqlType},
     aggregate_id     String,
     tenant_id        String,
     command_id       String,
@@ -54,7 +55,7 @@ AS
 SELECT JSONExtractString(data, 'id')                      AS id,
        JSONExtractString(data, 'contextName')             AS context_name,
        JSONExtractString(data, 'aggregateName')           AS aggregate_name,
-       JSONExtract(data, 'header', '${headerType}') AS header,
+       JSONExtract(data, 'header', '${headerSqlType.sqlType}') AS header,
        JSONExtractString(data, 'aggregateId')             AS aggregate_id,
        JSONExtractString(data, 'tenantId')                AS tenant_id,
        JSONExtractString(data, 'commandId')               AS command_id,

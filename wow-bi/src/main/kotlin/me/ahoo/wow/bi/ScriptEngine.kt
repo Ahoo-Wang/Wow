@@ -23,7 +23,7 @@ object ScriptEngine {
         namedAggregates: Set<NamedAggregate>,
         kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
         topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
-        headerType: String = ScriptTemplateEngine.DEFAULT_HEADER_TYPE
+        headerType: MessageHeaderSqlType = ScriptTemplateEngine.DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val scriptGenerators = buildMap {
             namedAggregates.forEach { namedAggregate ->

@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.openapi.ComponentRef
 import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
@@ -45,8 +46,8 @@ object GenerateBIScriptRouteSpec : RouteSpec {
 
 class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory {
     companion object {
-        val BI_HEADER_SCHEMA = BIMessageHeaderType::class.java.toSchemaRef(BIMessageHeaderType.MAP.name)
-        const val BI_HEADER_TYPE_HEADER = "Wow-BI-Header-Type"
+        private val BI_HEADER_SCHEMA = MessageHeaderSqlType::class.java.toSchemaRef(MessageHeaderSqlType.MAP.name)
+        const val BI_HEADER_TYPE_HEADER = "Wow-BI-Header-Sql-Type"
         val BI_HEADER_TYPE_PARAMETER = Parameter()
             .name(BI_HEADER_TYPE_HEADER)
             .`in`(ParameterIn.HEADER.toString())
@@ -67,8 +68,4 @@ class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory {
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
         return listOf(GenerateBIScriptRouteSpec)
     }
-}
-
-enum class BIMessageHeaderType(val type: String) {
-    MAP("Map(String, String)"), STRING("String")
 }

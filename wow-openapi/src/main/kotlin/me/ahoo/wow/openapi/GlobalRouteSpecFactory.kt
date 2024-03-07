@@ -29,7 +29,6 @@ import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.TAIL_VERSION
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
-import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_SCHEMA
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
@@ -41,7 +40,6 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
     override val components: Components = createComponents()
 
     init {
-        GenerateBIScriptRouteSpecFactory.BI_HEADER_SCHEMA.schemas.mergeSchemas()
         SchemaRef.ERROR_INFO.schemas.mergeSchemas()
         BatchResult::class.java.toSchemas().mergeSchemas()
         COMPENSATION_TARGET_SCHEMA.schemas.mergeSchemas()

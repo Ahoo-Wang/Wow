@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.webflux.route.bi
 
+import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.bi.ScriptEngine
 import me.ahoo.wow.bi.ScriptTemplateEngine
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.ifNotBlank
-import me.ahoo.wow.openapi.bi.BIMessageHeaderType
 import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpec
 import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -34,14 +34,14 @@ class GenerateBIScriptHandlerFunction(private val kafkaBootstrapServers: String,
     HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val headerType = request.headers().firstHeader(BI_HEADER_TYPE_HEADER).ifNotBlank { stage ->
-            BIMessageHeaderType.valueOf(stage.uppercase(Locale.getDefault()))
-        } ?: BIMessageHeaderType.MAP
+            MessageHeaderSqlType.valueOf(stage.uppercase(Locale.getDefault()))
+        } ?: MessageHeaderSqlType.MAP
 
         val script = ScriptEngine.generate(
             namedAggregates = MetadataSearcher.localAggregates,
             kafkaBootstrapServers = kafkaBootstrapServers,
             topicPrefix = topicPrefix,
-            headerType = headerType.type
+            headerType = headerType
         )
 
         return ServerResponse

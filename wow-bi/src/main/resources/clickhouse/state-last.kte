@@ -1,8 +1,9 @@
 @import me.ahoo.wow.api.modeling.NamedAggregate
+@import me.ahoo.wow.bi.MessageHeaderSqlType
 @import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
 
 @param namedAggregate: NamedAggregate
-@param headerType: String = "Map(String, String)"
+@param headerSqlType: MessageHeaderSqlType = MessageHeaderSqlType.MAP
 
 !{val stateDistributedTableName = namedAggregate.toDistributedTableName("state")}
 !{val distributedTableName = namedAggregate.toDistributedTableName("state_last")}
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     id               String,
     context_name     String,
     aggregate_name   String,
-    header           ${headerType},
+    header           ${headerSqlType.sqlType},
     aggregate_id     String,
     tenant_id        String,
     command_id       String,
