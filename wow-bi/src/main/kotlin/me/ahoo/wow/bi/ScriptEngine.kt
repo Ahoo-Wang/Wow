@@ -69,10 +69,12 @@ object ScriptEngine {
                 )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
-                appendLine(ScriptTemplateEngine.renderStateLast(
-                    namedAggregate = namedAggregate,
-                    headerType = headerType
-                ))
+                appendLine(
+                    ScriptTemplateEngine.renderStateLast(
+                        namedAggregate = namedAggregate,
+                        headerType = headerType
+                    )
+                )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
                 appendLine(requireNotNull(scriptGenerators[namedAggregate]).toString())
