@@ -33,7 +33,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 `GetWowMetadataRouteSpec` 提供了通过 RESTful API 获取 *Wow 编译时元数据*的能力，以便验证 Wow 元数据(`WowMetadata`) 定义的正确性。
 
 ::: code-group
-```shell [curl]
+```shell [OpenAPI]
 curl -X 'GET' \
   'http://localhost:8080/wow/metadata' \
   -H 'accept: application/json'
@@ -119,7 +119,7 @@ curl -X 'GET' \
 `GenerateBIScriptRouteSpec` 提供了通过 RESTful API 生成*BI同步脚本*的能力。
 
 ::: code-group
-```shell [curl]
+```shell [OpenAPI]
 curl -X 'GET' \
   'http://localhost:8080/wow/bi/script' \
   -H 'accept: application/sql'
@@ -372,7 +372,7 @@ FROM bi_db.example_order_state_last;
 `GenerateGlobalIdRouteSpec` 提供了通过 RESTful API 生成*全局ID*的能力。
 
 ::: code-group
-```shell [curl]
+```shell [OpenAPI]
 curl -X 'GET' \
   'http://localhost:8080/wow/id/global' \
   -H 'accept: text/plain'

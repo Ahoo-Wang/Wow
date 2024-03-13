@@ -28,7 +28,7 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 ## 生成 ETL 脚本
 
 ::: code-group
-```shell [curl]
+```shell [OpenAPI]
 curl -X 'GET' \
   'http://localhost:8080/wow/bi/script' \
   -H 'accept: application/sql'

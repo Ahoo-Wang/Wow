@@ -47,6 +47,16 @@
 
 ```kotlin
 condition {
+    deleted(false)
+    and {
+        tenantId("tenantId")
+        all()
+    }
+    not {
+        all()
+    }
+    id("id")
+    ids("id", "id2")
     "field1" eq "value1"
     "field2" ne "value2"
     "filed3" gt 1
@@ -59,11 +69,14 @@ condition {
     "field10" between (1 to 2)
     "field11" all listOf("value11")
     "field12" startsWith "value12"
+    "field12" endsWith "value12"
     "field13" elemMatch {
         "field14" eq "value14"
     }
     "field15".isNull()
     "field16".notNull()
+    "field17".isTrue()
+    "field18".isFalse()
     and {
         "field3" eq "value3"
         "field4" eq "value4"
@@ -72,6 +85,14 @@ condition {
         "field3" eq "value3"
         "field4" eq "value4"
     }
+    "field19".today()
+    "field20".tomorrow()
+    "field21".thisWeek()
+    "field22".nextWeek()
+    "field23".lastWeek()
+    "field24".thisMonth()
+    "field25".lastMonth()
+    "field26".recentDays(1)
 }
 ```
 
@@ -210,7 +231,7 @@ pagedQuery {
 
 ::: code-group
 
-```shell [Curl]
+```shell [OpenAPI]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/pagination' \
   -H 'accept: application/json' \
@@ -390,7 +411,7 @@ Conditions.and(
 
 ::: code-group
 
-```shell [Curl]
+```shell [OpenAPI]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/query' \
   -H 'accept: application/json' \
@@ -498,7 +519,7 @@ Conditions.and(
 
 ::: code-group
 
-```shell [Curl]
+```shell [OpenAPI]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/count' \
   -H 'accept: application/json' \
@@ -540,7 +561,7 @@ Conditions.and(
 
 ::: code-group
 
-```shell [Curl]
+```shell [OpenAPI]
   curl -X 'POST' \
   'http://localhost:8080/execution_failed/snapshot/single' \
   -H 'accept: application/json' \
