@@ -305,5 +305,5 @@ interface IQuery : ConditionCapable {
 data class Query(
     override val condition: Condition,
     override val sort: List<Sort> = emptyList(),
-    override val limit: Int = Int.MAX_VALUE
+    override val limit: Int = Pagination.DEFAULT.size
 ) : IQuery
