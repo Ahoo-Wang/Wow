@@ -5,7 +5,14 @@
   "type": "object",
   "properties": {
     "condition": {
-      "$ref": "#/definitions/condition"
+      "$ref": "#/definitions/condition",
+      "default": {
+        "field": "",
+        "value": "",
+        "operator": "ALL",
+        "children": [],
+        "not": false
+      }
     },
     "sort": {
       "type": "array",
@@ -16,7 +23,7 @@
     },
     "limit": {
       "type": "integer",
-      "default": 0
+      "default": 10
     }
   },
   "required": [
@@ -70,7 +77,8 @@
           "default": ""
         },
         "operator": {
-          "$ref": "#/definitions/operator"
+          "$ref": "#/definitions/operator",
+          "default": "ALL"
         },
         "value": {
           "anyOf": [

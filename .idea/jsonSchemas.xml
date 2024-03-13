@@ -48,7 +48,7 @@
             <SchemaInfo>
               <option name="generatedName" value="New Schema" />
               <option name="name" value="wow-pagination.schema" />
-              <option name="relativePathToSchema" value="schema/wow-pagination.schema.json" />
+              <option name="relativePathToSchema" value="schema/wow-paged-query.schema.json" />
               <option name="patterns">
                 <list>
                   <Item>

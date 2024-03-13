@@ -5,7 +5,14 @@
   "type": "object",
   "properties": {
     "condition": {
-      "$ref": "wow-query.schema.json#/definitions/condition"
+      "$ref": "wow-query.schema.json#/definitions/condition",
+      "default": {
+        "field": "",
+        "value": "",
+        "operator": "ALL",
+        "children": [],
+        "not": false
+      }
     },
     "sort": {
       "type": "array",
@@ -15,7 +22,11 @@
       "default": []
     },
     "pagination": {
-      "$ref": "wow-query.schema.json#/definitions/pagination"
+      "$ref": "wow-query.schema.json#/definitions/pagination",
+      "default": {
+        "index": 1,
+        "size": 10
+      }
     }
   },
   "required": [
