@@ -62,32 +62,3 @@ fun <C : Any> C.toCommandMessage(
         allowCreate = metadata.allowCreate,
     )
 }
-
-@Deprecated(
-    "Please use toCommandMessage instead.",
-    replaceWith = ReplaceWith(
-        "toCommandMessage(id, requestId, aggregateId, tenantId, aggregateVersion, namedAggregate, header, createTime)"
-    )
-)
-@Suppress("LongParameterList")
-fun <C : Any> C.asCommandMessage(
-    id: String = GlobalIdGenerator.generateAsString(),
-    requestId: String? = null,
-    aggregateId: String? = null,
-    tenantId: String? = null,
-    aggregateVersion: Int? = null,
-    namedAggregate: NamedAggregate? = null,
-    header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
-): CommandMessage<C> {
-    return toCommandMessage(
-        id,
-        requestId,
-        aggregateId,
-        tenantId,
-        aggregateVersion,
-        namedAggregate,
-        header,
-        createTime
-    )
-}
