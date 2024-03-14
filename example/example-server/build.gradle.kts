@@ -61,7 +61,7 @@ dependencies {
     implementation("io.netty:netty-all")
     implementation(project(":example-domain"))
     implementation(project(":wow-mongo"))
-    implementation(project(":wow-redis"))
+//    implementation(project(":wow-redis"))
     implementation(project(":wow-mock"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-opentelemetry"))
