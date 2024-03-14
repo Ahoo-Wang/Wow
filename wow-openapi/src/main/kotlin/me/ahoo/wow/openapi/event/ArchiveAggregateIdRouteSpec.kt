@@ -14,7 +14,9 @@
 package me.ahoo.wow.openapi.event
 
 import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -40,7 +42,9 @@ class ArchiveAggregateIdRouteSpec(
     override val appendTenantPath: Boolean
         get() = false
     override val responses: ApiResponses
-        get() = ApiResponses().withRequestTimeout()
+        get() = ApiResponses()
+            .addApiResponse(Https.Code.OK, ApiResponse().description(ErrorInfo.SUCCEEDED))
+            .withRequestTimeout()
 
     override val parameters: List<Parameter>
         get() = emptyList()
