@@ -76,7 +76,7 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+//    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     kapt("org.springframework.boot:spring-boot-configuration-processor")

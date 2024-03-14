@@ -41,7 +41,7 @@ abstract class EventCompensateRouteSpec(
     override val id: String
         get() = "${aggregateMetadata.toStringWithAlias()}.${topicKind}Compensate"
     override val summary: String
-        get() = "$topicKind compensate"
+        get() = "Compensate $topicKind"
     override val method: String
         get() = Https.Method.PUT
     override val appendPathSuffix: String
