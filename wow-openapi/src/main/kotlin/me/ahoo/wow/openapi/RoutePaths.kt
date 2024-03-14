@@ -32,7 +32,7 @@ object RoutePaths {
     const val BATCH_CURSOR_ID = "cursorId"
     const val BATCH_LIMIT = "limit"
 
-    val VERSION = Parameter()
+    val VERSION: Parameter = Parameter()
         .name(MessageRecords.VERSION)
         .`in`(ParameterIn.PATH.toString())
         .schema(IntegerSchema())

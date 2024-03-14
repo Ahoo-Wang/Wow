@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 import java.time.Duration
 
 internal class MockDelayEventStoreCommandDispatcherTest : CommandDispatcherSpec(), EventStore {
-    val delayDuration = Duration.ofMillis(100)
+    val delayDuration: Duration = Duration.ofMillis(100)
     val delegate: EventStore = InMemoryEventStore()
 
     override fun createEventStore(): EventStore {
