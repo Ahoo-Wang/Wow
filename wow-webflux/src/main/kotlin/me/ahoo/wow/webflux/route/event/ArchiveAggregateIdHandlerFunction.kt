@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpec
@@ -24,7 +23,6 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 class ArchiveAggregateIdHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -33,7 +31,6 @@ class ArchiveAggregateIdHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return eventStore.archiveAggregateId(aggregateMetadata.namedAggregate)
-            .then(ErrorInfo.OK.toMono())
             .toServerResponse(exceptionHandler)
     }
 }
