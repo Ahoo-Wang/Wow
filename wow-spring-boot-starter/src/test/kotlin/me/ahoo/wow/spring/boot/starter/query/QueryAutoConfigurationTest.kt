@@ -1,7 +1,5 @@
 package me.ahoo.wow.spring.boot.starter.query
 
-import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -16,7 +14,6 @@ class QueryAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
@@ -28,7 +25,6 @@ class QueryAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
-            .withBean(SnapshotQueryServiceFactory::class.java, { NoOpSnapshotQueryServiceFactory })
             .withBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE, ExistsBeanName::class.java)
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
