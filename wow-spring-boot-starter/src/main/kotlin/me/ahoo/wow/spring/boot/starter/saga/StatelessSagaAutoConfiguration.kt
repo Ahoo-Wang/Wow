@@ -30,6 +30,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -89,6 +90,7 @@ class StatelessSagaAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun statelessSagaDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: StatelessSagaFunctionRegistrar,
         domainEventBus: DomainEventBus,

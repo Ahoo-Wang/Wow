@@ -16,6 +16,8 @@ package me.ahoo.wow.spring.boot.starter.openapi
 import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -26,7 +28,7 @@ import org.springframework.context.annotation.Bean
 class OpenAPIAutoConfiguration {
 
     @Bean
-    fun router(boundedContext: NamedBoundedContext): RouterSpecs {
+    fun router(@Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext): RouterSpecs {
         return RouterSpecs(boundedContext).build()
     }
 
