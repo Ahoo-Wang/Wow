@@ -39,6 +39,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -132,6 +133,7 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun aggregateDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
         aggregateProcessorFactory: AggregateProcessorFactory,

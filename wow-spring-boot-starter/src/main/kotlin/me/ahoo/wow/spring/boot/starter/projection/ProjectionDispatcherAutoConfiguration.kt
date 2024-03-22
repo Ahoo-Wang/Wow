@@ -29,6 +29,7 @@ import me.ahoo.wow.projection.ProjectionFunctionFilter
 import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -89,6 +90,7 @@ class ProjectionDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun projectionDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         handlerRegistrar: ProjectionFunctionRegistrar,
         domainEventBus: DomainEventBus,

@@ -30,6 +30,7 @@ import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -92,6 +93,7 @@ class EventDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun domainEventDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,

@@ -31,6 +31,7 @@ import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -117,6 +118,7 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
 
     @Bean
     fun snapshotDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         snapshotHandler: SnapshotHandler,
         stateEventBus: StateEventBus
