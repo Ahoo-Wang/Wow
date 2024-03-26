@@ -22,7 +22,9 @@ import me.ahoo.wow.test.aggregateVerifier
 import org.junit.jupiter.api.Test
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.full.functions
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.jvmErasure
 
 class CategoryTest {
     var data: String = "data"
@@ -37,9 +39,7 @@ class CategoryTest {
             instance,
             "hi"
         )
-
-
-
+        Category::class.functions.toTypedArray().get(4).parameters.last().type.jvmErasure
 
         val superClass = Category::class.java.genericSuperclass as ParameterizedType
 
