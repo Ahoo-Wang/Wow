@@ -23,9 +23,8 @@ import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.function.FunctionAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
-import java.lang.reflect.ParameterizedType
 import kotlin.reflect.KParameter
-import kotlin.reflect.jvm.javaType
+import kotlin.reflect.jvm.jvmErasure
 
 enum class FirstParameterKind {
     MESSAGE_EXCHANGE,
@@ -35,14 +34,7 @@ enum class FirstParameterKind {
 
 data class InjectParameter(val parameter: KParameter) {
     val javaType: Class<*> by lazy {
-        val jType = parameter.type.javaType
-        if (jType is Class<*>) {
-            return@lazy jType
-        }
-        if (jType is ParameterizedType) {
-            return@lazy jType.rawType as Class<*>
-        }
-        throw IllegalArgumentException("Unsupported parameter type:${parameter.type}")
+        parameter.type.jvmErasure.java
     }
     val name = parameter.scanAnnotation<Name>()?.value.orEmpty()
 }

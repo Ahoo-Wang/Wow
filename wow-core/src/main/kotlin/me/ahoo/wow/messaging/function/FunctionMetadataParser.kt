@@ -39,7 +39,7 @@ import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
-import kotlin.reflect.jvm.javaType
+import kotlin.reflect.jvm.jvmErasure
 
 object FunctionMetadataParser {
 
@@ -117,11 +117,11 @@ object FunctionMetadataParser {
     private fun KParameter.toSupportedType(firstParameterKind: FirstParameterKind): Class<*> {
         return when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
-                type.arguments[0].type!!.javaType as Class<*>
+                type.arguments[0].type!!.jvmErasure.java
             }
 
             FirstParameterKind.MESSAGE_BODY -> {
-                type.classifier!!.starProjectedType.javaType as Class<*>
+                type.jvmErasure.java
             }
         }
     }
