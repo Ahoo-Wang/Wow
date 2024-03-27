@@ -21,9 +21,9 @@ import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
