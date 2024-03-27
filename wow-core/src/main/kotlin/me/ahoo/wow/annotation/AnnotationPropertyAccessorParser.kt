@@ -42,7 +42,6 @@ object AnnotationPropertyAccessorParser {
         return (this as KProperty1<T, Int>).toPropertyGetter()
     }
 
-
     fun <T> KProperty1<T, *>.toAggregateNameGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scanAnnotation<AggregateName>()?.let {
             return toStringGetter()
@@ -74,5 +73,4 @@ object AnnotationPropertyAccessorParser {
             return toIntGetter()
         }
     }
-
 }

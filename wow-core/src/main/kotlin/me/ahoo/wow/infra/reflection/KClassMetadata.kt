@@ -11,19 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metadata
+package me.ahoo.wow.infra.reflection
 
-import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
+import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.memberProperties
 
-@Deprecated("Use KCacheableMetadataParser instead.")
-abstract class CacheableMetadataParser<TYPE, METADATA : Metadata> {
-    private val cache: ConcurrentHashMap<TYPE, METADATA> = ConcurrentHashMap()
-
-    fun parse(type: TYPE): METADATA {
-        return cache.computeIfAbsent(type) {
-            parseToMetadata(type)
+object KClassMetadata {
+    fun <T : Any> KClass<T>.visit(visitor: KClassVisitor<T>) {
+        visitor.start()
+        supertypes.forEach {
+            visitor.visitType(it)
         }
+        constructors.forEach {
+            visitor.visitConstructor(it)
+        }
+        memberProperties.forEach {
+            visitor.visitProperty(it)
+        }
+        memberFunctions.forEach {
+            visitor.visitFunction(it)
+        }
+        visitor.end()
     }
-
-    abstract fun parseToMetadata(type: TYPE): METADATA
 }

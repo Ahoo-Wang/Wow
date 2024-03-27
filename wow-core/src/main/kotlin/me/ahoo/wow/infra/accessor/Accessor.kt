@@ -40,7 +40,6 @@ fun AccessibleObject.ensureAccessible() {
     }
 }
 
-
 fun KCallable<*>.ensureAccessible() {
     if (!this.isAccessible) {
         this.isAccessible = true

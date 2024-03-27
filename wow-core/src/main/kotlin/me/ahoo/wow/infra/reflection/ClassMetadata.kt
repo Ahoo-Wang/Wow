@@ -21,6 +21,7 @@ import java.util.function.Consumer
  *
  * @author ahoo wang
  */
+@Deprecated("Use KClassMetadata instead.")
 object ClassMetadata {
     @JvmStatic
     fun <T> visitField(type: Class<T>, fieldConsumer: Consumer<Field>) {

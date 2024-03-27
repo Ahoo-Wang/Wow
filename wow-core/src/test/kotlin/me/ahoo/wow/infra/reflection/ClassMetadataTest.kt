@@ -19,7 +19,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
-class MockClass(val id: String)
+class MockClass(val id: String, var name: String)
 
 internal class ClassMetadataTest {
     @Test

@@ -16,8 +16,8 @@ package me.ahoo.wow.infra.reflection
 import java.lang.reflect.AnnotatedElement
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KAnnotatedElement
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.KProperty1
+import kotlin.reflect.KMutableProperty
+import kotlin.reflect.KProperty
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.jvm.javaField
 
@@ -74,6 +74,7 @@ object AnnotationScanner {
         }
     }
 
+    @Deprecated("Use KAnnotatedElement.scanAnnotation instead.", ReplaceWith("KAnnotatedElement.scanAnnotation"))
     inline fun <reified T : Annotation> AnnotatedElement.scan(): T? {
         val targetAnnotationType = T::class.java
         return scan(this, targetAnnotationType)
@@ -84,7 +85,7 @@ object AnnotationScanner {
             return it
         }
 
-        if (this is KProperty1<*, *>) {
+        if (this is KProperty<*>) {
             getter.findAnnotation<A>()?.let {
                 return it
             }
@@ -94,7 +95,7 @@ object AnnotationScanner {
             }
         }
 
-        if (this is KMutableProperty1<*, *>) {
+        if (this is KMutableProperty<*>) {
             return this.setter.findAnnotation<A>()
         }
 
