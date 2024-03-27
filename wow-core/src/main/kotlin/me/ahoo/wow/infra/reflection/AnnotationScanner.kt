@@ -15,11 +15,6 @@ package me.ahoo.wow.infra.reflection
 
 import java.lang.reflect.AnnotatedElement
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.reflect.KAnnotatedElement
-import kotlin.reflect.KMutableProperty
-import kotlin.reflect.KProperty
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.jvm.javaField
 
 private data class AnnotatedElementTargetAnnotationTypeKey<T : Annotation>(
     val annotatedElement: AnnotatedElement,
@@ -78,27 +73,5 @@ object AnnotationScanner {
     inline fun <reified T : Annotation> AnnotatedElement.scan(): T? {
         val targetAnnotationType = T::class.java
         return scan(this, targetAnnotationType)
-    }
-
-    inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotation(): A? {
-        findAnnotation<A>()?.let {
-            return it
-        }
-
-        if (this is KProperty<*>) {
-            getter.findAnnotation<A>()?.let {
-                return it
-            }
-
-            javaField?.getAnnotation(A::class.java)?.let {
-                return it
-            }
-        }
-
-        if (this is KMutableProperty<*>) {
-            return this.setter.findAnnotation<A>()
-        }
-
-        return null
     }
 }
