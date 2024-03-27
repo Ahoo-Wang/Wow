@@ -10,16 +10,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.infra.accessor.function
 
-package me.ahoo.wow.infra.accessor.constructor
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import kotlin.reflect.KFunction
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
-import java.lang.reflect.Constructor
+/**
+ * Simple Function Accessor .
+ *
+ * @author ahoo wang
+ */
+data class SimpleFunctionAccessor<T, R>(override val function: KFunction<*>) : FunctionAccessor<T, R> {
 
-interface ConstructorAccessor<T : Any> {
-    val constructor: Constructor<T>
-
-    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T {
-        return FastInvoke.safeNewInstance(constructor, args)
+    init {
+        function.ensureAccessible()
     }
 }

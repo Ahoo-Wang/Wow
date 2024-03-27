@@ -10,16 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.infra.accessor.function.reactive
 
-package me.ahoo.wow.infra.accessor.constructor
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
-import java.lang.reflect.Constructor
+interface ReactiveFunctionAccessor<T, out R : Publisher<*>> : FunctionAccessor<T, R>
 
-interface ConstructorAccessor<T : Any> {
-    val constructor: Constructor<T>
-
-    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T {
-        return FastInvoke.safeNewInstance(constructor, args)
-    }
-}
+interface MonoFunctionAccessor<T, out R : Mono<*>> : ReactiveFunctionAccessor<T, R>

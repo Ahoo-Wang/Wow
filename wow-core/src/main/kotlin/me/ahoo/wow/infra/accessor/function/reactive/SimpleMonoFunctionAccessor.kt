@@ -10,16 +10,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.infra.accessor.function.reactive
 
-package me.ahoo.wow.infra.accessor.constructor
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import reactor.core.publisher.Mono
+import kotlin.reflect.KFunction
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
-import java.lang.reflect.Constructor
+data class SimpleMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
 
-interface ConstructorAccessor<T : Any> {
-    val constructor: Constructor<T>
+    init {
+        method.ensureAccessible()
+    }
 
-    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T {
-        return FastInvoke.safeNewInstance(constructor, args)
+    override fun invoke(target: T, args: Array<Any?>): Mono<D> {
+        return Mono.defer {
+            super.invoke(target, args)
+        }
     }
 }

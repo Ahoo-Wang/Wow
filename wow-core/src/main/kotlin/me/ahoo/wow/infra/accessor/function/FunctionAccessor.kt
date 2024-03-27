@@ -10,16 +10,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package me.ahoo.wow.infra.accessor.constructor
+package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.accessor.method.FastInvoke
-import java.lang.reflect.Constructor
+import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.javaMethod
 
-interface ConstructorAccessor<T : Any> {
-    val constructor: Constructor<T>
+/**
+ * Function Accessor .
+ * @author ahoo wang
+ */
+interface FunctionAccessor<T, out R> {
+    @Suppress("UNCHECKED_CAST")
+    val targetType: Class<T>
+        get() = method.declaringClass as Class<T>
+    val method: Method
+        get() = function.javaMethod!!
+    val function: KFunction<*>
 
-    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T {
-        return FastInvoke.safeNewInstance(constructor, args)
+    fun invoke(target: T, args: Array<Any?> = emptyArray<Any?>()): R {
+        return FastInvoke.safeInvoke(method, target, args)
     }
 }
