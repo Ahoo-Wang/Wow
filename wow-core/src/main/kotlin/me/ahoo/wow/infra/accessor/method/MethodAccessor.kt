@@ -17,7 +17,7 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 
 /**
- * MethodAccessor .
+ * Method Accessor .
  * @author ahoo wang
  */
 interface MethodAccessor<T, out R> {

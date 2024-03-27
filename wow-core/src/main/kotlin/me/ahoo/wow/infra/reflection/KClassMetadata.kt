@@ -23,9 +23,21 @@ object KClassMetadata {
         supertypes.forEach {
             visitor.visitType(it)
         }
-        constructors.forEach {
-            visitor.visitConstructor(it)
+        /**
+         * Can't compute ClassId for primitive type: long
+         *
+         * This is a known issue with Kotlin reflection. The issue is that Kotlin reflection doesn't support Java Record types.
+         *
+         * https://youtrack.jetbrains.com/issue/KT-58649
+         */
+        try {
+            constructors.forEach {
+                visitor.visitConstructor(it)
+            }
+        } catch (ignore: IllegalArgumentException) {
+            // ignore
         }
+
         memberProperties.forEach {
             visitor.visitProperty(it)
         }
