@@ -10,24 +10,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.reflection
+package me.ahoo.wow.infra.accessor.function.reactive
 
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
 
-/**
- * KClass Visitor .
- * @author ahoo wang
- */
+data class FluxMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<List<D>>> {
 
-interface ClassVisitor<T> : VisitorLifeCycle {
+    init {
+        function.ensureAccessible()
+    }
 
-    fun visitType(type: KType) = Unit
-
-    fun visitProperty(property: KProperty1<T, *>) = Unit
-
-    fun visitConstructor(constructor: KFunction<*>) = Unit
-
-    fun visitFunction(function: KFunction<*>) = Unit
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<List<D>> {
+        return Mono.defer {
+            invoke<T, Flux<D>>(method, target, args).collectList()
+        }
+    }
 }

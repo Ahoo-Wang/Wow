@@ -20,26 +20,29 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
-import me.ahoo.wow.infra.reflection.ClassMetadata
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import org.springframework.web.util.UriTemplate
-import java.lang.reflect.Field
+import kotlin.reflect.KProperty1
 
-object CommandRouteMetadataParser : CacheableMetadataParser<Class<*>, CommandRouteMetadata<*>>() {
-    override fun parseToMetadata(type: Class<*>): CommandRouteMetadata<*> {
+object CommandRouteMetadataParser : CacheableMetadataParser() {
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandRouteMetadataVisitor(type)
-        ClassMetadata.visit(type, visitor)
-        return visitor.toMetadata()
+        type.kotlin.visit(visitor)
+        @Suppress("UNCHECKED_CAST")
+        return visitor.toMetadata() as M
     }
 }
 
 internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>) :
-    ClassVisitor {
+    ClassVisitor<C> {
     companion object {
         private val log = LoggerFactory.getLogger(CommandRouteMetadataVisitor::class.java)
     }
@@ -47,8 +50,12 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
     private var pathVariables: MutableSet<VariableMetadata> = mutableSetOf()
     private var headerVariables: MutableSet<VariableMetadata> = mutableSetOf()
 
-    private fun Field.toVariableMetadata(name: String, nestedPath: Array<String>, required: Boolean): VariableMetadata {
-        val fieldName = scan<JsonProperty>()?.value
+    private fun KProperty1<*, *>.toVariableMetadata(
+        name: String,
+        nestedPath: Array<String>,
+        required: Boolean
+    ): VariableMetadata {
+        val fieldName = scanAnnotation<JsonProperty>()?.value
             .orEmpty()
             .ifBlank {
                 this.name
@@ -65,13 +72,13 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
         )
     }
 
-    override fun visitField(field: Field) {
-        field.scan<CommandRoute.PathVariable>()?.let {
-            val variableMetadata = field.toVariableMetadata(it.name, it.nestedPath, it.required)
+    override fun visitProperty(property: KProperty1<C, *>) {
+        property.scanAnnotation<CommandRoute.PathVariable>()?.let {
+            val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             pathVariables.add(variableMetadata)
         }
-        field.scan<CommandRoute.HeaderVariable>()?.let {
-            val variableMetadata = field.toVariableMetadata(it.name, it.nestedPath, it.required)
+        property.scanAnnotation<CommandRoute.HeaderVariable>()?.let {
+            val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             headerVariables.add(variableMetadata)
         }
     }
@@ -161,8 +168,7 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 }
 
 fun <C> Class<out C>.commandRouteMetadata(): CommandRouteMetadata<C> {
-    @Suppress("UNCHECKED_CAST")
-    return CommandRouteMetadataParser.parse(this) as CommandRouteMetadata<C>
+    return CommandRouteMetadataParser.parse(this)
 }
 
 inline fun <reified C> commandRouteMetadata(): CommandRouteMetadata<C> {

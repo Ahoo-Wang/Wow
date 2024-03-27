@@ -20,9 +20,9 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
-import me.ahoo.wow.messaging.function.KFunctionMetadataParser.toFunctionMetadata
-import me.ahoo.wow.messaging.function.KFunctionMetadataParser.toMonoFunctionMetadata
+import me.ahoo.wow.infra.accessor.function.reactive.MonoFunctionAccessor
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
+import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -54,7 +54,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                SimpleMethodMessageFunction::class.java,
+                SimpleMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -93,7 +93,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                InjectableMethodMessageFunction::class.java,
+                InjectableMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -117,7 +117,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                SimpleMethodMessageFunction::class.java,
+                SimpleMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -129,7 +129,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction.metadata.accessor,
             instanceOf(
-                MonoMethodAccessor::class.java,
+                MonoFunctionAccessor::class.java,
             ),
         )
         val retry = messageFunction.getAnnotation(Retry::class.java)

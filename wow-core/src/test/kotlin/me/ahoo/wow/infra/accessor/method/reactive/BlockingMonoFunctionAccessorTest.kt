@@ -14,20 +14,19 @@
 package me.ahoo.wow.infra.accessor.method.reactive
 
 import me.ahoo.wow.api.annotation.Blocking
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.not
-import org.hamcrest.Matchers.startsWith
+import me.ahoo.wow.infra.accessor.function.reactive.toMonoFunctionAccessor
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 
-class BlockingMonoMethodAccessorTest {
+class BlockingMonoFunctionAccessorTest {
 
     @Test
     fun invoke() {
-        val blockingMonoMethodAccessor =
-            BlockingMethod::class.java.getMethod("blocking").toMonoMethodAccessor<BlockingMethod, String>()
+        val blockingMonoMethodAccessor = BlockingMethod::blocking.toMonoFunctionAccessor<BlockingMethod, String>()
         Schedulers.parallel().schedule {
             blockingMonoMethodAccessor.invoke(BlockingMethod())
                 .test()

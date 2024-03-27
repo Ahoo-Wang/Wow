@@ -10,24 +10,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.reflection
+package me.ahoo.wow.infra.accessor.function
 
+import me.ahoo.wow.infra.accessor.ensureAccessible
 import kotlin.reflect.KFunction
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
 
 /**
- * KClass Visitor .
+ * Simple Function Accessor .
+ *
  * @author ahoo wang
  */
+data class SimpleFunctionAccessor<T, R>(override val function: KFunction<*>) : FunctionAccessor<T, R> {
 
-interface ClassVisitor<T> : VisitorLifeCycle {
-
-    fun visitType(type: KType) = Unit
-
-    fun visitProperty(property: KProperty1<T, *>) = Unit
-
-    fun visitConstructor(constructor: KFunction<*>) = Unit
-
-    fun visitFunction(function: KFunction<*>) = Unit
+    init {
+        function.ensureAccessible()
+    }
 }

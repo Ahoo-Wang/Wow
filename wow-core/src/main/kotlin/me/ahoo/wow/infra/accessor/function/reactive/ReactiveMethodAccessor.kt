@@ -10,24 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.reflection
+package me.ahoo.wow.infra.accessor.function.reactive
 
-import kotlin.reflect.KFunction
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
 
-/**
- * KClass Visitor .
- * @author ahoo wang
- */
+interface ReactiveFunctionAccessor<T, out R : Publisher<*>> : FunctionAccessor<T, R>
 
-interface ClassVisitor<T> : VisitorLifeCycle {
-
-    fun visitType(type: KType) = Unit
-
-    fun visitProperty(property: KProperty1<T, *>) = Unit
-
-    fun visitConstructor(constructor: KFunction<*>) = Unit
-
-    fun visitFunction(function: KFunction<*>) = Unit
-}
+interface MonoFunctionAccessor<T, out R : Mono<*>> : ReactiveFunctionAccessor<T, R>

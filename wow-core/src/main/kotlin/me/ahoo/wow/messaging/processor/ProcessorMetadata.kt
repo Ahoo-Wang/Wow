@@ -15,8 +15,8 @@ package me.ahoo.wow.messaging.processor
 
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.Metadata
@@ -26,7 +26,7 @@ data class ProcessorMetadata<P : Any, in M : MessageExchange<*, *>>(
     private val namedBoundedContext: NamedBoundedContext,
     override val name: String,
     val processorType: Class<P>,
-    val functionRegistry: Set<MethodFunctionMetadata<P, Mono<*>>>
+    val functionRegistry: Set<FunctionAccessorMetadata<P, Mono<*>>>
 ) : NamedBoundedContext by namedBoundedContext, Named, Metadata {
 
     fun toMessageFunctionRegistry(processor: P): Set<MessageFunction<P, M, Mono<*>>> {

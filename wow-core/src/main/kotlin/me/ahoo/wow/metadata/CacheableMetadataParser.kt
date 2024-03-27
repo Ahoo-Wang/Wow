@@ -15,15 +15,15 @@ package me.ahoo.wow.metadata
 
 import java.util.concurrent.ConcurrentHashMap
 
-@Deprecated("Use KCacheableMetadataParser instead.")
-abstract class CacheableMetadataParser<TYPE, METADATA : Metadata> {
-    private val cache: ConcurrentHashMap<TYPE, METADATA> = ConcurrentHashMap()
+abstract class CacheableMetadataParser {
+    private val cache: ConcurrentHashMap<Class<*>, Metadata> = ConcurrentHashMap()
 
-    fun parse(type: TYPE): METADATA {
+    fun <TYPE : Any, M : Metadata> parse(type: Class<TYPE>): M {
+        @Suppress("UNCHECKED_CAST")
         return cache.computeIfAbsent(type) {
             parseToMetadata(type)
-        }
+        } as M
     }
 
-    abstract fun parseToMetadata(type: TYPE): METADATA
+    abstract fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M
 }

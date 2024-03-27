@@ -10,24 +10,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.reflection
+package me.ahoo.wow.infra.accessor.function.reactive
 
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import kotlin.reflect.KFunction
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
 
-/**
- * KClass Visitor .
- * @author ahoo wang
- */
+data class PublisherMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
 
-interface ClassVisitor<T> : VisitorLifeCycle {
+    init {
+        method.ensureAccessible()
+    }
 
-    fun visitType(type: KType) = Unit
-
-    fun visitProperty(property: KProperty1<T, *>) = Unit
-
-    fun visitConstructor(constructor: KFunction<*>) = Unit
-
-    fun visitFunction(function: KFunction<*>) = Unit
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
+        return Mono.defer {
+            invoke<T, Publisher<D>>(method, target, args).toMono()
+        }
+    }
 }

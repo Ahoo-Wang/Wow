@@ -19,14 +19,13 @@ import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.event.DEFAULT_REVISION
 import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.infra.reflection.KClassMetadata.visit
-import me.ahoo.wow.infra.reflection.KClassVisitor
-import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
+import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
 /**
@@ -34,23 +33,23 @@ import kotlin.reflect.KProperty1
  *
  * @author ahoo wang
  */
-object EventMetadataParser : KCacheableMetadataParser() {
+object EventMetadataParser : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
-        val visitor = EventMetadataVisitor(type.kotlin)
+        val visitor = EventMetadataVisitor(type)
         type.kotlin.visit(visitor)
         @Suppress("UNCHECKED_CAST")
         return visitor.toMetadata() as M
     }
 
-    internal class EventMetadataVisitor<E : Any>(private val eventType: KClass<E>) : KClassVisitor<E> {
+    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : ClassVisitor<E> {
         private val eventName: String = eventType.toName()
         private var aggregateNameGetter: PropertyGetter<E, String>? = null
         private var revision = DEFAULT_REVISION
         private var aggregateIdGetter: PropertyGetter<E, String>? = null
 
         init {
-            eventType.scanAnnotation<Event>()?.let {
+            eventType.kotlin.scanAnnotation<Event>()?.let {
                 if (it.revision.isNotEmpty()) {
                     revision = it.revision
                 }
@@ -67,9 +66,9 @@ object EventMetadataParser : KCacheableMetadataParser() {
         }
 
         fun toMetadata(): EventMetadata<E> {
-            val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType.java)
+            val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType)
             return EventMetadata(
-                eventType = eventType.java,
+                eventType = eventType,
                 namedAggregateGetter = namedAggregateGetter,
                 name = eventName,
                 revision = revision,

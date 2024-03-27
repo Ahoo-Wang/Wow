@@ -20,6 +20,7 @@ import java.lang.reflect.Method
  * Method Accessor .
  * @author ahoo wang
  */
+@Deprecated("Use FunctionAccessor instead")
 interface MethodAccessor<T, out R> {
     @Suppress("UNCHECKED_CAST")
     val targetType: Class<T>

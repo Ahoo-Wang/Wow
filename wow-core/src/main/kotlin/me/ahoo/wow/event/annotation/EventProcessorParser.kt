@@ -20,12 +20,11 @@ import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.messaging.processor.ProcessorMetadataParser
 
 object EventProcessorParser : ProcessorMetadataParser<DomainEventExchange<*>>(
-    MessageAnnotationFunctionCondition(OnEvent::class.java, OnStateEvent::class.java)
+    MessageAnnotationFunctionCondition(OnEvent::class, OnStateEvent::class)
 )
 
-fun <P : Any> Class<out P>.eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    @Suppress("UNCHECKED_CAST")
-    return EventProcessorParser.parse(this) as ProcessorMetadata<P, DomainEventExchange<*>>
+fun <P : Any> Class<P>.eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
+    return EventProcessorParser.parse(this)
 }
 
 inline fun <reified P : Any> eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {

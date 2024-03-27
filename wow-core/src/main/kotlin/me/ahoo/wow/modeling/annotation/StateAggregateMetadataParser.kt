@@ -12,23 +12,28 @@
  */
 package me.ahoo.wow.modeling.annotation
 
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toStringGetter
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStringGetter
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.infra.reflection.ClassMetadata
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.LoggerFactory
 import java.lang.reflect.Constructor
-import java.lang.reflect.Field
-import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.javaConstructor
+import kotlin.reflect.jvm.javaType
 
 private val log = LoggerFactory.getLogger(StateAggregateMetadataParser::class.java)
 
@@ -37,29 +42,31 @@ private val log = LoggerFactory.getLogger(StateAggregateMetadataParser::class.ja
  *
  * @author ahoo wang
  */
-object StateAggregateMetadataParser : CacheableMetadataParser<Class<*>, StateAggregateMetadata<*>>() {
+object StateAggregateMetadataParser : CacheableMetadataParser() {
 
-    override fun parseToMetadata(type: Class<*>): StateAggregateMetadata<*> {
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = StateAggregateMetadataVisitor(type)
-        ClassMetadata.visit(type, visitor)
-        return visitor.toMetadata()
+        type.kotlin.visit(visitor)
+        @Suppress("UNCHECKED_CAST")
+        return visitor.toMetadata() as M
     }
 }
 
 internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregateType: Class<S>) :
-    ClassVisitor {
+    ClassVisitor<S> {
     private val constructor: Constructor<S>
     private var aggregateIdGetter: PropertyGetter<S, String>? = null
-    private val sourcingFunctionRegistry: MutableMap<Class<*>, MethodFunctionMetadata<S, Void>> = HashMap()
-    private var namedIdField: Field? = null
+    private val sourcingFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<S, Void>> = HashMap()
+    private var namedIdProperty: KProperty1<S, String>? = null
 
     init {
         try {
-            @Suppress("UNCHECKED_CAST")
-            constructor = stateAggregateType.declaredConstructors.first {
-                (it.parameterCount == 1 || it.parameterCount == 2) &&
-                    it.parameterTypes.all { parameterType -> parameterType == String::class.java }
-            } as Constructor<S>
+            constructor = stateAggregateType.kotlin.constructors.first {
+                (it.parameters.count() == 1 || it.parameters.count() == 2) &&
+                    it.parameters.all { parameter ->
+                        parameter.type.javaType == String::class.java
+                    }
+            }.javaConstructor as Constructor<S>
         } catch (e: NoSuchElementException) {
             throw IllegalStateException(
                 "Failed to parse StateAggregate[$stateAggregateType] metadata: Not defined Constructor[ctor(id) or ctor(id,tenantId)].",
@@ -67,33 +74,34 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
         }
     }
 
-    override fun visitField(field: Field) {
+    override fun visitProperty(property: KProperty1<S, *>) {
         if (aggregateIdGetter == null) {
-            aggregateIdGetter = field.toAggregateIdGetterIfAnnotated()
+            aggregateIdGetter = property.toAggregateIdGetterIfAnnotated()
         }
-        if (namedIdField == null && DEFAULT_AGGREGATE_ID_NAME == field.name) {
-            namedIdField = field
+        if (namedIdProperty == null &&
+            DEFAULT_AGGREGATE_ID_NAME == property.name &&
+            property.returnType.javaType == String::class.java
+        ) {
+            @Suppress("UNCHECKED_CAST")
+            namedIdProperty = property as KProperty1<S, String>
         }
     }
 
-    override fun visitMethod(method: Method) {
-        if (aggregateIdGetter == null) {
-            aggregateIdGetter = method.toAggregateIdGetterIfAnnotated()
-        }
-        if (method.isAnnotationPresent(OnSourcing::class.java) ||
-            (DEFAULT_ON_SOURCING_NAME == method.name && method.parameterCount == 1)
+    override fun visitFunction(function: KFunction<*>) {
+        if (function.hasAnnotation<OnSourcing>() ||
+            (DEFAULT_ON_SOURCING_NAME == function.name && function.valueParameters.count() == 1)
         ) {
-            val functionMetadata = method.toFunctionMetadata<S, Void>()
+            val functionMetadata = function.toFunctionMetadata<S, Void>()
             sourcingFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
         }
     }
 
     override fun end() {
-        if (aggregateIdGetter != null || namedIdField == null) {
+        if (aggregateIdGetter != null || namedIdProperty == null) {
             return
         }
 
-        aggregateIdGetter = namedIdField!!.toStringGetter()
+        aggregateIdGetter = namedIdProperty!!.toStringGetter()
     }
 
     fun toMetadata(): StateAggregateMetadata<S> {
@@ -113,8 +121,7 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
 }
 
 fun <S : Any> Class<out S>.stateAggregateMetadata(): StateAggregateMetadata<S> {
-    @Suppress("UNCHECKED_CAST")
-    return StateAggregateMetadataParser.parse(this) as StateAggregateMetadata<S>
+    return StateAggregateMetadataParser.parse(this)
 }
 
 inline fun <reified S : Any> stateAggregateMetadata(): StateAggregateMetadata<S> {
