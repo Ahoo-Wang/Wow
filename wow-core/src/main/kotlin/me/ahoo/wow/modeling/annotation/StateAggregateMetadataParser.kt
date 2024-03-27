@@ -19,11 +19,11 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.infra.reflection.KClassMetadata.visit
-import me.ahoo.wow.infra.reflection.KClassVisitor
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
+import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
-import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.LoggerFactory
@@ -42,7 +42,7 @@ private val log = LoggerFactory.getLogger(StateAggregateMetadataParser::class.ja
  *
  * @author ahoo wang
  */
-object StateAggregateMetadataParser : KCacheableMetadataParser() {
+object StateAggregateMetadataParser : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = StateAggregateMetadataVisitor(type)
@@ -53,7 +53,7 @@ object StateAggregateMetadataParser : KCacheableMetadataParser() {
 }
 
 internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregateType: Class<S>) :
-    KClassVisitor<S> {
+    ClassVisitor<S> {
     private val constructor: Constructor<S>
     private var aggregateIdGetter: PropertyGetter<S, String>? = null
     private val sourcingFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<S, Void>> = HashMap()

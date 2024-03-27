@@ -19,10 +19,10 @@ import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.event.DEFAULT_REVISION
 import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
+import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
-import me.ahoo.wow.infra.reflection.KClassMetadata.visit
-import me.ahoo.wow.infra.reflection.KClassVisitor
-import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
@@ -33,7 +33,7 @@ import kotlin.reflect.KProperty1
  *
  * @author ahoo wang
  */
-object EventMetadataParser : KCacheableMetadataParser() {
+object EventMetadataParser : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = EventMetadataVisitor(type)
@@ -42,7 +42,7 @@ object EventMetadataParser : KCacheableMetadataParser() {
         return visitor.toMetadata() as M
     }
 
-    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : KClassVisitor<E> {
+    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : ClassVisitor<E> {
         private val eventName: String = eventType.toName()
         private var aggregateNameGetter: PropertyGetter<E, String>? = null
         private var revision = DEFAULT_REVISION

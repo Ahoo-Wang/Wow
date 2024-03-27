@@ -15,13 +15,13 @@ package me.ahoo.wow.messaging.processor
 
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
+import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
-import me.ahoo.wow.infra.reflection.KClassMetadata.visit
-import me.ahoo.wow.infra.reflection.KClassVisitor
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import reactor.core.publisher.Mono
 import kotlin.reflect.KClass
@@ -52,7 +52,7 @@ class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations
  */
 open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
     private val functionCondition: (KFunction<*>) -> Boolean = { true }
-) : KCacheableMetadataParser() {
+) : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = ProcessorMetadataVisitor<TYPE, E>(type, functionCondition)
@@ -65,7 +65,7 @@ open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
 internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
     private val processorType: Class<P>,
     private val functionCondition: (KFunction<*>) -> Boolean
-) : KClassVisitor<P> {
+) : ClassVisitor<P> {
     private val functionRegistry: MutableSet<FunctionAccessorMetadata<P, Mono<*>>> = mutableSetOf()
 
     override fun visitFunction(function: KFunction<*>) {

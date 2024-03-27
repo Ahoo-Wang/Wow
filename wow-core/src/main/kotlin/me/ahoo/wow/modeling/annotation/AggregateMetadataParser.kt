@@ -22,11 +22,11 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
-import me.ahoo.wow.infra.reflection.KClassMetadata.visit
-import me.ahoo.wow.infra.reflection.KClassVisitor
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
+import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
-import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
@@ -47,7 +47,7 @@ private val log = LoggerFactory.getLogger(AggregateMetadataParser::class.java)
  *
  * @author ahoo wang
  */
-object AggregateMetadataParser : KCacheableMetadataParser() {
+object AggregateMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = AggregateMetadataVisitor<TYPE, Any>(type)
         type.kotlin.visit(visitor)
@@ -56,7 +56,7 @@ object AggregateMetadataParser : KCacheableMetadataParser() {
     }
 
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
-        KClassVisitor<C> {
+        ClassVisitor<C> {
         private val commandAggregateType: Class<C>
         private val stateAggregateType: Class<S>
         private val stateAggregateMetadata: StateAggregateMetadata<S>
