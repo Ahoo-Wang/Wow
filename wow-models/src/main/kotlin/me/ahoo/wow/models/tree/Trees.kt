@@ -14,7 +14,7 @@
 package me.ahoo.wow.models.tree
 
 object Trees {
-    fun <F : Flat, L : Leaf> Iterable<F>.toTree(root: L, toLeaf: (F) -> L): Leaf {
+    fun <F : Flat, L : Leaf> Iterable<F>.toTree(root: L, toLeaf: (F) -> L): L {
         val categories = map {
             toLeaf(it)
         }
