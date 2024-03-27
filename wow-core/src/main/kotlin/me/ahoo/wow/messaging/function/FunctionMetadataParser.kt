@@ -56,7 +56,7 @@ object FunctionMetadataParser {
         val accessor = accessorFactory(this)
         val supportedTopics = toSupportedTopics(functionKind, supportedType)
 
-        val injectParameterTypes = valueParameters.asSequence().drop(1)
+        val injectParameterTypes = parameterTypes.asSequence().drop(1)
             .map {
                 InjectParameter(it)
             }.toList().toTypedArray()
