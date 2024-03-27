@@ -18,7 +18,6 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_STATE_EVENT_NAME
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.annotation.OnStateEvent
@@ -27,20 +26,25 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
-import me.ahoo.wow.infra.accessor.method.MethodAccessor
-import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
-import me.ahoo.wow.infra.accessor.method.reactive.toMonoMethodAccessor
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
+import me.ahoo.wow.infra.accessor.function.reactive.toMonoFunctionAccessor
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.toNamedAggregate
 import reactor.core.publisher.Mono
-import java.lang.reflect.Method
-import java.lang.reflect.ParameterizedType
+import kotlin.reflect.KFunction
+import kotlin.reflect.KParameter
+import kotlin.reflect.full.isSubtypeOf
+import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.javaType
 
 object FunctionMetadataParser {
 
-    fun <P, R> Method.toFunctionMetadata(accessorFactory: (Method) -> MethodAccessor<P, R>): MethodFunctionMetadata<P, R> {
-        val parameterTypes = parameterTypes
+    fun <P, R> KFunction<*>.toFunctionMetadata(accessorFactory: (KFunction<*>) -> FunctionAccessor<P, R>): FunctionAccessorMetadata<P, R> {
+        val parameterTypes = valueParameters
         check(parameterTypes.isNotEmpty()) { "The function has at least one parameter." }
         /*
          * 消息函数第一个参数必须为消息.
@@ -48,17 +52,15 @@ object FunctionMetadataParser {
         val firstParameterType = parameterTypes[0]
         val firstParameterKind = firstParameterType.toFirstParameterKind()
         val functionKind = toFunctionKind()
-        val supportedType = toSupportedType(firstParameterKind, firstParameterType)
+        val supportedType = firstParameterType.toSupportedType(firstParameterKind)
         val accessor = accessorFactory(this)
         val supportedTopics = toSupportedTopics(functionKind, supportedType)
 
-        val injectParameterTypes = parameterTypes.copyOfRange(1, parameterTypes.size).mapIndexed { idx, parameterType ->
-            val name = parameterAnnotations[idx + 1].firstOrNull {
-                it is Name
-            } as Name?
-            InjectParameter(parameterType, name?.value.orEmpty())
-        }.toTypedArray()
-        return MethodFunctionMetadata(
+        val injectParameterTypes = valueParameters.asSequence().drop(1)
+            .map {
+                InjectParameter(it)
+            }.toList().toTypedArray()
+        return FunctionAccessorMetadata(
             functionKind = functionKind,
             accessor = accessor,
             supportedType = supportedType,
@@ -68,13 +70,13 @@ object FunctionMetadataParser {
         )
     }
 
-    private fun Class<*>.toFirstParameterKind(): FirstParameterKind {
+    private fun KParameter.toFirstParameterKind(): FirstParameterKind {
         return when {
-            MessageExchange::class.java.isAssignableFrom(this) -> {
+            type.isSubtypeOf(MessageExchange::class.starProjectedType) -> {
                 FirstParameterKind.MESSAGE_EXCHANGE
             }
 
-            Message::class.java.isAssignableFrom(this) -> {
+            type.isSubtypeOf(Message::class.starProjectedType) -> {
                 FirstParameterKind.MESSAGE
             }
 
@@ -84,8 +86,8 @@ object FunctionMetadataParser {
         }
     }
 
-    private fun Method.toFunctionKind(): FunctionKind {
-        scan<OnMessage>()?.let {
+    private fun KFunction<*>.toFunctionKind(): FunctionKind {
+        scanAnnotation<OnMessage>()?.let {
             return it.functionKind
         }
         when (name) {
@@ -109,32 +111,33 @@ object FunctionMetadataParser {
                 return FunctionKind.ERROR
             }
         }
-        throw IllegalStateException("The method [$declaringClass.$name] is not annotated by @OnMessage.")
+        throw IllegalStateException("The method [$$name] is not annotated by @OnMessage.")
     }
 
-    private fun Method.toSupportedType(firstParameterKind: FirstParameterKind, firstParameterType: Class<*>): Class<*> {
+    private fun KParameter.toSupportedType(firstParameterKind: FirstParameterKind): Class<*> {
         return when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
-                val messageWrappedBodyType = genericParameterTypes[0]
-                val parameterizedType = messageWrappedBodyType as ParameterizedType
-                parameterizedType.actualTypeArguments[0] as Class<*>
+                type.arguments[0].type!!.javaType as Class<*>
             }
 
             FirstParameterKind.MESSAGE_BODY -> {
-                firstParameterType
+                type.javaType as Class<*>
             }
         }
     }
 
-    private fun Method.toSupportedTopics(functionKind: FunctionKind, supportedType: Class<*>): Set<NamedAggregate> {
+    private fun KFunction<*>.toSupportedTopics(
+        functionKind: FunctionKind,
+        supportedType: Class<*>
+    ): Set<NamedAggregate> {
         return when (functionKind) {
             FunctionKind.EVENT -> {
-                val onEvent = scan<OnEvent>()
+                val onEvent = scanAnnotation<OnEvent>()
                 return parseEventTopics(supportedType, onEvent?.value)
             }
 
             FunctionKind.STATE_EVENT -> {
-                val onStateEvent = scan<OnStateEvent>()
+                val onStateEvent = scanAnnotation<OnStateEvent>()
                 return parseEventTopics(supportedType, onStateEvent?.value)
             }
 
@@ -142,7 +145,7 @@ object FunctionMetadataParser {
         }
     }
 
-    private fun Method.parseEventTopics(
+    private fun KFunction<*>.parseEventTopics(
         bodyType: Class<*>,
         aggregateNames: Array<out String>?
     ): Set<NamedAggregate> {
@@ -150,7 +153,7 @@ object FunctionMetadataParser {
             return bodyType.typeAsTopics()
         }
         val namedBoundedContext =
-            bodyType.namedBoundedContext() ?: declaringClass.namedBoundedContext()
+            bodyType.namedBoundedContext() ?: javaMethod!!.declaringClass.namedBoundedContext()
         return aggregateNames.map {
             it.toNamedAggregate(namedBoundedContext?.contextName)
         }.toSet()
@@ -163,13 +166,15 @@ object FunctionMetadataParser {
         return setOf()
     }
 
-    fun <P, R> Method.toFunctionMetadata(): MethodFunctionMetadata<P, R> {
-        return this.toFunctionMetadata(::SimpleMethodAccessor)
+    fun <P, R> KFunction<*>.toFunctionMetadata(): FunctionAccessorMetadata<P, R> {
+        return this.toFunctionMetadata {
+            SimpleFunctionAccessor(it)
+        }
     }
 
-    fun <P, R> Method.toMonoFunctionMetadata(): MethodFunctionMetadata<P, Mono<R>> {
+    fun <P, R> KFunction<*>.toMonoFunctionMetadata(): FunctionAccessorMetadata<P, Mono<R>> {
         return this.toFunctionMetadata {
-            it.toMonoMethodAccessor()
+            it.toMonoFunctionAccessor()
         }
     }
 }

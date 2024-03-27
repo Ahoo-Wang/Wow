@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.TenantId
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.toPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 

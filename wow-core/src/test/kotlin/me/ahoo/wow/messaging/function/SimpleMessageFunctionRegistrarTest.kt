@@ -31,10 +31,8 @@ internal class SimpleMessageFunctionRegistrarTest {
 
     @Test
     fun register() {
-        val function =
-            MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .toFunctionMetadata<Any, Any>()
-                .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
+        val function = MockFunction::onEvent.toFunctionMetadata<Any, Any>()
+            .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
         registrar.register(function)
 
@@ -47,7 +45,8 @@ internal class SimpleMessageFunctionRegistrarTest {
         actual = registrar.supportedFunctions(message).toSet()
         assertThat(actual.size, equalTo(1))
         assertThat(actual, hasItem(function))
-        val anotherHandler = MockAnotherFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
+
+        val anotherHandler = MockAnotherFunction::onEvent
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         registrar.register(anotherHandler)
@@ -58,7 +57,7 @@ internal class SimpleMessageFunctionRegistrarTest {
 
     @Test
     fun unregister() {
-        val handler = MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
+        val handler = MockFunction::onEvent
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()

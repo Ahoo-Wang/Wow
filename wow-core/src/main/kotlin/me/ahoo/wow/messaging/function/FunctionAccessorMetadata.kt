@@ -13,14 +13,19 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
-import me.ahoo.wow.infra.accessor.method.MethodAccessor
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
+import java.lang.reflect.ParameterizedType
+import kotlin.reflect.KParameter
+import kotlin.reflect.jvm.javaType
 
 enum class FirstParameterKind {
     MESSAGE_EXCHANGE,
@@ -28,11 +33,23 @@ enum class FirstParameterKind {
     MESSAGE_BODY
 }
 
-data class InjectParameter(val type: Class<*>, val name: String = "")
+data class InjectParameter(val parameter: KParameter) {
+    val javaType: Class<*> by lazy {
+        val jType = parameter.type.javaType
+        if (jType is Class<*>) {
+            return@lazy jType
+        }
+        if (jType is ParameterizedType) {
+            return@lazy jType.rawType as Class<*>
+        }
+        throw IllegalArgumentException("Unsupported parameter type:${parameter.type}")
+    }
+    val name = parameter.scanAnnotation<Name>()?.value.orEmpty()
+}
 
-data class MethodFunctionMetadata<P, out R>(
+data class FunctionAccessorMetadata<P, out R>(
     override val functionKind: FunctionKind,
-    val accessor: MethodAccessor<P, R>,
+    val accessor: FunctionAccessor<P, R>,
     val supportedType: Class<*>,
     val supportedTopics: Set<NamedAggregate>,
     val firstParameterKind: FirstParameterKind,
@@ -54,7 +71,7 @@ data class MethodFunctionMetadata<P, out R>(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is MethodFunctionMetadata<*, *>) return false
+        if (other !is FunctionAccessorMetadata<*, *>) return false
 
         return accessor == other.accessor
     }

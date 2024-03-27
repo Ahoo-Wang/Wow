@@ -34,6 +34,7 @@ public final class FastInvoke {
      * @param method method
      * @param target target
      * @param args   args
+     * @param <T>    result type
      * @return result
      * @throws InvocationTargetException InvocationTargetException
      * @throws IllegalAccessException    IllegalAccessException
@@ -44,6 +45,17 @@ public final class FastInvoke {
         return (T) method.invoke(target, args);
     }
 
+    /**
+     * safe invoke target object method
+     *
+     * @param method method
+     * @param target target
+     * @param args   args
+     * @param <T>    result type
+     * @return result
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws IllegalAccessException    IllegalAccessException
+     */
     public static <T> T safeInvoke(@NotNull Method method, Object target, Object[] args)
             throws InvocationTargetException, IllegalAccessException {
         try {
@@ -75,6 +87,17 @@ public final class FastInvoke {
         return constructor.newInstance(args);
     }
 
+    /**
+     * safe create instance
+     *
+     * @param constructor create instance
+     * @param args        args
+     * @param <T>         instance type
+     * @return instance
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws InstantiationException    InstantiationException
+     * @throws IllegalAccessException    IllegalAccessException
+     */
     public static <T> T safeNewInstance(@NotNull Constructor<T> constructor, Object[] args)
             throws InvocationTargetException, InstantiationException,
             IllegalAccessException {
