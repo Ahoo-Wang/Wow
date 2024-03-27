@@ -15,6 +15,7 @@ package me.ahoo.wow.models.tree.aggregate
 
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.models.tree.ROOT_CODE
+import me.ahoo.wow.models.tree.TreeCoded
 import me.ahoo.wow.models.tree.childCodePrefix
 import me.ahoo.wow.models.tree.command.Create
 import me.ahoo.wow.models.tree.command.Created
@@ -32,14 +33,22 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : De
 
     abstract fun maxLevel(): Int
 
+    open fun onCreateNotFoundParentErrorMessage(command: C): String {
+        return "Parent node not found. parentCode:${command.parentCode}."
+    }
+
+    open fun onCreateExceedMaxLevelErrorMessage(event: Created): String {
+        return "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
+    }
+
     @OnCommand
-    fun onCreate(command: C): Created {
+    open fun onCreate(command: C): Created {
         var code: String = generateCode()
         var sortId = 0
 
         if (command.parentCode != ROOT_CODE) {
             require(state.children.any { it.code == command.parentCode }) {
-                "Parent node not found. parentCode:${command.parentCode}"
+                onCreateNotFoundParentErrorMessage(command)
             }
 
             code = treeCode(command.parentCode, code)
@@ -53,37 +62,45 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : De
         val event = command.toEvent<Created>(code = code, sortId = sortId)
 
         require(event.level <= maxLevel()) {
-            "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
+            onCreateExceedMaxLevelErrorMessage(event)
         }
         return event
     }
 
+    open fun nodeNotFoundErrorMessage(treeCoded: TreeCoded): String {
+        return "Tree node not found. code:${treeCoded.code}"
+    }
+
+    open fun hasChildErrorMessage(treeCoded: TreeCoded): String {
+        return "Tree node has children. code:${treeCoded.code}"
+    }
+
     @OnCommand
-    fun onDelete(command: D): Deleted {
+    open fun onDelete(command: D): Deleted {
         val node = state.children.firstOrNull { it.code == command.code }
         requireNotNull(node) {
-            "Tree node not found. code:${command.code}"
+            nodeNotFoundErrorMessage(command)
         }
         val childCodePrefix = childCodePrefix(command.code)
         val hasChild = state.children.any {
             it.code.startsWith(childCodePrefix)
         }
         require(!hasChild) {
-            "Tree node has children. code:${command.code}"
+            hasChildErrorMessage(command)
         }
         return command.toEvent()
     }
 
     @OnCommand
-    fun onUpdate(command: U): Updated {
+    open fun onUpdate(command: U): Updated {
         require(state.children.any { it.code == command.code }) {
-            "Tree node not found. code:${command.code}"
+            nodeNotFoundErrorMessage(command)
         }
         return command.toEvent()
     }
 
     @OnCommand
-    fun onMove(command: M): Moved {
+    open fun onMove(command: M): Moved {
         return command.toEvent()
     }
 }

@@ -31,8 +31,11 @@ fun treeCode(parentCode: String, childCode: String): String {
     return "${childCodePrefix(parentCode)}$childCode"
 }
 
-interface Info : Named, Comparable<Info> {
+interface TreeCoded {
     val code: String
+}
+
+interface Info : TreeCoded, Named, Comparable<Info> {
     val sortId: Int
 
     @JsonIgnore

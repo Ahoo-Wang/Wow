@@ -14,6 +14,7 @@
 package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.models.tree.TreeCoded
 
 @CommandRoute(
     method = CommandRoute.Method.DELETE,
@@ -21,12 +22,8 @@ import me.ahoo.wow.api.annotation.CommandRoute
     path = "",
     summary = "删除树节点"
 )
-interface Delete {
-    val code: String
-
+interface Delete : TreeCoded {
     fun <E : Deleted> toEvent(): E
 }
 
-interface Deleted {
-    val code: String
-}
+interface Deleted : TreeCoded
