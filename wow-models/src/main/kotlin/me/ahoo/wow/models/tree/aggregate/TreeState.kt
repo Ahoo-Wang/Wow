@@ -28,23 +28,23 @@ abstract class TreeState<F : Flat, C : Created, U : Updated, D : Deleted, M : Mo
     abstract fun Flat.toFlat(): F
 
     @OnSourcing
-    fun onCreated(event: C) {
+    open fun onCreated(event: C) {
         children.add(event.toFlat())
     }
 
     @OnSourcing
-    fun onUpdated(event: U) {
+    open fun onUpdated(event: U) {
         children.removeIf { it.code == event.code }
         children.add(event.toFlat())
     }
 
     @OnSourcing
-    fun onDeleted(event: D) {
+    open fun onDeleted(event: D) {
         children.removeIf { it.code == event.code }
     }
 
     @OnSourcing
-    fun onMoved(event: M) {
+    open fun onMoved(event: M) {
         val flats = buildList {
             event.codes.forEachIndexed { index, code ->
                 val flat = children.first { it.code == code }

@@ -73,6 +73,6 @@ data class FunctionAccessorMetadata<P, out R>(
     }
 
     override fun toString(): String {
-        return "MethodFunctionMetadata(accessor=$accessor)"
+        return "FunctionAccessorMetadata(accessor=$accessor)"
     }
 }
