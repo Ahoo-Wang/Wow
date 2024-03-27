@@ -31,6 +31,7 @@
             <option value="$PROJECT_DIR$/wow-dependencies" />
             <option value="$PROJECT_DIR$/wow-elasticsearch" />
             <option value="$PROJECT_DIR$/wow-kafka" />
+            <option value="$PROJECT_DIR$/wow-models" />
             <option value="$PROJECT_DIR$/wow-mongo" />
             <option value="$PROJECT_DIR$/wow-openapi" />
             <option value="$PROJECT_DIR$/wow-opentelemetry" />

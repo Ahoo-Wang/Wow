@@ -142,6 +142,26 @@ jobs:
       - name: Test Wow-Query
         run: ./gradlew wow-query:clean wow-query:check --stacktrace
 
+
+  wow-models-test:
+    name: Wow Models Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-Models
+        run: ./gradlew wow-models:clean wow-models:check --stacktrace
+
   wow-kafka-test:
     name: Wow Kafka Test
     needs: [ wow-core-test ]
