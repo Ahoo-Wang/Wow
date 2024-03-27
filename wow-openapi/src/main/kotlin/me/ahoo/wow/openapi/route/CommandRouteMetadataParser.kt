@@ -20,9 +20,9 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.openapi.Https
