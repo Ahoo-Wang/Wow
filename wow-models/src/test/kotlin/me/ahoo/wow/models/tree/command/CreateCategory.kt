@@ -15,7 +15,6 @@ package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.models.tree.Flat
 
 @AllowCreate
 @CommandRoute(
@@ -37,8 +36,4 @@ data class CategoryCreated(
     override val name: String,
     override val code: String,
     override val sortId: Int
-) : Created {
-    override fun withSortId(sortId: Int): Flat {
-        return copy(sortId = sortId)
-    }
-}
+) : Created
