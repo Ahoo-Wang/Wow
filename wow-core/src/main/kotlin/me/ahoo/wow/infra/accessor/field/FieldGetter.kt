@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException
  *
  * @author ahoo wang
  */
+@Deprecated("Use PropertyAccessor instead.")
 interface FieldGetter<in T, out V> {
     val field: Field
 

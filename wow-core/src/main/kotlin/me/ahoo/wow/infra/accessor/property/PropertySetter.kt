@@ -13,11 +13,23 @@
 
 package me.ahoo.wow.infra.accessor.property
 
+import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.field.FieldSetter
 import me.ahoo.wow.infra.accessor.method.MethodAccessor
+import kotlin.reflect.KMutableProperty1
 
 fun interface PropertySetter<in T, in V> {
     operator fun set(target: T, value: V)
+}
+
+class SimplePropertySetter<T, V>(private val property: KMutableProperty1<T, V>) : PropertySetter<T, V> {
+    init {
+        property.ensureAccessible()
+    }
+
+    override fun set(target: T, value: V) {
+        property.set(target, value)
+    }
 }
 
 class FieldPropertySetter<in T, in V>(private val fieldSetter: FieldSetter<T, V>) : PropertySetter<T, V> {
