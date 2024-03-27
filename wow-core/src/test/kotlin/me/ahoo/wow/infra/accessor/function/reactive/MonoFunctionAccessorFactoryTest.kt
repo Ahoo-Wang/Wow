@@ -12,13 +12,8 @@
  */
 @file:Suppress("unused")
 
-package me.ahoo.wow.infra.accessor.method.reactive
+package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.function.reactive.FluxMonoFunctionAccessor
-import me.ahoo.wow.infra.accessor.function.reactive.PublisherMonoFunctionAccessor
-import me.ahoo.wow.infra.accessor.function.reactive.SimpleMonoFunctionAccessor
-import me.ahoo.wow.infra.accessor.function.reactive.SyncMonoFunctionAccessor
-import me.ahoo.wow.infra.accessor.function.reactive.toMonoFunctionAccessor
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test

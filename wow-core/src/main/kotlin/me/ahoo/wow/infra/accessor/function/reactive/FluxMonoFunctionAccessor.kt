@@ -13,12 +13,13 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
+import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 
-data class FluxMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<List<D>>> {
+data class FluxMonoFunctionAccessor<T, D>(override val function: KFunction<*>) :
+    MonoFunctionAccessor<T, Mono<List<D>>> {
 
     init {
         function.ensureAccessible()
@@ -26,7 +27,7 @@ data class FluxMonoFunctionAccessor<T, D>(override val function: KFunction<*>) :
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<List<D>> {
         return Mono.defer {
-            invoke<T, Flux<D>>(method, target, args).collectList()
+            FastInvoke.safeInvoke<Flux<D>>(method, target, args).collectList()
         }
     }
 }
