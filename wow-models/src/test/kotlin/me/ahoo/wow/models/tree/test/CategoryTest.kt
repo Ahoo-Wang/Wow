@@ -16,15 +16,18 @@ package me.ahoo.wow.models.tree.test
 import me.ahoo.wow.models.tree.aggregate.Category
 import me.ahoo.wow.models.tree.aggregate.CategoryState
 import me.ahoo.wow.models.tree.command.CategoryCreated
+import me.ahoo.wow.models.tree.command.CategoryDeleted
+import me.ahoo.wow.models.tree.command.CategoryMoved
+import me.ahoo.wow.models.tree.command.CategoryUpdated
 import me.ahoo.wow.models.tree.command.CreateCategory
+import me.ahoo.wow.models.tree.command.DeleteCategory
+import me.ahoo.wow.models.tree.command.MoveCategory
+import me.ahoo.wow.models.tree.command.UpdateCategory
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import java.lang.reflect.ParameterizedType
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.functions
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.jvmErasure
 
 class CategoryTest {
     var data: String = "data"
@@ -32,26 +35,136 @@ class CategoryTest {
 
     @Test
     fun onCreate() {
-        val instance = CategoryTest()
-        val property1 = instance.javaClass.kotlin.memberProperties.first() as KMutableProperty1<CategoryTest, String>
-//        property1.isAccessible = true
-        property1.set(
-            instance,
-            "hi"
-        )
-        Category::class.functions.toTypedArray().get(4).parameters.last().type.jvmErasure
-
-        val superClass = Category::class.java.genericSuperclass as ParameterizedType
-
+        val command = CreateCategory("name", "")
         aggregateVerifier<Category, CategoryState>()
-            .`when`(CreateCategory("1", "1"))
+            .`when`(command)
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
+            .expectEventBody<CategoryCreated> {
+                assertThat(it.name, equalTo(command.name))
+                assertThat(it.level, equalTo(1))
+                assertThat(it.sortId, equalTo(0))
+            }
             .verify()
     }
 
+    @Test
+    fun onCreateIfNoParent() {
+        aggregateVerifier<Category, CategoryState>()
+            .`when`(CreateCategory("name", "parent"))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
 
-    fun onCreate(hi: String, ho: String) {
-        TODO()
+    @Test
+    fun onCreateIfParent() {
+        val parentCategory = CategoryCreated(name = "parent", code = "parent", sortId = 0)
+        aggregateVerifier<Category, CategoryState>()
+            .given(parentCategory)
+            .`when`(CreateCategory("name", parentCategory.code))
+            .expectNoError()
+            .expectEventType(CategoryCreated::class.java)
+            .expectEventBody<CategoryCreated> {
+                assertThat(it.name, equalTo("name"))
+                assertThat(parentCategory.isDirectChild(it), equalTo(true))
+                assertThat(it.level, equalTo(2))
+                assertThat(it.sortId, equalTo(0))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onCreateIfMax() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val l2Category = CategoryCreated(name = "l2", code = "l1-l2", sortId = 0)
+        val l3Category = CategoryCreated(name = "l3", code = "l1-l2-l3", sortId = 0)
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category, l2Category, l3Category)
+            .`when`(CreateCategory("name", l3Category.code))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun onDelete() {
+        val category = CategoryCreated(name = "parent", code = "parent", sortId = 0)
+        aggregateVerifier<Category, CategoryState>()
+            .given(category)
+            .`when`(DeleteCategory(category.code))
+            .expectNoError()
+            .expectEventType(CategoryDeleted::class.java)
+            .expectEventBody<CategoryDeleted> {
+                assertThat(it.code, equalTo(category.code))
+            }
+            .expectState {
+                assertThat(it.children, emptyIterable())
+            }
+            .verify()
+    }
+
+    @Test
+    fun onDeleteIfNoFound() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category)
+            .`when`(DeleteCategory("code"))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun onDeleteIfHasChild() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val l2Category = CategoryCreated(name = "l2", code = "l1-l2", sortId = 0)
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category, l2Category)
+            .`when`(DeleteCategory(l1Category.code))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun onUpdate() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val command = UpdateCategory(name = "name", code = l1Category.code, sortId = 2)
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category)
+            .`when`(command)
+            .expectEventType(CategoryUpdated::class.java)
+            .expectEventBody<CategoryUpdated> {
+                assertThat(it.name, equalTo(command.name))
+                assertThat(it.code, equalTo(command.code))
+                assertThat(it.sortId, equalTo(command.sortId))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onUpdateIfNotFound() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val command = UpdateCategory(name = "name", code = "notFound", sortId = 2)
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category)
+            .`when`(command)
+            .expectErrorType(IllegalArgumentException::class.java)
+            .verify()
+    }
+
+    @Test
+    fun onMove() {
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val l11Category = CategoryCreated(name = "l11", code = "l11", sortId = 0)
+        val command = MoveCategory(listOf("l11", "l1"))
+        aggregateVerifier<Category, CategoryState>()
+            .given(l1Category, l11Category)
+            .`when`(command)
+            .expectEventType(CategoryMoved::class.java)
+            .expectEventBody<CategoryMoved> {
+                assertThat(it.codes, containsInAnyOrder("l11", "l1"))
+            }
+            .expectState {
+                assertThat(it.children.map { it.code }, containsInAnyOrder("l11", "l1"))
+            }
+            .verify()
     }
 }

@@ -16,7 +16,6 @@ package me.ahoo.wow.models.tree.command
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.models.tree.Flat
 
-
 interface Create : Named {
     val parentCode: String
 

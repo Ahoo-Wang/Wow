@@ -121,7 +121,7 @@ object FunctionMetadataParser {
             }
 
             FirstParameterKind.MESSAGE_BODY -> {
-                type.javaType as Class<*>
+                type.classifier!!.starProjectedType.javaType as Class<*>
             }
         }
     }

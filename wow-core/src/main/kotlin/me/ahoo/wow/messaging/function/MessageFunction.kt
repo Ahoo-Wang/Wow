@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
@@ -66,7 +67,7 @@ interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> 
     override val name: String get() = metadata.name
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return metadata.accessor.method.getAnnotation(annotationClass)
+        return metadata.accessor.function.scanAnnotation(annotationClass.kotlin)
     }
 }
 

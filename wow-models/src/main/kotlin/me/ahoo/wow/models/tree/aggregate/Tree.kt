@@ -35,7 +35,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : De
     @OnCommand
     fun onCreate(command: C): Created {
         var code: String = generateCode()
-        var sortId: Int = 0
+        var sortId = 0
 
         if (command.parentCode != ROOT_CODE) {
             require(state.children.any { it.code == command.parentCode }) {
@@ -76,7 +76,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : De
 
     @OnCommand
     fun onUpdate(command: U): Updated {
-        check(state.children.any { it.code == command.code }) {
+        require(state.children.any { it.code == command.code }) {
             "Tree node not found. code:${command.code}"
         }
         return command.toEvent()

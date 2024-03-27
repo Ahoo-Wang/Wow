@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.models.tree
 
-data class CategoryLeaf(
+data class LeafCategory(
     override val name: String,
     override val code: String,
     override val sortId: Int,
@@ -23,5 +23,9 @@ data class CategoryLeaf(
     override fun <L : Leaf> withChildren(children: List<Leaf>): L {
         @Suppress("UNCHECKED_CAST")
         return copy(children = children) as L
+    }
+
+    companion object {
+        val ROOT = LeafCategory(ROOT_CODE, ROOT_CODE, 0, emptyList())
     }
 }

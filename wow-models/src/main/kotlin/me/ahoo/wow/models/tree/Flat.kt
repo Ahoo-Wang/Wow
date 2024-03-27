@@ -17,13 +17,4 @@ interface Flat : Info {
     fun withSortId(sortId: Int): Flat {
         throw UnsupportedOperationException("Not implemented.")
     }
-
-
-    fun <F : Flat> toFlat(): F {
-        throw UnsupportedOperationException("Not implemented.")
-    }
-
-    fun <L : Leaf> toLeaf(): L {
-        throw UnsupportedOperationException("Not implemented.")
-    }
 }

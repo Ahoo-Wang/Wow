@@ -67,6 +67,4 @@ interface Info : Named, Comparable<Info> {
         }
         return code.compareTo(other.code)
     }
-
-
 }

@@ -17,7 +17,7 @@ data class MoveCategory(override val codes: List<String>) : Move {
 
     override fun <E : Moved> toEvent(): E {
         @Suppress("UNCHECKED_CAST")
-        return CategoryMoved(codes) as E
+        return CategoryMoved(codes = codes) as E
     }
 }
 

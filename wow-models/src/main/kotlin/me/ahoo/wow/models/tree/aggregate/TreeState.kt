@@ -25,6 +25,8 @@ import java.util.*
 abstract class TreeState<F : Flat, C : Created, U : Updated, D : Deleted, M : Moved> : ITreeState<F> {
     override val children: SortedSet<F> = sortedSetOf()
 
+    abstract fun Flat.toFlat(): F
+
     @OnSourcing
     fun onCreated(event: C) {
         children.add(event.toFlat())

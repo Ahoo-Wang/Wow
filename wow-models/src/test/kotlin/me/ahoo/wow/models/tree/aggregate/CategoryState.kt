@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.models.tree.aggregate
 
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.FlatCategory
 import me.ahoo.wow.models.tree.command.CategoryCreated
 import me.ahoo.wow.models.tree.command.CategoryDeleted
@@ -24,5 +25,7 @@ class CategoryState(override val id: String) :
     TreeState<FlatCategory, CategoryCreated, CategoryUpdated, CategoryDeleted, CategoryMoved>() {
 
     override val children: SortedSet<FlatCategory> = sortedSetOf()
-
+    override fun Flat.toFlat(): FlatCategory {
+        return FlatCategory(name, code, sortId)
+    }
 }

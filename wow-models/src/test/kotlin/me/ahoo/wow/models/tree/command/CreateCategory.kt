@@ -16,7 +16,6 @@ package me.ahoo.wow.models.tree.command
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.models.tree.Flat
-import me.ahoo.wow.models.tree.Leaf
 
 @AllowCreate
 @CommandRoute(
@@ -30,21 +29,16 @@ data class CreateCategory(override val name: String, override val parentCode: St
 
     override fun <E : Created> toEvent(code: String, sortId: Int): E {
         @Suppress("UNCHECKED_CAST")
-        return CategoryCreated(name, code, sortId) as E
+        return CategoryCreated(name = name, code = code, sortId = sortId) as E
     }
 }
 
-
-data class CategoryCreated(override val name: String, override val code: String, override val sortId: Int) : Created {
+data class CategoryCreated(
+    override val name: String,
+    override val code: String,
+    override val sortId: Int
+) : Created {
     override fun withSortId(sortId: Int): Flat {
         return copy(sortId = sortId)
-    }
-
-    override fun <F : Flat> toFlat(): F {
-        return this as F
-    }
-
-    override fun <L : Leaf> toLeaf(): L {
-        return this as L
     }
 }

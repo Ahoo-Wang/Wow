@@ -13,18 +13,16 @@
 
 package me.ahoo.wow.models.tree
 
-data class FlatCategory(override val name: String, override val code: String, override val sortId: Int) : Flat {
+data class FlatCategory(
+    override val name: String,
+    override val code: String,
+    override val sortId: Int
+) : Flat {
     override fun withSortId(sortId: Int): Flat {
         return copy(sortId = sortId)
     }
 
-    override fun <F : Flat> toFlat(): F {
-        @Suppress("UNCHECKED_CAST")
-        return this as F
-    }
-
-    override fun <L : Leaf> toLeaf(): L {
-        @Suppress("UNCHECKED_CAST")
-        return CategoryLeaf(name, code, sortId, emptyList()) as L
+    fun toLeaf(): LeafCategory {
+        return LeafCategory(name, code, sortId, emptyList())
     }
 }
