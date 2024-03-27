@@ -13,6 +13,8 @@
 package me.ahoo.wow.infra.accessor
 
 import java.lang.reflect.AccessibleObject
+import kotlin.reflect.KCallable
+import kotlin.reflect.jvm.isAccessible
 
 /**
  * Accessor .
@@ -33,6 +35,12 @@ interface Accessor {
  * ensure AccessibleObject is accessible.
  */
 fun AccessibleObject.ensureAccessible() {
+    if (!this.isAccessible) {
+        this.isAccessible = true
+    }
+}
+
+fun KCallable<*>.ensureAccessible() {
     if (!this.isAccessible) {
         this.isAccessible = true
     }

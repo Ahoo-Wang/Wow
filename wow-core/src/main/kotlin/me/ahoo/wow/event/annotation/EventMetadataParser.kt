@@ -13,70 +13,63 @@
 
 package me.ahoo.wow.event.annotation
 
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateNameGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
 import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.event.DEFAULT_REVISION
 import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
-import me.ahoo.wow.infra.reflection.ClassMetadata
-import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.KClassMetadata.visit
+import me.ahoo.wow.infra.reflection.KClassVisitor
+import me.ahoo.wow.metadata.KCacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
-import java.lang.reflect.Field
-import java.lang.reflect.Method
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 
 /**
  * Event Metadata Parser .
  *
  * @author ahoo wang
  */
-object EventMetadataParser : CacheableMetadataParser<Class<*>, EventMetadata<*>>() {
+object EventMetadataParser : KCacheableMetadataParser() {
 
-    override fun parseToMetadata(type: Class<*>): EventMetadata<*> {
-        val visitor = EventMetadataVisitor(type)
-        ClassMetadata.visit(type, visitor)
-        return visitor.toMetadata()
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
+        val visitor = EventMetadataVisitor(type.kotlin)
+        type.kotlin.visit(visitor)
+        @Suppress("UNCHECKED_CAST")
+        return visitor.toMetadata() as M
     }
 
-    internal class EventMetadataVisitor<E>(private val eventType: Class<E>) : ClassVisitor {
+    internal class EventMetadataVisitor<E : Any>(private val eventType: KClass<E>) : KClassVisitor<E> {
         private val eventName: String = eventType.toName()
         private var aggregateNameGetter: PropertyGetter<E, String>? = null
         private var revision = DEFAULT_REVISION
         private var aggregateIdGetter: PropertyGetter<E, String>? = null
 
         init {
-            val event = eventType.getAnnotation(Event::class.java)
-            event?.let {
+            eventType.scanAnnotation<Event>()?.let {
                 if (it.revision.isNotEmpty()) {
                     revision = it.revision
                 }
             }
         }
 
-        override fun visitField(field: Field) {
+        override fun visitProperty(property: KProperty1<E, *>) {
             if (aggregateNameGetter == null) {
-                aggregateNameGetter = field.toAggregateNameGetterIfAnnotated()
+                aggregateNameGetter = property.toAggregateNameGetterIfAnnotated()
             }
             if (aggregateIdGetter == null) {
-                aggregateIdGetter = field.toAggregateIdGetterIfAnnotated()
-            }
-        }
-
-        override fun visitMethod(method: Method) {
-            if (aggregateNameGetter == null) {
-                aggregateNameGetter = method.toAggregateNameGetterIfAnnotated()
-            }
-            if (aggregateIdGetter == null) {
-                aggregateIdGetter = method.toAggregateIdGetterIfAnnotated()
+                aggregateIdGetter = property.toAggregateIdGetterIfAnnotated()
             }
         }
 
         fun toMetadata(): EventMetadata<E> {
-            val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType)
+            val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType.java)
             return EventMetadata(
-                eventType = eventType,
+                eventType = eventType.java,
                 namedAggregateGetter = namedAggregateGetter,
                 name = eventName,
                 revision = revision,
@@ -86,11 +79,10 @@ object EventMetadataParser : CacheableMetadataParser<Class<*>, EventMetadata<*>>
     }
 }
 
-fun <E> Class<out E>.eventMetadata(): EventMetadata<E> {
-    @Suppress("UNCHECKED_CAST")
-    return EventMetadataParser.parse(this) as EventMetadata<E>
+fun <E : Any> Class<out E>.toEventMetadata(): EventMetadata<E> {
+    return EventMetadataParser.parse(this)
 }
 
-inline fun <reified E> eventMetadata(): EventMetadata<E> {
-    return E::class.java.eventMetadata()
+inline fun <reified E : Any> eventMetadata(): EventMetadata<E> {
+    return E::class.java.toEventMetadata()
 }

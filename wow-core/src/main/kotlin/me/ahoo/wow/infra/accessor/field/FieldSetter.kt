@@ -20,6 +20,7 @@ import java.lang.reflect.InvocationTargetException
  * FieldSetter .
  * @author ahoo wang
  */
+@Deprecated("Use PropertyAccessor instead.")
 interface FieldSetter<in T, in V> {
     val field: Field
 

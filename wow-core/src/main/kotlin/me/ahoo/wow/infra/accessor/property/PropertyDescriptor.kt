@@ -19,9 +19,24 @@ import org.slf4j.LoggerFactory
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.KProperty1
 
 object PropertyDescriptor {
     private val LOG = LoggerFactory.getLogger(PropertyDescriptor::class.java)
+
+    fun <T, V> V.toPropertyGetter(): PropertyGetter<T, V> {
+        return StaticPropertyGetter(this)
+    }
+
+    fun <T, V> KProperty1<T, V>.toPropertyGetter(): PropertyGetter<T, V> {
+        return SimplePropertyGetter(this)
+    }
+
+    fun <T, V> KMutableProperty1<T, V>.toPropertySetter(): PropertySetter<T, V> {
+        return SimplePropertySetter(this)
+    }
+
     private const val PROPERTY_GETTER_PREFIX = "get"
     private const val PROPERTY_SETTER_PREFIX = "set"
 
