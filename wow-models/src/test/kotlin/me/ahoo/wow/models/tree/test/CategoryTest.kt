@@ -58,17 +58,18 @@ class CategoryTest {
 
     @Test
     fun onCreateIfParent() {
-        val parentCategory = CategoryCreated(name = "parent", code = "parent", sortId = 0)
+        val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
+        val l2Category = CategoryCreated(name = "l2", code = "l1-l2", sortId = 0)
         aggregateVerifier<Category, CategoryState>()
-            .given(parentCategory)
-            .`when`(CreateCategory("name", parentCategory.code))
+            .given(l1Category, l2Category)
+            .`when`(CreateCategory("name", l1Category.code))
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
             .expectEventBody<CategoryCreated> {
                 assertThat(it.name, equalTo("name"))
-                assertThat(parentCategory.isDirectChild(it), equalTo(true))
+                assertThat(l1Category.isDirectChild(it), equalTo(true))
                 assertThat(it.level, equalTo(2))
-                assertThat(it.sortId, equalTo(0))
+                assertThat(it.sortId, equalTo(l2Category.sortId + 1))
             }
             .verify()
     }
