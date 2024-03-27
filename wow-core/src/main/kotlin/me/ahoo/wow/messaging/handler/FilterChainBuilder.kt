@@ -14,7 +14,7 @@
 package me.ahoo.wow.messaging.handler
 
 import me.ahoo.wow.annotation.sortedByOrder
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.MessageDispatcher
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
@@ -38,7 +38,7 @@ fun interface FilterCondition {
 class TypedFilterCondition(private val filterType: KClass<*>) :
     FilterCondition {
     override fun matches(filter: Filter<*>): Boolean {
-        val type = filter::class.java.scan<FilterType>()
+        val type = filter::class.scanAnnotation<FilterType>()
         return type?.value?.contains(filterType) ?: true
     }
 

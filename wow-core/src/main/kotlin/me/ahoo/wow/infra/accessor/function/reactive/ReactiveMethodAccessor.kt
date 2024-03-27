@@ -10,19 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.accessor.method
+package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
-import java.lang.reflect.Method
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
 
-/**
- * DefaultMethodAccessor .
- *
- * @author ahoo wang
- */
-data class SimpleMethodAccessor<T, R>(override val method: Method) : MethodAccessor<T, R> {
+interface ReactiveFunctionAccessor<T, out R : Publisher<*>> : FunctionAccessor<T, R>
 
-    init {
-        method.ensureAccessible()
-    }
-}
+interface MonoFunctionAccessor<T, out R : Mono<*>> : ReactiveFunctionAccessor<T, R>

@@ -10,23 +10,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.accessor.method.reactive
+package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
-import reactor.core.publisher.Flux
+import me.ahoo.wow.infra.accessor.method.FastInvoke
+import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
-import java.lang.reflect.Method
+import reactor.kotlin.core.publisher.toMono
+import kotlin.reflect.KFunction
 
-data class FluxMonoMethodAccessor<T, D>(override val method: Method) : MonoMethodAccessor<T, Mono<List<D>>> {
+data class PublisherMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
 
     init {
         method.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<List<D>> {
+    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
         return Mono.defer {
-            invoke<T, Flux<D>>(method, target, args).collectList()
+            FastInvoke.safeInvoke<Publisher<D>>(method, target, args).toMono()
         }
     }
 }

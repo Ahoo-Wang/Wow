@@ -12,7 +12,7 @@
  */
 @file:Suppress("unused")
 
-package me.ahoo.wow.infra.accessor.method.reactive
+package me.ahoo.wow.infra.accessor.function.reactive
 
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
@@ -20,18 +20,19 @@ import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import kotlin.reflect.jvm.kotlinFunction
 
-internal class MonoMethodAccessorFactoryTest {
+internal class MonoFunctionAccessorFactoryTest {
     @Test
     fun createMono() {
         val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
             "onCommand",
             ChangeStateReturnMono::class.java,
-        ).toMonoMethodAccessor<MockAggregate, Any>()
+        ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
-                SimpleMonoMethodAccessor::class.java,
+                SimpleMonoFunctionAccessor::class.java,
             ),
         )
     }
@@ -42,11 +43,11 @@ internal class MonoMethodAccessorFactoryTest {
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
                 ChangeStateReturnFlux::class.java,
-            ).toMonoMethodAccessor<MockAggregate, Any>()
+            ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
-                FluxMonoMethodAccessor::class.java,
+                FluxMonoFunctionAccessor::class.java,
             ),
         )
     }
@@ -57,11 +58,11 @@ internal class MonoMethodAccessorFactoryTest {
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
                 ChangeStateReturnPublisher::class.java,
-            ).toMonoMethodAccessor<MockAggregate, Any>()
+            ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
-                PublisherMonoMethodAccessor::class.java,
+                PublisherMonoFunctionAccessor::class.java,
             ),
         )
     }
@@ -72,11 +73,11 @@ internal class MonoMethodAccessorFactoryTest {
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
                 ChangeStateReturnSync::class.java,
-            ).toMonoMethodAccessor<MockAggregate, Any>()
+            ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
         MatcherAssert.assertThat(
             methodAccessor,
             Matchers.instanceOf(
-                SyncMonoMethodAccessor::class.java,
+                SyncMonoFunctionAccessor::class.java,
             ),
         )
     }

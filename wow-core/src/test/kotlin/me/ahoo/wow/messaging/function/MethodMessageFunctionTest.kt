@@ -20,7 +20,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.infra.accessor.method.reactive.MonoMethodAccessor
+import me.ahoo.wow.infra.accessor.function.reactive.MonoFunctionAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -30,14 +30,16 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
+import kotlin.reflect.jvm.kotlinFunction
 
 internal class MethodMessageFunctionTest {
     @Test
     fun toMessageFunction() {
-        val messageFunction = MockCommandAggregate::class.java.getDeclaredMethod(
+        val commandFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
-        ).toFunctionMetadata<MockCommandAggregate, MockAggregateCreated>()
+        ).kotlinFunction!!
+        val messageFunction = commandFunction.toFunctionMetadata<MockCommandAggregate, MockAggregateCreated>()
             .toMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
                 MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
@@ -52,7 +54,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                SimpleMethodMessageFunction::class.java,
+                SimpleMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -82,11 +84,7 @@ internal class MethodMessageFunctionTest {
 
     @Test
     fun toMessageFunctionWhenInjectable() {
-        val messageFunction = MockWithInjectableFunction::class.java.getDeclaredMethod(
-            "onEvent",
-            MockEventBody::class.java,
-            ExternalService::class.java,
-        ).toFunctionMetadata<MockWithInjectableFunction, Any>()
+        val messageFunction = MockWithInjectableFunction::onEvent.toFunctionMetadata<MockWithInjectableFunction, Any>()
             .toMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
                 MockWithInjectableFunction(),
             )
@@ -95,7 +93,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                InjectableMethodMessageFunction::class.java,
+                InjectableMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -110,10 +108,7 @@ internal class MethodMessageFunctionTest {
 
     @Test
     fun toMonoMessageFunction() {
-        val messageFunction = MockFunction::class.java.getDeclaredMethod(
-            "onEvent",
-            MockEventBody::class.java,
-        ).toMonoFunctionMetadata<MockFunction, Any>()
+        val messageFunction = MockFunction::onEvent.toMonoFunctionMetadata<MockFunction, Any>()
             .toMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
                 MockFunction(),
             )
@@ -122,7 +117,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction,
             instanceOf(
-                SimpleMethodMessageFunction::class.java,
+                SimpleMessageFunctionAccessor::class.java,
             ),
         )
         assertThat(
@@ -134,7 +129,7 @@ internal class MethodMessageFunctionTest {
         assertThat(
             messageFunction.metadata.accessor,
             instanceOf(
-                MonoMethodAccessor::class.java,
+                MonoFunctionAccessor::class.java,
             ),
         )
         val retry = messageFunction.getAnnotation(Retry::class.java)

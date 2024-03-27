@@ -14,26 +14,26 @@ package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-data class SimpleMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
+data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
-    override val metadata: MethodFunctionMetadata<P, R>
+    override val metadata: FunctionAccessorMetadata<P, R>
 ) :
-    MethodMessageFunction<P, M, R> {
+    MessageFunctionAccessor<P, M, R> {
     override fun invoke(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
         return metadata.accessor.invoke(processor, arrayOf(firstArgument))
     }
 
     override fun toString(): String {
-        return "SimpleMethodMessageFunction(metadata=$metadata)"
+        return "SimpleMessageFunctionAccessor(metadata=$metadata)"
     }
 }
 
-data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R>(
+data class InjectableMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
-    override val metadata: MethodFunctionMetadata<P, R>
+    override val metadata: FunctionAccessorMetadata<P, R>
 ) :
-    MethodMessageFunction<P, M, R> {
+    MessageFunctionAccessor<P, M, R> {
     override fun invoke(exchange: M): R {
         val args = arrayOfNulls<Any>(1 + metadata.injectParameterLength)
         args[0] = metadata.extractFirstArgument(exchange)
@@ -42,13 +42,13 @@ data class InjectableMethodMessageFunction<P : Any, in M : MessageExchange<*, *>
             if (injectParameter.name.isNotBlank()) {
                 args[i + 1] = exchange.getServiceProvider()?.getService(injectParameter.name)
             } else {
-                args[i + 1] = exchange.extractObject(injectParameter.type)
+                args[i + 1] = exchange.extractObject(injectParameter.javaType)
             }
         }
         return metadata.accessor.invoke(processor, args)
     }
 
     override fun toString(): String {
-        return "InjectableMethodMessageFunction(metadata=$metadata)"
+        return "InjectableMessageFunctionAccessor(metadata=$metadata)"
     }
 }

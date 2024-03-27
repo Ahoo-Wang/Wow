@@ -16,8 +16,8 @@ import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 
@@ -28,7 +28,7 @@ data class StateAggregateMetadata<S : Any>(
     override val aggregateType: Class<S>,
     val constructorAccessor: ConstructorAccessor<S>,
     val aggregateIdAccessor: PropertyGetter<S, String>,
-    val sourcingFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<S, Void>>
+    val sourcingFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<S, Void>>
 ) : TypedAggregate<S>, Metadata {
 
     fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> {

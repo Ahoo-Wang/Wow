@@ -15,67 +15,69 @@ package me.ahoo.wow.messaging.processor
 
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
-import me.ahoo.wow.infra.reflection.ClassMetadata
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import reactor.core.publisher.Mono
-import java.lang.reflect.Method
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 
-class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations: Class<out Annotation>) :
-    (Method) -> Boolean {
+class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations: KClass<out Annotation>) :
+    (KFunction<*>) -> Boolean {
     private val defaultFunctionNames = onMessageAnnotations.mapNotNull {
-        it.scan<OnMessage>()?.defaultFunctionName
+        it.scanAnnotation<OnMessage>()?.defaultFunctionName
     }.toSet()
 
-    override fun invoke(method: Method): Boolean {
-        if (method.parameterCount == 0) {
+    override fun invoke(function: KFunction<*>): Boolean {
+        if (function.parameters.isEmpty()) {
             return false
         }
         val annotated = onMessageAnnotations.any {
-            method.isAnnotationPresent(it)
+            function.annotations.any { annotation -> annotation.annotationClass == it }
         }
         if (annotated) {
             return true
         }
-        return method.name in defaultFunctionNames
+        return function.name in defaultFunctionNames
     }
 }
 
 /**
  * sess [me.ahoo.wow.api.annotation.OnMessage]
  */
-open class ProcessorMetadataParser<M : MessageExchange<*, *>>(
-    private val functionCondition: (Method) -> Boolean = { true }
-) : CacheableMetadataParser<Class<*>, ProcessorMetadata<*, *>>() {
+open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
+    private val functionCondition: (KFunction<*>) -> Boolean = { true }
+) : CacheableMetadataParser() {
 
-    override fun parseToMetadata(type: Class<*>): ProcessorMetadata<*, *> {
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
+        val visitor = ProcessorMetadataVisitor<TYPE, E>(type, functionCondition)
+        type.kotlin.visit(visitor)
         @Suppress("UNCHECKED_CAST")
-        val visitor = ProcessorMetadataVisitor<Any, M>(type as Class<Any>, functionCondition)
-        ClassMetadata.visit(type, visitor)
-        return visitor.toMetadata()
+        return visitor.toMetadata() as M
     }
 }
 
-internal class ProcessorMetadataVisitor<P : Any, M : MessageExchange<*, *>>(
+internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
     private val processorType: Class<P>,
-    private val functionCondition: (Method) -> Boolean
-) : ClassVisitor {
-    private val functionRegistry: MutableSet<MethodFunctionMetadata<P, Mono<*>>> = mutableSetOf()
+    private val functionCondition: (KFunction<*>) -> Boolean
+) : ClassVisitor<P> {
+    private val functionRegistry: MutableSet<FunctionAccessorMetadata<P, Mono<*>>> = mutableSetOf()
 
-    override fun visitMethod(method: Method) {
-        if (!functionCondition(method)) {
+    override fun visitFunction(function: KFunction<*>) {
+        if (!functionCondition(function)) {
             return
         }
 
-        val handler = method.toMonoFunctionMetadata<P, Any>()
+        val handler = function.toMonoFunctionMetadata<P, Any>()
         functionRegistry.add(handler)
     }
 
-    fun toMetadata(): ProcessorMetadata<P, M> {
+    fun toMetadata(): ProcessorMetadata<P, E> {
         return ProcessorMetadata(
             namedBoundedContext = processorType.requiredNamedBoundedContext(),
             name = processorType.simpleName,

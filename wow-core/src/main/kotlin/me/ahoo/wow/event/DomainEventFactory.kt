@@ -18,7 +18,7 @@ import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.event.annotation.eventMetadata
+import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.aggregateId
@@ -34,7 +34,7 @@ fun <T : Any> T.toDomainEvent(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
-    val metadata = javaClass.eventMetadata()
+    val metadata = javaClass.toEventMetadata()
 
     return SimpleDomainEvent(
         id = id,
@@ -63,7 +63,7 @@ fun <T : Any> T.toDomainEvent(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEvent<T> {
-    val metadata = javaClass.eventMetadata()
+    val metadata = javaClass.toEventMetadata()
     checkNotNull(metadata.namedAggregateGetter)
     val namedAggregate = metadata.namedAggregateGetter.getNamedAggregate(this)
     return SimpleDomainEvent(

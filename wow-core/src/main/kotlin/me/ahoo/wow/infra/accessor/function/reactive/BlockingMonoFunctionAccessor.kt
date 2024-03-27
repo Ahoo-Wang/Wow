@@ -10,21 +10,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.accessor.method.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
+package me.ahoo.wow.infra.accessor.function.reactive
+
 import reactor.core.publisher.Mono
-import java.lang.reflect.Method
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
+import kotlin.reflect.KFunction
 
-data class SyncMonoMethodAccessor<T, D>(override val method: Method) :
-    MonoMethodAccessor<T, Mono<D>> {
+class BlockingMonoFunctionAccessor<T, D>(
+    private val monoFunctionAccessor: MonoFunctionAccessor<T, Mono<D>>,
+    private val scheduler: Scheduler = Schedulers.boundedElastic()
+) : MonoFunctionAccessor<T, Mono<D>> {
 
-    init {
-        method.ensureAccessible()
-    }
+    override val function: KFunction<*>
+        get() = monoFunctionAccessor.function
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return Mono.fromCallable { invoke<T, D>(method, target, args) }
+        return monoFunctionAccessor.invoke(target, args).toBlockable(scheduler)
     }
+}
+
+fun <T> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
+    if (Schedulers.isInNonBlockingThread()) {
+        return this.subscribeOn(scheduler)
+    }
+    return this
 }

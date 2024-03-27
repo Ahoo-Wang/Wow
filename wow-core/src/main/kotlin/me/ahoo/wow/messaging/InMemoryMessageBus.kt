@@ -29,7 +29,7 @@ private val LOG = LoggerFactory.getLogger(InMemoryMessageBus::class.java)
 
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate {
-    val busyLoopingDuration: Duration = DEFAULT_BUSY_LOOPING_DURATION
+    private val busyLoopingDuration: Duration = DEFAULT_BUSY_LOOPING_DURATION
     abstract val sinkSupplier: (NamedAggregate) -> Sinks.Many<M>
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
     private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> {

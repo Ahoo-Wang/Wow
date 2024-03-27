@@ -21,19 +21,24 @@ import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
-import me.ahoo.wow.infra.reflection.ClassMetadata
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import java.lang.reflect.Constructor
-import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.valueParameters
+import kotlin.reflect.jvm.javaConstructor
+import kotlin.reflect.jvm.javaType
 
 private val log = LoggerFactory.getLogger(AggregateMetadataParser::class.java)
 
@@ -42,35 +47,33 @@ private val log = LoggerFactory.getLogger(AggregateMetadataParser::class.java)
  *
  * @author ahoo wang
  */
-object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMetadata<*, *>>() {
-
-    override fun parseToMetadata(type: Class<*>): AggregateMetadata<*, *> {
+object AggregateMetadataParser : CacheableMetadataParser() {
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
+        val visitor = AggregateMetadataVisitor<TYPE, Any>(type)
+        type.kotlin.visit(visitor)
         @Suppress("UNCHECKED_CAST")
-        val visitor = AggregateMetadataVisitor<Any, Any>(type as Class<Any>)
-        ClassMetadata.visit(type, visitor)
-        return visitor.toMetadata()
+        return visitor.toMetadata() as M
     }
 
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
-        ClassVisitor {
+        ClassVisitor<C> {
         private val commandAggregateType: Class<C>
         private val stateAggregateType: Class<S>
         private val stateAggregateMetadata: StateAggregateMetadata<S>
         private var constructor: Constructor<C>
-        private var commandFunctionRegistry: MutableMap<Class<*>, MethodFunctionMetadata<C, Mono<*>>> = HashMap()
-        private var errorFunctionRegistry: MutableMap<Class<*>, MethodFunctionMetadata<C, Mono<*>>> = HashMap()
+        private var commandFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
+        private var errorFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
 
         init {
-            constructor =
-                commandAggregateType.declaredConstructors
-                    .map {
-                        @Suppress("UNCHECKED_CAST")
-                        it as Constructor<C>
-                    }
-                    .firstOrNull { it.parameterCount == 1 }
-                    ?: throw IllegalStateException(
-                        "Failed to parse CommandAggregate[$commandAggregateType] metadata: Not defined Constructor[ctor(aggregateId) or ctor(stateAggregate)].",
-                    )
+            try {
+                constructor = commandAggregateType.kotlin.constructors.first {
+                    it.parameters.count() == 1
+                }.javaConstructor as Constructor<C>
+            } catch (e: NoSuchElementException) {
+                throw IllegalStateException(
+                    "Failed to parse CommandAggregate[$commandAggregateType] metadata: Not defined Constructor[ctor(aggregateId) or ctor(stateAggregate)].",
+                )
+            }
 
             this.commandAggregateType = commandAggregateType
 
@@ -83,28 +86,28 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
             stateAggregateMetadata = stateAggregateType.stateAggregateMetadata()
         }
 
-        override fun visitMethod(method: Method) {
-            if (method.isAnnotationPresent(OnCommand::class.java) ||
-                (isOnCommandFunctionMethod(method))
+        override fun visitFunction(function: KFunction<*>) {
+            if (function.hasAnnotation<OnCommand>() ||
+                function.isOnCommandFunction()
             ) {
-                val functionMetadata = method.toMonoFunctionMetadata<C, Any>()
+                val functionMetadata = function.toMonoFunctionMetadata<C, Any>()
                 commandFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
 
-            if (method.isAnnotationPresent(OnError::class.java) ||
-                (isOnErrorFunctionMethod(method))
+            if (function.hasAnnotation<OnError>() ||
+                function.isOnErrorFunction()
             ) {
-                val functionMetadata = method.toMonoFunctionMetadata<C, Void>()
+                val functionMetadata = function.toMonoFunctionMetadata<C, Void>()
                 errorFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
         }
 
-        private fun isOnCommandFunctionMethod(method: Method) = DEFAULT_ON_COMMAND_NAME == method.name &&
-            method.parameterCount > 0 &&
-            method.returnType != Void.TYPE
+        private fun KFunction<*>.isOnCommandFunction() = DEFAULT_ON_COMMAND_NAME == name &&
+            valueParameters.isNotEmpty() &&
+            returnType.javaType != Void.TYPE
 
-        private fun isOnErrorFunctionMethod(method: Method) = DEFAULT_ON_ERROR_NAME == method.name &&
-            method.parameterCount > 0
+        private fun KFunction<*>.isOnErrorFunction() = DEFAULT_ON_ERROR_NAME == name &&
+            valueParameters.isNotEmpty()
 
         fun toMetadata(): AggregateMetadata<C, S> {
             if (commandFunctionRegistry.isEmpty()) {
@@ -123,7 +126,8 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
             )
-            val staticTenantId = commandAggregateType.scan<StaticTenantId>()?.tenantId
+
+            val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId
                 ?: MetadataSearcher.getAggregate(namedAggregate)?.tenantId
             return AggregateMetadata(namedAggregate, staticTenantId, stateAggregateMetadata, commandAggregateMetadata)
         }
@@ -131,8 +135,7 @@ object AggregateMetadataParser : CacheableMetadataParser<Class<*>, AggregateMeta
 }
 
 fun <C : Any, S : Any> Class<out C>.aggregateMetadata(): AggregateMetadata<C, S> {
-    @Suppress("UNCHECKED_CAST")
-    return AggregateMetadataParser.parse(this) as AggregateMetadata<C, S>
+    return AggregateMetadataParser.parse(this)
 }
 
 inline fun <reified C : Any, S : Any> aggregateMetadata(): AggregateMetadata<C, S> {

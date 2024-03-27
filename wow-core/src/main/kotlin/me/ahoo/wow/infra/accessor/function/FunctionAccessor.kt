@@ -10,22 +10,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.infra.accessor.function
 
-package me.ahoo.wow.infra.accessor.property
+import me.ahoo.wow.infra.accessor.method.FastInvoke
+import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.javaMethod
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
-import kotlin.reflect.KMutableProperty1
+/**
+ * Function Accessor .
+ * @author ahoo wang
+ */
+interface FunctionAccessor<T, out R> {
+    @Suppress("UNCHECKED_CAST")
+    val targetType: Class<T>
+        get() = method.declaringClass as Class<T>
+    val method: Method
+        get() = function.javaMethod!!
+    val function: KFunction<*>
 
-fun interface PropertySetter<in T, in V> {
-    operator fun set(target: T, value: V)
-}
-
-class SimplePropertySetter<T, V>(private val property: KMutableProperty1<T, V>) : PropertySetter<T, V> {
-    init {
-        property.ensureAccessible()
-    }
-
-    override fun set(target: T, value: V) {
-        property.set(target, value)
+    fun invoke(target: T, args: Array<Any?> = emptyArray<Any?>()): R {
+        return FastInvoke.safeInvoke(method, target, args)
     }
 }

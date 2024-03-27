@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.command.annotation
 
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateNameGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toAggregateVersionGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toStaticAggregateIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toStaticTenantIdGetterIfAnnotated
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toStringGetter
-import me.ahoo.wow.annotation.AggregateAnnotationParser.toTenantIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateVersionGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStaticAggregateIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStaticTenantIdGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStringGetter
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toTenantIdGetterIfAnnotated
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
@@ -30,12 +30,14 @@ import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
+import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.MetadataNamedAggregateGetter
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
 import org.slf4j.LoggerFactory
-import java.lang.reflect.Field
-import java.lang.reflect.Method
+import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
+import kotlin.reflect.jvm.jvmErasure
 
 private val LOG = LoggerFactory.getLogger(CommandMetadataParser::class.java)
 
@@ -44,74 +46,62 @@ private val LOG = LoggerFactory.getLogger(CommandMetadataParser::class.java)
  *
  * @author ahoo wang
  */
-object CommandMetadataParser : CacheableMetadataParser<Class<*>, CommandMetadata<*>>() {
+object CommandMetadataParser : CacheableMetadataParser() {
 
-    override fun parseToMetadata(type: Class<*>): CommandMetadata<*> {
+    override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandMetadataVisitor(type)
-        visit(type, visitor)
-        return visitor.toMetadata()
+        type.kotlin.visit(visitor)
+        @Suppress("UNCHECKED_CAST")
+        return visitor.toMetadata() as M
     }
 }
 
-internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor {
+internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C> {
     private val commandName: String = commandType.toName()
     private val isCreateAggregate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private var allowCreate: Boolean = commandType.isAnnotationPresent(AllowCreate::class.java)
     private var aggregateNameGetter: PropertyGetter<C, String>? = null
     private var aggregateIdGetter: PropertyGetter<C, String>? = null
-    private var namedIdField: Field? = null
+    private var namedIdProperty: KProperty1<C, String>? = null
     private var tenantIdGetter: PropertyGetter<C, String>? = null
     private var aggregateVersionGetter: PropertyGetter<C, Int?>? = null
 
-    override fun visitClass(currentClass: Class<*>) {
+    @Suppress("UNCHECKED_CAST")
+    override fun visitType(type: KType) {
         if (aggregateIdGetter == null) {
-            aggregateIdGetter = currentClass.toStaticAggregateIdGetterIfAnnotated()
+            aggregateIdGetter = type.jvmErasure.toStaticAggregateIdGetterIfAnnotated() as PropertyGetter<C, String>?
         }
         if (tenantIdGetter == null) {
-            tenantIdGetter = currentClass.toStaticTenantIdGetterIfAnnotated()
+            tenantIdGetter = type.jvmErasure.toStaticTenantIdGetterIfAnnotated() as PropertyGetter<C, String>?
         }
     }
 
-    override fun visitField(field: Field) {
+    @Suppress("UNCHECKED_CAST")
+    override fun visitProperty(property: KProperty1<C, *>) {
         if (aggregateNameGetter == null) {
-            aggregateNameGetter = field.toAggregateNameGetterIfAnnotated()
+            aggregateNameGetter = property.toAggregateNameGetterIfAnnotated()
         }
         if (aggregateIdGetter == null) {
-            aggregateIdGetter = field.toAggregateIdGetterIfAnnotated()
+            aggregateIdGetter = property.toAggregateIdGetterIfAnnotated()
         }
 
-        if (namedIdField == null && DEFAULT_AGGREGATE_ID_NAME == field.name) {
-            namedIdField = field
+        if (namedIdProperty == null && DEFAULT_AGGREGATE_ID_NAME == property.name) {
+            namedIdProperty = property as KProperty1<C, String>?
         }
         if (tenantIdGetter == null) {
-            tenantIdGetter = field.toTenantIdGetterIfAnnotated()
+            tenantIdGetter = property.toTenantIdGetterIfAnnotated()
         }
         if (aggregateVersionGetter == null) {
-            aggregateVersionGetter = field.toAggregateVersionGetterIfAnnotated()
-        }
-    }
-
-    override fun visitMethod(method: Method) {
-        if (aggregateNameGetter == null) {
-            aggregateNameGetter = method.toAggregateNameGetterIfAnnotated()
-        }
-        if (aggregateIdGetter == null) {
-            aggregateIdGetter = method.toAggregateIdGetterIfAnnotated()
-        }
-        if (tenantIdGetter == null) {
-            tenantIdGetter = method.toTenantIdGetterIfAnnotated()
-        }
-        if (aggregateVersionGetter == null) {
-            aggregateVersionGetter = method.toAggregateVersionGetterIfAnnotated()
+            aggregateVersionGetter = property.toAggregateVersionGetterIfAnnotated() as PropertyGetter<C, Int?>?
         }
     }
 
     override fun end() {
-        if (aggregateIdGetter != null || namedIdField == null) {
+        if (aggregateIdGetter != null || namedIdProperty == null) {
             return
         }
 
-        aggregateIdGetter = namedIdField!!.toStringGetter()
+        aggregateIdGetter = namedIdProperty!!.toStringGetter()
     }
 
     fun toMetadata(): CommandMetadata<C> {
@@ -144,8 +134,7 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
 }
 
 fun <C> Class<out C>.commandMetadata(): CommandMetadata<C> {
-    @Suppress("UNCHECKED_CAST")
-    return CommandMetadataParser.parse(this) as CommandMetadata<C>
+    return CommandMetadataParser.parse(this)
 }
 
 inline fun <reified C> commandMetadata(): CommandMetadata<C> {

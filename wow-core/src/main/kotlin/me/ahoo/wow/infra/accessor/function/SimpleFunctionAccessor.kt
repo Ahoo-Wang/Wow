@@ -10,18 +10,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.infra.accessor.field
+package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import java.lang.reflect.Field
+import kotlin.reflect.KFunction
 
 /**
- * Field Accessor .
+ * Simple Function Accessor .
  *
  * @author ahoo wang
  */
-class FieldAccessor<in T, V>(override val field: Field) : FieldGetter<T, V>, FieldSetter<T, V> {
+data class SimpleFunctionAccessor<T, R>(override val function: KFunction<*>) : FunctionAccessor<T, R> {
+
     init {
-        field.ensureAccessible()
+        function.ensureAccessible()
     }
 }

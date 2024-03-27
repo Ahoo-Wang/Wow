@@ -56,8 +56,8 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     }
 }
 
-interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
-    val metadata: MethodFunctionMetadata<P, R>
+interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
+    val metadata: FunctionAccessorMetadata<P, R>
     override val contextName: String get() = metadata.contextName
     override val supportedTopics: Set<NamedAggregate> get() = metadata.supportedTopics
     override val functionKind: FunctionKind get() = metadata.functionKind
@@ -70,10 +70,10 @@ interface MethodMessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : 
     }
 }
 
-fun <P : Any, M : MessageExchange<*, *>, R> MethodFunctionMetadata<P, R>.toMessageFunction(processor: P): MethodMessageFunction<P, M, R> {
+fun <P : Any, M : MessageExchange<*, *>, R> FunctionAccessorMetadata<P, R>.toMessageFunction(processor: P): MessageFunctionAccessor<P, M, R> {
     return if (injectParameterLength == 0) {
-        SimpleMethodMessageFunction(processor, this)
+        SimpleMessageFunctionAccessor(processor, this)
     } else {
-        InjectableMethodMessageFunction(processor, this)
+        InjectableMessageFunctionAccessor(processor, this)
     }
 }

@@ -21,8 +21,8 @@ import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MethodFunctionMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
@@ -34,8 +34,8 @@ data class CommandAggregateMetadata<C : Any>(
     override val aggregateType: Class<C>,
     override val namedAggregate: NamedAggregate,
     val constructorAccessor: ConstructorAccessor<C>,
-    val commandFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>,
-    val errorFunctionRegistry: Map<Class<*>, MethodFunctionMetadata<C, Mono<*>>>
+    val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
+    val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>
 ) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
     override val processorName: String = aggregateType.simpleName
     val registeredDeleteAggregate: Boolean =

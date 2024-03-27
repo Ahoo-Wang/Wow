@@ -1,20 +1,7 @@
-/*
- * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *      http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.infra.accessor.method.SimpleMethodAccessor
+import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
@@ -24,15 +11,19 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.kotlinFunction
 
-internal class MethodFunctionMetadataTest {
+class FunctionMetadataParserTest {
 
     @Test
     fun toCommandFunctionMetadata() {
-        val metadata = MockCommandAggregate::class.java.getDeclaredMethod(
+        @Suppress("UNCHECKED_CAST")
+        val onCommandFun = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
-        ).toFunctionMetadata<MockAggregate, Any>()
+        ).kotlinFunction as KFunction<Any>
+        val metadata = onCommandFun.toFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
@@ -50,7 +41,7 @@ internal class MethodFunctionMetadataTest {
         assertThat(
             metadata.accessor,
             instanceOf(
-                SimpleMethodAccessor::class.java,
+                SimpleFunctionAccessor::class.java,
             ),
         )
         assertThat(metadata.firstParameterKind, equalTo(FirstParameterKind.MESSAGE_BODY))
@@ -62,10 +53,8 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asEventFunctionMetadata() {
-        val metadata =
-            MockFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .toFunctionMetadata<Any, Any>()
+    fun toEventFunctionMetadata() {
+        val metadata = MockFunction::onEvent.toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItem(MaterializedNamedAggregate("wow-core-test", "messaging_aggregate")),
@@ -79,10 +68,9 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asEventFunctionMetadataWithMultiAggregate() {
-        val metadata =
-            MockWithMultiAggregateNameFunction::class.java.getDeclaredMethod("onEvent", MockEventBody::class.java)
-                .toFunctionMetadata<Any, Any>()
+    fun toEventFunctionMetadataWithMultiAggregate() {
+        val metadata = MockWithMultiAggregateNameFunction::onEvent
+            .toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItems(
@@ -99,10 +87,8 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asOnStateEventFunctionMetadata() {
-        val metadata =
-            MockOnStateEventFunction::class.java.getDeclaredMethod("onStateEvent", DomainEvent::class.java)
-                .toFunctionMetadata<Any, Any>()
+    fun toOnStateEventFunctionMetadata() {
+        val metadata = MockOnStateEventFunction::onStateEvent.toFunctionMetadata<Any, Any>()
         assertThat(
             metadata.supportedTopics,
             hasItems(
@@ -118,10 +104,8 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asFunctionMetadataWhenWrapped() {
-        val metadata =
-            MockWithWrappedFunction::class.java.getDeclaredMethod("onEvent", DomainEvent::class.java)
-                .toFunctionMetadata<MockAggregate, Any>()
+    fun toFunctionMetadataWhenWrapped() {
+        val metadata = MockWithWrappedFunction::onEvent.toFunctionMetadata<MockAggregate, Any>()
         assertThat(metadata, notNullValue())
         assertThat(
             metadata.supportedType,
@@ -140,10 +124,9 @@ internal class MethodFunctionMetadataTest {
     }
 
     @Test
-    fun asFunctionMetadataWithNoneParameter() {
+    fun toFunctionMetadataWithNoneParameter() {
         Assertions.assertThrows(IllegalStateException::class.java) {
-            MethodFunctionMetadataTest::class.java.getDeclaredMethod("asFunctionMetadataWithNoneParameter")
-                .toFunctionMetadata<MethodFunctionMetadataTest, Any>()
+            FunctionMetadataParserTest::toFunctionMetadataWithNoneParameter.toFunctionMetadata<FunctionMetadataParserTest, Unit>()
         }
     }
 }
