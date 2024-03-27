@@ -15,7 +15,7 @@ package me.ahoo.wow.annotation
 
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import kotlin.reflect.full.findAnnotation
 
 /**
  * [Order]-based comparators for [Any] objects.
@@ -27,8 +27,8 @@ object OrderComparator : Comparator<Any> {
 
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     override fun compare(o1: Any, o2: Any): Int {
-        val leftOrder: Order? = o1.javaClass.scan()
-        val rightOrder: Order? = o2.javaClass.scan()
+        val leftOrder: Order? = o1.javaClass.kotlin.findAnnotation()
+        val rightOrder: Order? = o2.javaClass.kotlin.findAnnotation()
 
         if (leftOrder == null && rightOrder == null) {
             return 0
