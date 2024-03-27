@@ -21,7 +21,7 @@ import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.function.FunctionAccessor
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.KParameter

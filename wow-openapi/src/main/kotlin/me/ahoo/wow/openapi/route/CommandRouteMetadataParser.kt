@@ -19,10 +19,9 @@ import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.openapi.Https
@@ -41,7 +40,7 @@ object CommandRouteMetadataParser : CacheableMetadataParser() {
     }
 }
 
-internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>) :
+internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Class<C>) :
     ClassVisitor<C> {
     companion object {
         private val log = LoggerFactory.getLogger(CommandRouteMetadataVisitor::class.java)
@@ -98,8 +97,9 @@ internal class CommandRouteMetadataVisitor<C>(private val commandType: Class<C>)
 
     fun toMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.commandMetadata()
-        val summary = commandType.scan<Summary>()?.value ?: ""
-        val commandRoute = commandType.scan<CommandRoute>() ?: return CommandRouteMetadata(
+
+        val summary = commandType.kotlin.scanAnnotation<Summary>()?.value ?: ""
+        val commandRoute = commandType.kotlin.scanAnnotation<CommandRoute>() ?: return CommandRouteMetadata(
             enabled = true,
             path = commandMetadata.name,
             method = commandMetadata.toMethod(),

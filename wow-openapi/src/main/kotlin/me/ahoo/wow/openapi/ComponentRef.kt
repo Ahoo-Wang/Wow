@@ -29,7 +29,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.configuration.namedBoundedContext
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.ComponentRef.Companion.COMPONENTS_REF
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
@@ -99,7 +99,7 @@ class SchemaRef(
         }
 
         fun Class<*>.toSchemaName(): String? {
-            this.scan<io.swagger.v3.oas.annotations.media.Schema>()?.let {
+            kotlin.scanAnnotation<io.swagger.v3.oas.annotations.media.Schema>()?.let {
                 if (it.name.isNotBlank()) {
                     return it.name
                 }

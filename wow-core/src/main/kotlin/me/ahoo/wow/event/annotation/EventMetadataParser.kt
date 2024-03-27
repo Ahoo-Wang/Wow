@@ -21,7 +21,7 @@ import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
