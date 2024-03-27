@@ -29,7 +29,7 @@ import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.accessor.function.FunctionAccessor
 import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
 import me.ahoo.wow.infra.accessor.function.reactive.toMonoFunctionAccessor
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.toNamedAggregate
 import reactor.core.publisher.Mono
@@ -56,7 +56,7 @@ object FunctionMetadataParser {
         val accessor = accessorFactory(this)
         val supportedTopics = toSupportedTopics(functionKind, supportedType)
 
-        val injectParameterTypes = valueParameters.asSequence().drop(1)
+        val injectParameterTypes = parameterTypes.asSequence().drop(1)
             .map {
                 InjectParameter(it)
             }.toList().toTypedArray()

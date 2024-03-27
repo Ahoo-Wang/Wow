@@ -22,7 +22,7 @@ import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.Updates
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
+import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.TTL_FOREVER

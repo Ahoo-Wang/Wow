@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.method;
+package me.ahoo.wow.infra.accessor.function;
 
+import me.ahoo.wow.infra.accessor.method.FastInvoke;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
@@ -44,6 +45,7 @@ class FastInvokeTest {
     @Test
     void invoke() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method method = getClass().getDeclaredMethod("varArgsMethod", String[].class);
+        method.trySetAccessible();
         String[] args = {"1", "2", "3"};
         Object[] invokeArgs = {args};
         Object result = FastInvoke.invoke(method, this, invokeArgs);
@@ -53,6 +55,7 @@ class FastInvokeTest {
     @Test
     void newInstance() throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         Constructor<Ctor> ctor = Ctor.class.getDeclaredConstructor(String.class);
+        ctor.trySetAccessible();
         Ctor instance = FastInvoke.newInstance(ctor, new Object[]{"1"});
         assertThat(instance.getId(), equalTo("1"));
     }

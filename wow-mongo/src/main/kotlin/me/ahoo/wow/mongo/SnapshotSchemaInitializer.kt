@@ -17,7 +17,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
+import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName

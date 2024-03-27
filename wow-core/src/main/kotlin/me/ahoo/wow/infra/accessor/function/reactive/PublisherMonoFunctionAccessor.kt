@@ -13,7 +13,7 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.method.MethodAccessor.Companion.invoke
+import me.ahoo.wow.infra.accessor.method.FastInvoke
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -27,7 +27,7 @@ data class PublisherMonoFunctionAccessor<T, D>(override val function: KFunction<
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
         return Mono.defer {
-            invoke<T, Publisher<D>>(method, target, args).toMono()
+            FastInvoke.safeInvoke<Publisher<D>>(method, target, args).toMono()
         }
     }
 }

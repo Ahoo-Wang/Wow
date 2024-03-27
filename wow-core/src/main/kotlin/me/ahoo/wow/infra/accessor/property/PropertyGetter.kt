@@ -14,8 +14,6 @@
 package me.ahoo.wow.infra.accessor.property
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.field.FieldGetter
-import me.ahoo.wow.infra.accessor.method.MethodAccessor
 import kotlin.reflect.KProperty1
 
 fun interface PropertyGetter<in T, V> {
@@ -36,21 +34,5 @@ class SimplePropertyGetter<T, V>(val property: KProperty1<T, V>) : PropertyGette
 
     override fun get(receiver: T): V {
         return property.get(receiver)
-    }
-}
-
-@Deprecated("Use SimplePropertyGetter instead.")
-class FieldPropertyGetter<T, V>(private val fieldGetter: FieldGetter<T, V>) : PropertyGetter<T, V> {
-
-    override fun get(receiver: T): V {
-        return fieldGetter[receiver]
-    }
-}
-
-@Deprecated("Use SimplePropertyGetter instead.")
-class MethodPropertyGetter<T, V>(private val methodAccessor: MethodAccessor<T, V>) : PropertyGetter<T, V> {
-
-    override fun get(receiver: T): V {
-        return methodAccessor.invoke(receiver)
     }
 }

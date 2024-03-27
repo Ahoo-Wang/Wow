@@ -16,24 +16,6 @@ import java.lang.reflect.AccessibleObject
 import kotlin.reflect.KCallable
 import kotlin.reflect.jvm.isAccessible
 
-/**
- * Accessor .
- *
- * @author ahoo wang
- */
-interface Accessor {
-    companion object {
-        /**
-         * When calling a static method, the instance object is null.
-         */
-        @JvmField
-        val STATIC: Any? = null
-    }
-}
-
-/**
- * ensure AccessibleObject is accessible.
- */
 fun AccessibleObject.ensureAccessible() {
     if (!this.isAccessible) {
         this.isAccessible = true

@@ -25,7 +25,7 @@ data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, 
     }
 
     override fun toString(): String {
-        return "SimpleMethodMessageFunction(metadata=$metadata)"
+        return "SimpleMessageFunctionAccessor(metadata=$metadata)"
     }
 }
 
@@ -49,6 +49,6 @@ data class InjectableMessageFunctionAccessor<P : Any, in M : MessageExchange<*, 
     }
 
     override fun toString(): String {
-        return "InjectableMethodMessageFunction(metadata=$metadata)"
+        return "InjectableMessageFunctionAccessor(metadata=$metadata)"
     }
 }

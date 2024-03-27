@@ -13,7 +13,7 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.api.annotation.Blocking
-import me.ahoo.wow.infra.reflection.KAnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
