@@ -15,32 +15,17 @@ package me.ahoo.wow.models.tree
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.models.tree.TreeCoded.Companion.isDirectChild
 
 const val DEPARTMENT_CODE_DELIMITER = "-"
 const val ROOT_CODE = ""
 
-fun childCodePrefix(parentCode: String): String {
-    return if (parentCode == ROOT_CODE) {
-        ""
-    } else {
-        "$parentCode$DEPARTMENT_CODE_DELIMITER"
-    }
-}
-
-fun treeCode(parentCode: String, childCode: String): String {
-    return "${childCodePrefix(parentCode)}$childCode"
-}
-
 interface TreeCoded {
     val code: String
-}
-
-interface Info : TreeCoded, Named, Comparable<Info> {
-    val sortId: Int
 
     @JsonIgnore
     fun isRoot(): Boolean {
-        return code == ROOT_CODE
+        return code.isRootNode()
     }
 
     val level: Int
@@ -50,12 +35,52 @@ interface Info : TreeCoded, Named, Comparable<Info> {
             code.split(DEPARTMENT_CODE_DELIMITER).size
         }
 
-    fun isDirectChild(child: Info): Boolean {
-        if (isRoot()) {
-            return child.level == 1
+    companion object {
+
+        fun String.isRootNode(): Boolean {
+            return this == ROOT_CODE
         }
-        val childCodePrefix = childCodePrefix(code)
-        return level + 1 == child.level && child.code.startsWith(childCodePrefix)
+
+        fun String.nodeLevel(): Int {
+            return if (isRootNode()) {
+                0
+            } else {
+                split(DEPARTMENT_CODE_DELIMITER).size
+            }
+        }
+
+        fun String.childCodePrefix(): String {
+            return if (this == ROOT_CODE) {
+                ""
+            } else {
+                "$this$DEPARTMENT_CODE_DELIMITER"
+            }
+        }
+
+        fun String.treeCode(childCode: String): String {
+            return "${childCodePrefix()}$childCode"
+        }
+
+        fun String.isDirectChild(childCode: String): Boolean {
+            if (this == childCode) {
+                return false
+            }
+            val parentLevel = nodeLevel()
+            val childLevel = childCode.nodeLevel()
+            if (parentLevel == 0) {
+                return childLevel == 1
+            }
+            val childCodePrefix = childCodePrefix()
+            return parentLevel + 1 == childLevel && childCode.startsWith(childCodePrefix)
+        }
+    }
+}
+
+interface Info : TreeCoded, Named, Comparable<Info> {
+    val sortId: Int
+
+    fun isDirectChild(child: Info): Boolean {
+        return code.isDirectChild(child.code)
     }
 
     @Suppress("ReturnCount")
