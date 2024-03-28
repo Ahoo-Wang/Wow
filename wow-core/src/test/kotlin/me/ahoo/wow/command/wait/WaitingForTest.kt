@@ -258,4 +258,14 @@ internal class WaitingForTest {
             .expectTimeout(Duration.ofMillis(100))
             .verify()
     }
+
+    @Test
+    fun waitingWhenError() {
+        val waitStrategy = WaitingFor.projected(contextName)
+        waitStrategy.error(IllegalArgumentException())
+        waitStrategy.waiting()
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
 }

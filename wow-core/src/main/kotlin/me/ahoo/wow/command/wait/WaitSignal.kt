@@ -21,7 +21,6 @@ import me.ahoo.wow.exception.ErrorCodes
 interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo {
     val stage: CommandStage
     val isLastProjection: Boolean
-        get() = false
 }
 
 data class SimpleWaitSignal(
