@@ -117,7 +117,7 @@ object FunctionMetadataParser {
     private fun KParameter.toSupportedType(firstParameterKind: FirstParameterKind): Class<*> {
         return when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
-                type.arguments[0].type!!.jvmErasure.java
+                checkNotNull(type.arguments[0].type).jvmErasure.java
             }
 
             FirstParameterKind.MESSAGE_BODY -> {
