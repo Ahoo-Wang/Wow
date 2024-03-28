@@ -26,6 +26,6 @@ data class LeafCategory(
     }
 
     companion object {
-        val ROOT = LeafCategory(ROOT_CODE, ROOT_CODE, 0, emptyList())
+        val ROOT = LeafCategory(name = ROOT_CODE, code = ROOT_CODE, sortId = 0, children = emptyList())
     }
 }
