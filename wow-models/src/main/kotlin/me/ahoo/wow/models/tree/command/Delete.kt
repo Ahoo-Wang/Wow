@@ -20,10 +20,11 @@ import me.ahoo.wow.models.tree.TreeCoded
     method = CommandRoute.Method.DELETE,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     path = "",
-    summary = "删除树节点"
+    summary = "Delete tree node",
+    description = "Id is the tenant ID."
 )
-interface Delete : TreeCoded {
-    fun <E : Deleted> toEvent(): E
+interface Delete<E : Deleted> : TreeCoded {
+    fun toEvent(): E
 }
 
 interface Deleted : TreeCoded

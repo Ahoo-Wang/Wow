@@ -18,14 +18,14 @@ import me.ahoo.wow.api.annotation.CommandRoute
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "",
-    summary = "移动树节点",
-    description = "只允许同级移动."
+    path = "sort",
+    summary = "Move tree node order",
+    description = "Only sibling moves are allowed."
 )
-interface Move {
+interface Move<E : Moved> {
     val codes: List<String>
 
-    fun <E : Moved> toEvent(): E
+    fun toEvent(): E
 }
 
 interface Moved {

@@ -17,10 +17,9 @@ data class UpdateCategory(
     override val name: String,
     override val code: String,
     override val sortId: Int
-) : Update {
-    override fun <E : Updated> toEvent(): E {
-        @Suppress("UNCHECKED_CAST")
-        return CategoryUpdated(name = name, code = code, sortId = sortId) as E
+) : Update<CategoryUpdated> {
+    override fun toEvent(): CategoryUpdated {
+        return CategoryUpdated(name = name, code = code, sortId = sortId)
     }
 }
 
