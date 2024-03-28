@@ -1,6 +1,6 @@
 {
   "name": "documentation",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.",
   "main": "index.js",
   "scripts": {
