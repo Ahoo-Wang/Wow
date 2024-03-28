@@ -20,7 +20,12 @@ import java.lang.annotation.Inherited
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.PROPERTY_GETTER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Inherited
 @MustBeDocumented
 annotation class AggregateVersion

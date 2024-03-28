@@ -18,7 +18,7 @@ import java.lang.annotation.Inherited
 /**
  * 标记命令为创建聚合命令,这意味着该命令是聚合的第一个命令.
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class CreateAggregate

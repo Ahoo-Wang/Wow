@@ -13,13 +13,24 @@
 
 package me.ahoo.wow.infra.reflection
 
+import java.lang.annotation.Inherited
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
 
 object AnnotationScanner {
+    private data class AnnotationCacheKey(
+        val annotatedElement: KAnnotatedElement,
+        val annotationClass: KClass<out Annotation>
+    )
+
+    private val NOT_FOUND = Any()
+    private val cache: ConcurrentHashMap<AnnotationCacheKey, Any> = ConcurrentHashMap()
+
     fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
         val found = mutableListOf<Annotation>()
         found.addAll(annotations)
@@ -36,20 +47,36 @@ object AnnotationScanner {
         return found
     }
 
-    fun KAnnotatedElement.allAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
-        for (annotation in intimateAnnotations()) {
+    fun Iterable<Annotation>.mergeAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
+        for (annotation in this) {
             val existed = scanned.any { it.annotationClass == annotation.annotationClass }
             if (!existed) {
                 scanned.add(annotation)
-                annotation.annotationClass.allAnnotations(scanned)
+                annotation.annotationClass.annotations
+                    .filter {
+                        it.annotationClass.hasAnnotation<Inherited>()
+                    }
+                    .mergeAnnotations(scanned)
             }
         }
         return scanned
     }
 
+    fun KAnnotatedElement.allAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
+        return intimateAnnotations().mergeAnnotations(scanned)
+    }
+
     fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
-        @Suppress("UNCHECKED_CAST")
-        return allAnnotations().firstOrNull { it.annotationClass == annotationClass } as A?
+        val cacheKey = AnnotationCacheKey(this, annotationClass)
+        val annotation = cache.computeIfAbsent(cacheKey) { _ ->
+            allAnnotations().firstOrNull { it.annotationClass == annotationClass } ?: NOT_FOUND
+        }
+        return if (annotation == NOT_FOUND) {
+            null
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            annotation as A
+        }
     }
 
     inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotation(): A? {
