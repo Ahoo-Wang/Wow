@@ -27,7 +27,7 @@ import me.ahoo.wow.models.tree.command.Update
 import me.ahoo.wow.models.tree.command.Updated
 import me.ahoo.wow.models.tree.treeCode
 
-abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : Delete, M : Move>(private val state: T) {
+abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, D : Delete<*>, M : Move<*>>(private val state: T) {
 
     abstract fun generateCode(): String
 
@@ -59,7 +59,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create, U : Update, D : De
                 }
         }
 
-        val event = command.toEvent<Created>(code = code, sortId = sortId)
+        val event = command.toEvent(code = code, sortId = sortId)
 
         require(event.level <= maxLevel()) {
             onCreateExceedMaxLevelErrorMessage(event)

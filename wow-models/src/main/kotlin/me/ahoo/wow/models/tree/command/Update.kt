@@ -20,10 +20,10 @@ import me.ahoo.wow.models.tree.Flat
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     path = "",
-    summary = "更新树节点"
+    summary = "Update tree node"
 )
-interface Update : Flat {
-    fun <E : Updated> toEvent(): E
+interface Update<E : Updated> : Flat {
+    fun toEvent(): E
 }
 
 interface Updated : Flat

@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.models.tree.command
 
-data class MoveCategory(override val codes: List<String>) : Move {
+data class MoveCategory(override val codes: List<String>) : Move<CategoryMoved> {
 
-    override fun <E : Moved> toEvent(): E {
-        @Suppress("UNCHECKED_CAST")
-        return CategoryMoved(codes = codes) as E
+    override fun toEvent(): CategoryMoved {
+        return CategoryMoved(codes = codes)
     }
 }
 

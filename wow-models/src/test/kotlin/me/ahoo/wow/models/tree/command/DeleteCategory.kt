@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.models.tree.command
 
-data class DeleteCategory(override val code: String) : Delete {
-    override fun <E : Deleted> toEvent(): E {
-        @Suppress("UNCHECKED_CAST")
-        return CategoryDeleted(code = code) as E
+data class DeleteCategory(override val code: String) : Delete<CategoryDeleted> {
+    override fun toEvent(): CategoryDeleted {
+        return CategoryDeleted(code = code)
     }
 }
 

@@ -24,11 +24,10 @@ import me.ahoo.wow.api.annotation.CommandRoute
     summary = "添加树节点",
     description = "Id 为租户ID."
 )
-data class CreateCategory(override val name: String, override val parentCode: String) : Create {
+data class CreateCategory(override val name: String, override val parentCode: String) : Create<CategoryCreated> {
 
-    override fun <E : Created> toEvent(code: String, sortId: Int): E {
-        @Suppress("UNCHECKED_CAST")
-        return CategoryCreated(name = name, code = code, sortId = sortId) as E
+    override fun toEvent(code: String, sortId: Int): CategoryCreated {
+        return CategoryCreated(name = name, code = code, sortId = sortId)
     }
 }
 

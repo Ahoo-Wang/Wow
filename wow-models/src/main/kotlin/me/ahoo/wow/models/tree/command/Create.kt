@@ -13,13 +13,23 @@
 
 package me.ahoo.wow.models.tree.command
 
+import me.ahoo.wow.api.annotation.AllowCreate
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.models.tree.Flat
 
-interface Create : Named {
+@AllowCreate
+@CommandRoute(
+    method = CommandRoute.Method.POST,
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    path = "",
+    summary = "Create tree node",
+    description = "Id is the tenant ID."
+)
+interface Create<E : Created> : Named {
     val parentCode: String
 
-    fun <E : Created> toEvent(code: String, sortId: Int): E
+    fun toEvent(code: String, sortId: Int): E
 }
 
 interface Created : Flat
