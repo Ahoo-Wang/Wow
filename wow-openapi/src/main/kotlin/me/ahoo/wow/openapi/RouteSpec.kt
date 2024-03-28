@@ -82,7 +82,7 @@ private fun List<RouteSpec>.duplicateRouteDetect() {
         it.method
     }.forEach { (_, routeSpecs) ->
         require(routeSpecs.size == 1) {
-            "Duplicate Route: [${routeSpecs.joinToString { it.toString() }}]."
+            "Duplicate Route: [${routeSpecs.joinToString { it.id }}]."
         }
     }
 }

@@ -23,6 +23,6 @@ data class FlatCategory(
     }
 
     fun toLeaf(): LeafCategory {
-        return LeafCategory(name, code, sortId, emptyList())
+        return LeafCategory(name = name, code = code, sortId = sortId, children = emptyList())
     }
 }
