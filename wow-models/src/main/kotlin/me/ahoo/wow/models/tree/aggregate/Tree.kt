@@ -16,7 +16,9 @@ package me.ahoo.wow.models.tree.aggregate
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.models.tree.ROOT_CODE
 import me.ahoo.wow.models.tree.TreeCoded
-import me.ahoo.wow.models.tree.childCodePrefix
+import me.ahoo.wow.models.tree.TreeCoded.Companion.childCodePrefix
+import me.ahoo.wow.models.tree.TreeCoded.Companion.isDirectChild
+import me.ahoo.wow.models.tree.TreeCoded.Companion.treeCode
 import me.ahoo.wow.models.tree.command.Create
 import me.ahoo.wow.models.tree.command.Created
 import me.ahoo.wow.models.tree.command.Delete
@@ -25,7 +27,6 @@ import me.ahoo.wow.models.tree.command.Move
 import me.ahoo.wow.models.tree.command.Moved
 import me.ahoo.wow.models.tree.command.Update
 import me.ahoo.wow.models.tree.command.Updated
-import me.ahoo.wow.models.tree.treeCode
 
 abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, D : Delete<*>, M : Move<*>>(private val state: T) {
 
@@ -44,23 +45,17 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     @OnCommand
     open fun onCreate(command: C): Created {
         var code: String = generateCode()
-        var sortId = 0
 
         if (command.parentCode != ROOT_CODE) {
             require(state.children.any { it.code == command.parentCode }) {
                 onCreateNotFoundParentErrorMessage(command)
             }
-
-            code = treeCode(command.parentCode, code)
-            val childCodePrefix = childCodePrefix(command.parentCode)
-            state.children.filter { it.code.startsWith(childCodePrefix) }
-                .maxOfOrNull { it.sortId }?.let {
-                    sortId = it + 1
-                }
+            code = command.parentCode.treeCode(code)
         }
 
+        val sortId = state.children.filter { command.parentCode.isDirectChild(it.code) }
+            .maxOfOrNull { it.sortId + 1 } ?: 0
         val event = command.toEvent(code = code, sortId = sortId)
-
         require(event.level <= maxLevel()) {
             onCreateExceedMaxLevelErrorMessage(event)
         }
@@ -81,7 +76,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         requireNotNull(node) {
             nodeNotFoundErrorMessage(command)
         }
-        val childCodePrefix = childCodePrefix(command.code)
+        val childCodePrefix = command.code.childCodePrefix()
         val hasChild = state.children.any {
             it.code.startsWith(childCodePrefix)
         }
