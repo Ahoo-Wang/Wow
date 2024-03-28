@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.models.tree
 
-interface Flat : Info {
-    fun withSortId(sortId: Int): Flat {
-        throw UnsupportedOperationException("Not implemented.")
-    }
+interface Flat : Info
+
+interface CopySortIdFlat<F : Flat> : Flat {
+    fun withSortId(sortId: Int): F
 }

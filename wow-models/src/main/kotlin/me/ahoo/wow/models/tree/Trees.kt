@@ -14,14 +14,14 @@
 package me.ahoo.wow.models.tree
 
 object Trees {
-    fun <F : Flat, L : Leaf> Iterable<F>.toTree(root: L, toLeaf: (F) -> L): L {
+    fun <F : Flat, L : Leaf<L>> Iterable<F>.toTree(root: L, toLeaf: (F) -> L): L {
         val categories = map {
             toLeaf(it)
         }
         return buildTree(root, categories)
     }
 
-    private fun <L : Leaf> buildTree(parent: L, categories: List<L>): L {
+    private fun <L : Leaf<L>> buildTree(parent: L, categories: List<L>): L {
         val children = categories.filter {
             parent.isDirectChild(it)
         }

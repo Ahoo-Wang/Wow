@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.models.tree
 
-interface Leaf : Info {
-    val children: List<Leaf>
+interface Leaf<SOURCE : Leaf<SOURCE>> : Info {
+    val children: List<SOURCE>
 
-    fun <L : Leaf> withChildren(children: List<Leaf>): L
+    fun withChildren(children: List<SOURCE>): SOURCE
 }

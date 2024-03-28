@@ -14,6 +14,7 @@
 package me.ahoo.wow.models.tree.aggregate
 
 import me.ahoo.wow.api.annotation.OnSourcing
+import me.ahoo.wow.models.tree.CopySortIdFlat
 import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.ITreeState
 import me.ahoo.wow.models.tree.command.Created
@@ -22,35 +23,34 @@ import me.ahoo.wow.models.tree.command.Moved
 import me.ahoo.wow.models.tree.command.Updated
 import java.util.*
 
-abstract class TreeState<F : Flat, C : Created, U : Updated, D : Deleted, M : Moved> : ITreeState<F> {
+abstract class TreeState<F : CopySortIdFlat<F>, C : Created, U : Updated, D : Deleted, M : Moved> : ITreeState<F> {
     override val children: SortedSet<F> = sortedSetOf()
 
-    abstract fun Flat.toFlat(): F
+    protected abstract fun Flat.toFlat(): F
 
     @OnSourcing
-    open fun onCreated(event: C) {
+    protected open fun onCreated(event: C) {
         children.add(event.toFlat())
     }
 
     @OnSourcing
-    open fun onUpdated(event: U) {
+    protected open fun onUpdated(event: U) {
         children.removeIf { it.code == event.code }
         children.add(event.toFlat())
     }
 
     @OnSourcing
-    open fun onDeleted(event: D) {
+    protected open fun onDeleted(event: D) {
         children.removeIf { it.code == event.code }
     }
 
     @OnSourcing
-    open fun onMoved(event: M) {
+    protected open fun onMoved(event: M) {
         val flats = buildList {
             event.codes.forEachIndexed { index, code ->
                 val flat = children.first { it.code == code }
                 children.remove(flat)
-                @Suppress("UNCHECKED_CAST")
-                add(flat.withSortId(sortId = index) as F)
+                add(flat.withSortId(sortId = index))
             }
         }
         children.addAll(flats)

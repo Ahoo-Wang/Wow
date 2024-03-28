@@ -24,7 +24,6 @@ import java.util.*
 class CategoryState(override val id: String) :
     TreeState<FlatCategory, CategoryCreated, CategoryUpdated, CategoryDeleted, CategoryMoved>() {
 
-    override val children: SortedSet<FlatCategory> = sortedSetOf()
     override fun Flat.toFlat(): FlatCategory {
         return FlatCategory(name, code, sortId)
     }
