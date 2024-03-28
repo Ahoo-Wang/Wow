@@ -14,8 +14,21 @@ package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import java.lang.reflect.Method
+import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
+import kotlin.reflect.full.extensionReceiverParameter
+import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.jvmErasure
+
+val KFunction<*>.declaringClass: KClass<*>
+    get() {
+        val parameter = instanceParameter ?: extensionReceiverParameter
+        if (parameter != null) {
+            return parameter.type.jvmErasure
+        }
+        return checkNotNull(javaMethod).declaringClass.kotlin
+    }
 
 /**
  * Function Accessor .
@@ -24,7 +37,7 @@ import kotlin.reflect.jvm.javaMethod
 interface FunctionAccessor<T, out R> {
     @Suppress("UNCHECKED_CAST")
     val targetType: Class<T>
-        get() = method.declaringClass as Class<T>
+        get() = function.declaringClass.java as Class<T>
     val method: Method
         get() = function.javaMethod!!
     val function: KFunction<*>
