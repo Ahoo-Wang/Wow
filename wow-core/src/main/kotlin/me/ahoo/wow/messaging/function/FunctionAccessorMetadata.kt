@@ -36,7 +36,9 @@ data class InjectParameter(val parameter: KParameter) {
     val javaType: Class<*> by lazy {
         parameter.type.jvmErasure.java
     }
-    val name = parameter.scanAnnotation<Name>()?.value.orEmpty()
+    val name by lazy {
+        parameter.scanAnnotation<Name>()?.value.orEmpty()
+    }
 }
 
 data class FunctionAccessorMetadata<P, out R>(
