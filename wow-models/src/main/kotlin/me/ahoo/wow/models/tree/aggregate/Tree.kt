@@ -28,22 +28,24 @@ import me.ahoo.wow.models.tree.command.Moved
 import me.ahoo.wow.models.tree.command.Update
 import me.ahoo.wow.models.tree.command.Updated
 
-abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, D : Delete<*>, M : Move<*>>(private val state: T) {
+abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, D : Delete<*>, M : Move<*>>(
+    protected val state: T
+) {
 
-    abstract fun generateCode(): String
+    protected abstract fun generateCode(): String
 
-    abstract fun maxLevel(): Int
+    protected abstract fun maxLevel(): Int
 
-    open fun onCreateNotFoundParentErrorMessage(command: C): String {
+    protected open fun onCreateNotFoundParentErrorMessage(command: C): String {
         return "Parent node not found. parentCode:${command.parentCode}."
     }
 
-    open fun onCreateExceedMaxLevelErrorMessage(event: Created): String {
+    protected open fun onCreateExceedMaxLevelErrorMessage(event: Created): String {
         return "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
     }
 
     @OnCommand
-    open fun onCreate(command: C): Created {
+    protected open fun onCreate(command: C): Created {
         var code: String = generateCode()
 
         if (command.parentCode != ROOT_CODE) {
@@ -62,16 +64,16 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return event
     }
 
-    open fun nodeNotFoundErrorMessage(treeCoded: TreeCoded): String {
+    protected open fun nodeNotFoundErrorMessage(treeCoded: TreeCoded): String {
         return "Tree node not found. code:${treeCoded.code}"
     }
 
-    open fun hasChildErrorMessage(treeCoded: TreeCoded): String {
+    protected open fun hasChildErrorMessage(treeCoded: TreeCoded): String {
         return "Tree node has children. code:${treeCoded.code}"
     }
 
     @OnCommand
-    open fun onDelete(command: D): Deleted {
+    protected open fun onDelete(command: D): Deleted {
         val node = state.children.firstOrNull { it.code == command.code }
         requireNotNull(node) {
             nodeNotFoundErrorMessage(command)
@@ -87,7 +89,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     }
 
     @OnCommand
-    open fun onUpdate(command: U): Updated {
+    protected open fun onUpdate(command: U): Updated {
         require(state.children.any { it.code == command.code }) {
             nodeNotFoundErrorMessage(command)
         }
@@ -95,7 +97,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     }
 
     @OnCommand
-    open fun onMove(command: M): Moved {
+    protected open fun onMove(command: M): Moved {
         return command.toEvent()
     }
 }

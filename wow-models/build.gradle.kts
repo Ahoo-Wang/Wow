@@ -9,7 +9,6 @@ dependencies {
     api("jakarta.validation:jakarta.validation-api")
     api("io.projectreactor:reactor-core")
     ksp(project(":wow-compiler"))
-    testImplementation(kotlin("reflect"))
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")
 }

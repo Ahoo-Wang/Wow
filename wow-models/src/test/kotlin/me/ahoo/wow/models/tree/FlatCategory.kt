@@ -17,8 +17,8 @@ data class FlatCategory(
     override val name: String,
     override val code: String,
     override val sortId: Int
-) : Flat {
-    override fun withSortId(sortId: Int): Flat {
+) : CopySortIdFlat<FlatCategory> {
+    override fun withSortId(sortId: Int): FlatCategory {
         return copy(sortId = sortId)
     }
 

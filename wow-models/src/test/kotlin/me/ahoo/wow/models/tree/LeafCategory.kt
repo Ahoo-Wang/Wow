@@ -17,12 +17,11 @@ data class LeafCategory(
     override val name: String,
     override val code: String,
     override val sortId: Int,
-    override val children: List<Leaf>
-) : Leaf {
+    override val children: List<LeafCategory>
+) : Leaf<LeafCategory> {
 
-    override fun <L : Leaf> withChildren(children: List<Leaf>): L {
-        @Suppress("UNCHECKED_CAST")
-        return copy(children = children) as L
+    override fun withChildren(children: List<LeafCategory>): LeafCategory {
+        return copy(children = children)
     }
 
     companion object {
