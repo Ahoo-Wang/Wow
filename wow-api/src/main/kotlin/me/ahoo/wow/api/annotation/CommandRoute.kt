@@ -17,7 +17,7 @@ import java.lang.annotation.Inherited
 
 const val DEFAULT_COMMAND_PATH = "__{command_name}__"
 
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class CommandRoute(

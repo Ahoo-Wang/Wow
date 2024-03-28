@@ -19,7 +19,7 @@ import java.lang.annotation.Inherited
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class EntityObject

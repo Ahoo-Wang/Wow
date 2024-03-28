@@ -22,7 +22,7 @@ const val DEFAULT_ON_EVENT_NAME = "onEvent"
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @OnMessage(FunctionKind.EVENT, DEFAULT_ON_EVENT_NAME)
 @MustBeDocumented

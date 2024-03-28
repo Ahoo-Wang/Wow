@@ -21,7 +21,7 @@ import java.lang.annotation.Inherited
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class OnMessage(

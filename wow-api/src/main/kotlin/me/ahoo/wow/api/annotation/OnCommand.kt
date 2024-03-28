@@ -24,7 +24,7 @@ const val DEFAULT_ON_COMMAND_NAME = "onCommand"
  * @author ahoo wang
  * @see me.ahoo.wow.modeling.command.CommandAggregate
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @OnMessage(FunctionKind.COMMAND, defaultFunctionName = DEFAULT_ON_COMMAND_NAME)
 @MustBeDocumented
