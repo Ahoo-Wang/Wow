@@ -13,6 +13,15 @@
 
 package me.ahoo.wow.models.tree.command
 
+import me.ahoo.wow.api.annotation.CommandRoute
+
+@CommandRoute(
+    method = CommandRoute.Method.PUT,
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    path = "",
+    summary = "更新分类名称",
+    description = "Id 为租户ID."
+)
 data class UpdateCategory(
     override val name: String,
     override val code: String,

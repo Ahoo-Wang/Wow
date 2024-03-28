@@ -13,6 +13,15 @@
 
 package me.ahoo.wow.models.tree.command
 
+import me.ahoo.wow.api.annotation.CommandRoute
+
+@CommandRoute(
+    method = CommandRoute.Method.PUT,
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    path = "sort",
+    summary = "移动分类节点",
+    description = "只允许同级移动."
+)
 data class MoveCategory(override val codes: List<String>) : Move<CategoryMoved> {
 
     override fun toEvent(): CategoryMoved {

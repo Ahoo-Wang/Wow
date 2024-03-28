@@ -13,7 +13,21 @@
 
 package me.ahoo.wow.models.tree.command
 
-data class DeleteCategory(override val code: String) : Delete<CategoryDeleted> {
+import jakarta.validation.constraints.NotBlank
+import me.ahoo.wow.api.annotation.CommandRoute
+
+@CommandRoute(
+    method = CommandRoute.Method.DELETE,
+    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    path = "{code}",
+    summary = "删除树节点",
+    description = "Id 为租户ID."
+)
+data class DeleteCategory(
+    @field:NotBlank
+    @CommandRoute.PathVariable
+    override val code: String
+) : Delete<CategoryDeleted> {
     override fun toEvent(): CategoryDeleted {
         return CategoryDeleted(code = code)
     }
