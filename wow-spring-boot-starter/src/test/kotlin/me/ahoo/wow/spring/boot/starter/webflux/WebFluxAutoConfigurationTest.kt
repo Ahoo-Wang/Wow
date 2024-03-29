@@ -37,8 +37,10 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfigurat
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -71,6 +73,7 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(ExceptionHandler::class.java)
             }
@@ -80,6 +83,9 @@ internal class WebFluxAutoConfigurationTest {
     fun contextLoadsWithKafkaProperties() {
         contextRunner
             .enableWow()
+            .withPropertyValues(
+                "${GLOBAL_ERROR_ENABLED}=false"
+            )
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
@@ -103,6 +109,7 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
+                    .doesNotHaveBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(ExceptionHandler::class.java)
             }
