@@ -32,14 +32,26 @@ annotation class CommandRoute(
     val description: String = "",
 ) {
 
-    @Target(AnnotationTarget.FIELD)
+    @Target(
+        AnnotationTarget.FIELD,
+        AnnotationTarget.PROPERTY,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.ANNOTATION_CLASS
+    )
+    @Inherited
     annotation class PathVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],
         val required: Boolean = true
     )
 
-    @Target(AnnotationTarget.FIELD)
+    @Target(
+        AnnotationTarget.FIELD,
+        AnnotationTarget.PROPERTY,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.ANNOTATION_CLASS
+    )
+    @Inherited
     annotation class HeaderVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],
