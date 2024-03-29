@@ -5,6 +5,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.command.CommandHeaders
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
 import org.springframework.http.HttpMethod
@@ -18,6 +20,11 @@ import reactor.kotlin.test.test
 import java.net.URI
 
 class GlobalExceptionHandlerTest {
+
+    @Test
+    fun getOrder() {
+        assertThat(GlobalExceptionHandler.order, equalTo(-2))
+    }
 
     @Test
     fun handle() {

@@ -18,13 +18,14 @@ import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.slf4j.LoggerFactory
+import org.springframework.core.Ordered
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
 
-object GlobalExceptionHandler : WebExceptionHandler {
+object GlobalExceptionHandler : WebExceptionHandler, Ordered {
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
@@ -42,5 +43,9 @@ object GlobalExceptionHandler : WebExceptionHandler {
 
     private fun ServerHttpRequest.formatRequest(): String {
         return "HTTP $method $uri"
+    }
+
+    override fun getOrder(): Int {
+        return -2
     }
 }

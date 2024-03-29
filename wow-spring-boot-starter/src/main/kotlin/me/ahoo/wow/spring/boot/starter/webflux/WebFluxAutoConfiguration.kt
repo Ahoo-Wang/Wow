@@ -126,7 +126,6 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
-    @Order(-2)
     @ConditionalOnWebfluxGlobalErrorEnabled
     fun globalExceptionHandler(): WebExceptionHandler {
         return GlobalExceptionHandler
