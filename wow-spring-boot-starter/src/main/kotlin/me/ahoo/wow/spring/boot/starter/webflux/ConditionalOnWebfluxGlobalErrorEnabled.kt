@@ -11,20 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.server.configuration
+package me.ahoo.wow.spring.boot.starter.webflux
 
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.webflux.exception.toResponseEntity
-import org.springframework.http.ResponseEntity
-import org.springframework.stereotype.Component
-import org.springframework.web.bind.annotation.ExceptionHandler
-import org.springframework.web.bind.annotation.RestControllerAdvice
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
-@Component
-@RestControllerAdvice
-class GlobalRestExceptionHandler {
-    @ExceptionHandler(RuntimeException::class)
-    fun handleWowException(ex: RuntimeException): ResponseEntity<ErrorInfo> {
-        return ex.toResponseEntity()
-    }
-}
+@ConditionalOnProperty(value = [GLOBAL_ERROR_ENABLED], matchIfMissing = true, havingValue = "true")
+annotation class ConditionalOnWebfluxGlobalErrorEnabled

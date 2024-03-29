@@ -29,6 +29,7 @@ import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
@@ -69,6 +70,7 @@ import org.springframework.core.annotation.Order
 import org.springframework.lang.Nullable
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.WebExceptionHandler
 
 /**
  * WebFlux Auto Configuration .
@@ -121,6 +123,13 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean
     fun exceptionHandler(): ExceptionHandler {
         return DefaultExceptionHandler
+    }
+
+    @Bean
+    @Order(-2)
+    @ConditionalOnWebfluxGlobalErrorEnabled
+    fun globalExceptionHandler(): WebExceptionHandler {
+        return GlobalExceptionHandler
     }
 
     @Bean
