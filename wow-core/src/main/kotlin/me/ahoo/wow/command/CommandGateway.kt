@@ -18,7 +18,6 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
 
@@ -44,7 +43,7 @@ interface CommandGateway : CommandBus {
     ): Mono<CommandResult> {
         return send(command, waitStrategy)
             .onErrorMap {
-                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME))
+                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
             }
             .flatMap {
                 waitStrategy.waiting()
@@ -63,6 +62,9 @@ interface CommandGateway : CommandBus {
         command: CommandMessage<C>
     ): Mono<CommandResult> {
         return send(command)
+            .onErrorMap {
+                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
+            }
             .thenReturn(
                 CommandResult(
                     stage = CommandStage.SENT,
@@ -73,10 +75,7 @@ interface CommandGateway : CommandBus {
                     requestId = command.requestId,
                     commandId = command.commandId,
                 ),
-            ).onErrorResume {
-                it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME)
-                    .toMono()
-            }
+            )
     }
 
     fun <C : Any> sendAndWaitForProcessed(
