@@ -20,7 +20,9 @@ import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -117,11 +119,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .verifyComplete()
             sendAndWaitForSent(message)
                 .test()
-                .consumeNextWith {
-                    assertThat(it.stage, equalTo(CommandStage.SENT))
-                    assertThat(it.errorCode, equalTo(ErrorCodes.DUPLICATE_REQUEST_ID))
+                .consumeErrorWith {
+                    assertThat(it, instanceOf(CommandResultException::class.java))
+                    val commandResultException = it as CommandResultException
+                    assertThat(commandResultException.commandResult.errorCode, equalTo(ErrorCodes.DUPLICATE_REQUEST_ID))
+                    assertThat(commandResultException.cause, instanceOf(DuplicateRequestIdException::class.java))
                 }
-                .verifyComplete()
+                .verify()
         }
     }
 
