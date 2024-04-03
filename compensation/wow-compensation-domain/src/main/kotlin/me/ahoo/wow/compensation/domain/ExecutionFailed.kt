@@ -44,6 +44,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         nextRetryAtCalculator: NextRetryAtCalculator
     ): ExecutionFailedCreated {
         val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executeAt)
+        val commandRetrySpec = command.retrySpec ?: retrySpec.materialize()
         return ExecutionFailedCreated(
             eventId = command.eventId,
             processor = command.processor,
@@ -51,7 +52,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             error = command.error,
             executeAt = command.executeAt,
             retryState = retryState,
-            retrySpec = retrySpec.materialize(),
+            retrySpec = commandRetrySpec,
             recoverable = command.recoverable
         )
     }

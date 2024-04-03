@@ -33,6 +33,7 @@ import me.ahoo.wow.compensation.api.FunctionKindChanged
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RecoverableMarked
+import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
@@ -63,7 +64,7 @@ class ExecutionFailedTest {
             functionKind = functionKind,
             error = newError(),
             executeAt = System.currentTimeMillis(),
-            recoverable = RecoverableType.RECOVERABLE
+            recoverable = RecoverableType.RECOVERABLE,
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -82,6 +83,43 @@ class ExecutionFailedTest {
                 assertThat(it.retryState.retries, equalTo(0))
                 assertThat(it.isRetryable, equalTo(true))
                 assertThat(it.retryState.timeout(), equalTo(false))
+                assertThat(it.retrySpec, equalTo(DefaultNextRetryAtCalculatorTest.testRetrySpec))
+                assertThat(it.canRetry(), equalTo(true))
+                assertThat(it.canNextRetry(), equalTo(false))
+                assertThat(it.recoverable, equalTo(createExecutionFailed.recoverable))
+            }
+            .verify()
+    }
+
+    @Test
+    fun onCreate_CommandRetrySpec() {
+        val createExecutionFailed = CreateExecutionFailed(
+            eventId = EVENT_ID,
+            processor = processor,
+            functionKind = functionKind,
+            error = newError(),
+            executeAt = System.currentTimeMillis(),
+            recoverable = RecoverableType.RECOVERABLE,
+            retrySpec = RetrySpec(3, 3, 3)
+        )
+
+        aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
+            .inject(DefaultNextRetryAtCalculatorTest.testRetrySpec)
+            .inject(DefaultNextRetryAtCalculator)
+            .`when`(createExecutionFailed)
+            .expectNoError()
+            .expectEventType(ExecutionFailedCreated::class.java)
+            .expectState {
+                assertThat(it.eventId, equalTo(createExecutionFailed.eventId))
+                assertThat(it.processor, equalTo(createExecutionFailed.processor))
+                assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
+                assertThat(it.error, equalTo(createExecutionFailed.error))
+                assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
+                assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
+                assertThat(it.retryState.retries, equalTo(0))
+                assertThat(it.isRetryable, equalTo(true))
+                assertThat(it.retryState.timeout(), equalTo(false))
+                assertThat(it.retrySpec, equalTo(createExecutionFailed.retrySpec))
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.canNextRetry(), equalTo(false))
                 assertThat(it.recoverable, equalTo(createExecutionFailed.recoverable))
