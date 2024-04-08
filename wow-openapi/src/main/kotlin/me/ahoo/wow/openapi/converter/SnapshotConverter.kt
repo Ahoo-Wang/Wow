@@ -37,7 +37,7 @@ class SnapshotConverter : ModelConverter {
             return null
         }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isSnapshot(type)) {
+        if (!isSnapshot(type) || resolvedSchema.properties == null) {
             return resolvedSchema
         }
         resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)

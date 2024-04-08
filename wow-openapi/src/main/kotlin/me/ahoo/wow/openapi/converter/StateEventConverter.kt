@@ -38,7 +38,7 @@ class StateEventConverter : ModelConverter {
             return null
         }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isStateEvent(type)) {
+        if (!isStateEvent(type) || resolvedSchema.properties == null) {
             return resolvedSchema
         }
         resolvedSchema.properties.remove(StateEvent<*>::operator.name)
