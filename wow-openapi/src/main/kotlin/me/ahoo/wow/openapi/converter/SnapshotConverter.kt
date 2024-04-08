@@ -40,6 +40,9 @@ class SnapshotConverter : ModelConverter {
         if (!isSnapshot(type)) {
             return resolvedSchema
         }
+        if (resolvedSchema.properties == null) {
+            return resolvedSchema
+        }
         resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
         resolvedSchema.properties.remove(Snapshot<*>::expectedNextVersion.name)
         resolvedSchema.properties.remove(Version::initialized.name)
