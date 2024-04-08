@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 
 class RouterSpecs(
@@ -37,6 +38,8 @@ class RouterSpecs(
     private var built: Boolean = false
     private val openAPI = OpenAPI().apply {
         info = Info()
+            .title(currentContext.getContextAlias())
+            .description(currentContext.contextName)
         paths = Paths()
         components = Components()
     }
