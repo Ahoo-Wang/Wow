@@ -14,10 +14,10 @@
 package me.ahoo.wow.apiclient
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Query
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Flux
@@ -36,12 +36,12 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody condition: Condition): Mono<Snapshot<S>>
+    fun single(@RequestBody condition: Condition): Mono<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
     fun singleState(@RequestBody condition: Condition): Mono<S>
 
-    fun getById(id: String): Mono<Snapshot<S>> {
+    fun getById(id: String): Mono<MaterializedSnapshot<S>> {
         Condition.id(id).let {
             return single(it)
         }
@@ -54,13 +54,13 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_QUERY_RESOURCE_NAME)
-    fun query(@RequestBody query: Query): Flux<Snapshot<S>>
+    fun query(@RequestBody query: Query): Flux<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_QUERY_STATE_RESOURCE_NAME)
     fun queryState(@RequestBody query: Query): Flux<S>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun pagedQuery(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<Snapshot<S>>>
+    fun pagedQuery(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
     fun pagedQueryState(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>

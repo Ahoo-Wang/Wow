@@ -14,12 +14,12 @@
 package me.ahoo.wow.apiclient
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.apiclient.SnapshotQueryApi.Companion.SNAPSHOT_PAGED_QUERY_RESOURCE_NAME
 import me.ahoo.wow.apiclient.SnapshotQueryApi.Companion.SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
@@ -32,12 +32,12 @@ interface TenantSnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SnapshotQueryApi.SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@PathVariable tenantId: String, @RequestBody condition: Condition): Mono<Snapshot<S>>
+    fun single(@PathVariable tenantId: String, @RequestBody condition: Condition): Mono<MaterializedSnapshot<S>>
 
     @PostExchange(SnapshotQueryApi.SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
     fun singleState(@PathVariable tenantId: String, @RequestBody condition: Condition): Mono<S>
 
-    fun getById(@PathVariable tenantId: String, id: String): Mono<Snapshot<S>> {
+    fun getById(@PathVariable tenantId: String, id: String): Mono<MaterializedSnapshot<S>> {
         Condition.id(id).let {
             return single(tenantId, it)
         }
@@ -50,13 +50,16 @@ interface TenantSnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SnapshotQueryApi.SNAPSHOT_QUERY_RESOURCE_NAME)
-    fun query(@PathVariable tenantId: String, @RequestBody query: Query): Flux<Snapshot<S>>
+    fun query(@PathVariable tenantId: String, @RequestBody query: Query): Flux<MaterializedSnapshot<S>>
 
     @PostExchange(SnapshotQueryApi.SNAPSHOT_QUERY_STATE_RESOURCE_NAME)
     fun queryState(@PathVariable tenantId: String, @RequestBody query: Query): Flux<S>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun pagedQuery(@PathVariable tenantId: String, @RequestBody pagedQuery: PagedQuery): Mono<PagedList<Snapshot<S>>>
+    fun pagedQuery(
+        @PathVariable tenantId: String,
+        @RequestBody pagedQuery: PagedQuery
+    ): Mono<PagedList<MaterializedSnapshot<S>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
     fun pagedQueryState(@PathVariable tenantId: String, @RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>
