@@ -37,13 +37,13 @@ interface TenantSnapshotQueryApi<S : Any> {
     @PostExchange(SnapshotQueryApi.SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
     fun singleState(@PathVariable tenantId: String, @RequestBody condition: Condition): Mono<S>
 
-    fun getById(@PathVariable tenantId: String, id: String): Mono<MaterializedSnapshot<S>> {
+    fun getById(tenantId: String, id: String): Mono<MaterializedSnapshot<S>> {
         Condition.id(id).let {
             return single(tenantId, it)
         }
     }
 
-    fun getStateById(@PathVariable tenantId: String, id: String): Mono<S> {
+    fun getStateById(tenantId: String, id: String): Mono<S> {
         Condition.id(id).let {
             return singleState(tenantId, it)
         }
