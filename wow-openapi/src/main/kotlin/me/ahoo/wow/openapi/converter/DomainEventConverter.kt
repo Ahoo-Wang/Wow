@@ -55,7 +55,7 @@ class DomainEventConverter : ModelConverter {
         if (!isDomainEvent) {
             return resolvedSchema
         }
-        if (isWrapped) {
+        if (isWrapped && resolvedSchema.properties != null) {
             resolvedSchema.properties["bodyType"] = StringSchema()
             resolvedSchema.properties.remove("last")
             resolvedSchema.properties.remove(DomainEvent<*>::header.name)

@@ -37,7 +37,7 @@ class EventStreamConverter : ModelConverter {
             return null
         }
         val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isEventStream(type)) {
+        if (!isEventStream(type) || resolvedSchema.properties == null) {
             return resolvedSchema
         }
         resolvedSchema.properties.remove(MessageRecords.AGGREGATE_ID)
