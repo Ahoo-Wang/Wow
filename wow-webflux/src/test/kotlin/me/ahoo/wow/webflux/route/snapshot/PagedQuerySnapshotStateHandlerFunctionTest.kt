@@ -24,7 +24,7 @@ class PagedQuerySnapshotStateHandlerFunctionTest {
         val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultExceptionHandler,
-        ).create(PagedQuerySnapshotStateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
+        ).create(PagedQuerySnapshotStateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, false))
         val request = mockk<ServerRequest> {
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(PagedQuery::class.java) } returns PagedQuery(Condition.ALL).toMono()

@@ -23,7 +23,7 @@ class SingleSnapshotStateHandlerFunctionTest {
         val handlerFunction = SingleSnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultExceptionHandler,
-        ).create(SingleSnapshotStateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
+        ).create(SingleSnapshotStateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, false))
         val request = mockk<ServerRequest> {
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(Condition::class.java) } returns Condition.ALL.toMono()

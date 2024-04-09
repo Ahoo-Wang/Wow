@@ -23,7 +23,7 @@ class CountSnapshotHandlerFunctionTest {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultExceptionHandler,
-        ).create(CountSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
+        ).create(CountSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
         val request = mockk<ServerRequest> {
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(Condition::class.java) } returns Condition.ALL.toMono()
