@@ -25,7 +25,7 @@ import me.ahoo.wow.openapi.RouteIdSpec
 
 class RegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateMetadata: AggregateMetadata<*, *>,
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()

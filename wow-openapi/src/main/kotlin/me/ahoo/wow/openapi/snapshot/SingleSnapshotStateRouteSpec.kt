@@ -30,7 +30,8 @@ import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class SingleSnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val appendTenantPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -67,7 +68,12 @@ class SingleSnapshotStateRouteSpecFactory : AbstractAggregateRouteSpecFactory() 
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = SingleSnapshotStateRouteSpec(currentContext, aggregateMetadata)
-        return listOf(routeSpec)
+        val defaultRouteSpec = SingleSnapshotStateRouteSpec(currentContext, aggregateMetadata, false)
+        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        if (appendTenantPath) {
+            val tenantRouteSpec = SingleSnapshotStateRouteSpec(currentContext, aggregateMetadata, true)
+            return listOf(defaultRouteSpec, tenantRouteSpec)
+        }
+        return listOf(defaultRouteSpec)
     }
 }

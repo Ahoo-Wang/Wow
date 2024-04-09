@@ -30,7 +30,8 @@ import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class CountSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val appendTenantPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -65,7 +66,12 @@ class CountSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = CountSnapshotRouteSpec(currentContext, aggregateMetadata)
-        return listOf(routeSpec)
+        val defaultRouteSpec = CountSnapshotRouteSpec(currentContext, aggregateMetadata, false)
+        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        if (appendTenantPath) {
+            val tenantRouteSpec = CountSnapshotRouteSpec(currentContext, aggregateMetadata, true)
+            return listOf(defaultRouteSpec, tenantRouteSpec)
+        }
+        return listOf(defaultRouteSpec)
     }
 }
