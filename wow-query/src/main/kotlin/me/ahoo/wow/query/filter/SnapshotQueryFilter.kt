@@ -22,37 +22,37 @@ import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import reactor.core.publisher.Mono
 
 @FilterType(SnapshotQueryHandler::class)
-interface SnapshotQueryFilter : Filter<SnapshotQueryContext<*, *>>
+interface SnapshotQueryFilter : Filter<SnapshotQueryContext<*, *, *>>
 
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
-@Suppress("UNCHECKED_CAST", "ReactiveStreamsUnusedPublisher")
+@Suppress("UNCHECKED_CAST")
 class TailSnapshotQueryFilter<S : Any>(private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory) :
     SnapshotQueryFilter {
     override fun filter(
-        context: SnapshotQueryContext<*, *>,
-        next: FilterChain<SnapshotQueryContext<*, *>>
+        context: SnapshotQueryContext<*, *, *>,
+        next: FilterChain<SnapshotQueryContext<*, *, *>>
     ): Mono<Void> {
         val snapshotQueryService = snapshotQueryServiceFactory.create<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
                 context as SingleSnapshotQueryContext<S>
-                context.result = snapshotQueryService.single(context.query)
+                context.setResult(snapshotQueryService.single(context.getQuery()))
             }
 
             QueryType.QUERY -> {
                 context as QuerySnapshotQueryContext<S>
-                context.result = snapshotQueryService.query(context.query)
+                context.setResult(snapshotQueryService.query(context.getQuery()))
             }
 
             QueryType.PAGED_QUERY -> {
                 context as PagedSnapshotQueryContext<S>
-                context.result = snapshotQueryService.pagedQuery(context.query)
+                context.setResult(snapshotQueryService.pagedQuery(context.getQuery()))
             }
 
             QueryType.COUNT -> {
                 context as CountSnapshotQueryContext
-                context.result = snapshotQueryService.count(context.query)
+                context.setResult(snapshotQueryService.count(context.getQuery()))
             }
         }
         return next.filter(context)

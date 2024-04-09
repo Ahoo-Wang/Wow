@@ -27,32 +27,32 @@ import me.ahoo.wow.filter.LogErrorHandler
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *>> {
+interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
     fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<Snapshot<S>> {
-        val context = SingleSnapshotQueryContext<S>(namedAggregate, condition)
-        return handle(context).then(Mono.defer { context.result })
+        val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(condition)
+        return handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
     fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<Snapshot<S>> {
-        val context = QuerySnapshotQueryContext<S>(namedAggregate, query)
-        return handle(context).thenMany(Flux.defer { context.result })
+        val context = QuerySnapshotQueryContext<S>(namedAggregate).setQuery(query)
+        return handle(context).thenMany(Flux.defer { context.getRequiredResult() })
     }
 
     fun <S : Any> pagedQuery(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
-        val context = PagedSnapshotQueryContext<S>(namedAggregate, pagedQuery)
-        return handle(context).then(Mono.defer { context.result })
+        val context = PagedSnapshotQueryContext<S>(namedAggregate).setQuery(pagedQuery)
+        return handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = CountSnapshotQueryContext(namedAggregate, condition)
-        return handle(context).then(Mono.defer { context.result })
+        val context = CountSnapshotQueryContext(namedAggregate).setQuery(condition)
+        return handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 }
 
 class DefaultSnapshotQueryHandler(
-    chain: FilterChain<SnapshotQueryContext<*, *>>,
-    errorHandler: ErrorHandler<SnapshotQueryContext<*, *>> = LogErrorHandler()
-) : SnapshotQueryHandler, AbstractHandler<SnapshotQueryContext<*, *>>(
+    chain: FilterChain<SnapshotQueryContext<*, *, *>>,
+    errorHandler: ErrorHandler<SnapshotQueryContext<*, *, *>> = LogErrorHandler()
+) : SnapshotQueryHandler, AbstractHandler<SnapshotQueryContext<*, *, *>>(
     chain,
     errorHandler,
 )
