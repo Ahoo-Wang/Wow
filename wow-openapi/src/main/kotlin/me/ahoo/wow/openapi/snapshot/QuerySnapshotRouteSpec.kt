@@ -33,7 +33,7 @@ import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 class QuerySnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>,
-    override val appendTenantPath: Boolean = aggregateMetadata.staticTenantId.isNullOrBlank()
+    override val appendTenantPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
