@@ -11,13 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.filter
 
-import me.ahoo.wow.event.DomainEventFunctionFilter
-import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.ioc.ServiceProvider
+import reactor.core.publisher.Mono
+import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
-@FilterType(ProjectionDispatcher::class)
-class ProjectionFunctionFilter(
-    serviceProvider: ServiceProvider
-) : DomainEventFunctionFilter(serviceProvider)
+@Target(AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.CLASS)
+@Inherited
+annotation class FilterType(
+    vararg val value: KClass<*>
+)
+
+fun interface Filter<T> {
+    fun filter(context: T, next: FilterChain<T>): Mono<Void>
+}

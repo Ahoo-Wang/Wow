@@ -14,8 +14,8 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventFunctionFilter
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.FilterType
 
 @FilterType(StatelessSagaDispatcher::class)
 class StatelessSagaFunctionFilter(

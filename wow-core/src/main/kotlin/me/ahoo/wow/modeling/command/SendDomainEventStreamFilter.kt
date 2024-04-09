@@ -17,15 +17,17 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
-class SendDomainEventStreamFilter(private val domainEventBus: DomainEventBus) : Filter<ServerCommandExchange<*>> {
+class SendDomainEventStreamFilter(
+    private val domainEventBus: DomainEventBus
+) : ExchangeFilter<ServerCommandExchange<*>> {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>

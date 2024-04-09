@@ -19,9 +19,9 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata

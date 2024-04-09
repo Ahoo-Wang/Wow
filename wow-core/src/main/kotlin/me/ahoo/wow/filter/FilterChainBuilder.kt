@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.handler
+package me.ahoo.wow.filter
 
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.messaging.MessageDispatcher
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
 
@@ -47,7 +46,7 @@ class TypedFilterCondition(private val filterType: KClass<*>) :
     }
 }
 
-class FilterChainBuilder<T : MessageExchange<*, *>> {
+class FilterChainBuilder<T> {
     companion object {
         private val log = LoggerFactory.getLogger(FilterChainBuilder::class.java)
     }
@@ -79,7 +78,7 @@ class FilterChainBuilder<T : MessageExchange<*, *>> {
         return this
     }
 
-    fun filterCondition(filterType: KClass<out MessageDispatcher>): FilterChainBuilder<T> {
+    fun filterCondition(filterType: KClass<*>): FilterChainBuilder<T> {
         return filterCondition(TypedFilterCondition(filterType))
     }
 

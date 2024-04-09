@@ -18,6 +18,7 @@ import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
 import me.ahoo.wow.exception.recoverable
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
@@ -36,7 +37,7 @@ val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2
 )
 class RetryableFilter<T : MessageExchange<*, *>>(
     private val retrySpec: Retry = DEFAULT_RETRY_SPEC
-) : Filter<T> {
+) : ExchangeFilter<T> {
     override fun filter(exchange: T, next: FilterChain<T>): Mono<Void> {
         return next.filter(exchange)
             .retryWhen(retrySpec)

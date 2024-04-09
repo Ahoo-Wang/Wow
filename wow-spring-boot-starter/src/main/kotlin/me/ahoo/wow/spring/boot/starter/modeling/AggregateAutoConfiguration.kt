@@ -20,12 +20,12 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -104,7 +104,7 @@ class AggregateAutoConfiguration {
 
     @Bean
     fun commandFilterChain(
-        filters: List<Filter<ServerCommandExchange<*>>>
+        filters: List<ExchangeFilter<ServerCommandExchange<*>>>
     ): FilterChain<ServerCommandExchange<*>> {
         return FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilters(filters)

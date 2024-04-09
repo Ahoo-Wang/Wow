@@ -18,8 +18,9 @@ import io.mockk.mockk
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.exception.recoverable
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.wow.filter.FilterChain
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
@@ -29,7 +30,7 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class RetryableFilterTest {
+internal class RetryableExchangeFilterTest {
 
     @Test
     fun filter() {

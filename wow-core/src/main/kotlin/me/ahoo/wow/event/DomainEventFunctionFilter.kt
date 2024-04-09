@@ -15,10 +15,10 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
 @FilterType(DomainEventDispatcher::class)
@@ -26,7 +26,7 @@ import reactor.core.publisher.Mono
 open class DomainEventFunctionFilter(
     private val serviceProvider: ServiceProvider
 ) :
-    Filter<DomainEventExchange<*>> {
+    ExchangeFilter<DomainEventExchange<*>> {
 
     override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
         exchange.setServiceProvider(serviceProvider)

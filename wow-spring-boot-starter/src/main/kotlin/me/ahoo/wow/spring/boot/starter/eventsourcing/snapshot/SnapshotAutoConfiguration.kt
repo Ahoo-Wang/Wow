@@ -25,9 +25,9 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -102,7 +102,7 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
     }
 
     @Bean
-    fun snapshotFilterChain(filters: List<Filter<StateEventExchange<*>>>): FilterChain<StateEventExchange<*>> {
+    fun snapshotFilterChain(filters: List<ExchangeFilter<StateEventExchange<*>>>): FilterChain<StateEventExchange<*>> {
         return FilterChainBuilder<StateEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(SnapshotDispatcher::class)

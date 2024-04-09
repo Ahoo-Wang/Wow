@@ -16,15 +16,15 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_DEFAULT)
-object AggregateProcessorFilter : Filter<ServerCommandExchange<*>> {
+object AggregateProcessorFilter : ExchangeFilter<ServerCommandExchange<*>> {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>

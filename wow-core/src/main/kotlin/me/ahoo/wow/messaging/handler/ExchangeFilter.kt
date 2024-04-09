@@ -13,16 +13,11 @@
 
 package me.ahoo.wow.messaging.handler
 
+import me.ahoo.wow.filter.Filter
+import me.ahoo.wow.filter.FilterChain
 import reactor.core.publisher.Mono
-import java.lang.annotation.Inherited
-import kotlin.reflect.KClass
 
-@Target(AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.CLASS)
-@Inherited
-annotation class FilterType(
-    vararg val value: KClass<*>
-)
-
-fun interface Filter<T : MessageExchange<*, *>> {
-    fun filter(exchange: T, next: FilterChain<T>): Mono<Void>
+fun interface ExchangeFilter<T : MessageExchange<*, *>> : Filter<T> {
+    @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
+    override fun filter(exchange: T, next: FilterChain<T>): Mono<Void>
 }

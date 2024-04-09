@@ -8,4 +8,10 @@ interface IPagedList<out T> {
 data class PagedList<out T>(
     override val total: Long,
     override val list: List<T>,
-) : IPagedList<T>
+) : IPagedList<T> {
+    companion object {
+        private val EMPTY: PagedList<Nothing> = PagedList(0, emptyList())
+
+        fun <T> empty(): PagedList<T> = EMPTY
+    }
+}

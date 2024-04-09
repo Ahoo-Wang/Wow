@@ -14,11 +14,11 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.Handler
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.filter.AbstractHandler
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.Handler
+import me.ahoo.wow.filter.LogResumeErrorHandler
 
 interface CommandHandler : Handler<ServerCommandExchange<*>>
 

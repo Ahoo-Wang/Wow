@@ -11,13 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.projection
+package me.ahoo.wow.filter
 
-import me.ahoo.wow.event.DomainEventFunctionFilter
-import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.ioc.ServiceProvider
-
-@FilterType(ProjectionDispatcher::class)
-class ProjectionFunctionFilter(
-    serviceProvider: ServiceProvider
-) : DomainEventFunctionFilter(serviceProvider)
+interface ErrorAccessor<SOURCE : ErrorAccessor<SOURCE>> {
+    fun setError(throwable: Throwable): SOURCE
+    fun getError(): Throwable?
+    fun clearError(): SOURCE
+}

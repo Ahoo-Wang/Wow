@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.handler
+package me.ahoo.wow.filter
 
 import reactor.core.publisher.Mono
 
@@ -20,31 +20,31 @@ import reactor.core.publisher.Mono
  *
  * like [org.springframework.web.server.handler.WebFilterChain]
  */
-fun interface FilterChain<T : MessageExchange<*, *>> {
-    fun filter(exchange: T): Mono<Void>
+fun interface FilterChain<T> {
+    fun filter(context: T): Mono<Void>
 }
 
-object EmptyFilterChain : FilterChain<MessageExchange<*, *>> {
-    override fun filter(exchange: MessageExchange<*, *>): Mono<Void> {
+object EmptyFilterChain : FilterChain<Any> {
+    override fun filter(context: Any): Mono<Void> {
         return Mono.empty()
     }
 
-    fun <T : MessageExchange<*, *>> instance(): FilterChain<T> {
+    fun <T> instance(): FilterChain<T> {
         @Suppress("UNCHECKED_CAST")
         return this as FilterChain<T>
     }
 }
 
-abstract class AbstractFilterChain<T : MessageExchange<*, *>>(
+abstract class AbstractFilterChain<T>(
     val current: Filter<T>,
     val next: FilterChain<T>
 ) : FilterChain<T> {
-    override fun filter(exchange: T): Mono<Void> {
-        return current.filter(exchange, next)
+    override fun filter(context: T): Mono<Void> {
+        return current.filter(context, next)
     }
 }
 
-open class SimpleFilterChain<T : MessageExchange<*, *>>(
+open class SimpleFilterChain<T>(
     current: Filter<T>,
     next: FilterChain<T>
 ) : AbstractFilterChain<T>(current, next)

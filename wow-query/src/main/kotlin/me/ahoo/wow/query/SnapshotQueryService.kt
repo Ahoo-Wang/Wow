@@ -42,7 +42,7 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
     }
 
     override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
-        return Mono.just(PagedList(0, emptyList()))
+        return Mono.just(PagedList.empty())
     }
 
     override fun count(condition: Condition): Mono<Long> {

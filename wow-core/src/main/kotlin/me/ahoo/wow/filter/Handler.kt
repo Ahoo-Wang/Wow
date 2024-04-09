@@ -11,25 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.handler
+package me.ahoo.wow.filter
 
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-fun interface Handler<T : MessageExchange<*, *>> {
-    fun handle(exchange: T): Mono<Void>
+fun interface Handler<T> {
+    fun handle(context: T): Mono<Void>
 }
 
-fun interface ErrorHandler<T : MessageExchange<*, *>> {
-    fun handle(exchange: T, throwable: Throwable): Mono<Void>
+fun interface ErrorHandler<T> {
+    fun handle(context: T, throwable: Throwable): Mono<Void>
 }
 
-class LogErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
+class LogErrorHandler<T> : ErrorHandler<T> {
     companion object {
         private val log = LoggerFactory.getLogger(LogErrorHandler::class.java)
     }
 
-    override fun handle(exchange: T, throwable: Throwable): Mono<Void> {
+    override fun handle(context: T, throwable: Throwable): Mono<Void> {
         if (log.isErrorEnabled) {
             log.error(throwable.message, throwable)
         }
@@ -37,12 +37,12 @@ class LogErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
     }
 }
 
-class LogResumeErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
+class LogResumeErrorHandler<T> : ErrorHandler<T> {
     companion object {
         private val log = LoggerFactory.getLogger(LogResumeErrorHandler::class.java)
     }
 
-    override fun handle(exchange: T, throwable: Throwable): Mono<Void> {
+    override fun handle(context: T, throwable: Throwable): Mono<Void> {
         if (log.isErrorEnabled) {
             log.error(throwable.message, throwable)
         }
@@ -50,16 +50,17 @@ class LogResumeErrorHandler<T : MessageExchange<*, *>> : ErrorHandler<T> {
     }
 }
 
-abstract class AbstractHandler<T : MessageExchange<*, *>>(
+abstract class AbstractHandler<T>(
     private val chain: FilterChain<T>,
     private val errorHandler: ErrorHandler<T>
-) :
-    Handler<T> {
-    override fun handle(exchange: T): Mono<Void> {
-        return chain.filter(exchange)
+) : Handler<T> {
+    override fun handle(context: T): Mono<Void> {
+        return chain.filter(context)
             .onErrorResume {
-                exchange.setError(it)
-                errorHandler.handle(exchange, it)
+                if (context is ErrorAccessor<*>) {
+                    context.setError(it)
+                }
+                errorHandler.handle(context, it)
             }
     }
 }
