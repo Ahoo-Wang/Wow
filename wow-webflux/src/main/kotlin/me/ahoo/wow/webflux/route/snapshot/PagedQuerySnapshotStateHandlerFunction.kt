@@ -16,8 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpec
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.toStatePagedList
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -30,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class PagedQuerySnapshotStateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService<Any>,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -39,13 +38,13 @@ class PagedQuerySnapshotStateHandlerFunction(
         return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
                 val pagedQuery = it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryService.pagedQuery(pagedQuery).toStatePagedList()
+                snapshotQueryHandler.pagedQuery<Any>(aggregateMetadata, pagedQuery).toStatePagedList()
             }.toServerResponse(exceptionHandler)
     }
 }
 
 class PagedQuerySnapshotStateHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : RouteHandlerFunctionFactory<PagedQuerySnapshotStateRouteSpec> {
     override val supportedSpec: Class<PagedQuerySnapshotStateRouteSpec>
@@ -54,7 +53,7 @@ class PagedQuerySnapshotStateHandlerFunctionFactory(
     override fun create(spec: PagedQuerySnapshotStateRouteSpec): HandlerFunction<ServerResponse> {
         return PagedQuerySnapshotStateHandlerFunction(
             spec.aggregateMetadata,
-            snapshotQueryServiceFactory.create(spec.aggregateMetadata),
+            snapshotQueryHandler,
             exceptionHandler
         )
     }

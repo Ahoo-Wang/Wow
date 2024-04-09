@@ -16,8 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpec
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -29,7 +28,7 @@ import reactor.core.publisher.Mono
 
 class QuerySnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService<Any>,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -38,13 +37,13 @@ class QuerySnapshotHandlerFunction(
         return request.bodyToMono(Query::class.java)
             .flatMap {
                 val query = it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryService.query(query).collectList()
+                snapshotQueryHandler.query<Any>(aggregateMetadata, query).collectList()
             }.toServerResponse(exceptionHandler)
     }
 }
 
 class QuerySnapshotHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : RouteHandlerFunctionFactory<QuerySnapshotRouteSpec> {
     override val supportedSpec: Class<QuerySnapshotRouteSpec>
@@ -53,7 +52,7 @@ class QuerySnapshotHandlerFunctionFactory(
     override fun create(spec: QuerySnapshotRouteSpec): HandlerFunction<ServerResponse> {
         return QuerySnapshotHandlerFunction(
             spec.aggregateMetadata,
-            snapshotQueryServiceFactory.create(spec.aggregateMetadata),
+            snapshotQueryHandler,
             exceptionHandler
         )
     }
