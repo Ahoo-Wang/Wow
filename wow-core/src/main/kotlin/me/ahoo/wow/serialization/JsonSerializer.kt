@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect
 import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
@@ -46,6 +47,10 @@ fun Any.toPrettyJson(): String {
 fun <T : JsonNode> String.toJsonNode(): T {
     @Suppress("UNCHECKED_CAST")
     return JsonSerializer.readTree(this) as T
+}
+
+fun <T> String.toObject(objectType: JavaType): T {
+    return JsonSerializer.readValue(this, objectType)
 }
 
 fun <T> String.toObject(objectType: Class<T>): T {

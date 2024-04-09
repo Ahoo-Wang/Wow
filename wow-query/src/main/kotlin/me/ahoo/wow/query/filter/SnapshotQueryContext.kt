@@ -17,8 +17,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -61,7 +61,7 @@ enum class QueryType {
 class SingleSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, Condition, Mono<Snapshot<S>>> {
+) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, Condition, Mono<MaterializedSnapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.SINGLE
 }
@@ -69,7 +69,7 @@ class SingleSnapshotQueryContext<S : Any>(
 class QuerySnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IQuery, Flux<Snapshot<S>>> {
+) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IQuery, Flux<MaterializedSnapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.QUERY
 }
@@ -77,7 +77,7 @@ class QuerySnapshotQueryContext<S : Any>(
 class PagedSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<PagedSnapshotQueryContext<S>, IPagedQuery, Mono<PagedList<Snapshot<S>>>> {
+) : SnapshotQueryContext<PagedSnapshotQueryContext<S>, IPagedQuery, Mono<PagedList<MaterializedSnapshot<S>>>> {
     override val queryType: QueryType
         get() = QueryType.PAGED_QUERY
 }

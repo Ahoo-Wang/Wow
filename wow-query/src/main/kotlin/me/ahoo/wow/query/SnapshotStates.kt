@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-fun <S : Any> Mono<Snapshot<S>>.toState(): Mono<S> {
+fun <S : Any> Mono<MaterializedSnapshot<S>>.toState(): Mono<S> {
     return map { it.state }
 }
 
-fun <S : Any> Flux<Snapshot<S>>.toState(): Flux<S> {
+fun <S : Any> Flux<MaterializedSnapshot<S>>.toState(): Flux<S> {
     return map { it.state }
 }
 
-fun <S : Any> Mono<PagedList<Snapshot<S>>>.toStatePagedList(): Mono<PagedList<S>> {
+fun <S : Any> Mono<PagedList<MaterializedSnapshot<S>>>.toStatePagedList(): Mono<PagedList<S>> {
     return map { PagedList(it.total, it.list.map { snapshot -> snapshot.state }) }
 }
