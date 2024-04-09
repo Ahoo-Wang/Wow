@@ -5,7 +5,6 @@ import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
-import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -22,7 +21,7 @@ class CountSnapshotHandlerFunctionTest {
     @Test
     fun handle() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
-            NoOpSnapshotQueryServiceFactory,
+            MockQueryHandler.queryHandler,
             exceptionHandler = DefaultExceptionHandler,
         ).create(CountSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
         val request = mockk<ServerRequest> {

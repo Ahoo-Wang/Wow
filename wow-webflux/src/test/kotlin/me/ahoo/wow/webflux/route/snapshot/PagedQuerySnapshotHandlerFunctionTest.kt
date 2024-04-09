@@ -6,7 +6,6 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
-import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -23,7 +22,7 @@ class PagedQuerySnapshotHandlerFunctionTest {
     @Test
     fun handle() {
         val handlerFunction = PagedQuerySnapshotHandlerFunctionFactory(
-            NoOpSnapshotQueryServiceFactory,
+            MockQueryHandler.queryHandler,
             exceptionHandler = DefaultExceptionHandler,
         ).create(PagedQuerySnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
         val request = mockk<ServerRequest> {
