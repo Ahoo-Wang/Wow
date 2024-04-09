@@ -5,6 +5,7 @@ import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class MaterializedSnapshotTest {
+
     @Test
     fun test() {
         val snapshot = MaterializedSnapshot(
@@ -22,7 +23,6 @@ class MaterializedSnapshotTest {
             snapshotTime = 1,
             deleted = false
         )
-
         assertThat(snapshot, notNullValue())
     }
 }
