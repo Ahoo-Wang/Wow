@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.filter
 
-import me.ahoo.wow.api.annotation.ORDER_FIRST
+import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.tryMask
 import me.ahoo.wow.filter.FilterChain
@@ -21,7 +21,7 @@ import me.ahoo.wow.filter.FilterType
 import reactor.core.publisher.Mono
 
 @Suppress("UNCHECKED_CAST")
-@Order(ORDER_FIRST)
+@Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
 @FilterType(SnapshotQueryHandler::class)
 object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
     override fun filter(
