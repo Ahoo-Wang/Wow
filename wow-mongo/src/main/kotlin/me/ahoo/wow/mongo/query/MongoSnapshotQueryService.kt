@@ -18,8 +18,9 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.materialize
 import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
 import me.ahoo.wow.mongo.toSnapshot
 import me.ahoo.wow.query.ConditionConverter
@@ -37,26 +38,32 @@ class MongoSnapshotQueryService<S : Any>(
     private val converter: ConditionConverter<Bson> = MongoConditionConverter
 ) : SnapshotQueryService<S> {
 
-    override fun single(condition: Condition): Mono<Snapshot<S>> {
+    override fun single(condition: Condition): Mono<MaterializedSnapshot<S>> {
         val filter = converter.convert(condition)
         return collection.find(filter)
             .limit(1)
             .first()
             .toMono()
-            .toSnapshot()
+            .toSnapshot<S>()
+            .map {
+                it.materialize()
+            }
     }
 
-    override fun query(query: IQuery): Flux<Snapshot<S>> {
+    override fun query(query: IQuery): Flux<MaterializedSnapshot<S>> {
         val filter = converter.convert(query.condition)
         val sort = query.sort.toMongoSort()
         return collection.find(filter)
             .sort(sort)
             .limit(query.limit)
             .toFlux()
-            .toSnapshot()
+            .toSnapshot<S>()
+            .map {
+                it.materialize()
+            }
     }
 
-    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
+    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
         val filter = converter.convert(pagedQuery.condition)
         val sort = pagedQuery.sort.toMongoSort()
 
@@ -67,6 +74,9 @@ class MongoSnapshotQueryService<S : Any>(
             .limit(pagedQuery.pagination.size)
             .toFlux()
             .toSnapshot<S>()
+            .map {
+                it.materialize()
+            }
             .collectList()
         return Mono.zip(totalPublisher, listPublisher)
             .map { result ->

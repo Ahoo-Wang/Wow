@@ -17,8 +17,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -28,17 +28,17 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
-    fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<Snapshot<S>> {
+    fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<MaterializedSnapshot<S>> {
         val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(condition)
         return handle(context).then(Mono.defer { context.getRequiredResult() })
     }
 
-    fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<Snapshot<S>> {
+    fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<MaterializedSnapshot<S>> {
         val context = QuerySnapshotQueryContext<S>(namedAggregate).setQuery(query)
         return handle(context).thenMany(Flux.defer { context.getRequiredResult() })
     }
 
-    fun <S : Any> pagedQuery(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
+    fun <S : Any> pagedQuery(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
         val context = PagedSnapshotQueryContext<S>(namedAggregate).setQuery(pagedQuery)
         return handle(context).then(Mono.defer { context.getRequiredResult() })
     }

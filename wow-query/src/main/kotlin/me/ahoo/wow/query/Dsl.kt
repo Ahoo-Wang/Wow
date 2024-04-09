@@ -16,12 +16,12 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -55,15 +55,15 @@ fun sort(block: SortDsl.() -> Unit): List<Sort> {
     return dsl.build()
 }
 
-fun <S : Any> IQuery.query(queryService: SnapshotQueryService<S>): Flux<Snapshot<S>> {
+fun <S : Any> IQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {
     return queryService.query(this)
 }
 
-fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<PagedList<Snapshot<S>>> {
+fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<PagedList<MaterializedSnapshot<S>>> {
     return queryService.pagedQuery(this)
 }
 
-fun <S : Any> Condition.single(queryService: SnapshotQueryService<S>): Mono<Snapshot<S>> {
+fun <S : Any> Condition.single(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {
     return queryService.single(this)
 }
 
