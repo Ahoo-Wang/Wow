@@ -17,8 +17,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpec
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.toState
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -31,7 +30,7 @@ import reactor.core.publisher.Mono
 
 class SingleSnapshotStateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService<Any>,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -40,13 +39,13 @@ class SingleSnapshotStateHandlerFunction(
         return request.bodyToMono(Condition::class.java)
             .flatMap {
                 val condition = it.withTenantId(tenantId)
-                snapshotQueryService.single(condition).toState().throwNotFoundIfEmpty()
+                snapshotQueryHandler.single<Any>(aggregateMetadata, condition).toState().throwNotFoundIfEmpty()
             }.toServerResponse(exceptionHandler)
     }
 }
 
 class SingleSnapshotStateHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : RouteHandlerFunctionFactory<SingleSnapshotStateRouteSpec> {
     override val supportedSpec: Class<SingleSnapshotStateRouteSpec>
@@ -55,7 +54,7 @@ class SingleSnapshotStateHandlerFunctionFactory(
     override fun create(spec: SingleSnapshotStateRouteSpec): HandlerFunction<ServerResponse> {
         return SingleSnapshotStateHandlerFunction(
             spec.aggregateMetadata,
-            snapshotQueryServiceFactory.create(spec.aggregateMetadata),
+            snapshotQueryHandler,
             exceptionHandler
         )
     }

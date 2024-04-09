@@ -21,12 +21,11 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
-import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
@@ -215,70 +214,70 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun querySnapshotHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): QuerySnapshotHandlerFunctionFactory {
-        return QuerySnapshotHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return QuerySnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun querySnapshotStateHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): QuerySnapshotStateHandlerFunctionFactory {
-        return QuerySnapshotStateHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return QuerySnapshotStateHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun pagedQuerySnapshotHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): PagedQuerySnapshotHandlerFunctionFactory {
-        return PagedQuerySnapshotHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return PagedQuerySnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun pagedQuerySnapshotStateHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): PagedQuerySnapshotStateHandlerFunctionFactory {
-        return PagedQuerySnapshotStateHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return PagedQuerySnapshotStateHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun singleSnapshotHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): SingleSnapshotHandlerFunctionFactory {
-        return SingleSnapshotHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return SingleSnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun singleSnapshotStateHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): SingleSnapshotStateHandlerFunctionFactory {
-        return SingleSnapshotStateHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return SingleSnapshotStateHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun countSnapshotHandlerFunctionFactory(
-        snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
     ): CountSnapshotHandlerFunctionFactory {
-        return CountSnapshotHandlerFunctionFactory(snapshotQueryServiceFactory.getOrNoOp(), exceptionHandler)
+        return CountSnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean

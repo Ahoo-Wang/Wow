@@ -17,8 +17,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -30,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class SingleSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryService: SnapshotQueryService<Any>,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -39,13 +38,13 @@ class SingleSnapshotHandlerFunction(
         return request.bodyToMono(Condition::class.java)
             .flatMap {
                 val condition = it.withTenantId(tenantId)
-                snapshotQueryService.single(condition).throwNotFoundIfEmpty()
+                snapshotQueryHandler.single<Any>(aggregateMetadata, condition).throwNotFoundIfEmpty()
             }.toServerResponse(exceptionHandler)
     }
 }
 
 class SingleSnapshotHandlerFunctionFactory(
-    private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
 ) : RouteHandlerFunctionFactory<SingleSnapshotRouteSpec> {
     override val supportedSpec: Class<SingleSnapshotRouteSpec>
@@ -54,7 +53,7 @@ class SingleSnapshotHandlerFunctionFactory(
     override fun create(spec: SingleSnapshotRouteSpec): HandlerFunction<ServerResponse> {
         return SingleSnapshotHandlerFunction(
             spec.aggregateMetadata,
-            snapshotQueryServiceFactory.create(spec.aggregateMetadata),
+            snapshotQueryHandler,
             exceptionHandler
         )
     }
