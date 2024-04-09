@@ -26,6 +26,7 @@ import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 
@@ -43,7 +44,12 @@ class CommandWaitRouteSpec(
 
 class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     companion object {
-        const val ID = "wow.command.wait"
+        val ID = RouteIdSpec()
+            .prefix(Wow.WOW)
+            .resourceName("command")
+            .operation("wait")
+            .build()
+
         const val PATH = "/${Wow.WOW}/command/wait"
         const val METHOD = Https.Method.POST
         const val SUMMARY = "command wait handler"

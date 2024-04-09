@@ -23,10 +23,16 @@ import me.ahoo.wow.openapi.ComponentRef
 import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 
 object GenerateGlobalIdRouteSpec : RouteSpec {
-    override val id: String = "wow.id.global"
+    override val id: String = RouteIdSpec()
+        .prefix(Wow.WOW)
+        .resourceName("GlobalId")
+        .operation("generate")
+        .build()
+
     override val path: String = "/${Wow.WOW}/id/global"
     override val method: String = Https.Method.GET
     override val summary: String = "Generate Global ID"

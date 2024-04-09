@@ -15,10 +15,10 @@ package me.ahoo.wow.openapi.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
 
 class ResendStateEventRouteSpec(
@@ -26,7 +26,12 @@ class ResendStateEventRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : BatchRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.resendStateEvent"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName("StateEvent")
+            .operation("resend")
+            .build()
     override val method: String
         get() = Https.Method.POST
     override val summary: String
