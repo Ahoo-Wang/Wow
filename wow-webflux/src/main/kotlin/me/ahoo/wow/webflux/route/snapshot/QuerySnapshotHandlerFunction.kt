@@ -36,7 +36,7 @@ class QuerySnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(Query::class.java)
             .flatMap {
-                val query = it.copy(condition = it.condition.withTenantId(tenantId))
+                val query = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
                 snapshotQueryHandler.query<Any>(aggregateMetadata, query).collectList()
             }.toServerResponse(exceptionHandler)
     }

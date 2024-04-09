@@ -29,14 +29,18 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 
 object CommandParser {
-    fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String {
+    fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         aggregateMetadata.staticTenantId.ifNotBlank<String> {
             return it
         }
         pathVariables()[MessageRecords.TENANT_ID].ifNotBlank<String> {
             return it
         }
-        return TenantId.DEFAULT_TENANT_ID
+        return null
+    }
+
+    fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *>): String {
+        return getTenantId(aggregateMetadata) ?: return TenantId.DEFAULT_TENANT_ID
     }
 
     fun ServerRequest.getAggregateId(): String? {
