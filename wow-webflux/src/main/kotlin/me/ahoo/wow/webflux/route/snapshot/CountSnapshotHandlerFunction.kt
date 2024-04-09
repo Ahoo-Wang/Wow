@@ -36,7 +36,8 @@ class CountSnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(Condition::class.java)
             .flatMap {
-                snapshotQueryHandler.count(aggregateMetadata, it.withTenantId(tenantId))
+                val condition = if (tenantId == null) it else it.withTenantId(tenantId)
+                snapshotQueryHandler.count(aggregateMetadata, condition)
             }.toServerResponse(exceptionHandler)
     }
 }

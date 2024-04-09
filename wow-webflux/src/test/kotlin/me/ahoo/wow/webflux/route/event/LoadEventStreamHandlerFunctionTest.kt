@@ -6,7 +6,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
@@ -27,7 +27,7 @@ class LoadEventStreamHandlerFunctionTest {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
             every { pathVariable(RoutePaths.HEAD_VERSION_KEY) } returns "0"
             every { pathVariable(RoutePaths.TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
-            every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
+            every { getTenantIdOrDefault(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
         }
         handlerFunction.handle(request)
             .test()
