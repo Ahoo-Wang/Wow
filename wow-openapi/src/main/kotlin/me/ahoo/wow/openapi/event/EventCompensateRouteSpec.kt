@@ -20,13 +20,13 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_REQUEST
@@ -39,7 +39,12 @@ abstract class EventCompensateRouteSpec(
 
     abstract val topicKind: String
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.${topicKind}Compensate"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName(topicKind)
+            .operation("compensate").build()
+
     override val summary: String
         get() = "Compensate $topicKind"
     override val method: String

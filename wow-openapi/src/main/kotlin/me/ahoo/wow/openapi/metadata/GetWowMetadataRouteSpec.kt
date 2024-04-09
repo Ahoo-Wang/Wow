@@ -23,11 +23,17 @@ import me.ahoo.wow.openapi.ComponentRef
 import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 
 object GetWowMetadataRouteSpec : RouteSpec {
-    override val id: String = "wow.metadata.get"
+    override val id: String = RouteIdSpec()
+        .prefix(Wow.WOW)
+        .resourceName("metadata")
+        .operation("get")
+        .build()
+
     override val path: String = "/${Wow.WOW}/metadata"
     override val method: String = Https.Method.GET
     override val summary: String = "Get Wow Metadata"

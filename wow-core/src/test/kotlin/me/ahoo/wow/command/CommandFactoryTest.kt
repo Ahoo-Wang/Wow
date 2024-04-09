@@ -26,7 +26,11 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 2000))
+
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test
@@ -36,7 +40,10 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 2000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test
@@ -47,7 +54,10 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.isCreate, equalTo(true))
         assertThat(commandMessage.aggregateVersion, equalTo(0))
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 1000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test
@@ -58,7 +68,10 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 1000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test

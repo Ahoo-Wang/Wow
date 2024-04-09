@@ -27,12 +27,18 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ParameterRef
 import me.ahoo.wow.openapi.ParameterRef.Companion.with
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_PARAMETER
 
 object GenerateBIScriptRouteSpec : RouteSpec {
-    override val id: String = "wow.bi.script"
+    override val id: String = RouteIdSpec()
+        .prefix(Wow.WOW)
+        .resourceName("BIScript")
+        .operation("generate")
+        .build()
+
     override val path: String = "/${Wow.WOW}/bi/script"
     override val method: String = Https.Method.GET
     override val summary: String = "Generate BI Sync Script"
