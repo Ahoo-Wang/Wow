@@ -50,9 +50,9 @@ class QueryAutoConfiguration {
 
     @Bean
     fun snapshotQueryFilterChain(
-        filters: List<Filter<SnapshotQueryContext<*, *>>>
-    ): FilterChain<SnapshotQueryContext<*, *>> {
-        return FilterChainBuilder<SnapshotQueryContext<*, *>>()
+        filters: List<Filter<SnapshotQueryContext<*, *, *>>>
+    ): FilterChain<SnapshotQueryContext<*, *, *>> {
+        return FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
             .addFilters(filters)
             .filterCondition(SnapshotQueryHandler::class)
             .build()
@@ -60,14 +60,14 @@ class QueryAutoConfiguration {
 
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
-    fun snapshotQueryErrorHandler(): ErrorHandler<SnapshotQueryContext<*, *>> {
+    fun snapshotQueryErrorHandler(): ErrorHandler<SnapshotQueryContext<*, *, *>> {
         return LogErrorHandler()
     }
 
     @Bean
     fun snapshotQueryHandler(
-        @Qualifier("snapshotQueryFilterChain") chain: FilterChain<SnapshotQueryContext<*, *>>,
-        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<SnapshotQueryContext<*, *>>
+        @Qualifier("snapshotQueryFilterChain") chain: FilterChain<SnapshotQueryContext<*, *, *>>,
+        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<SnapshotQueryContext<*, *, *>>
     ): SnapshotQueryHandler {
         return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
     }

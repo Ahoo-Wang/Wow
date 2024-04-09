@@ -21,12 +21,34 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
-interface SnapshotQueryContext<Q : Any, R : Any> {
+const val QUERY_KEY = "__QUERY__"
+const val RESULT_KEY = "__RESULT__"
+
+@Suppress("UNCHECKED_CAST")
+interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
+    val attributes: MutableMap<String, Any>
     val namedAggregate: NamedAggregate
     val queryType: QueryType
-    var query: Q
-    var result: R
+
+    fun setQuery(query: Q): SOURCE {
+        attributes[QUERY_KEY] = query
+        return this as SOURCE
+    }
+
+    fun getQuery(): Q {
+        return checkNotNull(attributes[QUERY_KEY]) as Q
+    }
+
+    fun setResult(result: R): SOURCE {
+        attributes[RESULT_KEY] = result
+        return this as SOURCE
+    }
+
+    fun getRequiredResult(): R {
+        return checkNotNull(attributes[RESULT_KEY]) as R
+    }
 }
 
 enum class QueryType {
@@ -38,44 +60,32 @@ enum class QueryType {
 
 class SingleSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
-    @field:Volatile
-    override var query: Condition,
-    @field:Volatile
-    override var result: Mono<Snapshot<S>> = Mono.empty()
-) : SnapshotQueryContext<Condition, Mono<Snapshot<S>>> {
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, Condition, Mono<Snapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.SINGLE
 }
 
 class QuerySnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
-    @field:Volatile
-    override var query: IQuery,
-    @field:Volatile
-    override var result: Flux<Snapshot<S>> = Flux.empty()
-) : SnapshotQueryContext<IQuery, Flux<Snapshot<S>>> {
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IQuery, Flux<Snapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.QUERY
 }
 
 class PagedSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
-    @field:Volatile
-    override var query: IPagedQuery,
-    @field:Volatile
-    override var result: Mono<PagedList<Snapshot<S>>> = Mono.empty()
-) : SnapshotQueryContext<IPagedQuery, Mono<PagedList<Snapshot<S>>>> {
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : SnapshotQueryContext<PagedSnapshotQueryContext<S>, IPagedQuery, Mono<PagedList<Snapshot<S>>>> {
     override val queryType: QueryType
         get() = QueryType.PAGED_QUERY
 }
 
 class CountSnapshotQueryContext(
     override val namedAggregate: NamedAggregate,
-    @field:Volatile
-    override var query: Condition,
-    @field:Volatile
-    override var result: Mono<Long> = Mono.empty()
-) : SnapshotQueryContext<Condition, Mono<Long>> {
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : SnapshotQueryContext<CountSnapshotQueryContext, Condition, Mono<Long>> {
     override val queryType: QueryType
         get() = QueryType.COUNT
 }

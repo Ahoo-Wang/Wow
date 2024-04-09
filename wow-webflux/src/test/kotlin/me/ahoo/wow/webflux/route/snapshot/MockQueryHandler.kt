@@ -23,7 +23,7 @@ import me.ahoo.wow.query.filter.TailSnapshotQueryFilter
 
 object MockQueryHandler {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *>>()
+    private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
