@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo
 
+import com.fasterxml.jackson.databind.JavaType
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.serialization.MessageRecords
@@ -77,5 +79,22 @@ fun <S : Any> Flux<Document>.toSnapshot(): Flux<Snapshot<S>> {
 fun <S : Any> Flux<Document>.toSnapshotState(): Flux<S> {
     return map {
         it.toSnapshotState<S>()
+    }
+}
+
+fun <S : Any> Document.toMaterializedSnapshot(snapshotType: JavaType): MaterializedSnapshot<S> {
+    val snapshotJsonString = this.replacePrimaryKeyToAggregateId().toJson()
+    return snapshotJsonString.toObject(snapshotType)
+}
+
+fun <S : Any> Mono<Document>.toMaterializedSnapshot(snapshotType: JavaType): Mono<MaterializedSnapshot<S>> {
+    return map {
+        it.toMaterializedSnapshot(snapshotType)
+    }
+}
+
+fun <S : Any> Flux<Document>.toMaterializedSnapshot(snapshotType: JavaType): Flux<MaterializedSnapshot<S>> {
+    return map {
+        it.toMaterializedSnapshot(snapshotType)
     }
 }
