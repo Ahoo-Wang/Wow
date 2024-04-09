@@ -31,7 +31,8 @@ import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class PagedQuerySnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val appendTenantPath: Boolean = aggregateMetadata.staticTenantId.isNullOrBlank()
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -71,8 +72,13 @@ class PagedQuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val routeSpec = PagedQuerySnapshotRouteSpec(currentContext, aggregateMetadata)
-        routeSpec.responseSchemaRef.schemas.mergeSchemas()
-        return listOf(routeSpec)
+        val defaultRouteSpec = PagedQuerySnapshotRouteSpec(currentContext, aggregateMetadata, false)
+        defaultRouteSpec.responseSchemaRef.schemas.mergeSchemas()
+        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        if (appendTenantPath) {
+            val tenantRouteSpec = PagedQuerySnapshotRouteSpec(currentContext, aggregateMetadata, true)
+            return listOf(defaultRouteSpec, tenantRouteSpec)
+        }
+        return listOf(defaultRouteSpec)
     }
 }
