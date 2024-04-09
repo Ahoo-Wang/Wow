@@ -1,5 +1,6 @@
 package me.ahoo.wow.spring.boot.starter.query
 
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -17,6 +18,7 @@ class QueryAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
+                    .hasSingleBean(SnapshotQueryHandler::class.java)
             }
     }
 
