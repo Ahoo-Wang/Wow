@@ -26,7 +26,7 @@ interface SnapshotQueryContext<Q : Any, R : Any> {
     val namedAggregate: NamedAggregate
     val queryType: QueryType
     var query: Q
-    var result: R?
+    var result: R
 }
 
 enum class QueryType {
@@ -41,7 +41,7 @@ class SingleSnapshotQueryContext<S : Any>(
     @field:Volatile
     override var query: Condition,
     @field:Volatile
-    override var result: Mono<Snapshot<S>>?
+    override var result: Mono<Snapshot<S>> = Mono.empty()
 ) : SnapshotQueryContext<Condition, Mono<Snapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.SINGLE
@@ -52,7 +52,7 @@ class QuerySnapshotQueryContext<S : Any>(
     @field:Volatile
     override var query: IQuery,
     @field:Volatile
-    override var result: Flux<Snapshot<S>>?
+    override var result: Flux<Snapshot<S>> = Flux.empty()
 ) : SnapshotQueryContext<IQuery, Flux<Snapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.QUERY
@@ -63,7 +63,7 @@ class PagedSnapshotQueryContext<S : Any>(
     @field:Volatile
     override var query: IPagedQuery,
     @field:Volatile
-    override var result: Mono<PagedList<Snapshot<S>>>?
+    override var result: Mono<PagedList<Snapshot<S>>> = Mono.empty()
 ) : SnapshotQueryContext<IPagedQuery, Mono<PagedList<Snapshot<S>>>> {
     override val queryType: QueryType
         get() = QueryType.PAGED_QUERY
@@ -74,7 +74,7 @@ class CountSnapshotQueryContext(
     @field:Volatile
     override var query: Condition,
     @field:Volatile
-    override var result: Mono<Long>?
+    override var result: Mono<Long> = Mono.empty()
 ) : SnapshotQueryContext<Condition, Mono<Long>> {
     override val queryType: QueryType
         get() = QueryType.COUNT

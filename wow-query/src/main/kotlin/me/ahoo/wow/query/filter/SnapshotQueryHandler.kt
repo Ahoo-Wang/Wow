@@ -29,23 +29,23 @@ import reactor.core.publisher.Mono
 
 interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *>> {
     fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<Snapshot<S>> {
-        val context = SingleSnapshotQueryContext<S>(namedAggregate, condition, null)
-        return handle(context).then(Mono.defer { context.result!! })
+        val context = SingleSnapshotQueryContext<S>(namedAggregate, condition)
+        return handle(context).then(Mono.defer { context.result })
     }
 
     fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<Snapshot<S>> {
-        val context = QuerySnapshotQueryContext<S>(namedAggregate, query, null)
-        return handle(context).thenMany(Flux.defer { context.result!! })
+        val context = QuerySnapshotQueryContext<S>(namedAggregate, query)
+        return handle(context).thenMany(Flux.defer { context.result })
     }
 
     fun <S : Any> pagedQuery(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<Snapshot<S>>> {
-        val context = PagedSnapshotQueryContext<S>(namedAggregate, pagedQuery, null)
-        return handle(context).then(Mono.defer { context.result!! })
+        val context = PagedSnapshotQueryContext<S>(namedAggregate, pagedQuery)
+        return handle(context).then(Mono.defer { context.result })
     }
 
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = CountSnapshotQueryContext(namedAggregate, condition, null)
-        return handle(context).then(Mono.defer { context.result!! })
+        val context = CountSnapshotQueryContext(namedAggregate, condition)
+        return handle(context).then(Mono.defer { context.result })
     }
 }
 
