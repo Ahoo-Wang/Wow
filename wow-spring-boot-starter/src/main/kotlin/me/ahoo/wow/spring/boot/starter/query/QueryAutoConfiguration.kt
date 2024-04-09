@@ -19,7 +19,9 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.filter.DefaultSnapshotQueryHandler
+import me.ahoo.wow.query.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.filter.SnapshotQueryContext
+import me.ahoo.wow.query.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -41,6 +43,11 @@ import org.springframework.context.annotation.Import
 @Import(SnapshotQueryServiceRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
+    @Bean
+    fun maskingSnapshotQueryFilter(): SnapshotQueryFilter {
+        return MaskingSnapshotQueryFilter
+    }
+
     @Bean
     fun tailSnapshotQueryFilter(
         snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,

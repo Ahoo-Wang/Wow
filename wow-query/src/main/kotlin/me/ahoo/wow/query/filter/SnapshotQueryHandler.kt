@@ -30,22 +30,45 @@ import reactor.core.publisher.Mono
 interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
     fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<MaterializedSnapshot<S>> {
         val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(condition)
-        return handle(context).then(Mono.defer { context.getRequiredResult() })
+        return handle(context)
+            .then(
+                Mono.defer {
+                    context.getRequiredResult()
+                }
+            )
     }
 
     fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<MaterializedSnapshot<S>> {
         val context = QuerySnapshotQueryContext<S>(namedAggregate).setQuery(query)
-        return handle(context).thenMany(Flux.defer { context.getRequiredResult() })
+        return handle(context)
+            .thenMany(
+                Flux.defer {
+                    context.getRequiredResult()
+                }
+            )
     }
 
-    fun <S : Any> pagedQuery(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
+    fun <S : Any> pagedQuery(
+        namedAggregate: NamedAggregate,
+        pagedQuery: IPagedQuery
+    ): Mono<PagedList<MaterializedSnapshot<S>>> {
         val context = PagedSnapshotQueryContext<S>(namedAggregate).setQuery(pagedQuery)
-        return handle(context).then(Mono.defer { context.getRequiredResult() })
+        return handle(context)
+            .then(
+                Mono.defer {
+                    context.getRequiredResult()
+                }
+            )
     }
 
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
         val context = CountSnapshotQueryContext(namedAggregate).setQuery(condition)
-        return handle(context).then(Mono.defer { context.getRequiredResult() })
+        return handle(context)
+            .then(
+                Mono.defer {
+                    context.getRequiredResult()
+                }
+            )
     }
 }
 
