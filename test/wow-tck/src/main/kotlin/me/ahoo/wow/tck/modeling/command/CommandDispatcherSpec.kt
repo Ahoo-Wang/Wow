@@ -32,12 +32,12 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory

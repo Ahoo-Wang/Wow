@@ -14,11 +14,11 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.Handler
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.filter.AbstractHandler
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.Handler
+import me.ahoo.wow.filter.LogResumeErrorHandler
 
 interface SnapshotHandler : Handler<StateEventExchange<*>>
 

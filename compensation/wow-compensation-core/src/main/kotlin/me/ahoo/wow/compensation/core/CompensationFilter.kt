@@ -32,10 +32,10 @@ import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
@@ -48,7 +48,7 @@ import reactor.kotlin.core.publisher.toMono
     after = [EventHandledNotifierFilter::class, SagaHandledNotifierFilter::class, ProjectedNotifierFilter::class],
     before = [RetryableFilter::class]
 )
-class CompensationFilter(private val commandBus: CommandBus) : Filter<DomainEventExchange<*>> {
+class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<DomainEventExchange<*>> {
 
     override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
         val executionId = exchange.message.header.compensationId

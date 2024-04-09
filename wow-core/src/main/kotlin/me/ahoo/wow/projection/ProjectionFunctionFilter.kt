@@ -14,8 +14,8 @@
 package me.ahoo.wow.projection
 
 import me.ahoo.wow.event.DomainEventFunctionFilter
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.FilterType
 
 @FilterType(ProjectionDispatcher::class)
 class ProjectionFunctionFilter(

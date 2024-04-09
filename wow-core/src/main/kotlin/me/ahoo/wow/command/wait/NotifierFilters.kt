@@ -26,9 +26,9 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.projection.ProjectionDispatcher
@@ -38,7 +38,7 @@ import reactor.core.publisher.Mono
 abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     private val processingStage: CommandStage,
     private val commandWaitNotifier: CommandWaitNotifier
-) : Filter<T> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : ExchangeFilter<T> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
     override fun filter(
         exchange: T,
         next: FilterChain<T>

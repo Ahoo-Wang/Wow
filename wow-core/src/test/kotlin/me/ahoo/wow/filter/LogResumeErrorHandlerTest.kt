@@ -11,22 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.handler
+package me.ahoo.wow.filter
 
 import io.mockk.mockk
-import me.ahoo.wow.command.CommandExchange
+import me.ahoo.wow.command.ServerCommandExchange
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
-internal class LogErrorHandlerTest {
+internal class LogResumeErrorHandlerTest {
 
     @Test
     fun handle() {
-        val logErrorHandler = LogErrorHandler<CommandExchange<*, Any>>()
-        val exchange = mockk<CommandExchange<*, Any>>()
-        logErrorHandler.handle(exchange, RuntimeException())
+        val logResumeErrorHandler = LogResumeErrorHandler<ServerCommandExchange<Any>>()
+        val exchange = mockk<ServerCommandExchange<Any>>()
+        logResumeErrorHandler.handle(exchange, RuntimeException())
             .test()
-            .expectError()
-            .verify()
+            .verifyComplete()
     }
 }

@@ -20,7 +20,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.messaging.handler.FilterChain
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory

@@ -15,10 +15,10 @@ package me.ahoo.wow.projection
 
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventHandler
-import me.ahoo.wow.messaging.handler.AbstractHandler
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.filter.AbstractHandler
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.LogResumeErrorHandler
 
 interface ProjectionHandler : EventHandler
 

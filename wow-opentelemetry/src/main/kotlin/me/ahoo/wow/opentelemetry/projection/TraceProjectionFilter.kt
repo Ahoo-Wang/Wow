@@ -16,7 +16,7 @@ package me.ahoo.wow.opentelemetry.projection
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
 import me.ahoo.wow.projection.ProjectionDispatcher

@@ -11,20 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.handler
+package me.ahoo.wow.filter
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
-internal class FilterChainBuilderTest {
+internal class ExchangeFilterChainBuilderTest {
     @Suppress("ThrowsCount")
     @Test
     fun build() {
@@ -48,7 +49,7 @@ internal class FilterChainBuilderTest {
 }
 
 @Order(ORDER_FIRST)
-internal class MockFirstFilter : Filter<ServerCommandExchange<Any>> {
+internal class MockFirstFilter : ExchangeFilter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
         next: FilterChain<ServerCommandExchange<Any>>
@@ -58,7 +59,7 @@ internal class MockFirstFilter : Filter<ServerCommandExchange<Any>> {
 }
 
 @Order(ORDER_LAST)
-internal class MockLastFilter : Filter<ServerCommandExchange<Any>> {
+internal class MockLastFilter : ExchangeFilter<ServerCommandExchange<Any>> {
     override fun filter(
         exchange: ServerCommandExchange<Any>,
         next: FilterChain<ServerCommandExchange<Any>>

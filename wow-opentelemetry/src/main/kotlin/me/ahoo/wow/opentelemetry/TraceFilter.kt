@@ -17,14 +17,14 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Mono
 
 @Order(ORDER_FIRST)
 open class TraceFilter<T : MessageExchange<*, *>>(private val instrumenter: Instrumenter<T, Unit>) :
-    Filter<T> {
+    ExchangeFilter<T> {
     override fun filter(
         exchange: T,
         next: FilterChain<T>

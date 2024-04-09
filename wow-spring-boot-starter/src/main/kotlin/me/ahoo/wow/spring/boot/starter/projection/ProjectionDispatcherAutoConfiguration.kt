@@ -17,12 +17,12 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
@@ -66,7 +66,9 @@ class ProjectionDispatcherAutoConfiguration {
     }
 
     @Bean
-    fun projectionFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+    fun projectionFilterChain(
+        filters: List<ExchangeFilter<DomainEventExchange<*>>>
+    ): FilterChain<DomainEventExchange<*>> {
         return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(ProjectionDispatcher::class)

@@ -18,12 +18,12 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
@@ -66,7 +66,9 @@ class StatelessSagaAutoConfiguration {
     }
 
     @Bean
-    fun statelessSagaFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+    fun statelessSagaFilterChain(
+        filters: List<ExchangeFilter<DomainEventExchange<*>>>
+    ): FilterChain<DomainEventExchange<*>> {
         return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(StatelessSagaDispatcher::class)

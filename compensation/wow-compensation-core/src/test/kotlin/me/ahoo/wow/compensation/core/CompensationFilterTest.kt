@@ -6,11 +6,11 @@ import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
