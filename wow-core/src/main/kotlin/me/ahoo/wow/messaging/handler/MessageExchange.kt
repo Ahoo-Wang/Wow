@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.ioc.ServiceProvider
 import reactor.core.publisher.Mono
 
@@ -24,7 +25,7 @@ const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
 const val PROCESSOR_KEY = "__PROCESSOR__"
 
 @Suppress("TooManyFunctions")
-interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> {
+interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> : ErrorAccessor<SOURCE> {
     val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge(): Mono<Void> = Mono.empty()
@@ -46,16 +47,16 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         return this as SOURCE
     }
 
-    fun setError(throwable: Throwable): SOURCE {
+    override fun setError(throwable: Throwable): SOURCE {
         attributes[ERROR_KEY] = throwable
         return setAttribute(ERROR_KEY, throwable)
     }
 
-    fun getError(): Throwable? {
+    override fun getError(): Throwable? {
         return getAttribute(ERROR_KEY)
     }
 
-    fun clearError(): SOURCE {
+    override fun clearError(): SOURCE {
         return removeAttribute(ERROR_KEY)
     }
 
