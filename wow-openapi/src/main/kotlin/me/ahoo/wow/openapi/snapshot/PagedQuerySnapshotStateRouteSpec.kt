@@ -37,8 +37,8 @@ class PagedQuerySnapshotStateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("SnapshotState")
-            .operation("pagedQuery")
+            .resourceName("snapshot_state")
+            .operation("paged_query")
             .build()
 
     override val method: String

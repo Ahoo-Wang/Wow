@@ -36,8 +36,8 @@ class IdsQueryAggregateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("StateAggregate")
-            .operation("idsQuery")
+            .resourceName("state_aggregate")
+            .operation("ids_query")
             .build()
 
     override val method: String

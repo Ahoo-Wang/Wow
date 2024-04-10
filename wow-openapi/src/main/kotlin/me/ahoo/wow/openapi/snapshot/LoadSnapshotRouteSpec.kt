@@ -34,7 +34,7 @@ class LoadSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("Snapshot")
+            .resourceName("snapshot")
             .operation("load")
             .build()
 

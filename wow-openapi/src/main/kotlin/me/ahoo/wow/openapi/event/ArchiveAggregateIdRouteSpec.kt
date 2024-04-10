@@ -34,7 +34,7 @@ class ArchiveAggregateIdRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("AggregateId")
+            .resourceName("aggregate_id")
             .operation("archive")
             .build()
 

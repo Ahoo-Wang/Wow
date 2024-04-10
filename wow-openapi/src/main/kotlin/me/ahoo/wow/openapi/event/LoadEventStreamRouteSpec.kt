@@ -40,7 +40,7 @@ class LoadEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("EventStream")
+            .resourceName("event_stream")
             .operation("load").build()
     override val method: String
         get() = Https.Method.GET

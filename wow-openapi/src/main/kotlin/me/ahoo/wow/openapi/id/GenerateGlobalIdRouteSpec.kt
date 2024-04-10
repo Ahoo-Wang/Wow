@@ -29,7 +29,7 @@ import me.ahoo.wow.openapi.RouteSpec
 object GenerateGlobalIdRouteSpec : RouteSpec {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
-        .resourceName("GlobalId")
+        .resourceName("global_id")
         .operation("generate")
         .build()
 

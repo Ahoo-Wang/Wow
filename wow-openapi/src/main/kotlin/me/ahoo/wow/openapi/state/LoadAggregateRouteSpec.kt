@@ -35,7 +35,7 @@ class LoadAggregateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("Aggregate")
+            .resourceName("aggregate")
             .operation("load")
             .build()
 

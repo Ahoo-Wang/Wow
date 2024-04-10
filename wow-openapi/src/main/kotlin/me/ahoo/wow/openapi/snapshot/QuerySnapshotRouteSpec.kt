@@ -39,7 +39,7 @@ class QuerySnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("Snapshot")
+            .resourceName("snapshot")
             .operation("query")
             .build()
     override val method: String

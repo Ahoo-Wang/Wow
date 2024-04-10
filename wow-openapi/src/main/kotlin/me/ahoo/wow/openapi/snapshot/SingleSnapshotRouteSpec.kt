@@ -38,7 +38,7 @@ class SingleSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("Snapshot")
+            .resourceName("snapshot")
             .operation("single")
             .build()
 
