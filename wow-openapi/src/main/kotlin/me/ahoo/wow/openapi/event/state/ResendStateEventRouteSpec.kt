@@ -29,7 +29,7 @@ class ResendStateEventRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("StateEvent")
+            .resourceName("state_event")
             .operation("resend")
             .build()
     override val method: String

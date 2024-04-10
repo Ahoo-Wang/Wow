@@ -38,8 +38,8 @@ class PagedQuerySnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("Snapshot")
-            .operation("pagedQuery")
+            .resourceName("snapshot")
+            .operation("paged_query")
             .build()
     override val method: String
         get() = Https.Method.POST

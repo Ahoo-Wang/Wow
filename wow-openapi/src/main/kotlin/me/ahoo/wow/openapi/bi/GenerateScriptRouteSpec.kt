@@ -35,7 +35,7 @@ import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEAD
 object GenerateBIScriptRouteSpec : RouteSpec {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
-        .resourceName("BIScript")
+        .resourceName("bi_script")
         .operation("generate")
         .build()
 
