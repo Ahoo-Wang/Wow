@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.configuration.requiredAggregateType
@@ -46,9 +47,11 @@ class MongoSnapshotQueryService<S : Any>(
             namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
         )
 
-    override fun single(condition: Condition): Mono<MaterializedSnapshot<S>> {
-        val filter = converter.convert(condition)
+    override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
+        val filter = converter.convert(singleQuery.condition)
+        val sort = singleQuery.sort.toMongoSort()
         return collection.find(filter)
+            .sort(sort)
             .limit(1)
             .first()
             .toMono()

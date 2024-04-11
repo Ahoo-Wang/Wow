@@ -13,12 +13,9 @@
 
 package me.ahoo.wow.api.query
 
-interface IPagedQuery : ConditionCapable, SortCapable {
-    val pagination: Pagination
-}
+interface ISingleQuery : ConditionCapable, SortCapable
 
-data class PagedQuery(
+data class SingleQuery(
     override val condition: Condition,
     override val sort: List<Sort> = emptyList(),
-    override val pagination: Pagination = Pagination.DEFAULT
-) : IPagedQuery
+) : ISingleQuery, SortCapable

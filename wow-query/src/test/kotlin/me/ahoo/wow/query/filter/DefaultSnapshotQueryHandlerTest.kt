@@ -4,6 +4,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.condition
+import me.ahoo.wow.query.singleQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -23,10 +24,10 @@ class DefaultSnapshotQueryHandlerTest {
 
     @Test
     fun single() {
-        val condition = condition {
-            id("1")
+        val query = singleQuery {
         }
-        queryHandler.single<Any>(MOCK_AGGREGATE_METADATA, condition)
+
+        queryHandler.single<Any>(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 

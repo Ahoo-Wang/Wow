@@ -14,38 +14,16 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.IQuery
-import me.ahoo.wow.api.query.ProjectableQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ProjectableSingleQuery
 import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 
-/**
- * ```kotlin
- * query {
- *     limit(1)
- *     sort {
- *         "field1".asc()
- *     }
- *     condition {
- *         "field1" eq "value1"
- *         "field2" eq "value2"
- *         and {
- *             "field3" eq "value3"
- *         }
- *         or {
- *             "field4" eq "value4"
- *         }
- *     }
- * }
- * ```
- */
-class QueryDsl {
+class SingleQueryDsl {
     private var projection: Projection? = null
     private var condition: Condition = Condition.all()
     private var sort: List<Sort> = emptyList()
-    private var limit: Int = Int.MAX_VALUE
-
     fun projection(block: ProjectionDsl.() -> Unit) {
         val dsl = ProjectionDsl()
         dsl.block()
@@ -58,20 +36,16 @@ class QueryDsl {
         condition = dsl.build()
     }
 
-    fun limit(limit: Int) {
-        this.limit = limit
-    }
-
     fun sort(block: SortDsl.() -> Unit) {
         val dsl = SortDsl()
         dsl.block()
         sort = dsl.build()
     }
 
-    fun build(): IQuery {
+    fun build(): ISingleQuery {
         if (projection == null) {
-            return Query(condition, sort, limit)
+            return SingleQuery(condition, sort)
         }
-        return ProjectableQuery(condition, projection!!, sort, limit)
+        return ProjectableSingleQuery(condition, projection!!, sort)
     }
 }

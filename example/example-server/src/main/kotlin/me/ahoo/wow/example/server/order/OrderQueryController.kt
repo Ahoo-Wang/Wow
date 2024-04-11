@@ -17,8 +17,8 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.condition
-import me.ahoo.wow.query.single
+import me.ahoo.wow.query.query
+import me.ahoo.wow.query.singleQuery
 import me.ahoo.wow.query.toState
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -34,9 +34,11 @@ class OrderQueryController(
 ) {
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
-        return condition {
-            tenantId(tenantId)
-            id(orderId)
-        }.single(queryService).toState().throwNotFoundIfEmpty()
+        return singleQuery {
+            condition {
+                tenantId(tenantId)
+                id(orderId)
+            }
+        }.query(queryService).toState().throwNotFoundIfEmpty()
     }
 }

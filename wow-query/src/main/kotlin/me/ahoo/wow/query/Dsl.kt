@@ -16,22 +16,28 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-fun query(block: QueryDsl.() -> Unit): Query {
+fun singleQuery(block: SingleQueryDsl.() -> Unit): ISingleQuery {
+    val dsl = SingleQueryDsl()
+    dsl.block()
+    return dsl.build()
+}
+
+fun query(block: QueryDsl.() -> Unit): IQuery {
     val dsl = QueryDsl()
     dsl.block()
     return dsl.build()
 }
 
-fun pagedQuery(block: PagedQueryDsl.() -> Unit): PagedQuery {
+fun pagedQuery(block: PagedQueryDsl.() -> Unit): IPagedQuery {
     val dsl = PagedQueryDsl()
     dsl.block()
     return dsl.build()
@@ -39,6 +45,12 @@ fun pagedQuery(block: PagedQueryDsl.() -> Unit): PagedQuery {
 
 fun condition(block: ConditionDsl.() -> Unit): Condition {
     val dsl = ConditionDsl()
+    dsl.block()
+    return dsl.build()
+}
+
+fun projection(block: ProjectionDsl.() -> Unit): Projection {
+    val dsl = ProjectionDsl()
     dsl.block()
     return dsl.build()
 }
@@ -63,7 +75,7 @@ fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<Pag
     return queryService.pagedQuery(this)
 }
 
-fun <S : Any> Condition.single(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {
+fun <S : Any> ISingleQuery.query(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {
     return queryService.single(this)
 }
 

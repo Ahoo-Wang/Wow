@@ -11,14 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.query
 
-interface IPagedQuery : ConditionCapable, SortCapable {
-    val pagination: Pagination
+import me.ahoo.wow.api.query.Projection
+
+class ProjectionDsl {
+
+    private val include = mutableListOf<String>()
+    private val exclude = mutableListOf<String>()
+
+    fun include(vararg fields: String) {
+        include.addAll(fields)
+    }
+
+    fun exclude(vararg fields: String) {
+        exclude.addAll(fields)
+    }
+
+    fun build(): Projection {
+        return Projection(include, exclude)
+    }
 }
-
-data class PagedQuery(
-    override val condition: Condition,
-    override val sort: List<Sort> = emptyList(),
-    override val pagination: Pagination = Pagination.DEFAULT
-) : IPagedQuery

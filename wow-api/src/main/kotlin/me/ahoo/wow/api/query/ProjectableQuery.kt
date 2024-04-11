@@ -13,12 +13,26 @@
 
 package me.ahoo.wow.api.query
 
-interface IPagedQuery : ConditionCapable, SortCapable {
-    val pagination: Pagination
+interface IProjectableQuery : ConditionCapable {
+    val projection: Projection
 }
 
-data class PagedQuery(
+data class ProjectableQuery(
     override val condition: Condition,
+    override val projection: Projection = Projection.ALL,
+    override val sort: List<Sort> = emptyList(),
+    override val limit: Int = Pagination.DEFAULT.size
+) : IProjectableQuery, IQuery
+
+data class ProjectablePagedQuery(
+    override val condition: Condition,
+    override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
-) : IPagedQuery
+) : IProjectableQuery, IPagedQuery
+
+data class ProjectableSingleQuery(
+    override val condition: Condition,
+    override val projection: Projection = Projection.ALL,
+    override val sort: List<Sort> = emptyList()
+) : IProjectableQuery, ISingleQuery

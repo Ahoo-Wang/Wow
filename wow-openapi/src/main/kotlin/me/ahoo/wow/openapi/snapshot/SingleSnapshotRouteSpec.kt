@@ -16,8 +16,8 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
@@ -50,7 +50,7 @@ class SingleSnapshotRouteSpec(
 
     override val summary: String
         get() = "Single snapshot"
-    override val requestBody: RequestBody = Condition::class.java.toRequestBody()
+    override val requestBody: RequestBody = SingleQuery::class.java.toRequestBody()
 
     private val responseSchema = MaterializedSnapshot::class.java.toSchemaRef(
         MaterializedSnapshot<*>::state.name,
@@ -65,7 +65,7 @@ class SingleSnapshotRouteSpec(
 
 class SingleSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     init {
-        Condition::class.java.toSchemaRef().schemas.mergeSchemas()
+        SingleQuery::class.java.toSchemaRef().schemas.mergeSchemas()
     }
 
     override fun create(
