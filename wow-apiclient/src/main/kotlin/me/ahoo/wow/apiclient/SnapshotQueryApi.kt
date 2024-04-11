@@ -14,10 +14,10 @@
 package me.ahoo.wow.apiclient
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.SingleQuery
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
@@ -29,9 +29,9 @@ interface SnapshotQueryApi<S : Any> {
         const val SNAPSHOT_RESOURCE_NAME = "snapshot"
         const val SNAPSHOT_SINGLE_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/single"
         const val SNAPSHOT_SINGLE_STATE_RESOURCE_NAME = "$SNAPSHOT_SINGLE_RESOURCE_NAME/state"
-        const val SNAPSHOT_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/query"
+        const val SNAPSHOT_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/list"
         const val SNAPSHOT_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_QUERY_RESOURCE_NAME/state"
-        const val SNAPSHOT_PAGED_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/pagination"
+        const val SNAPSHOT_PAGED_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/paged"
         const val SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_PAGED_QUERY_RESOURCE_NAME/state"
         const val SNAPSHOT_COUNT_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/count"
     }
@@ -55,16 +55,16 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_QUERY_RESOURCE_NAME)
-    fun query(@RequestBody query: Query): Flux<MaterializedSnapshot<S>>
+    fun list(@RequestBody query: ListQuery): Flux<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_QUERY_STATE_RESOURCE_NAME)
-    fun queryState(@RequestBody query: Query): Flux<S>
+    fun listState(@RequestBody query: ListQuery): Flux<S>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun pagedQuery(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
+    fun paged(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
-    fun pagedQueryState(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>
+    fun pagedState(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>
 
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
     fun count(@RequestBody condition: Condition): Mono<Long>

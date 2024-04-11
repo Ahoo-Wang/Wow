@@ -14,17 +14,15 @@
 package me.ahoo.wow.compensation.server.failed
 
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.compensation.CompensationService.EXECUTION_FAILED_AGGREGATE_NAME
-import me.ahoo.wow.compensation.CompensationService.SERVICE_ALIAS
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.query.SnapshotQueryService
+import me.ahoo.wow.query.listQuery
 import me.ahoo.wow.query.query
 import me.ahoo.wow.query.toState
 import me.ahoo.wow.serialization.MessageRecords
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
@@ -47,7 +45,7 @@ class SnapshotFindNextRetry(
 
     override fun findNextRetry(limit: Int): Flux<out IExecutionFailedState> {
         val currentTime = System.currentTimeMillis()
-        return query {
+        return listQuery {
             limit(limit)
             condition {
                 RECOVERABLE_FIELD ne RecoverableType.UNRECOVERABLE.name

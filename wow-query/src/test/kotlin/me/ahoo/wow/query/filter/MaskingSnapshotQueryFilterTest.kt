@@ -3,8 +3,8 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DataMasking
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -45,7 +45,7 @@ class MaskingSnapshotQueryFilterTest {
 
     @Test
     fun query() {
-        val query = me.ahoo.wow.query.query { }
+        val query = me.ahoo.wow.query.listQuery { }
         queryHandler.query<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
@@ -112,11 +112,11 @@ class MaskingSnapshotQueryFilterTest {
             return snapshot.toMono()
         }
 
-        override fun query(query: IQuery): Flux<MaterializedSnapshot<DataMaskable>> {
+        override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<DataMaskable>> {
             return Flux.just(snapshot)
         }
 
-        override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<DataMaskable>>> {
+        override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<DataMaskable>>> {
             return PagedList(1, listOf(snapshot)).toMono()
         }
 

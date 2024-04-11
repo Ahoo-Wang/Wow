@@ -20,10 +20,10 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Condition.Companion.EMPTY_VALUE
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.Query
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -120,11 +120,11 @@ class RouterSpecs(
             it.properties["not"]?.setDefault(false)
         }
 
-        val querySchemaName = Query::class.java.toSchemaName()
+        val querySchemaName = ListQuery::class.java.toSchemaName()
         val querySchema = openAPI.components.schemas[querySchemaName]
         querySchema?.let {
-            it.properties[Query::sort.name]?.setDefault(emptyList<Sort>())
-            it.properties[Query::limit.name]?.setDefault(Pagination.DEFAULT.size)
+            it.properties[ListQuery::sort.name]?.setDefault(emptyList<Sort>())
+            it.properties[ListQuery::limit.name]?.setDefault(Pagination.DEFAULT.size)
         }
 
         val paginationSchemaName = Pagination::class.java.toSchemaName()
@@ -137,7 +137,7 @@ class RouterSpecs(
         val pagedQuerySchemaName = PagedQuery::class.java.toSchemaName()
         val pagedQuerySchema = openAPI.components.schemas[pagedQuerySchemaName]
         pagedQuerySchema?.let {
-            it.properties[Query::sort.name]?.setDefault(emptyList<Sort>())
+            it.properties[ListQuery::sort.name]?.setDefault(emptyList<Sort>())
         }
     }
 

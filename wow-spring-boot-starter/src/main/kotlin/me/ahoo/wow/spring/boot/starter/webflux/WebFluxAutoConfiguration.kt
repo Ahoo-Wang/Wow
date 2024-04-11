@@ -44,11 +44,11 @@ import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.QuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
@@ -98,8 +98,8 @@ class WebFluxAutoConfiguration {
         const val PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "pagedQuerySnapshotHandlerFunctionFactory"
         const val PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "pagedQuerySnapshotStateHandlerFunctionFactory"
-        const val QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotHandlerFunctionFactory"
-        const val QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "querySnapshotStateHandlerFunctionFactory"
+        const val LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "listQuerySnapshotHandlerFunctionFactory"
+        const val LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "listQuerySnapshotStateHandlerFunctionFactory"
         const val COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countSnapshotHandlerFunctionFactory"
         const val SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotHandlerFunctionFactory"
         const val SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotStateHandlerFunctionFactory"
@@ -212,22 +212,22 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun querySnapshotHandlerFunctionFactory(
+    @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun listQuerySnapshotHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
-    ): QuerySnapshotHandlerFunctionFactory {
-        return QuerySnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
+    ): ListQuerySnapshotHandlerFunctionFactory {
+        return ListQuerySnapshotHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun querySnapshotStateHandlerFunctionFactory(
+    @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun listQuerySnapshotStateHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: ExceptionHandler
-    ): QuerySnapshotStateHandlerFunctionFactory {
-        return QuerySnapshotStateHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
+    ): ListQuerySnapshotStateHandlerFunctionFactory {
+        return ListQuerySnapshotStateHandlerFunctionFactory(snapshotQueryHandler, exceptionHandler)
     }
 
     @Bean

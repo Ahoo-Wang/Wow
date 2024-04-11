@@ -42,12 +42,12 @@ class TailSnapshotQueryFilter<S : Any>(private val snapshotQueryServiceFactory: 
 
             QueryType.QUERY -> {
                 context as QuerySnapshotQueryContext<S>
-                context.setResult(snapshotQueryService.query(context.getQuery()))
+                context.setResult(snapshotQueryService.list(context.getQuery()))
             }
 
             QueryType.PAGED_QUERY -> {
                 context as PagedSnapshotQueryContext<S>
-                context.setResult(snapshotQueryService.pagedQuery(context.getQuery()))
+                context.setResult(snapshotQueryService.paged(context.getQuery()))
             }
 
             QueryType.COUNT -> {

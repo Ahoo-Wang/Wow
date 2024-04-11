@@ -15,8 +15,8 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -70,7 +70,7 @@ class SingleSnapshotQueryContext<S : Any>(
 class QuerySnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IQuery, Flux<MaterializedSnapshot<S>>> {
+) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IListQuery, Flux<MaterializedSnapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.QUERY
 }

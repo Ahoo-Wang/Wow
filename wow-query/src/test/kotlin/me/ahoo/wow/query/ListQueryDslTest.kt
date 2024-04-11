@@ -8,11 +8,11 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-class QueryDslTest {
+class ListQueryDslTest {
 
     @Test
     fun query() {
-        val query = query {
+        val query = listQuery {
             limit(1)
             sort {
                 "field1".asc()
@@ -56,7 +56,7 @@ class QueryDslTest {
 
     @Test
     fun projectionQuery() {
-        val query = query {
+        val query = listQuery {
             projection {
                 include("field1")
                 exclude("field2")

@@ -14,8 +14,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -31,8 +31,8 @@ fun singleQuery(block: SingleQueryDsl.() -> Unit): ISingleQuery {
     return dsl.build()
 }
 
-fun query(block: QueryDsl.() -> Unit): IQuery {
-    val dsl = QueryDsl()
+fun listQuery(block: ListQueryDsl.() -> Unit): IListQuery {
+    val dsl = ListQueryDsl()
     dsl.block()
     return dsl.build()
 }
@@ -67,12 +67,12 @@ fun sort(block: SortDsl.() -> Unit): List<Sort> {
     return dsl.build()
 }
 
-fun <S : Any> IQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {
-    return queryService.query(this)
+fun <S : Any> IListQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {
+    return queryService.list(this)
 }
 
 fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<PagedList<MaterializedSnapshot<S>>> {
-    return queryService.pagedQuery(this)
+    return queryService.paged(this)
 }
 
 fun <S : Any> ISingleQuery.query(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {

@@ -33,7 +33,7 @@ class DefaultSnapshotQueryHandlerTest {
 
     @Test
     fun query() {
-        val query = me.ahoo.wow.query.query { }
+        val query = me.ahoo.wow.query.listQuery { }
         queryHandler.query<Any>(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }

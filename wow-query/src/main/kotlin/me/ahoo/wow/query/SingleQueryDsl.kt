@@ -13,36 +13,13 @@
 
 package me.ahoo.wow.query
 
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ProjectableSingleQuery
-import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.query.Sort
 
-class SingleQueryDsl {
-    private var projection: Projection? = null
-    private var condition: Condition = Condition.all()
-    private var sort: List<Sort> = emptyList()
-    fun projection(block: ProjectionDsl.() -> Unit) {
-        val dsl = ProjectionDsl()
-        dsl.block()
-        projection = dsl.build()
-    }
+class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
 
-    fun condition(block: ConditionDsl.() -> Unit) {
-        val dsl = ConditionDsl()
-        dsl.block()
-        condition = dsl.build()
-    }
-
-    fun sort(block: SortDsl.() -> Unit) {
-        val dsl = SortDsl()
-        dsl.block()
-        sort = dsl.build()
-    }
-
-    fun build(): ISingleQuery {
+    override fun build(): ISingleQuery {
         if (projection == null) {
             return SingleQuery(condition, sort)
         }
