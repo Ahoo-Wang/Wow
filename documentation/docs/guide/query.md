@@ -118,10 +118,10 @@ pagination {
 }
 ```
 
-### QueryDsl
+### ListQueryDsl
 
 ```kotlin
-query {
+listQuery {
     limit(1)
     sort {
         "field1".asc()
@@ -183,7 +183,7 @@ pagedQuery {
 ## 执行查询
 
 ```kotlin
-query {
+listQuery {
     limit(1)
     sort {
         "field1".asc()
@@ -237,7 +237,7 @@ pagedQuery {
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/pagination' \
+  'http://localhost:8080/execution_failed/snapshot/paged' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -417,7 +417,7 @@ Conditions.and(
 
 ```shell [OpenAPI]
   curl -X 'POST' \
-  'http://localhost:8080/execution_failed/snapshot/query' \
+  'http://localhost:8080/execution_failed/snapshot/list' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -571,11 +571,14 @@ Conditions.and(
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
+  "sort": [],
+  "condition": {
     "field": "_id",
     "operator": "EQ",
     "value": "0TyzQ3jc003Z001",
     "children": []
-  }'
+  }
+}'
 ```
 
 ```json [响应]
@@ -655,9 +658,11 @@ class OrderService(
     private val queryService: SnapshotQueryService<OrderState>
 ) {
     fun getById(id: String): Mono<OrderState> {
-        return condition {
-            id(id)
-        }.single(queryService).toState()
+        return singleQuery {
+            condition {
+                id(id)
+            }
+        }.query(queryService).toState().throwNotFoundIfEmpty()
     }
 }
 ```
