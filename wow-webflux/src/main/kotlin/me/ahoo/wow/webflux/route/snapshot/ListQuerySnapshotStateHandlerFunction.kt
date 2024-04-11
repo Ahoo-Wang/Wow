@@ -38,7 +38,7 @@ class ListQuerySnapshotStateHandlerFunction(
         return request.bodyToMono(ListQuery::class.java)
             .flatMap {
                 val query = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.query<Any>(aggregateMetadata, query).toState().collectList()
+                snapshotQueryHandler.list<Any>(aggregateMetadata, query).toState().collectList()
             }.toServerResponse(exceptionHandler)
     }
 }

@@ -46,7 +46,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun query() {
         val query = me.ahoo.wow.query.listQuery { }
-        queryHandler.query<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
+        queryHandler.list<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 assertThat(it.state.pwd, equalTo("******"))
@@ -57,7 +57,7 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun pagedQuery() {
         val pagedQuery = me.ahoo.wow.query.pagedQuery { }
-        queryHandler.pagedQuery<DataMaskable>(MockSnapshotQueryService.namedAggregate, pagedQuery)
+        queryHandler.paged<DataMaskable>(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(1))

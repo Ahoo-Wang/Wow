@@ -39,8 +39,8 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun <S : Any> query(namedAggregate: NamedAggregate, query: IListQuery): Flux<MaterializedSnapshot<S>> {
-        val context = QuerySnapshotQueryContext<S>(namedAggregate).setQuery(query)
+    fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<MaterializedSnapshot<S>> {
+        val context = ListSnapshotQueryContext<S>(namedAggregate).setQuery(query)
         return handle(context)
             .thenMany(
                 Flux.defer {
@@ -49,7 +49,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun <S : Any> pagedQuery(
+    fun <S : Any> paged(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<MaterializedSnapshot<S>>> {
