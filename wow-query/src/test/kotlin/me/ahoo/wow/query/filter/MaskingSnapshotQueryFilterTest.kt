@@ -5,6 +5,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DataMasking
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -33,7 +34,8 @@ class MaskingSnapshotQueryFilterTest {
 
     @Test
     fun single() {
-        queryHandler.single<DataMaskable>(MockSnapshotQueryService.namedAggregate, Condition.ALL)
+        val query = me.ahoo.wow.query.singleQuery { }
+        queryHandler.single<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
                 assertThat(it.state.pwd, equalTo("******"))
@@ -106,7 +108,7 @@ class MaskingSnapshotQueryFilterTest {
             deleted = false
         )
 
-        override fun single(condition: Condition): Mono<MaterializedSnapshot<DataMaskable>> {
+        override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<DataMaskable>> {
             return snapshot.toMono()
         }
 

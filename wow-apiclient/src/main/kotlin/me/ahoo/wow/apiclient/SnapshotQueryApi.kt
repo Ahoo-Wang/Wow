@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.SingleQuery
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Flux
@@ -36,19 +37,19 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody condition: Condition): Mono<MaterializedSnapshot<S>>
+    fun single(@RequestBody singleQuery: SingleQuery): Mono<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
-    fun singleState(@RequestBody condition: Condition): Mono<S>
+    fun singleState(@RequestBody singleQuery: SingleQuery): Mono<S>
 
     fun getById(id: String): Mono<MaterializedSnapshot<S>> {
-        Condition.id(id).let {
+        SingleQuery(condition = Condition.id(id)).let {
             return single(it)
         }
     }
 
     fun getStateById(id: String): Mono<S> {
-        Condition.id(id).let {
+        SingleQuery(condition = Condition.id(id)).let {
             return singleState(it)
         }
     }

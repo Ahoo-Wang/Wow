@@ -15,10 +15,12 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun single() {
-        condition {
-            "test" eq "test"
-        }.single(queryService)
+    fun singleQuery() {
+        singleQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.query(queryService)
             .test()
             .verifyComplete()
     }

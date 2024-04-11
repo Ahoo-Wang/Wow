@@ -1,6 +1,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IProjectableQuery
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -47,6 +49,25 @@ class QueryDslTest {
                             )
                         )
                     )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun projectionQuery() {
+        val query = query {
+            projection {
+                include("field1")
+                exclude("field2")
+            }
+        } as IProjectableQuery
+        assertThat(
+            query.projection,
+            equalTo(
+                Projection(
+                    include = listOf("field1"),
+                    exclude = listOf("field2")
                 )
             )
         )

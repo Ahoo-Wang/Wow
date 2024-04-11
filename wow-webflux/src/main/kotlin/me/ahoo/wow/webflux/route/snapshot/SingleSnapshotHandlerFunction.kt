@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
@@ -35,9 +35,9 @@ class SingleSnapshotHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(Condition::class.java)
+        return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val condition = if (tenantId == null) it else it.withTenantId(tenantId)
+                val condition = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
                 snapshotQueryHandler.single<Any>(aggregateMetadata, condition).throwNotFoundIfEmpty()
             }.toServerResponse(exceptionHandler)
     }

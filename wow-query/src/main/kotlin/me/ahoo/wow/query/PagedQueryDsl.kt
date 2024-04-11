@@ -14,8 +14,11 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.ProjectablePagedQuery
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 
 /**
@@ -59,9 +62,15 @@ import me.ahoo.wow.api.query.Sort
  * ```
  */
 class PagedQueryDsl {
+    private var projection: Projection? = null
     private var condition: Condition = Condition.all()
     private var sort: List<Sort> = emptyList()
     private var pagination: Pagination = Pagination.DEFAULT
+    fun projection(block: ProjectionDsl.() -> Unit) {
+        val dsl = ProjectionDsl()
+        dsl.block()
+        projection = dsl.build()
+    }
 
     fun condition(block: ConditionDsl.() -> Unit) {
         val dsl = ConditionDsl()
@@ -81,7 +90,10 @@ class PagedQueryDsl {
         sort = dsl.build()
     }
 
-    fun build(): PagedQuery {
-        return PagedQuery(condition, sort, pagination)
+    fun build(): IPagedQuery {
+        if (projection == null) {
+            return PagedQuery(condition, sort, pagination)
+        }
+        return ProjectablePagedQuery(condition, projection!!, sort, pagination)
     }
 }

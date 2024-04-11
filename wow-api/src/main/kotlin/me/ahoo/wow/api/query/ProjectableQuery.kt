@@ -33,5 +33,6 @@ data class ProjectablePagedQuery(
 
 data class ProjectableSingleQuery(
     override val condition: Condition,
-    override val projection: Projection = Projection.ALL
-) : IProjectableQuery
+    override val projection: Projection = Projection.ALL,
+    override val sort: List<Sort> = emptyList()
+) : IProjectableQuery, ISingleQuery

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import reactor.core.publisher.Flux
@@ -61,7 +62,7 @@ enum class QueryType {
 class SingleSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, Condition, Mono<MaterializedSnapshot<S>>> {
+) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, ISingleQuery, Mono<MaterializedSnapshot<S>>> {
     override val queryType: QueryType
         get() = QueryType.SINGLE
 }

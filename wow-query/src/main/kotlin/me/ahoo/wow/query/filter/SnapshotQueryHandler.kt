@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.AbstractHandler
@@ -28,8 +29,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
-    fun <S : Any> single(namedAggregate: NamedAggregate, condition: Condition): Mono<MaterializedSnapshot<S>> {
-        val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(condition)
+    fun <S : Any> single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
+        val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(singleQuery)
         return handle(context)
             .then(
                 Mono.defer {

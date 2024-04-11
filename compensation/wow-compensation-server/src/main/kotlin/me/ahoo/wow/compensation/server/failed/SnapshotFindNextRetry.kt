@@ -32,7 +32,6 @@ import reactor.core.publisher.Flux
 @Primary
 @Repository
 class SnapshotFindNextRetry(
-    @Qualifier("$SERVICE_ALIAS.$EXECUTION_FAILED_AGGREGATE_NAME.SnapshotQueryService")
     private val queryService: SnapshotQueryService<ExecutionFailedState>
 ) : FindNextRetry {
     companion object {

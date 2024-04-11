@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.IQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.modeling.materialize
@@ -25,7 +26,7 @@ import reactor.core.publisher.Mono
 
 interface SnapshotQueryService<S : Any> {
     val namedAggregate: NamedAggregate
-    fun single(condition: Condition): Mono<MaterializedSnapshot<S>>
+    fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>>
     fun query(query: IQuery): Flux<MaterializedSnapshot<S>>
     fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
     fun count(condition: Condition): Mono<Long>
@@ -33,7 +34,7 @@ interface SnapshotQueryService<S : Any> {
 
 class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
 
-    override fun single(condition: Condition): Mono<MaterializedSnapshot<S>> {
+    override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
         return Mono.empty()
     }
 
