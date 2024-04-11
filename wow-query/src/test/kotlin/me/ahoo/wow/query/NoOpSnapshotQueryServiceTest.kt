@@ -27,7 +27,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun query() {
-        query {
+        listQuery {
             condition {
                 "test" eq "test"
             }
@@ -37,7 +37,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun pagedQuery() {
+    fun paged() {
         pagedQuery {
             condition {
                 "test" eq "test"

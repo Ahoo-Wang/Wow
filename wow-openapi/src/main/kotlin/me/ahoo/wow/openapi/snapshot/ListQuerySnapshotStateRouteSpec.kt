@@ -17,8 +17,7 @@ import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
@@ -30,7 +29,7 @@ import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
-class QuerySnapshotRouteSpec(
+class ListQuerySnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>,
     override val appendTenantPath: Boolean
@@ -39,23 +38,21 @@ class QuerySnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName("snapshot")
-            .operation("query")
+            .resourceName("snapshot_state")
+            .operation("list_query")
             .build()
+
     override val method: String
         get() = Https.Method.POST
 
     override val appendPathSuffix: String
-        get() = "snapshot/query"
+        get() = "snapshot/list/state"
 
     override val summary: String
-        get() = "Query snapshot"
-    override val requestBody: RequestBody = Query::class.java.toRequestBody()
+        get() = "List Query snapshot state"
+    override val requestBody: RequestBody = ListQuery::class.java.toRequestBody()
 
-    val responseSchema = MaterializedSnapshot::class.java.toSchemaRef(
-        MaterializedSnapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    ).let {
+    val responseSchema = aggregateMetadata.state.aggregateType.toSchemaRef().let {
         ArraySchema().items(it.ref)
     }
 
@@ -65,19 +62,19 @@ class QuerySnapshotRouteSpec(
         }.withNotFound()
 }
 
-class QuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+class ListQuerySnapshotStateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     init {
-        Query::class.java.toSchemaRef().schemas.mergeSchemas()
+        ListQuery::class.java.toSchemaRef().schemas.mergeSchemas()
     }
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateMetadata: AggregateMetadata<*, *>
     ): List<RouteSpec> {
-        val defaultRouteSpec = QuerySnapshotRouteSpec(currentContext, aggregateMetadata, false)
+        val defaultRouteSpec = ListQuerySnapshotStateRouteSpec(currentContext, aggregateMetadata, false)
         val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
         if (appendTenantPath) {
-            val tenantRouteSpec = QuerySnapshotRouteSpec(currentContext, aggregateMetadata, true)
+            val tenantRouteSpec = ListQuerySnapshotStateRouteSpec(currentContext, aggregateMetadata, true)
             return listOf(defaultRouteSpec, tenantRouteSpec)
         }
         return listOf(defaultRouteSpec)

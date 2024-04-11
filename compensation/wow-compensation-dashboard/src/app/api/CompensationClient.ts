@@ -46,7 +46,7 @@ const COMMAND_HEADERS = {
 export class CompensationClient {
   aggregateName = 'execution_failed';
   aggregateApi = environment.host + `/${this.aggregateName}`;
-  queryApi = this.aggregateApi + '/snapshot/pagination/state';
+  queryApi = this.aggregateApi + '/snapshot/paged/state';
 
   constructor(private httpClient: HttpClient) {
 

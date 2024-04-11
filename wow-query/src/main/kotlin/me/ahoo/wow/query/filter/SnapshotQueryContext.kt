@@ -15,8 +15,8 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -54,8 +54,8 @@ interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : 
 
 enum class QueryType {
     SINGLE,
-    QUERY,
-    PAGED_QUERY,
+    LIST,
+    PAGED,
     COUNT
 }
 
@@ -67,12 +67,12 @@ class SingleSnapshotQueryContext<S : Any>(
         get() = QueryType.SINGLE
 }
 
-class QuerySnapshotQueryContext<S : Any>(
+class ListSnapshotQueryContext<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<QuerySnapshotQueryContext<S>, IQuery, Flux<MaterializedSnapshot<S>>> {
+) : SnapshotQueryContext<ListSnapshotQueryContext<S>, IListQuery, Flux<MaterializedSnapshot<S>>> {
     override val queryType: QueryType
-        get() = QueryType.QUERY
+        get() = QueryType.LIST
 }
 
 class PagedSnapshotQueryContext<S : Any>(
@@ -80,7 +80,7 @@ class PagedSnapshotQueryContext<S : Any>(
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
 ) : SnapshotQueryContext<PagedSnapshotQueryContext<S>, IPagedQuery, Mono<PagedList<MaterializedSnapshot<S>>>> {
     override val queryType: QueryType
-        get() = QueryType.PAGED_QUERY
+        get() = QueryType.PAGED
 }
 
 class CountSnapshotQueryContext(

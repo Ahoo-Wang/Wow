@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-interface IPagedQuery : ConditionCapable, SortCapable {
+interface IPagedQuery : Queryable {
     val pagination: Pagination
 }
 

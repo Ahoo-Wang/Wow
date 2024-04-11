@@ -33,15 +33,15 @@ class DefaultSnapshotQueryHandlerTest {
 
     @Test
     fun query() {
-        val query = me.ahoo.wow.query.query { }
-        queryHandler.query<Any>(MOCK_AGGREGATE_METADATA, query)
+        val query = me.ahoo.wow.query.listQuery { }
+        queryHandler.list<Any>(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
     fun pagedQuery() {
         val pagedQuery = me.ahoo.wow.query.pagedQuery { }
-        queryHandler.pagedQuery<Any>(MOCK_AGGREGATE_METADATA, pagedQuery)
+        queryHandler.paged<Any>(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0))

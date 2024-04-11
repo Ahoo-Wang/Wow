@@ -46,15 +46,15 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
                 context.setResult(result)
             }
 
-            QueryType.QUERY -> {
-                context as QuerySnapshotQueryContext<Any>
+            QueryType.LIST -> {
+                context as ListSnapshotQueryContext<Any>
                 val result = context.getRequiredResult().map {
                     it.tryMask()
                 }
                 context.setResult(result)
             }
 
-            QueryType.PAGED_QUERY -> {
+            QueryType.PAGED -> {
                 context as PagedSnapshotQueryContext<Any>
                 val result = context.getRequiredResult().map {
                     it.tryMask()

@@ -15,8 +15,8 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -39,8 +39,8 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun <S : Any> query(namedAggregate: NamedAggregate, query: IQuery): Flux<MaterializedSnapshot<S>> {
-        val context = QuerySnapshotQueryContext<S>(namedAggregate).setQuery(query)
+    fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<MaterializedSnapshot<S>> {
+        val context = ListSnapshotQueryContext<S>(namedAggregate).setQuery(query)
         return handle(context)
             .thenMany(
                 Flux.defer {
@@ -49,7 +49,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun <S : Any> pagedQuery(
+    fun <S : Any> paged(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<MaterializedSnapshot<S>>> {

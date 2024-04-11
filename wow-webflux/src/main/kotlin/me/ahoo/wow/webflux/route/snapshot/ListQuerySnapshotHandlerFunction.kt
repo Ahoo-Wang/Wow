@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.query.Query
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.snapshot.QuerySnapshotRouteSpec
+import me.ahoo.wow.openapi.snapshot.ListQuerySnapshotRouteSpec
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -26,7 +26,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class QuerySnapshotHandlerFunction(
+class ListQuerySnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
@@ -34,23 +34,23 @@ class QuerySnapshotHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(Query::class.java)
+        return request.bodyToMono(ListQuery::class.java)
             .flatMap {
                 val query = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.query<Any>(aggregateMetadata, query).collectList()
+                snapshotQueryHandler.list<Any>(aggregateMetadata, query).collectList()
             }.toServerResponse(exceptionHandler)
     }
 }
 
-class QuerySnapshotHandlerFunctionFactory(
+class ListQuerySnapshotHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: ExceptionHandler
-) : RouteHandlerFunctionFactory<QuerySnapshotRouteSpec> {
-    override val supportedSpec: Class<QuerySnapshotRouteSpec>
-        get() = QuerySnapshotRouteSpec::class.java
+) : RouteHandlerFunctionFactory<ListQuerySnapshotRouteSpec> {
+    override val supportedSpec: Class<ListQuerySnapshotRouteSpec>
+        get() = ListQuerySnapshotRouteSpec::class.java
 
-    override fun create(spec: QuerySnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return QuerySnapshotHandlerFunction(
+    override fun create(spec: ListQuerySnapshotRouteSpec): HandlerFunction<ServerResponse> {
+        return ListQuerySnapshotHandlerFunction(
             spec.aggregateMetadata,
             snapshotQueryHandler,
             exceptionHandler

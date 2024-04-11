@@ -17,8 +17,8 @@ import com.fasterxml.jackson.databind.type.TypeFactory
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.IQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -58,17 +58,17 @@ class MongoSnapshotQueryService<S : Any>(
             .toMaterializedSnapshot(snapshotType)
     }
 
-    override fun query(query: IQuery): Flux<MaterializedSnapshot<S>> {
-        val filter = converter.convert(query.condition)
-        val sort = query.sort.toMongoSort()
+    override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
+        val filter = converter.convert(listQuery.condition)
+        val sort = listQuery.sort.toMongoSort()
         return collection.find(filter)
             .sort(sort)
-            .limit(query.limit)
+            .limit(listQuery.limit)
             .toFlux()
             .toMaterializedSnapshot(snapshotType)
     }
 
-    override fun pagedQuery(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
+    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
         val filter = converter.convert(pagedQuery.condition)
         val sort = pagedQuery.sort.toMongoSort()
 

@@ -297,12 +297,4 @@ data class Projection(val include: List<String> = emptyList(), val exclude: List
     fun isEmpty() = include.isEmpty() && exclude.isEmpty()
 }
 
-interface IQuery : ConditionCapable, SortCapable {
-    val limit: Int
-}
-
-data class Query(
-    override val condition: Condition,
-    override val sort: List<Sort> = emptyList(),
-    override val limit: Int = Pagination.DEFAULT.size
-) : IQuery
+interface Queryable : ConditionCapable, SortCapable

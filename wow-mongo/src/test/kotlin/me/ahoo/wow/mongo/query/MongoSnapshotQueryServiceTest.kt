@@ -7,6 +7,7 @@ import me.ahoo.wow.mongo.SchemaInitializerSpec
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.condition
 import me.ahoo.wow.query.count
+import me.ahoo.wow.query.listQuery
 import me.ahoo.wow.query.query
 import me.ahoo.wow.query.singleQuery
 import me.ahoo.wow.tck.container.MongoLauncher
@@ -43,7 +44,7 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun query() {
-        query {
+        listQuery {
             condition {
                 tenantId(GlobalIdGenerator.generateAsString())
             }
@@ -53,7 +54,7 @@ class MongoSnapshotQueryServiceTest {
     }
 
     @Test
-    fun pagedQuery() {
+    fun paged() {
         me.ahoo.wow.query.pagedQuery {
             condition {
                 tenantId(GlobalIdGenerator.generateAsString())
