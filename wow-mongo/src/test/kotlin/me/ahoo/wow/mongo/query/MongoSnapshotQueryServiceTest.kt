@@ -6,6 +6,9 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.SchemaInitializerSpec
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.condition
+import me.ahoo.wow.query.count
+import me.ahoo.wow.query.query
+import me.ahoo.wow.query.singleQuery
 import me.ahoo.wow.tck.container.MongoLauncher
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -29,37 +32,33 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun single() {
-        snapshotQueryService.single(
-            condition = condition {
+        singleQuery {
+            condition {
                 tenantId(GlobalIdGenerator.generateAsString())
             }
-        )
+        }.query(snapshotQueryService)
             .test()
             .verifyComplete()
     }
 
     @Test
     fun query() {
-        snapshotQueryService.query(
-            query = me.ahoo.wow.query.query {
-                condition {
-                    tenantId(GlobalIdGenerator.generateAsString())
-                }
+        query {
+            condition {
+                tenantId(GlobalIdGenerator.generateAsString())
             }
-        )
+        }.query(snapshotQueryService)
             .test()
             .verifyComplete()
     }
 
     @Test
     fun pagedQuery() {
-        snapshotQueryService.pagedQuery(
-            pagedQuery = me.ahoo.wow.query.pagedQuery {
-                condition {
-                    tenantId(GlobalIdGenerator.generateAsString())
-                }
+        me.ahoo.wow.query.pagedQuery {
+            condition {
+                tenantId(GlobalIdGenerator.generateAsString())
             }
-        )
+        }.query(snapshotQueryService)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0L))
@@ -69,11 +68,9 @@ class MongoSnapshotQueryServiceTest {
 
     @Test
     fun count() {
-        snapshotQueryService.count(
-            condition = condition {
-                tenantId(GlobalIdGenerator.generateAsString())
-            }
-        )
+        condition {
+            tenantId(GlobalIdGenerator.generateAsString())
+        }.count(snapshotQueryService)
             .test()
             .expectNext(0L)
             .verifyComplete()
