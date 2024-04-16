@@ -50,10 +50,13 @@ class TemplateEngineTest {
 
     @Test
     fun renderExecutionFailedCreated() {
-        val eventBody = mockk<ExecutionFailedCreated>()
+        val eventBody = mockk<ExecutionFailedCreated> {
+            every { error } returns ErrorDetails("errorCode", "errorMsg", "stackTrace")
+        }
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<ExecutionFailedCreated>> {
             every { name } returns ExecutionFailedCreated::class.java.toName()
             every { body } returns eventBody
+
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
@@ -62,7 +65,9 @@ class TemplateEngineTest {
 
     @Test
     fun renderExecutionFailedApplied() {
-        val eventBody = mockk<ExecutionFailedApplied>()
+        val eventBody = mockk<ExecutionFailedApplied> {
+            every { error } returns ErrorDetails("errorCode", "errorMsg", "stackTrace")
+        }
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<ExecutionFailedApplied>> {
             every { name } returns ExecutionFailedApplied::class.java.toName()
             every { body } returns eventBody
