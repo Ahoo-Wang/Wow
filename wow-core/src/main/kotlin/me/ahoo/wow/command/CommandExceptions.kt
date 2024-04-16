@@ -15,6 +15,8 @@ package me.ahoo.wow.command
 
 import jakarta.validation.ConstraintViolation
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
@@ -34,16 +36,15 @@ class CommandValidationException(
     val constraintViolations: Set<ConstraintViolation<*>>
 ) :
     WowException(
-        COMMAND_VALIDATION,
-        constraintViolations.toErrorMessage(),
+        errorCode = COMMAND_VALIDATION,
+        errorMsg = "Command validation failed.",
     ),
-    NamedAggregate by commandMessage {
+    NamedAggregate by commandMessage,
+    ErrorInfo {
 
-    companion object {
-        private fun Set<ConstraintViolation<*>>.toErrorMessage(): String {
-            return joinToString(separator = System.lineSeparator()) {
-                "[${it.propertyPath}]:${it.message}"
-            }
+    override val bindingErrors: List<BindingError> by lazy {
+        constraintViolations.map {
+            BindingError(it.propertyPath.toString(), it.message)
         }
     }
 }

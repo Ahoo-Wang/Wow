@@ -103,6 +103,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             isLastProjection = isLastProjection,
             errorCode = error.errorCode,
             errorMsg = error.errorMsg,
+            bindingErrors = error.bindingErrors
         )
         commandWaitNotifier.notifyAndForget(waitStrategy.commandWaitEndpoint, waitSignal)
     }

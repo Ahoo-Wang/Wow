@@ -22,5 +22,14 @@ class CommandValidationExceptionTest {
         }
         val exception = CommandValidationException(commandMessage, setOf(constraintViolation))
         assertThat(exception.errorCode, equalTo(COMMAND_VALIDATION))
+        assertThat(exception.errorMsg, equalTo("Command validation failed."))
+        assertThat(
+            exception.bindingErrors.first().name,
+            equalTo(constraintViolation.propertyPath.toString())
+        )
+        assertThat(
+            exception.bindingErrors.first().msg,
+            equalTo(constraintViolation.message)
+        )
     }
 }

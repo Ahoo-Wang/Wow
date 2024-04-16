@@ -16,6 +16,7 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
@@ -33,7 +34,8 @@ data class CommandResult(
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+    override val bindingErrors: List<BindingError> = emptyList()
 ) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
@@ -47,6 +49,7 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
         commandId = commandMessage.commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
+        bindingErrors = bindingErrors
     )
 }
 
@@ -67,5 +70,6 @@ fun Throwable.toResult(
         commandId = commandMessage.commandId,
         errorCode = errorInfo.errorCode,
         errorMsg = errorInfo.errorMsg,
+        bindingErrors = errorInfo.bindingErrors
     )
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.command.CommandId
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.exception.ErrorCodes
@@ -31,6 +32,7 @@ data class SimpleWaitSignal(
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+    override val bindingErrors: List<BindingError> = emptyList()
 ) : WaitSignal {
     companion object {
         fun ProcessorInfo.toWaitSignal(
@@ -39,6 +41,7 @@ data class SimpleWaitSignal(
             isLastProjection: Boolean = false,
             errorCode: String = ErrorCodes.SUCCEEDED,
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+            bindingErrors: List<BindingError> = emptyList()
         ): WaitSignal {
             return SimpleWaitSignal(
                 commandId = commandId,
@@ -48,6 +51,7 @@ data class SimpleWaitSignal(
                 isLastProjection = isLastProjection,
                 errorCode = errorCode,
                 errorMsg = errorMsg,
+                bindingErrors = bindingErrors
             )
         }
     }

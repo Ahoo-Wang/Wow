@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.webflux.exception
 
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.serialization.toJsonString
@@ -21,6 +24,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
+import org.springframework.validation.BindingResult
+import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
@@ -32,7 +37,12 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         if (log.isWarnEnabled) {
             log.warn(exchange.request.formatRequest(), ex)
         }
-        val errorInfo = ex.toErrorInfo()
+
+        val errorInfo = when (ex) {
+            is HandlerMethodValidationException -> ex.toBindingErrorInfo()
+            is BindingResult -> ex.toBindingErrorInfo()
+            else -> ex.toErrorInfo()
+        }
         val status = errorInfo.toHttpStatus()
         val response = exchange.response
         response.setStatusCode(status)
@@ -48,4 +58,19 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
     override fun getOrder(): Int {
         return -2
     }
+}
+
+fun BindingResult.toBindingErrorInfo(): ErrorInfo {
+    val bindingErrors = fieldErrors.map { BindingError(it.field, it.defaultMessage.orEmpty()) }
+    return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Field binding validation failed.", bindingErrors)
+}
+
+fun HandlerMethodValidationException.toBindingErrorInfo(): ErrorInfo {
+    val bindingErrors = allValidationResults.flatMap { parameterValidationResult ->
+        val name = parameterValidationResult.methodParameter.parameterName.orEmpty()
+        parameterValidationResult.resolvableErrors.map {
+            BindingError(name, it.defaultMessage.orEmpty())
+        }
+    }
+    return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Parameter binding validation failed.", bindingErrors)
 }
