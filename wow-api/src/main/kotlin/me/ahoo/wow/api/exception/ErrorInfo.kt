@@ -32,7 +32,11 @@ interface ErrorInfo {
             if (this is Materialized) {
                 return this
             }
-            return DefaultErrorInfo(errorCode = errorCode, errorMsg = errorMsg)
+            return DefaultErrorInfo(
+                errorCode = errorCode,
+                errorMsg = errorMsg,
+                bindingErrors = bindingErrors
+            )
         }
 
         fun of(
