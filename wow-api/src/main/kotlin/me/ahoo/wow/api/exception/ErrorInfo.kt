@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.exception
 
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.api.naming.Named
 
 interface ErrorInfo {
     val succeeded: Boolean get() = SUCCEEDED == errorCode
@@ -21,6 +22,7 @@ interface ErrorInfo {
     val errorCode: String
 
     val errorMsg: String
+    val bindingErrors: List<BindingError> get() = emptyList()
 
     companion object {
         const val SUCCEEDED = "Ok"
@@ -33,8 +35,18 @@ interface ErrorInfo {
             return DefaultErrorInfo(errorCode = errorCode, errorMsg = errorMsg)
         }
 
-        fun of(errorCode: String, errorMsg: String?): ErrorInfo = DefaultErrorInfo(errorCode, errorMsg ?: "")
+        fun of(
+            errorCode: String,
+            errorMsg: String? = null,
+            bindingErrors: List<BindingError> = emptyList()
+        ): ErrorInfo = DefaultErrorInfo(errorCode, errorMsg.orEmpty(), bindingErrors)
     }
 }
 
-data class DefaultErrorInfo(override val errorCode: String, override val errorMsg: String) : ErrorInfo, Materialized
+data class BindingError(override val name: String, val msg: String) : Named
+
+data class DefaultErrorInfo(
+    override val errorCode: String,
+    override val errorMsg: String,
+    override val bindingErrors: List<BindingError> = emptyList()
+) : ErrorInfo, Materialized
