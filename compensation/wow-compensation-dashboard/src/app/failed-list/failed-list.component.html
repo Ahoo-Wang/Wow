@@ -1,3 +1,73 @@
+<form nz-form [formGroup]="validateForm" nzLayout="vertical" class="search-form">
+  <div nz-row [nzGutter]="24">
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="id">Id</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="id" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="eventId">EventId</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="eventId" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateId">AggregateId</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateId" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateContext">AggregateContext</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateContext" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateName">AggregateName</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateName" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="processorContext">ProcessorContext</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="processorContext" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="processorName">ProcessorName</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="processorName" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label></nz-form-label>
+        <nz-form-control>
+          <button nz-button nzType="primary" (click)="load()">Search</button>
+          <button nz-button style="margin-left: 8px" (click)="reset()">Clear</button>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+  </div>
+</form>
+
 <nz-table nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }"
           nzShowSizeChanger [nzFrontPagination]="false" [nzHideOnSinglePage]="true"
           [nzPageIndex]="pagedQuery.pagination.index" [nzPageSize]="pagedQuery.pagination.size"
