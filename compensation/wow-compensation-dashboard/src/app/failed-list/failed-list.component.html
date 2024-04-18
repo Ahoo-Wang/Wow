@@ -222,7 +222,8 @@
   nzPlacement="right"
   nzTitle="Error Info"
   (nzOnClose)="closeErrorInfo()"
-  nzWidth="1200px"
+  [nzExtra]="drawerOperateTpl"
+  nzWidth="80vw"
 >
   <ng-container *nzDrawerContent>
     <ng-template [ngIf]="errorInfoVisible">
@@ -230,3 +231,14 @@
     </ng-template>
   </ng-container>
 </nz-drawer>
+
+<ng-template #drawerOperateTpl>
+  <button nz-popconfirm
+          [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
+          nzPopconfirmPlacement="top"
+          nz-button
+          (nzOnConfirm)="forcePrepare(current?.id!!)"
+          nzDanger
+  > F-Retry
+  </button>
+</ng-template>
