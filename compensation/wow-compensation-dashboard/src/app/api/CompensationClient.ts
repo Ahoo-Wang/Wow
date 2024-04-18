@@ -23,6 +23,7 @@ import {DomainEventStream} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunctionKind} from "./ChangeFunctionKind";
 import {RetryConditions} from "./RetryConditions";
+import {Conditions, Operator} from "./Query";
 
 export enum FindCategory {
   ALL = 'all',
@@ -33,7 +34,6 @@ export enum FindCategory {
   SUCCESS = 'success',
   UNRECOVERABLE = 'unrecoverable',
 }
-
 
 
 const COMMAND_HEADERS = {
@@ -82,7 +82,12 @@ export class CompensationClient {
   }
 
   find(category: FindCategory, pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
-    pagedQuery.condition = RetryConditions.categoryToCondition(category)
+    if (pagedQuery.condition.operator == Operator.ALL) {
+      pagedQuery.condition = RetryConditions.categoryToCondition(category)
+    } else {
+      pagedQuery.condition = Conditions.and([pagedQuery.condition, RetryConditions.categoryToCondition(category)])
+    }
+
     return this.query(pagedQuery);
   }
 
