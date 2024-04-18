@@ -63,6 +63,7 @@ class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<Do
                 val errorDetails = ErrorDetails(
                     errorCode = errorInfo.errorCode,
                     errorMsg = errorInfo.errorMsg,
+                    bindingErrors = errorInfo.bindingErrors,
                     stackTrace = it.stackTraceToString()
                 )
                 val recoverable = retry.recoverable(throwableClass = it.javaClass)

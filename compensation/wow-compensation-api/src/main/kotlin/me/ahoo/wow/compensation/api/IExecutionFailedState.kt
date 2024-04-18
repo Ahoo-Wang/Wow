@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.FunctionKind
@@ -25,7 +26,12 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.Materialized
 
-data class ErrorDetails(override val errorCode: String, override val errorMsg: String, val stackTrace: String) :
+data class ErrorDetails(
+    override val errorCode: String,
+    override val errorMsg: String,
+    val stackTrace: String,
+    override val bindingErrors: List<BindingError> = emptyList()
+) :
     ErrorInfo
 
 data class EventId(override val id: String, override val aggregateId: AggregateId, override val version: Int) :
