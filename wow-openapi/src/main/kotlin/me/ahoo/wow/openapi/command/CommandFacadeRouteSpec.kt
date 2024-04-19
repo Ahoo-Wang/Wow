@@ -56,6 +56,7 @@ class CommandFacadeRouteSpec(
     override val parameters: List<Parameter>
         get() {
             return buildList {
+                add(COMMAND_TYPE_PARAMETER)
                 add(WAIT_STAGE_PARAMETER.component)
                 add(WAIT_CONTEXT_PARAMETER.ref)
                 add(WAIT_PROCESSOR_PARAMETER.ref)
@@ -65,7 +66,7 @@ class CommandFacadeRouteSpec(
                 add(REQUEST_ID_PARAMETER.ref)
                 add(COMMAND_AGGREGATE_CONTEXT_PARAMETER)
                 add(COMMAND_AGGREGATE_NAME_PARAMETER)
-                add(COMMAND_TYPE_PARAMETER)
+
             }
         }
     override val requestBody: RequestBody = RequestBody()
@@ -91,7 +92,7 @@ class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory {
             .required(true)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema())
-            .description("Command Body Class Type")
+            .description("Command Body Class fully qualified name")
         val COMMAND_AGGREGATE_CONTEXT_PARAMETER: Parameter = Parameter()
             .name(CommandHeaders.COMMAND_AGGREGATE_CONTEXT)
             .`in`(ParameterIn.HEADER.toString())
