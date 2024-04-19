@@ -179,31 +179,29 @@
           <button nz-button (click)="openErrorInfo(item)" nzSize="small">
             Error
           </button>
-          @switch (category) {
-            @case (FindCategory.TO_RETRY) {
-              <button nz-popconfirm
-                      nzPopconfirmTitle="Are you sure retry this Failed?"
-                      nzPopconfirmPlacement="top"
-                      nz-button
-                      (nzOnConfirm)="prepare(item.id)"
-                      nzSize="small"
-              >
-                Retry
-              </button>
-            }
-            @case (FindCategory.NON_RETRYABLE) {
-              <button nz-popconfirm
-                      [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
-                      nzPopconfirmPlacement="top"
-                      nz-button
-                      (nzOnConfirm)="forcePrepare(item.id)"
-                      nzSize="small"
-                      nzDanger
-              >
-                F-Retry
-              </button>
-            }
-          }
+          <ng-template [ngIf]="category==FindCategory.TO_RETRY">
+            <button nz-popconfirm
+                    nzPopconfirmTitle="Are you sure retry this Failed?"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="prepare(item.id)"
+                    nzSize="small"
+            >
+              Retry
+            </button>
+          </ng-template>
+          <ng-template [ngIf]="category==FindCategory.NON_RETRYABLE||category==FindCategory.UNRECOVERABLE">
+            <button nz-popconfirm
+                    [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="forcePrepare(item.id)"
+                    nzSize="small"
+                    nzDanger
+            >
+              F-Retry
+            </button>
+          </ng-template>
         </nz-button-group>
       </td>
     </tr>
