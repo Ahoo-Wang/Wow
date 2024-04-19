@@ -176,7 +176,9 @@
       </td>
       <td nzRight>
         <nz-button-group>
-          <button nz-button (click)="openErrorInfo(item)" nzSize="small">
+          <button nz-button (click)="openErrorInfo(item)" nzSize="small"
+                  nz-popover [nzPopoverOverlayStyle]="{width: '50vw'}"
+                  [nzPopoverTitle]="item.error.errorCode" [nzPopoverContent]="item.error.errorMsg">
             Error
           </button>
           <ng-template [ngIf]="category==FindCategory.TO_RETRY">

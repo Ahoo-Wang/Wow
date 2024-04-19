@@ -33,6 +33,7 @@ import {NzColDirective, NzRowDirective} from "ng-zorro-antd/grid";
 import {NzFormControlComponent, NzFormDirective, NzFormItemComponent, NzFormLabelComponent} from "ng-zorro-antd/form";
 import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
 import {NzDividerModule} from 'ng-zorro-antd/divider';
+import {NzPopoverDirective} from "ng-zorro-antd/popover";
 
 @Component({
   selector: 'app-failed-list',
@@ -68,7 +69,7 @@ import {NzDividerModule} from 'ng-zorro-antd/divider';
     NzFormLabelComponent,
     NzInputNumberComponent,
     NzRowDirective,
-    ReactiveFormsModule, NzDividerModule
+    ReactiveFormsModule, NzDividerModule, NzPopoverDirective
   ],
   styleUrls: ['./failed-list.component.scss']
 })
