@@ -66,7 +66,6 @@ class CommandFacadeRouteSpec(
                 add(REQUEST_ID_PARAMETER.ref)
                 add(COMMAND_AGGREGATE_CONTEXT_PARAMETER)
                 add(COMMAND_AGGREGATE_NAME_PARAMETER)
-
             }
         }
     override val requestBody: RequestBody = RequestBody()
