@@ -71,7 +71,7 @@
 <nz-table nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }"
           nzShowSizeChanger [nzFrontPagination]="false" [nzHideOnSinglePage]="true"
           [nzPageIndex]="pagedQuery.pagination.index" [nzPageSize]="pagedQuery.pagination.size"
-          [nzData]="pagedList.list" [nzTotal]="pagedList.total"
+          [nzData]="pagedList.list" [nzTotal]="pagedList.total" [nzShowTotal]="totalTemplate"
           (nzQueryParams)="onQueryParamsChange($event)"
 >
   <thead>
@@ -215,7 +215,7 @@
   </ng-container>
   </tbody>
 </nz-table>
-
+<ng-template #totalTemplate let-total>Total {{ total }} items</ng-template>
 <nz-drawer
   [nzClosable]="false"
   [nzVisible]="errorInfoVisible"
