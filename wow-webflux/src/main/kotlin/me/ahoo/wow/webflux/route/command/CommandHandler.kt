@@ -47,12 +47,15 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
 }
 
 class CommandHandler(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandGateway: CommandGateway,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
-    fun handle(request: ServerRequest, commandBody: Any): Mono<CommandResult> {
+    fun handle(
+        request: ServerRequest,
+        commandBody: Any,
+        aggregateMetadata: AggregateMetadata<*, *>,
+    ): Mono<CommandResult> {
         val commandWaitTimeout = request.getWaitTimeout(timeout)
         return request.parse(
             aggregateMetadata = aggregateMetadata,

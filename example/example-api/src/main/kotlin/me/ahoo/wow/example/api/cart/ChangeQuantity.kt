@@ -8,7 +8,7 @@ import me.ahoo.wow.api.annotation.Summary
 @Summary("变更购买数量")
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class ChangeQuantity(
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     val id: String,
     @field:NotBlank
     val productId: String,

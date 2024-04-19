@@ -33,6 +33,7 @@ import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
@@ -86,6 +87,7 @@ import org.springframework.web.server.WebExceptionHandler
 class WebFluxAutoConfiguration {
     companion object {
         const val COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandWaitHandlerFunctionFactory"
+        const val COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandFacadeHandlerFunctionFactory"
         const val LOAD_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadAggregateHandlerFunctionFactory"
         const val LOAD_VERSIONED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "loadVersionedAggregateHandlerFunctionFactory"
@@ -99,7 +101,8 @@ class WebFluxAutoConfiguration {
         const val PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "pagedQuerySnapshotStateHandlerFunctionFactory"
         const val LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "listQuerySnapshotHandlerFunctionFactory"
-        const val LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "listQuerySnapshotStateHandlerFunctionFactory"
+        const val LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "listQuerySnapshotStateHandlerFunctionFactory"
         const val COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countSnapshotHandlerFunctionFactory"
         const val SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotHandlerFunctionFactory"
         const val SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotStateHandlerFunctionFactory"
@@ -137,6 +140,16 @@ class WebFluxAutoConfiguration {
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandWaitHandlerFunctionFactory {
         return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun commandFacadeHandlerFunctionFactory(
+        commandGateway: CommandGateway,
+        exceptionHandler: ExceptionHandler,
+    ): CommandFacadeHandlerFunctionFactory {
+        return CommandFacadeHandlerFunctionFactory(commandGateway, exceptionHandler)
     }
 
     @Bean

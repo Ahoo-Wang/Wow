@@ -35,10 +35,11 @@ class CommandHandlerTest {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(MOCK_AGGREGATE_METADATA, SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(SagaVerifier.defaultCommandGateway())
         commandHandler.handle(
             request,
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
+            MOCK_AGGREGATE_METADATA
         ).test()
             .expectNextCount(1)
             .verifyComplete()
@@ -60,10 +61,11 @@ class CommandHandlerTest {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(MOCK_AGGREGATE_METADATA, SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(SagaVerifier.defaultCommandGateway())
         commandHandler.handle(
             request,
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
+            MOCK_AGGREGATE_METADATA
         ).test()
             .verifyTimeout(Duration.ofMillis(110))
     }

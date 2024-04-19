@@ -14,65 +14,48 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.command.CommandRouteSpec
-import me.ahoo.wow.openapi.route.CommandRouteMetadata
+import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Duration
 
-val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
-
 /**
  * [org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping]
  *
  * [org.springframework.web.reactive.function.server.support.RouterFunctionMapping]
  */
-class CommandHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val commandRouteMetadata: CommandRouteMetadata<out Any>,
+class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
-    private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
+
     private val handler = CommandHandler(commandGateway, timeout)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return if (commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()) {
-            request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)
-        } else {
-            request.body(
-                bodyExtractor,
-                mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables()),
-            )
-        }.switchIfEmpty {
+        return request.body(CommandFacadeBodyExtractor).switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
-            handler.handle(request, it, aggregateMetadata)
+            handler.handle(request, it.t1, it.t2)
         }.toServerResponse(exceptionHandler)
     }
 }
 
-class CommandHandlerFunctionFactory(
+class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
-) : RouteHandlerFunctionFactory<CommandRouteSpec> {
-    override val supportedSpec: Class<CommandRouteSpec>
-        get() = CommandRouteSpec::class.java
+) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
+    override val supportedSpec: Class<CommandFacadeRouteSpec>
+        get() = CommandFacadeRouteSpec::class.java
 
-    @Suppress("UNCHECKED_CAST")
-    override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
-        return CommandHandlerFunction(
-            spec.aggregateMetadata,
-            spec.commandRouteMetadata as CommandRouteMetadata<Any>,
+    override fun create(spec: CommandFacadeRouteSpec): HandlerFunction<ServerResponse> {
+        return CommandFacadeHandlerFunction(
             commandGateway,
             exceptionHandler,
             timeout

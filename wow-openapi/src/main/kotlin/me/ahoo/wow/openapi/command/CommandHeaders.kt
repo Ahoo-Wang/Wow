@@ -23,5 +23,9 @@ object CommandHeaders {
     const val WAIT_PROCESSOR = "Command-Wait-Processor"
     const val REQUEST_ID = "Command-Request-Id"
 
+    const val COMMAND_AGGREGATE_CONTEXT = "Command-Aggregate-Context"
+    const val COMMAND_AGGREGATE_NAME = "Command-Aggregate-Name"
+    const val COMMAND_TYPE = "Command-Type"
+
     const val WOW_ERROR_CODE = "Wow-Error-Code"
 }
