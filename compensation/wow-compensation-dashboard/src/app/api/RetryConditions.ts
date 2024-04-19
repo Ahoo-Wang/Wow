@@ -78,9 +78,15 @@ export class RetryConditions {
   )
 
   static successCondition = Conditions.eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.SUCCEEDED)
-  static unrecoverableCondition = Conditions.eq(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE)
+  static unrecoverableCondition = Conditions.and(
+    [
+      Conditions.eq(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
+      Conditions.ne(ExecutionFailedFields.STATUS, ExecutionFailedStatus.SUCCEEDED)
+    ]
+  )
 
   static categoryToCondition(category: FindCategory): Condition {
+
     switch (category) {
       case FindCategory.ALL:
         return this.allCondition
