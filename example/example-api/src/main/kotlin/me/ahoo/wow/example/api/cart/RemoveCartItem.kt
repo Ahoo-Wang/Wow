@@ -7,7 +7,7 @@ import me.ahoo.wow.api.annotation.Summary
 @Summary("删除商品")
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class RemoveCartItem(
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     val id: String,
     @field:NotEmpty
     val productIds: Set<String>

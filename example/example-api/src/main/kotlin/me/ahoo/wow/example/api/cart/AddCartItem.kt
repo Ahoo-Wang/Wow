@@ -13,7 +13,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
     description = "加入购物车"
 )
 data class AddCartItem(
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     val id: String,
     @field:NotBlank
     val productId: String,
