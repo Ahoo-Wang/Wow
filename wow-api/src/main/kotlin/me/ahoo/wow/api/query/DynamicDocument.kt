@@ -13,4 +13,11 @@
 
 package me.ahoo.wow.api.query
 
-interface DynamicDocument : Map<String, Any>
+interface DynamicDocument : Map<String, Any> {
+    @Suppress("UNCHECKED_CAST")
+    fun <V> getValue(key: String): V {
+        return get(key) as V
+    }
+
+    fun getNestedDocument(key: String): DynamicDocument
+}
