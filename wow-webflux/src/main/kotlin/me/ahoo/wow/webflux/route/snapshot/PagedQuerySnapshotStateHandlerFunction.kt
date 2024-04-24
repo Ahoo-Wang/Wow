@@ -18,7 +18,6 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpec
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.toStateDocumentPagedList
-import me.ahoo.wow.query.toStatePagedList
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -39,11 +38,7 @@ class PagedQuerySnapshotStateHandlerFunction(
         return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
                 val pagedQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                if (pagedQuery.projection.isEmpty()) {
-                    snapshotQueryHandler.paged<Any>(aggregateMetadata, pagedQuery).toStatePagedList()
-                } else {
-                    snapshotQueryHandler.dynamicPaged(aggregateMetadata, pagedQuery).toStateDocumentPagedList()
-                }
+                snapshotQueryHandler.dynamicPaged(aggregateMetadata, pagedQuery).toStateDocumentPagedList()
             }.toServerResponse(exceptionHandler)
     }
 }
