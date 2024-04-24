@@ -63,6 +63,15 @@ class ConditionDslTest {
             "field25".lastMonth()
             "field26".recentDays(1)
             raw("1=1")
+            "state" nested {
+                "field27" eq "value27"
+                "field28" eq "value28"
+                "child" nested {
+                    "field29" eq "value29"
+                }
+                nested("")
+                "field30" eq "value30"
+            }
         }
         assertThat(
             condition,
@@ -113,7 +122,11 @@ class ConditionDslTest {
                         Condition.thisMonth("field24"),
                         Condition.lastMonth("field25"),
                         Condition.recentDays("field26", 1),
-                        Condition.raw("1=1")
+                        Condition.raw("1=1"),
+                        Condition.eq("state.field27", "value27"),
+                        Condition.eq("state.field28", "value28"),
+                        Condition.eq("state.child.field29", "value29"),
+                        Condition.eq("field30", "value30"),
                     )
                 )
             )
@@ -123,9 +136,15 @@ class ConditionDslTest {
     @Test
     fun and() {
         val condition = condition {
+            nested("state")
             and {
                 "field3" eq "value3"
                 "field4" eq "value4"
+                and {
+                    "field5" eq "value5"
+                    nested("")
+                    "field6" eq "value6"
+                }
             }
         }
         assertThat(
@@ -133,8 +152,12 @@ class ConditionDslTest {
             equalTo(
                 Condition.and(
                     listOf(
-                        Condition.eq("field3", "value3"),
-                        Condition.eq("field4", "value4")
+                        Condition.eq("state.field3", "value3"),
+                        Condition.eq("state.field4", "value4"),
+                        Condition.and(
+                            Condition.eq("state.field5", "value5"),
+                            Condition.eq("field6", "value6")
+                        )
                     )
                 )
             )
@@ -153,6 +176,7 @@ class ConditionDslTest {
     @Test
     fun or() {
         val condition = condition {
+            nestedState()
             or {
                 "field3" eq "value3"
                 "field4" eq "value4"
@@ -163,8 +187,8 @@ class ConditionDslTest {
             equalTo(
                 Condition.or(
                     listOf(
-                        Condition.eq("field3", "value3"),
-                        Condition.eq("field4", "value4")
+                        Condition.eq("state.field3", "value3"),
+                        Condition.eq("state.field4", "value4")
                     )
                 )
             )

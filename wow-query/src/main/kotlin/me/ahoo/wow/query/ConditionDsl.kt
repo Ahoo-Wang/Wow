@@ -48,15 +48,36 @@ import me.ahoo.wow.api.query.Condition
  * ```
  */
 class ConditionDsl {
-
+    private var nestedField: String = ""
+    private val nestedFieldDelimiter: String = "."
     private var conditions: MutableList<Condition> = mutableListOf()
+    private fun String.withNestedField(): String {
+        if (nestedField.isEmpty()) {
+            return this
+        }
+        return "$nestedField$nestedFieldDelimiter$this"
+    }
+
+    fun nested(nestedField: String) {
+        this.nestedField = nestedField
+    }
 
     fun condition(condition: Condition) {
         conditions.add(condition)
     }
 
+    infix fun String.nested(block: ConditionDsl.() -> Unit) {
+        val nestedDsl = ConditionDsl()
+        nestedDsl.nested(this.withNestedField())
+        nestedDsl.block()
+        nestedDsl.conditions.forEach {
+            condition(it)
+        }
+    }
+
     fun and(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
+        nestedDsl.nested(nestedField)
         nestedDsl.block()
         if (nestedDsl.conditions.isEmpty()) {
             return
@@ -67,6 +88,7 @@ class ConditionDsl {
 
     fun or(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
+        nestedDsl.nested(nestedField)
         nestedDsl.block()
         if (nestedDsl.conditions.isEmpty()) {
             return
@@ -77,6 +99,7 @@ class ConditionDsl {
 
     fun not(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
+        nestedDsl.nested(nestedField)
         nestedDsl.block()
         if (nestedDsl.conditions.isEmpty()) {
             return
@@ -110,47 +133,47 @@ class ConditionDsl {
     }
 
     infix fun String.eq(value: Any) {
-        condition(Condition.eq(this, value))
+        condition(Condition.eq(this.withNestedField(), value))
     }
 
     infix fun String.ne(value: Any) {
-        condition(Condition.ne(this, value))
+        condition(Condition.ne(this.withNestedField(), value))
     }
 
     infix fun String.gt(value: Any) {
-        condition(Condition.gt(this, value))
+        condition(Condition.gt(this.withNestedField(), value))
     }
 
     infix fun String.lt(value: Any) {
-        condition(Condition.lt(this, value))
+        condition(Condition.lt(this.withNestedField(), value))
     }
 
     infix fun String.gte(value: Any) {
-        condition(Condition.gte(this, value))
+        condition(Condition.gte(this.withNestedField(), value))
     }
 
     infix fun String.lte(value: Any) {
-        condition(Condition.lte(this, value))
+        condition(Condition.lte(this.withNestedField(), value))
     }
 
     infix fun String.contains(value: Any) {
-        condition(Condition.contains(this, value))
+        condition(Condition.contains(this.withNestedField(), value))
     }
 
     infix fun String.isIn(value: List<Any>) {
-        condition(Condition.isIn(this, value))
+        condition(Condition.isIn(this.withNestedField(), value))
     }
 
     infix fun String.notIn(value: List<Any>) {
-        condition(Condition.notIn(this, value))
+        condition(Condition.notIn(this.withNestedField(), value))
     }
 
     infix fun <V> String.between(value: Pair<V, V>) {
-        condition(Condition.between(this, value.first, value.second))
+        condition(Condition.between(this.withNestedField(), value.first, value.second))
     }
 
     infix fun <V> String.between(start: V): BetweenStart<V> {
-        return BetweenStart(this, start)
+        return BetweenStart(this.withNestedField(), start)
     }
 
     infix fun <V> BetweenStart<V>.to(end: V) {
@@ -158,69 +181,69 @@ class ConditionDsl {
     }
 
     infix fun String.all(value: List<Any>) {
-        condition(Condition.all(this, value))
+        condition(Condition.all(this.withNestedField(), value))
     }
 
     infix fun String.startsWith(value: Any) {
-        condition(Condition.startsWith(this, value))
+        condition(Condition.startsWith(this.withNestedField(), value))
     }
 
     infix fun String.endsWith(value: Any) {
-        condition(Condition.endsWith(this, value))
+        condition(Condition.endsWith(this.withNestedField(), value))
     }
 
     infix fun String.elemMatch(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
         nestedDsl.block()
-        condition(Condition.elemMatch(this, nestedDsl.build()))
+        condition(Condition.elemMatch(this.withNestedField(), nestedDsl.build()))
     }
 
     fun String.isNull() {
-        condition(Condition.isNull(this))
+        condition(Condition.isNull(this.withNestedField()))
     }
 
     fun String.notNull() {
-        condition(Condition.notNull(this))
+        condition(Condition.notNull(this.withNestedField()))
     }
 
     fun String.isTrue() {
-        condition(Condition.isTrue(this))
+        condition(Condition.isTrue(this.withNestedField()))
     }
 
     fun String.isFalse() {
-        condition(Condition.isFalse(this))
+        condition(Condition.isFalse(this.withNestedField()))
     }
 
     fun String.today() {
-        condition(Condition.today(this))
+        condition(Condition.today(this.withNestedField()))
     }
 
     fun String.tomorrow() {
-        condition(Condition.tomorrow(this))
+        condition(Condition.tomorrow(this.withNestedField()))
     }
 
     fun String.thisWeek() {
-        condition(Condition.thisWeek(this))
+        condition(Condition.thisWeek(this.withNestedField()))
     }
 
     fun String.nextWeek() {
-        condition(Condition.nextWeek(this))
+        condition(Condition.nextWeek(this.withNestedField()))
     }
 
     fun String.lastWeek() {
-        condition(Condition.lastWeek(this))
+        condition(Condition.lastWeek(this.withNestedField()))
     }
 
     fun String.thisMonth() {
-        condition(Condition.thisMonth(this))
+        condition(Condition.thisMonth(this.withNestedField()))
     }
 
     fun String.lastMonth() {
-        condition(Condition.lastMonth(this))
+        condition(Condition.lastMonth(this.withNestedField()))
     }
 
     infix fun String.recentDays(days: Int) {
-        condition(Condition.recentDays(this, days))
+        condition(Condition.recentDays(this.withNestedField(), days))
     }
 
     fun raw(value: Any) {
