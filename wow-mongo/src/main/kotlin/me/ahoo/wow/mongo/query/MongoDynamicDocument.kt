@@ -18,6 +18,10 @@ import org.bson.Document
 
 class MongoDynamicDocument(val delegation: Document) :
     DynamicDocument, Map<String, Any> by delegation {
+    override fun getNestedDocument(key: String): DynamicDocument {
+        return delegation.get(key, Document::class.java).toDynamicDocument()
+    }
+
     companion object {
         fun Document.toDynamicDocument(): MongoDynamicDocument = MongoDynamicDocument(this)
     }

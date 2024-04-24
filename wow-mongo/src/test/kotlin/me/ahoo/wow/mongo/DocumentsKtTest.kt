@@ -31,7 +31,7 @@ class DocumentsKtTest {
           "firstEventTime": 1712485610584,
           "eventTime": 1712485610584,
           "state": {
-            "id": "0U9Fn5g30000001"
+            "id": "$aggregateId"
           },
           "snapshotTime": 1712485610666,
           "deleted": false
@@ -49,7 +49,7 @@ class DocumentsKtTest {
     @Test
     fun toDynamicDocument() {
         val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
-        assertThat(dynamicDocument[MessageRecords.AGGREGATE_ID], equalTo(aggregateId))
+        assertThat(dynamicDocument.getNestedDocument("state").getValue<String>("id"), equalTo(aggregateId))
     }
 
     @Test
