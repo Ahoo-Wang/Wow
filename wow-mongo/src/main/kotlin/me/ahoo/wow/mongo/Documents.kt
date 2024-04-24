@@ -14,9 +14,11 @@
 package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.JavaType
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.query.MongoDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toObject
 import org.bson.Document
@@ -56,6 +58,18 @@ fun <S : Any> Document.toSnapshot(): Snapshot<S> {
 
 fun <S : Any> Document.toSnapshotState(): S {
     return toSnapshot<S>().state
+}
+
+fun Mono<Document>.toDynamicDocument(): Mono<DynamicDocument> {
+    return map {
+        it.replacePrimaryKeyToAggregateId().toDynamicDocument()
+    }
+}
+
+fun Flux<Document>.toDynamicDocument(): Flux<DynamicDocument> {
+    return map {
+        it.replacePrimaryKeyToAggregateId().toDynamicDocument()
+    }
 }
 
 fun <S : Any> Mono<Document>.toSnapshot(): Mono<Snapshot<S>> {

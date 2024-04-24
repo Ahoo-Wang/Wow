@@ -7,6 +7,7 @@ import me.ahoo.wow.mongo.SchemaInitializerSpec
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.condition
 import me.ahoo.wow.query.count
+import me.ahoo.wow.query.dynamicQuery
 import me.ahoo.wow.query.listQuery
 import me.ahoo.wow.query.query
 import me.ahoo.wow.query.singleQuery
@@ -43,6 +44,17 @@ class MongoSnapshotQueryServiceTest {
     }
 
     @Test
+    fun dynamicSingle() {
+        singleQuery {
+            condition {
+                tenantId(GlobalIdGenerator.generateAsString())
+            }
+        }.dynamicQuery(snapshotQueryService)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun query() {
         listQuery {
             condition {
@@ -54,12 +66,37 @@ class MongoSnapshotQueryServiceTest {
     }
 
     @Test
+    fun dynamicList() {
+        listQuery {
+            condition {
+                tenantId(GlobalIdGenerator.generateAsString())
+            }
+        }.dynamicQuery(snapshotQueryService)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun paged() {
         me.ahoo.wow.query.pagedQuery {
             condition {
                 tenantId(GlobalIdGenerator.generateAsString())
             }
         }.query(snapshotQueryService)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0L))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicPaged() {
+        me.ahoo.wow.query.pagedQuery {
+            condition {
+                tenantId(GlobalIdGenerator.generateAsString())
+            }
+        }.dynamicQuery(snapshotQueryService)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0L))

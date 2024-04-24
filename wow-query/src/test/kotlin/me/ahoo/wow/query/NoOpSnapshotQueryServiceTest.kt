@@ -26,6 +26,17 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
+    fun singleDynamicQuery() {
+        singleQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.dynamicQuery(queryService)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun query() {
         listQuery {
             condition {
@@ -37,12 +48,37 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
+    fun listDynamicQuery() {
+        listQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.dynamicQuery(queryService)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
     fun paged() {
         pagedQuery {
             condition {
                 "test" eq "test"
             }
         }.query(queryService)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun pagedDynamicQuery() {
+        pagedQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.dynamicQuery(queryService)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0))

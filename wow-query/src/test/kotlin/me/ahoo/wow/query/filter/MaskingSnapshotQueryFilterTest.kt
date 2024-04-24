@@ -3,6 +3,7 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DataMasking
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -112,12 +113,24 @@ class MaskingSnapshotQueryFilterTest {
             return snapshot.toMono()
         }
 
+        override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
+            return Mono.empty()
+        }
+
         override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<DataMaskable>> {
             return Flux.just(snapshot)
         }
 
+        override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
+            return Flux.empty()
+        }
+
         override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<DataMaskable>>> {
             return PagedList(1, listOf(snapshot)).toMono()
+        }
+
+        override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
+            return PagedList.empty<DynamicDocument>().toMono()
         }
 
         override fun count(condition: Condition): Mono<Long> {

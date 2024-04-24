@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -77,6 +78,18 @@ fun <S : Any> IPagedQuery.query(queryService: SnapshotQueryService<S>): Mono<Pag
 
 fun <S : Any> ISingleQuery.query(queryService: SnapshotQueryService<S>): Mono<MaterializedSnapshot<S>> {
     return queryService.single(this)
+}
+
+fun IListQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Flux<DynamicDocument> {
+    return queryService.dynamicList(this)
+}
+
+fun IPagedQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<PagedList<DynamicDocument>> {
+    return queryService.dynamicPaged(this)
+}
+
+fun ISingleQuery.dynamicQuery(queryService: SnapshotQueryService<*>): Mono<DynamicDocument> {
+    return queryService.dynamicSingle(this)
 }
 
 fun Condition.count(queryService: SnapshotQueryService<*>): Mono<Long> {

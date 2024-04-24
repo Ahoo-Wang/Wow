@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -118,6 +119,14 @@ class RouterSpecs(
             it.properties[Condition::value.name]?.setDefault(EMPTY_VALUE)
             it.properties[Condition::children.name]?.setDefault(emptyList<Condition>())
             it.properties["not"]?.setDefault(false)
+        }
+
+        val projectionSchemaName = Projection::class.java.toSchemaName()
+        val projectionSchema = openAPI.components.schemas[projectionSchemaName]
+        projectionSchema?.let {
+            it.properties[Projection::include.name]?.setDefault(emptyList<String>())
+            it.properties[Projection::exclude.name]?.setDefault(emptyList<String>())
+            it.properties.remove(Projection::isEmpty.name)
         }
 
         val querySchemaName = ListQuery::class.java.toSchemaName()

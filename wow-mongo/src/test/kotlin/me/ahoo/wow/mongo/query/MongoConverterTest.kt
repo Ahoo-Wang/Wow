@@ -26,7 +26,7 @@ import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 import java.util.stream.Stream
 
-class MongoConditionConverterTest {
+class MongoConverterTest {
 
     @Test
     fun toMongoFilterBetweenError() {

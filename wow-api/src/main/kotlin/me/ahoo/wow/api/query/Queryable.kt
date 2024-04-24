@@ -294,7 +294,7 @@ data class Projection(val include: List<String> = emptyList(), val exclude: List
         val ALL = Projection()
     }
 
-    fun isEmpty() = include.isEmpty() && exclude.isEmpty()
+    fun isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
 }
 
-interface Queryable : ConditionCapable, SortCapable
+interface Queryable : ConditionCapable, ProjectionCapable, SortCapable

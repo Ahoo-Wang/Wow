@@ -19,6 +19,7 @@ interface IListQuery : Queryable {
 
 data class ListQuery(
     override val condition: Condition,
+    override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = Pagination.DEFAULT.size
 ) : IListQuery

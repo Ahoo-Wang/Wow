@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query
+package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.DynamicDocument
+import org.bson.Document
 
-class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
-
-    override fun build(): ISingleQuery {
-        return SingleQuery(condition, projection, sort)
+class MongoDynamicDocument(val delegation: Document) :
+    DynamicDocument, Map<String, Any> by delegation {
+    companion object {
+        fun Document.toDynamicDocument(): MongoDynamicDocument = MongoDynamicDocument(this)
     }
 }
