@@ -6,6 +6,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
+import me.ahoo.wow.query.singleQuery
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -28,6 +29,28 @@ class SingleSnapshotHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(SingleQuery::class.java) } returns SingleQuery(Condition.ALL).toMono()
+        }
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                assertThat(it.statusCode(), equalTo(HttpStatus.NOT_FOUND))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun handleProjection() {
+        val handlerFunction = SingleSnapshotHandlerFunctionFactory(
+            MockQueryHandler.queryHandler,
+            exceptionHandler = DefaultExceptionHandler,
+        ).create(SingleSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
+        val request = mockk<ServerRequest> {
+            every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
+            every { bodyToMono(SingleQuery::class.java) } returns (
+                singleQuery {
+                    projection { include("field") }
+                } as SingleQuery
+                ).toMono()
         }
 
         handlerFunction.handle(request)
