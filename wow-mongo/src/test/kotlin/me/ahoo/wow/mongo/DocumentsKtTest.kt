@@ -2,8 +2,8 @@ package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
-import me.ahoo.wow.mongo.query.MongoDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate

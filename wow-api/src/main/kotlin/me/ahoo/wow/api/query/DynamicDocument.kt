@@ -21,3 +21,14 @@ interface DynamicDocument : Map<String, Any> {
 
     fun getNestedDocument(key: String): DynamicDocument
 }
+
+class SimpleDynamicDocument(val delegation: Map<String, Any>) : DynamicDocument, Map<String, Any> by delegation {
+
+    override fun getNestedDocument(key: String): DynamicDocument {
+        return getValue<DynamicDocument>(key).toDynamicDocument()
+    }
+
+    companion object {
+        fun Map<String, Any>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(this)
+    }
+}

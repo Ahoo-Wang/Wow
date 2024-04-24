@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpec
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.toState
+import me.ahoo.wow.query.toStateDocument
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -38,8 +39,13 @@ class SingleSnapshotStateHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val condition = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.single<Any>(aggregateMetadata, condition).toState().throwNotFoundIfEmpty()
+                val singleQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
+                if (singleQuery.projection.isEmpty()) {
+                    snapshotQueryHandler.single<Any>(aggregateMetadata, singleQuery).toState().throwNotFoundIfEmpty()
+                } else {
+                    snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery).toStateDocument()
+                        .throwNotFoundIfEmpty()
+                }
             }.toServerResponse(exceptionHandler)
     }
 }

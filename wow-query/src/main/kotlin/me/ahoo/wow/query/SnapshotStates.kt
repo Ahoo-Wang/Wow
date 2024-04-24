@@ -13,19 +13,38 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+private const val STATE_FIELD = "state"
+
+fun DynamicDocument.toState(): DynamicDocument {
+    return getNestedDocument(STATE_FIELD)
+}
+
 fun <S : Any> Mono<MaterializedSnapshot<S>>.toState(): Mono<S> {
     return map { it.state }
+}
+
+fun Mono<out DynamicDocument>.toStateDocument(): Mono<DynamicDocument> {
+    return map { it.toState() }
 }
 
 fun <S : Any> Flux<MaterializedSnapshot<S>>.toState(): Flux<S> {
     return map { it.state }
 }
 
+fun Flux<out DynamicDocument>.toStateDocument(): Flux<DynamicDocument> {
+    return map { it.toState() }
+}
+
 fun <S : Any> Mono<PagedList<MaterializedSnapshot<S>>>.toStatePagedList(): Mono<PagedList<S>> {
     return map { PagedList(it.total, it.list.map { snapshot -> snapshot.state }) }
+}
+
+fun <S : DynamicDocument> Mono<PagedList<S>>.toStateDocumentPagedList(): Mono<PagedList<DynamicDocument>> {
+    return map { PagedList(it.total, it.list.map { dynamicDocument -> dynamicDocument.toState() }) }
 }
