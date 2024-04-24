@@ -27,7 +27,7 @@ import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.Range
-import org.springframework.data.redis.connection.RedisZSetCommands
+import org.springframework.data.redis.connection.Limit
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.data.redis.core.ScanOptions
 import org.springframework.data.redis.core.script.RedisScript
@@ -69,7 +69,7 @@ class RedisEventStore(
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         val key = EventStreamKeyConverter.convert(aggregateId)
         val range = Range.closed(headVersion.toDouble(), tailVersion.toDouble())
-        return redisTemplate.opsForZSet().rangeByScore(key, range, RedisZSetCommands.Limit.unlimited())
+        return redisTemplate.opsForZSet().rangeByScore(key, range, Limit.unlimited())
             .map {
                 it.toObject<DomainEventStream>()
             }
