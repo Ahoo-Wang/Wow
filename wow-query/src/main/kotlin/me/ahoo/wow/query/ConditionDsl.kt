@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.Condition
  *     "field8" isIn listOf("value8")
  *     "field9" notIn listOf("value9")
  *     "field10" between (1 to 2)
+ *     "field100" between 1 to 2
  *     "field11" all listOf("value11")
  *     "field12" startsWith "value12"
  *     "field13" elemMatch {
@@ -97,7 +98,7 @@ class ConditionDsl {
     }
 
     fun ids(vararg value: String) {
-        condition(Condition.ids(value.toList()))
+        ids(value.toList())
     }
 
     fun tenantId(value: String) {
@@ -144,8 +145,16 @@ class ConditionDsl {
         condition(Condition.notIn(this, value))
     }
 
-    infix fun String.between(value: Pair<Any, Any>) {
+    infix fun <V> String.between(value: Pair<V, V>) {
         condition(Condition.between(this, value.first, value.second))
+    }
+
+    infix fun <V> String.between(start: V): BetweenStart<V> {
+        return BetweenStart(this, start)
+    }
+
+    infix fun <V> BetweenStart<V>.to(end: V) {
+        condition(Condition.between(field, start, end))
     }
 
     infix fun String.all(value: List<Any>) {
