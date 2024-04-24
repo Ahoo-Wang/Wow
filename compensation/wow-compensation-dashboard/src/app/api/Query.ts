@@ -34,6 +34,21 @@ export enum Operator {
   RAW = "RAW"
 }
 
+export interface Projection {
+  include: string[];
+  exclude: string[];
+}
+
+export class Projections {
+  static all(): Projection {
+    return {include: [], exclude: []}
+  }
+
+  static includeState(): Projection {
+    return {include: ["state"], exclude: []}
+  }
+}
+
 export interface Condition {
   field: string;
   operator: Operator;
