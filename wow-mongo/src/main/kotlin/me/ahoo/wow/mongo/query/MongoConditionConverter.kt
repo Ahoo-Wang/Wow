@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.ConditionConverter
+import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.Document

@@ -24,10 +24,10 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
+import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import me.ahoo.wow.mongo.toMaterializedSnapshot
-import me.ahoo.wow.query.ConditionConverter
 import me.ahoo.wow.query.SnapshotQueryService
+import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
