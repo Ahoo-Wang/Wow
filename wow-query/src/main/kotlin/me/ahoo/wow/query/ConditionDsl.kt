@@ -98,7 +98,7 @@ class ConditionDsl {
     }
 
     fun ids(vararg value: String) {
-        condition(Condition.ids(value.toList()))
+        ids(value.toList())
     }
 
     fun tenantId(value: String) {
