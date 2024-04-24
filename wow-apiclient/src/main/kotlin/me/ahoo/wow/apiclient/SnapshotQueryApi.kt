@@ -29,8 +29,8 @@ interface SnapshotQueryApi<S : Any> {
         const val SNAPSHOT_RESOURCE_NAME = "snapshot"
         const val SNAPSHOT_SINGLE_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/single"
         const val SNAPSHOT_SINGLE_STATE_RESOURCE_NAME = "$SNAPSHOT_SINGLE_RESOURCE_NAME/state"
-        const val SNAPSHOT_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/list"
-        const val SNAPSHOT_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_QUERY_RESOURCE_NAME/state"
+        const val SNAPSHOT_LIST_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/list"
+        const val SNAPSHOT_LIST_STATE_RESOURCE_NAME = "$SNAPSHOT_LIST_RESOURCE_NAME/state"
         const val SNAPSHOT_PAGED_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/paged"
         const val SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_PAGED_QUERY_RESOURCE_NAME/state"
         const val SNAPSHOT_COUNT_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/count"
@@ -38,6 +38,9 @@ interface SnapshotQueryApi<S : Any> {
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
     fun single(@RequestBody singleQuery: SingleQuery): Mono<MaterializedSnapshot<S>>
+
+    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
+    fun dynamicSingle(@RequestBody singleQuery: SingleQuery): Mono<Map<String, Any>>
 
     @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
     fun singleState(@RequestBody singleQuery: SingleQuery): Mono<S>
@@ -54,14 +57,20 @@ interface SnapshotQueryApi<S : Any> {
         }
     }
 
-    @PostExchange(SNAPSHOT_QUERY_RESOURCE_NAME)
+    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
     fun list(@RequestBody query: ListQuery): Flux<MaterializedSnapshot<S>>
 
-    @PostExchange(SNAPSHOT_QUERY_STATE_RESOURCE_NAME)
+    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
+    fun dynamicList(@RequestBody singleQuery: SingleQuery): Flux<Map<String, Any>>
+
+    @PostExchange(SNAPSHOT_LIST_STATE_RESOURCE_NAME)
     fun listState(@RequestBody query: ListQuery): Flux<S>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
     fun paged(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
+
+    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
+    fun dynamicPaged(@RequestBody singleQuery: SingleQuery): Mono<PagedList<Map<String, Any>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
     fun pagedState(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>
