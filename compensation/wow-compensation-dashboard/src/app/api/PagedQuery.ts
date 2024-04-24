@@ -12,15 +12,17 @@
  */
 
 
-import {Condition, Conditions, Pagination, Sort, SortDirection} from "./Query";
+import {Condition, Conditions, Pagination, Projection, Projections, Sort, SortDirection} from "./Query";
 
 export interface PagedQuery {
+  projection: Projection
   condition: Condition;
   sort: Sort[];
   pagination: Pagination;
 }
 
 export const initialPagedQuery: PagedQuery = {
+  projection: Projections.all(),
   condition: Conditions.all(),
   sort: [{field: "_id", direction: SortDirection.DESC}],
   pagination: {index: 1, size: 10},

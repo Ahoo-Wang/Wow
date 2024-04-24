@@ -23,7 +23,7 @@ import {DomainEventStream} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunctionKind} from "./ChangeFunctionKind";
 import {RetryConditions} from "./RetryConditions";
-import {Conditions, Operator} from "./Query";
+import {Conditions, Operator, Projections} from "./Query";
 
 export enum FindCategory {
   ALL = 'all',
@@ -78,6 +78,7 @@ export class CompensationClient {
   }
 
   query(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {
+    pagedQuery.projection = Projections.includeState()
     return this.httpClient.post<PagedList<ExecutionFailedState>>(this.queryApi, pagedQuery);
   }
 

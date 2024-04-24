@@ -26,8 +26,8 @@ import {ActivatedRoute} from "@angular/router";
 import {NzSelectModule} from 'ng-zorro-antd/select';
 import {NzToolTipModule} from 'ng-zorro-antd/tooltip';
 import {NzDropDownModule} from 'ng-zorro-antd/dropdown';
-import {FormControl, FormGroup, FormsModule, NonNullableFormBuilder, ReactiveFormsModule} from "@angular/forms";
-import {Condition, Conditions, Sort, SortDirection} from "../api/Query";
+import {FormControl, FormsModule, NonNullableFormBuilder, ReactiveFormsModule} from "@angular/forms";
+import {Condition, Conditions, Projections, Sort, SortDirection} from "../api/Query";
 import {NzInputModule} from 'ng-zorro-antd/input';
 import {NzColDirective, NzRowDirective} from "ng-zorro-antd/grid";
 import {NzFormControlComponent, NzFormDirective, NzFormItemComponent, NzFormLabelComponent} from "ng-zorro-antd/form";
@@ -192,6 +192,7 @@ export class FailedListComponent implements OnInit {
       sort = initialPagedQuery.sort
     }
     this.pagedQuery = {
+      projection: Projections.all(),
       sort: sort,
       pagination: {index: params.pageIndex, size: params.pageSize},
       condition: initialPagedQuery.condition
