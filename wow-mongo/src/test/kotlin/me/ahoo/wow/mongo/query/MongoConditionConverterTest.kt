@@ -9,8 +9,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.MongoConditionConverter.toMongoFilter
-import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoProjection
-import me.ahoo.wow.mongo.query.MongoFilterConverter.toMongoSort
+import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
+import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import org.bson.conversions.Bson
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

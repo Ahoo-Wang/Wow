@@ -80,15 +80,7 @@ export class FailedListComponent implements OnInit {
   current: ExecutionFailedState | undefined;
   errorInfoVisible = false
   expandSet = new Set<string>();
-  validateForm: FormGroup<{
-    id: FormControl<string>;
-    eventId: FormControl<string>;
-    aggregateId: FormControl<string>;
-    aggregateContext: FormControl<string>;
-    aggregateName: FormControl<string>;
-    processorContext: FormControl<string>;
-    processorName: FormControl<string>;
-  }> = this.fb.group({
+  validateForm = this.formBuilder.group({
     id: [''],
     eventId: [''],
     aggregateId: [''],
@@ -101,7 +93,8 @@ export class FailedListComponent implements OnInit {
   constructor(private compensationClient: CompensationClient,
               private message: NzMessageService,
               private drawerService: NzDrawerService,
-              private activatedRoute: ActivatedRoute, private fb: NonNullableFormBuilder) {
+              private activatedRoute: ActivatedRoute,
+              private formBuilder: NonNullableFormBuilder) {
   }
 
   ngOnInit() {
@@ -238,11 +231,14 @@ export class FailedListComponent implements OnInit {
 
   changeFunctionKind(id: string, functionKind: FunctionKind): void {
     this.compensationClient.changeFunctionKind(id, {functionKind})
-      .subscribe(resp => {
-        this.message.success("Change FunctionKind succeeded.");
-        this.load();
-      }, error => {
-        this.message.error(error.error.errorMsg);
+      .subscribe({
+        next: resp => {
+          this.message.success("Change FunctionKind succeeded.");
+          this.load();
+        },
+        error: error => {
+          this.message.error(error.error.errorMsg);
+        }
       })
   }
 

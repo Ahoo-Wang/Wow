@@ -4,24 +4,14 @@
     <inspection_tool class="HtmlUnknownAttribute" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="myValues">
         <value>
-          <list size="2">
+          <list size="3">
             <item index="0" class="java.lang.String" itemvalue="nzEllipsisRows" />
             <item index="1" class="java.lang.String" itemvalue="nzTooltipTitle" />
+            <item index="2" class="java.lang.String" itemvalue="nzPopoverTitle" />
           </list>
         </value>
       </option>
       <option name="myCustomValuesEnabled" value="true" />
-    </inspection_tool>
-    <inspection_tool class="IncorrectHttpHeaderInspection" enabled="true" level="WARNING" enabled_by_default="true">
-      <option name="customHeaders">
-        <set>
-          <option value="Wow-Error-Code" />
-          <option value="Command-Wait-Timeout" />
-          <option value="Command-Wait-Stage" />
-          <option value="Command-Request-Id" />
-          <option value="Command-Aggregate-Id" />
-        </set>
-      </option>
     </inspection_tool>
   </profile>
 </component>

@@ -17,5 +17,5 @@ import {NzTypographyComponent} from "ng-zorro-antd/typography";
   styleUrl: './error.component.scss'
 })
 export class ErrorComponent {
-  @Input({ required: true })  state!: ExecutionFailedState
+  @Input({required: true}) state!: ExecutionFailedState
 }

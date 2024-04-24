@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query
+package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
