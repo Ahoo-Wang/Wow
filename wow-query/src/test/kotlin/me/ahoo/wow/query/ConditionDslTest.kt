@@ -35,6 +35,7 @@ class ConditionDslTest {
             "field8" isIn listOf("value8")
             "field9" notIn listOf("value9")
             "field10" between (1 to 2)
+            "field100" between 1 to 2
             "field11" all listOf("value11")
             "field12" startsWith "value12"
             "field12" endsWith "value12"
@@ -83,6 +84,7 @@ class ConditionDslTest {
                         Condition.isIn("field8", listOf("value8")),
                         Condition.notIn("field9", listOf("value9")),
                         Condition.between("field10", 1, 2),
+                        Condition.between("field100", 1, 2),
                         Condition.all("field11", listOf("value11")),
                         Condition.startsWith("field12", "value12"),
                         Condition.endsWith("field12", "value12"),
