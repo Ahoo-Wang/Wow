@@ -37,7 +37,11 @@ class ListQuerySnapshotHandlerFunction(
         return request.bodyToMono(ListQuery::class.java)
             .flatMap {
                 val query = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.list<Any>(aggregateMetadata, query).collectList()
+                if (query.projection.isEmpty()) {
+                    snapshotQueryHandler.list<Any>(aggregateMetadata, query).collectList()
+                } else {
+                    snapshotQueryHandler.dynamicList(aggregateMetadata, query).collectList()
+                }
             }.toServerResponse(exceptionHandler)
     }
 }

@@ -18,7 +18,6 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -52,36 +51,33 @@ interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : 
     }
 }
 
-enum class QueryType {
-    SINGLE,
-    LIST,
-    PAGED,
-    COUNT
+enum class QueryType(val isDynamic: Boolean) {
+    SINGLE(false),
+    DYNAMIC_SINGLE(true),
+    LIST(false),
+    DYNAMIC_LIST(true),
+    PAGED(false),
+    DYNAMIC_PAGED(true),
+    COUNT(false),
 }
 
-class SingleSnapshotQueryContext<S : Any>(
+class SingleSnapshotQueryContext<R : Any>(
     override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<SingleSnapshotQueryContext<S>, ISingleQuery, Mono<MaterializedSnapshot<S>>> {
-    override val queryType: QueryType
-        get() = QueryType.SINGLE
-}
+) : SnapshotQueryContext<SingleSnapshotQueryContext<R>, ISingleQuery, Mono<R>>
 
-class ListSnapshotQueryContext<S : Any>(
+class ListSnapshotQueryContext<R : Any>(
     override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<ListSnapshotQueryContext<S>, IListQuery, Flux<MaterializedSnapshot<S>>> {
-    override val queryType: QueryType
-        get() = QueryType.LIST
-}
+) : SnapshotQueryContext<ListSnapshotQueryContext<R>, IListQuery, Flux<R>>
 
-class PagedSnapshotQueryContext<S : Any>(
+class PagedSnapshotQueryContext<R : Any>(
     override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : SnapshotQueryContext<PagedSnapshotQueryContext<S>, IPagedQuery, Mono<PagedList<MaterializedSnapshot<S>>>> {
-    override val queryType: QueryType
-        get() = QueryType.PAGED
-}
+) : SnapshotQueryContext<PagedSnapshotQueryContext<R>, IPagedQuery, Mono<PagedList<R>>>
 
 class CountSnapshotQueryContext(
     override val namedAggregate: NamedAggregate,

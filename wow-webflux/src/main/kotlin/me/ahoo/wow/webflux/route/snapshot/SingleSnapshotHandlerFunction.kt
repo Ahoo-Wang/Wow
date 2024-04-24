@@ -37,8 +37,12 @@ class SingleSnapshotHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val condition = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.single<Any>(aggregateMetadata, condition).throwNotFoundIfEmpty()
+                val singleQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
+                if (singleQuery.projection.isEmpty()) {
+                    snapshotQueryHandler.single<Any>(aggregateMetadata, singleQuery).throwNotFoundIfEmpty()
+                } else {
+                    snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery).throwNotFoundIfEmpty()
+                }
             }.toServerResponse(exceptionHandler)
     }
 }

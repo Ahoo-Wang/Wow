@@ -15,6 +15,7 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -30,7 +31,23 @@ import reactor.core.publisher.Mono
 
 interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
     fun <S : Any> single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
-        val context = SingleSnapshotQueryContext<S>(namedAggregate).setQuery(singleQuery)
+        val context = SingleSnapshotQueryContext<MaterializedSnapshot<S>>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.SINGLE
+        ).setQuery(singleQuery)
+        return handle(context)
+            .then(
+                Mono.defer {
+                    context.getRequiredResult()
+                }
+            )
+    }
+
+    fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument> {
+        val context = SingleSnapshotQueryContext<DynamicDocument>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.DYNAMIC_SINGLE
+        ).setQuery(singleQuery)
         return handle(context)
             .then(
                 Mono.defer {
@@ -40,7 +57,23 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
     }
 
     fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<MaterializedSnapshot<S>> {
-        val context = ListSnapshotQueryContext<S>(namedAggregate).setQuery(query)
+        val context = ListSnapshotQueryContext<MaterializedSnapshot<S>>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.LIST
+        ).setQuery(query)
+        return handle(context)
+            .thenMany(
+                Flux.defer {
+                    context.getRequiredResult()
+                }
+            )
+    }
+
+    fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
+        val context = ListSnapshotQueryContext<DynamicDocument>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.DYNAMIC_LIST
+        ).setQuery(query)
         return handle(context)
             .thenMany(
                 Flux.defer {
@@ -53,7 +86,26 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<MaterializedSnapshot<S>>> {
-        val context = PagedSnapshotQueryContext<S>(namedAggregate).setQuery(pagedQuery)
+        val context = PagedSnapshotQueryContext<MaterializedSnapshot<S>>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.PAGED
+        ).setQuery(pagedQuery)
+        return handle(context)
+            .then(
+                Mono.defer {
+                    context.getRequiredResult()
+                }
+            )
+    }
+
+    fun dynamicPaged(
+        namedAggregate: NamedAggregate,
+        pagedQuery: IPagedQuery
+    ): Mono<PagedList<DynamicDocument>> {
+        val context = PagedSnapshotQueryContext<DynamicDocument>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.DYNAMIC_PAGED
+        ).setQuery(pagedQuery)
         return handle(context)
             .then(
                 Mono.defer {

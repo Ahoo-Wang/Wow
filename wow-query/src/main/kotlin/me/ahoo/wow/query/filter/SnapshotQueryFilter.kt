@@ -15,6 +15,8 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
@@ -36,18 +38,33 @@ class TailSnapshotQueryFilter<S : Any>(private val snapshotQueryServiceFactory: 
         val snapshotQueryService = snapshotQueryServiceFactory.create<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleSnapshotQueryContext<S>
+                context as SingleSnapshotQueryContext<MaterializedSnapshot<S>>
                 context.setResult(snapshotQueryService.single(context.getQuery()))
             }
 
+            QueryType.DYNAMIC_SINGLE -> {
+                context as SingleSnapshotQueryContext<DynamicDocument>
+                context.setResult(snapshotQueryService.dynamicSingle(context.getQuery()))
+            }
+
             QueryType.LIST -> {
-                context as ListSnapshotQueryContext<S>
+                context as ListSnapshotQueryContext<MaterializedSnapshot<S>>
                 context.setResult(snapshotQueryService.list(context.getQuery()))
             }
 
+            QueryType.DYNAMIC_LIST -> {
+                context as ListSnapshotQueryContext<DynamicDocument>
+                context.setResult(snapshotQueryService.dynamicList(context.getQuery()))
+            }
+
             QueryType.PAGED -> {
-                context as PagedSnapshotQueryContext<S>
+                context as PagedSnapshotQueryContext<MaterializedSnapshot<S>>
                 context.setResult(snapshotQueryService.paged(context.getQuery()))
+            }
+
+            QueryType.DYNAMIC_PAGED -> {
+                context as PagedSnapshotQueryContext<DynamicDocument>
+                context.setResult(snapshotQueryService.dynamicPaged(context.getQuery()))
             }
 
             QueryType.COUNT -> {

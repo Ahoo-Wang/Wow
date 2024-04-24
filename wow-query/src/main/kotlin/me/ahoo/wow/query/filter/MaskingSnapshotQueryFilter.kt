@@ -15,6 +15,7 @@ package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.tryMask
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
@@ -39,7 +40,7 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
     private fun tryMask(context: SnapshotQueryContext<*, *, *>) {
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleSnapshotQueryContext<Any>
+                context as SingleSnapshotQueryContext<MaterializedSnapshot<Any>>
                 val result = context.getRequiredResult().map {
                     it.tryMask()
                 }
@@ -47,7 +48,7 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
             }
 
             QueryType.LIST -> {
-                context as ListSnapshotQueryContext<Any>
+                context as ListSnapshotQueryContext<MaterializedSnapshot<Any>>
                 val result = context.getRequiredResult().map {
                     it.tryMask()
                 }
@@ -55,15 +56,14 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
             }
 
             QueryType.PAGED -> {
-                context as PagedSnapshotQueryContext<Any>
+                context as PagedSnapshotQueryContext<MaterializedSnapshot<Any>>
                 val result = context.getRequiredResult().map {
                     it.tryMask()
                 }
                 context.setResult(result)
             }
 
-            QueryType.COUNT -> {
-                context as CountSnapshotQueryContext
+            else -> {
             }
         }
     }
