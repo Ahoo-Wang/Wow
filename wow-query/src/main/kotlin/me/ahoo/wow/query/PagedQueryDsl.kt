@@ -16,7 +16,6 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.ProjectablePagedQuery
 
 /**
  * ```kotlin
@@ -68,9 +67,6 @@ class PagedQueryDsl : QueryableDsl<IPagedQuery>() {
     }
 
     override fun build(): IPagedQuery {
-        if (projection == null) {
-            return PagedQuery(condition, sort, pagination)
-        }
-        return ProjectablePagedQuery(condition, projection!!, sort, pagination)
+        return PagedQuery(condition, projection, sort, pagination)
     }
 }

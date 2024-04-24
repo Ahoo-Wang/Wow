@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
@@ -27,8 +28,11 @@ import reactor.core.publisher.Mono
 interface SnapshotQueryService<S : Any> {
     val namedAggregate: NamedAggregate
     fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>>
+    fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument>
     fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>>
+    fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
+    fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
     fun count(condition: Condition): Mono<Long>
 }
 
@@ -38,11 +42,23 @@ class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggreg
         return Mono.empty()
     }
 
+    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
+        return Mono.empty()
+    }
+
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
         return Flux.empty()
     }
 
+    override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
+        return Flux.empty()
+    }
+
     override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>> {
+        return Mono.just(PagedList.empty())
+    }
+
+    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
         return Mono.just(PagedList.empty())
     }
 

@@ -2,6 +2,9 @@ package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.query.MongoDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
@@ -42,6 +45,30 @@ class DocumentsKtTest {
             MaterializedSnapshot::class.java,
             MOCK_AGGREGATE_METADATA.state.aggregateType
         )
+
+    @Test
+    fun toDynamicDocument() {
+        val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
+        assertThat(dynamicDocument[MessageRecords.AGGREGATE_ID], equalTo(aggregateId))
+    }
+
+    @Test
+    fun monoToDynamicDocument() {
+        Mono.just(snapshotDocument)
+            .toDynamicDocument()
+            .test().consumeNextWith {
+                assertThat(it[MessageRecords.AGGREGATE_ID], equalTo(aggregateId))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun fluxToDynamicDocument() {
+        Mono.just(snapshotDocument)
+            .toDynamicDocument()
+            .test().consumeNextWith {
+                assertThat(it[MessageRecords.AGGREGATE_ID], equalTo(aggregateId))
+            }.verifyComplete()
+    }
 
     @Test
     fun toSnapshot() {

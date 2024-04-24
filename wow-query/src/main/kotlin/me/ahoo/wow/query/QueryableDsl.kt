@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 
 abstract class QueryableDsl<Q : Queryable> {
-    protected var projection: Projection? = null
+    protected var projection: Projection = Projection.ALL
     protected var condition: Condition = Condition.all()
     protected var sort: List<Sort> = emptyList()
     fun projection(block: ProjectionDsl.() -> Unit) {

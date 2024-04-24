@@ -11,14 +11,6 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query
+package me.ahoo.wow.api.query
 
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.SingleQuery
-
-class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
-
-    override fun build(): ISingleQuery {
-        return SingleQuery(condition, projection, sort)
-    }
-}
+interface DynamicDocument : Map<String, Any>

@@ -15,7 +15,6 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.ProjectableListQuery
 
 /**
  * ```kotlin
@@ -45,9 +44,6 @@ class ListQueryDsl : QueryableDsl<IListQuery>() {
     }
 
     override fun build(): IListQuery {
-        if (projection == null) {
-            return ListQuery(condition, sort, limit)
-        }
-        return ProjectableListQuery(condition, projection!!, sort, limit)
+        return ListQuery(condition, projection, sort, limit)
     }
 }
