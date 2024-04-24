@@ -176,7 +176,7 @@ class ConditionDslTest {
     @Test
     fun or() {
         val condition = condition {
-            nested("state")
+            nestedState()
             or {
                 "field3" eq "value3"
                 "field4" eq "value4"

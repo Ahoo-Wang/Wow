@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.PagedList
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-private const val STATE_FIELD = "state"
+internal const val STATE_FIELD = "state"
 
 fun DynamicDocument.toState(): DynamicDocument {
     return getNestedDocument(STATE_FIELD)
