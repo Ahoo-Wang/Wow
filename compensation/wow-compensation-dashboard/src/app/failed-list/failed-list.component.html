@@ -57,13 +57,17 @@
       </nz-form-item>
     </div>
     <div nz-col [nzSpan]="6">
-      <nz-form-item>
-        <nz-form-label></nz-form-label>
-        <nz-form-control>
-          <button nz-button nzType="primary" (click)="load()">Search</button>
-          <button nz-button style="margin-left: 8px" (click)="reset()">Clear</button>
-        </nz-form-control>
-      </nz-form-item>
+      <div style="margin-top: 24px">
+        <button nz-button nzType="primary" (click)="load()" [nzLoading]="loading">
+          <span nz-icon nzType="search"></span>
+          Search
+        </button>
+        <button style="margin-left: 8px" nz-button nzType="default" (click)="reset()" [nzLoading]="loading"
+                [disabled]="!this.validateForm.dirty">
+          <span nz-icon nzType="rest"></span>
+          Reset
+        </button>
+      </div>
     </div>
   </div>
 </form>

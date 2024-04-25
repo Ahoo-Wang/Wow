@@ -34,6 +34,8 @@ import {NzFormControlComponent, NzFormDirective, NzFormItemComponent, NzFormLabe
 import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
 import {NzDividerModule} from 'ng-zorro-antd/divider';
 import {NzPopoverDirective} from "ng-zorro-antd/popover";
+import {NzSpaceModule} from 'ng-zorro-antd/space';
+import {NzFlexModule} from 'ng-zorro-antd/flex';
 
 @Component({
   selector: 'app-failed-list',
@@ -69,7 +71,7 @@ import {NzPopoverDirective} from "ng-zorro-antd/popover";
     NzFormLabelComponent,
     NzInputNumberComponent,
     NzRowDirective,
-    ReactiveFormsModule, NzDividerModule, NzPopoverDirective
+    ReactiveFormsModule, NzDividerModule, NzPopoverDirective, NzSpaceModule, NzFlexModule
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -77,6 +79,7 @@ export class FailedListComponent implements OnInit {
   pagedQuery: PagedQuery = initialPagedQuery;
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
   @Input({required: true}) category: FindCategory = FindCategory.TO_RETRY;
+  loading = false;
   current: ExecutionFailedState | undefined;
   errorInfoVisible = false
   expandSet = new Set<string>();
@@ -159,9 +162,11 @@ export class FailedListComponent implements OnInit {
   }
 
   load() {
+    this.loading = true
     this.buildCondition()
     this.compensationClient.find(this.category, this.pagedQuery).subscribe(resp => {
         this.pagedList = resp
+        this.loading = false
       }
     )
   }
