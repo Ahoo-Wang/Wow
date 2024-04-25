@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler
+package me.ahoo.wow.compiler.metadata
 
-import me.ahoo.wow.compiler.BoundedContextSearcher.Companion.toBoundedContextSearcher
+import me.ahoo.wow.compiler.metadata.BoundedContextSearcher.Companion.toBoundedContextSearcher
 import me.ahoo.wow.configuration.Aggregate
 import me.ahoo.wow.configuration.BoundedContext
 import me.ahoo.wow.configuration.ScopeComparator

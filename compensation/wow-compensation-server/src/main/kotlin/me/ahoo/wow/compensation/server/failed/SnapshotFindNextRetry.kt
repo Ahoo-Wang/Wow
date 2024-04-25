@@ -16,8 +16,12 @@ package me.ahoo.wow.compensation.server.failed
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
-import me.ahoo.wow.compensation.api.RetryState
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.IS_RETRYABLE
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.RECOVERABLE
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.RETRY_STATE__NEXT_RETRY_AT
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.RETRY_STATE__TIMEOUT_AT
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.STATUS
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.query.SnapshotQueryService
 import me.ahoo.wow.query.listQuery
@@ -41,18 +45,14 @@ class SnapshotFindNextRetry(
             limit(limit)
             condition {
                 nestedState()
-                ExecutionFailedState::recoverable ne RecoverableType.UNRECOVERABLE.name
-                ExecutionFailedState::isRetryable eq true
-                ExecutionFailedState::retryState nested {
-                    RetryState::nextRetryAt lte currentTime
-                }
+                RECOVERABLE ne RecoverableType.UNRECOVERABLE.name
+                IS_RETRYABLE eq true
+                RETRY_STATE__NEXT_RETRY_AT lte currentTime
                 or {
-                    ExecutionFailedState::status eq ExecutionFailedStatus.FAILED.name
+                    STATUS eq ExecutionFailedStatus.FAILED.name
                     and {
-                        ExecutionFailedState::status eq ExecutionFailedStatus.PREPARED.name
-                        ExecutionFailedState::retryState nested {
-                            RetryState::timeoutAt lte currentTime
-                        }
+                        STATUS eq ExecutionFailedStatus.PREPARED.name
+                        RETRY_STATE__TIMEOUT_AT lte currentTime
                     }
                 }
             }

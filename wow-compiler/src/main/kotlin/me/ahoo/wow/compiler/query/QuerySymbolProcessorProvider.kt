@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler
+package me.ahoo.wow.compiler.query
 
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
-class WowSymbolProcessorProvider : SymbolProcessorProvider {
+class QuerySymbolProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return WowSymbolProcessor(environment)
+        return QuerySymbolProcessor(environment)
     }
 }
