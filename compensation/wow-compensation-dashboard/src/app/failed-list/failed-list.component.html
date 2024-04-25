@@ -76,7 +76,7 @@
           nzShowSizeChanger [nzFrontPagination]="false" [nzHideOnSinglePage]="true"
           [nzPageIndex]="pagedQuery.pagination.index" [nzPageSize]="pagedQuery.pagination.size"
           [nzData]="pagedList.list" [nzTotal]="pagedList.total" [nzShowTotal]="totalTemplate"
-          (nzQueryParams)="onQueryParamsChange($event)"
+          (nzQueryParams)="onQueryParamsChange($event)" [nzLoading]="loading"
 >
   <thead>
   <tr>
