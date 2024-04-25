@@ -50,6 +50,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     override var status: ExecutionFailedStatus = ExecutionFailedStatus.FAILED
         private set
     override var recoverable: RecoverableType = RecoverableType.UNKNOWN
+        private set
 
     @OnSourcing
     fun onCreated(event: ExecutionFailedCreated) {

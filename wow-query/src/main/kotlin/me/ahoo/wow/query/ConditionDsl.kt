@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import kotlin.reflect.KCallable
 
 /**
  * ``` kotlin
@@ -73,6 +74,10 @@ class ConditionDsl {
         nestedDsl.conditions.forEach {
             condition(it)
         }
+    }
+
+    infix fun KCallable<*>.nested(block: ConditionDsl.() -> Unit) {
+        name.nested(block)
     }
 
     fun and(block: ConditionDsl.() -> Unit) {
@@ -136,36 +141,72 @@ class ConditionDsl {
         condition(Condition.eq(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.eq(value: Any) {
+        name eq value
+    }
+
     infix fun String.ne(value: Any) {
         condition(Condition.ne(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.ne(value: Any) {
+        name ne value
     }
 
     infix fun String.gt(value: Any) {
         condition(Condition.gt(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.gt(value: Any) {
+        name gt value
+    }
+
     infix fun String.lt(value: Any) {
         condition(Condition.lt(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.lt(value: Any) {
+        name lt value
     }
 
     infix fun String.gte(value: Any) {
         condition(Condition.gte(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.gte(value: Any) {
+        name gte value
+    }
+
     infix fun String.lte(value: Any) {
         condition(Condition.lte(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.lte(value: Any) {
+        name lte value
     }
 
     infix fun String.contains(value: Any) {
         condition(Condition.contains(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.contains(value: Any) {
+        name contains value
+    }
+
     infix fun String.isIn(value: List<Any>) {
         condition(Condition.isIn(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.isIn(value: List<Any>) {
+        name isIn value
+    }
+
     infix fun String.notIn(value: List<Any>) {
         condition(Condition.notIn(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.notIn(value: List<Any>) {
+        name notIn value
     }
 
     infix fun <V> String.between(value: Pair<V, V>) {
@@ -176,6 +217,10 @@ class ConditionDsl {
         return BetweenStart(this.withNestedField(), start)
     }
 
+    infix fun <V> KCallable<*>.between(start: V): BetweenStart<V> {
+        return name between start
+    }
+
     infix fun <V> BetweenStart<V>.to(end: V) {
         condition(Condition.between(field, start, end))
     }
@@ -184,12 +229,24 @@ class ConditionDsl {
         condition(Condition.all(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.all(value: List<Any>) {
+        name all value
+    }
+
     infix fun String.startsWith(value: Any) {
         condition(Condition.startsWith(this.withNestedField(), value))
     }
 
+    infix fun KCallable<*>.startsWith(value: Any) {
+        name startsWith value
+    }
+
     infix fun String.endsWith(value: Any) {
         condition(Condition.endsWith(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.endsWith(value: Any) {
+        name endsWith value
     }
 
     infix fun String.elemMatch(block: ConditionDsl.() -> Unit) {
@@ -198,52 +255,104 @@ class ConditionDsl {
         condition(Condition.elemMatch(this.withNestedField(), nestedDsl.build()))
     }
 
+    infix fun KCallable<*>.elemMatch(block: ConditionDsl.() -> Unit) {
+        name elemMatch block
+    }
+
     fun String.isNull() {
         condition(Condition.isNull(this.withNestedField()))
+    }
+
+    fun KCallable<*>.isNull() {
+        name.isNull()
     }
 
     fun String.notNull() {
         condition(Condition.notNull(this.withNestedField()))
     }
 
+    fun KCallable<*>.notNull() {
+        name.notNull()
+    }
+
     fun String.isTrue() {
         condition(Condition.isTrue(this.withNestedField()))
+    }
+
+    fun KCallable<*>.isTrue() {
+        name.isTrue()
     }
 
     fun String.isFalse() {
         condition(Condition.isFalse(this.withNestedField()))
     }
 
+    fun KCallable<*>.isFalse() {
+        name.isFalse()
+    }
+
     fun String.today() {
         condition(Condition.today(this.withNestedField()))
+    }
+
+    fun KCallable<*>.today() {
+        name.today()
     }
 
     fun String.tomorrow() {
         condition(Condition.tomorrow(this.withNestedField()))
     }
 
+    fun KCallable<*>.tomorrow() {
+        name.tomorrow()
+    }
+
     fun String.thisWeek() {
         condition(Condition.thisWeek(this.withNestedField()))
+    }
+
+    fun KCallable<*>.thisWeek() {
+        name.thisWeek()
     }
 
     fun String.nextWeek() {
         condition(Condition.nextWeek(this.withNestedField()))
     }
 
+    fun KCallable<*>.nextWeek() {
+        name.nextWeek()
+    }
+
     fun String.lastWeek() {
         condition(Condition.lastWeek(this.withNestedField()))
+    }
+
+    fun KCallable<*>.lastWeek() {
+        name.lastWeek()
     }
 
     fun String.thisMonth() {
         condition(Condition.thisMonth(this.withNestedField()))
     }
 
+    fun KCallable<*>.thisMonth() {
+        name.thisMonth()
+    }
+
     fun String.lastMonth() {
         condition(Condition.lastMonth(this.withNestedField()))
     }
 
+    fun KCallable<*>.lastMonth() {
+        name.lastMonth()
+    }
+
     infix fun String.recentDays(days: Int) {
         condition(Condition.recentDays(this.withNestedField(), days))
+    }
+
+    infix fun KCallable<*>.recentDays(days: Int) {
+        name recentDays days
     }
 
     fun raw(value: Any) {
@@ -259,4 +368,8 @@ class ConditionDsl {
         }
         return Condition.and(conditions)
     }
+}
+
+fun ConditionDsl.nestedState() {
+    this.nested(STATE_FIELD)
 }

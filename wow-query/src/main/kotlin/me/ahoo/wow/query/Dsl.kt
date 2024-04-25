@@ -68,10 +68,6 @@ fun sort(block: SortDsl.() -> Unit): List<Sort> {
     return dsl.build()
 }
 
-fun ConditionDsl.nestedState() {
-    this.nested(STATE_FIELD)
-}
-
 fun <S : Any> IListQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {
     return queryService.list(this)
 }
