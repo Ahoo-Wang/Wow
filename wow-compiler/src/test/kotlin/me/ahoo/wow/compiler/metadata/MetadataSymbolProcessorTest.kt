@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler
+package me.ahoo.wow.compiler.metadata
 
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
 
-class WowSymbolProcessorTest {
+class MetadataSymbolProcessorTest {
 
     @OptIn(ExperimentalCompilerApi::class)
     @Test
@@ -35,7 +35,7 @@ class WowSymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
+            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -54,7 +54,7 @@ class WowSymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
+            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -73,7 +73,7 @@ class WowSymbolProcessorTest {
             .map { SourceFile.fromPath(it) }
         val compilation = KotlinCompilation().apply {
             sources = exampleDomainFiles + exampleApiFiles
-            symbolProcessorProviders = listOf(WowSymbolProcessorProvider())
+            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }

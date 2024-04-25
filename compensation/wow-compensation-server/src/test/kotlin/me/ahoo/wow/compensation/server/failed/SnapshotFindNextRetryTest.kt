@@ -2,8 +2,7 @@ package me.ahoo.wow.compensation.server.failed
 
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
-import me.ahoo.wow.compensation.api.RetryState
-import me.ahoo.wow.compensation.domain.ExecutionFailedState
+import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties
 import me.ahoo.wow.query.condition
 import me.ahoo.wow.query.nestedState
 import org.hamcrest.MatcherAssert.*
@@ -37,20 +36,17 @@ class SnapshotFindNextRetryTest {
                 }
             }
         }
+
         val nextCondition = condition {
             nestedState()
-            ExecutionFailedState::recoverable ne RecoverableType.UNRECOVERABLE.name
-            ExecutionFailedState::isRetryable eq true
-            ExecutionFailedState::retryState nested {
-                RetryState::nextRetryAt lte currentTime
-            }
+            ExecutionFailedStateProperties.RECOVERABLE ne RecoverableType.UNRECOVERABLE.name
+            ExecutionFailedStateProperties.IS_RETRYABLE eq true
+            ExecutionFailedStateProperties.RETRY_STATE__NEXT_RETRY_AT lte currentTime
             or {
-                ExecutionFailedState::status eq ExecutionFailedStatus.FAILED.name
+                ExecutionFailedStateProperties.STATUS eq ExecutionFailedStatus.FAILED.name
                 and {
-                    ExecutionFailedState::status eq ExecutionFailedStatus.PREPARED.name
-                    ExecutionFailedState::retryState nested {
-                        RetryState::timeoutAt lte currentTime
-                    }
+                    ExecutionFailedStateProperties.STATUS eq ExecutionFailedStatus.PREPARED.name
+                    ExecutionFailedStateProperties.RETRY_STATE__TIMEOUT_AT lte currentTime
                 }
             }
         }

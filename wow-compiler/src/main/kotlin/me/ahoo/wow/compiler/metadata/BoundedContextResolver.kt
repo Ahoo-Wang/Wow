@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler
+package me.ahoo.wow.compiler.metadata
 
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler
+package me.ahoo.wow.compiler.metadata
 
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
@@ -21,21 +21,21 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.validate
-import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRoot
-import me.ahoo.wow.compiler.BoundedContextResolver.resolveBoundedContext
+import me.ahoo.wow.compiler.AggregateRootResolver.AGGREGATE_ROOT_NAME
+import me.ahoo.wow.compiler.AggregateRootResolver.toName
+import me.ahoo.wow.compiler.metadata.BoundedContextResolver.resolveBoundedContext
+import me.ahoo.wow.compiler.metadata.CommandAggregateRootResolver.resolveAggregateRoot
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.serialization.toPrettyJson
 
 /**
  * @see me.ahoo.wow.configuration.WowMetadata
  */
-class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
+class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
     SymbolProcessor {
     companion object {
         val BOUNDED_CONTEXT_NAME = BoundedContext::class.qualifiedName!!
-        val AGGREGATE_ROOT_NAME = AggregateRoot::class.qualifiedName!!
         const val WOW_METADATA_RESOURCE_PATH = WOW_METADATA_RESOURCE_NAME
     }
 
@@ -44,7 +44,7 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
     private val logger = environment.logger
     private val codeGenerator = environment.codeGenerator
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        logger.info("WowSymbolProcessor - process[$this]")
+        logger.info("MetadataSymbolProcessor - process[$this]")
         val dependencyFiles = mutableSetOf<KSFile>()
         resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT_NAME)
             .filterIsInstance<KSClassDeclaration>()
@@ -89,10 +89,10 @@ class WowSymbolProcessor(environment: SymbolProcessorEnvironment) :
     }
 
     override fun finish() {
-        logger.info("WowSymbolProcessor - finish[$this]")
+        logger.info("MetadataSymbolProcessor - finish[$this]")
     }
 
     override fun onError() {
-        logger.info("WowSymbolProcessor - onError[$this]")
+        logger.info("MetadataSymbolProcessor - onError[$this]")
     }
 }

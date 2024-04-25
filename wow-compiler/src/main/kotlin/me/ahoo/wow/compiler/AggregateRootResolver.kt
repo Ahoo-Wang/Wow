@@ -14,53 +14,33 @@
 package me.ahoo.wow.compiler
 
 import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getConstructors
-import com.google.devtools.ksp.getKotlinClassByName
-import com.google.devtools.ksp.isAnnotationPresent
-import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSType
-import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
-import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.annotation.OnSourcing
-import me.ahoo.wow.api.annotation.StaticTenantId
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.compiler.BoundedContextResolver.getAnnotation
-import me.ahoo.wow.compiler.BoundedContextResolver.getArgumentValue
-import me.ahoo.wow.configuration.Aggregate
-import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.naming.NamingConverter
 
-@OptIn(KspExperimental::class)
-fun KSClassDeclaration.toName(): String {
-    return getAnnotationsByType(Name::class).firstOrNull()?.value
-        ?: NamingConverter.PASCAL_TO_SNAKE.convert(simpleName.asString())
-}
-
 object AggregateRootResolver {
+    val AGGREGATE_ROOT_NAME = AggregateRoot::class.qualifiedName!!
 
     @OptIn(KspExperimental::class)
-    fun KSClassDeclaration.resolveAggregateRoot(resolver: Resolver): Aggregate {
-        val type = qualifiedName!!.asString()
+    fun KSClassDeclaration.toName(): String {
+        return getAnnotationsByType(Name::class).firstOrNull()?.value
+            ?: NamingConverter.PASCAL_TO_SNAKE.convert(simpleName.asString())
+    }
+
+    fun KSClassDeclaration.resolveAggregateRootMetadata(): AggregateRootMetadata {
         val aggregateRootCtor = primaryConstructor ?: getConstructors().firstOrNull()
-        check(aggregateRootCtor != null && aggregateRootCtor.parameters.size == 1) {
-            "AggregateRoot[$type] must have a primary constructor with one parameter,like ctor(id) or ctor(state)."
+        check(
+            aggregateRootCtor != null && (aggregateRootCtor.parameters.size == 1 || aggregateRootCtor.parameters.size == 2)
+        ) {
+            "AggregateRoot[${qualifiedName!!.asString()}] must have a primary constructor with one parameter,like ctor(id) / ctor(id,tenantId) or ctor(state)."
         }
 
         val ctorParameterDeclaration = aggregateRootCtor.parameters.single().type.resolve().declaration
         val aggregationPattern = ctorParameterDeclaration.qualifiedName!!.asString() != String::class.qualifiedName!!
-
-        val commands = getAllFunctions()
-            .filter { it.isCommand() }
-            .map {
-                it.toMessageType(resolver)
-            }
-            .toSet()
 
         val stateAggregateDeclaration = if (aggregationPattern) {
             (ctorParameterDeclaration as KSClassDeclaration)
@@ -68,65 +48,15 @@ object AggregateRootResolver {
             this
         }
 
-        val commandReturnEvents = getAllFunctions()
-            .filter { it.isAnnotationPresent(OnCommand::class) }
-            .flatMap { commandFunction ->
-                commandFunction.getAnnotation(OnCommand::class)
-                    ?.getArgumentValue<List<KSType>>(OnCommand::returns.name)
-                    ?.mapNotNull { it.declaration.qualifiedName?.asString() }
-                    ?.toSet()
-                    .orEmpty()
-            }
-            .toSet()
-
-        val sourcingEvents = stateAggregateDeclaration.getAllFunctions()
-            .filter { it.isDomainEvent() }
-            .map {
-                it.toMessageType(resolver)
-            }
-            .toSet()
-
-        val tenantId =
-            getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name)
-                ?: getAllSuperTypes().mapNotNull {
-                    it.declaration.getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(
-                        StaticTenantId::tenantId.name
-                    )
-                }.firstOrNull()
-        return Aggregate(
-            type = type,
-            tenantId = tenantId,
-            commands = commands,
-            events = commandReturnEvents + sourcingEvents
-        )
+        return AggregateRootMetadata(this.toName(), this, stateAggregateDeclaration)
     }
+}
 
-    @OptIn(KspExperimental::class)
-    fun KSFunctionDeclaration.isCommand(): Boolean {
-        return (simpleName.getShortName() == DEFAULT_ON_COMMAND_NAME || isAnnotationPresent(OnCommand::class)) &&
-            parameters.isNotEmpty() &&
-            (returnType != null)
-    }
-
-    @OptIn(KspExperimental::class)
-    fun KSFunctionDeclaration.isDomainEvent(): Boolean {
-        return (simpleName.getShortName() == DEFAULT_ON_SOURCING_NAME || isAnnotationPresent(OnSourcing::class)) &&
-            parameters.isNotEmpty()
-    }
-
-    private fun KSFunctionDeclaration.toMessageType(resolver: Resolver): String {
-        return parameters.first().type.resolve().toMessageType(resolver)
-    }
-
-    @OptIn(KspExperimental::class)
-    private fun KSType.toMessageType(resolver: Resolver): String {
-        val messageDeclaration = resolver.getKotlinClassByName(Message::class.qualifiedName!!)!!
-        val messageExchangeDeclaration = resolver.getKotlinClassByName(MessageExchange::class.qualifiedName!!)!!
-        if (messageDeclaration.asStarProjectedType().isAssignableFrom(this) ||
-            messageExchangeDeclaration.asStarProjectedType().isAssignableFrom(this)
-        ) {
-            return this.arguments.first().type!!.resolve().toMessageType(resolver)
-        }
-        return checkNotNull(this.declaration.qualifiedName).asString()
-    }
+data class AggregateRootMetadata(
+    override val name: String,
+    val command: KSClassDeclaration,
+    val state: KSClassDeclaration
+) : Named {
+    val type: String
+        get() = command.qualifiedName!!.asString()
 }
