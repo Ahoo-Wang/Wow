@@ -71,6 +71,7 @@ condition {
     "field8" isIn listOf("value8")
     "field9" notIn listOf("value9")
     "field10" between (1 to 2)
+    "field100" between 1 to 2
     "field11" all listOf("value11")
     "field12" startsWith "value12"
     "field12" endsWith "value12"
@@ -97,6 +98,16 @@ condition {
     "field24".thisMonth()
     "field25".lastMonth()
     "field26".recentDays(1)
+    raw("1=1")
+    "state" nested {
+        "field27" eq "value27"
+        "field28" eq "value28"
+        "child" nested {
+            "field29" eq "value29"
+        }
+        nested("")
+        "field30" eq "value30"
+    }
 }
 ```
 
