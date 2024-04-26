@@ -7,9 +7,9 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.state.IdList
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunction
 import org.hamcrest.MatcherAssert
@@ -34,7 +34,7 @@ class IdsQueryAggregateHandlerFunctionTest {
             exceptionHandler = DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {
-            every { getTenantIdOrDefault(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(IdList) } returns setOf("id").toMono()
         }
         handlerFunction.handle(request)

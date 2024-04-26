@@ -36,6 +36,9 @@ object CommandParser {
         pathVariables()[MessageRecords.TENANT_ID].ifNotBlank<String> {
             return it
         }
+        headers().firstHeader(CommandHeaders.TENANT_ID).ifNotBlank<String> {
+            return it
+        }
         return null
     }
 
