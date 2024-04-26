@@ -51,6 +51,8 @@ interface RestCommandGateway {
         waitTimeout: Long? = null,
         @RequestHeader(CommandHeaders.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
+        @RequestHeader(CommandHeaders.TENANT_ID, required = false)
+        tenantId: String? = null,
         @RequestHeader(CommandHeaders.AGGREGATE_VERSION, required = false)
         aggregateVersion: Int? = null,
         @RequestHeader(CommandHeaders.REQUEST_ID, required = false)
@@ -86,6 +88,7 @@ interface RestCommandGateway {
     data class CommandRequest(
         val body: Any,
         val waitStrategy: WaitStrategy = WaitStrategy(),
+        val tenantId: String? = null,
         val aggregateId: String? = null,
         val aggregateVersion: Int? = null,
         val requestId: String? = null,

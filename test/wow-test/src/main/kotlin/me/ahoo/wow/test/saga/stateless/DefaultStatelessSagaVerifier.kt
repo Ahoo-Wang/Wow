@@ -96,7 +96,7 @@ internal class DefaultWhenStage<T : Any>(
                     ExpectedResult(
                         processor = processor,
                         commandStream = DefaultCommandStream(
-                            domainEventId = eventExchange.message.id,
+                            domainEvent = eventExchange.message,
                             commands = listOf()
                         )
                     )

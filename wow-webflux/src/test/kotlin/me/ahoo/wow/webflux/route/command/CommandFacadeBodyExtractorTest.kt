@@ -3,11 +3,9 @@ package me.ahoo.wow.webflux.route.command
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.openapi.command.CommandHeaders
-import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -32,7 +30,6 @@ class CommandFacadeBodyExtractorTest {
 
     @Test
     fun extract() {
-        val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
         val command = MockCreateAggregate("id", "data")
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {

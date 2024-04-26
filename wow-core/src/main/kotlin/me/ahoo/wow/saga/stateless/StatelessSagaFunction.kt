@@ -49,35 +49,32 @@ class StatelessSagaFunction(
                 commandStream
                     .toFlux()
                     .concatMap {
-                        commandGateway.send(it)
+                        val commandMessage = it.toCommandMessage(domainEvent = commandStream.domainEvent)
+                        commandGateway.send(commandMessage)
                     }
                     .then(Mono.just(commandStream))
             }
     }
 
+    private fun SagaCommand<*>.toCommandMessage(domainEvent: DomainEvent<*>): CommandMessage<*> {
+        val requestId = "${domainEvent.id}-$index"
+        val tenantId = domainEvent.aggregateId.tenantId
+        return command.toCommandMessage(requestId = requestId, tenantId = tenantId)
+    }
+
     private fun toCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
         if (handleResult !is Iterable<*>) {
             return DefaultCommandStream(
-                domainEventId = domainEvent.id,
-                commands = listOf(toCommand(domainEvent, handleResult)),
+                domainEvent = domainEvent,
+                commands = listOf(SagaCommand(handleResult)),
             )
         }
-        val commands = mutableListOf<CommandMessage<*>>()
-        handleResult.forEachIndexed { index, singleResult ->
-            requireNotNull(singleResult)
-            commands.add(toCommand(domainEvent, singleResult, index))
+        val commands = handleResult.mapIndexed { index, command ->
+            requireNotNull(command)
+            SagaCommand(command, index)
         }
-        return DefaultCommandStream(domainEvent.id, commands)
-    }
 
-    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
-        if (singleResult is CommandMessage<*>) {
-            return singleResult
-        }
-        return singleResult.toCommandMessage(
-            requestId = "${domainEvent.id}-$index",
-            tenantId = domainEvent.aggregateId.tenantId,
-        )
+        return DefaultCommandStream(domainEvent, commands)
     }
 
     override fun toString(): String {

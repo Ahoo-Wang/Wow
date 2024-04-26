@@ -14,14 +14,28 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
 
-interface CommandStream : Iterable<CommandMessage<*>> {
-    val domainEventId: String
+interface CommandStream : Iterable<SagaCommand<*>> {
+    val domainEvent: DomainEvent<*>
     val size: Int
 }
 
-data class DefaultCommandStream(override val domainEventId: String, private val commands: List<CommandMessage<*>>) :
-    CommandStream, Iterable<CommandMessage<*>> by commands {
+data class DefaultCommandStream(
+    override val domainEvent: DomainEvent<*>,
+    private val commands: List<SagaCommand<*>>
+) : CommandStream, Iterable<SagaCommand<*>> by commands {
     override val size: Int
         get() = commands.size
+}
+
+data class SagaCommand<C : Any>(val command: C, val index: Int = 0) {
+    @Suppress("UNCHECKED_CAST")
+    val body: C
+        get() {
+            if (command is CommandMessage<*>) {
+                return command.body as C
+            }
+            return command
+        }
 }

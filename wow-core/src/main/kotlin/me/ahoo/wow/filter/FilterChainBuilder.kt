@@ -37,8 +37,8 @@ fun interface FilterCondition {
 class TypedFilterCondition(private val filterType: KClass<*>) :
     FilterCondition {
     override fun matches(filter: Filter<*>): Boolean {
-        val type = filter::class.scanAnnotation<FilterType>()
-        return type?.value?.contains(filterType) ?: true
+        val type = filter::class.scanAnnotation<FilterType>() ?: return false
+        return type.value.contains(filterType) || type.names.contains(filterType.java.name)
     }
 
     override fun toString(): String {

@@ -49,6 +49,7 @@ class CommandFacadeHandlerFunctionTest {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
+            every { headers().firstHeader(CommandHeaders.TENANT_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { headers().firstHeader(CommandHeaders.COMMAND_TYPE) } returns MockCreateAggregate::class.java.name

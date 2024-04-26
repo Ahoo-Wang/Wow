@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.test.saga.stateless
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
+import me.ahoo.wow.saga.stateless.SagaCommand
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import java.util.function.Consumer
@@ -70,11 +70,11 @@ interface ExpectStage<T : Any> {
     /**
      * 期望的第一个命令
      */
-    fun <C : Any> expectCommand(expected: Consumer<CommandMessage<C>>): ExpectStage<T> {
+    fun <C : Any> expectCommand(expected: Consumer<SagaCommand<C>>): ExpectStage<T> {
         return expectCommandStream {
             assertThat("Expect the command stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
             @Suppress("UNCHECKED_CAST")
-            expected.accept(it.first() as CommandMessage<C>)
+            expected.accept(it.first() as SagaCommand<C>)
         }
     }
 
@@ -136,23 +136,23 @@ data class ExpectedResult<T>(
     val hasError = error != null
 }
 
-class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
-    Iterator<CommandMessage<*>> by delegate,
-    Decorator<Iterator<CommandMessage<*>>> {
+class CommandIterator(override val delegate: Iterator<SagaCommand<*>>) :
+    Iterator<SagaCommand<*>> by delegate,
+    Decorator<Iterator<SagaCommand<*>>> {
 
-    @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
+    fun <C : Any> nextCommand(commandType: Class<C>): SagaCommand<C> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
         val nextCommand = next()
         assertThat("Expect the command body type.", nextCommand.body, instanceOf(commandType))
-        return nextCommand as CommandMessage<C>
+        @Suppress("UNCHECKED_CAST")
+        return nextCommand as SagaCommand<C>
     }
 
     fun <C : Any> nextCommandBody(commandType: Class<C>): C {
         return nextCommand(commandType).body
     }
 
-    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
+    inline fun <reified C : Any> nextCommand(): SagaCommand<C> {
         return nextCommand(C::class.java)
     }
 
