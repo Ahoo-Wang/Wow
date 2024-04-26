@@ -17,7 +17,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import reactor.core.publisher.Mono
 
-interface RestCommandGateway {
+fun interface RestCommandGateway {
 
     fun send(commandRequest: CommandRequest): Mono<CommandResult>
 

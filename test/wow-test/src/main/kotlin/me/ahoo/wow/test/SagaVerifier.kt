@@ -15,6 +15,7 @@ package me.ahoo.wow.test
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.rest.RestCommandGateway
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -25,6 +26,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.test.saga.stateless.DefaultWhenStage
+import me.ahoo.wow.test.saga.stateless.MockRestCommandGateway
 import me.ahoo.wow.test.saga.stateless.WhenStage
 
 /**
@@ -48,21 +50,24 @@ object SagaVerifier {
     @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = defaultCommandGateway()
+        commandGateway: CommandGateway = defaultCommandGateway(),
+        restCommandGateway: RestCommandGateway = MockRestCommandGateway
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,
+            restCommandGateway = restCommandGateway
         )
     }
 
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = defaultCommandGateway()
+        commandGateway: CommandGateway = defaultCommandGateway(),
+        restCommandGateway: RestCommandGateway = MockRestCommandGateway
     ): WhenStage<T> {
-        return T::class.java.sagaVerifier(serviceProvider, commandGateway)
+        return T::class.java.sagaVerifier(serviceProvider, commandGateway, restCommandGateway)
     }
 }
