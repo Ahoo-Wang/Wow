@@ -25,7 +25,6 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -50,7 +49,7 @@ class DomainEventCompensateHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
             every { pathVariable(MessageRecords.VERSION) } returns "1"
-            every { getTenantIdOrDefault(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(CompensationTarget::class.java) } returns CompensationTarget(
                 processor = SNAPSHOT_PROCESSOR
             ).toMono()

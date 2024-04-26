@@ -6,9 +6,9 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.ListQuerySnapshotRouteSpec
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ class ListQuerySnapshotHandlerFunctionTest {
             exceptionHandler = DefaultExceptionHandler,
         ).create(ListQuerySnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, false))
         val request = mockk<ServerRequest> {
-            every { getTenantId(aggregateMetadata = MOCK_AGGREGATE_METADATA) } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(ListQuery::class.java) } returns ListQuery(Condition.ALL).toMono()
         }
 

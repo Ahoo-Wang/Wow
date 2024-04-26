@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.command
 
 object CommandHeaders {
     const val WAIT_CONTEXT = "Command-Wait-Context"
+    const val TENANT_ID = "Command-Tenant-Id"
     const val AGGREGATE_ID = "Command-Aggregate-Id"
     const val AGGREGATE_VERSION = "Command-Aggregate-Version"
     const val WAIT_STAGE = "Command-Wait-Stage"
