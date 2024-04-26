@@ -50,4 +50,9 @@ class CommandValidationException(
 }
 
 class CommandResultException(val commandResult: CommandResult, cause: Throwable? = null) :
-    WowException(errorCode = commandResult.errorCode, errorMsg = commandResult.errorMsg, cause)
+    WowException(
+        errorCode = commandResult.errorCode,
+        errorMsg = commandResult.errorMsg,
+        cause = cause,
+        bindingErrors = commandResult.bindingErrors
+    )
