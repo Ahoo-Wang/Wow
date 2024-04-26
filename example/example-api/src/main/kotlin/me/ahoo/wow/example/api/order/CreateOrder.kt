@@ -35,7 +35,7 @@ import java.math.BigDecimal
 @CreateAggregate
 data class CreateOrder(
     @field:NotBlank
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     val customerId: String,
     @field:Size(min = 1)
     val items: List<Item>,

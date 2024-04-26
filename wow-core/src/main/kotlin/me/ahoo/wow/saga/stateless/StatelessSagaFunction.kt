@@ -18,7 +18,9 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.rest.RestCommandGateway
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
@@ -26,7 +28,8 @@ import reactor.kotlin.core.publisher.toFlux
 
 class StatelessSagaFunction(
     val actual: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
-    private val commandGateway: CommandGateway
+    private val commandGateway: CommandGateway,
+    private val restCommandGateway: RestCommandGateway?
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
     override val contextName: String = actual.contextName
@@ -49,7 +52,7 @@ class StatelessSagaFunction(
                 commandStream
                     .toFlux()
                     .concatMap {
-                        commandGateway.send(it)
+                        sendCommand(commandStream.domainEvent, it)
                     }
                     .then(Mono.just(commandStream))
             }
@@ -58,26 +61,46 @@ class StatelessSagaFunction(
     private fun toCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
         if (handleResult !is Iterable<*>) {
             return DefaultCommandStream(
-                domainEventId = domainEvent.id,
-                commands = listOf(toCommand(domainEvent, handleResult)),
+                domainEvent = domainEvent,
+                commands = listOf(SagaCommand(handleResult)),
             )
         }
-        val commands = mutableListOf<CommandMessage<*>>()
-        handleResult.forEachIndexed { index, singleResult ->
-            requireNotNull(singleResult)
-            commands.add(toCommand(domainEvent, singleResult, index))
+        val commands = handleResult.mapIndexed { index, command ->
+            requireNotNull(command)
+            SagaCommand(command, index)
         }
-        return DefaultCommandStream(domainEvent.id, commands)
+
+        return DefaultCommandStream(domainEvent, commands)
     }
 
-    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
-        if (singleResult is CommandMessage<*>) {
-            return singleResult
+    private fun sendCommand(domainEvent: DomainEvent<*>, sagaCommand: SagaCommand<*>): Mono<Void> {
+        if (sagaCommand.command is CommandMessage<*>) {
+            return commandGateway.sendAndWaitForProcessed(sagaCommand.command).then()
         }
-        return singleResult.toCommandMessage(
-            requestId = "${domainEvent.id}-$index",
-            tenantId = domainEvent.aggregateId.tenantId,
+        val requestId = "${domainEvent.id}-${sagaCommand.index}"
+        val tenantId = domainEvent.aggregateId.tenantId
+        if (restCommandGateway == null) {
+            val command = sagaCommand.command.toCommandMessage(requestId = requestId, tenantId = tenantId)
+            return commandGateway.sendAndWaitForProcessed(command).then()
+        }
+
+        if (sagaCommand.command is RestCommandGateway.CommandRequest) {
+            return restCommandGateway.send(sagaCommand.command).then()
+        }
+
+        val commandContext = sagaCommand.command.javaClass.requiredNamedBoundedContext()
+        if (commandContext.isSameBoundedContext(this)) {
+            val command = sagaCommand.command.toCommandMessage(requestId = requestId, tenantId = tenantId)
+            return commandGateway.sendAndWaitForProcessed(command).then()
+        }
+
+        val commandRequest = RestCommandGateway.CommandRequest(
+            body = sagaCommand.command,
+            requestId = requestId,
+            tenantId = tenantId,
+            context = commandContext.contextName
         )
+        return restCommandGateway.send(commandRequest).then()
     }
 
     override fun toString(): String {

@@ -40,6 +40,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RES
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.TENANT_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEXT_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
@@ -61,6 +62,7 @@ class CommandFacadeRouteSpec(
                 add(WAIT_CONTEXT_PARAMETER.ref)
                 add(WAIT_PROCESSOR_PARAMETER.ref)
                 add(WAIT_TIME_OUT_PARAMETER.ref)
+                add(TENANT_ID_PARAMETER.ref)
                 add(AGGREGATE_ID_PARAMETER.ref)
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)

@@ -64,7 +64,7 @@ internal class DefaultWhenStage<T : Any>(
     override fun `when`(event: Any, state: Any?): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
-        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway)
+        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway, null)
         handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
@@ -96,7 +96,7 @@ internal class DefaultWhenStage<T : Any>(
                     ExpectedResult(
                         processor = processor,
                         commandStream = DefaultCommandStream(
-                            domainEventId = eventExchange.message.id,
+                            domainEvent = eventExchange.message,
                             commands = listOf()
                         )
                     )

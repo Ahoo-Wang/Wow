@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.saga
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.rest.RestCommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -33,6 +34,7 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -45,8 +47,11 @@ class StatelessSagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun statelessSagaHandlerRegistrar(commandGateway: CommandGateway): StatelessSagaFunctionRegistrar {
-        return StatelessSagaFunctionRegistrar(commandGateway)
+    fun statelessSagaHandlerRegistrar(
+        commandGateway: CommandGateway,
+        restCommandGateway: ObjectProvider<RestCommandGateway>
+    ): StatelessSagaFunctionRegistrar {
+        return StatelessSagaFunctionRegistrar(commandGateway, restCommandGateway.getIfAvailable())
     }
 
     @Bean

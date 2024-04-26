@@ -13,8 +13,9 @@
 
 package me.ahoo.wow.spring.stereotype
 
+import me.ahoo.wow.saga.annotation.Saga
 import org.springframework.stereotype.Component
 
 @Component
-@me.ahoo.wow.saga.annotation.Saga
+@Saga
 annotation class Saga

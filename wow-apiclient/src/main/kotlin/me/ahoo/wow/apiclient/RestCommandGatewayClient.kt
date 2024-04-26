@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.apiclient
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.coapi.api.CoApi
+import me.ahoo.wow.apiclient.RestCommandGatewayClient.Companion.COMMAND_SEND_ENDPOINT
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
+import me.ahoo.wow.command.rest.RestCommandGateway
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -29,7 +30,7 @@ import reactor.core.publisher.Mono
 import java.net.URI
 
 @CoApi
-interface RestCommandGateway {
+interface RestCommandGatewayClient : RestCommandGateway {
     companion object {
         const val COMMAND_SEND_ENDPOINT = "wow/command/send"
     }
@@ -49,6 +50,8 @@ interface RestCommandGateway {
         waitProcessor: String? = null,
         @RequestHeader(CommandHeaders.WAIT_TIME_OUT, required = false)
         waitTimeout: Long? = null,
+        @RequestHeader(CommandHeaders.TENANT_ID, required = false)
+        tenantId: String? = null,
         @RequestHeader(CommandHeaders.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
         @RequestHeader(CommandHeaders.AGGREGATE_VERSION, required = false)
@@ -61,15 +64,16 @@ interface RestCommandGateway {
         aggregate: String? = null
     ): Mono<ResponseEntity<CommandResult>>
 
-    fun send(commandRequest: CommandRequest): Mono<CommandResult> {
+    override fun send(commandRequest: RestCommandGateway.CommandRequest): Mono<CommandResult> {
         return send(
-            sendUri = commandRequest.sendUri,
-            commandType = commandRequest.commandType,
+            sendUri = commandRequest.resolveSendUri(),
+            commandType = commandRequest.resolveCommandType(),
             command = commandRequest.body,
             waitStage = commandRequest.waitStrategy.waitStage,
             waitContext = commandRequest.waitStrategy.waitContext,
             waitProcessor = commandRequest.waitStrategy.waitProcessor,
             waitTimeout = commandRequest.waitStrategy.waitTimeout,
+            tenantId = commandRequest.tenantId,
             aggregateId = commandRequest.aggregateId,
             aggregateVersion = commandRequest.aggregateVersion,
             requestId = commandRequest.requestId,
@@ -82,45 +86,21 @@ interface RestCommandGateway {
             CommandResultException(commandResult, it)
         }
     }
+}
 
-    data class CommandRequest(
-        val body: Any,
-        val waitStrategy: WaitStrategy = WaitStrategy(),
-        val aggregateId: String? = null,
-        val aggregateVersion: Int? = null,
-        val requestId: String? = null,
-        val context: String? = null,
-        val aggregate: String? = null,
-        val serviceUri: String? = null,
-        val type: String? = null
-    ) {
-        companion object {
-            const val COMMAND_SEND_ENDPOINT = "wow/command/send"
-        }
+fun RestCommandGateway.CommandRequest.resolveCommandType(): String {
+    return commandType ?: body.javaClass.name
+}
 
-        @get:JsonIgnore
-        val commandType: String
-            get() = type ?: body::class.java.name
-
-        @get:JsonIgnore
-        val serviceId: String by lazy {
-            if (!context.isNullOrBlank()) {
-                return@lazy context
-            }
-            return@lazy MetadataSearcher.scopeContext.requiredSearch(commandType).contextName
-        }
-
-        @get:JsonIgnore
-        val sendUri: URI by lazy {
-            val serviceHost = serviceUri ?: "http://$serviceId"
-            return@lazy URI.create("$serviceHost/$COMMAND_SEND_ENDPOINT")
-        }
-
-        data class WaitStrategy(
-            val waitStage: CommandStage = CommandStage.PROCESSED,
-            val waitContext: String? = null,
-            val waitProcessor: String? = null,
-            val waitTimeout: Long? = null
-        )
+fun RestCommandGateway.CommandRequest.resolveServiceId(): String {
+    val commandContext = this.context
+    if (!commandContext.isNullOrBlank()) {
+        return commandContext
     }
+    return MetadataSearcher.scopeContext.requiredSearch(resolveCommandType()).contextName
+}
+
+fun RestCommandGateway.CommandRequest.resolveSendUri(): URI {
+    val serviceHost = serviceUri ?: "http://${resolveServiceId()}"
+    return URI.create("$serviceHost/$COMMAND_SEND_ENDPOINT")
 }

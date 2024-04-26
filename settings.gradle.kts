@@ -76,4 +76,3 @@ project(":example-transfer-domain").projectDir = file("example/transfer/example-
 include("example-transfer-server")
 project(":example-transfer-server").projectDir = file("example/transfer/example-transfer-server")
 //endregion
-
