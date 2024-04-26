@@ -75,13 +75,13 @@ class StatelessSagaFunction(
 
     private fun sendCommand(domainEvent: DomainEvent<*>, sagaCommand: SagaCommand<*>): Mono<Void> {
         if (sagaCommand.command is CommandMessage<*>) {
-            return commandGateway.sendAndWaitForProcessed(sagaCommand.command).then()
+            return commandGateway.send(sagaCommand.command)
         }
         val requestId = "${domainEvent.id}-${sagaCommand.index}"
         val tenantId = domainEvent.aggregateId.tenantId
         if (restCommandGateway == null) {
             val command = sagaCommand.command.toCommandMessage(requestId = requestId, tenantId = tenantId)
-            return commandGateway.sendAndWaitForProcessed(command).then()
+            return commandGateway.send(command)
         }
 
         if (sagaCommand.command is RestCommandGateway.CommandRequest) {
@@ -91,7 +91,7 @@ class StatelessSagaFunction(
         val commandContext = sagaCommand.command.javaClass.requiredNamedBoundedContext()
         if (commandContext.isSameBoundedContext(this)) {
             val command = sagaCommand.command.toCommandMessage(requestId = requestId, tenantId = tenantId)
-            return commandGateway.sendAndWaitForProcessed(command).then()
+            return commandGateway.send(command)
         }
 
         val commandRequest = RestCommandGateway.CommandRequest(

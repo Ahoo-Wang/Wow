@@ -38,11 +38,11 @@ object SagaVerifier {
     @JvmStatic
     fun defaultCommandGateway(): CommandGateway {
         return DefaultCommandGateway(
-            SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
-            InMemoryCommandBus(),
-            NoOpIdempotencyChecker,
-            SimpleWaitStrategyRegistrar,
-            NoOpValidator,
+            commandWaitEndpoint = SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
+            commandBus = InMemoryCommandBus(),
+            idempotencyChecker = NoOpIdempotencyChecker,
+            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
+            validator = NoOpValidator,
         )
     }
 
