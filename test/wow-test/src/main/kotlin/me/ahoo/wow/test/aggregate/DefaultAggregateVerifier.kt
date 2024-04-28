@@ -26,6 +26,7 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.test.validation.validate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import reactor.core.publisher.Mono
@@ -87,15 +88,20 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             metadata.state,
             commandAggregateId,
         ).map {
+            try {
+                commandMessage.validate()
+            } catch (throwable: Throwable) {
+                return@map ExpectedResult(stateAggregate = it, error = throwable)
+            }
+
             if (commandMessage.isCreate) {
                 return@map ExpectedResult(stateAggregate = it)
             }
 
-            if (it.initialized && events.isEmpty()) {
-                return@map ExpectedResult(stateAggregate = it)
-            }
-
             if (events.isEmpty()) {
+                if (it.initialized || commandMessage.allowCreate) {
+                    return@map ExpectedResult(stateAggregate = it)
+                }
                 return@map ExpectedResult(
                     stateAggregate = it,
                     error = IllegalArgumentException(
@@ -120,6 +126,9 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             }
             ExpectedResult(stateAggregate = it)
         }.flatMap { expectedResult ->
+            if (expectedResult.hasError) {
+                return@flatMap expectedResult.toMono()
+            }
             val commandAggregate = commandAggregateFactory.create(metadata, expectedResult.stateAggregate)
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
