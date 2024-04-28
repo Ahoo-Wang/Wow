@@ -1,6 +1,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -26,7 +27,7 @@ class ListQueryDslTest {
                 }
             }
         }
-
+        assertThat(query.projection, equalTo(Projection.ALL))
         assertThat(query.limit, equalTo(1))
         assertThat(query.sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
         assertThat(
