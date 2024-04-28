@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
+import me.ahoo.wow.api.modeling.NamedAggregate
 
 const val NAMED_COMMAND = "MockNamedCommand"
 
@@ -28,6 +29,13 @@ data class MockCommandWithExpectedAggregateVersion(
     @AggregateId val id: String,
     @AggregateVersion val version: Int?
 )
+
+data class MockCommandWithInheritNamedAggregate(
+    @AggregateId
+    val id: String,
+    override val aggregateName: String,
+    override val contextName: String
+) : NamedAggregate
 
 @CreateAggregate
 data class MockCreateCommand(
