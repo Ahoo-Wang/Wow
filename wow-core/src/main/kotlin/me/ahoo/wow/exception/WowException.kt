@@ -27,8 +27,13 @@ open class WowException(
     cause: Throwable? = null,
     override val bindingErrors: List<BindingError> = emptyList(),
 ) : RuntimeException(errorMsg, cause), ErrorInfo {
+    override val message: String
+        get() = errorMsg
     override val errorMsg: String
-        get() = message ?: ""
+        get() {
+            val firstBindingError = bindingErrors.firstOrNull() ?: return super.message ?: ""
+            return "${firstBindingError.name}:${firstBindingError.msg}"
+        }
 }
 
 /**
