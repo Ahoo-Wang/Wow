@@ -41,13 +41,6 @@ class CommandValidationException(
     ),
     NamedAggregate by commandMessage,
     ErrorInfo {
-    override val message: String
-        get() = errorMsg
-    override val errorMsg: String
-        get() {
-            val firstBindingError = bindingErrors.firstOrNull() ?: return super.errorMsg
-            return "${firstBindingError.name}:${firstBindingError.msg}"
-        }
     override val bindingErrors: List<BindingError> by lazy {
         constraintViolations.map {
             BindingError(it.propertyPath.toString(), it.message)

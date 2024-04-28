@@ -22,6 +22,7 @@ class CommandValidationExceptionTest {
         }
         val exception = CommandValidationException(commandMessage, setOf(constraintViolation))
         assertThat(exception.errorCode, equalTo(COMMAND_VALIDATION))
+        assertThat(exception.message, equalTo("name:name is blank"))
         assertThat(exception.errorMsg, equalTo("name:name is blank"))
         assertThat(
             exception.bindingErrors.first().name,
@@ -31,5 +32,14 @@ class CommandValidationExceptionTest {
             exception.bindingErrors.first().msg,
             equalTo(constraintViolation.message)
         )
+    }
+
+    @Test
+    fun testIfEmpty() {
+        val commandMessage = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
+        val exception = CommandValidationException(commandMessage, setOf())
+        assertThat(exception.errorCode, equalTo(COMMAND_VALIDATION))
+        assertThat(exception.message, equalTo("Command validation failed."))
+        assertThat(exception.errorMsg, equalTo("Command validation failed."))
     }
 }
