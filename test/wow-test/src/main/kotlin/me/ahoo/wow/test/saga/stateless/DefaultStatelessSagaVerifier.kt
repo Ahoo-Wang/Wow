@@ -29,6 +29,7 @@ import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate.Companion.toReadOnlyStateAggregate
+import me.ahoo.wow.test.validation.validate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
@@ -78,9 +79,13 @@ internal class DefaultWhenStage<T : Any>(
             .single()
             .invoke(eventExchange)
             .map {
+                val commandStream = it as CommandStream
+                commandStream.forEach { commandMessage ->
+                    commandMessage.validate()
+                }
                 ExpectedResult(
                     processor = processor,
-                    commandStream = it as CommandStream,
+                    commandStream = it,
                 )
             }
             .onErrorResume {
