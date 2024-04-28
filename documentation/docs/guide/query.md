@@ -129,6 +129,15 @@ pagination {
 }
 ```
 
+### ProjectionDsl
+
+```kotlin
+projection {
+    include("field1")
+    exclude("field2")
+}
+```
+
 ### ListQueryDsl
 
 ```kotlin
