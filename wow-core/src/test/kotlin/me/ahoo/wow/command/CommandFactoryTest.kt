@@ -34,6 +34,17 @@ internal class CommandFactoryTest {
     }
 
     @Test
+    fun createWithInheritNamedAggregate() {
+        val command = MockCommandWithInheritNamedAggregate(GlobalIdGenerator.generateAsString(), "test", "test")
+        val commandMessage = command.toCommandMessage()
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+        assertThat(commandMessage.contextName, equalTo(command.contextName))
+        assertThat(commandMessage.aggregateName, equalTo(command.aggregateName))
+    }
+
+    @Test
     fun asCommand() {
         val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
         val commandMessage = command.toCommandMessage()

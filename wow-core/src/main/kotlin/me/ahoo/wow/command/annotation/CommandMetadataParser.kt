@@ -23,6 +23,7 @@ import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toTenantIdGetterI
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
@@ -32,6 +33,8 @@ import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.MetadataNamedAggregateGetter
+import me.ahoo.wow.modeling.matedata.NamedAggregateGetter
+import me.ahoo.wow.modeling.matedata.SelfNamedAggregateGetter
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
 import org.slf4j.LoggerFactory
@@ -60,11 +63,19 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     private val commandName: String = commandType.toName()
     private val isCreateAggregate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private var allowCreate: Boolean = commandType.isAnnotationPresent(AllowCreate::class.java)
+    private var namedAggregateGetter: NamedAggregateGetter<C>? = null
     private var aggregateNameGetter: PropertyGetter<C, String>? = null
     private var aggregateIdGetter: PropertyGetter<C, String>? = null
     private var namedIdProperty: KProperty1<C, String>? = null
     private var tenantIdGetter: PropertyGetter<C, String>? = null
     private var aggregateVersionGetter: PropertyGetter<C, Int?>? = null
+
+    init {
+        if (NamedAggregate::class.java.isAssignableFrom(commandType)) {
+            @Suppress("UNCHECKED_CAST")
+            namedAggregateGetter = SelfNamedAggregateGetter as NamedAggregateGetter<C>
+        }
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun visitType(type: KType) {
@@ -97,10 +108,13 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     }
 
     override fun end() {
+        if (namedAggregateGetter == null) {
+            namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(commandType)
+        }
+
         if (aggregateIdGetter != null || namedIdProperty == null) {
             return
         }
-
         aggregateIdGetter = namedIdProperty!!.toStringGetter()
     }
 
@@ -113,9 +127,9 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
             }
         }
 
-        val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(commandType)
         if (tenantIdGetter == null && namedAggregateGetter is MetadataNamedAggregateGetter) {
-            val tenantId = MetadataSearcher.requiredAggregate(namedAggregateGetter.namedAggregate).tenantId
+            val metadataNamedAggregateGetter = namedAggregateGetter as MetadataNamedAggregateGetter
+            val tenantId = MetadataSearcher.requiredAggregate(metadataNamedAggregateGetter.namedAggregate).tenantId
             if (tenantId != null) {
                 tenantIdGetter = StaticPropertyGetter(tenantId)
             }
