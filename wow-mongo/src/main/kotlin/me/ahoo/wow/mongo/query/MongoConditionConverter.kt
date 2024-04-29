@@ -19,6 +19,7 @@ import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.DayOfWeek
@@ -223,10 +224,25 @@ object MongoConditionConverter : ConditionConverter<Bson> {
     }
 
     override fun raw(condition: Condition): Bson {
-        if (condition.value is Bson) {
-            return condition.value as Bson
+        return when (condition.value) {
+            is Bson -> {
+                condition.value as Bson
+            }
+
+            is String -> {
+                Document.parse(condition.value as String)
+            }
+
+            is Map<*, *> -> {
+                @Suppress("UNCHECKED_CAST")
+                Document(condition.value as Map<String, *>)
+            }
+
+            else -> {
+                val conditionValueJson = condition.value.toJsonString()
+                Document.parse(conditionValueJson)
+            }
         }
-        return Document.parse(condition.value as String)
     }
 
     override fun not(not: Boolean, target: Bson): Bson {
