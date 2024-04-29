@@ -184,6 +184,36 @@ class MongoConverterTest {
         assertThat(actual, equalTo(expected))
     }
 
+    @Test
+    fun rawBson() {
+        val expected = Filters.eq("id", "id")
+        val actual = Condition.raw(expected).toMongoFilter()
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun rawString() {
+        val actual = Condition.raw("{\"id\":\"id\"}").toMongoFilter().toBsonDocument()
+        val expected = Filters.eq("id", "id").toBsonDocument()
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun rawMap() {
+        val actual = Condition.raw(mapOf("id" to "id")).toMongoFilter().toBsonDocument()
+        val expected = Filters.eq("id", "id").toBsonDocument()
+        assertThat(actual, equalTo(expected))
+    }
+
+    data class RawObj(val id: String)
+
+    @Test
+    fun rawObject() {
+        val actual = Condition.raw(RawObj("id")).toMongoFilter().toBsonDocument()
+        val expected = Filters.eq("id", "id").toBsonDocument()
+        assertThat(actual, equalTo(expected))
+    }
+
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
     fun toMongoFilter(condition: Condition, expected: Bson) {
