@@ -25,7 +25,6 @@ import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
@@ -62,7 +61,7 @@ class ListQuerySnapshotRouteSpec(
     override val responses: ApiResponses
         get() = responseSchema.toResponse().let {
             ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withNotFound()
+        }
 }
 
 class ListQuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
