@@ -2,6 +2,8 @@ package me.ahoo.wow.webflux.handler
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -35,7 +37,10 @@ class CommandHandlerTest {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(
+            SagaVerifier.defaultCommandGateway(),
+            SimpleCommandMessageFactory(SimpleCommandOptionsExtractorRegistry())
+        )
         commandHandler.handle(
             request,
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
@@ -61,7 +66,10 @@ class CommandHandlerTest {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(
+            SagaVerifier.defaultCommandGateway(),
+            SimpleCommandMessageFactory(SimpleCommandOptionsExtractorRegistry())
+        )
         commandHandler.handle(
             request,
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),

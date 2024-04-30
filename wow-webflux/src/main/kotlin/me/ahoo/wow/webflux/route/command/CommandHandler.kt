@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.infra.ifNotBlank
@@ -48,6 +49,7 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
 
 class CommandHandler(
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
@@ -59,7 +61,8 @@ class CommandHandler(
         val commandWaitTimeout = request.getWaitTimeout(timeout)
         return request.parse(
             aggregateMetadata = aggregateMetadata,
-            commandBody = commandBody
+            commandBody = commandBody,
+            commandMessageFactory = commandMessageFactory
         ).flatMap {
             val stage: CommandStage = request.getCommandStage()
             if (CommandStage.SENT == stage) {
