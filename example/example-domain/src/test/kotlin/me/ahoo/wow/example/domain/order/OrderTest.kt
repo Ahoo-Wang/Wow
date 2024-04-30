@@ -15,7 +15,7 @@ package me.ahoo.wow.example.domain.order
 import io.mockk.mockk
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.event.AggregateDeleted
-import me.ahoo.wow.command.CommandValidationException
+import me.ahoo.wow.command.factory.CommandValidationException
 import me.ahoo.wow.event.DomainEventException
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.ChangeAddress
