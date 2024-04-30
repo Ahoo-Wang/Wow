@@ -21,7 +21,7 @@ import me.ahoo.wow.api.exception.RecoverableType
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class ApplyExecutionFailed(
-    @PathVariable override val id: String,
+    @field:PathVariable override val id: String,
     override val error: ErrorDetails,
     override val executeAt: Long,
     override val recoverable: RecoverableType = RecoverableType.UNKNOWN

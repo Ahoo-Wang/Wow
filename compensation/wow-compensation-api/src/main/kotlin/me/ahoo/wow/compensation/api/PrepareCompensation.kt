@@ -21,10 +21,10 @@ import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
-data class PrepareCompensation(@PathVariable override val id: String) : Identifier
+data class PrepareCompensation(@field:PathVariable override val id: String) : Identifier
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
-data class ForcePrepareCompensation(@PathVariable override val id: String) : Identifier
+data class ForcePrepareCompensation(@field:PathVariable override val id: String) : Identifier
 
 data class CompensationPrepared(
     val eventId: EventId,

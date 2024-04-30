@@ -19,7 +19,7 @@ import me.ahoo.wow.api.messaging.FunctionKind
 
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class ChangeFunctionKind(
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     override val id: String,
     val functionKind: FunctionKind
 ) : Identifier

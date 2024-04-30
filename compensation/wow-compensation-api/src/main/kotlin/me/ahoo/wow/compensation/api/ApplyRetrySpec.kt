@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class ApplyRetrySpec(
-    @PathVariable
+    @field:PathVariable
     override val id: String,
     override val maxRetries: Int,
     override val minBackoff: Int,
