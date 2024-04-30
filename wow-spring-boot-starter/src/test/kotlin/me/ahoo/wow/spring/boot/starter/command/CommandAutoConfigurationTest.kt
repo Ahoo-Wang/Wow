@@ -19,13 +19,17 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
 import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.CommandOptions
+import me.ahoo.wow.command.factory.CommandOptionsExtractor
 import me.ahoo.wow.command.factory.CommandOptionsExtractorRegistry
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.tck.mock.MockChangeAggregate
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import reactor.core.publisher.Mono
 
 internal class CommandAutoConfigurationTest {
 
@@ -36,6 +40,7 @@ internal class CommandAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
+            .withBean(CommandOptionsExtractor::class.java, { MockCommandOptionsExtractor() })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
             )
@@ -60,5 +65,14 @@ internal class CommandAutoConfigurationTest {
                     .hasSingleBean(LocalCommandBus::class.java)
                     .hasSingleBean(LocalFirstCommandBus::class.java)
             }
+    }
+}
+
+class MockCommandOptionsExtractor : CommandOptionsExtractor<MockChangeAggregate> {
+    override val supportedCommandType: Class<MockChangeAggregate>
+        get() = MockChangeAggregate::class.java
+
+    override fun extract(command: MockChangeAggregate, options: CommandOptions): Mono<CommandOptions> {
+        return Mono.just(options)
     }
 }

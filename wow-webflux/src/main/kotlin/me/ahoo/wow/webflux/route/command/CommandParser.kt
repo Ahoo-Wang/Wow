@@ -16,7 +16,8 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandOperator.withOperator
-import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.CommandOptions
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -25,8 +26,6 @@ import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.switchIfEmpty
-import reactor.kotlin.core.publisher.toMono
 
 object CommandParser {
     fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
@@ -58,31 +57,20 @@ object CommandParser {
 
     fun ServerRequest.parse(
         aggregateMetadata: AggregateMetadata<*, *>,
-        commandBody: Any
+        commandBody: Any,
+        commandMessageFactory: CommandMessageFactory
     ): Mono<CommandMessage<Any>> {
         val aggregateId = getAggregateId()
         val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID).ifNotBlank { it }
-        return principal()
-            .map {
-                val header = DefaultHeader.empty().withOperator(it.name)
-                commandBody.toCommandMessage(
-                    requestId = requestId,
-                    namedAggregate = aggregateMetadata,
-                    aggregateId = aggregateId,
-                    tenantId = tenantId,
-                    aggregateVersion = aggregateVersion,
-                    header = header,
-                )
-            }.switchIfEmpty {
-                commandBody.toCommandMessage(
-                    requestId = requestId,
-                    namedAggregate = aggregateMetadata,
-                    aggregateId = aggregateId,
-                    tenantId = tenantId,
-                    aggregateVersion = aggregateVersion,
-                ).toMono()
-            }
+        val commandOptions = CommandOptions.builder()
+            .aggregateId(aggregateId)
+            .tenantId(tenantId)
+            .aggregateVersion(aggregateVersion)
+            .requestId(requestId)
+        return principal().map {
+            commandOptions.header(DefaultHeader.empty().withOperator(it.name))
+        }.then(commandMessageFactory.create(commandBody, commandOptions))
     }
 }

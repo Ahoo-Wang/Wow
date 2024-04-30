@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -32,11 +33,17 @@ import java.time.Duration
  */
 class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
 
-    private val handler = CommandHandler(commandGateway, timeout)
+    private val handler = CommandHandler(
+        commandGateway = commandGateway,
+        commandMessageFactory = commandMessageFactory,
+        timeout = timeout
+    )
+
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.body(CommandFacadeBodyExtractor).switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
@@ -48,6 +55,7 @@ class CommandFacadeHandlerFunction(
 
 class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
@@ -56,9 +64,10 @@ class CommandFacadeHandlerFunctionFactory(
 
     override fun create(spec: CommandFacadeRouteSpec): HandlerFunction<ServerResponse> {
         return CommandFacadeHandlerFunction(
-            commandGateway,
-            exceptionHandler,
-            timeout
+            commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory,
+            exceptionHandler = exceptionHandler,
+            timeout = timeout
         )
     }
 }

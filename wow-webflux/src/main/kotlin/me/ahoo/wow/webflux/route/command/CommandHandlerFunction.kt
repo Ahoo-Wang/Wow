@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
@@ -39,11 +40,12 @@ class CommandHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
-    private val handler = CommandHandler(commandGateway, timeout)
+    private val handler = CommandHandler(commandGateway, commandMessageFactory, timeout)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return if (commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()) {
             request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)
@@ -62,6 +64,7 @@ class CommandHandlerFunction(
 
 class CommandHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     private val exceptionHandler: ExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandRouteSpec> {
@@ -71,11 +74,12 @@ class CommandHandlerFunctionFactory(
     @Suppress("UNCHECKED_CAST")
     override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
         return CommandHandlerFunction(
-            spec.aggregateMetadata,
-            spec.commandRouteMetadata as CommandRouteMetadata<Any>,
-            commandGateway,
-            exceptionHandler,
-            timeout
+            aggregateMetadata = spec.aggregateMetadata,
+            commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>,
+            commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory,
+            exceptionHandler = exceptionHandler,
+            timeout = timeout
         )
     }
 }
