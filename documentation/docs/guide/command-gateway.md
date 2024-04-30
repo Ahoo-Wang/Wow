@@ -142,24 +142,25 @@ wow:
  */
 @Service
 class ResetPwdCommandOptionsExtractor(private val queryService: SnapshotQueryService<UserState>) :
-    CommandOptionsExtractor<ResetPwd> {
-    override val supportedCommandType: Class<ResetPwd>
-        get() = ResetPwd::class.java
+   CommandOptionsExtractor<ResetPwd> {
+   override val supportedCommandType: Class<ResetPwd>
+      get() = ResetPwd::class.java
 
-    override fun extract(command: ResetPwd, options: CommandOptions): Mono<CommandOptions> {
-        return singleQuery {
-            condition {
-                nestedState()
-                PHONE_VERIFIED eq true
-                PHONE eq command.phone
-            }
-        }.query(queryService)
-            .switchIfEmpty {
-                IllegalArgumentException("手机号码尚未绑定。").toMono()
-            }.map {
-                options.aggregateId(it.aggregateId)
-            }
-    }
+   override fun extract(command: ResetPwd, options: CommandOptions): Mono<CommandOptions> {
+      return singleQuery {
+         projection { include(Documents.ID_FIELD) }
+         condition {
+            nestedState()
+            PHONE_VERIFIED eq true
+            PHONE eq command.phone
+         }
+      }.dynamicQuery(queryService)
+         .switchIfEmpty {
+            IllegalArgumentException("手机号码尚未绑定。").toMono()
+         }.map {
+            options.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
+         }
+   }
 }
 ```
 
