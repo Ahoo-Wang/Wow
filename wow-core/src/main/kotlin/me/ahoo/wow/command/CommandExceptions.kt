@@ -13,13 +13,8 @@
 
 package me.ahoo.wow.command
 
-import jakarta.validation.ConstraintViolation
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.exception.BindingError
-import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
 import me.ahoo.wow.exception.WowException
 
@@ -30,23 +25,6 @@ class DuplicateRequestIdException(val aggregateId: AggregateId, val requestId: S
         cause = cause,
     ),
     NamedAggregate by aggregateId
-
-class CommandValidationException(
-    val commandMessage: CommandMessage<*>,
-    val constraintViolations: Set<ConstraintViolation<*>>
-) :
-    WowException(
-        errorCode = COMMAND_VALIDATION,
-        errorMsg = "Command validation failed.",
-    ),
-    NamedAggregate by commandMessage,
-    ErrorInfo {
-    override val bindingErrors: List<BindingError> by lazy {
-        constraintViolations.map {
-            BindingError(it.propertyPath.toString(), it.message)
-        }
-    }
-}
 
 class CommandResultException(val commandResult: CommandResult, cause: Throwable? = null) :
     WowException(

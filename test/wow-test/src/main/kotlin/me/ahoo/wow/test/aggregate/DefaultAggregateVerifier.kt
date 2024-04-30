@@ -89,7 +89,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             commandAggregateId,
         ).map {
             try {
-                commandMessage.validate()
+                commandMessage.body.validate()
             } catch (throwable: Throwable) {
                 return@map ExpectedResult(stateAggregate = it, error = throwable)
             }

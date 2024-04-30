@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -39,7 +40,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
         )
         commandHandler.handle(
             request,
@@ -68,7 +69,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
         )
         commandHandler.handle(
             request,

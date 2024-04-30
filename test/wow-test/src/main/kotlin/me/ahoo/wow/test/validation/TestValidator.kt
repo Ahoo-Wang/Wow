@@ -15,8 +15,7 @@ package me.ahoo.wow.test.validation
 
 import jakarta.validation.Validation
 import jakarta.validation.Validator
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.CommandValidationException
+import me.ahoo.wow.command.factory.CommandValidationException
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator
 
 val TestValidator: Validator = Validation.byDefaultProvider()
@@ -25,11 +24,11 @@ val TestValidator: Validator = Validation.byDefaultProvider()
     .buildValidatorFactory()
     .validator
 
-fun <C : Any> CommandMessage<C>.validate(): CommandMessage<C> {
-    val constraintViolations = TestValidator.validate(this.body)
+fun <C : Any> C.validate(): C {
+    val constraintViolations = TestValidator.validate(this)
     if (constraintViolations.isNotEmpty()) {
         throw CommandValidationException(
-            commandMessage = this,
+            command = this,
             constraintViolations = constraintViolations
         )
     }

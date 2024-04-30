@@ -18,7 +18,6 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
@@ -29,6 +28,7 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.test.saga.stateless.DefaultWhenStage
 import me.ahoo.wow.test.saga.stateless.WhenStage
+import me.ahoo.wow.test.validation.TestValidator
 
 /**
  * Stateless Saga Verifier .
@@ -43,7 +43,6 @@ object SagaVerifier {
             InMemoryCommandBus(),
             NoOpIdempotencyChecker,
             SimpleWaitStrategyRegistrar,
-            NoOpValidator,
         )
     }
 
@@ -53,7 +52,8 @@ object SagaVerifier {
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
         commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
-            SimpleCommandOptionsExtractorRegistry()
+            validator = TestValidator,
+            commandOptionsExtractorRegistry = SimpleCommandOptionsExtractorRegistry()
         )
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
