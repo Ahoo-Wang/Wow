@@ -15,12 +15,10 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
-import jakarta.validation.Validator
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
@@ -46,11 +44,6 @@ import org.springframework.context.annotation.Primary
 @AutoConfiguration
 @ConditionalOnWowEnabled
 class CommandGatewayAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean
-    fun noOpValidator(): Validator {
-        return NoOpValidator
-    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -131,7 +124,6 @@ class CommandGatewayAutoConfiguration {
     fun commandGateway(
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
-        validator: Validator,
         idempotencyChecker: IdempotencyChecker,
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandGateway {
@@ -139,8 +131,7 @@ class CommandGatewayAutoConfiguration {
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
             idempotencyChecker = idempotencyChecker,
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            validator = validator,
+            waitStrategyRegistrar = waitStrategyRegistrar
         )
     }
 }

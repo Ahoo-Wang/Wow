@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
@@ -23,24 +22,15 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
     private val idempotencyChecker: IdempotencyChecker,
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
-    private val validator: Validator
+    private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
 
-    private fun validate(command: CommandMessage<*>): Mono<Boolean> {
-        val constraintViolations = validator.validate(command.body)
-        if (constraintViolations.isNotEmpty()) {
-            return CommandValidationException(
-                commandMessage = command,
-                constraintViolations = constraintViolations
-            ).toMono()
-        }
+    private fun check(command: CommandMessage<*>): Mono<Boolean> {
         return idempotencyChecker.check(command.requestId)
             .doOnNext {
                 /*
@@ -53,7 +43,7 @@ class DefaultCommandGateway(
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        return validate(message).flatMap {
+        return check(message).flatMap {
             commandBus.send(message)
         }
     }
@@ -66,7 +56,7 @@ class DefaultCommandGateway(
         require(waitStrategy.stage != CommandStage.SENT) {
             "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
         }
-        return validate(command).flatMap {
+        return check(command).flatMap {
             command.header.injectWaitStrategy(
                 commandWaitEndpoint = commandWaitEndpoint.endpoint,
                 stage = waitStrategy.stage,

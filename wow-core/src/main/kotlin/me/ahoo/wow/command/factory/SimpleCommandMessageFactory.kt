@@ -13,15 +13,25 @@
 
 package me.ahoo.wow.command.factory
 
+import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class SimpleCommandMessageFactory(
+    private val validator: Validator,
     private val commandOptionsExtractorRegistry: CommandOptionsExtractorRegistry
 ) : CommandMessageFactory {
     override fun <C : Any> create(body: C, options: CommandOptions): Mono<CommandMessage<C>> {
+        val constraintViolations = validator.validate(body)
+        if (constraintViolations.isNotEmpty()) {
+            return CommandValidationException(
+                command = body,
+                constraintViolations = constraintViolations
+            ).toMono()
+        }
+
         val extractor = commandOptionsExtractorRegistry.getExtractor(body.javaClass)
             ?: return body.toCommandMessage(options).toMono()
         return extractor.extract(body, options)

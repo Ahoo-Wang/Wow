@@ -20,7 +20,6 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
@@ -98,7 +97,6 @@ abstract class CommandDispatcherSpec {
             commandBus = commandBus,
             idempotencyChecker = idempotencyChecker,
             waitStrategyRegistrar = waitStrategyRegistrar,
-            NoOpValidator,
         )
         eventStore = createEventStore().metrizable()
         snapshotRepository = createSnapshotRepository().metrizable()

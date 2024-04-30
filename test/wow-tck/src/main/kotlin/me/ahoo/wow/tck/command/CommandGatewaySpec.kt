@@ -25,7 +25,6 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
@@ -72,7 +71,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             commandBus = createCommandBus(),
             idempotencyChecker = idempotencyChecker,
             waitStrategyRegistrar = waitStrategyRegistrar,
-            NoOpValidator,
         )
     }
 
