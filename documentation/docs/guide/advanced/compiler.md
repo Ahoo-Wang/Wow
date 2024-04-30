@@ -1,6 +1,9 @@
 # Wow 编译器
 
-_Wow_ 编译器负责在限界上下文范围内生成聚合根及其定义的命令和领域事件的元数据。
+_Wow_ 编译器负责：
+
+- 在限界上下文范围内生成聚合根及其定义的命令和领域事件的元数据。
+- 生成状态聚合根的查询属性导航，防止在写查询条件时出现拼写错误。
 
 ## 安装
 
@@ -124,7 +127,7 @@ ksp 'me.ahoo.wow:wow-compiler'
 
 ```
 
-## 事件补偿服务的元数据
+## 生成事件补偿服务的元数据
 
 ```json
 {
@@ -159,5 +162,48 @@ ksp 'me.ahoo.wow:wow-compiler'
       }
     }
   }
+}
+```
+
+## 生成查询状态聚合根属性导航
+
+```kotlin
+package me.ahoo.wow.compensation.domain
+
+import javax.annotation.processing.Generated
+
+@Generated("me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider", date = "2024-04-29T22:57:44.198877")
+object ExecutionFailedStateProperties {
+    const val EVENT_ID = "eventId"
+    const val EVENT_ID__AGGREGATE_ID = "eventId.aggregateId"
+    const val EVENT_ID__ID = "eventId.id"
+    const val EVENT_ID__INITIALIZED = "eventId.initialized"
+    const val EVENT_ID__IS_INITIAL_VERSION = "eventId.isInitialVersion"
+    const val EVENT_ID__VERSION = "eventId.version"
+    const val PROCESSOR = "processor"
+    const val PROCESSOR__CONTEXT_NAME = "processor.contextName"
+    const val PROCESSOR__PROCESSOR_NAME = "processor.processorName"
+    const val FUNCTION_KIND = "functionKind"
+    const val ERROR = "error"
+    const val ERROR__BINDING_ERRORS = "error.bindingErrors"
+    const val ERROR__ERROR_CODE = "error.errorCode"
+    const val ERROR__ERROR_MSG = "error.errorMsg"
+    const val ERROR__STACK_TRACE = "error.stackTrace"
+    const val ERROR__SUCCEEDED = "error.succeeded"
+    const val EXECUTE_AT = "executeAt"
+    const val RETRY_SPEC = "retrySpec"
+    const val RETRY_SPEC__EXECUTION_TIMEOUT = "retrySpec.executionTimeout"
+    const val RETRY_SPEC__MAX_RETRIES = "retrySpec.maxRetries"
+    const val RETRY_SPEC__MIN_BACKOFF = "retrySpec.minBackoff"
+    const val RETRY_STATE = "retryState"
+    const val RETRY_STATE__NEXT_RETRY_AT = "retryState.nextRetryAt"
+    const val RETRY_STATE__RETRIES = "retryState.retries"
+    const val RETRY_STATE__RETRY_AT = "retryState.retryAt"
+    const val RETRY_STATE__TIMEOUT_AT = "retryState.timeoutAt"
+    const val STATUS = "status"
+    const val RECOVERABLE = "recoverable"
+    const val ID = "id"
+    const val IS_BELOW_RETRY_THRESHOLD = "isBelowRetryThreshold"
+    const val IS_RETRYABLE = "isRetryable"
 }
 ```
