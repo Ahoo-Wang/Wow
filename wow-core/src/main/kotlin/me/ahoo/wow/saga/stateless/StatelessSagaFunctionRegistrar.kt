@@ -14,6 +14,7 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -24,6 +25,7 @@ import reactor.core.publisher.Mono
 
 class StatelessSagaFunctionRegistrar(
     private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory,
     actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
@@ -33,7 +35,7 @@ class StatelessSagaFunctionRegistrar(
             .statelessSagaMetadata()
             .toMessageFunctionRegistry(processor)
             .map {
-                StatelessSagaFunction(it, commandGateway)
+                StatelessSagaFunction(it, commandGateway, commandMessageFactory)
             }.toSet()
     }
 }

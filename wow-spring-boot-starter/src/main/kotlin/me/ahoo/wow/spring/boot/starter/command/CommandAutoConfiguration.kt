@@ -17,8 +17,14 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.CommandOptionsExtractor
+import me.ahoo.wow.command.factory.CommandOptionsExtractorRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -58,5 +64,23 @@ class CommandAutoConfiguration {
         distributedBus: DistributedCommandBus
     ): LocalFirstCommandBus {
         return LocalFirstCommandBus(distributedBus, localBus)
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun commandOptionsExtractorRegistry(
+        extractors: ObjectProvider<CommandOptionsExtractor<*>>
+    ): CommandOptionsExtractorRegistry {
+        val registry = SimpleCommandOptionsExtractorRegistry()
+        extractors.forEach {
+            registry.register(it)
+        }
+        return registry
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun commandMessageFactory(commandOptionsExtractorRegistry: CommandOptionsExtractorRegistry): CommandMessageFactory {
+        return SimpleCommandMessageFactory(commandOptionsExtractorRegistry)
     }
 }

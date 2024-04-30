@@ -6,11 +6,11 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
-class DefaultCommandOptionsExtractorRegistryTest {
+class SimpleCommandOptionsExtractorRegistryTest {
 
     @Test
     fun register() {
-        val registry = DefaultCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandOptionsExtractorRegistry()
         registry.register(MockCommandOptionsExtractor())
         assertThat(registry.getExtractor(MockCreateCommand::class.java), notNullValue())
         registry.unregister(MockCreateCommand::class.java)

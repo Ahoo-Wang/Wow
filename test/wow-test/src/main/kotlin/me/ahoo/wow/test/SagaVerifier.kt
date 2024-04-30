@@ -15,6 +15,9 @@ package me.ahoo.wow.test
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -48,13 +51,17 @@ object SagaVerifier {
     @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = defaultCommandGateway()
+        commandGateway: CommandGateway = defaultCommandGateway(),
+        commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
+            SimpleCommandOptionsExtractorRegistry()
+        )
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory
         )
     }
 

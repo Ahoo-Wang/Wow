@@ -25,7 +25,7 @@ class StatelessSagaFunctionTest {
             every { supportedTopics } returns emptySet()
         }
         MatcherAssert.assertThat(
-            StatelessSagaFunction(delegate, mockk()).getAnnotation(Retry::class.java),
+            StatelessSagaFunction(delegate, mockk(), mockk()).getAnnotation(Retry::class.java),
             Matchers.nullValue()
         )
     }

@@ -8,7 +8,7 @@ class SimpleCommandMessageFactoryTest {
 
     @Test
     fun createIfNotFound() {
-        val registry = DefaultCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandOptionsExtractorRegistry()
         val factory = SimpleCommandMessageFactory(registry)
         val command = MockCreateCommand("")
         factory.create(command)
@@ -19,7 +19,7 @@ class SimpleCommandMessageFactoryTest {
 
     @Test
     fun createIfFound() {
-        val registry = DefaultCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandOptionsExtractorRegistry()
         registry.register(MockCommandOptionsExtractor())
         val factory = SimpleCommandMessageFactory(registry)
         val command = MockCreateCommand("")
