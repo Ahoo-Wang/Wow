@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.wow.command.factory.CommandOptions
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -23,6 +24,20 @@ internal class CommandFactoryTest {
     fun create() {
         val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
         val commandMessage = command.toCommandMessage()
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
+    }
+
+    @Test
+    fun createFromOptions() {
+        val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
+        val commandMessage = command.toCommandMessage(CommandOptions.builder())
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
