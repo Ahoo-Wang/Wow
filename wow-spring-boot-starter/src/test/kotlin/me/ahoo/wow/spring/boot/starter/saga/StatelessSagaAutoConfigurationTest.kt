@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.saga
 
 import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
@@ -39,6 +40,7 @@ internal class StatelessSagaAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandGateway::class.java, { mockk() })
+            .withBean(CommandMessageFactory::class.java,{ mockk() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(
