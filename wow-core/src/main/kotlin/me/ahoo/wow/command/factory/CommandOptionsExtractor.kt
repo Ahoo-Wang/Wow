@@ -28,9 +28,9 @@ interface CommandOptionsExtractorRegistry {
     fun <C : Any> getExtractor(commandType: Class<C>): CommandOptionsExtractor<C>?
 }
 
-class DefaultCommandOptionsExtractorRegistry : CommandOptionsExtractorRegistry {
+class SimpleCommandOptionsExtractorRegistry : CommandOptionsExtractorRegistry {
     companion object {
-        private val log = LoggerFactory.getLogger(DefaultCommandOptionsExtractorRegistry::class.java)
+        private val log = LoggerFactory.getLogger(SimpleCommandOptionsExtractorRegistry::class.java)
     }
 
     private val registrar = ConcurrentHashMap<Class<*>, CommandOptionsExtractor<*>>()

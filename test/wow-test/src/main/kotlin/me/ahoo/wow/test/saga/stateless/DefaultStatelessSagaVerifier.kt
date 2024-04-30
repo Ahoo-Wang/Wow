@@ -17,6 +17,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleStateDomainEventExchange
@@ -39,7 +40,8 @@ import java.util.function.Consumer
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
     private val serviceProvider: ServiceProvider,
-    private val commandGateway: CommandGateway
+    private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory
 ) : WhenStage<T> {
     companion object {
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"
@@ -65,7 +67,7 @@ internal class DefaultWhenStage<T : Any>(
     override fun `when`(event: Any, state: Any?): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
-        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway)
+        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway, commandMessageFactory)
         handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
         val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
