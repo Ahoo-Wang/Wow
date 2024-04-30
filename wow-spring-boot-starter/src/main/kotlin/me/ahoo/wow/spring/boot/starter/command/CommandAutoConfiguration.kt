@@ -72,7 +72,7 @@ class CommandAutoConfiguration {
         extractors: ObjectProvider<CommandOptionsExtractor<*>>
     ): CommandOptionsExtractorRegistry {
         val registry = SimpleCommandOptionsExtractorRegistry()
-        extractors.forEach {
+        extractors.orderedStream().forEach {
             registry.register(it)
         }
         return registry

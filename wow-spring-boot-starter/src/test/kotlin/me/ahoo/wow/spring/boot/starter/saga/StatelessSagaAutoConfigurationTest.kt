@@ -40,7 +40,7 @@ internal class StatelessSagaAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(CommandGateway::class.java, { mockk() })
-            .withBean(CommandMessageFactory::class.java,{ mockk() })
+            .withBean(CommandMessageFactory::class.java, { mockk() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withUserConfiguration(

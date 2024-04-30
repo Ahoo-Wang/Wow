@@ -18,6 +18,8 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.CommandOptionsExtractorRegistry
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -40,6 +42,8 @@ internal class CommandAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryCommandBus::class.java)
+                    .hasSingleBean(CommandOptionsExtractorRegistry::class.java)
+                    .hasSingleBean(CommandMessageFactory::class.java)
             }
     }
 
