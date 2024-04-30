@@ -27,8 +27,8 @@ object RecoverableExceptionRegistrar {
             log.info(
                 "Register - throwableClass:[{}] - previous:[{}],current:[{}].",
                 throwableClass,
-                recoverableType,
-                previous
+                previous,
+                recoverableType
             )
         }
     }
