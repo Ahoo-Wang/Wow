@@ -121,3 +121,46 @@ wow:
       local-first:
         enabled: true # 默认已开启
 ```
+
+## 命令选项提取器（改写）
+
+命令选项抽取器(`CommandOptionsExtractor`)是一个用于从命令体(`Body`)中的抽取的命令选项(`CommandOptions`)的组件，以便与改写命令的消息元数据(`aggregateId`/`tenantId` 等)。
+
+以下是一个重置密码命令选项抽取器的示例：
+
+::: tip
+用户重置密码（找回密码）前是无法获得聚合根ID的，所以需要通过该提取器获得 `User` 聚合根的ID
+:::
+
+```kotlin
+/**
+ * 重置密码(`ResetPwd`)命令聚合根ID提取器
+ *
+ * 该命令需要根据命令体中的手机号码查询用户聚合根ID，以便满足命令消息聚合根ID必填的要求。
+ *
+ * @see ResetPwd
+ */
+@Service
+class ResetPwdCommandOptionsExtractor(private val queryService: SnapshotQueryService<UserState>) :
+    CommandOptionsExtractor<ResetPwd> {
+    override val supportedCommandType: Class<ResetPwd>
+        get() = ResetPwd::class.java
+
+    override fun extract(command: ResetPwd, options: CommandOptions): Mono<CommandOptions> {
+        return singleQuery {
+            condition {
+                nestedState()
+                PHONE_VERIFIED eq true
+                PHONE eq command.phone
+            }
+        }.query(queryService)
+            .switchIfEmpty {
+                IllegalArgumentException("手机号码尚未绑定。").toMono()
+            }.map {
+                options.aggregateId(it.aggregateId)
+            }
+    }
+}
+```
+
+开发者通过 _Spring_ 的 `@Service` 注解，将该提取器注册到 _Spring_ 容器中即可完成提取器的注册。
