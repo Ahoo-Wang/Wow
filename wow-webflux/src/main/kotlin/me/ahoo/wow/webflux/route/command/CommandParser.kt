@@ -69,6 +69,7 @@ object CommandParser {
             .tenantId(tenantId)
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
+            .namedAggregate(aggregateMetadata.namedAggregate)
         return principal().map {
             commandOptions.header(DefaultHeader.empty().withOperator(it.name))
         }.then(commandMessageFactory.create(commandBody, commandOptions))
