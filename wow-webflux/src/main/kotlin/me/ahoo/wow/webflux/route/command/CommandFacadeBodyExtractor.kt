@@ -51,7 +51,9 @@ object CommandFacadeBodyExtractor :
         }
         val aggregateMetadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
         return BodyExtractors.toMono(ObjectNode::class.java)
-            .extract(inputMessage, context).map {
+            .extract(inputMessage, context)
+            .switchEmtpyObjectNodeIfEmpty()
+            .map {
                 val commandBody = it.toObject(commandType)
                 Tuples.of(commandBody, aggregateMetadata)
             }

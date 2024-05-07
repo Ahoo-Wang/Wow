@@ -50,4 +50,32 @@ class CommandBodyExtractorTest {
             }
             .verifyComplete()
     }
+
+    @Test
+    fun extractIfEmpty() {
+        val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
+        val commandBodyExtractor = CommandBodyExtractor(commandRouteMetadata)
+        val messageReader = mockk<HttpMessageReader<*>> {
+            every { canRead(any(), any()) } returns true
+            every { readMono(any(), any(), any()) } returns Mono.empty()
+        }
+        val context = mockk<BodyExtractor.Context> {
+            every { hints()[RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE] } returns emptyMap<String, String>()
+            every { messageReaders() } returns listOf(messageReader)
+            every { serverResponse() } returns Optional.empty()
+        }
+        val httpHeaders = HttpHeaders()
+        httpHeaders.contentType = MediaType.APPLICATION_JSON
+
+        val inputMessage = mockk<ReactiveHttpInputMessage> {
+            every { headers } returns httpHeaders
+            every { body } returns Flux.empty()
+        }
+        commandBodyExtractor.extract(inputMessage, context)
+            .test()
+            .consumeNextWith {
+                assertThat(it, isA(DefaultDeleteAggregate::class.java))
+            }
+            .verifyComplete()
+    }
 }
