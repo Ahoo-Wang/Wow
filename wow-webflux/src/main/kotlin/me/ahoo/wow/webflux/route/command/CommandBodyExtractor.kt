@@ -32,9 +32,7 @@ class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRou
 
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
-            .switchIfEmpty {
-                ObjectNode(JsonSerializer.nodeFactory, mutableMapOf()).toMono()
-            }
+            .switchEmtpyObjectNodeIfEmpty()
             .map { objectNode ->
                 commandRouteMetadata.decode(objectNode, {
                     pathVariables[it]
@@ -42,5 +40,11 @@ class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRou
                     inputMessage.headers.getFirst(it)
                 }
             }
+    }
+}
+
+internal fun Mono<ObjectNode>.switchEmtpyObjectNodeIfEmpty(): Mono<ObjectNode> {
+    return switchIfEmpty {
+        ObjectNode(JsonSerializer.nodeFactory, mutableMapOf()).toMono()
     }
 }
