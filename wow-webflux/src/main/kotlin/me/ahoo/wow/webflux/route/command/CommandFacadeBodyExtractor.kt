@@ -21,11 +21,14 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toObject
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
+import reactor.kotlin.core.publisher.toMono
 import reactor.util.function.Tuple2
 import reactor.util.function.Tuples
 
@@ -51,7 +54,11 @@ object CommandFacadeBodyExtractor :
         }
         val aggregateMetadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
         return BodyExtractors.toMono(ObjectNode::class.java)
-            .extract(inputMessage, context).map {
+            .extract(inputMessage, context)
+            .switchIfEmpty {
+                ObjectNode(JsonSerializer.nodeFactory, mutableMapOf()).toMono()
+            }
+            .map {
                 val commandBody = it.toObject(commandType)
                 Tuples.of(commandBody, aggregateMetadata)
             }

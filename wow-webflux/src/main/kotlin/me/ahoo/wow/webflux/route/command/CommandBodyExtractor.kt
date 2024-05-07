@@ -15,11 +15,14 @@ package me.ahoo.wow.webflux.route.command
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
+import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.server.RouterFunctions
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
+import reactor.kotlin.core.publisher.toMono
 
 class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRouteMetadata<C>) :
     BodyExtractor<Mono<C>, ReactiveHttpInputMessage> {
@@ -29,6 +32,9 @@ class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRou
 
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
+            .switchIfEmpty {
+                ObjectNode(JsonSerializer.nodeFactory, mutableMapOf()).toMono()
+            }
             .map { objectNode ->
                 commandRouteMetadata.decode(objectNode, {
                     pathVariables[it]
