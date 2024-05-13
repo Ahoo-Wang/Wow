@@ -36,7 +36,9 @@ class SimpleCommandOptionsTest {
             .tenantId("tenantId")
             .aggregateVersion(1)
             .namedAggregate(MOCK_AGGREGATE_METADATA)
-            .header(DefaultHeader.empty())
+            .header {
+                it.with("key", "value")
+            }
             .createTime(1)
 
         assertThat(commandOptions.id, equalTo("id"))
@@ -45,7 +47,7 @@ class SimpleCommandOptionsTest {
         assertThat(commandOptions.tenantId, equalTo("tenantId"))
         assertThat(commandOptions.aggregateVersion, equalTo(1))
         assertThat(commandOptions.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
-        assertThat(commandOptions.header, equalTo(DefaultHeader.empty()))
+        assertThat(commandOptions.header["key"], equalTo("value"))
         assertThat(commandOptions.createTime, equalTo(1))
     }
 }
