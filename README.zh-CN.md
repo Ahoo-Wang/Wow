@@ -4,7 +4,7 @@
 
 # Wow : 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 
-> [中文文档](https://ahoowang.gitee.io/wow/)
+> [中文文档](https://wow.ahoo.me/)
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
@@ -26,7 +26,7 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
 
 ## 快速开始
 
-[使用 Wow 项目模板快速创建基于 Wow 框架的 DDD 项目](https://ahoowang.gitee.io/wow/guide/getting-started.html) 
+[使用 Wow 项目模板快速创建基于 Wow 框架的 DDD 项目](https://wow.ahoo.me/guide/getting-started.html) 
 
 ## 特性概览
 
@@ -74,7 +74,7 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 
 然而，如果你选择使用 _Wow_ 框架，你将不再需要过多关注数据库关系模式、分片规则等问题。你的业务代码无需变更，系统能够轻松实现水平伸缩。
 
-你可以在这里了解更多关于 [Wow 框架的性能](https://ahoowang.gitee.io/wow/guide/perf-test.html)。
+你可以在这里了解更多关于 [Wow 框架的性能](https://wow.ahoo.me/guide/perf-test.html)。
 
 ### 读写分离与同步延迟
 
@@ -107,7 +107,7 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 
 在研发同级别的项目中，我们的测试团队在系统 _API_ 测试中发现，基于 Wow 框架的项目，其 _BUG_ 数仅为传统架构项目的 **1/3**。
 
-你可以在这里了解更多关于 [Wow 单元测试套件](https://ahoowang.gitee.io/wow/guide/test-suite.html)。
+你可以在这里了解更多关于 [Wow 单元测试套件](https://wow.ahoo.me/guide/test-suite.html)。
 
 ## 对于企业而言，_Wow_ 框架意味着什么？
 
@@ -124,7 +124,7 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 
 _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHouse_），为实时数据分析提供了极大的便利。这种方法为商业智能提供了强有力的支持，构建了一个实时数据分析系统，使决策制定能够基于及时而准确的信息。
 
-你可以在这里了解更多关于 [Wow 商业智能](https://ahoowang.gitee.io/wow/guide/bi.html)。
+你可以在这里了解更多关于 [Wow 商业智能](https://wow.ahoo.me/guide/bi.html)。
 
 ### 操作审计
 
@@ -137,4 +137,4 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 
 此外，Wow 框架提供的实时数据同步机制也为操作审计带来了便利，确保了审计数据的及时性和一致性。
 
-了解更多关于 [Wow 操作审计](https://ahoowang.gitee.io/wow/guide/bi.html#聚合命令)。
+了解更多关于 [Wow 操作审计](https://wow.ahoo.me/guide/bi.html#聚合命令)。
