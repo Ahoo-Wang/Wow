@@ -41,6 +41,7 @@ interface CommandOptions : Identifier {
     fun aggregateVersion(aggregateVersion: Int?): CommandOptions
     fun namedAggregate(namedAggregate: NamedAggregate?): CommandOptions
     fun header(header: Header): CommandOptions
+    fun header(customize: (header: Header) -> Unit): CommandOptions
     fun createTime(createTime: Long): CommandOptions
 
     companion object {
@@ -98,6 +99,11 @@ class SimpleCommandOptions : CommandOptions {
 
     override fun header(header: Header): CommandOptions {
         this.header = header
+        return this
+    }
+
+    override fun header(customize: (header: Header) -> Unit): CommandOptions {
+        customize(header)
         return this
     }
 

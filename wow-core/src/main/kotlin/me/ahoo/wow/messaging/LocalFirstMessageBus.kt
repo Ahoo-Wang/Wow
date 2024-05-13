@@ -14,6 +14,7 @@
 package me.ahoo.wow.messaging
 
 import me.ahoo.wow.api.Copyable
+import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
@@ -23,18 +24,31 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 const val LOCAL_FIRST_HEADER = "local.first"
-const val LOCAL_FIRST_HEADER_VALUE = "true"
 
-fun <M : Message<out M, *>> M.withLoadFirst(): M {
-    return withHeader(LOCAL_FIRST_HEADER, LOCAL_FIRST_HEADER_VALUE)
+fun Header.withLocalFirst(localFirst: Boolean = true): Header {
+    return with(LOCAL_FIRST_HEADER, localFirst.toString())
 }
 
-fun <M : Message<*, *>> M.isLoadFirst(): Boolean {
-    return header[LOCAL_FIRST_HEADER] == LOCAL_FIRST_HEADER_VALUE
+fun Header.isLocalFirst(): Boolean {
+    return this[LOCAL_FIRST_HEADER].toBoolean()
 }
 
-fun <M> M.islocalHandled(): Boolean where M : Message<*, *>, M : NamedAggregate {
-    return isLoadFirst() && isLocal()
+fun <M : Message<out M, *>> M.withLocalFirst(localFirst: Boolean = true): M {
+    this.header.withLocalFirst(localFirst)
+    return this
+}
+
+fun <M : Message<*, *>> M.isLocalFirst(): Boolean {
+    return header.isLocalFirst()
+}
+
+fun <M> M.shouldLocalFirst(): Boolean
+    where M : Message<*, *>, M : NamedAggregate {
+    return isLocal() && header[LOCAL_FIRST_HEADER] != false.toString()
+}
+
+fun <M> M.isLocalHandled(): Boolean where M : Message<*, *>, M : NamedAggregate {
+    return isLocalFirst() && isLocal()
 }
 
 interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
@@ -44,8 +58,8 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
 
     @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
-        if (message.isLocal()) {
-            message.withLoadFirst()
+        if (message.shouldLocalFirst()) {
+            message.withLocalFirst()
             val localSend = localBus.send(message)
 
             @Suppress("UNCHECKED_CAST")
@@ -61,11 +75,10 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
             it.isLocal()
         }.toSet()
         val localFlux = localBus.receive(localTopics)
-        val distributedFlux =
-            distributedBus.receive(namedAggregates)
-                .filterThenAck {
-                    !it.message.islocalHandled()
-                }
+        val distributedFlux = distributedBus.receive(namedAggregates)
+            .filterThenAck {
+                !it.message.isLocalHandled()
+            }
         return Flux.merge(localFlux, distributedFlux)
     }
 }
