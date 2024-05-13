@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.BooleanSchema
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
@@ -49,6 +50,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_V
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RESULT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.LOCAL_FIRST_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
@@ -141,6 +143,7 @@ class CommandRouteSpec(
                 add(AGGREGATE_ID_PARAMETER.ref)
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)
+                add(LOCAL_FIRST_PARAMETER.ref)
                 commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
                     withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
                         it.required(variableMetadata.required)
@@ -217,6 +220,13 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
+        val LOCAL_FIRST_PARAMETER = Parameter()
+            .name(CommandHeaders.LOCAL_FIRST)
+            .`in`(ParameterIn.HEADER.toString())
+            .required(false)
+            .schema(BooleanSchema()).let {
+                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
+            }
         val COMMAND_RESULT_CONTENT = CommandResult::class.java.toSchemaRef().ref.toJsonContent()
         val COMMAND_RESULT_RESPONSE = ResponseRef(
             name = "${Wow.WOW_PREFIX}CommandResult",
@@ -267,6 +277,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .with(AGGREGATE_ID_PARAMETER)
             .with(AGGREGATE_VERSION_PARAMETER)
             .with(REQUEST_ID_PARAMETER)
+            .with(LOCAL_FIRST_PARAMETER)
 
         components.responses
             .with(COMMAND_RESULT_RESPONSE)
