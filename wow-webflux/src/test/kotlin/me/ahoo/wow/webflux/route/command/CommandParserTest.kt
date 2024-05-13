@@ -32,6 +32,7 @@ class CommandParserTest {
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns Mono.empty()
             every { headers().firstHeader(CommandHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns false.toString()
         }
         request.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,

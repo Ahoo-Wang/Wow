@@ -34,6 +34,7 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns true.toString()
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
@@ -63,6 +64,7 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns null
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()

@@ -19,7 +19,7 @@ import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.CommandOptions
 import me.ahoo.wow.infra.ifNotBlank
-import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -55,6 +55,13 @@ object CommandParser {
         return null
     }
 
+    fun ServerRequest.getLocalFirst(): Boolean? {
+        headers().firstHeader(CommandHeaders.LOCAL_FIRST).ifNotBlank<String> {
+            return it.toBoolean()
+        }
+        return null
+    }
+
     fun ServerRequest.parse(
         aggregateMetadata: AggregateMetadata<*, *>,
         commandBody: Any,
@@ -70,8 +77,15 @@ object CommandParser {
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
+        getLocalFirst()?.let {
+            commandOptions.header { header ->
+                header.withLocalFirst(it)
+            }
+        }
         return principal().map {
-            commandOptions.header(DefaultHeader.empty().withOperator(it.name))
+            commandOptions.header { header ->
+                header.withOperator(it.name)
+            }
         }.then(commandMessageFactory.create(commandBody, commandOptions))
     }
 }
