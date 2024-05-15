@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -38,6 +39,7 @@ class CountSnapshotHandlerFunction(
             .flatMap {
                 val condition = if (tenantId == null) it else it.withTenantId(tenantId)
                 snapshotQueryHandler.count(aggregateMetadata, condition)
+                    .writeRawRequest(request)
             }.toServerResponse(exceptionHandler)
     }
 }

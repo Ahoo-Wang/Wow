@@ -33,21 +33,28 @@ interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : 
     val queryType: QueryType
 
     fun setQuery(query: Q): SOURCE {
-        attributes[QUERY_KEY] = query
-        return this as SOURCE
+        return setAttribute(QUERY_KEY, query)
     }
 
     fun getQuery(): Q {
-        return checkNotNull(attributes[QUERY_KEY]) as Q
+        return checkNotNull(getAttribute<Q>(QUERY_KEY))
     }
 
     fun setResult(result: R): SOURCE {
-        attributes[RESULT_KEY] = result
-        return this as SOURCE
+        return setAttribute(RESULT_KEY, result)
     }
 
     fun getRequiredResult(): R {
-        return checkNotNull(attributes[RESULT_KEY]) as R
+        return checkNotNull(getAttribute<R>(RESULT_KEY))
+    }
+
+    fun setAttribute(key: String, value: Any): SOURCE {
+        attributes[key] = value
+        return this as SOURCE
+    }
+
+    fun <V> getAttribute(key: String): V? {
+        return attributes[key] as V?
     }
 }
 
