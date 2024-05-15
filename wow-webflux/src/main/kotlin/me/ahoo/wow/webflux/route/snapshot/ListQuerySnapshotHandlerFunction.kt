@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.ListQuerySnapshotRouteSpec
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -37,7 +38,9 @@ class ListQuerySnapshotHandlerFunction(
         return request.bodyToMono(ListQuery::class.java)
             .flatMap {
                 val query = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.dynamicList(aggregateMetadata, query).collectList()
+                snapshotQueryHandler.dynamicList(aggregateMetadata, query)
+                    .collectList()
+                    .writeRawRequest(request)
             }.toServerResponse(exceptionHandler)
     }
 }

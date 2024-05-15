@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -37,7 +38,8 @@ class PagedQuerySnapshotHandlerFunction(
         return request.bodyToMono(PagedQuery::class.java)
             .flatMap {
                 val pagedQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.paged<Any>(aggregateMetadata, pagedQuery)
+                snapshotQueryHandler.dynamicPaged(aggregateMetadata, pagedQuery)
+                    .writeRawRequest(request)
             }.toServerResponse(exceptionHandler)
     }
 }

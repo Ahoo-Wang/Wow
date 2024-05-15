@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -38,7 +39,9 @@ class SingleSnapshotHandlerFunction(
         return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
                 val singleQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
-                snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery).throwNotFoundIfEmpty()
+                snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
+                    .writeRawRequest(request)
+                    .throwNotFoundIfEmpty()
             }.toServerResponse(exceptionHandler)
     }
 }
