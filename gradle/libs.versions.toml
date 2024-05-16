@@ -1,7 +1,7 @@
 [versions]
 # libraries
 springBoot = "3.2.5"
-cosid = "2.6.9"
+cosid = "2.8.0"
 simba = "2.2.5"
 coapi="1.2.8"
 testcontainers = "1.19.8"
