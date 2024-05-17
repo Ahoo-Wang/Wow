@@ -13,26 +13,23 @@
 
 package me.ahoo.wow.query
 
-import me.ahoo.wow.api.query.Projection
+abstract class NestedFieldDsl {
+    protected var nestedField: String = ""
+        private set
+    private val nestedFieldDelimiter: String = "."
 
-class ProjectionDsl : NestedFieldDsl() {
+    fun nested(nestedField: String) {
+        this.nestedField = nestedField
+    }
 
-    private val include = mutableListOf<String>()
-    private val exclude = mutableListOf<String>()
-
-    fun include(vararg fields: String) {
-        fields.forEach {
-            include.add(it.withNestedField())
+    fun String.withNestedField(): String {
+        if (nestedField.isBlank()) {
+            return this
         }
+        return "$nestedField$nestedFieldDelimiter$this"
     }
+}
 
-    fun exclude(vararg fields: String) {
-        fields.forEach {
-            exclude.add(it.withNestedField())
-        }
-    }
-
-    fun build(): Projection {
-        return Projection(include, exclude)
-    }
+fun NestedFieldDsl.nestedState() {
+    this.nested(STATE_FIELD)
 }
