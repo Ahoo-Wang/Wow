@@ -180,9 +180,11 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         )
     }
 
-    override fun then(): GivenStage<S> {
-        require(!verifiedResult.hasError) {
-            "An exception[${verifiedResult.error}] occurred in the verified result."
+    override fun then(verifyError: Boolean): GivenStage<S> {
+        if (verifyError) {
+            require(!verifiedResult.hasError) {
+                "An exception[${verifiedResult.error}] occurred in the verified result."
+            }
         }
         return this
     }
