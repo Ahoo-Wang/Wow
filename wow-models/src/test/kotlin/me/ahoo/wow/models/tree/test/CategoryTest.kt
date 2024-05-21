@@ -52,7 +52,7 @@ class CategoryTest {
     fun onCreateIfNoParent() {
         aggregateVerifier<Category, CategoryState>()
             .`when`(CreateCategory("name", "parent"))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -109,7 +109,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(DeleteCategory("code"))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -120,7 +120,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category, l2Category)
             .`when`(DeleteCategory(l1Category.code))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -147,7 +147,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(command)
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
