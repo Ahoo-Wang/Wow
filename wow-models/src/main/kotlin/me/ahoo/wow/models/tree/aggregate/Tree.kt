@@ -44,6 +44,8 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
     }
 
+    protected open fun verifyCreate(command: C) = Unit
+
     @OnCommand
     protected open fun onCreate(command: C): Created {
         var code: String = generateCode()
@@ -61,6 +63,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         require(event.level <= maxLevel()) {
             onCreateExceedMaxLevelErrorMessage(event)
         }
+        verifyCreate(command)
         return event
     }
 
@@ -71,6 +74,8 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     protected open fun hasChildErrorMessage(treeCoded: TreeCoded): String {
         return "Tree node has children. code:${treeCoded.code}"
     }
+
+    protected open fun verifyDelete(command: D) = Unit
 
     @OnCommand
     protected open fun onDelete(command: D): Deleted {
@@ -85,14 +90,18 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         require(!hasChild) {
             hasChildErrorMessage(command)
         }
+        verifyDelete(command)
         return command.toEvent()
     }
+
+    protected open fun verifyUpdate(command: U) = Unit
 
     @OnCommand
     protected open fun onUpdate(command: U): Updated {
         require(state.children.any { it.code == command.code }) {
             nodeNotFoundErrorMessage(command)
         }
+        verifyUpdate(command)
         return command.toEvent()
     }
 
