@@ -154,7 +154,7 @@ interface VerifiedStage<S : Any> {
     val stateRoot: S
         get() = stateAggregate.state
 
-    fun then(): GivenStage<S>
+    fun then(verifyError: Boolean = true): GivenStage<S>
 }
 
 data class ExpectedResult<S : Any>(
