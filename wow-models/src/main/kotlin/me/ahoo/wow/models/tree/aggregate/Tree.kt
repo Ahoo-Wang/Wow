@@ -51,7 +51,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         var code: String = generateCode()
 
         if (command.parentCode != ROOT_CODE) {
-            require(state.children.any { it.code == command.parentCode }) {
+            check(state.children.any { it.code == command.parentCode }) {
                 onCreateNotFoundParentErrorMessage(command)
             }
             code = command.parentCode.treeCode(code)
@@ -80,14 +80,14 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     @OnCommand
     protected open fun onDelete(command: D): Deleted {
         val node = state.children.firstOrNull { it.code == command.code }
-        requireNotNull(node) {
+        checkNotNull(node) {
             nodeNotFoundErrorMessage(command)
         }
         val childCodePrefix = command.code.childCodePrefix()
         val hasChild = state.children.any {
             it.code.startsWith(childCodePrefix)
         }
-        require(!hasChild) {
+        check(!hasChild) {
             hasChildErrorMessage(command)
         }
         verifyDelete(command)
@@ -98,7 +98,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
 
     @OnCommand
     protected open fun onUpdate(command: U): Updated {
-        require(state.children.any { it.code == command.code }) {
+        check(state.children.any { it.code == command.code }) {
             nodeNotFoundErrorMessage(command)
         }
         verifyUpdate(command)
