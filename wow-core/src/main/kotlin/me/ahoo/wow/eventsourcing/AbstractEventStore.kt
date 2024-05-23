@@ -36,7 +36,7 @@ abstract class AbstractEventStore : EventStore {
         return appendStream(eventStream)
             .onErrorMap(EventVersionConflictException::class.java) {
                 if (it.eventStream.version == Version.INITIAL_VERSION) {
-                    DuplicateAggregateIdException(it.eventStream)
+                    DuplicateAggregateIdException(it.eventStream, cause = it)
                 } else {
                     it
                 }
