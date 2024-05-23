@@ -19,6 +19,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.command.CommandResultAccessor
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -97,13 +98,19 @@ class CommandWaitNotifierSubscriber<E, M>(
         val error = errorInfo ?: ErrorInfo.OK
         val processorInfo =
             messageExchange.getProcessor() ?: ProcessorInfoData.unknown(messageExchange.message.contextName)
+        val commandResult = if (messageExchange is CommandResultAccessor<*>) {
+            messageExchange.getCommandResult()
+        } else {
+            emptyMap()
+        }
         val waitSignal = processorInfo.toWaitSignal(
             commandId = commandId,
             stage = processingStage,
             isLastProjection = isLastProjection,
             errorCode = error.errorCode,
             errorMsg = error.errorMsg,
-            bindingErrors = error.bindingErrors
+            bindingErrors = error.bindingErrors,
+            result = commandResult
         )
         commandWaitNotifier.notifyAndForget(waitStrategy.commandWaitEndpoint, waitSignal)
     }

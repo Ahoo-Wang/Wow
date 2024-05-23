@@ -17,11 +17,13 @@ import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.command.CommandResultCapable
 import me.ahoo.wow.exception.ErrorCodes
 
-interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo {
+interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo, CommandResultCapable {
     val stage: CommandStage
     val isLastProjection: Boolean
+    fun copyResult(result: Map<String, Any>): WaitSignal
 }
 
 data class SimpleWaitSignal(
@@ -32,7 +34,8 @@ data class SimpleWaitSignal(
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
-    override val bindingErrors: List<BindingError> = emptyList()
+    override val bindingErrors: List<BindingError> = emptyList(),
+    override val result: Map<String, Any> = emptyMap()
 ) : WaitSignal {
     companion object {
         fun ProcessorInfo.toWaitSignal(
@@ -41,7 +44,8 @@ data class SimpleWaitSignal(
             isLastProjection: Boolean = false,
             errorCode: String = ErrorCodes.SUCCEEDED,
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
-            bindingErrors: List<BindingError> = emptyList()
+            bindingErrors: List<BindingError> = emptyList(),
+            result: Map<String, Any> = emptyMap()
         ): WaitSignal {
             return SimpleWaitSignal(
                 commandId = commandId,
@@ -51,8 +55,13 @@ data class SimpleWaitSignal(
                 isLastProjection = isLastProjection,
                 errorCode = errorCode,
                 errorMsg = errorMsg,
-                bindingErrors = bindingErrors
+                bindingErrors = bindingErrors,
+                result = result
             )
         }
+    }
+
+    override fun copyResult(result: Map<String, Any>): WaitSignal {
+        return copy(result = result)
     }
 }
