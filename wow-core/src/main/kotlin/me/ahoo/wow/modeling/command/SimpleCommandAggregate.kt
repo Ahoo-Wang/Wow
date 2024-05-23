@@ -43,9 +43,10 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override var commandState = CommandState.STORED
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+        val message = exchange.message
+        val commandType = message.body.javaClass
         return Mono.defer {
             exchange.setCommandAggregate(this)
-            val message = exchange.message
             if (log.isDebugEnabled) {
                 log.debug("Process {}.", message)
             }
@@ -70,7 +71,6 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     state.aggregateId,
                 ).toMono()
             }
-            val commandType = message.body.javaClass
             val commandFunction = commandFunctionRegistry[commandType]
             requireNotNull(commandFunction) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
@@ -92,12 +92,23 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                         .doOnNext { commandState = it }
                         .doOnError { commandState = CommandState.EXPIRED }
                         .thenReturn(eventStream)
-                }.onErrorResume {
-                    exchange.setError(it)
-                    val errorFunction = errorFunctionRegistry[commandType]
-                    val errorMono = Mono.error<DomainEventStream>(it)
-                    errorFunction?.invoke(exchange)?.then(errorMono) ?: errorMono
                 }
+        }.errorResume(commandType, exchange)
+    }
+
+    private fun Mono<DomainEventStream>.errorResume(
+        commandType: Class<*>,
+        exchange: ServerCommandExchange<*>
+    ): Mono<DomainEventStream> {
+        return onErrorResume {
+            exchange.setError(it)
+            val errorFunction = errorFunctionRegistry[commandType]
+                ?: return@onErrorResume it.toMono<DomainEventStream>()
+            errorFunction.invoke(exchange).then(
+                Mono.defer {
+                    exchange.getError()?.toMono() ?: it.toMono<DomainEventStream>()
+                }
+            )
         }
     }
 
