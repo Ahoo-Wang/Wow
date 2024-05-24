@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.filter
 
-interface ErrorAccessor<SOURCE : ErrorAccessor<SOURCE>> {
-    fun setError(throwable: Throwable): SOURCE
+interface ErrorAccessor {
+    fun setError(throwable: Throwable)
     fun getError(): Throwable?
-    fun clearError(): SOURCE
+    fun clearError()
 }

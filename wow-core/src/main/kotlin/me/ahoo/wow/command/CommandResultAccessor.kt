@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.command
 
-interface CommandResultAccessor<SOURCE : CommandResultAccessor<SOURCE>> {
-    fun <R> setCommandResult(key: String, value: R): SOURCE
+interface CommandResultAccessor {
+    fun setCommandResult(key: String, value: Any)
     fun <R> getCommandResult(key: String): R?
     fun getCommandResult(): Map<String, Any>
 }

@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.StaticTenantId
+import me.ahoo.wow.command.CommandResultAccessor
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
@@ -33,7 +34,11 @@ const val MAX_CART_ITEM_SIZE = 100
 class Cart(private val state: CartState) {
 
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
-    fun onCommand(command: AddCartItem): Any {
+    fun onCommand(
+        command: AddCartItem,
+        commandResultAccessor: CommandResultAccessor
+    ): Any {
+        commandResultAccessor.setCommandResult("cartId", state.id)
         require(state.items.size < MAX_CART_ITEM_SIZE) {
             "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
         }
