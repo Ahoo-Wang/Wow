@@ -17,7 +17,7 @@ package me.ahoo.wow.example.domain.order
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.CommandResultAccessor
+import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.example.api.order.AddressChanged
