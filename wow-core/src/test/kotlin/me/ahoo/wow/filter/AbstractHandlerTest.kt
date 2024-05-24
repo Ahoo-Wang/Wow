@@ -22,13 +22,13 @@ class AbstractHandlerTest {
 
     @Test
     fun handleIfErrorAccessor() {
-        val context = mockk<ErrorAccessor<*>> {
-            every { setError(any()) } returns this
+        val context = mockk<ErrorAccessor> {
+            every { setError(any()) } returns Unit
         }
-        val chain: FilterChain<ErrorAccessor<*>> = FilterChain {
+        val chain: FilterChain<ErrorAccessor> = FilterChain {
             IllegalStateException().toMono()
         }
-        val handler = object : AbstractHandler<ErrorAccessor<*>>(chain, LogResumeErrorHandler()) {
+        val handler = object : AbstractHandler<ErrorAccessor>(chain, LogResumeErrorHandler()) {
         }
 
         handler.handle(context).test().verifyComplete()

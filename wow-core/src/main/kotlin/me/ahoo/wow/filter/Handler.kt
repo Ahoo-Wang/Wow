@@ -57,7 +57,7 @@ abstract class AbstractHandler<T>(
     override fun handle(context: T): Mono<Void> {
         return chain.filter(context)
             .onErrorResume {
-                if (context is ErrorAccessor<*>) {
+                if (context is ErrorAccessor) {
                     context.setError(it)
                 }
                 errorHandler.handle(context, it)
