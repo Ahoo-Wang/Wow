@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.messaging.handler
 
+import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.command.CommandResultAccessor
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.ioc.ServiceProvider
 import reactor.core.publisher.Mono

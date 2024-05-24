@@ -14,6 +14,8 @@
 package me.ahoo.wow.models.tree.aggregate
 
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.command.CommandResultAccessor
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.ROOT_CODE
 import me.ahoo.wow.models.tree.TreeCoded
 import me.ahoo.wow.models.tree.TreeCoded.Companion.childCodePrefix
@@ -47,7 +49,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
     protected open fun verifyCreate(command: C) = Unit
 
     @OnCommand
-    protected open fun onCreate(command: C): Created {
+    protected open fun onCreate(command: C, commandResultAccessor: CommandResultAccessor): Created {
         var code: String = generateCode()
 
         if (command.parentCode != ROOT_CODE) {
@@ -64,6 +66,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
             onCreateExceedMaxLevelErrorMessage(event)
         }
         verifyCreate(command)
+        commandResultAccessor.setCommandResult(Flat::code.name, event.code)
         return event
     }
 

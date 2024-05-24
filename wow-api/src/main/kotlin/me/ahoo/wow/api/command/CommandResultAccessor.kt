@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.api.command
 
 interface CommandResultAccessor {
     fun setCommandResult(key: String, value: Any)
