@@ -84,6 +84,9 @@ internal class OrderTest {
                 assertThat(it.address, equalTo(SHIPPING_ADDRESS))
                 verifyItems(it.items, orderItems)
                 assertThat(it.status, equalTo(OrderStatus.CREATED))
+            }.expect {
+                val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
+                assertThat(result, equalTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong()))))
             }
             .verify()
     }
