@@ -28,9 +28,17 @@ internal class WaitingForTest {
     @Test
     fun processed() {
         val waitStrategy = WaitingFor.processed(contextName)
+        waitStrategy.next(
+            ProcessorInfoData(contextName, "processorName").toWaitSignal(
+                commandId = "commandId",
+                stage = CommandStage.SENT,
+                result = mapOf("sent" to "value")
+            )
+        )
         val waitSignal = ProcessorInfoData(contextName, "processorName").toWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
+            result = mapOf("result" to "value")
         )
         assertThat(
             waitStrategy.toString(),
@@ -41,7 +49,7 @@ internal class WaitingForTest {
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
             }
-            .expectNext(waitSignal)
+            .expectNext(waitSignal.copyResult(mapOf("sent" to "value", "result" to "value")))
             .verifyComplete()
     }
 

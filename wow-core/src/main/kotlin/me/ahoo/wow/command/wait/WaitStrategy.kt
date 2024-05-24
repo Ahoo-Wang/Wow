@@ -79,7 +79,6 @@ class WaitingFor(
     }
 
     private fun nextSignal(signal: WaitSignal) {
-        result.putAll(signal.result)
         val mergedSignal = signal.copyResult(result)
         sink.tryEmitValue(mergedSignal)
     }
@@ -88,6 +87,7 @@ class WaitingFor(
         if (log.isDebugEnabled) {
             log.debug("Next $signal.")
         }
+        result.putAll(signal.result)
         if (!signal.succeeded && stage.isAfter(signal.stage)) {
             // fail fast
             nextSignal(signal)

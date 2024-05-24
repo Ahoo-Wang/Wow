@@ -23,7 +23,12 @@ internal class LocalCommandWaitNotifierTest {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notify(
             "endpoint",
-            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT, "", ""),
+            SimpleWaitSignal(
+                GlobalIdGenerator.generateAsString(),
+                CommandStage.SENT,
+                "",
+                ""
+            ),
         )
             .test()
             .verifyComplete()
