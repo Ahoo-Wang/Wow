@@ -224,10 +224,6 @@ data class Condition(
         return copy(not = not)
     }
 
-    fun with(condition: Condition): Condition {
-        return and(this, condition)
-    }
-
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
@@ -300,7 +296,7 @@ data class Projection(val include: List<String> = emptyList(), val exclude: List
 interface Queryable<Q : Queryable<Q>> : ConditionCapable, ProjectionCapable, SortCapable {
     fun withCondition(newCondition: Condition): Q
     fun appendCondition(append: Condition): Q {
-        return withCondition(this.condition.with(append))
+        return withCondition(Condition.and(this.condition, append))
     }
 
     fun appendTenantId(tenantId: String): Q {
