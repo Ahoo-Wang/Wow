@@ -295,6 +295,7 @@ data class Projection(val include: List<String> = emptyList(), val exclude: List
 
 interface Queryable<Q : Queryable<Q>> : ConditionCapable, ProjectionCapable, SortCapable {
     fun withCondition(newCondition: Condition): Q
+    fun withProjection(newProjection: Projection): Q
     fun appendCondition(append: Condition): Q {
         return withCondition(Condition.and(this.condition, append))
     }

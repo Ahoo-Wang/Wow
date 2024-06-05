@@ -23,4 +23,8 @@ data class SingleQuery(
     override fun withCondition(newCondition: Condition): ISingleQuery {
         return copy(condition = newCondition)
     }
+
+    override fun withProjection(newProjection: Projection): ISingleQuery {
+        return copy(projection = newProjection)
+    }
 }

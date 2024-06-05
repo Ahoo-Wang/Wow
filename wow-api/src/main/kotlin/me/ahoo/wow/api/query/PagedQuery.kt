@@ -26,4 +26,8 @@ data class PagedQuery(
     override fun withCondition(newCondition: Condition): IPagedQuery {
         return copy(condition = newCondition)
     }
+
+    override fun withProjection(newProjection: Projection): IPagedQuery {
+        return copy(projection = newProjection)
+    }
 }

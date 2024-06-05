@@ -26,4 +26,8 @@ data class ListQuery(
     override fun withCondition(newCondition: Condition): IListQuery {
         return copy(condition = newCondition)
     }
+
+    override fun withProjection(newProjection: Projection): IListQuery {
+        return copy(projection = newProjection)
+    }
 }
