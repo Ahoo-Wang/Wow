@@ -18,7 +18,6 @@ class ConditionDslTest {
             deleted(false)
             and {
                 tenantId("tenantId")
-                all()
             }
             not {
                 all()
@@ -79,7 +78,7 @@ class ConditionDslTest {
                 Condition.and(
                     listOf(
                         Condition.deleted(false),
-                        Condition.all().withTenantId("tenantId"),
+                        Condition.and(Condition.tenantId("tenantId")),
                         Condition.all().not(),
                         Condition.id("id"),
                         Condition.ids("id", "id2"),
