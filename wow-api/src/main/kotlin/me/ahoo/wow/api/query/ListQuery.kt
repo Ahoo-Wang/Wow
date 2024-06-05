@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-interface IListQuery : Queryable {
+interface IListQuery : Queryable<IListQuery> {
     val limit: Int
 }
 
@@ -22,4 +22,8 @@ data class ListQuery(
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = Pagination.DEFAULT.size
-) : IListQuery
+) : IListQuery {
+    override fun withCondition(newCondition: Condition): IListQuery {
+        return copy(condition = newCondition)
+    }
+}

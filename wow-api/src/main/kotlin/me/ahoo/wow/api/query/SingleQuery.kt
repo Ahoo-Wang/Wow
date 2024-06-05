@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.api.query
 
-interface ISingleQuery : Queryable
+interface ISingleQuery : Queryable<ISingleQuery>
 
 data class SingleQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-) : ISingleQuery
+) : ISingleQuery {
+    override fun withCondition(newCondition: Condition): ISingleQuery {
+        return copy(condition = newCondition)
+    }
+}

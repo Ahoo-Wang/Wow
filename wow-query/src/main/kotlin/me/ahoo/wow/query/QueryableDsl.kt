@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 
-abstract class QueryableDsl<Q : Queryable> {
+abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
     protected var condition: Condition = Condition.all()
     protected var sort: List<Sort> = emptyList()

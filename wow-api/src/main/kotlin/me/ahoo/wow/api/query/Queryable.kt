@@ -224,8 +224,8 @@ data class Condition(
         return copy(not = not)
     }
 
-    fun withTenantId(tenantId: String): Condition {
-        return and(listOf(tenantId(tenantId), this))
+    fun with(condition: Condition): Condition {
+        return and(this, condition)
     }
 
     companion object {
@@ -297,4 +297,13 @@ data class Projection(val include: List<String> = emptyList(), val exclude: List
     fun isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
 }
 
-interface Queryable : ConditionCapable, ProjectionCapable, SortCapable
+interface Queryable<Q : Queryable<Q>> : ConditionCapable, ProjectionCapable, SortCapable {
+    fun withCondition(newCondition: Condition): Q
+    fun appendCondition(append: Condition): Q {
+        return withCondition(this.condition.with(append))
+    }
+
+    fun appendTenantId(tenantId: String): Q {
+        return appendCondition(Condition.tenantId(tenantId))
+    }
+}
