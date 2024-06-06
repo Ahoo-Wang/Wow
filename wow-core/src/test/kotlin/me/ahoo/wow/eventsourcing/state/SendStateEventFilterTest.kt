@@ -38,7 +38,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }
@@ -61,7 +61,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }
@@ -88,7 +88,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }
