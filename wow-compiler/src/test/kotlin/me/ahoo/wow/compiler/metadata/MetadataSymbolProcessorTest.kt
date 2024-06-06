@@ -35,7 +35,7 @@ class MetadataSymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -54,7 +54,7 @@ class MetadataSymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -73,7 +73,7 @@ class MetadataSymbolProcessorTest {
             .map { SourceFile.fromPath(it) }
         val compilation = KotlinCompilation().apply {
             sources = exampleDomainFiles + exampleApiFiles
-            symbolProcessorProviders = listOf(MetadataSymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }

@@ -5,6 +5,10 @@ dependencies {
     implementation(libs.kspSymbolProcessingApi)
     testImplementation(libs.kotlinCompileTesting)
     testImplementation(libs.kspSymbolProcessing)
+    testImplementation(project(":wow-spring"))
+    testImplementation("io.swagger.core.v3:swagger-core-jakarta")
+    testImplementation("com.fasterxml.jackson.core:jackson-annotations")
+    testImplementation("jakarta.validation:jakarta.validation-api")
 }
 
 tasks.withType<Test>().all {
