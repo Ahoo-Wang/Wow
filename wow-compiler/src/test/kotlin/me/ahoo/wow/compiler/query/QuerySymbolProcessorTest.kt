@@ -3,6 +3,7 @@ package me.ahoo.wow.compiler.query
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.symbolProcessorProviders
+import com.tschuchort.compiletesting.useKsp2
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
@@ -22,7 +23,7 @@ class QuerySymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -40,8 +41,13 @@ class QuerySymbolProcessorTest {
         val exampleDomainFiles = exampleDomainDir.walkTopDown().filter { it.isFile }.toList()
             .map { SourceFile.fromPath(it) }
         val compilation = KotlinCompilation().apply {
+            useKsp2()
+//            supportsK2 = true
+//            languageVersion = "2.0"
+//            disableStandardScript = false
+
             sources = exampleDomainFiles + exampleApiFiles
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
@@ -60,7 +66,7 @@ class QuerySymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }
