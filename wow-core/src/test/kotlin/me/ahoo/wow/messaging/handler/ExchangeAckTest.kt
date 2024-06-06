@@ -1,6 +1,5 @@
 package me.ahoo.wow.messaging.handler
 
-import io.mockk.called
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -77,9 +76,7 @@ class ExchangeAckTest {
 
     @Test
     fun filterThenAckIfTrue() {
-        val exchange = mockk<MessageExchange<*, *>> {
-            every { acknowledge() } returns Mono.empty()
-        }
+        val exchange = mockk<MessageExchange<*, *>>()
         Flux.just(exchange)
             .filterThenAck {
                 true
@@ -87,10 +84,6 @@ class ExchangeAckTest {
             .test()
             .expectNext(exchange)
             .verifyComplete()
-
-        verify {
-            exchange.acknowledge() wasNot called
-        }
     }
 
     @Test
