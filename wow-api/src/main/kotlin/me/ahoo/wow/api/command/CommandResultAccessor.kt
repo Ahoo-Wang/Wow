@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.filter
+package me.ahoo.wow.api.command
 
-interface ErrorAccessor {
-    fun setError(throwable: Throwable)
-    fun getError(): Throwable?
-    fun clearError()
+interface CommandResultAccessor {
+    fun setCommandResult(key: String, value: Any)
+    fun <R> getCommandResult(key: String): R?
+    fun getCommandResult(): Map<String, Any>
 }

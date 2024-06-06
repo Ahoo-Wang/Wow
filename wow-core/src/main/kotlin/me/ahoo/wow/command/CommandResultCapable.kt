@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.filter
+package me.ahoo.wow.command
 
-interface ErrorAccessor {
-    fun setError(throwable: Throwable)
-    fun getError(): Throwable?
-    fun clearError()
+interface CommandResultCapable {
+    val result: Map<String, Any>
 }

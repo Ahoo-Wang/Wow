@@ -19,18 +19,25 @@ import me.ahoo.wow.exception.ErrorCodes.EVENT_VERSION_CONFLICT
 import me.ahoo.wow.exception.RecoverableException
 import me.ahoo.wow.exception.WowException
 
-class EventVersionConflictException(val eventStream: DomainEventStream, cause: Throwable? = null) :
+class EventVersionConflictException(
+    val eventStream: DomainEventStream,
+    errorMsg: String = "Event Version[${eventStream.version}] conflict.",
+    cause: Throwable? = null
+) :
     RecoverableException,
     WowException(
         EVENT_VERSION_CONFLICT,
-        "Event Version[${eventStream.version}] conflict.",
+        errorMsg,
         cause,
     )
 
 class DuplicateAggregateIdException(
-    val eventStream: DomainEventStream
+    val eventStream: DomainEventStream,
+    errorMsg: String = "Duplicate ${eventStream.aggregateId}.",
+    cause: Throwable? = null
 ) :
     WowException(
-        DUPLICATE_AGGREGATE_ID,
-        "Duplicate ${eventStream.aggregateId}.",
+        errorCode = DUPLICATE_AGGREGATE_ID,
+        errorMsg = errorMsg,
+        cause = cause
     )

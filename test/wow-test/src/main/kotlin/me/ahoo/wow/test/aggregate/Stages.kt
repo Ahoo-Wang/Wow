@@ -15,6 +15,7 @@ package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.DefaultHeader
@@ -158,6 +159,7 @@ interface VerifiedStage<S : Any> {
 }
 
 data class ExpectedResult<S : Any>(
+    val exchange: ServerCommandExchange<*>,
     val stateAggregate: StateAggregate<S>,
     val domainEventStream: DomainEventStream? = null,
     val error: Throwable? = null

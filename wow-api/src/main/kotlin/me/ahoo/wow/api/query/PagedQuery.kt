@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-interface IPagedQuery : Queryable {
+interface IPagedQuery : Queryable<IPagedQuery> {
     val pagination: Pagination
 }
 
@@ -22,4 +22,12 @@ data class PagedQuery(
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
-) : IPagedQuery
+) : IPagedQuery {
+    override fun withCondition(newCondition: Condition): IPagedQuery {
+        return copy(condition = newCondition)
+    }
+
+    override fun withProjection(newProjection: Projection): IPagedQuery {
+        return copy(projection = newProjection)
+    }
+}

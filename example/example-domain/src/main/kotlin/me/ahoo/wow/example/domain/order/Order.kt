@@ -17,6 +17,7 @@ package me.ahoo.wow.example.domain.order
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.example.api.order.AddressChanged
@@ -36,6 +37,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 /**
  * Order Aggregate.
@@ -65,7 +67,8 @@ class Order(private val state: OrderState) {
      */
     fun onCommand(
         command: CommandMessage<CreateOrder>,
-        @Name("createOrderSpec") specification: CreateOrderSpec
+        @Name("createOrderSpec") specification: CreateOrderSpec,
+        commandResultAccessor: CommandResultAccessor
     ): Mono<OrderCreated> {
         val createOrder = command.body
         require(createOrder.items.isNotEmpty()) {
@@ -75,22 +78,25 @@ class Order(private val state: OrderState) {
             .fromIterable(createOrder.items)
             .flatMap(specification::require)
             .then(
-                Mono.just(
-                    OrderCreated(
-                        orderId = command.aggregateId.id,
-                        customerId = createOrder.customerId,
-                        items = createOrder.items.map {
-                            OrderItem(
-                                id = GlobalIdGenerator.generateAsString(),
-                                productId = it.productId,
-                                price = it.price,
-                                quantity = it.quantity,
-                            )
-                        },
-                        address = createOrder.address,
-                        fromCart = createOrder.fromCart,
-                    ),
-                ),
+                OrderCreated(
+                    orderId = command.aggregateId.id,
+                    customerId = createOrder.customerId,
+                    items = createOrder.items.map {
+                        OrderItem(
+                            id = GlobalIdGenerator.generateAsString(),
+                            productId = it.productId,
+                            price = it.price,
+                            quantity = it.quantity,
+                        )
+                    },
+                    address = createOrder.address,
+                    fromCart = createOrder.fromCart,
+                ).toMono().doOnNext { orderCreated ->
+                    commandResultAccessor.setCommandResult(
+                        OrderState::totalAmount.name,
+                        orderCreated.items.sumOf { it.totalPrice }
+                    )
+                }
             )
     }
 

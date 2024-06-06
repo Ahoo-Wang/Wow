@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.models.tree.test
 
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.aggregate.Category
 import me.ahoo.wow.models.tree.aggregate.CategoryState
 import me.ahoo.wow.models.tree.command.CategoryCreated
@@ -44,6 +45,11 @@ class CategoryTest {
                 assertThat(it.name, equalTo(command.name))
                 assertThat(it.level, equalTo(1))
                 assertThat(it.sortId, equalTo(0))
+            }
+            .expect {
+                assertThat(it.exchange.getCommandResult().size, equalTo(1))
+                val result = it.exchange.getCommandResult<String>(Flat::code.name)
+                assertThat(result, notNullValue())
             }
             .verify()
     }

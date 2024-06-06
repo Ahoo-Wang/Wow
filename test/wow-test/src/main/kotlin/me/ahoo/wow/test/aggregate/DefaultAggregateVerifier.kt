@@ -91,18 +91,19 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             try {
                 commandMessage.body.validate()
             } catch (throwable: Throwable) {
-                return@map ExpectedResult(stateAggregate = it, error = throwable)
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
             }
 
             if (commandMessage.isCreate) {
-                return@map ExpectedResult(stateAggregate = it)
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
             }
 
             if (events.isEmpty()) {
                 if (it.initialized || commandMessage.allowCreate) {
-                    return@map ExpectedResult(stateAggregate = it)
+                    return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
                 }
                 return@map ExpectedResult(
+                    exchange = serverCommandExchange,
                     stateAggregate = it,
                     error = IllegalArgumentException(
                         "Non-create aggregate command[$command] given at least one sourcing event.",
@@ -122,9 +123,9 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             try {
                 it.onSourcing(domainEventStream)
             } catch (throwable: Throwable) {
-                return@map ExpectedResult(stateAggregate = it, error = throwable)
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
             }
-            ExpectedResult(stateAggregate = it)
+            ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
         }.flatMap { expectedResult ->
             if (expectedResult.hasError) {
                 return@flatMap expectedResult.toMono()

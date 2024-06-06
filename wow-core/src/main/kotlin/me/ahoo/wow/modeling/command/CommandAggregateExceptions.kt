@@ -22,15 +22,17 @@ import me.ahoo.wow.exception.WowException
 class CommandExpectVersionConflictException(
     val command: CommandMessage<*>,
     val expectVersion: Int,
-    val actualVersion: Int
+    val actualVersion: Int,
+    errorMsg: String = "The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion]."
 ) : WowException(
-    COMMAND_EXPECT_VERSION_CONFLICT,
-    "The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion].",
+    errorCode = COMMAND_EXPECT_VERSION_CONFLICT,
+    errorMsg = errorMsg,
 )
 
 class IllegalAccessDeletedAggregateException(
-    val aggregateId: AggregateId
+    val aggregateId: AggregateId,
+    errorMsg: String = "Illegal access to a deleted aggregate[${aggregateId.id}]."
 ) : WowException(
-    ILLEGAL_ACCESS_DELETED_AGGREGATE,
-    "Illegal access to a deleted aggregate[${aggregateId.id}].",
+    errorCode = ILLEGAL_ACCESS_DELETED_AGGREGATE,
+    errorMsg = errorMsg
 )

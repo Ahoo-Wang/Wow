@@ -21,11 +21,12 @@ import me.ahoo.wow.exception.WowException
 
 class CommandValidationException(
     val command: Any,
-    val constraintViolations: Set<ConstraintViolation<*>>
+    val constraintViolations: Set<ConstraintViolation<*>>,
+    errorMsg: String = "Command validation failed.",
 ) :
     WowException(
         errorCode = COMMAND_VALIDATION,
-        errorMsg = "Command validation failed.",
+        errorMsg = errorMsg,
     ),
     ErrorInfo {
     override val bindingErrors: List<BindingError> by lazy {

@@ -72,8 +72,8 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 }
                 if (it.message!!.contains(AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
                     return@onErrorMap EventVersionConflictException(
-                        eventStream,
-                        it,
+                        eventStream = eventStream,
+                        cause = it,
                     )
                 }
                 if (it.message!!.contains(REQUEST_ID_UNIQUE_INDEX_NAME)) {

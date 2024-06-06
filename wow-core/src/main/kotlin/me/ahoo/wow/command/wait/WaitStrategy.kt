@@ -69,6 +69,7 @@ class WaitingFor(
     }
 
     private val sink: Sinks.One<WaitSignal> = Sinks.one()
+    private val result: MutableMap<String, Any> = mutableMapOf()
     override fun waiting(): Mono<WaitSignal> {
         return sink.asMono()
     }
@@ -77,13 +78,19 @@ class WaitingFor(
         sink.tryEmitError(throwable)
     }
 
+    private fun nextSignal(signal: WaitSignal) {
+        val mergedSignal = signal.copyResult(result)
+        sink.tryEmitValue(mergedSignal)
+    }
+
     override fun next(signal: WaitSignal) {
         if (log.isDebugEnabled) {
             log.debug("Next $signal.")
         }
+        result.putAll(signal.result)
         if (!signal.succeeded && stage.isAfter(signal.stage)) {
             // fail fast
-            sink.tryEmitValue(signal)
+            nextSignal(signal)
             return
         }
         if (stage != signal.stage) {
@@ -91,7 +98,7 @@ class WaitingFor(
         }
 
         if (stage == CommandStage.SENT || stage == CommandStage.PROCESSED || stage == CommandStage.SNAPSHOT) {
-            sink.tryEmitValue(signal)
+            nextSignal(signal)
             return
         }
 
@@ -100,13 +107,13 @@ class WaitingFor(
         }
         if (processorName.isBlank()) {
             if (signal.isLastProjection) {
-                sink.tryEmitValue(signal)
+                nextSignal(signal)
             }
             return
         }
 
         if (processorName == signal.processorName) {
-            sink.tryEmitValue(signal)
+            nextSignal(signal)
             return
         }
     }
