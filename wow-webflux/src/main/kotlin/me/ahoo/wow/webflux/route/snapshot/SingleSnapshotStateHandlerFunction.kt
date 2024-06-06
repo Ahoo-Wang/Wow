@@ -39,7 +39,7 @@ class SingleSnapshotStateHandlerFunction(
         val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val singleQuery = if (tenantId == null) it else it.copy(condition = it.condition.withTenantId(tenantId))
+                val singleQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
                 snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
                     .toStateDocument()
                     .writeRawRequest(request)

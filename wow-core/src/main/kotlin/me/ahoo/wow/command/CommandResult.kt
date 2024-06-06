@@ -35,8 +35,9 @@ data class CommandResult(
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
-    override val bindingErrors: List<BindingError> = emptyList()
-) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo
+    override val bindingErrors: List<BindingError> = emptyList(),
+    override val result: Map<String, Any> = emptyMap()
+) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
@@ -49,7 +50,8 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
         commandId = commandMessage.commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
-        bindingErrors = bindingErrors
+        bindingErrors = bindingErrors,
+        result = result
     )
 }
 
@@ -57,7 +59,8 @@ fun Throwable.toResult(
     commandMessage: CommandMessage<*>,
     contextName: String = commandMessage.contextName,
     processorName: String,
-    stage: CommandStage = CommandStage.SENT
+    stage: CommandStage = CommandStage.SENT,
+    result: Map<String, Any> = emptyMap()
 ): CommandResult {
     val errorInfo = toErrorInfo()
     return CommandResult(
@@ -70,6 +73,7 @@ fun Throwable.toResult(
         commandId = commandMessage.commandId,
         errorCode = errorInfo.errorCode,
         errorMsg = errorInfo.errorMsg,
-        bindingErrors = errorInfo.bindingErrors
+        bindingErrors = errorInfo.bindingErrors,
+        result = result
     )
 }

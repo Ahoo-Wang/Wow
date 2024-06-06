@@ -22,9 +22,8 @@ class QuerySymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
-            messageOutputStream = System.out
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -41,9 +40,8 @@ class QuerySymbolProcessorTest {
             .map { SourceFile.fromPath(it) }
         val compilation = KotlinCompilation().apply {
             sources = exampleDomainFiles + exampleApiFiles
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
-            messageOutputStream = System.out
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -60,7 +58,7 @@ class QuerySymbolProcessorTest {
                     SourceFile.fromPath(mockBoundedContextFile),
                     SourceFile.fromPath(mockCompilerAggregateFile),
                 )
-            symbolProcessorProviders = listOf(QuerySymbolProcessorProvider())
+            symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
             messageOutputStream = System.out
         }

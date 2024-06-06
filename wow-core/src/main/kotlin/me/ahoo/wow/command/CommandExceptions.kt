@@ -18,10 +18,15 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
 import me.ahoo.wow.exception.WowException
 
-class DuplicateRequestIdException(val aggregateId: AggregateId, val requestId: String, cause: Throwable? = null) :
+class DuplicateRequestIdException(
+    val aggregateId: AggregateId,
+    val requestId: String,
+    errorMsg: String = "Duplicate request ID[$requestId].",
+    cause: Throwable? = null
+) :
     WowException(
         errorCode = DUPLICATE_REQUEST_ID,
-        errorMsg = "Duplicate request ID[$requestId].",
+        errorMsg = errorMsg,
         cause = cause,
     ),
     NamedAggregate by aggregateId

@@ -11,10 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.filter
+package me.ahoo.wow.query
 
-interface ErrorAccessor {
-    fun setError(throwable: Throwable)
-    fun getError(): Throwable?
-    fun clearError()
+abstract class NestedFieldDsl {
+    protected var nestedField: String = ""
+        private set
+    private val nestedFieldDelimiter: String = "."
+
+    fun nested(nestedField: String) {
+        this.nestedField = nestedField
+    }
+
+    fun String.withNestedField(): String {
+        if (nestedField.isBlank()) {
+            return this
+        }
+        return "$nestedField$nestedFieldDelimiter$this"
+    }
+}
+
+fun NestedFieldDsl.nestedState() {
+    this.nested(STATE_FIELD)
 }

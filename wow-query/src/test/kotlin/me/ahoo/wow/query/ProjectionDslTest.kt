@@ -23,4 +23,22 @@ class ProjectionDslTest {
             )
         )
     }
+
+    @Test
+    fun buildWithState() {
+        val projection = projection {
+            nestedState()
+            include("field1")
+            exclude("field2")
+        }
+        assertThat(
+            projection,
+            equalTo(
+                Projection(
+                    include = listOf("state.field1"),
+                    exclude = listOf("state.field2")
+                )
+            )
+        )
+    }
 }

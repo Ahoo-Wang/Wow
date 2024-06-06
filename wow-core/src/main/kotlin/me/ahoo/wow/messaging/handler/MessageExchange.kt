@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.handler
 
+import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.AggregateIdCapable
@@ -23,9 +24,12 @@ import reactor.core.publisher.Mono
 const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
 const val PROCESSOR_KEY = "__PROCESSOR__"
+const val COMMAND_RESULT_KEY = "__COMMAND_RESULT__"
 
 @Suppress("TooManyFunctions")
-interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> : ErrorAccessor<SOURCE> {
+interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*, *>> :
+    ErrorAccessor,
+    CommandResultAccessor {
     val attributes: MutableMap<String, Any>
     val message: M
     fun acknowledge(): Mono<Void> = Mono.empty()
@@ -47,17 +51,17 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         return this as SOURCE
     }
 
-    override fun setError(throwable: Throwable): SOURCE {
+    override fun setError(throwable: Throwable) {
         attributes[ERROR_KEY] = throwable
-        return setAttribute(ERROR_KEY, throwable)
+        setAttribute(ERROR_KEY, throwable)
     }
 
     override fun getError(): Throwable? {
         return getAttribute(ERROR_KEY)
     }
 
-    override fun clearError(): SOURCE {
-        return removeAttribute(ERROR_KEY)
+    override fun clearError() {
+        removeAttribute(ERROR_KEY)
     }
 
     fun setProcessor(processorInfo: ProcessorInfo): SOURCE {
@@ -74,6 +78,25 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
 
     fun getServiceProvider(): ServiceProvider? {
         return getAttribute(SERVICE_PROVIDER_KEY)
+    }
+
+    override fun getCommandResult(): Map<String, Any> {
+        return getAttribute<Map<String, Any>>(COMMAND_RESULT_KEY) ?: emptyMap()
+    }
+
+    override fun <R> getCommandResult(key: String): R? {
+        @Suppress("UNCHECKED_CAST")
+        return getCommandResult()[key] as R?
+    }
+
+    override fun setCommandResult(key: String, value: Any) {
+        val commandResult = getAttribute<Map<String, Any>>(COMMAND_RESULT_KEY)
+        val newCommandResult = if (commandResult == null) {
+            mapOf(key to value)
+        } else {
+            commandResult + (key to value)
+        }
+        setAttribute(COMMAND_RESULT_KEY, newCommandResult)
     }
 
     fun <T : Any> extractObject(type: Class<T>): T? {

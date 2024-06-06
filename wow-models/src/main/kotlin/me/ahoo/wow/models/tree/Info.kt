@@ -41,6 +41,14 @@ interface TreeCoded {
             return this == ROOT_CODE
         }
 
+        fun String.parentCode(): String {
+            return if (isRootNode()) {
+                ROOT_CODE
+            } else {
+                split(DEPARTMENT_CODE_DELIMITER).dropLast(1).joinToString(DEPARTMENT_CODE_DELIMITER)
+            }
+        }
+
         fun String.nodeLevel(): Int {
             return if (isRootNode()) {
                 0

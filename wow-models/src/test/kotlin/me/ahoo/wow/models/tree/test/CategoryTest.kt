@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.models.tree.test
 
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.aggregate.Category
 import me.ahoo.wow.models.tree.aggregate.CategoryState
 import me.ahoo.wow.models.tree.command.CategoryCreated
@@ -45,6 +46,11 @@ class CategoryTest {
                 assertThat(it.level, equalTo(1))
                 assertThat(it.sortId, equalTo(0))
             }
+            .expect {
+                assertThat(it.exchange.getCommandResult().size, equalTo(1))
+                val result = it.exchange.getCommandResult<String>(Flat::code.name)
+                assertThat(result, notNullValue())
+            }
             .verify()
     }
 
@@ -52,7 +58,7 @@ class CategoryTest {
     fun onCreateIfNoParent() {
         aggregateVerifier<Category, CategoryState>()
             .`when`(CreateCategory("name", "parent"))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -109,7 +115,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(DeleteCategory("code"))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -120,7 +126,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category, l2Category)
             .`when`(DeleteCategory(l1Category.code))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 
@@ -147,7 +153,7 @@ class CategoryTest {
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(command)
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 

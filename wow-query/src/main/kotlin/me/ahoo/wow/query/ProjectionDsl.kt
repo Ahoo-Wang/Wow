@@ -15,17 +15,21 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.Projection
 
-class ProjectionDsl {
+class ProjectionDsl : NestedFieldDsl() {
 
     private val include = mutableListOf<String>()
     private val exclude = mutableListOf<String>()
 
     fun include(vararg fields: String) {
-        include.addAll(fields)
+        fields.forEach {
+            include.add(it.withNestedField())
+        }
     }
 
     fun exclude(vararg fields: String) {
-        exclude.addAll(fields)
+        fields.forEach {
+            exclude.add(it.withNestedField())
+        }
     }
 
     fun build(): Projection {

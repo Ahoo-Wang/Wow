@@ -14,6 +14,8 @@
 package me.ahoo.wow.models.tree.aggregate
 
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.command.CommandResultAccessor
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.ROOT_CODE
 import me.ahoo.wow.models.tree.TreeCoded
 import me.ahoo.wow.models.tree.TreeCoded.Companion.childCodePrefix
@@ -44,12 +46,14 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
     }
 
+    protected open fun verifyCreate(command: C) = Unit
+
     @OnCommand
-    protected open fun onCreate(command: C): Created {
+    protected open fun onCreate(command: C, commandResultAccessor: CommandResultAccessor): Created {
         var code: String = generateCode()
 
         if (command.parentCode != ROOT_CODE) {
-            require(state.children.any { it.code == command.parentCode }) {
+            check(state.children.any { it.code == command.parentCode }) {
                 onCreateNotFoundParentErrorMessage(command)
             }
             code = command.parentCode.treeCode(code)
@@ -61,6 +65,8 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         require(event.level <= maxLevel()) {
             onCreateExceedMaxLevelErrorMessage(event)
         }
+        verifyCreate(command)
+        commandResultAccessor.setCommandResult(Flat::code.name, event.code)
         return event
     }
 
@@ -72,27 +78,33 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return "Tree node has children. code:${treeCoded.code}"
     }
 
+    protected open fun verifyDelete(command: D) = Unit
+
     @OnCommand
     protected open fun onDelete(command: D): Deleted {
         val node = state.children.firstOrNull { it.code == command.code }
-        requireNotNull(node) {
+        checkNotNull(node) {
             nodeNotFoundErrorMessage(command)
         }
         val childCodePrefix = command.code.childCodePrefix()
         val hasChild = state.children.any {
             it.code.startsWith(childCodePrefix)
         }
-        require(!hasChild) {
+        check(!hasChild) {
             hasChildErrorMessage(command)
         }
+        verifyDelete(command)
         return command.toEvent()
     }
 
+    protected open fun verifyUpdate(command: U) = Unit
+
     @OnCommand
     protected open fun onUpdate(command: U): Updated {
-        require(state.children.any { it.code == command.code }) {
+        check(state.children.any { it.code == command.code }) {
             nodeNotFoundErrorMessage(command)
         }
+        verifyUpdate(command)
         return command.toEvent()
     }
 

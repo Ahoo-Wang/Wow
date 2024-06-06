@@ -33,7 +33,9 @@ const val MAX_CART_ITEM_SIZE = 100
 class Cart(private val state: CartState) {
 
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
-    fun onCommand(command: AddCartItem): Any {
+    fun onCommand(
+        command: AddCartItem
+    ): Any {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
             "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
         }

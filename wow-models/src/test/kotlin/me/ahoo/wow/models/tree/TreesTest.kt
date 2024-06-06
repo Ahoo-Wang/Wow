@@ -1,5 +1,6 @@
 package me.ahoo.wow.models.tree
 
+import me.ahoo.wow.models.tree.TreeCoded.Companion.parentCode
 import me.ahoo.wow.models.tree.Trees.toTree
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -19,5 +20,11 @@ class TreesTest {
         assertThat(tree.children.size, equalTo(3))
         assertThat(tree.children.first().children.first().code, equalTo(l2.code))
         assertThat(tree.children.first().children.first().children.first().code, equalTo(l3.code))
+    }
+
+    @Test
+    fun parentCode() {
+        assertThat(ROOT_CODE.parentCode(), equalTo(ROOT_CODE))
+        assertThat("l1-l2-l3".parentCode(), equalTo("l1-l2"))
     }
 }

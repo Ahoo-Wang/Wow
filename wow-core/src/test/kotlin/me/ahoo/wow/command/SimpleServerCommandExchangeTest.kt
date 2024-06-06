@@ -36,8 +36,10 @@ class SimpleServerCommandExchangeTest {
     @Test
     fun extractDeclaredError() {
         val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
+
         val commandExchange = SimpleServerCommandExchange(command)
-            .setError(IllegalArgumentException())
+        commandExchange.setError(IllegalArgumentException())
+
         assertThat(commandExchange.extractDeclared(RuntimeException::class.java), notNullValue())
     }
 }

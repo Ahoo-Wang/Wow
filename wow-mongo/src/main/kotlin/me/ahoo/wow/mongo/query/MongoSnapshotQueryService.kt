@@ -52,7 +52,7 @@ class MongoSnapshotQueryService<S : Any>(
             namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
         )
 
-    private fun findDocument(queryable: Queryable): FindPublisher<Document> {
+    private fun findDocument(queryable: Queryable<*>): FindPublisher<Document> {
         val projectionBson = queryable.projection.toMongoProjection()
         val filter = converter.convert(queryable.condition)
         val sort = queryable.sort.toMongoSort()

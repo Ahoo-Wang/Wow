@@ -48,20 +48,9 @@ import kotlin.reflect.KCallable
  * }
  * ```
  */
-class ConditionDsl {
-    private var nestedField: String = ""
-    private val nestedFieldDelimiter: String = "."
-    private var conditions: MutableList<Condition> = mutableListOf()
-    private fun String.withNestedField(): String {
-        if (nestedField.isEmpty()) {
-            return this
-        }
-        return "$nestedField$nestedFieldDelimiter$this"
-    }
+class ConditionDsl : NestedFieldDsl() {
 
-    fun nested(nestedField: String) {
-        this.nestedField = nestedField
-    }
+    private var conditions: MutableList<Condition> = mutableListOf()
 
     fun condition(condition: Condition) {
         conditions.add(condition)
@@ -368,8 +357,4 @@ class ConditionDsl {
         }
         return Condition.and(conditions)
     }
-}
-
-fun ConditionDsl.nestedState() {
-    this.nested(STATE_FIELD)
 }
