@@ -17,6 +17,6 @@ interface ConditionCapable<Q : ConditionCapable<Q>> : RewritableCondition<Q> {
     val condition: Condition
 
     override fun appendCondition(append: Condition): Q {
-        return withCondition(Condition.and(this.condition, append))
+        return withCondition(this.condition.appendCondition(append))
     }
 }
