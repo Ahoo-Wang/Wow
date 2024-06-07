@@ -221,6 +221,9 @@ data class Condition(
     }
 
     override fun appendCondition(append: Condition): Condition {
+        if (this.operator == Operator.ALL) {
+            return append
+        }
         return and(this, append)
     }
 

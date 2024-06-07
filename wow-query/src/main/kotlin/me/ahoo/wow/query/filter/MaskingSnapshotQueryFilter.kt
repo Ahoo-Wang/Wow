@@ -38,29 +38,35 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
     }
 
     private fun tryMask(context: SnapshotQueryContext<*, *, *>) {
+        if (context.queryType == QueryType.COUNT) {
+            return
+        }
         when (context.queryType) {
             QueryType.SINGLE -> {
                 context as SingleSnapshotQueryContext<MaterializedSnapshot<Any>>
-                val result = context.getRequiredResult().map {
-                    it.tryMask()
+                context.rewriteResult { result ->
+                    result.map {
+                        it.tryMask()
+                    }
                 }
-                context.setResult(result)
             }
 
             QueryType.LIST -> {
                 context as ListSnapshotQueryContext<MaterializedSnapshot<Any>>
-                val result = context.getRequiredResult().map {
-                    it.tryMask()
+                context.rewriteResult { result ->
+                    result.map {
+                        it.tryMask()
+                    }
                 }
-                context.setResult(result)
             }
 
             QueryType.PAGED -> {
                 context as PagedSnapshotQueryContext<MaterializedSnapshot<Any>>
-                val result = context.getRequiredResult().map {
-                    it.tryMask()
+                context.rewriteResult { result ->
+                    result.map {
+                        it.tryMask()
+                    }
                 }
-                context.setResult(result)
             }
 
             else -> {
