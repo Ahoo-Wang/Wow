@@ -19,7 +19,6 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.RewritableCondition
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -28,7 +27,7 @@ const val QUERY_KEY = "__QUERY__"
 const val RESULT_KEY = "__RESULT__"
 
 @Suppress("UNCHECKED_CAST")
-interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : RewritableCondition<Q>, R : Any> {
+interface SnapshotQueryContext<SOURCE : SnapshotQueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
     val attributes: MutableMap<String, Any>
     val namedAggregate: NamedAggregate
     val queryType: QueryType
