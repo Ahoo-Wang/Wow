@@ -13,27 +13,6 @@
 
 package me.ahoo.wow.api.query
 
-data class Sort(val field: String, val direction: Direction) {
-    enum class Direction {
-        ASC, DESC
-    }
+interface RewritableProjection<Q : RewritableProjection<Q>> {
+    fun withProjection(newProjection: Projection): Q
 }
-
-data class Pagination(val index: Int, val size: Int) {
-    companion object {
-        val DEFAULT = Pagination(1, 10)
-        fun offset(index: Int, size: Int) = (index - 1) * size
-    }
-
-    fun offset() = offset(index, size)
-}
-
-data class Projection(val include: List<String> = emptyList(), val exclude: List<String> = emptyList()) {
-    companion object {
-        val ALL = Projection()
-    }
-
-    fun isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
-}
-
-interface Queryable<Q : Queryable<Q>> : ConditionCapable<Q>, ProjectionCapable<Q>, SortCapable

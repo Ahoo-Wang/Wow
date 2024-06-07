@@ -13,6 +13,6 @@
 
 package me.ahoo.wow.api.query
 
-interface ProjectionCapable {
+interface ProjectionCapable<Q : RewritableProjection<Q>> : RewritableProjection<Q> {
     val projection: Projection
 }
