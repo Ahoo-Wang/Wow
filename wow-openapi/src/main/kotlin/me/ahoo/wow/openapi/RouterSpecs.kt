@@ -18,19 +18,9 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.Condition.Companion.EMPTY_VALUE
-import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -111,53 +101,6 @@ class RouterSpecs(
         }
     }
 
-    private fun customSchema() {
-        val commandResultSchemaName = CommandResult::class.java.toSchemaName()
-        val commandResultSchema = openAPI.components.schemas[commandResultSchemaName]
-        commandResultSchema?.let {
-            val result = checkNotNull(it.properties[CommandResult::result.name])
-            result.additionalProperties = null
-            result.setDefault(emptyMap<String, Any>())
-        }
-        val conditionSchemaName = Condition::class.java.toSchemaName()
-        val conditionSchema = openAPI.components.schemas[conditionSchemaName]
-        conditionSchema?.let {
-            it.properties[Condition::field.name]?.setDefault(EMPTY_VALUE)
-            it.properties[Condition::operator.name]?.setDefault(Operator.ALL.name)
-            it.properties[Condition::value.name]?.setDefault(EMPTY_VALUE)
-            it.properties[Condition::children.name]?.setDefault(emptyList<Condition>())
-            it.properties["not"]?.setDefault(false)
-        }
-
-        val projectionSchemaName = Projection::class.java.toSchemaName()
-        val projectionSchema = openAPI.components.schemas[projectionSchemaName]
-        projectionSchema?.let {
-            it.properties[Projection::include.name]?.setDefault(emptyList<String>())
-            it.properties[Projection::exclude.name]?.setDefault(emptyList<String>())
-            it.properties.remove(Projection::isEmpty.name)
-        }
-
-        val querySchemaName = ListQuery::class.java.toSchemaName()
-        val querySchema = openAPI.components.schemas[querySchemaName]
-        querySchema?.let {
-            it.properties[ListQuery::sort.name]?.setDefault(emptyList<Sort>())
-            it.properties[ListQuery::limit.name]?.setDefault(Pagination.DEFAULT.size)
-        }
-
-        val paginationSchemaName = Pagination::class.java.toSchemaName()
-        val paginationSchema = openAPI.components.schemas[paginationSchemaName]
-        paginationSchema?.let {
-            it.properties[Pagination::index.name]?.setDefault(Pagination.DEFAULT.index)
-            it.properties[Pagination::size.name]?.setDefault(Pagination.DEFAULT.size)
-        }
-
-        val pagedQuerySchemaName = PagedQuery::class.java.toSchemaName()
-        val pagedQuerySchema = openAPI.components.schemas[pagedQuerySchemaName]
-        pagedQuerySchema?.let {
-            it.properties[ListQuery::sort.name]?.setDefault(emptyList<Sort>())
-        }
-    }
-
     fun openAPI(): OpenAPI {
         build()
         return openAPI
@@ -171,7 +114,6 @@ class RouterSpecs(
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
         mergeRouteSpecFactoryComponents()
-        customSchema()
         val groupedPathRoutes = routes.groupBy {
             it.path
         }
