@@ -29,6 +29,8 @@ import me.ahoo.wow.models.tree.command.Move
 import me.ahoo.wow.models.tree.command.Moved
 import me.ahoo.wow.models.tree.command.Update
 import me.ahoo.wow.models.tree.command.Updated
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, D : Delete<*>, M : Move<*>>(
     protected val state: T
@@ -46,10 +48,10 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return "Tree node level exceeds the maximum level. level:${event.level} maxLevel:${maxLevel()}"
     }
 
-    protected open fun verifyCreate(command: C) = Unit
+    protected open fun verifyCreate(command: C) = Mono.empty<Void>()
 
     @OnCommand
-    protected open fun onCreate(command: C, commandResultAccessor: CommandResultAccessor): Created {
+    protected open fun onCreate(command: C, commandResultAccessor: CommandResultAccessor): Mono<Created> {
         var code: String = generateCode()
 
         if (command.parentCode != ROOT_CODE) {
@@ -65,9 +67,12 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         require(event.level <= maxLevel()) {
             onCreateExceedMaxLevelErrorMessage(event)
         }
-        verifyCreate(command)
-        commandResultAccessor.setCommandResult(Flat::code.name, event.code)
-        return event
+        return verifyCreate(command).then(
+            Mono.defer {
+                commandResultAccessor.setCommandResult(Flat::code.name, event.code)
+                event.toMono()
+            }
+        )
     }
 
     protected open fun nodeNotFoundErrorMessage(treeCoded: TreeCoded): String {
@@ -78,10 +83,10 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         return "Tree node has children. code:${treeCoded.code}"
     }
 
-    protected open fun verifyDelete(command: D) = Unit
+    protected open fun verifyDelete(command: D) = Mono.empty<Void>()
 
     @OnCommand
-    protected open fun onDelete(command: D): Deleted {
+    protected open fun onDelete(command: D): Mono<Deleted> {
         val node = state.children.firstOrNull { it.code == command.code }
         checkNotNull(node) {
             nodeNotFoundErrorMessage(command)
@@ -93,23 +98,29 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         check(!hasChild) {
             hasChildErrorMessage(command)
         }
-        verifyDelete(command)
-        return command.toEvent()
+        return verifyDelete(command).then(
+            Mono.defer {
+                command.toEvent().toMono()
+            }
+        )
     }
 
-    protected open fun verifyUpdate(command: U) = Unit
+    protected open fun verifyUpdate(command: U) = Mono.empty<Void>()
 
     @OnCommand
-    protected open fun onUpdate(command: U): Updated {
+    protected open fun onUpdate(command: U): Mono<Updated> {
         check(state.children.any { it.code == command.code }) {
             nodeNotFoundErrorMessage(command)
         }
-        verifyUpdate(command)
-        return command.toEvent()
+        return verifyUpdate(command).then(
+            Mono.defer {
+                command.toEvent().toMono()
+            }
+        )
     }
 
     @OnCommand
-    protected open fun onMove(command: M): Moved {
-        return command.toEvent()
+    protected open fun onMove(command: M): Mono<Moved> {
+        return command.toEvent().toMono()
     }
 }
