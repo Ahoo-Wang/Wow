@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.getContextAlias
@@ -111,6 +112,13 @@ class RouterSpecs(
     }
 
     private fun customSchema() {
+        val commandResultSchemaName = CommandResult::class.java.toSchemaName()
+        val commandResultSchema = openAPI.components.schemas[commandResultSchemaName]
+        commandResultSchema?.let {
+            val result = checkNotNull(it.properties[CommandResult::result.name])
+            result.additionalProperties = null
+            result.setDefault(emptyMap<String, Any>())
+        }
         val conditionSchemaName = Condition::class.java.toSchemaName()
         val conditionSchema = openAPI.components.schemas[conditionSchemaName]
         conditionSchema?.let {
