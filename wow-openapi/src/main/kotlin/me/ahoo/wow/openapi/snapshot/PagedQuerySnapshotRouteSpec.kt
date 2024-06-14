@@ -51,11 +51,12 @@ class PagedQuerySnapshotRouteSpec(
         get() = "Paged Query snapshot"
     override val requestBody: RequestBody = PagedQuery::class.java.toRequestBody()
     val responseSchemaRef = PagedList::class.java.toSchemaRef(
-        PagedList<*>::list.name,
-        MaterializedSnapshot::class.java.toSchemaRef(
+        propertyName = PagedList<*>::list.name,
+        propertySchemaRef = MaterializedSnapshot::class.java.toSchemaRef(
             MaterializedSnapshot<*>::state.name,
             aggregateMetadata.state.aggregateType
-        )
+        ),
+        isArray = true
     )
     override val responses: ApiResponses
         get() = responseSchemaRef.ref.toResponse().let {

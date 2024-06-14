@@ -49,8 +49,8 @@ class LoadSnapshotRouteSpec(
     override val summary: String
         get() = "Get snapshot"
     val responseSchemaRef = Snapshot::class.java.toSchemaRef(
-        Snapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
+        propertyName = Snapshot<*>::state.name,
+        propertyType = aggregateMetadata.state.aggregateType
     )
 
     override val responses: ApiResponses
