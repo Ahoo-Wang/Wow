@@ -133,7 +133,7 @@ class CategoryTest {
     @Test
     fun onUpdate() {
         val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
-        val command = UpdateCategory(name = "name", code = l1Category.code, sortId = 2)
+        val command = UpdateCategory(name = "name", code = l1Category.code)
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(command)
@@ -141,7 +141,6 @@ class CategoryTest {
             .expectEventBody<CategoryUpdated> {
                 assertThat(it.name, equalTo(command.name))
                 assertThat(it.code, equalTo(command.code))
-                assertThat(it.sortId, equalTo(command.sortId))
             }
             .verify()
     }
@@ -149,7 +148,7 @@ class CategoryTest {
     @Test
     fun onUpdateIfNotFound() {
         val l1Category = CategoryCreated(name = "l1", code = "l1", sortId = 0)
-        val command = UpdateCategory(name = "name", code = "notFound", sortId = 2)
+        val command = UpdateCategory(name = "name", code = "notFound")
         aggregateVerifier<Category, CategoryState>()
             .given(l1Category)
             .`when`(command)
