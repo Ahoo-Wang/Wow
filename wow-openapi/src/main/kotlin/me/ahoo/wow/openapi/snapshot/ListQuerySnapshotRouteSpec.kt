@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi.snapshot
 
-import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
@@ -27,6 +26,7 @@ import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class ListQuerySnapshotRouteSpec(
@@ -54,9 +54,7 @@ class ListQuerySnapshotRouteSpec(
     val responseSchema = MaterializedSnapshot::class.java.toSchemaRef(
         MaterializedSnapshot<*>::state.name,
         aggregateMetadata.state.aggregateType
-    ).let {
-        ArraySchema().items(it.ref)
-    }
+    ).ref.toArraySchema()
 
     override val responses: ApiResponses
         get() = responseSchema.toResponse().let {
