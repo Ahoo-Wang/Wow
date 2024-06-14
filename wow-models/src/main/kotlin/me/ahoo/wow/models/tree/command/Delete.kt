@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.models.tree.command
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.TreeCoded
 
 @CommandRoute(
@@ -24,7 +26,11 @@ import me.ahoo.wow.models.tree.TreeCoded
     description = "Id is the tenant ID."
 )
 interface Delete<E : Deleted> : TreeCoded {
-    fun toEvent(): E
+    @get:JsonIgnore
+    override val level: Int
+        get() = super.level
+
+    fun toEvent(previous: Flat): E
 }
 
 interface Deleted : TreeCoded

@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.models.tree.command
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.models.tree.Flat
+import me.ahoo.wow.models.tree.TreeCoded
 
 @CommandRoute(
     method = CommandRoute.Method.PUT,
@@ -22,8 +24,12 @@ import me.ahoo.wow.models.tree.Flat
     path = "",
     summary = "Update tree node"
 )
-interface Update<E : Updated> : Flat {
-    fun toEvent(): E
+interface Update<E : Updated> : TreeCoded {
+    @get:JsonIgnore
+    override val level: Int
+        get() = super.level
+
+    fun toEvent(previous: Flat): E
 }
 
 interface Updated : Flat

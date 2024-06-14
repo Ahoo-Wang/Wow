@@ -87,8 +87,8 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
 
     @OnCommand
     protected open fun onDelete(command: D): Mono<Deleted> {
-        val node = state.children.firstOrNull { it.code == command.code }
-        checkNotNull(node) {
+        val previous = state.children.firstOrNull { it.code == command.code }
+        checkNotNull(previous) {
             nodeNotFoundErrorMessage(command)
         }
         val childCodePrefix = command.code.childCodePrefix()
@@ -100,7 +100,7 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
         }
         return verifyDelete(command).then(
             Mono.defer {
-                command.toEvent().toMono()
+                command.toEvent(previous).toMono()
             }
         )
     }
@@ -109,12 +109,13 @@ abstract class Tree<T : TreeState<*, *, *, *, *>, C : Create<*>, U : Update<*>, 
 
     @OnCommand
     protected open fun onUpdate(command: U): Mono<Updated> {
-        check(state.children.any { it.code == command.code }) {
+        val previous = state.children.firstOrNull { it.code == command.code }
+        checkNotNull(previous) {
             nodeNotFoundErrorMessage(command)
         }
         return verifyUpdate(command).then(
             Mono.defer {
-                command.toEvent().toMono()
+                command.toEvent(previous).toMono()
             }
         )
     }

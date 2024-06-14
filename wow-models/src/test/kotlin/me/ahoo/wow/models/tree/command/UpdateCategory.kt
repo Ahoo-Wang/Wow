@@ -14,6 +14,8 @@
 package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.models.tree.Flat
 
 @CommandRoute(
     method = CommandRoute.Method.PUT,
@@ -25,10 +27,9 @@ import me.ahoo.wow.api.annotation.CommandRoute
 data class UpdateCategory(
     override val name: String,
     override val code: String,
-    override val sortId: Int
-) : Update<CategoryUpdated> {
-    override fun toEvent(): CategoryUpdated {
-        return CategoryUpdated(name = name, code = code, sortId = sortId)
+) : Update<CategoryUpdated>, Named {
+    override fun toEvent(previous: Flat): CategoryUpdated {
+        return CategoryUpdated(name = name, code = code, sortId = previous.sortId)
     }
 }
 
