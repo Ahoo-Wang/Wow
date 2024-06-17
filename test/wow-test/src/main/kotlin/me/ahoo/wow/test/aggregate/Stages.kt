@@ -35,6 +35,9 @@ interface GivenStage<S : Any> {
      * 1. 给定领域事件，朔源聚合.
      */
     fun given(vararg events: Any): WhenStage<S>
+    fun givenEvent(vararg events: Any): WhenStage<S> {
+        return given(*events)
+    }
 }
 
 interface WhenStage<S : Any> {
@@ -45,6 +48,10 @@ interface WhenStage<S : Any> {
 
     fun `when`(command: Any): ExpectStage<S> {
         return this.`when`(command = command, header = DefaultHeader.empty())
+    }
+
+    fun whenCommand(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
+        return this.`when`(command = command, header = header)
     }
 }
 
@@ -193,5 +200,9 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
 }
 
 fun <S : Any> GivenStage<S>.`when`(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
-    return this.given().`when`(command, header)
+    return this.givenEvent().`when`(command, header)
+}
+
+fun <S : Any> GivenStage<S>.whenCommand(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
+    return this.`when`(command, header)
 }
