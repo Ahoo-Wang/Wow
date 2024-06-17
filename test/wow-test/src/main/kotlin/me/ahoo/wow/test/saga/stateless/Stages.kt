@@ -41,6 +41,10 @@ interface WhenStage<T : Any> {
     fun `when`(event: Any): ExpectStage<T> {
         return `when`(event = event, state = null)
     }
+
+    fun whenEvent(event: Any, state: Any? = null): ExpectStage<T> {
+        return `when`(event = event, state = state)
+    }
 }
 
 interface ExpectStage<T : Any> {
