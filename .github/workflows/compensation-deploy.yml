@@ -50,7 +50,7 @@ jobs:
 
       - name: Install Packages
         working-directory: compensation/wow-compensation-dashboard
-        run: npm install && npm install -g @angular/cli
+        run: npm install
 
       - name: Build Dashboard-UI
         working-directory: compensation/wow-compensation-dashboard
