@@ -40,7 +40,7 @@ internal class ShardingDataSourcingAutoConfigurationTest {
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.type=sharding")
             .withPropertyValues(
-                "${DataSourceProperties.PREFIX}.sharding.databases.event_stream_0.url=r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M",
+                "${DataSourceProperties.PREFIX}.sharding.databases.event_stream_0.url=r2dbc:pool:mariadb:sequential:://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M",
             )
             .withPropertyValues(
                 "${DataSourceProperties.PREFIX}.sharding.event-stream.order.database-algorithm=event_stream_db",
