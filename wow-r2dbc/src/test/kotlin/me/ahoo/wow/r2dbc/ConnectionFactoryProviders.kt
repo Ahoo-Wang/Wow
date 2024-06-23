@@ -26,7 +26,7 @@ object ConnectionFactoryProviders {
     fun create(poolSize: Int = 32): ConnectionFactory {
         // Very important: https://github.com/r2dbc/r2dbc-pool/issues/129
         val connectionFactory = ConnectionFactories.get(
-            "r2dbc:pool:mariadb://root:root@${MariadbLauncher.getHost()}:${MariadbLauncher.getPort()}/wow_db?initialSize=$poolSize&maxSize=$poolSize&acquireRetry=3&maxLifeTime=PT30M",
+            "r2dbc:pool:mariadb:sequential://root:root@${MariadbLauncher.getHost()}:${MariadbLauncher.getPort()}/wow_db?initialSize=$poolSize&maxSize=$poolSize&acquireRetry=3&maxLifeTime=PT30M",
         )
         val formatter = QueryExecutionInfoFormatter.showAll()
         return ProxyConnectionFactory.builder(connectionFactory)
