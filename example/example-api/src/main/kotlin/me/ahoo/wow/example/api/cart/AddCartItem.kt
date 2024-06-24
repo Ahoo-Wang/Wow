@@ -7,7 +7,6 @@ import me.ahoo.wow.api.annotation.CommandRoute
 
 @AllowCreate
 @CommandRoute(
-    appendIdPath = CommandRoute.AppendPath.ALWAYS,
     method = CommandRoute.Method.POST,
     summary = "加入购物车",
     description = "加入购物车"
