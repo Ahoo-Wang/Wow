@@ -61,6 +61,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_O
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.openapi.toJsonContent
+import me.ahoo.wow.serialization.MessageRecords
 
 class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -103,8 +104,13 @@ class CommandRouteSpec(
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
                 return false
             }
-            val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                !commandRouteMetadata.commandMetadata.isCreate
+            val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata
+                .any { it.variableName == MessageRecords.ID }
+            val default = hasIdPathVariable ||
+                (
+                    commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
+                        !commandRouteMetadata.commandMetadata.isCreate
+                    )
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
