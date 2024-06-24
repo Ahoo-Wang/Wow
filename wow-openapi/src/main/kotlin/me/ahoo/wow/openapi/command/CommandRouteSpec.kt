@@ -104,12 +104,13 @@ class CommandRouteSpec(
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
                 return false
             }
-            if (commandRouteMetadata.pathVariableMetadata.any { it.variableName == MessageRecords.ID }) {
-                return true
-            }
-
-            val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                !commandRouteMetadata.commandMetadata.isCreate
+            val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata
+                .any { it.variableName == MessageRecords.ID }
+            val default = hasIdPathVariable ||
+                (
+                    commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
+                        !commandRouteMetadata.commandMetadata.isCreate
+                    )
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
