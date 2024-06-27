@@ -14,10 +14,11 @@
 package me.ahoo.wow.apiclient
 
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
@@ -37,13 +38,13 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody singleQuery: SingleQuery): Mono<MaterializedSnapshot<S>>
+    fun single(@RequestBody singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun dynamicSingle(@RequestBody singleQuery: SingleQuery): Mono<Map<String, Any>>
+    fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Mono<Map<String, Any>>
 
     @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
-    fun singleState(@RequestBody singleQuery: SingleQuery): Mono<S>
+    fun singleState(@RequestBody singleQuery: ISingleQuery): Mono<S>
 
     fun getById(id: String): Mono<MaterializedSnapshot<S>> {
         SingleQuery(condition = Condition.id(id)).let {
@@ -58,54 +59,54 @@ interface SnapshotQueryApi<S : Any> {
     }
 
     @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun list(@RequestBody query: ListQuery): Flux<MaterializedSnapshot<S>>
+    fun list(@RequestBody query: IListQuery): Flux<MaterializedSnapshot<S>>
 
     @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun dynamicList(@RequestBody query: ListQuery): Flux<Map<String, Any>>
+    fun dynamicList(@RequestBody query: IListQuery): Flux<Map<String, Any>>
 
     @PostExchange(SNAPSHOT_LIST_STATE_RESOURCE_NAME)
-    fun listState(@RequestBody query: ListQuery): Flux<S>
+    fun listState(@RequestBody query: IListQuery): Flux<S>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun paged(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
+    fun paged(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun dynamicPaged(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<Map<String, Any>>>
+    fun dynamicPaged(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<Map<String, Any>>>
 
     @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
-    fun pagedState(@RequestBody pagedQuery: PagedQuery): Mono<PagedList<S>>
+    fun pagedState(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<S>>
 
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
     fun count(@RequestBody condition: Condition): Mono<Long>
 }
 
-fun <S : Any> ListQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Flux<MaterializedSnapshot<S>> {
+fun <S : Any> IListQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Flux<MaterializedSnapshot<S>> {
     return snapshotQueryApi.list(this)
 }
-fun <S : Any> PagedQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<MaterializedSnapshot<S>>> {
+fun <S : Any> IPagedQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<MaterializedSnapshot<S>>> {
     return snapshotQueryApi.paged(this)
 }
-fun <S : Any> SingleQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<MaterializedSnapshot<S>> {
+fun <S : Any> ISingleQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<MaterializedSnapshot<S>> {
     return snapshotQueryApi.single(this)
 }
 
-fun <S : Any> ListQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Flux<S> {
+fun <S : Any> IListQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Flux<S> {
     return snapshotQueryApi.listState(this)
 }
-fun <S : Any> PagedQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<S>> {
+fun <S : Any> IPagedQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<S>> {
     return snapshotQueryApi.pagedState(this)
 }
-fun <S : Any> SingleQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<S> {
+fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<S> {
     return snapshotQueryApi.singleState(this)
 }
 
-fun ListQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Flux<Map<String, Any>> {
+fun IListQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Flux<Map<String, Any>> {
     return snapshotQueryApi.dynamicList(this)
 }
-fun PagedQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<PagedList<Map<String, Any>>> {
+fun IPagedQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<PagedList<Map<String, Any>>> {
     return snapshotQueryApi.dynamicPaged(this)
 }
-fun SingleQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<Map<String, Any>> {
+fun ISingleQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<Map<String, Any>> {
     return snapshotQueryApi.dynamicSingle(this)
 }
 
