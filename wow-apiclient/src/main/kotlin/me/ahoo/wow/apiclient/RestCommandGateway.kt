@@ -82,7 +82,7 @@ interface RestCommandGateway {
             requestId = commandRequest.requestId,
             context = commandRequest.context,
             aggregate = commandRequest.aggregate
-        ).mapNotNull {
+        ).mapNotNull<CommandResult> {
             it.body
         }.onErrorMap(WebClientResponseException::class.java) {
             val commandResult = checkNotNull(it.getResponseBodyAs(CommandResult::class.java))
