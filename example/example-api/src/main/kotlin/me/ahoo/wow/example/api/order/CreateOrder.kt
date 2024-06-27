@@ -19,6 +19,7 @@ import jakarta.validation.constraints.Size
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.example.api.ExampleService
 import java.math.BigDecimal
 
@@ -43,7 +44,13 @@ data class CreateOrder(
     @field:Valid
     val address: ShippingAddress,
     val fromCart: Boolean
-) {
+) : CommandValidator {
+    override fun validate() {
+        require(address.country == "China") {
+            "Only support China shipping address."
+        }
+    }
+
     data class Item(
         override val productId: String,
         override val price: BigDecimal,
