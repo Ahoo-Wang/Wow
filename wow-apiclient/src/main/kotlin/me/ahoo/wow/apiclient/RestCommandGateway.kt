@@ -15,6 +15,7 @@ package me.ahoo.wow.apiclient
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.coapi.api.CoApi
+import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
@@ -64,6 +65,9 @@ interface RestCommandGateway {
     ): Mono<ResponseEntity<CommandResult>>
 
     fun send(commandRequest: CommandRequest): Mono<CommandResult> {
+        if (commandRequest.body is CommandValidator) {
+            commandRequest.body.validate()
+        }
         return send(
             sendUri = commandRequest.sendUri,
             commandType = commandRequest.commandType,
@@ -78,7 +82,7 @@ interface RestCommandGateway {
             requestId = commandRequest.requestId,
             context = commandRequest.context,
             aggregate = commandRequest.aggregate
-        ).mapNotNull<CommandResult> {
+        ).mapNotNull {
             it.body
         }.onErrorMap(WebClientResponseException::class.java) {
             val commandResult = checkNotNull(it.getResponseBodyAs(CommandResult::class.java))
