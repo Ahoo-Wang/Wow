@@ -15,6 +15,8 @@ package me.ahoo.wow.command.factory
 
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.command.factory.CommandValidationException.Companion.toCommandValidationException
 import me.ahoo.wow.command.toCommandMessage
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -23,13 +25,19 @@ class SimpleCommandMessageFactory(
     private val validator: Validator,
     private val commandOptionsExtractorRegistry: CommandOptionsExtractorRegistry
 ) : CommandMessageFactory {
+
+    @Suppress("TooGenericExceptionCaught")
     override fun <C : Any> create(body: C, options: CommandOptions): Mono<CommandMessage<C>> {
+        if (body is CommandValidator) {
+            try {
+                body.validate()
+            } catch (error: Throwable) {
+                return error.toMono()
+            }
+        }
         val constraintViolations = validator.validate(body)
         if (constraintViolations.isNotEmpty()) {
-            return CommandValidationException(
-                command = body,
-                constraintViolations = constraintViolations
-            ).toMono()
+            return constraintViolations.toCommandValidationException(body).toMono()
         }
 
         val extractor = commandOptionsExtractorRegistry.getExtractor(body.javaClass)

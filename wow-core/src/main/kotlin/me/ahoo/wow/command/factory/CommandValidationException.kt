@@ -21,17 +21,30 @@ import me.ahoo.wow.exception.WowException
 
 class CommandValidationException(
     val command: Any,
-    val constraintViolations: Set<ConstraintViolation<*>>,
     errorMsg: String = "Command validation failed.",
-) :
-    WowException(
-        errorCode = COMMAND_VALIDATION,
-        errorMsg = errorMsg,
-    ),
+    cause: Throwable? = null,
+    bindingErrors: List<BindingError> = emptyList(),
+) : WowException(
+    errorCode = COMMAND_VALIDATION,
+    errorMsg = errorMsg,
+    cause = cause,
+    bindingErrors = bindingErrors
+),
     ErrorInfo {
-    override val bindingErrors: List<BindingError> by lazy {
-        constraintViolations.map {
-            BindingError(it.propertyPath.toString(), it.message)
+
+    companion object {
+
+        internal fun Set<ConstraintViolation<*>>.toBindingErrors(): List<BindingError> {
+            return this.map {
+                BindingError(it.propertyPath.toString(), it.message)
+            }
+        }
+
+        fun <T> Set<ConstraintViolation<T>>.toCommandValidationException(
+            command: Any,
+            errorMsg: String = "Command validation failed."
+        ): CommandValidationException {
+            return CommandValidationException(command, errorMsg = errorMsg, bindingErrors = toBindingErrors())
         }
     }
 }

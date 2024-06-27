@@ -110,6 +110,41 @@ internal class OrderTest {
         mockCreateOrder()
     }
 
+    /**
+     * 创建订单-非中国的收货地址
+     */
+    @Test
+    fun createOrderGivenNonChinaAddress() {
+        val customerId = GlobalIdGenerator.generateAsString()
+        val orderItem = CreateOrder.Item(
+            productId = GlobalIdGenerator.generateAsString(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
+        )
+        val orderItems = listOf(orderItem)
+        val inventoryService = object : InventoryService {
+            override fun getInventory(productId: String): Mono<Int> {
+                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
+            }
+        }
+        val pricingService = object : PricingService {
+            override fun getProductPrice(productId: String): Mono<BigDecimal> {
+                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
+            }
+        }
+        aggregateVerifier<Order, OrderState>()
+            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .given()
+            .`when`(CreateOrder(customerId, orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
+            .expectErrorType(IllegalArgumentException::class.java)
+            .expectStateAggregate {
+                assertThat(it.initialized, equalTo(false))
+            }.verify()
+    }
+
+    /**
+     * 创建订单-空订单项
+     */
     @Test
     fun createOrderGivenEmptyItems() {
         val customerId = GlobalIdGenerator.generateAsString()
