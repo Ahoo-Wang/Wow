@@ -22,10 +22,10 @@ fun interface AggregateIdempotencyCheckerProvider {
 }
 
 class DefaultAggregateIdempotencyCheckerProvider(
-    private val checkSupplier: () -> IdempotencyChecker
+    private val checkerSupplier: (NamedAggregate) -> IdempotencyChecker
 ) : AggregateIdempotencyCheckerProvider {
     private val idempotencyCheckers: ConcurrentMap<NamedAggregate, IdempotencyChecker> = ConcurrentHashMap()
     override fun getChecker(namedAggregate: NamedAggregate): IdempotencyChecker {
-        return idempotencyCheckers.computeIfAbsent(namedAggregate) { checkSupplier() }
+        return idempotencyCheckers.computeIfAbsent(namedAggregate) { checkerSupplier(namedAggregate) }
     }
 }

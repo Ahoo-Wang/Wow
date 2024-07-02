@@ -34,7 +34,6 @@ class CommandGatewayAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(AggregateIdempotencyCheckerProvider::class.java)
                     .hasSingleBean(CommandGateway::class.java)
-                    .getBean(AggregateIdempotencyCheckerProvider::class.java)
 
                 context.getBean(AggregateIdempotencyCheckerProvider::class.java)
                     .getChecker(MOCK_AGGREGATE_METADATA)
