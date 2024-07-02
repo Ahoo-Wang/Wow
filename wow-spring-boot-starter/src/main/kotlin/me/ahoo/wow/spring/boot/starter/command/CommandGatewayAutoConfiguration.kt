@@ -29,8 +29,9 @@ import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -52,8 +53,8 @@ class CommandGatewayAutoConfiguration {
         matchIfMissing = false,
         havingValue = "false",
     )
-    fun noOpIdempotencyChecker(): IdempotencyChecker {
-        return NoOpIdempotencyChecker
+    fun noOpIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
+        return DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker }
     }
 
     @Bean
@@ -63,14 +64,16 @@ class CommandGatewayAutoConfiguration {
         matchIfMissing = true,
         havingValue = "true",
     )
-    fun idempotencyChecker(commandProperties: CommandProperties): IdempotencyChecker {
+    fun idempotencyChecker(commandProperties: CommandProperties): AggregateIdempotencyCheckerProvider {
         val bloomFilter = commandProperties.idempotency.bloomFilter
-        return BloomFilterIdempotencyChecker(bloomFilter.ttl) {
-            BloomFilter.create(
-                Funnels.stringFunnel(Charsets.UTF_8),
-                bloomFilter.expectedInsertions,
-                bloomFilter.fpp,
-            )
+        return DefaultAggregateIdempotencyCheckerProvider {
+            BloomFilterIdempotencyChecker(bloomFilter.ttl) {
+                BloomFilter.create(
+                    Funnels.stringFunnel(Charsets.UTF_8),
+                    bloomFilter.expectedInsertions,
+                    bloomFilter.fpp,
+                )
+            }
         }
     }
 
@@ -124,13 +127,13 @@ class CommandGatewayAutoConfiguration {
     fun commandGateway(
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
-        idempotencyChecker: IdempotencyChecker,
+        idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
-            idempotencyChecker = idempotencyChecker,
+            idempotencyCheckerProvider = idempotencyCheckerProvider,
             waitStrategyRegistrar = waitStrategyRegistrar
         )
     }

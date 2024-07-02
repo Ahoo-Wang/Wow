@@ -34,6 +34,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -95,7 +96,7 @@ abstract class CommandDispatcherSpec {
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
-            idempotencyChecker = idempotencyChecker,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
         )
         eventStore = createEventStore().metrizable()

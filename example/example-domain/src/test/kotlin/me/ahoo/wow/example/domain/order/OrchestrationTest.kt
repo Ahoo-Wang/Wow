@@ -61,9 +61,7 @@ class OrchestrationTest {
         }
         aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            .expectEventCount(1)
+            .whenCommand(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
                 assertThat(it.aggregateId.tenantId, equalTo(tenantId))

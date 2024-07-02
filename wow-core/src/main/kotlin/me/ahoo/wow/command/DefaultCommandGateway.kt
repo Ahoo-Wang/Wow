@@ -20,18 +20,20 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
-    private val idempotencyChecker: IdempotencyChecker,
+    private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
     private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
 
     private fun check(command: CommandMessage<*>): Mono<Boolean> {
-        return idempotencyChecker.check(command.requestId)
+        return idempotencyCheckerProvider.getChecker(command.aggregateId.namedAggregate.materialize())
+            .check(command.requestId)
             .doOnNext {
                 /*
                  * 检查命令幂等性，如果该命令通过幂等性检查则返回 {@code true},表示该命令不重复.

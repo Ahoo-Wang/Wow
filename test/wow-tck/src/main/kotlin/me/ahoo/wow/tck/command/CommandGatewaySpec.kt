@@ -33,6 +33,7 @@ import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -69,7 +70,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         return DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = createCommandBus(),
-            idempotencyChecker = idempotencyChecker,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
         )
     }
