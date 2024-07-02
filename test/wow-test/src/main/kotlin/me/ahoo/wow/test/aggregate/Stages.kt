@@ -162,7 +162,12 @@ interface VerifiedStage<S : Any> {
     val stateRoot: S
         get() = stateAggregate.state
 
-    fun then(verifyError: Boolean = true): GivenStage<S>
+    fun then(verifyError: Boolean = false): GivenStage<S>
+
+    /**
+     * 为当前环境创建一个完全独立的测试分支上下文
+     */
+    fun fork(verifyError: Boolean = false, handle: GivenStage<S>.(ExpectedResult<S>) -> Unit): VerifiedStage<S>
 }
 
 data class ExpectedResult<S : Any>(

@@ -17,8 +17,10 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
+import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -182,13 +184,41 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     }
 
     override fun then(verifyError: Boolean): GivenStage<S> {
+        verifyError(verifyError)
+        return this
+    }
+
+    private fun verifyError(verifyError: Boolean) {
         if (verifyError) {
             require(!verifiedResult.hasError) {
                 "An exception[${verifiedResult.error}] occurred in the verified result."
             }
         }
+    }
+
+    override fun fork(verifyError: Boolean, handle: GivenStage<S>.(ExpectedResult<S>) -> Unit): VerifiedStage<S> {
+        verifyError(verifyError)
+        val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
+        val forkedResult = verifiedResult.copy(stateAggregate = forkedStateAggregate)
+        val forkedGivenStage = DefaultVerifiedStage(
+            verifiedResult = forkedResult,
+            metadata = this.metadata,
+            commandAggregateFactory = SimpleCommandAggregateFactory(InMemoryEventStore()),
+            serviceProvider = this.serviceProvider
+        )
+        handle(forkedGivenStage, forkedResult)
         return this
     }
+}
+
+private fun <S : Any> verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>): StateAggregate<S> {
+    if (!stateAggregate.initialized) {
+        return stateAggregate
+    }
+    val serialized = stateAggregate.toJsonString()
+    val deserialized = serialized.toObject<StateAggregate<S>>()
+    assertThat(deserialized, equalTo(stateAggregate))
+    return deserialized
 }
 
 internal class DefaultExpectStage<C : Any, S : Any>(
@@ -203,15 +233,6 @@ internal class DefaultExpectStage<C : Any, S : Any>(
     override fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S> {
         expectStates.add(expected)
         return this
-    }
-
-    private fun verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>) {
-        if (!stateAggregate.initialized) {
-            return
-        }
-        val serialized = stateAggregate.toJsonString()
-        val deserialized = serialized.toObject<StateAggregate<S>>()
-        assertThat(deserialized, equalTo(stateAggregate))
     }
 
     override fun verify(): VerifiedStage<S> {
