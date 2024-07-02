@@ -24,6 +24,8 @@ import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.test.aggregate.ExpectedResult
+import me.ahoo.wow.test.aggregate.GivenStage
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
@@ -71,10 +73,10 @@ class OrchestrationTest {
                 assertThat(it.customerId, equalTo(customerId))
                 assertThat(it.address, equalTo(SHIPPING_ADDRESS))
                 assertThat(it.items, hasSize(1))
-                val orderItem = it.items.first()
-                assertThat(orderItem.productId, equalTo(orderItem.productId))
-                assertThat(orderItem.price, equalTo(orderItem.price))
-                assertThat(orderItem.quantity, equalTo(orderItem.quantity))
+                val item = it.items.first()
+                assertThat(item.productId, equalTo(orderItem.productId))
+                assertThat(item.price, equalTo(orderItem.price))
+                assertThat(item.quantity, equalTo(orderItem.quantity))
                 assertThat(it.status, equalTo(OrderStatus.CREATED))
             }.expect {
                 assertThat(it.exchange.getCommandResult().size, equalTo(1))
@@ -83,36 +85,44 @@ class OrchestrationTest {
             }
             .verify()
             .fork {
-                val changeAddress = ChangeAddress(
-                    it.stateAggregate.aggregateId.id,
-                    ShippingAddress(
-                        country = "China",
-                        province = "ShangHai",
-                        city = "ShangHai",
-                        district = "HuangPu",
-                        detail = "002"
-                    )
-                )
-                whenCommand(changeAddress).expectNoError()
-                    .expectEventCount(1)
-                    .expectEventType(AddressChanged::class.java)
-                    .expectState {
-                        assertThat(it.address, equalTo(changeAddress.shippingAddress))
-                    }
-                    .verify()
+                changeAddress(it)
             }.fork {
-                val payOrder = PayOrder(
-                    it.stateAggregate.aggregateId.id,
-                    GlobalIdGenerator.generateAsString(),
-                    it.stateAggregate.state.payable
-                )
-                whenCommand(payOrder)
-                    .expectEventType(OrderPaid::class.java)
-                    .expectState {
-                        assertThat(it.paidAmount, equalTo(it.totalAmount))
-                        assertThat(it.status, equalTo(OrderStatus.PAID))
-                    }
-                    .verify()
+                payOrder(it)
             }
+    }
+
+    private fun GivenStage<OrderState>.payOrder(it: ExpectedResult<OrderState>) {
+        val payOrder = PayOrder(
+            it.stateAggregate.aggregateId.id,
+            GlobalIdGenerator.generateAsString(),
+            it.stateAggregate.state.payable
+        )
+        whenCommand(payOrder)
+            .expectEventType(OrderPaid::class.java)
+            .expectState {
+                assertThat(it.paidAmount, equalTo(it.totalAmount))
+                assertThat(it.status, equalTo(OrderStatus.PAID))
+            }
+            .verify()
+    }
+
+    private fun GivenStage<OrderState>.changeAddress(it: ExpectedResult<OrderState>) {
+        val changeAddress = ChangeAddress(
+            it.stateAggregate.aggregateId.id,
+            ShippingAddress(
+                country = "China",
+                province = "ShangHai",
+                city = "ShangHai",
+                district = "HuangPu",
+                detail = "002"
+            )
+        )
+        whenCommand(changeAddress).expectNoError()
+            .expectEventCount(1)
+            .expectEventType(AddressChanged::class.java)
+            .expectState {
+                assertThat(it.address, equalTo(changeAddress.shippingAddress))
+            }
+            .verify()
     }
 }
