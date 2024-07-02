@@ -5,7 +5,7 @@ import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -29,7 +29,7 @@ class CommandGatewayAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(IdempotencyChecker::class.java)
+                    .hasSingleBean(AggregateIdempotencyCheckerProvider::class.java)
                     .hasSingleBean(CommandGateway::class.java)
             }
     }

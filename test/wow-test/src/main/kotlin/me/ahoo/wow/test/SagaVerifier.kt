@@ -22,6 +22,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -41,7 +42,7 @@ object SagaVerifier {
         return DefaultCommandGateway(
             SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             InMemoryCommandBus(),
-            NoOpIdempotencyChecker,
+            DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
             SimpleWaitStrategyRegistrar,
         )
     }
