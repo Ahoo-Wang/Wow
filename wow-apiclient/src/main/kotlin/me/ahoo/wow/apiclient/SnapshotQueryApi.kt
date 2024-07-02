@@ -83,9 +83,11 @@ interface SnapshotQueryApi<S : Any> {
 fun <S : Any> IListQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Flux<MaterializedSnapshot<S>> {
     return snapshotQueryApi.list(this)
 }
+
 fun <S : Any> IPagedQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<MaterializedSnapshot<S>>> {
     return snapshotQueryApi.paged(this)
 }
+
 fun <S : Any> ISingleQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<MaterializedSnapshot<S>> {
     return snapshotQueryApi.single(this)
 }
@@ -93,9 +95,11 @@ fun <S : Any> ISingleQuery.query(snapshotQueryApi: SnapshotQueryApi<S>): Mono<Ma
 fun <S : Any> IListQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Flux<S> {
     return snapshotQueryApi.listState(this)
 }
+
 fun <S : Any> IPagedQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<PagedList<S>> {
     return snapshotQueryApi.pagedState(this)
 }
+
 fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mono<S> {
     return snapshotQueryApi.singleState(this)
 }
@@ -103,9 +107,11 @@ fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: SnapshotQueryApi<S>): Mo
 fun IListQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Flux<Map<String, Any>> {
     return snapshotQueryApi.dynamicList(this)
 }
+
 fun IPagedQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<PagedList<Map<String, Any>>> {
     return snapshotQueryApi.dynamicPaged(this)
 }
+
 fun ISingleQuery.dynamicQuery(snapshotQueryApi: SnapshotQueryApi<*>): Mono<Map<String, Any>> {
     return snapshotQueryApi.dynamicSingle(this)
 }
