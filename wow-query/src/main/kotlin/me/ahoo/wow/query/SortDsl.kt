@@ -25,7 +25,7 @@ import me.ahoo.wow.api.query.Sort
  * ```
  *
  */
-class SortDsl {
+class SortDsl : NestedFieldDsl() {
 
     private val sorts: MutableList<Sort> = mutableListOf()
 
@@ -34,11 +34,11 @@ class SortDsl {
     }
 
     fun String.asc() {
-        sort(Sort(this, Sort.Direction.ASC))
+        sort(Sort(this.withNestedField(), Sort.Direction.ASC))
     }
 
     fun String.desc() {
-        sort(Sort(this, Sort.Direction.DESC))
+        sort(Sort(this.withNestedField(), Sort.Direction.DESC))
     }
 
     fun build(): List<Sort> {
