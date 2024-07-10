@@ -19,6 +19,7 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -200,11 +201,13 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
         val forkedResult = verifiedResult.copy(stateAggregate = forkedStateAggregate)
+        require(serviceProvider is SimpleServiceProvider)
+        val forkedServiceProvider = serviceProvider.copy()
         val forkedGivenStage = DefaultVerifiedStage(
             verifiedResult = forkedResult,
             metadata = this.metadata,
             commandAggregateFactory = SimpleCommandAggregateFactory(InMemoryEventStore()),
-            serviceProvider = this.serviceProvider
+            serviceProvider = forkedServiceProvider,
         )
         handle(forkedGivenStage, forkedResult)
         return this
