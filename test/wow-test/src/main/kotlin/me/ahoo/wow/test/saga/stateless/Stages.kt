@@ -15,6 +15,7 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
 import org.hamcrest.MatcherAssert.*
@@ -31,6 +32,12 @@ interface WhenStage<T : Any> {
 
     fun <SERVICE : Any> inject(service: SERVICE): WhenStage<T> {
         return inject(service, service.javaClass.toName())
+    }
+
+    fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
+
+    fun accessorName(accessorName: String): WhenStage<T> {
+        return functionFilter { it.accessorName == accessorName }
     }
 
     /**

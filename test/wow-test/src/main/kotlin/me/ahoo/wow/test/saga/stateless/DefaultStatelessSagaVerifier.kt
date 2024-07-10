@@ -25,6 +25,7 @@ import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.constructor.InjectableObjectFactory
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
@@ -46,6 +47,8 @@ internal class DefaultWhenStage<T : Any>(
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"
     }
 
+    private var functionFilter: (MessageFunction<*, *, *>) -> Boolean = { true }
+
     private fun toDomainEvent(event: Any): DomainEvent<*> {
         if (event is DomainEvent<*>) {
             return event
@@ -59,6 +62,11 @@ internal class DefaultWhenStage<T : Any>(
 
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): WhenStage<T> {
         serviceProvider.register(serviceName, service)
+        return this
+    }
+
+    override fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T> {
+        functionFilter = filter
         return this
     }
 
@@ -77,6 +85,7 @@ internal class DefaultWhenStage<T : Any>(
                     it.functionKind == FunctionKind.EVENT
                 }
             }
+            .filter(functionFilter)
             .single()
             .invoke(eventExchange)
             .ofType(CommandStream::class.java)

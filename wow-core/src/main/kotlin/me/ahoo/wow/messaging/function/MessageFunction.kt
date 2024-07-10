@@ -41,6 +41,12 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
+    /**
+     * If `MessageFunction` is generated from `Method`, then `accessorName` is the name of `Method`. Otherwise `null`.
+     */
+    val accessorName: String?
+        get() = null
+
     fun <M> supportMessage(message: M): Boolean
         where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
         return supportedType.isInstance(message.body) &&
@@ -65,6 +71,8 @@ interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> 
     override val supportedType: Class<*> get() = metadata.supportedType
     override val processorName: String get() = metadata.processorName
     override val name: String get() = metadata.name
+    override val accessorName: String?
+        get() = metadata.accessor.name
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
         return metadata.accessor.function.scanAnnotation(annotationClass.kotlin)
