@@ -41,4 +41,11 @@ class SimpleServiceProvider : ServiceProvider {
         val serviceType = service.javaClass
         register(serviceType, service)
     }
+
+    fun copy(): SimpleServiceProvider {
+        val copy = SimpleServiceProvider()
+        copy.typedServices.putAll(typedServices)
+        copy.namedServices.putAll(namedServices)
+        return copy
+    }
 }
