@@ -39,7 +39,6 @@ class StatelessSagaFunction(
     override val supportedType: Class<*> = delegate.supportedType
     override val supportedTopics: Set<NamedAggregate> = delegate.supportedTopics
     override val functionKind: FunctionKind = delegate.functionKind
-    override val accessorName: String? = delegate.accessorName
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
         return delegate.getAnnotation(annotationClass)

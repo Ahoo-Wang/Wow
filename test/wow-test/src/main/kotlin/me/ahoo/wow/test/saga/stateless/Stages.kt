@@ -16,8 +16,10 @@ package me.ahoo.wow.test.saga.stateless
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.messaging.function.MessageFunctionAccessor
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
+import me.ahoo.wow.saga.stateless.StatelessSagaFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import java.util.function.Consumer
@@ -37,7 +39,16 @@ interface WhenStage<T : Any> {
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
 
     fun accessorName(accessorName: String): WhenStage<T> {
-        return functionFilter { it.accessorName == accessorName }
+        return functionFilter {
+            if (it !is StatelessSagaFunction) {
+                return@functionFilter false
+            }
+            val delegate = it.delegate
+            if (delegate !is MessageFunctionAccessor<*, *, *>) {
+                return@functionFilter false
+            }
+            delegate.metadata.accessor.name == accessorName
+        }
     }
 
     /**
