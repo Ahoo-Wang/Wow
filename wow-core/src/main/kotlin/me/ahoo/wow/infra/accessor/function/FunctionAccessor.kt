@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.infra.accessor.function
 
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import java.lang.reflect.Method
 import kotlin.reflect.KClass
@@ -34,7 +35,10 @@ val KFunction<*>.declaringClass: KClass<*>
  * Function Accessor .
  * @author ahoo wang
  */
-interface FunctionAccessor<T, out R> {
+interface FunctionAccessor<T, out R> : Named {
+    override val name: String
+        get() = function.name
+
     @Suppress("UNCHECKED_CAST")
     val targetType: Class<T>
         get() = function.declaringClass.java as Class<T>
