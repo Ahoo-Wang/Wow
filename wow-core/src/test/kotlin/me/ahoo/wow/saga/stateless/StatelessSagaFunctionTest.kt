@@ -28,6 +28,7 @@ class StatelessSagaFunctionTest {
             every { functionKind } returns FunctionKind.COMMAND
             every { contextName } returns "context"
             every { processor } returns "root"
+            every { accessorName } returns "root"
             every { supportedTopics } returns emptySet()
         }
         MatcherAssert.assertThat(

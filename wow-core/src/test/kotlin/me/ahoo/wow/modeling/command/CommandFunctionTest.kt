@@ -21,6 +21,7 @@ class CommandFunctionTest {
             every { functionKind } returns FunctionKind.COMMAND
             every { contextName } returns "context"
             every { processor } returns "root"
+            every { accessorName } returns "root"
         }
         val commandAggregate = mockk<CommandAggregate<Any, Any>> {
             every { contextName } returns "context"

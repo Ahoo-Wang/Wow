@@ -28,23 +28,25 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class StatelessSagaFunction(
-    val actual: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
+    val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory
 ) :
     MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
-    override val contextName: String = actual.contextName
-    override val name: String = actual.name
-    override val processor: Any = actual.processor
-    override val supportedType: Class<*> = actual.supportedType
-    override val supportedTopics: Set<NamedAggregate> = actual.supportedTopics
-    override val functionKind: FunctionKind = actual.functionKind
+    override val contextName: String = delegate.contextName
+    override val name: String = delegate.name
+    override val processor: Any = delegate.processor
+    override val supportedType: Class<*> = delegate.supportedType
+    override val supportedTopics: Set<NamedAggregate> = delegate.supportedTopics
+    override val functionKind: FunctionKind = delegate.functionKind
+    override val accessorName: String? = delegate.accessorName
+
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return actual.getAnnotation(annotationClass)
+        return delegate.getAnnotation(annotationClass)
     }
 
     override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
-        return actual.invoke(exchange)
+        return delegate.invoke(exchange)
             .flatMapMany {
                 toCommandFlux(exchange.message, it)
             }
@@ -81,6 +83,6 @@ class StatelessSagaFunction(
     }
 
     override fun toString(): String {
-        return "StatelessSagaFunction(actual=$actual)"
+        return "StatelessSagaFunction(actual=$delegate)"
     }
 }
