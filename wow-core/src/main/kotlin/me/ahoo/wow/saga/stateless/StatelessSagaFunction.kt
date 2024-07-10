@@ -21,6 +21,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.CommandOptions
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
@@ -28,11 +29,11 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class StatelessSagaFunction(
-    val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
+    override val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory
-) :
-    MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
+) : MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>>,
+    Decorator<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
     override val name: String = delegate.name
     override val processor: Any = delegate.processor

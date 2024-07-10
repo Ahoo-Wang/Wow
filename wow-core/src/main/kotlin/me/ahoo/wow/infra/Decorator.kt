@@ -19,9 +19,9 @@ interface Decorator<out C : Any> {
     companion object {
         @Suppress("UNCHECKED_CAST")
         @JvmStatic
-        fun <C : Any> C.getDelegate(): C {
+        fun <C : Any> C.getOriginalDelegate(): C {
             if (this is Decorator<*>) {
-                return delegate.getDelegate() as C
+                return delegate.getOriginalDelegate() as C
             }
             return this
         }
