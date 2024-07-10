@@ -17,8 +17,13 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.modeling.command.CommandAggregateFactory
+import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
 import org.hamcrest.MatcherAssert.*
@@ -167,7 +172,17 @@ interface VerifiedStage<S : Any> {
     /**
      * 为当前环境创建一个完全独立的测试分支上下文
      */
-    fun fork(verifyError: Boolean = false, handle: GivenStage<S>.(ExpectedResult<S>) -> Unit): VerifiedStage<S>
+    fun fork(
+        verifyError: Boolean = false,
+        serviceProviderSupplier: (ServiceProvider) -> ServiceProvider = {
+            require(it is SimpleServiceProvider)
+            it.copy()
+        },
+        commandAggregateFactorySupplier: () -> CommandAggregateFactory = {
+            SimpleCommandAggregateFactory(InMemoryEventStore())
+        },
+        handle: GivenStage<S>.(ExpectedResult<S>) -> Unit
+    ): VerifiedStage<S>
 }
 
 data class ExpectedResult<S : Any>(

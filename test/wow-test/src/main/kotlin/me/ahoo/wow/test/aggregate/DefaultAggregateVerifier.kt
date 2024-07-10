@@ -17,11 +17,8 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -197,16 +194,21 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         }
     }
 
-    override fun fork(verifyError: Boolean, handle: GivenStage<S>.(ExpectedResult<S>) -> Unit): VerifiedStage<S> {
+    override fun fork(
+        verifyError: Boolean,
+        serviceProviderSupplier: (ServiceProvider) -> ServiceProvider,
+        commandAggregateFactorySupplier: () -> CommandAggregateFactory,
+        handle: GivenStage<S>.(ExpectedResult<S>) -> Unit
+    ): VerifiedStage<S> {
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
         val forkedResult = verifiedResult.copy(stateAggregate = forkedStateAggregate)
-        require(serviceProvider is SimpleServiceProvider)
-        val forkedServiceProvider = serviceProvider.copy()
+        val forkedServiceProvider = serviceProviderSupplier(serviceProvider)
+        val forkedCommandAggregateFactory = commandAggregateFactorySupplier()
         val forkedGivenStage = DefaultVerifiedStage(
             verifiedResult = forkedResult,
             metadata = this.metadata,
-            commandAggregateFactory = SimpleCommandAggregateFactory(InMemoryEventStore()),
+            commandAggregateFactory = forkedCommandAggregateFactory,
             serviceProvider = forkedServiceProvider,
         )
         handle(forkedGivenStage, forkedResult)
