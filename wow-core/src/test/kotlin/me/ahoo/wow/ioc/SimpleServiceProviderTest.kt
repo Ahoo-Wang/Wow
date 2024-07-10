@@ -18,5 +18,9 @@ class SimpleServiceProviderTest {
         serviceProvider.register(this)
         assertThat(serviceProvider.getRequiredService<SimpleServiceProviderTest>(), equalTo(this))
         assertThat(serviceProvider.getRequiredService(SERVICE_NAME), equalTo(this))
+
+        val copiedServiceProvider = serviceProvider.copy()
+        assertThat(copiedServiceProvider.getRequiredService<SimpleServiceProviderTest>(), equalTo(this))
+        assertThat(copiedServiceProvider.getRequiredService(SERVICE_NAME), equalTo(this))
     }
 }
