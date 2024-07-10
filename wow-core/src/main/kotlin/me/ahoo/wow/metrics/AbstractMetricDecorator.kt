@@ -15,12 +15,12 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.infra.Decorator.Companion.getDelegate
+import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 abstract class AbstractMetricDecorator<T : Any>(final override val delegate: T) : Decorator<T>, Named {
-    override val name: String = delegate.getDelegate().javaClass.simpleName
+    override val name: String = delegate.getOriginalDelegate().javaClass.simpleName
 
     fun <M> Mono<M>.tagSource(): Mono<M> {
         return this.tagSource(name)

@@ -11,8 +11,9 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import org.hamcrest.CoreMatchers
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -30,10 +31,10 @@ class StatelessSagaFunctionTest {
             every { processor } returns "root"
             every { supportedTopics } returns emptySet()
         }
-        MatcherAssert.assertThat(
-            StatelessSagaFunction(delegate, mockk(), mockk()).getAnnotation(Retry::class.java),
-            Matchers.nullValue()
-        )
+        val statelessSagaFunction = StatelessSagaFunction(delegate, mockk(), mockk())
+        assertThat(statelessSagaFunction.delegate, CoreMatchers.equalTo(delegate))
+        val retry = statelessSagaFunction.getAnnotation(Retry::class.java)
+        assertThat(retry, nullValue())
     }
 
     @Test

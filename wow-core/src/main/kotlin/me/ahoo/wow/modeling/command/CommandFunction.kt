@@ -18,15 +18,16 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
-    private val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
+    override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     private val commandAggregate: CommandAggregate<C, *>
-) :
-    MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
+) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>,
+    Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
     override val name: String = delegate.contextName
     override val supportedType: Class<*> = delegate.supportedType
