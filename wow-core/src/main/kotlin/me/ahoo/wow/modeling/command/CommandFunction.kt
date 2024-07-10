@@ -33,6 +33,7 @@ class CommandFunction<C : Any>(
     override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
+    override val accessorName: String? = delegate.accessorName
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
         return delegate.getAnnotation(annotationClass)
     }
