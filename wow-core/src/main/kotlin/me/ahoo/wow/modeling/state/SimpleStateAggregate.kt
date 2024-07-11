@@ -14,6 +14,7 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
+import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TypedAggregate
@@ -36,8 +37,7 @@ class SimpleStateAggregate<S : Any>(
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
     override var deleted: Boolean = false,
-) :
-    StateAggregate<S>,
+) : StateAggregate<S>,
     TypedAggregate<S> by metadata {
 
     private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
@@ -48,7 +48,7 @@ class SimpleStateAggregate<S : Any>(
 
     override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
         if (log.isDebugEnabled) {
-            log.debug("Sourcing {}.", eventStream)
+            log.debug("onSourcing {}.", eventStream)
         }
 
         if (eventStream.ignoreSourcing()) {
@@ -83,6 +83,9 @@ class SimpleStateAggregate<S : Any>(
     private fun sourcing(domainEvent: DomainEvent<*>) {
         if (domainEvent.body is AggregateDeleted) {
             deleted = true
+        }
+        if (domainEvent.body is AggregateRecovered) {
+            deleted = false
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {

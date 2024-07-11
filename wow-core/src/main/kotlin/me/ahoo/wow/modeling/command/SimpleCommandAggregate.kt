@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
@@ -63,10 +64,13 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 return@defer NotFoundResourceException("$aggregateId is not initialized.").toMono()
             }
             check(commandState == CommandState.STORED) {
-                "Failed to process command[${message.id}]: The current StateAggregate[$aggregateId] is not stored."
+                "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not stored."
             }
-
-            if (state.deleted) {
+            if (message.body is RecoverAggregate) {
+                check(state.deleted) {
+                    "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not deleted."
+                }
+            } else if (state.deleted) {
                 return@defer IllegalAccessDeletedAggregateException(
                     state.aggregateId,
                 ).toMono()

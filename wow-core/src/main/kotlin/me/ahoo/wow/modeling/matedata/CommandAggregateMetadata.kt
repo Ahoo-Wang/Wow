@@ -13,7 +13,9 @@
 package me.ahoo.wow.modeling.matedata
 
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
+import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
@@ -28,6 +30,7 @@ import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
+import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
 import reactor.core.publisher.Mono
 
 data class CommandAggregateMetadata<C : Any>(
@@ -42,19 +45,29 @@ data class CommandAggregateMetadata<C : Any>(
         commandFunctionRegistry.keys.any {
             DeleteAggregate::class.java.isAssignableFrom(it)
         }
+    val registeredRecoverAggregate: Boolean =
+        commandFunctionRegistry.keys.any {
+            RecoverAggregate::class.java.isAssignableFrom(it)
+        }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val registry = commandFunctionRegistry
-            .map {
-                val actualMessageFunction = it.value
-                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                it.key to CommandFunction(actualMessageFunction, commandAggregate)
+        return buildMap {
+            commandFunctionRegistry
+                .map {
+                    val actualMessageFunction = it.value
+                        .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+                    it.key to CommandFunction(actualMessageFunction, commandAggregate)
+                }.also {
+                    putAll(it)
+                }
+
+            if (!registeredRecoverAggregate) {
+                put(DefaultRecoverAggregate::class.java, DefaultRecoverAggregateFunction(commandAggregate))
             }
-            .toMap()
-        if (registeredDeleteAggregate) {
-            return registry
+            if (!registeredDeleteAggregate) {
+                put(DefaultDeleteAggregate::class.java, DefaultDeleteAggregateFunction(commandAggregate))
+            }
         }
-        return registry.plus(DefaultDeleteAggregate::class.java to DefaultDeleteAggregateFunction(commandAggregate))
     }
 
     fun toErrorFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
