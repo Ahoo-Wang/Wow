@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.example.domain.cart
 
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DefaultRecoverAggregate
+import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
@@ -21,7 +24,9 @@ import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -175,6 +180,43 @@ class CartTest {
                 assertThat(it.items, hasSize(1))
                 assertThat(it.items.first().quantity, equalTo(changeQuantity.quantity))
             }
+            .verify()
+    }
+
+    @Test
+    fun onCreateThenDeleteThenRecover() {
+        val addCartItem = AddCartItem(
+            id = GlobalIdGenerator.generateAsString(),
+            productId = "productId",
+            quantity = 1,
+        )
+
+        aggregateVerifier<Cart, CartState>()
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                assertThat(it.items, hasSize(1))
+            }
+            .verify()
+            .then()
+            .whenCommand(DefaultDeleteAggregate)
+            .expectEventType(DefaultAggregateDeleted::class.java)
+            .expectStateAggregate {
+                assertThat(it.deleted, equalTo(true))
+            }.verify()
+            .then()
+            .whenCommand(DefaultDeleteAggregate::class.java)
+            .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
+            .verify()
+            .then()
+            .whenCommand(DefaultRecoverAggregate)
+            .expectStateAggregate {
+                assertThat(it.deleted, equalTo(false))
+            }.verify()
+            .then()
+            .whenCommand(DefaultRecoverAggregate)
+            .expectErrorType(IllegalStateException::class.java)
             .verify()
     }
 }
