@@ -17,11 +17,11 @@ import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
 /**
- * @see me.ahoo.wow.api.event.AggregateDeleted
+ * Recover deleted aggregate root
  * @see me.ahoo.wow.api.event.AggregateRecovered
  */
-interface DeleteAggregate
+interface RecoverAggregate
 
-@Summary("Delete aggregate")
-@CommandRoute(path = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
-object DefaultDeleteAggregate : DeleteAggregate
+@Summary("Recover deleted aggregate")
+@CommandRoute(path = "recover", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
+object DefaultRecoverAggregate : RecoverAggregate

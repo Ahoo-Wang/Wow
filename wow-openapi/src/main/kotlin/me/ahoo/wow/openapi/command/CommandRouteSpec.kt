@@ -23,6 +23,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
@@ -325,6 +326,12 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
                 }
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                    it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
+                    add(it)
+                }
+            }
+            if (!aggregateMetadata.command.registeredRecoverAggregate) {
+                DefaultRecoverAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }

@@ -11,17 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.command
+package me.ahoo.wow.api.event
 
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.Summary
+interface AggregateRecovered
 
-/**
- * @see me.ahoo.wow.api.event.AggregateDeleted
- * @see me.ahoo.wow.api.event.AggregateRecovered
- */
-interface DeleteAggregate
-
-@Summary("Delete aggregate")
-@CommandRoute(path = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
-object DefaultDeleteAggregate : DeleteAggregate
+object DefaultAggregateRecovered : AggregateRecovered
