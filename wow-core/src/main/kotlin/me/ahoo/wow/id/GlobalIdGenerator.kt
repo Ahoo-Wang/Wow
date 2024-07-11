@@ -69,5 +69,12 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
     }
 }
 
+/**
+ * Generate Global Id
+ */
+fun generateGlobalId(): String {
+    return GlobalIdGenerator.generateAsString()
+}
+
 class NotInitializedGlobalIdGeneratorError :
     WowException("NotInitializedGlobalIdGenerator", "GlobalIdGenerator is not initialized.")
