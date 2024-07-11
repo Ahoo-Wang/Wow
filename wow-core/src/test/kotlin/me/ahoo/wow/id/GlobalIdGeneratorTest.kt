@@ -13,18 +13,17 @@
 
 package me.ahoo.wow.id
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.lessThan
-import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class GlobalIdGeneratorTest {
 
     @Test
-    fun generateAsString() {
-        val id1 = GlobalIdGenerator.generateAsString()
+    fun generate() {
+        val id1 = generateGlobalId()
         assertThat(id1, notNullValue())
-        val id2 = GlobalIdGenerator.generateAsString()
+        val id2 = generateGlobalId()
         assertThat(id2, notNullValue())
         assertThat(id1, lessThan(id2))
     }
