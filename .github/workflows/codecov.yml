@@ -50,7 +50,7 @@ jobs:
         run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.16.1
+        uses: EnricoMi/publish-unit-test-result-action@v2.17.0
         if: always()
         with:
           ignore_runs: true
