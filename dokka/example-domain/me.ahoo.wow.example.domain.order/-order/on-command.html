@@ -1,0 +1,76 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>onCommand</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":example-domain:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="member" id="content" pageids="example-domain::me.ahoo.wow.example.domain.order/Order/onCommand/#me.ahoo.wow.api.command.CommandMessage[me.ahoo.wow.example.api.order.CreateOrder]#me.ahoo.wow.example.domain.order.CreateOrderSpec#me.ahoo.wow.api.command.CommandResultAccessor/PointingToDeclaration//-543456607">
+  <div class="breadcrumbs"><a href="../../index.html">example-domain</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.example.domain.order</a><span class="delimiter">/</span><a href="index.html">Order</a><span class="delimiter">/</span><span class="current">onCommand</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>on</span><wbr><span><span>Command</span></span></h1>
+  </div>
+  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">command<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-create-order/index.html">CreateOrder</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span><span class="token annotation builtin">@</span><a href="../../../wow-api/me.ahoo.wow.api.annotation/-name/index.html"><span class="token annotation builtin">Name</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"createOrderSpec"</span></span></span><wbr><span class="token punctuation">)</span>&nbsp;</span>specification<span class="token operator">: </span><a href="../-create-order-spec/index.html">CreateOrderSpec</a><span class="token punctuation">, </span></span><span class="parameter ">commandResultAccessor<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-result-accessor/index.html">CommandResultAccessor</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-created/index.html">OrderCreated</a><span class="token operator">&gt;</span></div><p class="paragraph">此时的聚合处于空状态,也可以理解为该方法是一个聚合工厂,订阅首个聚合命令并发布首个领域事件.</p><p class="paragraph">me.ahoo.wow.modeling.annotation.OnCommand 注解是可选的,约定命令默认命令函数为名 <code class="lang-kotlin">onCommand</code></p><h4 class="">Parameters</h4><div class="table"><div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span><span>specification</span></span></u></div></span></div><div><div class="title"><p class="paragraph">该外部服务将会通过 IOC 容器自动注入进来</p></div></div></div></div></div><hr><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">changeAddress<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-change-address/index.html">ChangeAddress</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-address-changed/index.html">AddressChanged</a></div><p class="paragraph">***** 重要：命令处理函数不直接修改聚合状态，而是通过执行完业务验证逻辑后返回领域事件来由聚合朔源事件修改聚合状态，并且发布到事件总线 *****.</p><p class="paragraph">命令处理函数职责:</p><ol><li><p class="paragraph">验证命令参数是否符合业务规范</p></li><li><p class="paragraph">验证当前当前状态是否可以执行该命令</p></li><li><p class="paragraph">返回事件，用于对外发布聚合状态变更事件(可对外发布多个事件)</p></li></ol><hr><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">shipOrder<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-ship-order/index.html">ShipOrder</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-shipped/index.html">OrderShipped</a></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">receiptOrder<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-receipt-order/index.html">ReceiptOrder</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-received/index.html">OrderReceived</a></div><br><hr><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">payOrder<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-pay-order/index.html">PayOrder</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-iterable/index.html">Iterable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div><p class="paragraph"><i>订单服务</i> 订阅 <i>支付服务</i> 发布的集成事件 <code class="lang-kotlin">PaymentOrderPaid</code>，适配成 <i>订单服务</i> 限界上下文 <code class="lang-kotlin">PayOrder</code> 命令.</p><h4 class="">See also</h4><div class="table"><div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><span>Payment</span><wbr><span>Order</span><wbr><span><span>Paid</span></span></div></span></div><div></div></div></div></div></div></div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

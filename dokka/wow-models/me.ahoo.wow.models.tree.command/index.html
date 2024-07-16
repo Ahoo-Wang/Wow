@@ -1,0 +1,204 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.models.tree.command</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-models:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-models::me.ahoo.wow.models.tree.command////PointingToDeclaration//1339513200">
+  <div class="breadcrumbs"><a href="../index.html">wow-models</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.models.tree.command</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="2114316453%2FClasslikes%2F1339513200" anchor-label="Create" id="2114316453%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-create/index.html"><span><span>Create</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2114316453%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-allow-create/index.html"><span class="token annotation builtin">AllowCreate</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-p-o-s-t/index.html">CommandRoute.Method.POST</a><span class="token punctuation">, </span></span><wbr><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>path<span class="token operator"> = </span><span class="breakable-word"><span class="token string">""</span></span><span class="token punctuation">, </span></span><wbr><span>summary<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Create tree node"</span></span><span class="token punctuation">, </span></span><wbr><span>description<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Id is the tenant ID."</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">interface </span><a href="-create/index.html">Create</a><span class="token operator">&lt;</span><a href="-create/index.html">E</a><span class="token operator"> : </span><a href="-created/index.html">Created</a><span class="token operator">&gt;</span> : <a href="../../wow-api/me.ahoo.wow.api.naming/-named/index.html">Named</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="572885593%2FClasslikes%2F1339513200" anchor-label="Created" id="572885593%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-created/index.html"><span><span>Created</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="572885593%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-created/index.html">Created</a> : <a href="../me.ahoo.wow.models.tree/-flat/index.html">Flat</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1855805142%2FClasslikes%2F1339513200" anchor-label="Delete" id="1855805142%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-delete/index.html"><span><span>Delete</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1855805142%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-d-e-l-e-t-e/index.html">CommandRoute.Method.DELETE</a><span class="token punctuation">, </span></span><wbr><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>path<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"{code}"</span></span><span class="token punctuation">, </span></span><wbr><span>summary<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Delete tree node"</span></span><span class="token punctuation">, </span></span><wbr><span>description<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Id is the tenant ID."</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">interface </span><a href="-delete/index.html">Delete</a><span class="token operator">&lt;</span><a href="-delete/index.html">E</a><span class="token operator"> : </span><a href="-deleted/index.html">Deleted</a><span class="token operator">&gt;</span> : <a href="../me.ahoo.wow.models.tree/-tree-coded/index.html">TreeCoded</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1148969544%2FClasslikes%2F1339513200" anchor-label="Deleted" id="1148969544%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-deleted/index.html"><span><span>Deleted</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1148969544%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-deleted/index.html">Deleted</a> : <a href="../me.ahoo.wow.models.tree/-tree-coded/index.html">TreeCoded</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1994584944%2FClasslikes%2F1339513200" anchor-label="Move" id="1994584944%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-move/index.html"><span><span>Move</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1994584944%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-p-u-t/index.html">CommandRoute.Method.PUT</a><span class="token punctuation">, </span></span><wbr><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>path<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"sort"</span></span><span class="token punctuation">, </span></span><wbr><span>summary<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Move tree node order"</span></span><span class="token punctuation">, </span></span><wbr><span>description<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Only sibling moves are allowed."</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">interface </span><a href="-move/index.html">Move</a><span class="token operator">&lt;</span><a href="-move/index.html">E</a><span class="token operator"> : </span><a href="-moved/index.html">Moved</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1156176110%2FClasslikes%2F1339513200" anchor-label="Moved" id="1156176110%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-moved/index.html"><span><span>Moved</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1156176110%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-moved/index.html">Moved</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-876953224%2FClasslikes%2F1339513200" anchor-label="Update" id="-876953224%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-update/index.html"><span><span>Update</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-876953224%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-p-u-t/index.html">CommandRoute.Method.PUT</a><span class="token punctuation">, </span></span><wbr><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>path<span class="token operator"> = </span><span class="breakable-word"><span class="token string">""</span></span><span class="token punctuation">, </span></span><wbr><span>summary<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"Update tree node"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">interface </span><a href="-update/index.html">Update</a><span class="token operator">&lt;</span><a href="-update/index.html">E</a><span class="token operator"> : </span><a href="-updated/index.html">Updated</a><span class="token operator">&gt;</span> : <a href="../me.ahoo.wow.models.tree/-tree-coded/index.html">TreeCoded</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1962161178%2FClasslikes%2F1339513200" anchor-label="Updated" id="-1962161178%2FClasslikes%2F1339513200" data-filterable-set=":wow-models:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-models:dokkaHtmlPartial/main" data-filterable-set=":wow-models:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-updated/index.html"><span><span>Updated</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1962161178%2FClasslikes%2F1339513200"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-models:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-updated/index.html">Updated</a> : <a href="../me.ahoo.wow.models.tree/-flat/index.html">Flat</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

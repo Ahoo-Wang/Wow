@@ -1,0 +1,378 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>FunctionAccessorMetadata</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-core:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-core::me.ahoo.wow.messaging.function/FunctionAccessorMetadata///PointingToDeclaration//-530543845">
+  <div class="breadcrumbs"><a href="../../index.html">wow-core</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.messaging.function</a><span class="delimiter">/</span><span class="current">FunctionAccessorMetadata</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Function</span><wbr><span>Accessor</span><wbr><span><span>Metadata</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="index.html">FunctionAccessorMetadata</a><span class="token operator">&lt;</span><a href="index.html">P</a><span class="token punctuation">, </span><span class="token keyword">out </span><a href="index.html">R</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>functionKind<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-function-kind/index.html">FunctionKind</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>accessor<span class="token operator">: </span><a href="../../me.ahoo.wow.infra.accessor.function/-function-accessor/index.html">FunctionAccessor</a><span class="token operator">&lt;</span><a href="index.html">P</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>supportedType<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>supportedTopics<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>firstParameterKind<span class="token operator">: </span><a href="../-first-parameter-kind/index.html">FirstParameterKind</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>injectParameters<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="../-inject-parameter/index.html">InjectParameter</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="../../../wow-api/me.ahoo.wow.api.messaging/-function-kind-capable/index.html">FunctionKindCapable</a>, <a href="../../../wow-api/me.ahoo.wow.api.naming/-named-bounded-context/index.html">NamedBoundedContext</a>, <a href="../../../wow-api/me.ahoo.wow.api.naming/-named/index.html">Named</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="1014630388%2FConstructors%2F-530543845" anchor-label="FunctionAccessorMetadata" id="1014630388%2FConstructors%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-function-accessor-metadata.html"><span>Function</span><wbr><span>Accessor</span><wbr><span><span>Metadata</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1014630388%2FConstructors%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">functionKind<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-function-kind/index.html">FunctionKind</a><span class="token punctuation">, </span></span><span class="parameter ">accessor<span class="token operator">: </span><a href="../../me.ahoo.wow.infra.accessor.function/-function-accessor/index.html">FunctionAccessor</a><span class="token operator">&lt;</span><a href="index.html">P</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">supportedType<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">supportedTopics<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">firstParameterKind<span class="token operator">: </span><a href="../-first-parameter-kind/index.html">FirstParameterKind</a><span class="token punctuation">, </span></span><span class="parameter ">injectParameters<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="../-inject-parameter/index.html">InjectParameter</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="">Properties</h2>
+        <div class="table"><a data-name="539485954%2FProperties%2F-530543845" anchor-label="accessor" id="539485954%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="accessor.html"><span><span>accessor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="539485954%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="accessor.html">accessor</a><span class="token operator">: </span><a href="../../me.ahoo.wow.infra.accessor.function/-function-accessor/index.html">FunctionAccessor</a><span class="token operator">&lt;</span><a href="index.html">P</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1505355529%2FProperties%2F-530543845" anchor-label="contextName" id="-1505355529%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="context-name.html"><span>context</span><wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1505355529%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="context-name.html">contextName</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1459436804%2FProperties%2F-530543845" anchor-label="firstParameterKind" id="-1459436804%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="first-parameter-kind.html"><span>first</span><wbr><span>Parameter</span><wbr><span><span>Kind</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1459436804%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="first-parameter-kind.html">firstParameterKind</a><span class="token operator">: </span><a href="../-first-parameter-kind/index.html">FirstParameterKind</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="251968349%2FProperties%2F-530543845" anchor-label="functionKind" id="251968349%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="function-kind.html"><span>function</span><wbr><span><span>Kind</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="251968349%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="function-kind.html">functionKind</a><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-function-kind/index.html">FunctionKind</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-129485005%2FProperties%2F-530543845" anchor-label="injectParameterLength" id="-129485005%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="inject-parameter-length.html"><span>inject</span><wbr><span>Parameter</span><wbr><span><span>Length</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-129485005%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="inject-parameter-length.html">injectParameterLength</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-312791698%2FProperties%2F-530543845" anchor-label="injectParameters" id="-312791698%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="inject-parameters.html"><span>inject</span><wbr><span><span>Parameters</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-312791698%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="inject-parameters.html">injectParameters</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="../-inject-parameter/index.html">InjectParameter</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1785646786%2FProperties%2F-530543845" anchor-label="name" id="-1785646786%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="name.html"><span><span>name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1785646786%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="name.html">name</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="786762740%2FProperties%2F-530543845" anchor-label="processorName" id="786762740%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="processor-name.html"><span>processor</span><wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="786762740%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="processor-name.html">processorName</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1716537893%2FProperties%2F-530543845" anchor-label="processorType" id="1716537893%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="processor-type.html"><span>processor</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1716537893%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="processor-type.html">processorType</a><span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="index.html">P</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1423769761%2FProperties%2F-530543845" anchor-label="supportedTopics" id="-1423769761%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="supported-topics.html"><span>supported</span><wbr><span><span>Topics</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1423769761%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="supported-topics.html">supportedTopics</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="93161353%2FProperties%2F-530543845" anchor-label="supportedType" id="93161353%2FProperties%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="supported-type.html"><span>supported</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="93161353%2FProperties%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="supported-type.html">supportedType</a><span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="857382456%2FFunctions%2F-530543845" anchor-label="equals" id="857382456%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="equals.html"><span><span>equals</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="857382456%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">operator override </span><span class="token keyword">fun </span><a href="equals.html"><span class="token function">equals</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">other<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-611703799%2FFunctions%2F-530543845" anchor-label="extractFirstArgument" id="-611703799%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-first-argument.html"><span>extract</span><wbr><span>First</span><wbr><span><span>Argument</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-611703799%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-first-argument.html"><span class="token function">extractFirstArgument</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">exchange<span class="token operator">: </span><a href="../../me.ahoo.wow.messaging.handler/-message-exchange/index.html">MessageExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-161488410%2FFunctions%2F-530543845" anchor-label="getContextAlias" id="-161488410%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.naming/get-context-alias.html"><span>get</span><wbr><span>Context</span><wbr><span><span>Alias</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-161488410%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.naming/-named-bounded-context/index.html">NamedBoundedContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.naming/get-context-alias.html"><span class="token function">getContextAlias</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">boundedContext<span class="token operator">: </span><a href="../../me.ahoo.wow.configuration/-bounded-context/index.html">BoundedContext</a><span class="token operator">?</span><span class="token operator"> = </span>MetadataSearcher.metadata.contexts[contextName]</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1065604178%2FFunctions%2F-530543845" anchor-label="hashCode" id="-1065604178%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="hash-code.html"><span>hash</span><wbr><span><span>Code</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1065604178%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="hash-code.html"><span class="token function">hashCode</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1934643829%2FFunctions%2F-530543845" anchor-label="isSameBoundedContext" id="-1934643829%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.event/-json-domain-event/index.html#-1934643829%2FFunctions%2F-530543845"><span>is</span><wbr><span>Same</span><wbr><span>Bounded</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1934643829%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.event/-json-domain-event/index.html#-1934643829%2FFunctions%2F-530543845"><span class="token function">isSameBoundedContext</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">other<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.naming/-named-bounded-context/index.html">NamedBoundedContext</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1069884513%2FFunctions%2F-530543845" anchor-label="toMessageFunction" id="-1069884513%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../to-message-function.html"><span>to</span><wbr><span>Message</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1069884513%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../to-message-function.html">P</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="../to-message-function.html">M</a><span class="token operator"> : </span><a href="../../me.ahoo.wow.messaging.handler/-message-exchange/index.html">MessageExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../to-message-function.html">R</a><span class="token operator">&gt; </span><a href="index.html">FunctionAccessorMetadata</a><span class="token operator">&lt;</span><a href="../to-message-function.html">P</a><span class="token punctuation">, </span><a href="../to-message-function.html">R</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="../to-message-function.html"><span class="token function">toMessageFunction</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">processor<span class="token operator">: </span><a href="../to-message-function.html">P</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-message-function-accessor/index.html">MessageFunctionAccessor</a><span class="token operator">&lt;</span><a href="../to-message-function.html">P</a><span class="token punctuation">, </span><a href="../to-message-function.html">M</a><span class="token punctuation">, </span><a href="../to-message-function.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1243770243%2FFunctions%2F-530543845" anchor-label="toString" id="-1243770243%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-string.html"><span>to</span><wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1243770243%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="to-string.html"><span class="token function">toString</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

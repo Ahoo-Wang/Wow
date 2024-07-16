@@ -1,0 +1,438 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>RedisServerCommandExchange</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-redis:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-redis::me.ahoo.wow.redis.bus/RedisServerCommandExchange///PointingToDeclaration//1797752109">
+  <div class="breadcrumbs"><a href="../../index.html">wow-redis</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.redis.bus</a><span class="delimiter">/</span><span class="current">RedisServerCommandExchange</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Redis</span><wbr><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">RedisServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">acknowledge<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html">Void</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="-2101776815%2FConstructors%2F1797752109" anchor-label="RedisServerCommandExchange" id="-2101776815%2FConstructors%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-server-command-exchange.html"><span>Redis</span><wbr><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2101776815%2FConstructors%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">message<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">acknowledge<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html">Void</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="">Properties</h2>
+        <div class="table"><a data-name="-922026871%2FProperties%2F1797752109" anchor-label="attributes" id="-922026871%2FProperties%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="attributes.html"><span><span>attributes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-922026871%2FProperties%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="attributes.html">attributes</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="684074547%2FProperties%2F1797752109" anchor-label="message" id="684074547%2FProperties%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="message.html"><span><span>message</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="684074547%2FProperties%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="message.html">message</a><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="2143768254%2FFunctions%2F1797752109" anchor-label="acknowledge" id="2143768254%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="acknowledge.html"><span><span>acknowledge</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2143768254%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="acknowledge.html"><span class="token function">acknowledge</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html">Void</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-864720402%2FFunctions%2F1797752109" anchor-label="clearError" id="-864720402%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-864720402%2FFunctions%2F1797752109"><span>clear</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-864720402%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-864720402%2FFunctions%2F1797752109"><span class="token function">clearError</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="540719653%2FFunctions%2F1797752109" anchor-label="extractDeclared" id="540719653%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#540719653%2FFunctions%2F1797752109"><span>extract</span><wbr><span><span>Declared</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="540719653%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="index.html#540719653%2FFunctions%2F1797752109">T</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="index.html#540719653%2FFunctions%2F1797752109"><span class="token function">extractDeclared</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">type<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="index.html#540719653%2FFunctions%2F1797752109">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html#540719653%2FFunctions%2F1797752109">T</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="76796926%2FFunctions%2F1797752109" anchor-label="extractObject" id="76796926%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#76796926%2FFunctions%2F1797752109"><span>extract</span><wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="76796926%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#76796926%2FFunctions%2F1797752109">T</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="../-redis-state-event-exchange/index.html#76796926%2FFunctions%2F1797752109"><span class="token function">extractObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">type<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#76796926%2FFunctions%2F1797752109">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-redis-state-event-exchange/index.html#76796926%2FFunctions%2F1797752109">T</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2134748035%2FFunctions%2F1797752109" anchor-label="extractRequiredObject" id="-2134748035%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-2134748035%2FFunctions%2F1797752109"><span>extract</span><wbr><span>Required</span><wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2134748035%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#-2134748035%2FFunctions%2F1797752109">T</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="../-redis-state-event-exchange/index.html#-2134748035%2FFunctions%2F1797752109"><span class="token function">extractRequiredObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">type<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#-2134748035%2FFunctions%2F1797752109">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-redis-state-event-exchange/index.html#-2134748035%2FFunctions%2F1797752109">T</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="432566876%2FFunctions%2F1797752109" anchor-label="getAggregateProcessor" id="432566876%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#432566876%2FFunctions%2F1797752109"><span>get</span><wbr><span>Aggregate</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="432566876%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#432566876%2FFunctions%2F1797752109"><span class="token function">getAggregateProcessor</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.command/-aggregate-processor/index.html">AggregateProcessor</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-631268159%2FFunctions%2F1797752109" anchor-label="getAttribute" id="-631268159%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-631268159%2FFunctions%2F1797752109"><span>get</span><wbr><span><span>Attribute</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-631268159%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#-631268159%2FFunctions%2F1797752109">T</a><span class="token operator">&gt; </span><a href="../-redis-state-event-exchange/index.html#-631268159%2FFunctions%2F1797752109"><span class="token function">getAttribute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-redis-state-event-exchange/index.html#-631268159%2FFunctions%2F1797752109">T</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1415467880%2FFunctions%2F1797752109" anchor-label="getCommandResult" id="-1415467880%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-1953994505%2FFunctions%2F1797752109"><span>get</span><wbr><span>Command</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1415467880%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-1953994505%2FFunctions%2F1797752109"><span class="token function">getCommandResult</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-redis-state-event-exchange/index.html#259666285%2FFunctions%2F1797752109">R</a><span class="token operator">&gt; </span><a href="../-redis-state-event-exchange/index.html#259666285%2FFunctions%2F1797752109"><span class="token function">getCommandResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-redis-state-event-exchange/index.html#259666285%2FFunctions%2F1797752109">R</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="795399331%2FFunctions%2F1797752109" anchor-label="getError" id="795399331%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#795399331%2FFunctions%2F1797752109"><span>get</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="795399331%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="index.html#795399331%2FFunctions%2F1797752109"><span class="token function">getError</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1024526927%2FFunctions%2F1797752109" anchor-label="getEventStream" id="-1024526927%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1024526927%2FFunctions%2F1797752109"><span>get</span><wbr><span>Event</span><wbr><span><span>Stream</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1024526927%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-1024526927%2FFunctions%2F1797752109"><span class="token function">getEventStream</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="500154969%2FFunctions%2F1797752109" anchor-label="getProcessor" id="500154969%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#500154969%2FFunctions%2F1797752109"><span>get</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="500154969%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="index.html#500154969%2FFunctions%2F1797752109"><span class="token function">getProcessor</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging.processor/-processor-info/index.html">ProcessorInfo</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="136183225%2FFunctions%2F1797752109" anchor-label="getServiceProvider" id="136183225%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#136183225%2FFunctions%2F1797752109"><span>get</span><wbr><span>Service</span><wbr><span><span>Provider</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="136183225%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#136183225%2FFunctions%2F1797752109"><span class="token function">getServiceProvider</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.ioc/-service-provider/index.html">ServiceProvider</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1704744085%2FFunctions%2F1797752109" anchor-label="removeAttribute" id="-1704744085%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-1704744085%2FFunctions%2F1797752109"><span>remove</span><wbr><span><span>Attribute</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1704744085%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-1704744085%2FFunctions%2F1797752109"><span class="token function">removeAttribute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-946538035%2FFunctions%2F1797752109" anchor-label="setAggregateProcessor" id="-946538035%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-946538035%2FFunctions%2F1797752109"><span>set</span><wbr><span>Aggregate</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-946538035%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-946538035%2FFunctions%2F1797752109"><span class="token function">setAggregateProcessor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateProcessor<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.command/-aggregate-processor/index.html">AggregateProcessor</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1355933035%2FFunctions%2F1797752109" anchor-label="setAttribute" id="1355933035%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#1355933035%2FFunctions%2F1797752109"><span>set</span><wbr><span><span>Attribute</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1355933035%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#1355933035%2FFunctions%2F1797752109"><span class="token function">setAttribute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1914435777%2FFunctions%2F1797752109" anchor-label="setCommandResult" id="-1914435777%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-1914435777%2FFunctions%2F1797752109"><span>set</span><wbr><span>Command</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1914435777%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-1914435777%2FFunctions%2F1797752109"><span class="token function">setCommandResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1454735984%2FFunctions%2F1797752109" anchor-label="setError" id="1454735984%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#1454735984%2FFunctions%2F1797752109"><span>set</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1454735984%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#1454735984%2FFunctions%2F1797752109"><span class="token function">setError</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">throwable<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-throwable/index.html">Throwable</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="28992675%2FFunctions%2F1797752109" anchor-label="setEventStream" id="28992675%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#28992675%2FFunctions%2F1797752109"><span>set</span><wbr><span>Event</span><wbr><span><span>Stream</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="28992675%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#28992675%2FFunctions%2F1797752109"><span class="token function">setEventStream</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">eventStream<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1320231901%2FFunctions%2F1797752109" anchor-label="setProcessor" id="-1320231901%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-1320231901%2FFunctions%2F1797752109"><span>set</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1320231901%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-1320231901%2FFunctions%2F1797752109"><span class="token function">setProcessor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">processorInfo<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging.processor/-processor-info/index.html">ProcessorInfo</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1462361240%2FFunctions%2F1797752109" anchor-label="setServiceProvider" id="-1462361240%2FFunctions%2F1797752109" data-filterable-set=":wow-redis:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-redis:dokkaHtmlPartial/main" data-filterable-set=":wow-redis:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-redis-state-event-exchange/index.html#-1462361240%2FFunctions%2F1797752109"><span>set</span><wbr><span>Service</span><wbr><span><span>Provider</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1462361240%2FFunctions%2F1797752109"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-redis-state-event-exchange/index.html#-1462361240%2FFunctions%2F1797752109"><span class="token function">setServiceProvider</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">serviceProvider<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.ioc/-service-provider/index.html">ServiceProvider</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="index.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,153 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Order</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":example-domain:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="example-domain::me.ahoo.wow.example.domain.order/Order///PointingToDeclaration//-543456607">
+  <div class="breadcrumbs"><a href="../../index.html">example-domain</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.example.domain.order</a><span class="delimiter">/</span><span class="current">Order</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Order</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../../wow-api/me.ahoo.wow.api.annotation/-aggregate-root/index.html"><span class="token annotation builtin">AggregateRoot</span></a></div></div><span class="token keyword">class </span><a href="index.html">Order</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">state<span class="token operator">: </span><a href="../-order-state/index.html">OrderState</a></span></span><span class="token punctuation">)</span></div><p class="paragraph">Order Aggregate.</p><p class="paragraph">为了防止命令处理函数不小心修改聚合状态，可拆分成聚合状态类存放聚合状态.</p><p class="paragraph"><a href="../../../wow-api/me.ahoo.wow.api.annotation/-aggregate-root/index.html">me.ahoo.wow.api.annotation.AggregateRoot</a> 注解是可选的标记.</p><span class="kdoc-tag"><h4 class="">Author</h4><p class="paragraph">ahoo wang</p></span><h4 class="">See also</h4><div class="table"><div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../../../wow-core/me.ahoo.wow.modeling.command/-command-aggregate/index.html"><span>Command</span><wbr><span><span>Aggregate</span></span></a></div></span></div><div></div></div></div><div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate/index.html"><span>State</span><wbr><span><span>Aggregate</span></span></a></div></span></div><div></div></div></div></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="713600162%2FConstructors%2F-543456607" anchor-label="Order" id="713600162%2FConstructors%2F-543456607" data-filterable-set=":example-domain:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-order.html"><span><span>Order</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="713600162%2FConstructors%2F-543456607"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">state<span class="token operator">: </span><a href="../-order-state/index.html">OrderState</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="">Types</h2>
+        <div class="table"><a data-name="182745644%2FClasslikes%2F-543456607" anchor-label="Companion" id="182745644%2FClasslikes%2F-543456607" data-filterable-set=":example-domain:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="182745644%2FClasslikes%2F-543456607"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-2117394837%2FFunctions%2F-543456607" anchor-label="onCommand" id="-2117394837%2FFunctions%2F-543456607" data-filterable-set=":example-domain:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-command.html"><span>on</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2117394837%2FFunctions%2F-543456607"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">shipOrder<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-ship-order/index.html">ShipOrder</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-shipped/index.html">OrderShipped</a></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">receiptOrder<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-receipt-order/index.html">ReceiptOrder</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-received/index.html">OrderReceived</a></div><br><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">changeAddress<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-change-address/index.html">ChangeAddress</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-address-changed/index.html">AddressChanged</a></div><div class="brief "><p class="paragraph">***** 重要：命令处理函数不直接修改聚合状态，而是通过执行完业务验证逻辑后返回领域事件来由聚合朔源事件修改聚合状态，并且发布到事件总线 *****.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">payOrder<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-pay-order/index.html">PayOrder</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-iterable/index.html">Iterable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph"><i>订单服务</i> 订阅 <i>支付服务</i> 发布的集成事件 <code class="lang-kotlin">PaymentOrderPaid</code>，适配成 <i>订单服务</i> 限界上下文 <code class="lang-kotlin">PayOrder</code> 命令.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-command.html"><span class="token function">onCommand</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">command<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-create-order/index.html">CreateOrder</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span><span class="token annotation builtin">@</span><a href="../../../wow-api/me.ahoo.wow.api.annotation/-name/index.html"><span class="token annotation builtin">Name</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"createOrderSpec"</span></span></span><wbr><span class="token punctuation">)</span>&nbsp;</span>specification<span class="token operator">: </span><a href="../-create-order-spec/index.html">CreateOrderSpec</a><span class="token punctuation">, </span></span><span class="parameter ">commandResultAccessor<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.command/-command-result-accessor/index.html">CommandResultAccessor</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="../../../example-api/me.ahoo.wow.example.api.order/-order-created/index.html">OrderCreated</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">此时的聚合处于空状态,也可以理解为该方法是一个聚合工厂,订阅首个聚合命令并发布首个领域事件.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-883122142%2FFunctions%2F-543456607" anchor-label="onError" id="-883122142%2FFunctions%2F-543456607" data-filterable-set=":example-domain:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":example-domain:dokkaHtmlPartial/main" data-filterable-set=":example-domain:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="on-error.html"><span>on</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-883122142%2FFunctions%2F-543456607"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-domain:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="on-error.html"><span class="token function">onError</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">createOrder<span class="token operator">: </span><a href="../../../example-api/me.ahoo.wow.example.api.order/-create-order/index.html">CreateOrder</a><span class="token punctuation">, </span></span><span class="parameter ">throwable<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token punctuation">, </span></span><span class="parameter ">eventStream<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html">Void</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

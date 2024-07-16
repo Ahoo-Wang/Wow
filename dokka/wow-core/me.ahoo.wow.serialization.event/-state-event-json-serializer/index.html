@@ -1,0 +1,370 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>StateEventJsonSerializer</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-core:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-core::me.ahoo.wow.serialization.event/StateEventJsonSerializer///PointingToDeclaration//-530543845">
+  <div class="breadcrumbs"><a href="../../index.html">wow-core</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.serialization.event</a><span class="delimiter">/</span><span class="current">StateEventJsonSerializer</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>State</span><wbr><span>Event</span><wbr><span>Json</span><wbr><span><span>Serializer</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">StateEventJsonSerializer</a> : <a href="../-abstract-event-stream-json-serializer/index.html">AbstractEventStreamJsonSerializer</a><span class="token operator">&lt;</span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="168674%2FFunctions%2F-530543845" anchor-label="acceptJsonFormatVisitor" id="168674%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#168674%2FFunctions%2F-530543845"><span>accept</span><wbr><span>Json</span><wbr><span>Format</span><wbr><span><span>Visitor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="168674%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#168674%2FFunctions%2F-530543845"><span class="token function">acceptJsonFormatVisitor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.jsonFormatVisitors/JsonFormatVisitorWrapper///PointingToDeclaration/">JsonFormatVisitorWrapper</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JavaType///PointingToDeclaration/">JavaType</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-342604674%2FFunctions%2F-530543845" anchor-label="getDelegatee" id="-342604674%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-342604674%2FFunctions%2F-530543845"><span>get</span><wbr><span><span>Delegatee</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-342604674%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-342604674%2FFunctions%2F-530543845"><span class="token function">getDelegatee</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1057285062%2FFunctions%2F-530543845" anchor-label="getSchema" id="-1057285062%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-1098320743%2FFunctions%2F-530543845"><span>get</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1057285062%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-1098320743%2FFunctions%2F-530543845"><span class="token function"><strike>getSchema</strike></span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Type.html">Type</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonNode///PointingToDeclaration/">JsonNode</span></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#427473355%2FFunctions%2F-530543845"><span class="token function"><strike>getSchema</strike></span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Type.html">Type</a><span class="token punctuation">, </span></span><span class="parameter ">p2<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonNode///PointingToDeclaration/">JsonNode</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2032127386%2FFunctions%2F-530543845" anchor-label="handledType" id="2032127386%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#2032127386%2FFunctions%2F-530543845"><span>handled</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2032127386%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#2032127386%2FFunctions%2F-530543845"><span class="token function">handledType</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1174645%2FFunctions%2F-530543845" anchor-label="isEmpty" id="-1174645%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-2125623385%2FFunctions%2F-530543845"><span>is</span><wbr><span><span>Empty</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1174645%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-2125623385%2FFunctions%2F-530543845"><span class="token function"><strike>isEmpty</strike></span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-1566626008%2FFunctions%2F-530543845"><span class="token function">isEmpty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2117148841%2FFunctions%2F-530543845" anchor-label="isUnwrappingSerializer" id="-2117148841%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-2117148841%2FFunctions%2F-530543845"><span>is</span><wbr><span>Unwrapping</span><wbr><span><span>Serializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2117148841%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-2117148841%2FFunctions%2F-530543845"><span class="token function">isUnwrappingSerializer</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-930927883%2FFunctions%2F-530543845" anchor-label="properties" id="-930927883%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-930927883%2FFunctions%2F-530543845"><span><span>properties</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-930927883%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-930927883%2FFunctions%2F-530543845"><span class="token function">properties</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-mutable-iterator/index.html">MutableIterator</a><span class="token operator">&lt;</span><span data-unresolved-link="com.fasterxml.jackson.databind.ser/PropertyWriter///PointingToDeclaration/">PropertyWriter</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1411538727%2FFunctions%2F-530543845" anchor-label="replaceDelegatee" id="1411538727%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#1411538727%2FFunctions%2F-530543845"><span>replace</span><wbr><span><span>Delegatee</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1411538727%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#1411538727%2FFunctions%2F-530543845"><span class="token function">replaceDelegatee</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="955400792%2FFunctions%2F-530543845" anchor-label="serialize" id="955400792%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#955400792%2FFunctions%2F-530543845"><span><span>serialize</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="955400792%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="index.html#955400792%2FFunctions%2F-530543845"><span class="token function">serialize</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">generator<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">provider<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1646856110%2FFunctions%2F-530543845" anchor-label="serializeWithType" id="1646856110%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#1646856110%2FFunctions%2F-530543845"><span>serialize</span><wbr><span>With</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1646856110%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#1646856110%2FFunctions%2F-530543845"><span class="token function">serializeWithType</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">p2<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p3<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.jsontype/TypeSerializer///PointingToDeclaration/">TypeSerializer</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="40759296%2FFunctions%2F-530543845" anchor-label="unwrappingSerializer" id="40759296%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#40759296%2FFunctions%2F-530543845"><span>unwrapping</span><wbr><span><span>Serializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="40759296%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#40759296%2FFunctions%2F-530543845"><span class="token function">unwrappingSerializer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.util/NameTransformer///PointingToDeclaration/">NameTransformer</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-586728414%2FFunctions%2F-530543845" anchor-label="usesObjectId" id="-586728414%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-586728414%2FFunctions%2F-530543845"><span>uses</span><wbr><span>Object</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-586728414%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#-586728414%2FFunctions%2F-530543845"><span class="token function">usesObjectId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="5275344%2FFunctions%2F-530543845" anchor-label="withFilterId" id="5275344%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#5275344%2FFunctions%2F-530543845"><span>with</span><wbr><span>Filter</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="5275344%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#5275344%2FFunctions%2F-530543845"><span class="token function">withFilterId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="510314235%2FFunctions%2F-530543845" anchor-label="withIgnoredProperties" id="510314235%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#510314235%2FFunctions%2F-530543845"><span>with</span><wbr><span>Ignored</span><wbr><span><span>Properties</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="510314235%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#510314235%2FFunctions%2F-530543845"><span class="token function">withIgnoredProperties</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-mutable-set/index.html">MutableSet</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonSerializer///PointingToDeclaration/">JsonSerializer</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="768586362%2FFunctions%2F-530543845" anchor-label="wrapAndThrow" id="768586362%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#548672058%2FFunctions%2F-530543845"><span>wrap</span><wbr><span>And</span><wbr><span><span>Throw</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="768586362%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#548672058%2FFunctions%2F-530543845"><span class="token function">wrapAndThrow</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token punctuation">, </span></span><span class="parameter ">p2<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">p3<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization.state/-state-aggregate-serializer/index.html#771613416%2FFunctions%2F-530543845"><span class="token function">wrapAndThrow</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">p0<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/SerializerProvider///PointingToDeclaration/">SerializerProvider</span><span class="token punctuation">, </span></span><span class="parameter ">p1<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token punctuation">, </span></span><span class="parameter ">p2<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">p3<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1226350977%2FFunctions%2F-530543845" anchor-label="writeBody" id="-1226350977%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1226350977%2FFunctions%2F-530543845"><span>write</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1226350977%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="index.html#-1226350977%2FFunctions%2F-530543845"><span class="token function">writeBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">generator<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1682172827%2FFunctions%2F-530543845" anchor-label="writeBodyType" id="-1682172827%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1682172827%2FFunctions%2F-530543845"><span>write</span><wbr><span>Body</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1682172827%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="index.html#-1682172827%2FFunctions%2F-530543845"><span class="token function">writeBodyType</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">generator<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="409831043%2FFunctions%2F-530543845" anchor-label="writeExtendedInfo" id="409831043%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="write-extended-info.html"><span>write</span><wbr><span>Extended</span><wbr><span><span>Info</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="409831043%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="write-extended-info.html"><span class="token function">writeExtendedInfo</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">generator<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="../../me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1700368526%2FFunctions%2F-530543845" anchor-label="writeHeader" id="-1700368526%2FFunctions%2F-530543845" data-filterable-set=":wow-core:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-core:dokkaHtmlPartial/main" data-filterable-set=":wow-core:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.serialization/-message-serializer/write-header.html"><span>write</span><wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1700368526%2FFunctions%2F-530543845"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.serialization/-message-serializer/write-header.html"><span class="token function">writeHeader</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">generator<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.core/JsonGenerator///PointingToDeclaration/">JsonGenerator</span><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

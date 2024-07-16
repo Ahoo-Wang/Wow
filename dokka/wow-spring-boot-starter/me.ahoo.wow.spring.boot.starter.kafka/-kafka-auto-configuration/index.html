@@ -1,0 +1,209 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>KafkaAutoConfiguration</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-spring-boot-starter:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-spring-boot-starter::me.ahoo.wow.spring.boot.starter.kafka/KafkaAutoConfiguration///PointingToDeclaration//-250467564">
+  <div class="breadcrumbs"><a href="../../index.html">wow-spring-boot-starter</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.spring.boot.starter.kafka</a><span class="delimiter">/</span><span class="current">KafkaAutoConfiguration</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Kafka</span><wbr><span>Auto</span><wbr><span><span>Configuration</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure/AutoConfiguration///PointingToDeclaration/"><span class="token annotation builtin">AutoConfiguration</span></span><span class="token punctuation">(</span><span>before<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="../../me.ahoo.wow.spring.boot.starter.command/-command-auto-configuration/index.html">CommandAutoConfiguration::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnClass///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnClass</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-kafka-command-bus/index.html">KafkaCommandBus::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.context.properties/EnableConfigurationProperties///PointingToDeclaration/"><span class="token annotation builtin">EnableConfigurationProperties</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="../-kafka-properties/index.html">KafkaProperties::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">class </span><a href="index.html">KafkaAutoConfiguration</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">kafkaProperties<span class="token operator">: </span><a href="../-kafka-properties/index.html">KafkaProperties</a></span></span><span class="token punctuation">)</span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="">Constructors</h2>
+        <div class="table"><a data-name="-1840438502%2FConstructors%2F-250467564" anchor-label="KafkaAutoConfiguration" id="-1840438502%2FConstructors%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-auto-configuration.html"><span>Kafka</span><wbr><span>Auto</span><wbr><span><span>Configuration</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1840438502%2FConstructors%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">kafkaProperties<span class="token operator">: </span><a href="../-kafka-properties/index.html">KafkaProperties</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="-383575913%2FFunctions%2F-250467564" anchor-label="defaultCommandTopicConverter" id="-383575913%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="default-command-topic-converter.html"><span>default</span><wbr><span>Command</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-383575913%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="default-command-topic-converter.html"><span class="token function">defaultCommandTopicConverter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-command-topic-converter/index.html">CommandTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1029303112%2FFunctions%2F-250467564" anchor-label="defaultEventStreamTopicConverter" id="1029303112%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="default-event-stream-topic-converter.html"><span>default</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1029303112%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="default-event-stream-topic-converter.html"><span class="token function">defaultEventStreamTopicConverter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-event-stream-topic-converter/index.html">EventStreamTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1930111086%2FFunctions%2F-250467564" anchor-label="kafkaCommandBus" id="1930111086%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="kafka-command-bus.html"><span>kafka</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1930111086%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnProperty///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnProperty</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"wow.command.bus.type"</span></span></span><wbr><span class="token punctuation">]</span><span class="token punctuation">, </span></span><wbr><span>matchIfMissing<span class="token operator"> = </span><span class="breakable-word"><span class="token boolean">true</span></span><span class="token punctuation">, </span></span><wbr><span>havingValue<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"kafka"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="kafka-command-bus.html"><span class="token function">kafkaCommandBus</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-command-topic-converter/index.html">CommandTopicConverter</a><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-distributed-command-bus/index.html">DistributedCommandBus</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1447222636%2FFunctions%2F-250467564" anchor-label="kafkaDomainEventBus" id="-1447222636%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="kafka-domain-event-bus.html"><span>kafka</span><wbr><span>Domain</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1447222636%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnProperty///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnProperty</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"wow.event.bus.type"</span></span></span><wbr><span class="token punctuation">]</span><span class="token punctuation">, </span></span><wbr><span>matchIfMissing<span class="token operator"> = </span><span class="breakable-word"><span class="token boolean">true</span></span><span class="token punctuation">, </span></span><wbr><span>havingValue<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"kafka"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="kafka-domain-event-bus.html"><span class="token function">kafkaDomainEventBus</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-event-stream-topic-converter/index.html">EventStreamTopicConverter</a><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.event/-distributed-domain-event-bus/index.html">DistributedDomainEventBus</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1211868716%2FFunctions%2F-250467564" anchor-label="kafkaStateEventBus" id="1211868716%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="kafka-state-event-bus.html"><span>kafka</span><wbr><span>State</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1211868716%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnProperty///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnProperty</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"wow.eventsourcing.state.bus.type"</span></span></span><wbr><span class="token punctuation">]</span><span class="token punctuation">, </span></span><wbr><span>matchIfMissing<span class="token operator"> = </span><span class="breakable-word"><span class="token boolean">true</span></span><span class="token punctuation">, </span></span><wbr><span>havingValue<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"kafka"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="kafka-state-event-bus.html"><span class="token function">kafkaStateEventBus</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-state-event-topic-converter/index.html">StateEventTopicConverter</a><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing.state/-distributed-state-event-bus/index.html">DistributedStateEventBus</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="464675818%2FFunctions%2F-250467564" anchor-label="receiverOptionsCustomizer" id="464675818%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="receiver-options-customizer.html"><span>receiver</span><wbr><span>Options</span><wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="464675818%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="receiver-options-customizer.html"><span class="token function">receiverOptionsCustomizer</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1682884744%2FFunctions%2F-250467564" anchor-label="stateEventTopicConverter" id="-1682884744%2FFunctions%2F-250467564" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-spring-boot-starter:dokkaHtmlPartial/main" data-filterable-set=":wow-spring-boot-starter:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="state-event-topic-converter.html"><span>state</span><wbr><span>Event</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1682884744%2FFunctions%2F-250467564"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter:dokkaHtmlPartial/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="state-event-topic-converter.html"><span class="token function">stateEventTopicConverter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-kafka/me.ahoo.wow.kafka/-state-event-topic-converter/index.html">StateEventTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

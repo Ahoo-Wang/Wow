@@ -1,0 +1,640 @@
+<!doctype html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>MongoConditionConverter</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">    <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/clipboard.js" async></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../scripts/symbol-parameters-wrapper_deferred.js" defer></script></head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+<a class="library-name--link" href="../../../index.html">
+                            Wow
+                    </a>            </div>
+            <div class="library-version">3.10.0
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":wow-mongo:dokkaHtmlPartial/main">jvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-mongo::me.ahoo.wow.mongo.query/MongoConditionConverter///PointingToDeclaration//-375247148">
+  <div class="breadcrumbs"><a href="../../index.html">wow-mongo</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.mongo.query</a><span class="delimiter">/</span><span class="current">MongoConditionConverter</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Mongo</span><wbr><span>Condition</span><wbr><span><span>Converter</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">MongoConditionConverter</a> : <a href="../../../wow-query/me.ahoo.wow.query.converter/-condition-converter/index.html">ConditionConverter</a><span class="token operator">&lt;</span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="FUNCTION">
+        <h2 class="">Functions</h2>
+        <div class="table"><a data-name="1608552014%2FFunctions%2F-375247148" anchor-label="all" id="1608552014%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="all.html"><span><span>all</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1608552014%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="all.html"><span class="token function">all</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="824615443%2FFunctions%2F-375247148" anchor-label="allIn" id="824615443%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="all-in.html"><span>all</span><wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="824615443%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="all-in.html"><span class="token function">allIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1293579396%2FFunctions%2F-375247148" anchor-label="and" id="1293579396%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="and.html"><span><span>and</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1293579396%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="and.html"><span class="token function">and</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1794585397%2FFunctions%2F-375247148" anchor-label="between" id="1794585397%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="between.html"><span><span>between</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1794585397%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="between.html"><span class="token function">between</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1595163814%2FFunctions%2F-375247148" anchor-label="contains" id="-1595163814%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="contains.html"><span><span>contains</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1595163814%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="contains.html"><span class="token function">contains</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1052778434%2FFunctions%2F-375247148" anchor-label="convert" id="1052778434%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#1052778434%2FFunctions%2F-375247148"><span><span>convert</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1052778434%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#1052778434%2FFunctions%2F-375247148"><span class="token function">convert</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1794928570%2FFunctions%2F-375247148" anchor-label="deleted" id="-1794928570%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="deleted.html"><span><span>deleted</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1794928570%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="deleted.html"><span class="token function">deleted</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1593624163%2FFunctions%2F-375247148" anchor-label="elemMatch" id="1593624163%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="elem-match.html"><span>elem</span><wbr><span><span>Match</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1593624163%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="elem-match.html"><span class="token function">elemMatch</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1723566055%2FFunctions%2F-375247148" anchor-label="endsWith" id="-1723566055%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ends-with.html"><span>ends</span><wbr><span><span>With</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1723566055%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="ends-with.html"><span class="token function">endsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1350114265%2FFunctions%2F-375247148" anchor-label="eq" id="-1350114265%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="eq.html"><span><span>eq</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1350114265%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="eq.html"><span class="token function">eq</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="974990696%2FFunctions%2F-375247148" anchor-label="gt" id="974990696%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="gt.html"><span><span>gt</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="974990696%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="gt.html"><span class="token function">gt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="612357317%2FFunctions%2F-375247148" anchor-label="gte" id="612357317%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="gte.html"><span><span>gte</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="612357317%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="gte.html"><span class="token function">gte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-88683626%2FFunctions%2F-375247148" anchor-label="id" id="-88683626%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="id.html"><span><span>id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-88683626%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="id.html"><span class="token function">id</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2060289435%2FFunctions%2F-375247148" anchor-label="ids" id="-2060289435%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ids.html"><span><span>ids</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2060289435%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="ids.html"><span class="token function">ids</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="26420806%2FFunctions%2F-375247148" anchor-label="isFalse" id="26420806%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-false.html"><span>is</span><wbr><span><span>False</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="26420806%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="is-false.html"><span class="token function">isFalse</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1779018922%2FFunctions%2F-375247148" anchor-label="isIn" id="1779018922%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-in.html"><span>is</span><wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1779018922%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="is-in.html"><span class="token function">isIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-506510644%2FFunctions%2F-375247148" anchor-label="isNull" id="-506510644%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-null.html"><span>is</span><wbr><span><span>Null</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-506510644%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="is-null.html"><span class="token function">isNull</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1056034349%2FFunctions%2F-375247148" anchor-label="isTrue" id="-1056034349%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-true.html"><span>is</span><wbr><span><span>True</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1056034349%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="is-true.html"><span class="token function">isTrue</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1135802249%2FFunctions%2F-375247148" anchor-label="lastMonth" id="-1135802249%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-month.html"><span>last</span><wbr><span><span>Month</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1135802249%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="last-month.html"><span class="token function">lastMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="96506853%2FFunctions%2F-375247148" anchor-label="lastWeek" id="96506853%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-week.html"><span>last</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="96506853%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="last-week.html"><span class="token function">lastWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-88170237%2FFunctions%2F-375247148" anchor-label="lt" id="-88170237%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="lt.html"><span><span>lt</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-88170237%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="lt.html"><span class="token function">lt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2014106762%2FFunctions%2F-375247148" anchor-label="lte" id="2014106762%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="lte.html"><span><span>lte</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2014106762%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="lte.html"><span class="token function">lte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-521385934%2FFunctions%2F-375247148" anchor-label="ne" id="-521385934%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ne.html"><span><span>ne</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-521385934%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="ne.html"><span class="token function">ne</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1241982270%2FFunctions%2F-375247148" anchor-label="nextWeek" id="-1241982270%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="next-week.html"><span>next</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1241982270%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="next-week.html"><span class="token function">nextWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-479340620%2FFunctions%2F-375247148" anchor-label="not" id="-479340620%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not.html"><span><span>not</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-479340620%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="not.html"><span class="token function">not</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">not<span class="token operator">: </span><a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token punctuation">, </span></span><span class="parameter ">target<span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1088000197%2FFunctions%2F-375247148" anchor-label="notIn" id="1088000197%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not-in.html"><span>not</span><wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1088000197%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="not-in.html"><span class="token function">notIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1144425511%2FFunctions%2F-375247148" anchor-label="notNull" id="1144425511%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not-null.html"><span>not</span><wbr><span><span>Null</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1144425511%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="not-null.html"><span class="token function">notNull</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1448989790%2FFunctions%2F-375247148" anchor-label="or" id="1448989790%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="or.html"><span><span>or</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1448989790%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="or.html"><span class="token function">or</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="186616789%2FFunctions%2F-375247148" anchor-label="raw" id="186616789%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="raw.html"><span><span>raw</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="186616789%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="raw.html"><span class="token function">raw</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1627352013%2FFunctions%2F-375247148" anchor-label="recentDays" id="1627352013%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="recent-days.html"><span>recent</span><wbr><span><span>Days</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1627352013%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="recent-days.html"><span class="token function">recentDays</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="333991986%2FFunctions%2F-375247148" anchor-label="startsWith" id="333991986%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="starts-with.html"><span>starts</span><wbr><span><span>With</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="333991986%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="starts-with.html"><span class="token function">startsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="521611936%2FFunctions%2F-375247148" anchor-label="tenantId" id="521611936%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tenant-id.html"><span>tenant</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="521611936%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="tenant-id.html"><span class="token function">tenantId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2028582545%2FFunctions%2F-375247148" anchor-label="thisMonth" id="-2028582545%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="this-month.html"><span>this</span><wbr><span><span>Month</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2028582545%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="this-month.html"><span class="token function">thisMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="483349485%2FFunctions%2F-375247148" anchor-label="thisWeek" id="483349485%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="this-week.html"><span>this</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="483349485%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="this-week.html"><span class="token function">thisWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1742017966%2FFunctions%2F-375247148" anchor-label="today" id="1742017966%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="today.html"><span><span>today</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1742017966%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="today.html"><span class="token function">today</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="312997754%2FFunctions%2F-375247148" anchor-label="toMongoFilter" id="312997754%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-mongo-filter.html"><span>to</span><wbr><span>Mongo</span><wbr><span><span>Filter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="312997754%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a><span class="token punctuation">.</span><a href="to-mongo-filter.html"><span class="token function">toMongoFilter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-323724736%2FFunctions%2F-375247148" anchor-label="tomorrow" id="-323724736%2FFunctions%2F-375247148" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main"></a>
+          <div class="table-row" data-filterable-current=":wow-mongo:dokkaHtmlPartial/main" data-filterable-set=":wow-mongo:dokkaHtmlPartial/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tomorrow.html"><span><span>tomorrow</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-323724736%2FFunctions%2F-375247148"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-mongo:dokkaHtmlPartial/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="tomorrow.html"><span class="token function">tomorrow</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.bson.conversions/Bson///PointingToDeclaration/">Bson</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2024 Copyright</span><span class="pull-right"><span>Generated by </span><a href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
