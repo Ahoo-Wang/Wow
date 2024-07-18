@@ -4,7 +4,11 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -55,6 +59,28 @@ class StatelessSagaFunctionTest {
             .verify()
     }
 
+    @Test
+    fun returnCommandMessage() {
+        sagaVerifier<MockReturnCommandMessageSaga>()
+            .`when`(MockAggregateCreated("data"))
+            .expectNoError()
+            .expectCommand<MockCreateAggregate> {
+                assertThat(it.requestId, equalTo(it.id))
+            }
+            .verify()
+    }
+
+    @Test
+    fun returnCommandBuilder() {
+        sagaVerifier<MockReturnBuilderMessageSaga>()
+            .`when`(MockAggregateCreated("data"))
+            .expectNoError()
+            .expectCommand<MockCreateAggregate> {
+                assertThat(it.requestId, not(it.id))
+            }
+            .verify()
+    }
+
     class MockSaga {
         @Suppress("UNUSED_PARAMETER")
         @OnEvent
@@ -68,6 +94,22 @@ class StatelessSagaFunctionTest {
         @OnEvent
         fun onEvent(event: MockAggregateCreated): Flux<Any> {
             return Flux.just(MockCreateAggregate("", ""), MockChangeAggregate("", ""))
+        }
+    }
+
+    class MockReturnCommandMessageSaga {
+        @Suppress("UNUSED_PARAMETER")
+        @OnEvent
+        fun onEvent(event: MockAggregateCreated): CommandMessage<MockCreateAggregate> {
+            return MockCreateAggregate("", "").toCommandMessage()
+        }
+    }
+
+    class MockReturnBuilderMessageSaga {
+        @Suppress("UNUSED_PARAMETER")
+        @OnEvent
+        fun onEvent(event: MockAggregateCreated): CommandBuilder<MockCreateAggregate> {
+            return MockCreateAggregate("", "").commandBuilder()
         }
     }
 }

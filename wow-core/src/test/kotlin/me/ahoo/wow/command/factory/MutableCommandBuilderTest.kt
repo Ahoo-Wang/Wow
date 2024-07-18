@@ -29,7 +29,7 @@ class MutableCommandBuilderTest {
 
     @Test
     fun customize() {
-        val commandOptions = this.commandBuilder()
+        val commandBuilder = this.commandBuilder()
             .id("id")
             .requestIfIfAbsent("requestId")
             .aggregateId("aggregateId")
@@ -41,13 +41,19 @@ class MutableCommandBuilderTest {
             }
             .createTime(1)
 
-        assertThat(commandOptions.id, equalTo("id"))
-        assertThat(commandOptions.requestId, equalTo("requestId"))
-        assertThat(commandOptions.aggregateId, equalTo("aggregateId"))
-        assertThat(commandOptions.tenantId, equalTo("tenantId"))
-        assertThat(commandOptions.aggregateVersion, equalTo(1))
-        assertThat(commandOptions.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
-        assertThat(commandOptions.header["key"], equalTo("value"))
-        assertThat(commandOptions.createTime, equalTo(1))
+        assertThat(commandBuilder.id, equalTo("id"))
+        assertThat(commandBuilder.requestId, equalTo("requestId"))
+        assertThat(commandBuilder.aggregateId, equalTo("aggregateId"))
+        assertThat(commandBuilder.tenantId, equalTo("tenantId"))
+        assertThat(commandBuilder.aggregateVersion, equalTo(1))
+        assertThat(commandBuilder.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
+        assertThat(commandBuilder.header["key"], equalTo("value"))
+        assertThat(commandBuilder.createTime, equalTo(1))
+
+        commandBuilder.requestIfIfAbsent("requestId2")
+            .tenantIdIfAbsent("tenantId2")
+
+        assertThat(commandBuilder.requestId, equalTo("requestId"))
+        assertThat(commandBuilder.tenantId, equalTo("tenantId"))
     }
 }

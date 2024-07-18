@@ -18,6 +18,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
@@ -75,9 +76,14 @@ class StatelessSagaFunction(
         if (singleResult is CommandMessage<*>) {
             return singleResult.toMono()
         }
-        val commandBuilder = singleResult.commandBuilder()
-            .requestId("${domainEvent.id}-$index")
-            .tenantId(domainEvent.aggregateId.tenantId)
+        val commandBuilder = if (singleResult is CommandBuilder<*>) {
+            singleResult
+        } else {
+            singleResult.commandBuilder()
+        }
+        commandBuilder
+            .requestIfIfAbsent("${domainEvent.id}-$index")
+            .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create(commandBuilder) as Mono<CommandMessage<*>>
     }
