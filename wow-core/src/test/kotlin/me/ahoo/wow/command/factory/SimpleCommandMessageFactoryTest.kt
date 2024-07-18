@@ -15,7 +15,7 @@ class SimpleCommandMessageFactoryTest {
 
     @Test
     fun createIfNotFound() {
-        val registry = SimpleCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
         val command = MockCreateCommand("")
         factory.create(command)
@@ -26,8 +26,8 @@ class SimpleCommandMessageFactoryTest {
 
     @Test
     fun createIfFound() {
-        val registry = SimpleCommandOptionsExtractorRegistry()
-        registry.register(MockCommandOptionsExtractor())
+        val registry = SimpleCommandBuilderRewriterRegistry()
+        registry.register(MockCommandBuilderRewriter())
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
         val command = MockCreateCommand("")
         factory.create(command)
@@ -49,7 +49,7 @@ class SimpleCommandMessageFactoryTest {
         val validator = mockk<Validator> {
             every { validate<Any>(any()) } returns constraintViolations
         }
-        val registry = SimpleCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(validator, registry)
         val commandMessage = factory.create(MockCreateCommand(""))
         Assertions.assertThrows(CommandValidationException::class.java) {
@@ -61,7 +61,7 @@ class SimpleCommandMessageFactoryTest {
     fun validateCommandBody() {
         val validator = mockk<Validator> {
         }
-        val registry = SimpleCommandOptionsExtractorRegistry()
+        val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(validator, registry)
         factory.create(MockCommandBody())
             .test()

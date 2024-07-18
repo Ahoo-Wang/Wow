@@ -18,10 +18,10 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
+import me.ahoo.wow.command.factory.CommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.command.factory.CommandOptions
-import me.ahoo.wow.command.factory.CommandOptionsExtractor
-import me.ahoo.wow.command.factory.CommandOptionsExtractorRegistry
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MockChangeAggregate
@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 internal class CommandAutoConfigurationTest {
 
@@ -40,14 +41,14 @@ internal class CommandAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
-            .withBean(CommandOptionsExtractor::class.java, { MockCommandOptionsExtractor() })
+            .withBean(CommandBuilderRewriter::class.java, { MockCommandBuilderRewriter() })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryCommandBus::class.java)
-                    .hasSingleBean(CommandOptionsExtractorRegistry::class.java)
+                    .hasSingleBean(CommandBuilderRewriterRegistry::class.java)
                     .hasSingleBean(CommandMessageFactory::class.java)
             }
     }
@@ -68,11 +69,11 @@ internal class CommandAutoConfigurationTest {
     }
 }
 
-class MockCommandOptionsExtractor : CommandOptionsExtractor<MockChangeAggregate> {
+class MockCommandBuilderRewriter : CommandBuilderRewriter<MockChangeAggregate> {
     override val supportedCommandType: Class<MockChangeAggregate>
         get() = MockChangeAggregate::class.java
 
-    override fun extract(command: MockChangeAggregate, options: CommandOptions): Mono<CommandOptions> {
-        return Mono.just(options)
+    override fun rewrite(commandBuilder: CommandBuilder<MockChangeAggregate>): Mono<CommandBuilder<MockChangeAggregate>> {
+        return commandBuilder.toMono()
     }
 }

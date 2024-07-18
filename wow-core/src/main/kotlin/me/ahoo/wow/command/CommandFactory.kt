@@ -19,7 +19,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.annotation.commandMetadata
-import me.ahoo.wow.command.factory.CommandOptions
+import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -64,15 +64,15 @@ fun <C : Any> C.toCommandMessage(
     )
 }
 
-fun <C : Any> C.toCommandMessage(options: CommandOptions): CommandMessage<C> {
-    return toCommandMessage(
-        id = options.id,
-        requestId = options.requestId,
-        aggregateId = options.aggregateId,
-        tenantId = options.tenantId,
-        aggregateVersion = options.aggregateVersion,
-        namedAggregate = options.namedAggregate,
-        header = options.header,
-        createTime = options.createTime
+fun <C : Any> CommandBuilder<C>.toCommandMessage(): CommandMessage<C> {
+    return this.body.toCommandMessage(
+        id = id,
+        requestId = requestId,
+        aggregateId = aggregateId,
+        tenantId = tenantId,
+        aggregateVersion = aggregateVersion,
+        namedAggregate = namedAggregate,
+        header = header,
+        createTime = createTime
     )
 }

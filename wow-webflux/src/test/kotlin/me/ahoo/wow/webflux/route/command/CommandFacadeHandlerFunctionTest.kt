@@ -5,8 +5,8 @@ import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -38,7 +38,7 @@ class CommandFacadeHandlerFunctionTest {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val handlerFunction = CommandFacadeHandlerFunction(
             commandGateway,
-            SimpleCommandMessageFactory(NoOpValidator, (SimpleCommandOptionsExtractorRegistry())),
+            SimpleCommandMessageFactory(NoOpValidator, (SimpleCommandBuilderRewriterRegistry())),
             DefaultExceptionHandler
         )
         val request = mockk<ServerRequest> {

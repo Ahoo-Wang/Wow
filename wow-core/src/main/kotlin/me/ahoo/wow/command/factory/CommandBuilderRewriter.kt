@@ -17,24 +17,24 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
-interface CommandOptionsExtractor<C : Any> {
+interface CommandBuilderRewriter<C : Any> {
     val supportedCommandType: Class<C>
-    fun extract(command: C, options: CommandOptions): Mono<CommandOptions>
+    fun rewrite(commandBuilder: CommandBuilder<C>): Mono<CommandBuilder<C>>
 }
 
-interface CommandOptionsExtractorRegistry {
-    fun register(extractor: CommandOptionsExtractor<*>)
+interface CommandBuilderRewriterRegistry {
+    fun register(extractor: CommandBuilderRewriter<*>)
     fun unregister(commandType: Class<*>)
-    fun <C : Any> getExtractor(commandType: Class<C>): CommandOptionsExtractor<C>?
+    fun <C : Any> getRewriter(commandType: Class<C>): CommandBuilderRewriter<C>?
 }
 
-class SimpleCommandOptionsExtractorRegistry : CommandOptionsExtractorRegistry {
+class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
     companion object {
-        private val log = LoggerFactory.getLogger(SimpleCommandOptionsExtractorRegistry::class.java)
+        private val log = LoggerFactory.getLogger(SimpleCommandBuilderRewriterRegistry::class.java)
     }
 
-    private val registrar = ConcurrentHashMap<Class<*>, CommandOptionsExtractor<*>>()
-    override fun register(extractor: CommandOptionsExtractor<*>) {
+    private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter<*>>()
+    override fun register(extractor: CommandBuilderRewriter<*>) {
         val previous = registrar.put(extractor.supportedCommandType, extractor)
         if (log.isInfoEnabled) {
             log.info(
@@ -54,7 +54,7 @@ class SimpleCommandOptionsExtractorRegistry : CommandOptionsExtractorRegistry {
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun <C : Any> getExtractor(commandType: Class<C>): CommandOptionsExtractor<C>? {
-        return registrar[commandType] as CommandOptionsExtractor<C>?
+    override fun <C : Any> getRewriter(commandType: Class<C>): CommandBuilderRewriter<C>? {
+        return registrar[commandType] as CommandBuilderRewriter<C>?
     }
 }
