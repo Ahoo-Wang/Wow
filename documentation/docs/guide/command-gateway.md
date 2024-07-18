@@ -122,43 +122,42 @@ wow:
         enabled: true # 默认已开启
 ```
 
-## 命令选项提取器（改写）
+## 命令改写器
 
-命令选项抽取器(`CommandOptionsExtractor`)是一个用于从命令体(`Body`)中的抽取的命令选项(`CommandOptions`)的组件，以便与改写命令的消息元数据(`aggregateId`/`tenantId` 等)。
+命令改写器(`CommandBuilderRewriter`)是用于改写命令的消息元数据(`aggregateId`/`tenantId` 等)。
 
-以下是一个重置密码命令选项抽取器的示例：
+以下是一个重置密码命令重写器的示例：
 
 ::: tip
-用户重置密码（找回密码）前是无法获得聚合根ID的，所以需要通过该提取器获得 `User` 聚合根的ID
+用户重置密码（找回密码）前是无法获得聚合根ID的，所以需要通过该改写器获得 `User` 聚合根的ID
 :::
 
 ```kotlin
 /**
- * 重置密码(`ResetPwd`)命令聚合根ID提取器
+ * 找回密码(`ResetPwd`)命令重写器。
  *
  * 该命令需要根据命令体中的手机号码查询用户聚合根ID，以便满足命令消息聚合根ID必填的要求。
  *
- * @see ResetPwd
  */
 @Service
-class ResetPwdCommandOptionsExtractor(private val queryService: SnapshotQueryService<UserState>) :
-   CommandOptionsExtractor<ResetPwd> {
+class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryService<UserState>) :
+   CommandBuilderRewriter<ResetPwd> {
    override val supportedCommandType: Class<ResetPwd>
       get() = ResetPwd::class.java
 
-   override fun extract(command: ResetPwd, options: CommandOptions): Mono<CommandOptions> {
+   override fun rewrite(commandBuilder: CommandBuilder<ResetPwd>): Mono<CommandBuilder<ResetPwd>> {
       return singleQuery {
          projection { include(Documents.ID_FIELD) }
          condition {
             nestedState()
             PHONE_VERIFIED eq true
-            PHONE eq command.phone
+            PHONE eq commandBuilder.body.phone
          }
       }.dynamicQuery(queryService)
          .switchIfEmpty {
             IllegalArgumentException("手机号码尚未绑定。").toMono()
          }.map {
-            options.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
+            commandBuilder.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
          }
    }
 }
