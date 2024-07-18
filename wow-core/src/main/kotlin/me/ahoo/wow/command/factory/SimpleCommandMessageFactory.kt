@@ -23,11 +23,12 @@ import reactor.kotlin.core.publisher.toMono
 
 class SimpleCommandMessageFactory(
     private val validator: Validator,
-    private val commandOptionsExtractorRegistry: CommandOptionsExtractorRegistry
+    private val commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
 ) : CommandMessageFactory {
 
     @Suppress("TooGenericExceptionCaught")
-    override fun <C : Any> create(body: C, options: CommandOptions): Mono<CommandMessage<C>> {
+    override fun <C : Any> create(commandBuilder: CommandBuilder<C>): Mono<CommandMessage<C>> {
+        val body = commandBuilder.body
         if (body is CommandValidator) {
             try {
                 body.validate()
@@ -40,11 +41,11 @@ class SimpleCommandMessageFactory(
             return constraintViolations.toCommandValidationException(body).toMono()
         }
 
-        val extractor = commandOptionsExtractorRegistry.getExtractor(body.javaClass)
-            ?: return body.toCommandMessage(options).toMono()
-        return extractor.extract(body, options)
+        val extractor = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
+            ?: return commandBuilder.toCommandMessage().toMono()
+        return extractor.rewrite(commandBuilder)
             .map {
-                body.toCommandMessage(it)
+                it.toCommandMessage()
             }
     }
 }

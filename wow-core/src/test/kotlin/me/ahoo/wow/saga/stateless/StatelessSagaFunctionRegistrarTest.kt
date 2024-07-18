@@ -5,8 +5,8 @@ import io.mockk.mockk
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -26,7 +26,7 @@ class StatelessSagaFunctionRegistrarTest {
     fun register() {
         val functionRegistrar = StatelessSagaFunctionRegistrar(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         )
         functionRegistrar.registerProcessor(MockSaga())
         assertThat(functionRegistrar.supportedFunctions(message).toSet(), hasSize(1))

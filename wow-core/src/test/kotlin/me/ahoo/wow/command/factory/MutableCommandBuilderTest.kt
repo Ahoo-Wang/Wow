@@ -1,5 +1,6 @@
 package me.ahoo.wow.command.factory
 
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
@@ -9,31 +10,30 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
-class SimpleCommandOptionsTest {
-
+class MutableCommandBuilderTest {
     @Test
     fun default() {
-        val commandOptions = CommandOptions.builder()
-        assertThat(commandOptions.id, notNullValue())
-        assertThat(commandOptions.requestId, nullValue())
-        assertThat(commandOptions.aggregateId, nullValue())
-        assertThat(commandOptions.tenantId, nullValue())
-        assertThat(commandOptions.aggregateVersion, nullValue())
-        assertThat(commandOptions.namedAggregate, nullValue())
-        assertThat(commandOptions.header, equalTo(DefaultHeader.empty()))
+        val commandBuilder = this.commandBuilder()
+        assertThat(commandBuilder.id, notNullValue())
+        assertThat(commandBuilder.requestId, nullValue())
+        assertThat(commandBuilder.aggregateId, nullValue())
+        assertThat(commandBuilder.tenantId, nullValue())
+        assertThat(commandBuilder.aggregateVersion, nullValue())
+        assertThat(commandBuilder.namedAggregate, nullValue())
+        assertThat(commandBuilder.header, equalTo(DefaultHeader.empty()))
         assertThat(
-            commandOptions.createTime.toDouble(),
+            commandBuilder.createTime.toDouble(),
             closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
         )
     }
 
     @Test
     fun customize() {
-        val commandOptions = CommandOptions.builder()
+        val commandOptions = this.commandBuilder()
             .id("id")
-            .requestId("requestId")
+            .requestIfIfAbsent("requestId")
             .aggregateId("aggregateId")
-            .tenantId("tenantId")
+            .tenantIdIfAbsent("tenantId")
             .aggregateVersion(1)
             .namedAggregate(MOCK_AGGREGATE_METADATA)
             .header {

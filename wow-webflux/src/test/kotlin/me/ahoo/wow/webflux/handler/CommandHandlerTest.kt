@@ -2,8 +2,8 @@ package me.ahoo.wow.webflux.handler
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
@@ -41,7 +41,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         )
         commandHandler.handle(
             request,
@@ -71,7 +71,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         )
         commandHandler.handle(
             request,

@@ -2,8 +2,8 @@ package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -40,7 +40,7 @@ class CommandParserTest {
                 id = GlobalIdGenerator.generateAsString(),
                 data = GlobalIdGenerator.generateAsString(),
             ),
-            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandOptionsExtractorRegistry())
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         ).test()
             .expectNextCount(1)
             .verifyComplete()

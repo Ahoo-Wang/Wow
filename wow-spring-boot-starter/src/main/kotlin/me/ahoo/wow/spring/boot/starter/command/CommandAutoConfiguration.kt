@@ -18,11 +18,11 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
+import me.ahoo.wow.command.factory.CommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.command.factory.CommandOptionsExtractor
-import me.ahoo.wow.command.factory.CommandOptionsExtractorRegistry
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.factory.SimpleCommandOptionsExtractorRegistry
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -71,9 +71,9 @@ class CommandAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun commandOptionsExtractorRegistry(
-        extractors: ObjectProvider<CommandOptionsExtractor<*>>
-    ): CommandOptionsExtractorRegistry {
-        val registry = SimpleCommandOptionsExtractorRegistry()
+        extractors: ObjectProvider<CommandBuilderRewriter<*>>
+    ): CommandBuilderRewriterRegistry {
+        val registry = SimpleCommandBuilderRewriterRegistry()
         extractors.orderedStream().forEach {
             registry.register(it)
         }
@@ -90,11 +90,11 @@ class CommandAutoConfiguration {
     @ConditionalOnMissingBean
     fun commandMessageFactory(
         validator: Validator,
-        commandOptionsExtractorRegistry: CommandOptionsExtractorRegistry
+        commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
     ): CommandMessageFactory {
         return SimpleCommandMessageFactory(
             validator = validator,
-            commandOptionsExtractorRegistry = commandOptionsExtractorRegistry
+            commandBuilderRewriterRegistry = commandBuilderRewriterRegistry
         )
     }
 }

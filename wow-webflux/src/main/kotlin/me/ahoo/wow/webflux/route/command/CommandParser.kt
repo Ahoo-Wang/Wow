@@ -16,8 +16,8 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandOperator.withOperator
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.command.factory.CommandOptions
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -71,21 +71,21 @@ object CommandParser {
         val tenantId = getTenantId(aggregateMetadata)
         val aggregateVersion = headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = headers().firstHeader(CommandHeaders.REQUEST_ID).ifNotBlank { it }
-        val commandOptions = CommandOptions.builder()
+        val commandBuilder = commandBody.commandBuilder()
             .aggregateId(aggregateId)
             .tenantId(tenantId)
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
         getLocalFirst()?.let {
-            commandOptions.header { header ->
+            commandBuilder.header { header ->
                 header.withLocalFirst(it)
             }
         }
         return principal().map {
-            commandOptions.header { header ->
+            commandBuilder.header { header ->
                 header.withOperator(it.name)
             }
-        }.then(commandMessageFactory.create(commandBody, commandOptions))
+        }.then(commandMessageFactory.create(commandBuilder))
     }
 }
