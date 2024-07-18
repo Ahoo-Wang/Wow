@@ -135,7 +135,6 @@ class CartTest {
     @Test
     fun removeCartItem() {
         val removeCartItem = RemoveCartItem(
-            id = GlobalIdGenerator.generateAsString(),
             productIds = setOf("productId"),
         )
         val added = CartItem(
