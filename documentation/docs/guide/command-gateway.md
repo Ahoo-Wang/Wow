@@ -124,7 +124,7 @@ wow:
 
 ## 命令改写器
 
-命令改写器(`CommandBuilderRewriter`)是用于改写命令的消息元数据(`aggregateId`/`tenantId` 等)。
+命令改写器(`CommandBuilderRewriter`)是用于改写命令的消息元数据(`aggregateId`/`tenantId` 等)以及命令体(`body`)。
 
 以下是一个重置密码命令重写器的示例：
 
@@ -141,17 +141,17 @@ wow:
  */
 @Service
 class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryService<UserState>) :
-   CommandBuilderRewriter<ResetPwd> {
+   CommandBuilderRewriter {
    override val supportedCommandType: Class<ResetPwd>
       get() = ResetPwd::class.java
 
-   override fun rewrite(commandBuilder: CommandBuilder<ResetPwd>): Mono<CommandBuilder<ResetPwd>> {
+   override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
       return singleQuery {
          projection { include(Documents.ID_FIELD) }
          condition {
             nestedState()
             PHONE_VERIFIED eq true
-            PHONE eq commandBuilder.body.phone
+            PHONE eq commandBuilder.bodyAs<ResetPwd>().phone
          }
       }.dynamicQuery(queryService)
          .switchIfEmpty {
