@@ -71,7 +71,7 @@ class CommandAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun commandOptionsExtractorRegistry(
-        extractors: ObjectProvider<CommandBuilderRewriter<*>>
+        extractors: ObjectProvider<CommandBuilderRewriter>
     ): CommandBuilderRewriterRegistry {
         val registry = SimpleCommandBuilderRewriterRegistry()
         extractors.orderedStream().forEach {

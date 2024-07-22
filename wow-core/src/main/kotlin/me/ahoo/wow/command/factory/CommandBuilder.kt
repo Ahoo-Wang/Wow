@@ -19,8 +19,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 
-interface CommandBuilder<C : Any> : Identifier {
-    val body: C
+interface CommandBuilder : Identifier {
+    val body: Any
     val requestId: String?
     val aggregateId: String?
     val tenantId: String?
@@ -30,19 +30,29 @@ interface CommandBuilder<C : Any> : Identifier {
     val createTime: Long
 
     /**
+     * Command Body
+     */
+    fun body(body: Any): CommandBuilder
+
+    fun <C> bodyAs(): C {
+        @Suppress("UNCHECKED_CAST")
+        return body as C
+    }
+
+    /**
      * Command Message ID
      *
      * @see me.ahoo.wow.api.command.CommandMessage.id
      */
-    fun id(id: String): CommandBuilder<C>
+    fun id(id: String): CommandBuilder
 
     /**
      * Request Id
      * @see me.ahoo.wow.api.command.CommandMessage.requestId
      */
-    fun requestId(requestId: String?): CommandBuilder<C>
+    fun requestId(requestId: String?): CommandBuilder
 
-    fun requestIfIfAbsent(requestId: String): CommandBuilder<C> {
+    fun requestIfIfAbsent(requestId: String): CommandBuilder {
         if (this.requestId == null) {
             requestId(requestId)
         }
@@ -54,16 +64,16 @@ interface CommandBuilder<C : Any> : Identifier {
      * @see me.ahoo.wow.api.command.CommandMessage.aggregateId
      * @see me.ahoo.wow.api.modeling.AggregateId.id
      */
-    fun aggregateId(aggregateId: String?): CommandBuilder<C>
+    fun aggregateId(aggregateId: String?): CommandBuilder
 
     /**
      * Tenant Id
      * @see me.ahoo.wow.api.command.CommandMessage.aggregateId
      * @see me.ahoo.wow.api.modeling.AggregateId.tenantId
      */
-    fun tenantId(tenantId: String?): CommandBuilder<C>
+    fun tenantId(tenantId: String?): CommandBuilder
 
-    fun tenantIdIfAbsent(tenantId: String): CommandBuilder<C> {
+    fun tenantIdIfAbsent(tenantId: String): CommandBuilder {
         if (this.tenantId == null) {
             tenantId(tenantId)
         }
@@ -74,46 +84,48 @@ interface CommandBuilder<C : Any> : Identifier {
      * Aggregate Version
      * @see me.ahoo.wow.api.command.CommandMessage.aggregateVersion
      */
-    fun aggregateVersion(aggregateVersion: Int?): CommandBuilder<C>
+    fun aggregateVersion(aggregateVersion: Int?): CommandBuilder
 
     /**
      * Named Aggregate
      * @see me.ahoo.wow.api.command.CommandMessage.aggregateId
      * @see me.ahoo.wow.api.modeling.AggregateId.namedAggregate
      */
-    fun namedAggregate(namedAggregate: NamedAggregate): CommandBuilder<C>
+    fun namedAggregate(namedAggregate: NamedAggregate): CommandBuilder
 
     /**
      * Header
      * @see me.ahoo.wow.api.command.CommandMessage.header
      */
-    fun header(header: Header): CommandBuilder<C>
+    fun header(header: Header): CommandBuilder
 
     /**
      * Header
      * @see me.ahoo.wow.api.command.CommandMessage.header
      */
-    fun header(customize: (header: Header) -> Unit): CommandBuilder<C>
+    fun header(customize: (header: Header) -> Unit): CommandBuilder
 
     /**
      * Create Time
      * @see me.ahoo.wow.api.messaging.NamedMessage.createTime
      */
-    fun createTime(createTime: Long): CommandBuilder<C>
+    fun createTime(createTime: Long): CommandBuilder
 
     companion object {
 
-        fun <C : Any> C.commandBuilder(): CommandBuilder<C> {
+        fun Any.commandBuilder(): CommandBuilder {
             return builder(this)
         }
 
-        fun <C : Any> builder(body: C): CommandBuilder<C> {
+        fun builder(body: Any): CommandBuilder {
             return MutableCommandBuilder(body)
         }
     }
 }
 
-class MutableCommandBuilder<C : Any>(override val body: C) : CommandBuilder<C> {
+class MutableCommandBuilder(body: Any) : CommandBuilder {
+    override var body: Any = body
+        private set
     override var id: String = generateGlobalId()
         private set
     override var requestId: String? = null
@@ -131,47 +143,52 @@ class MutableCommandBuilder<C : Any>(override val body: C) : CommandBuilder<C> {
     override var createTime: Long = System.currentTimeMillis()
         private set
 
-    override fun id(id: String): CommandBuilder<C> {
+    override fun body(body: Any): CommandBuilder {
+        this.body = body
+        return this
+    }
+
+    override fun id(id: String): CommandBuilder {
         this.id = id
         return this
     }
 
-    override fun requestId(requestId: String?): CommandBuilder<C> {
+    override fun requestId(requestId: String?): CommandBuilder {
         this.requestId = requestId
         return this
     }
 
-    override fun aggregateId(aggregateId: String?): CommandBuilder<C> {
+    override fun aggregateId(aggregateId: String?): CommandBuilder {
         this.aggregateId = aggregateId
         return this
     }
 
-    override fun tenantId(tenantId: String?): CommandBuilder<C> {
+    override fun tenantId(tenantId: String?): CommandBuilder {
         this.tenantId = tenantId
         return this
     }
 
-    override fun aggregateVersion(aggregateVersion: Int?): CommandBuilder<C> {
+    override fun aggregateVersion(aggregateVersion: Int?): CommandBuilder {
         this.aggregateVersion = aggregateVersion
         return this
     }
 
-    override fun namedAggregate(namedAggregate: NamedAggregate): CommandBuilder<C> {
+    override fun namedAggregate(namedAggregate: NamedAggregate): CommandBuilder {
         this.namedAggregate = namedAggregate
         return this
     }
 
-    override fun header(header: Header): CommandBuilder<C> {
+    override fun header(header: Header): CommandBuilder {
         this.header = header
         return this
     }
 
-    override fun header(customize: (header: Header) -> Unit): CommandBuilder<C> {
+    override fun header(customize: (header: Header) -> Unit): CommandBuilder {
         customize(header)
         return this
     }
 
-    override fun createTime(createTime: Long): CommandBuilder<C> {
+    override fun createTime(createTime: Long): CommandBuilder {
         this.createTime = createTime
         return this
     }

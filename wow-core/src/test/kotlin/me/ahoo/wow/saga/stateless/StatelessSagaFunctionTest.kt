@@ -108,7 +108,7 @@ class StatelessSagaFunctionTest {
     class MockReturnBuilderMessageSaga {
         @Suppress("UNUSED_PARAMETER")
         @OnEvent
-        fun onEvent(event: MockAggregateCreated): CommandBuilder<MockCreateAggregate> {
+        fun onEvent(event: MockAggregateCreated): CommandBuilder {
             return MockCreateAggregate("", "").commandBuilder()
         }
     }

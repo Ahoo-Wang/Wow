@@ -14,6 +14,7 @@ class MutableCommandBuilderTest {
     @Test
     fun default() {
         val commandBuilder = this.commandBuilder()
+        assertThat(commandBuilder.body, sameInstance(this))
         assertThat(commandBuilder.id, notNullValue())
         assertThat(commandBuilder.requestId, nullValue())
         assertThat(commandBuilder.aggregateId, nullValue())
@@ -29,6 +30,7 @@ class MutableCommandBuilderTest {
 
     @Test
     fun customize() {
+        val newBody = Any()
         val commandBuilder = this.commandBuilder()
             .id("id")
             .requestIfIfAbsent("requestId")
@@ -40,6 +42,7 @@ class MutableCommandBuilderTest {
                 it.with("key", "value")
             }
             .createTime(1)
+            .body(newBody)
 
         assertThat(commandBuilder.id, equalTo("id"))
         assertThat(commandBuilder.requestId, equalTo("requestId"))
@@ -55,5 +58,6 @@ class MutableCommandBuilderTest {
 
         assertThat(commandBuilder.requestId, equalTo("requestId"))
         assertThat(commandBuilder.tenantId, equalTo("tenantId"))
+        assertThat(commandBuilder.bodyAs(), sameInstance(newBody))
     }
 }

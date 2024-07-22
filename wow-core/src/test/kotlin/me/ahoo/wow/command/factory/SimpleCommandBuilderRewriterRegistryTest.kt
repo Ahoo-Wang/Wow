@@ -12,17 +12,23 @@ class SimpleCommandBuilderRewriterRegistryTest {
     fun register() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockCommandBuilderRewriter())
-        assertThat(registry.getRewriter(MockCreateCommand::class.java), notNullValue())
+        assertThat(
+            registry.getRewriter(MockCreateCommand::class.java),
+            notNullValue()
+        )
         registry.unregister(MockCreateCommand::class.java)
-        assertThat(registry.getRewriter(MockCreateCommand::class.java), nullValue())
+        assertThat(
+            registry.getRewriter(MockCreateCommand::class.java),
+            nullValue()
+        )
     }
 }
 
-class MockCommandBuilderRewriter : CommandBuilderRewriter<MockCreateCommand> {
+class MockCommandBuilderRewriter : CommandBuilderRewriter {
     override val supportedCommandType: Class<MockCreateCommand>
         get() = MockCreateCommand::class.java
 
-    override fun rewrite(commandBuilder: CommandBuilder<MockCreateCommand>): Mono<CommandBuilder<MockCreateCommand>> {
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
         return Mono.just(commandBuilder)
     }
 }
