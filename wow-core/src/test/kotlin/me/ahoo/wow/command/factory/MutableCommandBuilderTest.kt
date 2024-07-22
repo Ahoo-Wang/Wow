@@ -59,5 +59,8 @@ class MutableCommandBuilderTest {
         assertThat(commandBuilder.requestId, equalTo("requestId"))
         assertThat(commandBuilder.tenantId, equalTo("tenantId"))
         assertThat(commandBuilder.bodyAs(), sameInstance(newBody))
+
+        commandBuilder.header(DefaultHeader.empty())
+        assertThat(commandBuilder.header, equalTo(DefaultHeader.empty()))
     }
 }
