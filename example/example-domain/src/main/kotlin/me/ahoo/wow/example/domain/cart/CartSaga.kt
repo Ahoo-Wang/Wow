@@ -29,7 +29,7 @@ class CartSaga {
      */
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
     @OnEvent
-    fun onOrderCreated(orderCreated: OrderCreated): CommandBuilder<RemoveCartItem>? {
+    fun onOrderCreated(orderCreated: OrderCreated): CommandBuilder? {
         if (!orderCreated.fromCart) {
             return null
         }

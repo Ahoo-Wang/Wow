@@ -27,7 +27,7 @@ class SimpleCommandMessageFactory(
 ) : CommandMessageFactory {
 
     @Suppress("TooGenericExceptionCaught")
-    override fun <C : Any> create(commandBuilder: CommandBuilder<C>): Mono<CommandMessage<C>> {
+    override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
         if (body is CommandValidator) {
             try {
@@ -42,7 +42,7 @@ class SimpleCommandMessageFactory(
         }
 
         val extractor = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
-            ?: return commandBuilder.toCommandMessage().toMono()
+            ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
         return extractor.rewrite(commandBuilder)
             .map {
                 it.toCommandMessage()

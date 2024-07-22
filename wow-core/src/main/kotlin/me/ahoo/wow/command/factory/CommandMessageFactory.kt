@@ -18,8 +18,8 @@ import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import reactor.core.publisher.Mono
 
 interface CommandMessageFactory {
-    fun <C : Any> create(commandBuilder: CommandBuilder<C>): Mono<CommandMessage<C>>
-    fun <C : Any> create(body: C): Mono<CommandMessage<C>> {
+    fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>>
+    fun <TARGET : Any> create(body: Any): Mono<CommandMessage<TARGET>> {
         val commandBuilder = body.commandBuilder()
         return create(commandBuilder)
     }

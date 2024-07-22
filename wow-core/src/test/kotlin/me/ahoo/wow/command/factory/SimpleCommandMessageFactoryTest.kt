@@ -18,7 +18,7 @@ class SimpleCommandMessageFactoryTest {
         val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
         val command = MockCreateCommand("")
-        factory.create(command)
+        factory.create<MockCreateCommand>(command)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -30,7 +30,7 @@ class SimpleCommandMessageFactoryTest {
         registry.register(MockCommandBuilderRewriter())
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
         val command = MockCreateCommand("")
-        factory.create(command)
+        factory.create<MockCreateCommand>(command)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -51,7 +51,7 @@ class SimpleCommandMessageFactoryTest {
         }
         val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(validator, registry)
-        val commandMessage = factory.create(MockCreateCommand(""))
+        val commandMessage = factory.create<MockCreateCommand>(MockCreateCommand(""))
         Assertions.assertThrows(CommandValidationException::class.java) {
             commandMessage.block()
         }
@@ -63,7 +63,7 @@ class SimpleCommandMessageFactoryTest {
         }
         val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(validator, registry)
-        factory.create(MockCommandBody())
+        factory.create<MockCommandBody>(MockCommandBody())
             .test()
             .expectError(CommandValidationException::class.java)
             .verify()

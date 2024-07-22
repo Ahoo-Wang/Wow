@@ -69,11 +69,11 @@ internal class CommandAutoConfigurationTest {
     }
 }
 
-class MockCommandBuilderRewriter : CommandBuilderRewriter<MockChangeAggregate> {
+class MockCommandBuilderRewriter : CommandBuilderRewriter {
     override val supportedCommandType: Class<MockChangeAggregate>
         get() = MockChangeAggregate::class.java
 
-    override fun rewrite(commandBuilder: CommandBuilder<MockChangeAggregate>): Mono<CommandBuilder<MockChangeAggregate>> {
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
         return commandBuilder.toMono()
     }
 }

@@ -17,15 +17,19 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
-interface CommandBuilderRewriter<C : Any> {
-    val supportedCommandType: Class<C>
-    fun rewrite(commandBuilder: CommandBuilder<C>): Mono<CommandBuilder<C>>
+/**
+ * CommandBuilderRewriter
+ *
+ */
+interface CommandBuilderRewriter {
+    val supportedCommandType: Class<*>
+    fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder>
 }
 
 interface CommandBuilderRewriterRegistry {
-    fun register(extractor: CommandBuilderRewriter<*>)
+    fun register(extractor: CommandBuilderRewriter)
     fun unregister(commandType: Class<*>)
-    fun <C : Any> getRewriter(commandType: Class<C>): CommandBuilderRewriter<C>?
+    fun getRewriter(commandType: Class<*>): CommandBuilderRewriter?
 }
 
 class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
@@ -33,8 +37,8 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
         private val log = LoggerFactory.getLogger(SimpleCommandBuilderRewriterRegistry::class.java)
     }
 
-    private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter<*>>()
-    override fun register(extractor: CommandBuilderRewriter<*>) {
+    private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter>()
+    override fun register(extractor: CommandBuilderRewriter) {
         val previous = registrar.put(extractor.supportedCommandType, extractor)
         if (log.isInfoEnabled) {
             log.info(
@@ -53,8 +57,7 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    override fun <C : Any> getRewriter(commandType: Class<C>): CommandBuilderRewriter<C>? {
-        return registrar[commandType] as CommandBuilderRewriter<C>?
+    override fun getRewriter(commandType: Class<*>): CommandBuilderRewriter? {
+        return registrar[commandType]
     }
 }

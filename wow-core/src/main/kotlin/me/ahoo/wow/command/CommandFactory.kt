@@ -64,8 +64,8 @@ fun <C : Any> C.toCommandMessage(
     )
 }
 
-fun <C : Any> CommandBuilder<C>.toCommandMessage(): CommandMessage<C> {
-    return this.body.toCommandMessage(
+fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
+    return this.bodyAs<C>().toCommandMessage(
         id = id,
         requestId = requestId,
         aggregateId = aggregateId,

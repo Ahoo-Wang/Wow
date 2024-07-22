@@ -76,7 +76,7 @@ class StatelessSagaFunction(
         if (singleResult is CommandMessage<*>) {
             return singleResult.toMono()
         }
-        val commandBuilder = if (singleResult is CommandBuilder<*>) {
+        val commandBuilder = if (singleResult is CommandBuilder) {
             singleResult
         } else {
             singleResult.commandBuilder()
@@ -85,7 +85,7 @@ class StatelessSagaFunction(
             .requestIfIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
         @Suppress("UNCHECKED_CAST")
-        return commandMessageFactory.create(commandBuilder) as Mono<CommandMessage<*>>
+        return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
     }
 
     override fun toString(): String {
