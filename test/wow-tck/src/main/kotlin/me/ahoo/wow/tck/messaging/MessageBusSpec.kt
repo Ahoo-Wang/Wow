@@ -107,10 +107,19 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     @Test
     fun sendPerformance() {
         verify {
-            val duration = sendLoop(messageBus = this)
+            val onReady = Sinks.empty<Void>()
+            receive(setOf(namedAggregate))
+                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .onReceive(onReady)
+                .doOnSubscribe {
+                    val duration = sendLoop(messageBus = this)
+                        .test()
+                        .verifyComplete()
+                    log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+                }
                 .test()
-                .verifyComplete()
-            log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+                .thenCancel()
+                .verify()
         }
     }
 
