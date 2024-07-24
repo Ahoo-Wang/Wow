@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -51,23 +52,38 @@ fun <M> M.isLocalHandled(): Boolean where M : Message<*, *>, M : NamedAggregate 
     return isLocalFirst() && isLocal()
 }
 
+private val LOG = LoggerFactory.getLogger(LocalFirstMessageBus::class.java)
+
 interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate, M : Copyable<*> {
     val distributedBus: DistributedMessageBus<M, E>
     val localBus: LocalMessageBus<M, E>
+    private val localBusName: String
+        get() = localBus.javaClass.simpleName
 
     @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
-        if (message.shouldLocalFirst()) {
-            message.withLocalFirst()
-            val localSend = localBus.send(message)
+        if (!message.shouldLocalFirst()) {
+            return distributedBus.send(message)
+        }
 
+        message.withLocalFirst()
+        val localSend = localBus.send(message)
+        return localSend.materialize().flatMap {
             @Suppress("UNCHECKED_CAST")
             val distributedMessage = message.copy() as M
-            val distributedSend = distributedBus.send(distributedMessage)
-            return localSend.then(distributedSend)
+            if (it.hasError()) {
+                if (LOG.isErrorEnabled) {
+                    LOG.error(
+                        "[$localBusName] Failed to send local message[{}], LocalFirst mode temporarily disabled.",
+                        message.id,
+                        it.throwable!!
+                    )
+                }
+                distributedMessage.withLocalFirst(false)
+            }
+            distributedBus.send(distributedMessage)
         }
-        return distributedBus.send(message)
     }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<E> {
