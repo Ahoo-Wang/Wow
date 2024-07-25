@@ -47,9 +47,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         val commandRetrySpec = command.retrySpec ?: retrySpec.materialize()
         return ExecutionFailedCreated(
             eventId = command.eventId,
-            processor = command.processor,
-            functionKind = command.functionKind,
-            functionName = command.functionName,
+            function = command.function,
             error = command.error,
             executeAt = command.executeAt,
             retryState = retryState,
@@ -84,9 +82,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         val retryState = nextRetryAtCalculator.nextRetryState(this.state.retrySpec, retries)
         return CompensationPrepared(
             eventId = this.state.eventId,
-            processor = this.state.processor,
-            functionKind = this.state.functionKind,
-            functionName = this.state.functionName,
+            function = this.state.function,
             retryState = retryState
         )
     }
@@ -128,8 +124,8 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
 
     @OnCommand
     fun onChangeFunctionKind(command: ChangeFunctionKind): FunctionKindChanged {
-        require(this.state.functionKind != command.functionKind) {
-            "ExecutionFailed functionKind is already changed to ${this.state.functionKind}."
+        require(this.state.function.functionKind != command.functionKind) {
+            "ExecutionFailed functionKind is already changed to ${this.state.function.functionKind}."
         }
         return FunctionKindChanged(command.functionKind)
     }

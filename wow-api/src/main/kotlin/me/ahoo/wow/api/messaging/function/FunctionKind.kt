@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.api.messaging.function
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.messaging.TopicKind
 
-@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
-data class ChangeFunctionKind(
-    @field:CommandRoute.PathVariable
-    override val id: String,
+enum class FunctionKind(val topicKind: TopicKind) {
+    COMMAND(TopicKind.COMMAND),
+    SOURCING(TopicKind.EVENT_STREAM),
+    EVENT(TopicKind.EVENT_STREAM),
+    STATE_EVENT(TopicKind.STATE_EVENT),
+    ERROR(TopicKind.UNDEFINED),
+}
+
+interface FunctionKindCapable {
     val functionKind: FunctionKind
-) : Identifier
-
-data class FunctionKindChanged(val functionKind: FunctionKind)
+}

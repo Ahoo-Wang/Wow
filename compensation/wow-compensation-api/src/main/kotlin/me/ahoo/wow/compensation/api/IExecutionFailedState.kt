@@ -20,8 +20,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.Materialized
@@ -63,9 +62,7 @@ interface ExecutionFailedErrorInfo : ExecuteAt {
 
 interface ExecutionFailedInfo : IRecoverable, ExecutionFailedErrorInfo {
     val eventId: EventId
-    val processor: ProcessorInfoData
-    val functionKind: FunctionKind
-    val functionName: String
+    val function: FunctionInfoData
 }
 
 interface IRetrySpec {

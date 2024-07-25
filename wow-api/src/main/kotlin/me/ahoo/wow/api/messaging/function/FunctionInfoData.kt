@@ -11,17 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compensation.api
+package me.ahoo.wow.api.messaging.function
 
-import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.naming.Materialized
 
-@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
-data class ChangeFunctionKind(
-    @field:CommandRoute.PathVariable
-    override val id: String,
-    val functionKind: FunctionKind
-) : Identifier
+data class FunctionInfoData(
+    override val contextName: String,
+    override val processorName: String,
+    override val functionKind: FunctionKind,
+    override val name: String
+) : FunctionInfo, Materialized
 
-data class FunctionKindChanged(val functionKind: FunctionKind)
+fun FunctionInfo.materialize(): FunctionInfoData {
+    if (this is Materialized) {
+        return this as FunctionInfoData
+    }
+    return FunctionInfoData(
+        contextName = contextName,
+        processorName = processorName,
+        name = name,
+        functionKind = functionKind,
+    )
+}

@@ -17,8 +17,7 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
 import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class PrepareCompensation(@field:PathVariable override val id: String) : Identifier
@@ -28,8 +27,6 @@ data class ForcePrepareCompensation(@field:PathVariable override val id: String)
 
 data class CompensationPrepared(
     val eventId: EventId,
-    val processor: ProcessorInfoData,
-    val functionKind: FunctionKind,
+    val function: FunctionInfoData,
     override val retryState: RetryState,
-    val functionName: String = ""
 ) : IRetryState

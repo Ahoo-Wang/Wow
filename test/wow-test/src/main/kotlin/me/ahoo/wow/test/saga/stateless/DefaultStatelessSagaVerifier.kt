@@ -14,7 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory

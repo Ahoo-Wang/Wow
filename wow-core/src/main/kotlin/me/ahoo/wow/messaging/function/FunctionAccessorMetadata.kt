@@ -14,10 +14,9 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.wow.api.annotation.Name
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.FunctionKindCapable
+import me.ahoo.wow.api.messaging.function.FunctionInfo
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.infra.accessor.function.FunctionAccessor
@@ -48,10 +47,10 @@ data class FunctionAccessorMetadata<P, out R>(
     val supportedTopics: Set<NamedAggregate>,
     val firstParameterKind: FirstParameterKind,
     val injectParameters: Array<InjectParameter>
-) : FunctionKindCapable, NamedBoundedContext, Named {
+) : FunctionInfo, NamedBoundedContext {
     val injectParameterLength: Int = injectParameters.size
     val processorType: Class<P> = accessor.targetType
-    val processorName = checkNotNull(processorType.simpleName)
+    override val processorName = checkNotNull(processorType.simpleName)
     override val name: String = accessor.method.name
     override val contextName: String = processorType.requiredNamedBoundedContext().contextName
 

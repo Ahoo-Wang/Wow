@@ -12,20 +12,16 @@
  */
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.FunctionKindCapable
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfo
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 
 interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
-    FunctionKindCapable,
-    ProcessorInfo,
-    Named {
+    FunctionInfo {
 
     /**
      * Message body types supported by the message function.
@@ -40,13 +36,6 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     val processor: P
     override val processorName: String
         get() = processor::class.java.simpleName
-
-    /**
-     * The name of the function.
-     *
-     * Under the same processor, the name is unique.
-     */
-    override val name: String
 
     /**
      * The fully qualified name of the function.

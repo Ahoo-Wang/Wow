@@ -18,7 +18,7 @@ import io.mockk.mockk
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_PROCESSOR
+import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.openapi.RoutePaths
@@ -51,7 +51,7 @@ class DomainEventCompensateHandlerFunctionTest {
             every { pathVariable(MessageRecords.VERSION) } returns "1"
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(CompensationTarget::class.java) } returns CompensationTarget(
-                processor = SNAPSHOT_PROCESSOR
+                processor = SNAPSHOT_FUNCTION
             ).toMono()
         }
         handlerFunction.handle(request)

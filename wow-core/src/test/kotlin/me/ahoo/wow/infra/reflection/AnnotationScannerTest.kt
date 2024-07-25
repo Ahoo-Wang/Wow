@@ -1,7 +1,7 @@
 package me.ahoo.wow.infra.reflection
 
 import me.ahoo.wow.api.annotation.OnMessage
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.infra.reflection.AnnotationScanner.allAnnotations
 import me.ahoo.wow.infra.reflection.AnnotationScanner.intimateAnnotations
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation

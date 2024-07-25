@@ -14,7 +14,8 @@
 package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
@@ -29,11 +30,12 @@ class ResendStateEventHandler(
     private val stateEventCompensator: StateEventCompensator
 ) {
     companion object {
-        private val RESEND_PROCESSOR = ProcessorInfoData(Wow.WOW, "Resend")
+        private val RESEND_FUNCTION =
+            FunctionInfoData(Wow.WOW, "ResendStateEventHandler", FunctionKind.STATE_EVENT, "Resend")
     }
 
     fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
-        val target = CompensationTarget(processor = RESEND_PROCESSOR)
+        val target = CompensationTarget(function = RESEND_FUNCTION)
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
             .flatMap { aggregateId ->
                 stateEventCompensator.resend(

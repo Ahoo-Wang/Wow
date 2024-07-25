@@ -16,7 +16,7 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.messaging.processor.materialize
+import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
@@ -71,9 +71,7 @@ class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<Do
                 val command = if (executionId == null) {
                     CreateExecutionFailed(
                         eventId = exchange.message.toEventId(),
-                        processor = eventFunction.materialize(),
-                        functionKind = eventFunction.functionKind,
-                        functionName = eventFunction.name,
+                        function = eventFunction.materialize(),
                         error = errorDetails,
                         executeAt = executeAt,
                         retrySpec = retry?.toSpec(),

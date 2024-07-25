@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import java.lang.annotation.Inherited
 
 const val DEFAULT_ON_ERROR_NAME = "onError"

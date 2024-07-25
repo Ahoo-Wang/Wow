@@ -3,14 +3,14 @@ package me.ahoo.wow.compensation.core
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.EventId
 import me.ahoo.wow.compensation.domain.ExecutionFailed
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_PROCESSOR
+import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -40,7 +40,7 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenEvent() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.EVENT, mockk())
+        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.EVENT, mockk())
         val domainEventCompensator = mockk<DomainEventCompensator> {
             every {
                 compensate(
@@ -69,7 +69,7 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenStateEvent() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.STATE_EVENT, mockk())
+        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.STATE_EVENT, mockk())
         val stateEventCompensator = mockk<StateEventCompensator> {
             every {
                 compensate(
@@ -98,7 +98,7 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenOther() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_PROCESSOR, FunctionKind.ERROR, mockk())
+        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.ERROR, mockk())
         sagaVerifier<CompensationSaga>()
             .inject(mockk<StateEventCompensator>())
             .inject(mockk<DomainEventCompensator>())

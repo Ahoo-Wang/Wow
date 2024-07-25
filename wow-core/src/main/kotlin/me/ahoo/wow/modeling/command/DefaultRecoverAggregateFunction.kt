@@ -15,7 +15,7 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.event.DefaultAggregateRecovered
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream

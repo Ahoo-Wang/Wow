@@ -2,7 +2,7 @@ package me.ahoo.wow.compensation.server.webhook
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ErrorDetails

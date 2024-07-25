@@ -11,16 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.messaging
+package me.ahoo.wow.api.messaging.function
 
-enum class FunctionKind(val topicKind: TopicKind) {
-    COMMAND(TopicKind.COMMAND),
-    SOURCING(TopicKind.EVENT_STREAM),
-    EVENT(TopicKind.EVENT_STREAM),
-    STATE_EVENT(TopicKind.STATE_EVENT),
-    ERROR(TopicKind.UNDEFINED),
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.naming.Named
+
+interface FunctionInfo : ProcessorInfo, FunctionKindCapable, Named {
+
+    /**
+     * The name of the function.
+     *
+     * Under the same processor, the name is unique.
+     */
+    override val name: String
 }
 
-interface FunctionKindCapable {
-    val functionKind: FunctionKind
-}

@@ -1,6 +1,6 @@
 package me.ahoo.wow.messaging.function
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
