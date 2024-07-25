@@ -26,7 +26,8 @@ data class CreateExecutionFailed(
     override val error: ErrorDetails,
     override val executeAt: Long,
     val retrySpec: RetrySpec? = null,
-    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
+    override val recoverable: RecoverableType = RecoverableType.UNKNOWN,
+    override val functionName: String = ""
 ) : ExecutionFailedInfo
 
 data class ExecutionFailedCreated(
@@ -37,5 +38,6 @@ data class ExecutionFailedCreated(
     override val executeAt: Long,
     override val retryState: RetryState,
     val retrySpec: RetrySpec,
-    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
+    override val recoverable: RecoverableType = RecoverableType.UNKNOWN,
+    override val functionName: String = ""
 ) : ExecutionFailedInfo, IRetryState

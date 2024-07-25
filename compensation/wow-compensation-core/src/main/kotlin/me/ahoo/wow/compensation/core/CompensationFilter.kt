@@ -73,6 +73,7 @@ class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<Do
                         eventId = exchange.message.toEventId(),
                         processor = eventFunction.materialize(),
                         functionKind = eventFunction.functionKind,
+                        functionName = eventFunction.name,
                         error = errorDetails,
                         executeAt = executeAt,
                         retrySpec = retry?.toSpec(),

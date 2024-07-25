@@ -39,6 +39,8 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         private set
     override lateinit var functionKind: FunctionKind
         private set
+    override var functionName: String = ""
+        private set
     override lateinit var error: ErrorDetails
         private set
     override var executeAt: Long = 0
@@ -57,6 +59,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
         this.eventId = event.eventId
         this.processor = event.processor
         this.functionKind = event.functionKind
+        this.functionName = event.functionName
         this.error = event.error
         this.executeAt = event.executeAt
         this.retryState = event.retryState

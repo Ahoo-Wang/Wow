@@ -41,6 +41,19 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     override val processorName: String
         get() = processor::class.java.simpleName
 
+    /**
+     * The name of the function.
+     *
+     * Under the same processor, the name is unique.
+     */
+    override val name: String
+
+    /**
+     * The fully qualified name of the function.
+     */
+    val fullyQualifiedName: String
+        get() = "$processorName.$name(${supportedType.simpleName})"
+
     fun <M> supportMessage(message: M): Boolean
         where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
         return supportedType.isInstance(message.body) &&
