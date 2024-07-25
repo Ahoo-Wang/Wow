@@ -29,8 +29,12 @@ object AggregateProcessorFilter : ExchangeFilter<ServerCommandExchange<*>> {
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
-        return checkNotNull(exchange.getAggregateProcessor())
+        val aggregateProcessor = checkNotNull(exchange.getAggregateProcessor())
+        return aggregateProcessor
             .process(exchange)
+            .checkpoint(
+                "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [AggregateProcessorFilter]"
+            )
             .finallyAck(exchange)
             .then(next.filter(exchange))
     }

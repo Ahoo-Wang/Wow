@@ -55,6 +55,7 @@ enum class CommandState {
     SOURCED {
         override fun onStore(eventStore: EventStore, eventStream: DomainEventStream): Mono<CommandState> {
             return eventStore.append(eventStream)
+                .checkpoint("Append DomainEventStream[${eventStream.id}] [CommandState]")
                 .thenReturn(STORED)
         }
     },
