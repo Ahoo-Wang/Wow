@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 private val LOG = LoggerFactory.getLogger(InMemoryMessageBus::class.java)
@@ -33,15 +34,17 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
+    private val sender = Schedulers.newSingle(this::class.java.simpleName)
+
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable {
+        return Mono.fromRunnable<Void?> {
             if (LOG.isDebugEnabled) {
                 LOG.debug("Send {}.", message)
             }
             message.withReadOnly()
             val sink = computeSink(message)
             sink.tryEmitNext(message).orThrow()
-        }
+        }.subscribeOn(sender)
     }
 
     abstract fun M.createExchange(): E
