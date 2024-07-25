@@ -52,7 +52,7 @@ data class FunctionAccessorMetadata<P, out R>(
     val injectParameterLength: Int = injectParameters.size
     val processorType: Class<P> = accessor.targetType
     val processorName = checkNotNull(processorType.simpleName)
-    override val name: String = "$processorName.${accessor.method.name}(${supportedType.simpleName})"
+    override val name: String = accessor.method.name
     override val contextName: String = processorType.requiredNamedBoundedContext().contextName
 
     fun extractFirstArgument(exchange: MessageExchange<*, *>): Any {

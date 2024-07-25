@@ -65,6 +65,7 @@ interface ExecutionFailedInfo : IRecoverable, ExecutionFailedErrorInfo {
     val eventId: EventId
     val processor: ProcessorInfoData
     val functionKind: FunctionKind
+    val functionName: String
 }
 
 interface IRetrySpec {

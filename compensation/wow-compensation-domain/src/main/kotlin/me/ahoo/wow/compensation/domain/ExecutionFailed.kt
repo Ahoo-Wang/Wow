@@ -49,6 +49,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             eventId = command.eventId,
             processor = command.processor,
             functionKind = command.functionKind,
+            functionName = command.functionName,
             error = command.error,
             executeAt = command.executeAt,
             retryState = retryState,
@@ -85,6 +86,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
             eventId = this.state.eventId,
             processor = this.state.processor,
             functionKind = this.state.functionKind,
+            functionName = this.state.functionName,
             retryState = retryState
         )
     }

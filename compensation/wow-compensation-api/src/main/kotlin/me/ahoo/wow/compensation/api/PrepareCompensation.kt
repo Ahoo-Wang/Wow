@@ -30,5 +30,6 @@ data class CompensationPrepared(
     val eventId: EventId,
     val processor: ProcessorInfoData,
     val functionKind: FunctionKind,
-    override val retryState: RetryState
+    override val retryState: RetryState,
+    val functionName: String = ""
 ) : IRetryState

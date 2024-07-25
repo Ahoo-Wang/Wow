@@ -33,7 +33,7 @@ open class DomainEventFunctionFilter(
         val eventFunction = checkNotNull(exchange.getEventFunction())
         return eventFunction
             .invoke(exchange)
-            .checkpoint("Invoke ${eventFunction.name} [DomainEventFunctionFilter]")
+            .checkpoint("Invoke ${eventFunction.fullyQualifiedName} [DomainEventFunctionFilter]")
             .then(next.filter(exchange))
     }
 }

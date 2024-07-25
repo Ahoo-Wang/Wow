@@ -82,6 +82,7 @@ class CompensationFilterTest {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
             every { processorName } returns "processorName"
+            every { name } returns "name"
             every { getAnnotation(Retry::class.java) } returns Retry(true, 1, 1, 1)
         }
         val exchange = mockk<DomainEventExchange<*>> {

@@ -50,7 +50,7 @@ class ExecutionFailedTest {
         val EVENT_ID = EventId(GlobalIdGenerator.generateAsString(), EVENT_AGGREGATE.aggregateId(), 1)
         val processor = ProcessorInfoData("order", "OrderProjector")
         val functionKind = FunctionKind.EVENT
-
+        const val functionName = "onEvent"
         private fun newError(): ErrorDetails {
             return ErrorDetails(GlobalIdGenerator.generateAsString(), "errorMsg", "stackTrace")
         }
@@ -65,6 +65,7 @@ class ExecutionFailedTest {
             error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE,
+            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -77,6 +78,7 @@ class ExecutionFailedTest {
                 assertThat(it.eventId, equalTo(createExecutionFailed.eventId))
                 assertThat(it.processor, equalTo(createExecutionFailed.processor))
                 assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
+                assertThat(it.functionName, equalTo(createExecutionFailed.functionName))
                 assertThat(it.error, equalTo(createExecutionFailed.error))
                 assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
@@ -100,7 +102,8 @@ class ExecutionFailedTest {
             error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE,
-            retrySpec = RetrySpec(3, 3, 3)
+            retrySpec = RetrySpec(3, 3, 3),
+            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -113,6 +116,7 @@ class ExecutionFailedTest {
                 assertThat(it.eventId, equalTo(createExecutionFailed.eventId))
                 assertThat(it.processor, equalTo(createExecutionFailed.processor))
                 assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
+                assertThat(it.functionName, equalTo(createExecutionFailed.functionName))
                 assertThat(it.error, equalTo(createExecutionFailed.error))
                 assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
@@ -137,7 +141,8 @@ class ExecutionFailedTest {
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
-            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
+            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
@@ -146,6 +151,13 @@ class ExecutionFailedTest {
             .`when`(prepareCompensation)
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
+            .expectEventBody<CompensationPrepared> {
+                assertThat(it.eventId, equalTo(executionFailedCreated.eventId))
+                assertThat(it.processor, equalTo(executionFailedCreated.processor))
+                assertThat(it.functionKind, equalTo(executionFailedCreated.functionKind))
+                assertThat(it.functionName, equalTo(executionFailedCreated.functionName))
+                assertThat(it.retryState.retries, equalTo(executionFailedCreated.retryState.retries + 1))
+            }
             .expectState {
                 assertThat(it.id, equalTo(prepareCompensation.id))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
