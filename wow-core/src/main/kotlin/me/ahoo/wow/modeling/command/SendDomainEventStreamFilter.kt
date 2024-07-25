@@ -35,6 +35,7 @@ class SendDomainEventStreamFilter(
         return Mono.defer {
             val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
             domainEventBus.send(eventStream)
+                .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
                 .logErrorResume()
                 .then(next.filter(exchange))
         }

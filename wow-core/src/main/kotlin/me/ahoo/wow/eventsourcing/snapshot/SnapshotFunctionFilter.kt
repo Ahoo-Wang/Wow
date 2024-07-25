@@ -27,6 +27,7 @@ import reactor.core.publisher.Mono
 class SnapshotFunctionFilter(private val snapshotStrategy: SnapshotStrategy) : ExchangeFilter<StateEventExchange<*>> {
     override fun filter(exchange: StateEventExchange<*>, next: FilterChain<StateEventExchange<*>>): Mono<Void> {
         return snapshotStrategy.onEvent(exchange)
+            .checkpoint("OnEvent Message[${exchange.message.id}] [SnapshotFunctionFilter]")
             .finallyAck(exchange)
             .then(next.filter(exchange))
     }

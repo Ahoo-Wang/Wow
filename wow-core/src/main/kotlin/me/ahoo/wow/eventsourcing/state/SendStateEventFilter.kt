@@ -41,6 +41,7 @@ class SendStateEventFilter(private val stateEventBus: StateEventBus) : ExchangeF
             }
             val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
+                .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
                 .logErrorResume()
                 .then(next.filter(exchange))
         }
