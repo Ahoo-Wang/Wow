@@ -40,7 +40,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     /**
      * The fully qualified name of the function.
      */
-    val fullyQualifiedName: String
+    val qualifiedName: String
         get() = "$processorName.$name(${supportedType.simpleName})"
 
     fun <M> supportMessage(message: M): Boolean

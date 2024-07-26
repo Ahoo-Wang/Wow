@@ -36,6 +36,6 @@ object EventProcessorInstrumenter {
 
 object EventProcessorSpanNameExtractor : SpanNameExtractor<DomainEventExchange<Any>> {
     override fun extract(request: DomainEventExchange<Any>): String {
-        return checkNotNull(request.getEventFunction()).fullyQualifiedName
+        return checkNotNull(request.getEventFunction()).qualifiedName
     }
 }
