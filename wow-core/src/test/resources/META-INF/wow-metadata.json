@@ -45,6 +45,9 @@
         },
         "modeling_command_aggregate_with_tenant_id": {
           "type": "me.ahoo.wow.tck.modeling.state.MockCommandAggregateWithTenantId"
+        },
+        "modeling_annotation_mock_mount_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockMountAggregate"
         }
       }
     }

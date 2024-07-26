@@ -21,6 +21,7 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_SOURCING_NAME
 import me.ahoo.wow.api.annotation.OnCommand
@@ -45,6 +46,12 @@ object CommandAggregateRootResolver {
                 it.toMessageType(resolver)
             }
             .toSet()
+
+        val mountCommands = aggregateRootMetadata.command.getAnnotation(AggregateRoot::class)
+            ?.getArgumentValue<List<KSType>>(AggregateRoot::commands.name)
+            ?.mapNotNull { it.declaration.qualifiedName?.asString() }
+            ?.toSet()
+            .orEmpty()
 
         val commandReturnEvents = getAllFunctions()
             .filter { it.isAnnotationPresent(OnCommand::class) }
@@ -71,10 +78,11 @@ object CommandAggregateRootResolver {
                         StaticTenantId::tenantId.name
                     )
                 }.firstOrNull()
+
         return Aggregate(
             type = aggregateRootMetadata.type,
             tenantId = tenantId,
-            commands = commands,
+            commands = commands + mountCommands,
             events = commandReturnEvents + sourcingEvents
         )
     }
