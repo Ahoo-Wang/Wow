@@ -61,7 +61,7 @@ class ExchangeTraceMonoTest {
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
-                every { fullyQualifiedName } returns "traceEventProcessor"
+                every { qualifiedName } returns "traceEventProcessor"
                 every { getError() } returns null
             }
         }
@@ -83,7 +83,7 @@ class ExchangeTraceMonoTest {
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { fullyQualifiedName } returns "traceSagaProcessor"
+                every { qualifiedName } returns "traceSagaProcessor"
                 every { getError() } returns null
             }
         }
@@ -105,7 +105,7 @@ class ExchangeTraceMonoTest {
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { processor } returns Any()
-                every { fullyQualifiedName } returns "traceProjectionProcessor"
+                every { qualifiedName } returns "traceProjectionProcessor"
             }
             every { getError() } returns null
         }
