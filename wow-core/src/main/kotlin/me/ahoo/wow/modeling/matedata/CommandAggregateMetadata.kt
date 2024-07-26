@@ -37,6 +37,7 @@ data class CommandAggregateMetadata<C : Any>(
     override val aggregateType: Class<C>,
     override val namedAggregate: NamedAggregate,
     val constructorAccessor: ConstructorAccessor<C>,
+    val mountedCommands: Set<Class<*>>,
     val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
     val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>
 ) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
@@ -49,6 +50,9 @@ data class CommandAggregateMetadata<C : Any>(
         commandFunctionRegistry.keys.any {
             RecoverAggregate::class.java.isAssignableFrom(it)
         }
+    val registeredCommands: List<Class<*>> by lazy {
+        commandFunctionRegistry.keys.toList() + mountedCommands
+    }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
         return buildMap {

@@ -74,4 +74,12 @@ internal class AggregateMetadataParserTest {
             aggregateMetadata<MockAggregateWithoutConstructor, MockAggregateWithoutConstructor>()
         }
     }
+
+    @Test
+    fun parseMountAggregate() {
+        val aggregateMetadata = aggregateMetadata<MockMountAggregate, MockMountAggregate>()
+        assertThat(aggregateMetadata.command.mountedCommands, hasSize(1))
+        val mountCommand = aggregateMetadata.command.mountedCommands.first()
+        assertThat(mountCommand, equalTo(MockMountCommand::class.java))
+    }
 }

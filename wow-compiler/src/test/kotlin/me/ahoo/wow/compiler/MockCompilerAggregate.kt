@@ -38,7 +38,9 @@ interface ExternalService
 @StaticTenantId
 interface CompilerAggregate
 
-@AggregateRoot
+interface MountedCommand
+
+@AggregateRoot(commands = [MountedCommand::class])
 class MockCompilerAggregate(val id: String) : CompilerAggregate {
     private var state: String? = null
     fun state(): String? {

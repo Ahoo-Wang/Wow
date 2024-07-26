@@ -317,13 +317,14 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     ): List<RouteSpec> {
         aggregateMetadata.state.aggregateType.toSchemaRef().schemas.mergeSchemas()
         return buildList {
-            aggregateMetadata.command.commandFunctionRegistry
-                .forEach { entry ->
-                    entry.key.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+            aggregateMetadata.command.registeredCommands
+                .forEach { commandType ->
+                    commandType.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                         it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
+
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()

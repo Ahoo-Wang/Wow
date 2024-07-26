@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.OnCommand
@@ -119,10 +120,14 @@ object AggregateMetadataParser : CacheableMetadataParser() {
             checkNotNull(namedAggregate) {
                 "Failed to parse CommandAggregate[$commandAggregateType] metadata: Not defined in the metadata resource file[$WOW_METADATA_RESOURCE_NAME]."
             }
+            val mountedCommands = commandAggregateType.getAnnotation(AggregateRoot::class.java)?.commands?.map {
+                it.java
+            }.orEmpty()
             val commandAggregateMetadata = CommandAggregateMetadata(
                 aggregateType = commandAggregateType,
                 namedAggregate = namedAggregate,
                 constructorAccessor = DefaultConstructorAccessor(constructor),
+                mountedCommands = mountedCommands.toSet(),
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
             )
