@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import {FunctionKind} from "./ExecutionFailedState";
+import {FunctionInfo} from "./ExecutionFailedState";
 
-export interface ChangeFunctionKind {
-  functionKind: FunctionKind
+export interface ChangeFunction extends FunctionInfo {
+
 }

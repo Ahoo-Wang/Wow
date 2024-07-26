@@ -2,9 +2,7 @@ import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
 import {
   ExecutionFailedState,
-  ExecutionFailedStatus,
-  FunctionKind,
-  RecoverableType,
+  ExecutionFailedStatus, RecoverableType,
   RetrySpec
 } from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
@@ -232,19 +230,6 @@ export class FailedListComponent implements OnInit {
         this.load();
       }, error => {
         this.message.error(error.error.errorMsg);
-      })
-  }
-
-  changeFunctionKind(id: string, functionKind: FunctionKind): void {
-    this.compensationClient.changeFunctionKind(id, {functionKind})
-      .subscribe({
-        next: resp => {
-          this.message.success("Change FunctionKind succeeded.");
-          this.load();
-        },
-        error: error => {
-          this.message.error(error.error.errorMsg);
-        }
       })
   }
 
