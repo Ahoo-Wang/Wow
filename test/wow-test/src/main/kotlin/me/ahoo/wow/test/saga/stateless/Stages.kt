@@ -42,11 +42,6 @@ interface WhenStage<T : Any> {
         }
     }
 
-    @Deprecated("Use functionName instead.", replaceWith = ReplaceWith("functionName(accessorName)"))
-    fun accessorName(accessorName: String): WhenStage<T> {
-        return functionName(accessorName)
-    }
-
     /**
      * 1. 当订阅到领域事件时，生成聚合命令.
      */
