@@ -26,3 +26,12 @@ data class ProcessorInfoData(
     }
 }
 
+fun ProcessorInfo.materialize(): ProcessorInfoData {
+    if (this is Materialized) {
+        return this as ProcessorInfoData
+    }
+    return ProcessorInfoData(
+        contextName = contextName,
+        processorName = processorName
+    )
+}

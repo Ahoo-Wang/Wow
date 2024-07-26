@@ -51,7 +51,7 @@ class DomainEventCompensateHandlerFunctionTest {
             every { pathVariable(MessageRecords.VERSION) } returns "1"
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(CompensationTarget::class.java) } returns CompensationTarget(
-                processor = SNAPSHOT_FUNCTION
+                function = SNAPSHOT_FUNCTION
             ).toMono()
         }
         handlerFunction.handle(request)

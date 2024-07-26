@@ -16,9 +16,9 @@ package me.ahoo.wow.api.messaging.function
 import me.ahoo.wow.api.naming.Materialized
 
 data class FunctionInfoData(
+    override val functionKind: FunctionKind,
     override val contextName: String,
     override val processorName: String,
-    override val functionKind: FunctionKind,
     override val name: String
 ) : FunctionInfo, Materialized
 

@@ -16,6 +16,7 @@ package me.ahoo.wow.compensation.domain
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId
@@ -23,7 +24,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
-import me.ahoo.wow.compensation.api.FunctionKindChanged
+import me.ahoo.wow.compensation.api.FunctionChanged
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
@@ -93,7 +94,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     }
 
     @OnSourcing
-    fun onFunctionKindChanged(event: FunctionKindChanged) {
-        this.function = function.copy(functionKind = event.functionKind)
+    fun onFunctionChanged(event: FunctionChanged) {
+        this.function = event.materialize()
     }
 }

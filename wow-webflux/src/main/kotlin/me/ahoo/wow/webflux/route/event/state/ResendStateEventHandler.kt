@@ -31,7 +31,12 @@ class ResendStateEventHandler(
 ) {
     companion object {
         private val RESEND_FUNCTION =
-            FunctionInfoData(Wow.WOW, "ResendStateEventHandler", FunctionKind.STATE_EVENT, "Resend")
+            FunctionInfoData(
+                functionKind = FunctionKind.STATE_EVENT,
+                contextName = Wow.WOW,
+                processorName = "ResendStateEventHandler",
+                name = "Resend"
+            )
     }
 
     fun handle(cursorId: String, limit: Int): Mono<BatchResult> {

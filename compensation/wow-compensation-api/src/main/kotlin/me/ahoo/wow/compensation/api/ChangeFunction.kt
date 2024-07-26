@@ -15,13 +15,22 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionKind
 
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
-data class ChangeFunctionKind(
+data class ChangeFunction(
     @field:CommandRoute.PathVariable
     override val id: String,
-    val functionKind: FunctionKind
-) : Identifier
+    override val functionKind: FunctionKind,
+    override val processorName: String,
+    override val contextName: String,
+    override val name: String
+) : Identifier, FunctionInfo
 
-data class FunctionKindChanged(val functionKind: FunctionKind)
+data class FunctionChanged(
+    override val name: String,
+    override val processorName: String,
+    override val contextName: String,
+    override val functionKind: FunctionKind
+) : FunctionInfo

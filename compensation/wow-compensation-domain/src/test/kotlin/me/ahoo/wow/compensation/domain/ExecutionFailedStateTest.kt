@@ -25,10 +25,7 @@ class ExecutionFailedStateTest {
             state.eventId
         }
         Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
-            state.processor
-        }
-        Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
-            state.functionKind
+            state.function
         }
         Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
             state.error

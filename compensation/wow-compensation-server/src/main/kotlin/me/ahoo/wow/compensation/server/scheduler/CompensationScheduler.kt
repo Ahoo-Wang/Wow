@@ -48,12 +48,11 @@ class CompensationScheduler(
             .flatMap {
                 if (log.isDebugEnabled) {
                     log.debug(
-                        "retry - ExecutionFailed[{}] - {} - {} - {} - {}",
+                        "retry - ExecutionFailed[{}] - {} - {} - {}",
                         it.id,
                         it.retryState,
                         it.eventId,
-                        it.processor,
-                        it.functionKind
+                        it.function
                     )
                 }
                 val commandMessage = PrepareCompensation(it.id).toCommandMessage()

@@ -24,5 +24,14 @@ interface FunctionInfo : ProcessorInfo, FunctionKindCapable, Named {
      * Under the same processor, the name is unique.
      */
     override val name: String
-}
 
+    /**
+     * Is Same Function
+     */
+    fun isSameFunction(functionInfo: FunctionInfo): Boolean {
+        return this.functionKind == functionInfo.functionKind &&
+            this.processorName == functionInfo.processorName &&
+            this.contextName == functionInfo.contextName &&
+            this.name == functionInfo.name
+    }
+}

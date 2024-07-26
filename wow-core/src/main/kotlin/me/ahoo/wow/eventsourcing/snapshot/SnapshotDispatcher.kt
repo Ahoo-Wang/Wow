@@ -32,7 +32,12 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 
 internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
-val SNAPSHOT_FUNCTION = FunctionInfoData(Wow.WOW, SNAPSHOT_PROCESSOR_NAME, FunctionKind.STATE_EVENT, "Save")
+val SNAPSHOT_FUNCTION = FunctionInfoData(
+    functionKind = FunctionKind.STATE_EVENT,
+    contextName = Wow.WOW,
+    processorName = SNAPSHOT_PROCESSOR_NAME,
+    name = "Save"
+)
 
 class SnapshotDispatcher(
     /**

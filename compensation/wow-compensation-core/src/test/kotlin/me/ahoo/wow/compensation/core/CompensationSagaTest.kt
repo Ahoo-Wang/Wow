@@ -3,6 +3,7 @@ package me.ahoo.wow.compensation.core
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.EventId
@@ -40,7 +41,8 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenEvent() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.EVENT, mockk())
+        val function = FunctionInfoData(FunctionKind.EVENT, "context", "processor", "function")
+        val compensationPrepared = CompensationPrepared(eventId, function, mockk())
         val domainEventCompensator = mockk<DomainEventCompensator> {
             every {
                 compensate(
@@ -69,7 +71,7 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenStateEvent() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.STATE_EVENT, mockk())
+        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, mockk())
         val stateEventCompensator = mockk<StateEventCompensator> {
             every {
                 compensate(
@@ -98,7 +100,8 @@ class CompensationSagaTest {
     @Test
     fun onCompensationPreparedWhenOther() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
-        val compensationPrepared = CompensationPrepared(eventId, SNAPSHOT_FUNCTION, FunctionKind.ERROR, mockk())
+        val function = FunctionInfoData(FunctionKind.COMMAND, "context", "processor", "function")
+        val compensationPrepared = CompensationPrepared(eventId, function, mockk())
         sagaVerifier<CompensationSaga>()
             .inject(mockk<StateEventCompensator>())
             .inject(mockk<DomainEventCompensator>())

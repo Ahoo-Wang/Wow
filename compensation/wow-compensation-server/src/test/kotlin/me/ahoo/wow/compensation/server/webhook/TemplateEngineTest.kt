@@ -2,8 +2,8 @@ package me.ahoo.wow.compensation.server.webhook
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId
@@ -38,8 +38,7 @@ class TemplateEngineTest {
         executionFailedState.onCreated(
             ExecutionFailedCreated(
                 eventId = EventId("eventId", executionFailedAggregate.aggregateId(), 1),
-                processor = ProcessorInfoData("context", "name"),
-                functionKind = FunctionKind.EVENT,
+                function = FunctionInfoData(FunctionKind.EVENT, "context", "processor", "function"),
                 error = ErrorDetails("errorCode", "errorMsg", "stackTrace"),
                 executeAt = 0,
                 retrySpec = RetrySpec(10, 1, 1),
