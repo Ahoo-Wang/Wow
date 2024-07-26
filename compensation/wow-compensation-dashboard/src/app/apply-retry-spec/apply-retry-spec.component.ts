@@ -3,6 +3,8 @@ import {CompensationClient} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
 import {RetrySpec} from "../api/ExecutionFailedState";
 import {
+  FormControl,
+  FormGroup,
   FormsModule,
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -42,17 +44,25 @@ export class ApplyRetrySpecComponent implements OnInit {
   @Input({required: true}) id!: string;
   @Input({required: true}) retrySpec!: RetrySpec;
   @Output() afterApply: EventEmitter<boolean> = new EventEmitter<boolean>();
-  validateForm=this.formBuilder.group({
-    maxRetries: [this.retrySpec.maxRetries, [Validators.required]],
-    minBackoff: [this.retrySpec.minBackoff, [Validators.required]],
-    executionTimeout: [this.retrySpec.executionTimeout, [Validators.required]]
-  });
+  validateForm!: FormGroup<{
+    maxRetries: FormControl<number>;
+    minBackoff: FormControl<number>;
+    executionTimeout: FormControl<number>;
+  }>
 
   constructor(private compensationClient: CompensationClient,
               private formBuilder: NonNullableFormBuilder,
               private message: NzMessageService) {
+
   }
 
+  ngOnInit(): void {
+    this.validateForm = this.formBuilder.group({
+      maxRetries: [this.retrySpec.maxRetries, [Validators.required]],
+      minBackoff: [this.retrySpec.minBackoff, [Validators.required]],
+      executionTimeout: [this.retrySpec.executionTimeout, [Validators.required]]
+    });
+  }
 
   applyRetrySpec() {
     if (!this.validateForm.valid) {
@@ -75,6 +85,4 @@ export class ApplyRetrySpecComponent implements OnInit {
     );
   }
 
-  ngOnInit(): void {
-  }
 }

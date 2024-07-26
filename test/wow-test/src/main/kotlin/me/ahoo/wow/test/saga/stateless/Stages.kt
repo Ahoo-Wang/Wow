@@ -42,7 +42,7 @@ interface WhenStage<T : Any> {
         }
     }
 
-    @Deprecated("Use functionName instead.", replaceWith = ReplaceWith("functionName"))
+    @Deprecated("Use functionName instead.", replaceWith = ReplaceWith("functionName(accessorName)"))
     fun accessorName(accessorName: String): WhenStage<T> {
         return functionName(accessorName)
     }
