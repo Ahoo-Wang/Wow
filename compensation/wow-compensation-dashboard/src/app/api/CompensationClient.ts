@@ -21,7 +21,7 @@ import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
 import {DomainEventStream} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
-import {ChangeFunctionKind} from "./ChangeFunctionKind";
+import {ChangeFunction} from "./ChangeFunction";
 import {RetryConditions} from "./RetryConditions";
 import {Conditions, Operator, Projections} from "./Query";
 
@@ -72,9 +72,9 @@ export class CompensationClient {
     return this.httpClient.put<CommandResult>(apiUrl, markRecoverable, COMMAND_HEADERS);
   }
 
-  changeFunctionKind(id: string, changeFunctionKind: ChangeFunctionKind): Observable<CommandResult> {
-    const apiUrl = `${this.aggregateApi}/${id}/change_function_kind`;
-    return this.httpClient.put<CommandResult>(apiUrl, changeFunctionKind, COMMAND_HEADERS);
+  changeFunction(id: string, changeFunction: ChangeFunction): Observable<CommandResult> {
+    const apiUrl = `${this.aggregateApi}/${id}/change_function`;
+    return this.httpClient.put<CommandResult>(apiUrl, changeFunction, COMMAND_HEADERS);
   }
 
   query(pagedQuery: PagedQuery): Observable<PagedList<ExecutionFailedState>> {

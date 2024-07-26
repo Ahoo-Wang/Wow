@@ -19,9 +19,8 @@ export interface ExecutionFailedState {
   eventId: EventId;
   error: ErrorDetails;
   executeAt: number;
-  functionKind: FunctionKind;
   isRetryable: boolean;
-  processor: ProcessorInfoData;
+  function: FunctionInfo;
   retrySpec: RetrySpec;
   retryState: RetryState;
   status: ExecutionFailedStatus;
@@ -66,11 +65,13 @@ export enum FunctionKind {
 }
 
 /**
- * wow.ProcessorInfoData
+ * wow.FunctionInfo
  */
-export interface ProcessorInfoData {
+export interface FunctionInfo {
+  functionKind: FunctionKind;
   contextName: string;
   processorName: string;
+  name: string;
 }
 
 /**
