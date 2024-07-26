@@ -19,7 +19,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.annotation.toEventMetadata
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.aggregateId
 
@@ -27,7 +27,7 @@ import me.ahoo.wow.modeling.aggregateId
 fun <T : Any> T.toDomainEvent(
     aggregateId: AggregateId,
     commandId: String,
-    id: String = GlobalIdGenerator.generateAsString(),
+    id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
@@ -56,7 +56,7 @@ fun <T : Any> T.toDomainEvent(
     aggregateId: String,
     tenantId: String,
     commandId: String,
-    id: String = GlobalIdGenerator.generateAsString(),
+    id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
