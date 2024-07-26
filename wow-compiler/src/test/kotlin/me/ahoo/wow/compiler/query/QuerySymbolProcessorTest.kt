@@ -24,6 +24,7 @@ class QuerySymbolProcessorTest {
                 )
             symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -42,6 +43,7 @@ class QuerySymbolProcessorTest {
             sources = exampleDomainFiles + exampleApiFiles
             symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -60,7 +62,7 @@ class QuerySymbolProcessorTest {
                 )
             symbolProcessorProviders = mutableListOf(QuerySymbolProcessorProvider())
             inheritClassPath = true
-            messageOutputStream = System.out
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
