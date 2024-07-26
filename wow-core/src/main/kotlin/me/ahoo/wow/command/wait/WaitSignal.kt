@@ -16,11 +16,14 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoCapable
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandResultCapable
 import me.ahoo.wow.exception.ErrorCodes
 
-interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo, CommandResultCapable {
+interface WaitSignal : CommandId, ErrorInfo, CommandResultCapable, FunctionInfoCapable<FunctionInfoData> {
     val stage: CommandStage
     val isLastProjection: Boolean
     fun copyResult(result: Map<String, Any>): WaitSignal
@@ -29,8 +32,7 @@ interface WaitSignal : CommandId, ErrorInfo, ProcessorInfo, CommandResultCapable
 data class SimpleWaitSignal(
     override val commandId: String,
     override val stage: CommandStage,
-    override val contextName: String,
-    override val processorName: String,
+    override val function: FunctionInfoData,
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
@@ -38,7 +40,7 @@ data class SimpleWaitSignal(
     override val result: Map<String, Any> = emptyMap()
 ) : WaitSignal {
     companion object {
-        fun ProcessorInfo.toWaitSignal(
+        fun FunctionInfo.toWaitSignal(
             commandId: String,
             stage: CommandStage,
             isLastProjection: Boolean = false,
@@ -50,8 +52,7 @@ data class SimpleWaitSignal(
             return SimpleWaitSignal(
                 commandId = commandId,
                 stage = stage,
-                contextName = this.contextName,
-                processorName = this.processorName,
+                function = this.materialize(),
                 isLastProjection = isLastProjection,
                 errorCode = errorCode,
                 errorMsg = errorMsg,

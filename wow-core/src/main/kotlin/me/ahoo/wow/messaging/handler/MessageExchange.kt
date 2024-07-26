@@ -15,7 +15,7 @@ package me.ahoo.wow.messaging.handler
 
 import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.ioc.ServiceProvider
@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 
 const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
-const val PROCESSOR_KEY = "__PROCESSOR__"
+const val FUNCTION_KEY = "__FUNCTION__"
 const val COMMAND_RESULT_KEY = "__COMMAND_RESULT__"
 
 @Suppress("TooManyFunctions")
@@ -64,12 +64,16 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         removeAttribute(ERROR_KEY)
     }
 
-    fun setProcessor(processorInfo: ProcessorInfo): SOURCE {
-        return setAttribute(PROCESSOR_KEY, processorInfo)
+    fun setFunction(functionInfo: FunctionInfo): SOURCE {
+        return setAttribute(FUNCTION_KEY, functionInfo)
     }
 
-    fun getProcessor(): ProcessorInfo? {
-        return getAttribute(PROCESSOR_KEY)
+    fun getFunction(): FunctionInfo? {
+        return getAttribute(FUNCTION_KEY)
+    }
+
+    fun <FUN : FunctionInfo> getFunctionAs(): FUN? {
+        return getAttribute(FUNCTION_KEY)
     }
 
     fun setServiceProvider(serviceProvider: ServiceProvider): SOURCE {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -26,8 +27,7 @@ internal class LocalCommandWaitNotifierTest {
             SimpleWaitSignal(
                 GlobalIdGenerator.generateAsString(),
                 CommandStage.SENT,
-                "",
-                ""
+                COMMAND_GATEWAY_FUNCTION
             ),
         )
             .test()
@@ -39,14 +39,17 @@ internal class LocalCommandWaitNotifierTest {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notifyAndForget(
             "endpoint",
-            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT, "", ""),
+            SimpleWaitSignal(GlobalIdGenerator.generateAsString(), CommandStage.SENT, COMMAND_GATEWAY_FUNCTION),
         )
     }
 
     @Test
     fun notifyRemote() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
-        commandWaitNotifier.notify("endpoint", SimpleWaitSignal("0THbs0sW0066001", CommandStage.SENT, "", ""))
+        commandWaitNotifier.notify(
+            "endpoint",
+            SimpleWaitSignal("0THbs0sW0066001", CommandStage.SENT, COMMAND_GATEWAY_FUNCTION)
+        )
             .test()
             .verifyComplete()
     }

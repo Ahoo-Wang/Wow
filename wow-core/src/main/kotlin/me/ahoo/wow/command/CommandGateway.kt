@@ -13,13 +13,23 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import reactor.core.publisher.Mono
 
 const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
+
+val COMMAND_GATEWAY_FUNCTION = FunctionInfoData(
+    functionKind = FunctionKind.COMMAND,
+    contextName = Wow.WOW,
+    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
+    name = "send",
+)
 
 /**
  * Command Gateway .

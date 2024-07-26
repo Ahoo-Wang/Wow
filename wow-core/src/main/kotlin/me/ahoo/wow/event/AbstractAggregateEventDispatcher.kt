@@ -64,7 +64,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         return Flux.fromIterable(functions)
             .flatMap { function ->
                 val eventExchange = exchange.createEventExchange(event)
-                    .setEventFunction(function)
+                    .setFunction(function)
                 eventHandler.handle(eventExchange)
             }.then()
     }

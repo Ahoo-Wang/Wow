@@ -29,7 +29,7 @@ class CommandFunction<C : Any>(
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>,
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
-    override val name: String = delegate.contextName
+    override val name: String = delegate.name
     override val supportedType: Class<*> = delegate.supportedType
     override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = delegate.processor

@@ -102,7 +102,7 @@ class WaitingFor(
             return
         }
 
-        if (!isSameBoundedContext(signal)) {
+        if (!isSameBoundedContext(signal.function)) {
             return
         }
         if (processorName.isBlank()) {
@@ -112,7 +112,7 @@ class WaitingFor(
             return
         }
 
-        if (processorName == signal.processorName) {
+        if (processorName == signal.function.processorName) {
             nextSignal(signal)
             return
         }

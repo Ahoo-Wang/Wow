@@ -17,7 +17,8 @@ import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.exception.toErrorInfo
@@ -95,9 +96,12 @@ class CommandWaitNotifierSubscriber<E, M>(
 
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
         val error = errorInfo ?: ErrorInfo.OK
-        val processorInfo =
-            messageExchange.getProcessor() ?: ProcessorInfoData.unknown(messageExchange.message.contextName)
-        val waitSignal = processorInfo.toWaitSignal(
+        val functionInfo = messageExchange.getFunction()
+            ?: FunctionInfoData.unknown(
+                functionKind = FunctionKind.ERROR,
+                contextName = messageExchange.message.contextName
+            )
+        val waitSignal = functionInfo.toWaitSignal(
             commandId = commandId,
             stage = processingStage,
             isLastProjection = isLastProjection,

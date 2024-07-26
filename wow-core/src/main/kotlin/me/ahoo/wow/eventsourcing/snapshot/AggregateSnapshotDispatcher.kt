@@ -38,7 +38,7 @@ class AggregateSnapshotDispatcher(
         get() = SNAPSHOT_PROCESSOR_NAME
 
     override fun handleExchange(exchange: StateEventExchange<*>): Mono<Void> {
-        exchange.setProcessor(this)
+        exchange.setFunction(SNAPSHOT_FUNCTION)
         return snapshotHandler.handle(exchange)
     }
 

@@ -17,6 +17,8 @@ import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.TopicKind
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
@@ -139,8 +141,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                             SimpleWaitSignal(
                                 message.commandId,
                                 CommandStage.PROCESSED,
-                                message.contextName,
-                                ""
+                                FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", "")
                             ),
                         )
                     }.delaySubscription(Duration.ofMillis(10)).subscribe()

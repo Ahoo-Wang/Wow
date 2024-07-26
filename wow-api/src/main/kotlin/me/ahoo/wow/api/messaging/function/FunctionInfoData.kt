@@ -20,7 +20,19 @@ data class FunctionInfoData(
     override val contextName: String,
     override val processorName: String,
     override val name: String
-) : FunctionInfo, Materialized
+) : FunctionInfo, Materialized {
+    companion object {
+        private const val UNKNOWN = "Unknown"
+        fun unknown(
+            functionKind: FunctionKind,
+            contextName: String,
+            processorName: String = UNKNOWN,
+            functionName: String = UNKNOWN
+        ): FunctionInfoData {
+            return FunctionInfoData(functionKind, contextName, processorName, functionName)
+        }
+    }
+}
 
 fun FunctionInfo.materialize(): FunctionInfoData {
     if (this is Materialized) {
