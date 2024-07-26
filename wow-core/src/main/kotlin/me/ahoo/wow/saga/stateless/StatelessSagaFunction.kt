@@ -15,7 +15,7 @@ package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandBuilder

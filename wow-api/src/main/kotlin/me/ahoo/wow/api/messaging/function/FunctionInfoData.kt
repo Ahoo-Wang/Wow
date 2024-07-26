@@ -11,16 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.messaging
+package me.ahoo.wow.api.messaging.function
 
-enum class FunctionKind(val topicKind: TopicKind) {
-    COMMAND(TopicKind.COMMAND),
-    SOURCING(TopicKind.EVENT_STREAM),
-    EVENT(TopicKind.EVENT_STREAM),
-    STATE_EVENT(TopicKind.STATE_EVENT),
-    ERROR(TopicKind.UNDEFINED),
-}
+import me.ahoo.wow.api.naming.Materialized
 
-interface FunctionKindCapable {
-    val functionKind: FunctionKind
+data class FunctionInfoData(
+    override val functionKind: FunctionKind,
+    override val contextName: String,
+    override val processorName: String,
+    override val name: String
+) : FunctionInfo, Materialized
+
+fun FunctionInfo.materialize(): FunctionInfoData {
+    if (this is Materialized) {
+        return this as FunctionInfoData
+    }
+    return FunctionInfoData(
+        contextName = contextName,
+        processorName = processorName,
+        name = name,
+        functionKind = functionKind,
+    )
 }

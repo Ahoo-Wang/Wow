@@ -3,7 +3,7 @@ package me.ahoo.wow.compensation.core
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.filter.FilterChain

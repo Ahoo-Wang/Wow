@@ -13,7 +13,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Version
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus

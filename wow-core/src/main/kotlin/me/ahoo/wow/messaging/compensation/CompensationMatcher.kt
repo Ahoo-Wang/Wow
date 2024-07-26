@@ -15,18 +15,19 @@ package me.ahoo.wow.messaging.compensation
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.api.messaging.function.FunctionInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.id.generateGlobalId
 
 const val COMPENSATION_PREFIX = "compensate."
 const val COMPENSATION_ID = "${COMPENSATION_PREFIX}id"
 const val COMPENSATION_CONTEXT = "${COMPENSATION_PREFIX}context"
 const val COMPENSATION_PROCESSOR = "${COMPENSATION_PREFIX}processor"
+const val COMPENSATION_FUNCTION = "${COMPENSATION_PREFIX}function"
 
 data class CompensationTarget(
-    val id: String = GlobalIdGenerator.generateAsString(),
-    val processor: ProcessorInfoData
+    val id: String = generateGlobalId(),
+    val function: FunctionInfoData,
 )
 
 object CompensationMatcher {
@@ -37,29 +38,31 @@ object CompensationMatcher {
 
     fun Header.withCompensation(target: CompensationTarget): Header {
         return with(COMPENSATION_ID, target.id)
-            .with(COMPENSATION_CONTEXT, target.processor.contextName)
-            .with(COMPENSATION_PROCESSOR, target.processor.processorName)
+            .with(COMPENSATION_CONTEXT, target.function.contextName)
+            .with(COMPENSATION_PROCESSOR, target.function.processorName)
+            .with(COMPENSATION_FUNCTION, target.function.name)
     }
 
-    fun Message<*, *>.match(processor: ProcessorInfo): Boolean {
-        return header.match(processor)
+    fun Message<*, *>.match(function: FunctionInfo): Boolean {
+        return header.match(function)
     }
 
     val Header.compensationId: String?
         get() = this[COMPENSATION_ID]
 
-    fun Header.match(processor: ProcessorInfo): Boolean {
+    fun Header.match(function: FunctionInfo): Boolean {
         if (!containsKey(COMPENSATION_ID)) {
             return true
         }
         val context = this[COMPENSATION_CONTEXT]
         val processorName = this[COMPENSATION_PROCESSOR]
-        if (context != processor.contextName) {
+        if (context != function.contextName) {
             return false
         }
-        if (processorName != processor.processorName) {
+        if (processorName != function.processorName) {
             return false
         }
-        return true
+        val functionName = this[COMPENSATION_FUNCTION]
+        return functionName == function.name
     }
 }

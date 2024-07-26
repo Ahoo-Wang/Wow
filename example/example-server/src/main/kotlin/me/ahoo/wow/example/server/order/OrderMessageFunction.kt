@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.example.server.order
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext

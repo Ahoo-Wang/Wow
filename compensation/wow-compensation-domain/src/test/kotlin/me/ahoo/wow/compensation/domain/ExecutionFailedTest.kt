@@ -14,12 +14,12 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.ApplyRetrySpec
-import me.ahoo.wow.compensation.api.ChangeFunctionKind
+import me.ahoo.wow.compensation.api.ChangeFunction
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ErrorDetails
@@ -29,16 +29,17 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
-import me.ahoo.wow.compensation.api.FunctionKindChanged
+import me.ahoo.wow.compensation.api.FunctionChanged
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -48,9 +49,13 @@ class ExecutionFailedTest {
     companion object {
         val EVENT_AGGREGATE = "order.order".toNamedAggregate()
         val EVENT_ID = EventId(GlobalIdGenerator.generateAsString(), EVENT_AGGREGATE.aggregateId(), 1)
-        val processor = ProcessorInfoData("order", "OrderProjector")
-        val functionKind = FunctionKind.EVENT
-        const val functionName = "onEvent"
+        val function = FunctionInfoData(
+            functionKind = FunctionKind.EVENT,
+            contextName = "order",
+            processorName = "OrderProjector",
+            name = "onEvent"
+        )
+
         private fun newError(): ErrorDetails {
             return ErrorDetails(GlobalIdGenerator.generateAsString(), "errorMsg", "stackTrace")
         }
@@ -60,25 +65,21 @@ class ExecutionFailedTest {
     fun onCreate() {
         val createExecutionFailed = CreateExecutionFailed(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE,
-            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculatorTest.testRetrySpec)
             .inject(DefaultNextRetryAtCalculator)
-            .`when`(createExecutionFailed)
+            .whenCommand(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
             .expectState {
                 assertThat(it.eventId, equalTo(createExecutionFailed.eventId))
-                assertThat(it.processor, equalTo(createExecutionFailed.processor))
-                assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
-                assertThat(it.functionName, equalTo(createExecutionFailed.functionName))
+                assertThat(it.function, equalTo(createExecutionFailed.function))
                 assertThat(it.error, equalTo(createExecutionFailed.error))
                 assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
@@ -97,26 +98,22 @@ class ExecutionFailedTest {
     fun onCreate_CommandRetrySpec() {
         val createExecutionFailed = CreateExecutionFailed(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             recoverable = RecoverableType.RECOVERABLE,
             retrySpec = RetrySpec(3, 3, 3),
-            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculatorTest.testRetrySpec)
             .inject(DefaultNextRetryAtCalculator)
-            .`when`(createExecutionFailed)
+            .whenCommand(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
             .expectState {
                 assertThat(it.eventId, equalTo(createExecutionFailed.eventId))
-                assertThat(it.processor, equalTo(createExecutionFailed.processor))
-                assertThat(it.functionKind, equalTo(createExecutionFailed.functionKind))
-                assertThat(it.functionName, equalTo(createExecutionFailed.functionName))
+                assertThat(it.function, equalTo(createExecutionFailed.function))
                 assertThat(it.error, equalTo(createExecutionFailed.error))
                 assertThat(it.executeAt, equalTo(createExecutionFailed.executeAt))
                 assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
@@ -136,26 +133,22 @@ class ExecutionFailedTest {
         val prepareCompensation = PrepareCompensation(id = GlobalIdGenerator.generateAsString())
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
             retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
-            functionName = functionName
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(prepareCompensation)
+            .whenCommand(prepareCompensation)
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectEventBody<CompensationPrepared> {
                 assertThat(it.eventId, equalTo(executionFailedCreated.eventId))
-                assertThat(it.processor, equalTo(executionFailedCreated.processor))
-                assertThat(it.functionKind, equalTo(executionFailedCreated.functionKind))
-                assertThat(it.functionName, equalTo(executionFailedCreated.functionName))
+                assertThat(it.function, equalTo(executionFailedCreated.function))
                 assertThat(it.retryState.retries, equalTo(executionFailedCreated.retryState.retries + 1))
             }
             .expectState {
@@ -163,18 +156,18 @@ class ExecutionFailedTest {
                 assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
                 assertThat(it.retryState.retries, equalTo(executionFailedCreated.retryState.retries + 1))
                 assertThat(it.eventId, equalTo(executionFailedCreated.eventId))
-                assertThat(it.processor, equalTo(executionFailedCreated.processor))
-                assertThat(it.functionKind, equalTo(executionFailedCreated.functionKind))
+                assertThat(it.function, equalTo(executionFailedCreated.function))
                 assertThat(it.canNextRetry(), equalTo(false))
             }
-            .verify().then()
-            .given()
-            .`when`(prepareCompensation)
-            .expectErrorType(IllegalStateException::class.java)
-            .expectState {
-                assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
-            }
             .verify()
+            .fork {
+                whenCommand(prepareCompensation)
+                    .expectErrorType(IllegalStateException::class.java)
+                    .expectState {
+                        assertThat(it.status, equalTo(ExecutionFailedStatus.PREPARED))
+                    }
+                    .verify()
+            }
     }
 
     @Test
@@ -182,8 +175,7 @@ class ExecutionFailedTest {
         val prepareCompensation = PrepareCompensation(id = GlobalIdGenerator.generateAsString())
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
@@ -196,7 +188,7 @@ class ExecutionFailedTest {
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(prepareCompensation)
+            .whenCommand(prepareCompensation)
             .expectErrorType(IllegalStateException::class.java)
             .expectState {
                 assertThat(it.id, equalTo(prepareCompensation.id))
@@ -212,8 +204,7 @@ class ExecutionFailedTest {
         val prepareCompensation = ForcePrepareCompensation(id = GlobalIdGenerator.generateAsString())
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(
@@ -226,7 +217,7 @@ class ExecutionFailedTest {
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(prepareCompensation)
+            .whenCommand(prepareCompensation)
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectState {
@@ -248,8 +239,7 @@ class ExecutionFailedTest {
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
@@ -259,8 +249,7 @@ class ExecutionFailedTest {
 
         val compensationPrepared = CompensationPrepared(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 1)
         )
 
@@ -269,7 +258,7 @@ class ExecutionFailedTest {
                 executionFailedCreated,
                 compensationPrepared
             )
-            .`when`(applyExecutionFailed)
+            .whenCommand(applyExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedApplied::class.java)
             .expectState {
@@ -282,15 +271,16 @@ class ExecutionFailedTest {
                 assertThat(it.canRetry(), equalTo(true))
                 assertThat(it.canNextRetry(), equalTo(false))
             }
-            .verify().then()
-            .given()
-            .`when`(applyExecutionFailed)
-            .expectErrorType(IllegalStateException::class.java)
-            .expectState {
-                assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
-                assertThat(it.retryState.retries, equalTo(1))
-            }
             .verify()
+            .fork {
+                whenCommand(applyExecutionFailed)
+                    .expectErrorType(IllegalStateException::class.java)
+                    .expectState {
+                        assertThat(it.status, equalTo(ExecutionFailedStatus.FAILED))
+                        assertThat(it.retryState.retries, equalTo(1))
+                    }
+                    .verify()
+            }
     }
 
     @Test
@@ -301,8 +291,7 @@ class ExecutionFailedTest {
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
@@ -314,15 +303,14 @@ class ExecutionFailedTest {
                 executionFailedCreated,
                 CompensationPrepared(
                     eventId = EVENT_ID,
-                    processor = processor,
-                    functionKind = functionKind,
+                    function = function,
                     retryState = DefaultNextRetryAtCalculator.nextRetryState(
                         DefaultNextRetryAtCalculatorTest.testRetrySpec,
                         1
                     )
                 )
             )
-            .`when`(applyExecutionSuccess)
+            .whenCommand(applyExecutionSuccess)
             .expectNoError()
             .expectEventType(ExecutionSuccessApplied::class.java)
             .expectState {
@@ -334,15 +322,16 @@ class ExecutionFailedTest {
                 assertThat(it.canRetry(), equalTo(false))
                 assertThat(it.canNextRetry(), equalTo(false))
             }
-            .verify().then()
-            .given()
-            .`when`(applyExecutionSuccess)
-            .expectErrorType(IllegalStateException::class.java)
-            .expectState {
-                assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
-                assertThat(it.retryState.retries, equalTo(1))
-            }
             .verify()
+            .fork {
+                whenCommand(applyExecutionSuccess)
+                    .expectErrorType(IllegalStateException::class.java)
+                    .expectState {
+                        assertThat(it.status, equalTo(ExecutionFailedStatus.SUCCEEDED))
+                        assertThat(it.retryState.retries, equalTo(1))
+                    }
+                    .verify()
+            }
     }
 
     @Test
@@ -355,8 +344,7 @@ class ExecutionFailedTest {
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
@@ -366,7 +354,7 @@ class ExecutionFailedTest {
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(applyRetrySpec)
+            .whenCommand(applyRetrySpec)
             .expectNoError()
             .expectEventType(RetrySpecApplied::class.java)
             .expectState {
@@ -387,8 +375,7 @@ class ExecutionFailedTest {
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
@@ -399,30 +386,33 @@ class ExecutionFailedTest {
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(markRecoverable)
+            .whenCommand(markRecoverable)
             .expectNoError()
             .expectEventType(RecoverableMarked::class.java)
             .expectState {
                 assertThat(it.id, equalTo(markRecoverable.id))
                 assertThat(it.recoverable, equalTo(markRecoverable.recoverable))
             }
-            .verify().then()
-            .given()
-            .`when`(markRecoverable)
-            .expectErrorType(IllegalArgumentException::class.java)
             .verify()
+            .fork {
+                whenCommand(markRecoverable)
+                    .expectErrorType(IllegalArgumentException::class.java)
+                    .verify()
+            }
     }
 
     @Test
-    fun onChangeFunctionKind() {
-        val changeFunctionKind = ChangeFunctionKind(
+    fun onChangeFunction() {
+        val changeFunction = ChangeFunction(
             id = GlobalIdGenerator.generateAsString(),
+            contextName = generateGlobalId(),
+            processorName = generateGlobalId(),
+            name = generateGlobalId(),
             functionKind = FunctionKind.STATE_EVENT
         )
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
-            processor = processor,
-            functionKind = functionKind,
+            function = function,
             error = newError(),
             executeAt = System.currentTimeMillis(),
             retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
@@ -433,18 +423,19 @@ class ExecutionFailedTest {
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
             .inject(DefaultNextRetryAtCalculator)
             .given(executionFailedCreated)
-            .`when`(changeFunctionKind)
+            .whenCommand(changeFunction)
             .expectNoError()
-            .expectEventType(FunctionKindChanged::class.java)
+            .expectEventType(FunctionChanged::class.java)
             .expectState {
-                assertThat(it.id, equalTo(changeFunctionKind.id))
+                assertThat(it.id, equalTo(changeFunction.id))
                 assertThat(it.recoverable, equalTo(executionFailedCreated.recoverable))
-                assertThat(it.functionKind, equalTo(changeFunctionKind.functionKind))
+                assertThat(it.function.isSameFunction(changeFunction), equalTo(true))
             }
-            .verify().then()
-            .given()
-            .`when`(changeFunctionKind)
-            .expectErrorType(IllegalArgumentException::class.java)
             .verify()
+            .fork {
+                whenCommand(changeFunction)
+                    .expectErrorType(IllegalArgumentException::class.java)
+                    .verify()
+            }
     }
 }

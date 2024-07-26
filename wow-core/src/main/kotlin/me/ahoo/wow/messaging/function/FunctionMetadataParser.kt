@@ -21,8 +21,8 @@ import me.ahoo.wow.api.annotation.DEFAULT_ON_STATE_EVENT_NAME
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.annotation.OnStateEvent
-import me.ahoo.wow.api.messaging.FunctionKind
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext

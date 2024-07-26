@@ -5,7 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.toCommandMessage

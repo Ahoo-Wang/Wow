@@ -15,8 +15,8 @@ package me.ahoo.wow.compensation.domain
 
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.ErrorDetails
 import me.ahoo.wow.compensation.api.EventId
@@ -24,7 +24,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
-import me.ahoo.wow.compensation.api.FunctionKindChanged
+import me.ahoo.wow.compensation.api.FunctionChanged
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
@@ -35,11 +35,7 @@ import me.ahoo.wow.compensation.api.RetryState
 class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     override lateinit var eventId: EventId
         private set
-    override lateinit var processor: ProcessorInfoData
-        private set
-    override lateinit var functionKind: FunctionKind
-        private set
-    override var functionName: String = ""
+    override lateinit var function: FunctionInfoData
         private set
     override lateinit var error: ErrorDetails
         private set
@@ -57,9 +53,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     @OnSourcing
     fun onCreated(event: ExecutionFailedCreated) {
         this.eventId = event.eventId
-        this.processor = event.processor
-        this.functionKind = event.functionKind
-        this.functionName = event.functionName
+        this.function = event.function
         this.error = event.error
         this.executeAt = event.executeAt
         this.retryState = event.retryState
@@ -100,7 +94,7 @@ class ExecutionFailedState(override val id: String) : IExecutionFailedState {
     }
 
     @OnSourcing
-    fun onFunctionKindChanged(event: FunctionKindChanged) {
-        this.functionKind = event.functionKind
+    fun onFunctionChanged(event: FunctionChanged) {
+        this.function = event.materialize()
     }
 }

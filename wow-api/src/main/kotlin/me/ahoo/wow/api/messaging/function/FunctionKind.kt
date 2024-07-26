@@ -11,21 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.annotation
+package me.ahoo.wow.api.messaging.function
 
-import me.ahoo.wow.api.messaging.function.FunctionKind
-import java.lang.annotation.Inherited
+import me.ahoo.wow.api.messaging.TopicKind
 
-const val DEFAULT_ON_ERROR_NAME = "onError"
+enum class FunctionKind(val topicKind: TopicKind) {
+    COMMAND(TopicKind.COMMAND),
+    SOURCING(TopicKind.EVENT_STREAM),
+    EVENT(TopicKind.EVENT_STREAM),
+    STATE_EVENT(TopicKind.STATE_EVENT),
+    ERROR(TopicKind.UNDEFINED),
+}
 
-/**
- * OnCommandError .
- *
- * @author ahoo wang
- * @see me.ahoo.wow.modeling.command.CommandAggregate
- */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
-@OnMessage(FunctionKind.ERROR, defaultFunctionName = DEFAULT_ON_ERROR_NAME)
-@MustBeDocumented
-annotation class OnError
+interface FunctionKindCapable {
+    val functionKind: FunctionKind
+}
