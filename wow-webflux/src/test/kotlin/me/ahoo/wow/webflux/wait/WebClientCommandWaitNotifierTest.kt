@@ -2,6 +2,7 @@ package me.ahoo.wow.webflux.wait
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -21,8 +22,7 @@ class WebClientCommandWaitNotifierTest {
         val waitSignal = SimpleWaitSignal(
             commandId = GlobalIdGenerator.generateAsString(),
             stage = CommandStage.SENT,
-            contextName = "contextName",
-            processorName = "processorName",
+            function = COMMAND_GATEWAY_FUNCTION,
         )
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()
@@ -48,8 +48,7 @@ class WebClientCommandWaitNotifierTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "0ToC0Bez003X00Z",
             stage = CommandStage.SENT,
-            contextName = "contextName",
-            processorName = "processorName",
+            function = COMMAND_GATEWAY_FUNCTION,
         )
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()

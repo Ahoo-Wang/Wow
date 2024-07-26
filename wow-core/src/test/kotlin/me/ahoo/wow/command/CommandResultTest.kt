@@ -11,7 +11,10 @@ class CommandResultTest {
     @Test
     fun throwableAsResult() {
         val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
-        val actual = IllegalStateException("test").toResult(command, processorName = "test")
+        val actual = IllegalStateException("test").toResult(
+            command,
+            processorName = "processorName"
+        )
         assertThat(actual.stage, equalTo(CommandStage.SENT))
         assertThat(actual.aggregateId, equalTo(command.aggregateId.id))
         assertThat(actual.tenantId, equalTo(command.aggregateId.tenantId))

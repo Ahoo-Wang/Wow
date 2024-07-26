@@ -15,7 +15,6 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
@@ -52,10 +51,6 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
 
     fun getAggregateProcessor(): AggregateProcessor<C>? {
         return getAttribute(AGGREGATE_PROCESSOR_KEY)
-    }
-
-    override fun getProcessor(): ProcessorInfo? {
-        return getAggregateProcessor()
     }
 
     fun setEventStream(eventStream: DomainEventStream): ServerCommandExchange<C> {

@@ -13,6 +13,8 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.RecoverAggregate
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
@@ -37,6 +39,12 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     }
 
     override val processorName: String = metadata.processorName
+    private val processorFunction = FunctionInfoData(
+        functionKind = FunctionKind.COMMAND,
+        contextName = metadata.processorName,
+        processorName = metadata.contextName,
+        name = "process"
+    )
     private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)
 
@@ -44,6 +52,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override var commandState = CommandState.STORED
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+        exchange.setFunction(processorFunction)
         val message = exchange.message
         val commandType = message.body.javaClass
         return Mono.defer {
@@ -79,6 +88,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             requireNotNull(commandFunction) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
+            exchange.setFunction(commandFunction)
             commandFunction
                 .invoke(exchange)
                 .doOnNext {

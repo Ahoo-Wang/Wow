@@ -43,8 +43,8 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         stage = this.stage,
         aggregateId = commandMessage.aggregateId.id,
-        contextName = contextName,
-        processorName = this.processorName,
+        contextName = function.contextName,
+        processorName = function.processorName,
         tenantId = commandMessage.aggregateId.tenantId,
         requestId = commandMessage.requestId,
         commandId = commandMessage.commandId,
