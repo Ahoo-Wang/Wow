@@ -41,7 +41,7 @@ class CommandFunction<C : Any>(
     override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         return delegate
             .invoke(exchange)
-            .checkpoint("[${commandAggregate.aggregateId}] Invoke Command[${exchange.message.id}] [CommandFunction]")
+            .checkpoint("[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]")
             .map {
                 it.toDomainEventStream(exchange.message, commandAggregate.version)
             }
