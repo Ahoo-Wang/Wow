@@ -19,6 +19,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 
@@ -28,7 +29,7 @@ fun Any.toDomainEventStream(
     header: Header = DefaultHeader.empty()
 ): DomainEventStream {
     header.inject(command)
-    val eventStreamId = GlobalIdGenerator.generateAsString()
+    val eventStreamId = generateGlobalId()
     val aggregateId = command.aggregateId
     val streamVersion = aggregateVersion + 1
     val createTime = System.currentTimeMillis()

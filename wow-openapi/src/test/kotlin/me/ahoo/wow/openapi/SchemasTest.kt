@@ -1,6 +1,8 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.core.util.Json
+import me.ahoo.wow.configuration.WowMetadata
+import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import org.hamcrest.CoreMatchers.equalTo
@@ -27,6 +29,12 @@ class SchemasTest {
         }
 
         Json.prettyPrint(schemas)
+    }
+
+    @Test
+    fun toResponse() {
+        val response = WowMetadata::class.java.toResponse()
+        assertThat(response.description, equalTo("Ok"))
     }
 }
 

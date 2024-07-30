@@ -16,7 +16,7 @@ package me.ahoo.wow.opentelemetry.aggregate
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.opentelemetry.TraceFilter
 

@@ -15,26 +15,30 @@ package me.ahoo.wow.example.transfer.domain;
 
 import me.ahoo.wow.example.transfer.api.AccountCreated;
 import me.ahoo.wow.example.transfer.api.CreateAccount;
-import me.ahoo.wow.test.AggregateVerifier;
 import org.junit.jupiter.api.Test;
 
-import static me.ahoo.wow.test.AggregateVerifier.aggregateVerifier;
+import static me.ahoo.wow.test.AggregateVerifier.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
 
 class AccountTest {
 
     @Test
     void createAccount() {
-        AggregateVerifier.aggregateVerifier(Account.class)
+        aggregateVerifier(Account.class, AccountState.class)
                 .given()
                 .when(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)
+                .expectEventIterator(eventIterator -> {
+                    assertThat(eventIterator.hasNext(), equalTo(true));
+                    var eventBody = eventIterator.nextEventBody(AccountCreated.class);
+                    assertThat(eventBody.name(), equalTo("name"));
+                    assertThat(eventBody.balance(), equalTo(100L));
+                    assertThat(eventIterator.hasNext(), equalTo(false));
+                })
                 .expectState(account -> {
-                    var state = (AccountState) account;
-                    assertThat(state.getName(), equalTo("name"));
-                    assertThat(state.getBalanceAmount(), equalTo(100L));
-                    return null;
+                    assertThat(account.getName(), equalTo("name"));
+                    assertThat(account.getBalanceAmount(), equalTo(100L));
                 })
                 .verify();
     }

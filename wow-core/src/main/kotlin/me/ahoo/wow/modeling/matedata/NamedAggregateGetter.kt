@@ -17,10 +17,15 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 
 interface NamedAggregateGetter<T> {
     fun getNamedAggregate(target: T): NamedAggregate
+}
+
+object SelfNamedAggregateGetter : NamedAggregateGetter<NamedAggregate> {
+    override fun getNamedAggregate(target: NamedAggregate): NamedAggregate = target.materialize() as NamedAggregate
 }
 
 data class MetadataNamedAggregateGetter<T>(val namedAggregate: NamedAggregate) : NamedAggregateGetter<T> {

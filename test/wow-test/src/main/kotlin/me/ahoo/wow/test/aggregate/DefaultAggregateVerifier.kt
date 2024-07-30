@@ -26,12 +26,14 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.test.validation.validate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.function.Consumer
 
 internal class DefaultGivenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
@@ -86,16 +88,22 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             metadata.state,
             commandAggregateId,
         ).map {
-            if (commandMessage.isCreate) {
-                return@map ExpectedResult(stateAggregate = it)
+            try {
+                commandMessage.body.validate()
+            } catch (throwable: Throwable) {
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
             }
 
-            if (it.initialized && events.isEmpty()) {
-                return@map ExpectedResult(stateAggregate = it)
+            if (commandMessage.isCreate) {
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
             }
 
             if (events.isEmpty()) {
+                if (it.initialized || commandMessage.allowCreate) {
+                    return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
+                }
                 return@map ExpectedResult(
+                    exchange = serverCommandExchange,
                     stateAggregate = it,
                     error = IllegalArgumentException(
                         "Non-create aggregate command[$command] given at least one sourcing event.",
@@ -115,10 +123,13 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             try {
                 it.onSourcing(domainEventStream)
             } catch (throwable: Throwable) {
-                return@map ExpectedResult(stateAggregate = it, error = throwable)
+                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
             }
-            ExpectedResult(stateAggregate = it)
+            ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
         }.flatMap { expectedResult ->
+            if (expectedResult.hasError) {
+                return@flatMap expectedResult.toMono()
+            }
             val commandAggregate = commandAggregateFactory.create(metadata, expectedResult.stateAggregate)
             commandAggregate.process(serverCommandExchange).map {
                 expectedResult.copy(
@@ -170,12 +181,49 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         )
     }
 
-    override fun then(): GivenStage<S> {
-        require(!verifiedResult.hasError) {
-            "An exception[${verifiedResult.error}] occurred in the verified result."
-        }
+    override fun then(verifyError: Boolean): GivenStage<S> {
+        verifyError(verifyError)
         return this
     }
+
+    private fun verifyError(verifyError: Boolean) {
+        if (verifyError) {
+            require(!verifiedResult.hasError) {
+                "An exception[${verifiedResult.error}] occurred in the verified result."
+            }
+        }
+    }
+
+    override fun fork(
+        verifyError: Boolean,
+        serviceProviderSupplier: (ServiceProvider) -> ServiceProvider,
+        commandAggregateFactorySupplier: () -> CommandAggregateFactory,
+        handle: GivenStage<S>.(ExpectedResult<S>) -> Unit
+    ): VerifiedStage<S> {
+        verifyError(verifyError)
+        val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
+        val forkedResult = verifiedResult.copy(stateAggregate = forkedStateAggregate)
+        val forkedServiceProvider = serviceProviderSupplier(serviceProvider)
+        val forkedCommandAggregateFactory = commandAggregateFactorySupplier()
+        val forkedGivenStage = DefaultVerifiedStage(
+            verifiedResult = forkedResult,
+            metadata = this.metadata,
+            commandAggregateFactory = forkedCommandAggregateFactory,
+            serviceProvider = forkedServiceProvider,
+        )
+        handle(forkedGivenStage, forkedResult)
+        return this
+    }
+}
+
+private fun <S : Any> verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>): StateAggregate<S> {
+    if (!stateAggregate.initialized) {
+        return stateAggregate
+    }
+    val serialized = stateAggregate.toJsonString()
+    val deserialized = serialized.toObject<StateAggregate<S>>()
+    assertThat(deserialized, equalTo(stateAggregate))
+    return deserialized
 }
 
 internal class DefaultExpectStage<C : Any, S : Any>(
@@ -185,20 +233,11 @@ internal class DefaultExpectStage<C : Any, S : Any>(
     private val expectedResultMono: Mono<ExpectedResult<S>>
 ) : ExpectStage<S> {
 
-    private val expectStates: MutableList<(ExpectedResult<S>) -> Unit> = mutableListOf()
+    private val expectStates: MutableList<Consumer<ExpectedResult<S>>> = mutableListOf()
 
-    override fun expect(expected: (ExpectedResult<S>) -> Unit): ExpectStage<S> {
+    override fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S> {
         expectStates.add(expected)
         return this
-    }
-
-    private fun verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>) {
-        if (!stateAggregate.initialized) {
-            return
-        }
-        val serialized = stateAggregate.toJsonString()
-        val deserialized = serialized.toObject<StateAggregate<S>>()
-        assertThat(deserialized, equalTo(stateAggregate))
     }
 
     override fun verify(): VerifiedStage<S> {
@@ -209,7 +248,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
                 verifyStateAggregateSerializable(it.stateAggregate)
                 expectedResult = it
                 for (expectState in expectStates) {
-                    expectState(it)
+                    expectState.accept(it)
                 }
             }
             .verifyComplete()

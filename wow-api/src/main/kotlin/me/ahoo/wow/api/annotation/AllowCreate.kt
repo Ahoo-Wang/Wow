@@ -18,7 +18,7 @@ import java.lang.annotation.Inherited
 /**
  * 当聚合根未创建时允许创建
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class AllowCreate

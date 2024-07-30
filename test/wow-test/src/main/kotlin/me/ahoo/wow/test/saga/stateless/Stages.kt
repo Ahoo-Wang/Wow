@@ -15,10 +15,12 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import java.util.function.Consumer
 
 /**
  * Stateless Saga:
@@ -26,27 +28,47 @@ import org.hamcrest.Matchers.*
  * 2. expect commands
  */
 interface WhenStage<T : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String = service.javaClass.toName()): WhenStage<T>
+    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): WhenStage<T>
+
+    fun <SERVICE : Any> inject(service: SERVICE): WhenStage<T> {
+        return inject(service, service.javaClass.toName())
+    }
+
+    fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
+
+    fun functionName(functionName: String): WhenStage<T> {
+        return functionFilter {
+            it.name == functionName
+        }
+    }
 
     /**
      * 1. 当订阅到领域事件时，生成聚合命令.
      */
-    fun `when`(event: Any, state: Any? = null): ExpectStage<T>
+    fun `when`(event: Any, state: Any?): ExpectStage<T>
+
+    fun `when`(event: Any): ExpectStage<T> {
+        return `when`(event = event, state = null)
+    }
+
+    fun whenEvent(event: Any, state: Any? = null): ExpectStage<T> {
+        return `when`(event = event, state = state)
+    }
 }
 
 interface ExpectStage<T : Any> {
-    fun expect(expected: (ExpectedResult<T>) -> Unit): ExpectStage<T>
+    fun expect(expected: Consumer<ExpectedResult<T>>): ExpectStage<T>
 
-    fun expectCommandStream(expected: (CommandStream) -> Unit): ExpectStage<T> {
+    fun expectCommandStream(expected: Consumer<CommandStream>): ExpectStage<T> {
         return expectNoError().expect {
             assertThat("Expect the command stream is not null.", it.commandStream, notNullValue())
-            expected(it.commandStream!!)
+            expected.accept(it.commandStream!!)
         }
     }
 
-    fun expectCommandIterator(expected: (CommandIterator) -> Unit): ExpectStage<T> {
+    fun expectCommandIterator(expected: Consumer<CommandIterator>): ExpectStage<T> {
         return expectCommandStream {
-            expected(CommandIterator(it.iterator()))
+            expected.accept(CommandIterator(it.iterator()))
         }
     }
 
@@ -61,17 +83,17 @@ interface ExpectStage<T : Any> {
     /**
      * 期望的第一个命令
      */
-    fun <C : Any> expectCommand(expected: (CommandMessage<C>) -> Unit): ExpectStage<T> {
+    fun <C : Any> expectCommand(expected: Consumer<CommandMessage<C>>): ExpectStage<T> {
         return expectCommandStream {
             assertThat("Expect the command stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
             @Suppress("UNCHECKED_CAST")
-            expected(it.first() as CommandMessage<C>)
+            expected.accept(it.first() as CommandMessage<C>)
         }
     }
 
-    fun <C : Any> expectCommandBody(expected: (C) -> Unit): ExpectStage<T> {
+    fun <C : Any> expectCommandBody(expected: Consumer<C>): ExpectStage<T> {
         return expectCommand {
-            expected(it.body)
+            expected.accept(it.body)
         }
     }
 
@@ -102,10 +124,10 @@ interface ExpectStage<T : Any> {
         }
     }
 
-    fun <E : Throwable> expectError(expected: (E) -> Unit): ExpectStage<T> {
+    fun <E : Throwable> expectError(expected: Consumer<E>): ExpectStage<T> {
         return expectError().expect {
             @Suppress("UNCHECKED_CAST")
-            expected(it.error as E)
+            expected.accept(it.error as E)
         }
     }
 
@@ -132,14 +154,22 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Decorator<Iterator<CommandMessage<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
+    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
         assertThat("Expect the next command.", hasNext(), equalTo(true))
         val nextCommand = next()
-        assertThat("Expect the command body type.", nextCommand.body, instanceOf(C::class.java))
+        assertThat("Expect the command body type.", nextCommand.body, instanceOf(commandType))
         return nextCommand as CommandMessage<C>
     }
 
+    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
+        return nextCommand(commandType).body
+    }
+
+    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
+        return nextCommand(C::class.java)
+    }
+
     inline fun <reified C : Any> nextCommandBody(): C {
-        return nextCommand<C>().body
+        return nextCommandBody(C::class.java)
     }
 }

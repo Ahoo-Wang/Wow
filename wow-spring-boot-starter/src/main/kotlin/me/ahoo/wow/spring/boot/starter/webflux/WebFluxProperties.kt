@@ -14,13 +14,23 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
-class WebFluxProperties(@DefaultValue("true") override var enabled: Boolean = true) : EnabledCapable {
+class WebFluxProperties(
+    @DefaultValue("true") override var enabled: Boolean = true,
+    var globalError: GlobalError = GlobalError()
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
+        const val GLOBAL_ERROR_ENABLED = "$PREFIX.global-error$ENABLED_SUFFIX_KEY"
     }
+
+    data class GlobalError(
+        @DefaultValue("true")
+        override var enabled: Boolean = true
+    ) : EnabledCapable
 }

@@ -23,17 +23,20 @@ import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
+import me.ahoo.wow.example.api.cart.MountedCommand
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 
 const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
-@AggregateRoot
+@AggregateRoot(commands = [MountedCommand::class])
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
 
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
-    fun onCommand(command: AddCartItem): Any {
+    fun onCommand(
+        command: AddCartItem
+    ): Any {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
             "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
         }

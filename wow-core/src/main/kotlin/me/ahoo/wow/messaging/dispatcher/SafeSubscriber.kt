@@ -56,8 +56,8 @@ abstract class SafeSubscriber<T : Any> : BaseSubscriber<T>(), Named {
     }
 
     override fun hookFinally(type: SignalType) {
-        if (log.isDebugEnabled) {
-            log.debug("[$name] Finally $type.")
+        if (log.isInfoEnabled) {
+            log.info("[$name] Finally $type.")
         }
     }
 }

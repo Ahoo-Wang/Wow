@@ -14,12 +14,12 @@
 package me.ahoo.wow.example.server.order
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition
-import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.query.SnapshotQueryService
+import me.ahoo.wow.query.query
+import me.ahoo.wow.query.singleQuery
+import me.ahoo.wow.query.toState
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -30,18 +30,15 @@ import reactor.core.publisher.Mono
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
-    private val stateAggregateRepository: StateAggregateRepository
+    private val queryService: SnapshotQueryService<OrderState>
 ) {
     @GetMapping("{tenantId}/{orderId}")
     fun onQuery(@PathVariable tenantId: String, @PathVariable orderId: String): Mono<OrderState> {
-        val metadata = aggregateMetadata<Order, OrderState>()
-        val aggregateId = metadata.aggregateId(id = orderId, tenantId = tenantId)
-        return stateAggregateRepository.load(aggregateId, metadata.state)
-            .filter {
-                it.initialized
+        return singleQuery {
+            condition {
+                tenantId(tenantId)
+                id(orderId)
             }
-            .map {
-                it.state
-            }.throwNotFoundIfEmpty()
+        }.query(queryService).toState().throwNotFoundIfEmpty()
     }
 }

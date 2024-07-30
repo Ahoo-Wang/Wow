@@ -2,6 +2,9 @@ package me.ahoo.wow.webflux.handler
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -31,14 +34,19 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns true.toString()
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(MOCK_AGGREGATE_METADATA, SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(
+            SagaVerifier.defaultCommandGateway(),
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
+        )
         commandHandler.handle(
             request,
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
+            MOCK_AGGREGATE_METADATA
         ).test()
             .expectNextCount(1)
             .verifyComplete()
@@ -56,14 +64,19 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns null
             every { principal() } returns mockk<Principal> {
                 every { name } returns GlobalIdGenerator.generateAsString()
             }.toMono()
         }
-        val commandHandler = CommandHandler(MOCK_AGGREGATE_METADATA, SagaVerifier.defaultCommandGateway())
+        val commandHandler = CommandHandler(
+            SagaVerifier.defaultCommandGateway(),
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
+        )
         commandHandler.handle(
             request,
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
+            MOCK_AGGREGATE_METADATA
         ).test()
             .verifyTimeout(Duration.ofMillis(110))
     }

@@ -18,22 +18,23 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MultipleMessageFunctionRegistrar
+import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
+abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> :
+    AggregateMessageDispatcher<E>() {
     companion object {
         private val log: Logger = LoggerFactory.getLogger(AbstractAggregateEventDispatcher::class.java)
     }
 
     abstract val functionRegistrar:
-        MultipleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
+        MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
     abstract val eventHandler: EventHandler
 
     override fun E.toGroupKey(): Int {
@@ -50,29 +51,20 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         exchange: E,
         event: DomainEvent<*>
     ): Mono<Void> {
-        val eventType: Class<*> = event.body.javaClass
-        val functions = functionRegistrar.getFunctions(eventType)
+        val functions = functionRegistrar.supportedFunctions(event)
             .filter {
-                if (!it.supportedTopics.contains(event.aggregateId.materialize())) {
-                    return@filter false
-                }
-                return@filter event.match(it)
-            }
+                event.match(it)
+            }.toSet()
         if (functions.isEmpty()) {
             if (log.isDebugEnabled) {
-                log.debug(
-                    "{} eventType[{}] not find any functions.Ignore this event:[{}].",
-                    event.aggregateId,
-                    eventType,
-                    event,
-                )
+                log.debug("Not find any functions.Ignore this event:[{}].", event.toJsonString())
             }
             return Mono.empty()
         }
         return Flux.fromIterable(functions)
             .flatMap { function ->
                 val eventExchange = exchange.createEventExchange(event)
-                    .setEventFunction(function)
+                    .setFunction(function)
                 eventHandler.handle(eventExchange)
             }.then()
     }

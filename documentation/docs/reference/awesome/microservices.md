@@ -8,4 +8,5 @@
 - [CoSec](https://github.com/Ahoo-Wang/CoSec): 基于 RBAC 和策略的多租户响应式安全框架
 - [CoCache](https://github.com/Ahoo-Wang/CoCache): 分布式一致性二级缓存框架
 - [Simba](https://github.com/Ahoo-Wang/Simba): 易用、灵活的分布式锁服务
+- [CoApi](https://github.com/Ahoo-Wang/CoApi): 简化 Spring 6 中 HTTP 客户端定义，提供零样板代码自动配置，让接口调用更便捷高效
 - [Nacos](https://github.com/alibaba/nacos): 阿里巴巴开源的一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台

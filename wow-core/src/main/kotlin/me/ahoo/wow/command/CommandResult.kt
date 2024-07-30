@@ -16,6 +16,7 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
@@ -33,20 +34,24 @@ data class CommandResult(
     override val requestId: String,
     override val commandId: String,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
-    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE
-) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo
+    override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
+    override val bindingErrors: List<BindingError> = emptyList(),
+    override val result: Map<String, Any> = emptyMap()
+) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         stage = this.stage,
         aggregateId = commandMessage.aggregateId.id,
-        contextName = contextName,
-        processorName = this.processorName,
+        contextName = function.contextName,
+        processorName = function.processorName,
         tenantId = commandMessage.aggregateId.tenantId,
         requestId = commandMessage.requestId,
         commandId = commandMessage.commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
+        bindingErrors = bindingErrors,
+        result = result
     )
 }
 
@@ -54,7 +59,8 @@ fun Throwable.toResult(
     commandMessage: CommandMessage<*>,
     contextName: String = commandMessage.contextName,
     processorName: String,
-    stage: CommandStage = CommandStage.SENT
+    stage: CommandStage = CommandStage.SENT,
+    result: Map<String, Any> = emptyMap()
 ): CommandResult {
     val errorInfo = toErrorInfo()
     return CommandResult(
@@ -67,5 +73,7 @@ fun Throwable.toResult(
         commandId = commandMessage.commandId,
         errorCode = errorInfo.errorCode,
         errorMsg = errorInfo.errorMsg,
+        bindingErrors = errorInfo.bindingErrors,
+        result = result
     )
 }

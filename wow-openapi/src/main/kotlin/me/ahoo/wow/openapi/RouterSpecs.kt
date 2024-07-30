@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.naming.getContextAlias
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -29,6 +30,8 @@ class RouterSpecs(
     private var built: Boolean = false
     private val openAPI = OpenAPI().apply {
         info = Info()
+            .title(currentContext.getContextAlias())
+            .description(currentContext.contextName)
         paths = Paths()
         components = Components()
     }

@@ -8,8 +8,8 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.SimpleDomainEventStream
 import me.ahoo.wow.event.toDomainEvent
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
@@ -38,7 +38,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }
@@ -61,7 +61,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }
@@ -88,7 +88,7 @@ class SendStateEventFilterTest {
             .verifyComplete()
 
         verify {
-            stateEventBus.send(any()) wasNot Called
+            stateEventBus wasNot Called
             next.filter(exchange)
         }
     }

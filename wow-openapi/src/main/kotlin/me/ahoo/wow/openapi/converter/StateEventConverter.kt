@@ -13,13 +13,9 @@
 
 package me.ahoo.wow.openapi.converter
 
-import io.swagger.v3.core.converter.AnnotatedType
-import io.swagger.v3.core.converter.ModelConverter
-import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.getRawClass
 import me.ahoo.wow.serialization.MessageRecords
 
 /**
@@ -28,19 +24,10 @@ import me.ahoo.wow.serialization.MessageRecords
  * @see me.ahoo.wow.serialization.event.EventStreamJsonSerializer
  * @see me.ahoo.wow.serialization.event.StateEventJsonSerializer
  */
-class StateEventConverter : ModelConverter {
-    override fun resolve(
-        type: AnnotatedType,
-        context: ModelConverterContext,
-        chain: Iterator<ModelConverter>
-    ): Schema<*>? {
-        if (!chain.hasNext()) {
-            return null
-        }
-        val resolvedSchema = chain.next().resolve(type, context, chain) ?: return null
-        if (!isStateEvent(type)) {
-            return resolvedSchema
-        }
+class StateEventConverter : TargetTypeModifyConverter() {
+    override val targetType: Class<*> = StateEvent::class.java
+
+    override fun modify(resolvedSchema: Schema<*>): Schema<*> {
         resolvedSchema.properties.remove(StateEvent<*>::operator.name)
         resolvedSchema.properties.remove(StateEvent<*>::eventTime.name)
         resolvedSchema.properties.remove(StateEvent<*>::eventId.name)
@@ -53,10 +40,5 @@ class StateEventConverter : ModelConverter {
         resolvedSchema.properties[MessageRecords.AGGREGATE_ID] = StringSchema()
         resolvedSchema.properties[MessageRecords.TENANT_ID] = StringSchema()
         return resolvedSchema
-    }
-
-    private fun isStateEvent(type: AnnotatedType): Boolean {
-        val rawClass = type.getRawClass() ?: return false
-        return rawClass == StateEvent::class.java
     }
 }

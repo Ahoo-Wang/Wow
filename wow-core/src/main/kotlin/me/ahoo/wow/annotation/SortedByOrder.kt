@@ -14,11 +14,11 @@
 package me.ahoo.wow.annotation
 
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import kotlin.reflect.full.findAnnotation
 
 fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
     val sortedByOrderList = this.map {
-        val order: Order = it.javaClass.scan() ?: Order()
+        val order: Order = it.javaClass.kotlin.findAnnotation<Order>() ?: Order()
         it to order
     }.sortedBy { it.second.value }
 

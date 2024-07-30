@@ -48,6 +48,11 @@ class CommandStageTest {
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.SENT, true),
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.PROCESSED, true),
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.EVENT_HANDLED, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.EVENT_HANDLED, false),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.SENT, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.PROCESSED, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.SAGA_HANDLED, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.EVENT_HANDLED, false),
             )
         }
 
@@ -73,6 +78,9 @@ class CommandStageTest {
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.SENT, true),
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.PROCESSED, true),
                 Arguments.arguments(CommandStage.EVENT_HANDLED, CommandStage.SNAPSHOT, false),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.SENT, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.PROCESSED, true),
+                Arguments.arguments(CommandStage.SAGA_HANDLED, CommandStage.SNAPSHOT, false),
             )
         }
     }

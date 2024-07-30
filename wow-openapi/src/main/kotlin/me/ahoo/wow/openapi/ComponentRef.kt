@@ -29,7 +29,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.configuration.namedBoundedContext
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.ComponentRef.Companion.COMPONENTS_REF
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
@@ -69,7 +69,7 @@ class SchemaRef(
     override val ref: Schema<*> = name.toRefSchema()
 
     companion object {
-        val COMPONENTS_SCHEMAS_REF: String = COMPONENTS_REF + "schemas/"
+        const val COMPONENTS_SCHEMAS_REF: String = COMPONENTS_REF + "schemas/"
         val ERROR_INFO = ErrorInfo::class.java.toSchemaRef()
 
         fun Class<out Enum<*>>.toSchemaRef(default: String? = null): SchemaRef {
@@ -99,7 +99,7 @@ class SchemaRef(
         }
 
         fun Class<*>.toSchemaName(): String? {
-            this.scan<io.swagger.v3.oas.annotations.media.Schema>()?.let {
+            kotlin.scanAnnotation<io.swagger.v3.oas.annotations.media.Schema>()?.let {
                 if (it.name.isNotBlank()) {
                     return it.name
                 }
@@ -122,13 +122,29 @@ class SchemaRef(
             return SchemaRef(schemaName, component, schemas)
         }
 
-        fun Class<*>.toSchemaRef(propertyName: String, propertyType: Class<*>): SchemaRef {
+        fun Class<*>.toSchemaRef(
+            propertyName: String,
+            propertyType: Class<*>,
+            isArray: Boolean = false
+        ): SchemaRef {
+            return toSchemaRef(propertyName, propertyType.toSchemaRef(), isArray)
+        }
+
+        fun Class<*>.toSchemaRef(
+            propertyName: String,
+            propertySchemaRef: SchemaRef,
+            isArray: Boolean = false
+        ): SchemaRef {
             val genericSchemaName = requireNotNull(this.toSchemaName())
             val genericSchemas = toSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
-            genericSchema.properties[propertyName] = propertyType.toSchemaRef().ref
-            val propertySchemas = propertyType.toSchemas()
-            val propertySchemaName = propertyType.toSchemaName()
+            if (isArray) {
+                genericSchema.properties[propertyName] = propertySchemaRef.ref.toArraySchema()
+            } else {
+                genericSchema.properties[propertyName] = propertySchemaRef.ref
+            }
+            val propertySchemas = propertySchemaRef.schemas
+            val propertySchemaName = propertySchemaRef.name
             val schemaName = propertySchemaName + simpleName
             genericSchema.name = schemaName
             val schemas = (genericSchemas + propertySchemas)
@@ -140,7 +156,7 @@ class SchemaRef(
 }
 
 fun Schema<*>.toContent(
-    name: String = "*",
+    name: String = "*/*",
     customize: (Content) -> Unit = {}
 ): Content {
     val content = Content()
@@ -273,8 +289,11 @@ class ResponseRef(override val name: String, override val component: ApiResponse
                 .content(this)
         }
 
-        fun Schema<*>.toResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
-            return toJsonContent().toResponse(description)
+        fun Schema<*>.toResponse(
+            mediaType: String = Https.MediaType.APPLICATION_JSON,
+            description: String = ErrorInfo.SUCCEEDED
+        ): ApiResponse {
+            return toContent(mediaType).toResponse(description)
         }
 
         fun Class<*>.toResponse(isArray: Boolean = false, description: String = ErrorInfo.SUCCEEDED): ApiResponse {
@@ -283,7 +302,7 @@ class ResponseRef(override val name: String, override val component: ApiResponse
                 responseSchema.toArraySchema()
             } else {
                 responseSchema
-            }.toResponse(description)
+            }.toResponse(description = description)
         }
 
         val BAD_REQUEST = ResponseRef(

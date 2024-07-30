@@ -12,17 +12,14 @@
  */
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.NamedBoundedContext
+
 interface MessageFunctionRegistrar<F : MessageFunction<*, *, *>> {
     val functions: Set<F>
     fun register(function: F)
     fun unregister(function: F)
-}
-
-interface SingleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> :
-    MessageFunctionRegistrar<F> {
-    fun getFunction(supportedType: Class<*>): F?
-}
-
-interface MultipleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunctionRegistrar<F> {
-    fun getFunctions(supportedType: Class<*>): Set<F>
+    fun <M> supportedFunctions(message: M): Sequence<F>
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate
 }

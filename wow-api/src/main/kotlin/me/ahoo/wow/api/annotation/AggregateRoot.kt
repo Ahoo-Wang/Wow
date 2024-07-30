@@ -13,13 +13,19 @@
 package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 /**
  * Aggregate Root tag.
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
-annotation class AggregateRoot
+annotation class AggregateRoot(
+    /**
+     * Mount commands to the aggregate root, mainly used for command rewriting scenarios. At the same time, it will generate command routes in OpenApi.
+     */
+    val commands: Array<KClass<*>> = []
+)

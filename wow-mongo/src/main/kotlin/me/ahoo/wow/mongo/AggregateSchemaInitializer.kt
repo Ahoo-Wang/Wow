@@ -18,7 +18,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.infra.accessor.method.reactive.toBlockable
+import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.slf4j.LoggerFactory

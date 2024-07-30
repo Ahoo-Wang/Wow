@@ -5,9 +5,9 @@ import io.mockk.mockk
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
+import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 

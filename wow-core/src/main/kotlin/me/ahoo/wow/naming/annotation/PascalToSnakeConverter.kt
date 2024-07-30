@@ -14,8 +14,9 @@
 package me.ahoo.wow.naming.annotation
 
 import me.ahoo.wow.api.annotation.Name
-import me.ahoo.wow.naming.NamingConverter
+import me.ahoo.wow.naming.NamingConverter.Companion.pascalToSnake
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 
 object PascalToSnakeConverter {
     private val typeAliases = ConcurrentHashMap<Class<*>, String>()
@@ -25,7 +26,7 @@ object PascalToSnakeConverter {
             if (name?.value?.isNotBlank() == true) {
                 name.value
             } else {
-                NamingConverter.PASCAL_TO_SNAKE.convert(type.simpleName)
+                type.simpleName.pascalToSnake()
             }
         }
     }
@@ -33,4 +34,8 @@ object PascalToSnakeConverter {
 
 fun Class<*>.toName(): String {
     return PascalToSnakeConverter.convert(this)
+}
+
+fun KClass<*>.toName(): String {
+    return this.java.toName()
 }

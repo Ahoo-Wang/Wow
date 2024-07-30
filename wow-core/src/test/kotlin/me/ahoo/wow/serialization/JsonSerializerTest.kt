@@ -29,7 +29,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.serialization.event.BodyTypeNotFoundDomainEvent
+import me.ahoo.wow.serialization.event.JsonDomainEvent
 import me.ahoo.wow.serialization.event.toDomainEventRecord
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -104,14 +104,16 @@ internal class JsonSerializerTest {
             mockEventJson.toJsonNode<ObjectNode>().toDomainEventRecord().toMutableDomainEventRecord()
         mutableDomainEventRecord.bodyType = "NotFoundClass"
         val failedDomainEvent = mutableDomainEventRecord.actual.toJsonString().toObject<DomainEvent<Any>>()
-        assertThat(mockEvent.id, equalTo(failedDomainEvent.id))
-        assertThat(failedDomainEvent.aggregateId, equalTo(failedDomainEvent.aggregateId))
-        assertThat(failedDomainEvent.revision, equalTo(failedDomainEvent.revision))
-        assertThat(failedDomainEvent, instanceOf(BodyTypeNotFoundDomainEvent::class.java))
-
+        assertThat(failedDomainEvent, instanceOf(JsonDomainEvent::class.java))
+        val failedJsonDomainEvent = failedDomainEvent as JsonDomainEvent
+        assertThat(failedJsonDomainEvent.id, equalTo(mockEvent.id))
+        assertThat(failedJsonDomainEvent.aggregateId, equalTo(mockEvent.aggregateId))
+        assertThat(failedJsonDomainEvent.bodyType, equalTo(mutableDomainEventRecord.bodyType))
+        assertThat(failedJsonDomainEvent.revision, equalTo(mutableDomainEventRecord.revision))
         val failedDomainEventJson = failedDomainEvent.toJsonString()
         val failedDomainEventRecord =
             failedDomainEventJson.toJsonNode<ObjectNode>().toDomainEventRecord().toMutableDomainEventRecord()
+        assertThat(failedDomainEventRecord.bodyType, equalTo(failedJsonDomainEvent.bodyType))
         failedDomainEventRecord.bodyType = MockAggregateCreated::class.java.name
         val mockEvent2 = failedDomainEventRecord.toDomainEvent()
         assertThat(mockEvent2, equalTo(mockEvent))

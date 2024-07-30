@@ -14,17 +14,15 @@
 package me.ahoo.wow.spring.saga
 
 import me.ahoo.wow.api.annotation.StatelessSaga
-import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.spring.AutoRegistrar
 import org.springframework.context.ApplicationContext
 
 class StatelessSagaProcessorAutoRegistrar(
     private val functionRegistrar: StatelessSagaFunctionRegistrar,
-    private val commandGateway: CommandGateway,
     applicationContext: ApplicationContext
 ) : AutoRegistrar<StatelessSaga>(StatelessSaga::class.java, applicationContext) {
     override fun register(component: Any) {
-        functionRegistrar.registerStatelessSaga(component, commandGateway)
+        functionRegistrar.registerProcessor(component)
     }
 }

@@ -1,0 +1,15 @@
+{
+  "condition": {
+    "field": "",
+    "operator": "AND",
+    "children": [
+      {
+        "field": "_id",
+        "operator": "EQ",
+        "value": "0TyzPmFV003j001"
+      }
+    ]
+  },
+  "sort": [],
+  "limit": 0
+}

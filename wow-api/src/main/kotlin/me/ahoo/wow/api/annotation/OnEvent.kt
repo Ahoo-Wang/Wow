@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import java.lang.annotation.Inherited
 
 const val DEFAULT_ON_EVENT_NAME = "onEvent"
@@ -22,7 +22,7 @@ const val DEFAULT_ON_EVENT_NAME = "onEvent"
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @OnMessage(FunctionKind.EVENT, DEFAULT_ON_EVENT_NAME)
 @MustBeDocumented

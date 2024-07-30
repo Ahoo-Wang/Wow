@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
@@ -21,23 +20,20 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
-    private val idempotencyChecker: IdempotencyChecker,
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
-    private val validator: Validator
+    private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
+    private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
 
-    private fun validate(command: CommandMessage<*>): Mono<Boolean> {
-        val constraintViolations = validator.validate(command.body)
-        if (constraintViolations.isNotEmpty()) {
-            return Mono.error(CommandValidationException(command, constraintViolations))
-        }
-        return idempotencyChecker.check(command.requestId)
+    private fun check(command: CommandMessage<*>): Mono<Boolean> {
+        return idempotencyCheckerProvider.getChecker(command.aggregateId.namedAggregate.materialize())
+            .check(command.requestId)
             .doOnNext {
                 /*
                  * 检查命令幂等性，如果该命令通过幂等性检查则返回 {@code true},表示该命令不重复.
@@ -49,7 +45,7 @@ class DefaultCommandGateway(
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        return validate(message).flatMap {
+        return check(message).flatMap {
             commandBus.send(message)
         }
     }
@@ -62,7 +58,7 @@ class DefaultCommandGateway(
         require(waitStrategy.stage != CommandStage.SENT) {
             "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
         }
-        return validate(command).flatMap {
+        return check(command).flatMap {
             command.header.injectWaitStrategy(
                 commandWaitEndpoint = commandWaitEndpoint.endpoint,
                 stage = waitStrategy.stage,

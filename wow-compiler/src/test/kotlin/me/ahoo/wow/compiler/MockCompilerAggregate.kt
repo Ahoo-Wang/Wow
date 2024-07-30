@@ -38,10 +38,11 @@ interface ExternalService
 @StaticTenantId
 interface CompilerAggregate
 
-@AggregateRoot
+interface MountedCommand
+
+@AggregateRoot(commands = [MountedCommand::class])
 class MockCompilerAggregate(val id: String) : CompilerAggregate {
     private var state: String? = null
-
     fun state(): String? {
         return state
     }
@@ -72,3 +73,7 @@ class MockCompilerAggregate(val id: String) : CompilerAggregate {
         state = changed.state
     }
 }
+
+data class Nest1State(val state: Nest2State)
+
+data class Nest2State(val state: String)

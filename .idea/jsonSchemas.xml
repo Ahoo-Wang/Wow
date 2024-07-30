@@ -12,10 +12,10 @@
               <option name="patterns">
                 <list>
                   <Item>
-                    <option name="path" value=".github/workflows/integration-test.yml" />
+                    <option name="path" value=".github/workflows/codecov.yml" />
                   </Item>
                   <Item>
-                    <option name="path" value=".github/workflows/codecov.yml" />
+                    <option name="path" value=".github/workflows/integration-test.yml" />
                   </Item>
                   <Item>
                     <option name="path" value=".github/workflows/package-deploy.yml" />
@@ -36,6 +36,45 @@
                   <Item>
                     <option name="pattern" value="true" />
                     <option name="path" value="wow-metadata.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+        <entry key="wow-pagination.schema">
+          <value>
+            <SchemaInfo>
+              <option name="generatedName" value="New Schema" />
+              <option name="name" value="wow-pagination.schema" />
+              <option name="relativePathToSchema" value="schema/wow-paged-query.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="*.pagination.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                  <Item>
+                    <option name="path" value="wow-query/src/test/resources/empty.pagination.json" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+        <entry key="wow-query.schema">
+          <value>
+            <SchemaInfo>
+              <option name="generatedName" value="New Schema" />
+              <option name="name" value="wow-query.schema" />
+              <option name="relativePathToSchema" value="schema/wow-query.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="*.query.json" />
                     <option name="mappingKind" value="Pattern" />
                   </Item>
                 </list>

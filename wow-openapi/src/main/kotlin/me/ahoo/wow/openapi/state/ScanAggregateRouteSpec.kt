@@ -16,11 +16,11 @@ package me.ahoo.wow.openapi.state
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 
@@ -29,7 +29,12 @@ class ScanAggregateRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>
 ) : BatchRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.scanAggregate"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName("aggregate")
+            .operation("scan")
+            .build()
     override val method: String
         get() = Https.Method.GET
 

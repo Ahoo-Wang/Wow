@@ -14,14 +14,16 @@
 package me.ahoo.wow.openapi.event
 
 import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
+import me.ahoo.wow.openapi.RouteIdSpec
 
 class ArchiveAggregateIdRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -29,15 +31,26 @@ class ArchiveAggregateIdRouteSpec(
 ) : AggregateRouteSpec {
 
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.archiveAggregateId"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName("aggregate_id")
+            .operation("archive")
+            .build()
+
     override val method: String
         get() = Https.Method.PUT
     override val summary: String
         get() = "Archive AggregateId"
     override val appendPathSuffix: String
         get() = "event/aggregate_id"
+
+    override val appendTenantPath: Boolean
+        get() = false
     override val responses: ApiResponses
-        get() = ApiResponses().withRequestTimeout()
+        get() = ApiResponses()
+            .addApiResponse(Https.Code.OK, ApiResponse().description(ErrorInfo.SUCCEEDED))
+            .withRequestTimeout()
 
     override val parameters: List<Parameter>
         get() = emptyList()

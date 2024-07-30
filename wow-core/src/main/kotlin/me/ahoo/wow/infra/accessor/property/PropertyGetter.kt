@@ -13,30 +13,26 @@
 
 package me.ahoo.wow.infra.accessor.property
 
-import me.ahoo.wow.infra.accessor.field.FieldGetter
-import me.ahoo.wow.infra.accessor.method.MethodAccessor
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import kotlin.reflect.KProperty1
 
 fun interface PropertyGetter<in T, V> {
-    operator fun get(target: T): V
+    operator fun get(receiver: T): V
 }
 
-class StaticPropertyGetter<in T, V>(val value: V) : PropertyGetter<T, V> {
+class StaticPropertyGetter<T, V>(val value: V) : PropertyGetter<T, V> {
 
-    override fun get(target: T): V {
+    override fun get(receiver: T): V {
         return value
     }
 }
 
-class FieldPropertyGetter<in T, V>(private val fieldGetter: FieldGetter<T, V>) : PropertyGetter<T, V> {
-
-    override fun get(target: T): V {
-        return fieldGetter[target]
+class SimplePropertyGetter<T, V>(val property: KProperty1<T, V>) : PropertyGetter<T, V> {
+    init {
+        property.ensureAccessible()
     }
-}
 
-class MethodPropertyGetter<in T, V>(private val methodAccessor: MethodAccessor<T, V>) : PropertyGetter<T, V> {
-
-    override fun get(target: T): V {
-        return methodAccessor.invoke(target)
+    override fun get(receiver: T): V {
+        return property.get(receiver)
     }
 }

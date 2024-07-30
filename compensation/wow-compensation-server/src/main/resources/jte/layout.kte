@@ -14,7 +14,7 @@
 @param state: ReadOnlyStateAggregate<IExecutionFailedState>
 
 !{val root = state.state}
-!{val processor = root.processor}
+!{val function = root.function}
 !{val eventId = root.eventId}
 !{val retryState = root.retryState}
 !{val statusStyle = when(root.status) {
@@ -30,9 +30,11 @@
 }
 }
 
+
 # ${title} - ${retryState.retries}
 - Id：${root.toNavAsMarkdown(host)}
-- Processor: ${processor.processorName}@${processor.contextName}
+- Processor: ${function.processorName}@${function.contextName}
+- Function: ${function.name}
 - ExecuteAt: ${LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))}
 - Recoverable: <font color="${recoverableStyle}">${root.recoverable}</font>
 ## Event Id

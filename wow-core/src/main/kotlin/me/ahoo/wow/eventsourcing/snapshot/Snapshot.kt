@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
@@ -25,3 +26,21 @@ data class SimpleSnapshot<S : Any>(
 ) : Snapshot<S>,
     ReadOnlyStateAggregate<S> by delegate,
     Decorator<ReadOnlyStateAggregate<S>>
+
+fun <S : Any> Snapshot<S>.materialize(): MaterializedSnapshot<S> {
+    return MaterializedSnapshot(
+        contextName = aggregateId.contextName,
+        aggregateName = aggregateId.aggregateName,
+        tenantId = aggregateId.tenantId,
+        aggregateId = aggregateId.id,
+        version = version,
+        eventId = eventId,
+        firstOperator = firstOperator,
+        operator = operator,
+        firstEventTime = firstEventTime,
+        eventTime = eventTime,
+        state = state,
+        snapshotTime = snapshotTime,
+        deleted = deleted
+    )
+}

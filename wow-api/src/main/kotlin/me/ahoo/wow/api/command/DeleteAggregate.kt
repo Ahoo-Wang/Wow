@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.Summary
 
 /**
  * @see me.ahoo.wow.api.event.AggregateDeleted
+ * @see me.ahoo.wow.api.event.AggregateRecovered
  */
 interface DeleteAggregate
 

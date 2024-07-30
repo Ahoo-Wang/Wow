@@ -15,15 +15,16 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.annotations.tags.Tag
 import io.swagger.v3.oas.annotations.tags.Tags
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scan
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 
 object Tags {
     fun Class<*>.toTags(): Set<String> {
         val tags = mutableSetOf<String>()
-        scan<Tag>()?.let {
+
+        kotlin.scanAnnotation<Tag>()?.let {
             tags.add(it.name)
         }
-        scan<Tags>()?.let { values ->
+        kotlin.scanAnnotation<Tags>()?.let { values ->
             tags.addAll(values.value.map { it.name })
         }
         return tags

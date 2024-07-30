@@ -14,8 +14,10 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleStateDomainEventExchange
@@ -23,6 +25,7 @@ import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.accessor.constructor.InjectableObjectFactory
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
@@ -32,15 +35,19 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
 import java.lang.reflect.Constructor
+import java.util.function.Consumer
 
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
     private val serviceProvider: ServiceProvider,
-    private val commandGateway: CommandGateway
+    private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory
 ) : WhenStage<T> {
     companion object {
         const val STATELESS_SAGA_COMMAND_ID = "__StatelessSagaVerifier__"
     }
+
+    private var functionFilter: (MessageFunction<*, *, *>) -> Boolean = { true }
 
     private fun toDomainEvent(event: Any): DomainEvent<*> {
         if (event is DomainEvent<*>) {
@@ -58,20 +65,34 @@ internal class DefaultWhenStage<T : Any>(
         return this
     }
 
+    override fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T> {
+        functionFilter = filter
+        return this
+    }
+
     @Suppress("UNCHECKED_CAST")
     override fun `when`(event: Any, state: Any?): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
-        val handlerRegistrar = StatelessSagaFunctionRegistrar()
-        handlerRegistrar.registerStatelessSaga(processor, commandGateway)
+        val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway, commandMessageFactory)
+        handlerRegistrar.registerProcessor(processor)
         val eventExchange = toEventExchange(event, state)
-        val expectedResultMono = handlerRegistrar.getFunctions(eventExchange.message.body.javaClass)
-            .first()
+        val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
+            .filter {
+                if (state != null) {
+                    it.functionKind == FunctionKind.STATE_EVENT
+                } else {
+                    it.functionKind == FunctionKind.EVENT
+                }
+            }
+            .filter(functionFilter)
+            .single()
             .invoke(eventExchange)
+            .ofType(CommandStream::class.java)
             .map {
                 ExpectedResult(
                     processor = processor,
-                    commandStream = it as CommandStream,
+                    commandStream = it,
                 )
             }
             .onErrorResume {
@@ -109,9 +130,9 @@ internal class DefaultWhenStage<T : Any>(
 }
 
 internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<ExpectedResult<T>>) : ExpectStage<T> {
-    private val expectStates: MutableList<(ExpectedResult<T>) -> Unit> = mutableListOf()
+    private val expectStates: MutableList<Consumer<ExpectedResult<T>>> = mutableListOf()
 
-    override fun expect(expected: (ExpectedResult<T>) -> Unit): ExpectStage<T> {
+    override fun expect(expected: Consumer<ExpectedResult<T>>): ExpectStage<T> {
         expectStates.add(expected)
         return this
     }
@@ -121,7 +142,7 @@ internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<Expe
             .test()
             .consumeNextWith {
                 for (expectState in expectStates) {
-                    expectState(it)
+                    expectState.accept(it)
                 }
             }
             .verifyComplete()

@@ -18,12 +18,19 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
+import me.ahoo.wow.command.factory.CommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.tck.mock.MockChangeAggregate
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 internal class CommandAutoConfigurationTest {
 
@@ -34,12 +41,15 @@ internal class CommandAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
+            .withBean(CommandBuilderRewriter::class.java, { MockCommandBuilderRewriter() })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(InMemoryCommandBus::class.java)
+                    .hasSingleBean(CommandBuilderRewriterRegistry::class.java)
+                    .hasSingleBean(CommandMessageFactory::class.java)
             }
     }
 
@@ -56,5 +66,14 @@ internal class CommandAutoConfigurationTest {
                     .hasSingleBean(LocalCommandBus::class.java)
                     .hasSingleBean(LocalFirstCommandBus::class.java)
             }
+    }
+}
+
+class MockCommandBuilderRewriter : CommandBuilderRewriter {
+    override val supportedCommandType: Class<MockChangeAggregate>
+        get() = MockChangeAggregate::class.java
+
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+        return commandBuilder.toMono()
     }
 }

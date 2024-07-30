@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import java.lang.annotation.Inherited
 
 /**
@@ -21,7 +21,7 @@ import java.lang.annotation.Inherited
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class OnMessage(

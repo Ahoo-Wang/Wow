@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.annotation.commandMetadata
+import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -63,31 +64,15 @@ fun <C : Any> C.toCommandMessage(
     )
 }
 
-@Deprecated(
-    "Please use toCommandMessage instead.",
-    replaceWith = ReplaceWith(
-        "toCommandMessage(id, requestId, aggregateId, tenantId, aggregateVersion, namedAggregate, header, createTime)"
-    )
-)
-@Suppress("LongParameterList")
-fun <C : Any> C.asCommandMessage(
-    id: String = GlobalIdGenerator.generateAsString(),
-    requestId: String? = null,
-    aggregateId: String? = null,
-    tenantId: String? = null,
-    aggregateVersion: Int? = null,
-    namedAggregate: NamedAggregate? = null,
-    header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
-): CommandMessage<C> {
-    return toCommandMessage(
-        id,
-        requestId,
-        aggregateId,
-        tenantId,
-        aggregateVersion,
-        namedAggregate,
-        header,
-        createTime
+fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
+    return this.bodyAs<C>().toCommandMessage(
+        id = id,
+        requestId = requestId,
+        aggregateId = aggregateId,
+        tenantId = tenantId,
+        aggregateVersion = aggregateVersion,
+        namedAggregate = namedAggregate,
+        header = header,
+        createTime = createTime
     )
 }

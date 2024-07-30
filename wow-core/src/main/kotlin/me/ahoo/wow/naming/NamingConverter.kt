@@ -25,6 +25,10 @@ interface NamingConverter {
     companion object {
         @JvmField
         val PASCAL_TO_SNAKE: NamingConverter = SimpleNamingConverter(PascalCaseStrategy, SnakeCaseStrategy)
+
+        fun String.pascalToSnake(): String {
+            return PASCAL_TO_SNAKE.convert(this)
+        }
     }
 }
 

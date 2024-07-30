@@ -24,7 +24,7 @@ import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -45,7 +45,7 @@ class RegenerateSnapshotHandlerFunction(
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
+        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         return handler.handle(aggregateId)

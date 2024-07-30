@@ -191,7 +191,7 @@
             <ellipse cx="389.2121" cy="650.2701" fill="#F1F1F1" rx="91.2221" ry="20.6444"
                      style="stroke:#181818;stroke-width:0.5;"/>
             <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="144"
-                  x="317.2121" y="653.5611">ChangeFunctionKind
+                  x="317.2121" y="653.5611">ChangeFunction
             </text>
         </g><!--entity Subscriber-->
         <g id="elem_Subscriber">
@@ -287,10 +287,10 @@
             <polygon fill="#181818"
                      points="454.55,565.4156,463.9175,568.457,459.5228,564.8951,463.0847,560.5005,454.55,565.4156"
                      style="stroke:#181818;stroke-width:1.0;"/>
-        </g><!--reverse link ChangeFunctionKind to Developer-->
+        </g><!--reverse link ChangeFunction to Developer-->
         <g id="link_ChangeFunctionKind_Developer">
             <path d="M484.6915,655.5173 C544.3115,663.1473 614.73,681.8056 663.43,730.2656 C716.09,782.6656 729.19,873.1456 732.24,924.5756 "
-                  fill="none" id="ChangeFunctionKind-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
+                  fill="none" id="ChangeFunction-backto-Developer" style="stroke:#181818;stroke-width:1.0;"/>
             <polygon fill="#181818"
                      points="478.74,654.7556,487.1594,659.8657,483.6996,655.3903,488.175,651.9305,478.74,654.7556"
                      style="stroke:#181818;stroke-width:1.0;"/>

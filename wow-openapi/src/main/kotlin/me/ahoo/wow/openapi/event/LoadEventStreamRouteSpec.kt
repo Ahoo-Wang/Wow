@@ -19,13 +19,13 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
@@ -37,7 +37,11 @@ class LoadEventStreamRouteSpec(
 ) : AggregateRouteSpec {
 
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.loadEventStream"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName("event_stream")
+            .operation("load").build()
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean

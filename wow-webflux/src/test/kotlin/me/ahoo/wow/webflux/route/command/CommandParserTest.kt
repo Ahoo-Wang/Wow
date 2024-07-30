@@ -2,6 +2,9 @@ package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
@@ -24,17 +27,20 @@ class CommandParserTest {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { headers().firstHeader(CommandHeaders.AGGREGATE_VERSION) } returns 1.toString()
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
+            every { headers().firstHeader(CommandHeaders.TENANT_ID) } returns null
             every { headers().firstHeader(CommandHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandHeaders.REQUEST_ID) } returns null
             every { principal() } returns Mono.empty()
             every { headers().firstHeader(CommandHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
+            every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns false.toString()
         }
         request.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             commandBody = MockCreateAggregate(
                 id = GlobalIdGenerator.generateAsString(),
                 data = GlobalIdGenerator.generateAsString(),
-            )
+            ),
+            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         ).test()
             .expectNextCount(1)
             .verifyComplete()

@@ -21,33 +21,30 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import java.time.Duration
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
-val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofSeconds(1)
 private val LOG = LoggerFactory.getLogger(InMemoryMessageBus::class.java)
 
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate {
-    val busyLoopingDuration: Duration = DEFAULT_BUSY_LOOPING_DURATION
     abstract val sinkSupplier: (NamedAggregate) -> Sinks.Many<M>
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
     private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> {
         return sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
     }
 
+    private val sender = Schedulers.newSingle(this::class.java.simpleName)
+
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable {
+        return Mono.fromRunnable<Void?> {
             if (LOG.isDebugEnabled) {
                 LOG.debug("Send {}.", message)
             }
             message.withReadOnly()
             val sink = computeSink(message)
-            sink.emitNext(
-                message,
-                Sinks.EmitFailureHandler.busyLooping(busyLoopingDuration),
-            )
-        }
+            sink.tryEmitNext(message).orThrow()
+        }.subscribeOn(sender)
     }
 
     abstract fun M.createExchange(): E

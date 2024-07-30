@@ -12,24 +12,22 @@
  */
 package me.ahoo.wow.infra.reflection
 
-import java.lang.reflect.Constructor
-import java.lang.reflect.Field
-import java.lang.reflect.Method
+import kotlin.reflect.KFunction
+import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
 
 /**
- * ClassVisitor .
- * currentClass start ->  visitClass -> visitField ->  visitConstructor -> visitMethod -> Superclass .... -> end Object.class
- *
+ * KClass Visitor .
  * @author ahoo wang
  */
 
-interface ClassVisitor : VisitorLifeCycle {
+interface ClassVisitor<T> : VisitorLifeCycle {
 
-    fun visitClass(currentClass: Class<*>) = Unit
+    fun visitType(type: KType) = Unit
 
-    fun visitField(field: Field) = Unit
+    fun visitProperty(property: KProperty1<T, *>) = Unit
 
-    fun visitConstructor(constructor: Constructor<*>) = Unit
+    fun visitConstructor(constructor: KFunction<*>) = Unit
 
-    fun visitMethod(method: Method) = Unit
+    fun visitFunction(function: KFunction<*>) = Unit
 }

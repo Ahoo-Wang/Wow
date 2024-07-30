@@ -20,12 +20,12 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -39,6 +39,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -103,7 +104,7 @@ class AggregateAutoConfiguration {
 
     @Bean
     fun commandFilterChain(
-        filters: List<Filter<ServerCommandExchange<*>>>
+        filters: List<ExchangeFilter<ServerCommandExchange<*>>>
     ): FilterChain<ServerCommandExchange<*>> {
         return FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilters(filters)
@@ -132,6 +133,7 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun aggregateDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
         aggregateProcessorFactory: AggregateProcessorFactory,

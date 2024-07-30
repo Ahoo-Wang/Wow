@@ -13,6 +13,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -21,14 +22,19 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
+import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
@@ -36,9 +42,18 @@ import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
@@ -53,8 +68,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
+import org.springframework.lang.Nullable
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.WebExceptionHandler
 
 /**
  * WebFlux Auto Configuration .
@@ -71,6 +88,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 class WebFluxAutoConfiguration {
     companion object {
         const val COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandWaitHandlerFunctionFactory"
+        const val COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandFacadeHandlerFunctionFactory"
         const val LOAD_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadAggregateHandlerFunctionFactory"
         const val LOAD_VERSIONED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "loadVersionedAggregateHandlerFunctionFactory"
@@ -80,6 +98,15 @@ class WebFluxAutoConfiguration {
         const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
+        const val PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "pagedQuerySnapshotHandlerFunctionFactory"
+        const val PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "pagedQuerySnapshotStateHandlerFunctionFactory"
+        const val LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "listQuerySnapshotHandlerFunctionFactory"
+        const val LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "listQuerySnapshotStateHandlerFunctionFactory"
+        const val COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countSnapshotHandlerFunctionFactory"
+        const val SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotHandlerFunctionFactory"
+        const val SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "singleSnapshotStateHandlerFunctionFactory"
         const val REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "regenerateSnapshotHandlerFunctionFactory"
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
@@ -90,6 +117,9 @@ class WebFluxAutoConfiguration {
             "stateEventCompensateHandlerFunctionFactory"
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
+        const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
+        const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
+        const val GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "getWowMetadataHandlerFunctionFactory"
     }
 
     @Bean
@@ -99,12 +129,33 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnWebfluxGlobalErrorEnabled
+    fun globalExceptionHandler(): WebExceptionHandler {
+        return GlobalExceptionHandler
+    }
+
+    @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandWaitHandlerFunctionFactory(
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandWaitHandlerFunctionFactory {
-        return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar)
+        return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar = waitStrategyRegistrar)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun commandFacadeHandlerFunctionFactory(
+        commandGateway: CommandGateway,
+        commandMessageFactory: CommandMessageFactory,
+        exceptionHandler: ExceptionHandler,
+    ): CommandFacadeHandlerFunctionFactory {
+        return CommandFacadeHandlerFunctionFactory(
+            commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -114,7 +165,10 @@ class WebFluxAutoConfiguration {
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
     ): LoadAggregateHandlerFunctionFactory {
-        return LoadAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+        return LoadAggregateHandlerFunctionFactory(
+            stateAggregateRepository = stateAggregateRepository,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -124,7 +178,10 @@ class WebFluxAutoConfiguration {
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
     ): LoadVersionedAggregateHandlerFunctionFactory {
-        return LoadVersionedAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+        return LoadVersionedAggregateHandlerFunctionFactory(
+            stateAggregateRepository = stateAggregateRepository,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -134,7 +191,10 @@ class WebFluxAutoConfiguration {
         stateAggregateRepository: StateAggregateRepository,
         exceptionHandler: ExceptionHandler
     ): IdsQueryAggregateHandlerFunctionFactory {
-        return IdsQueryAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler)
+        return IdsQueryAggregateHandlerFunctionFactory(
+            stateAggregateRepository = stateAggregateRepository,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -144,7 +204,7 @@ class WebFluxAutoConfiguration {
         eventStore: EventStore,
         exceptionHandler: ExceptionHandler
     ): ArchiveAggregateIdHandlerFunctionFactory {
-        return ArchiveAggregateIdHandlerFunctionFactory(eventStore, exceptionHandler)
+        return ArchiveAggregateIdHandlerFunctionFactory(eventStore = eventStore, exceptionHandler = exceptionHandler)
     }
 
     @Bean
@@ -155,7 +215,11 @@ class WebFluxAutoConfiguration {
         eventStore: EventStore,
         exceptionHandler: ExceptionHandler
     ): ScanAggregateHandlerFunctionFactory {
-        return ScanAggregateHandlerFunctionFactory(stateAggregateRepository, eventStore, exceptionHandler)
+        return ScanAggregateHandlerFunctionFactory(
+            stateAggregateRepository = stateAggregateRepository,
+            eventStore = eventStore,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -165,7 +229,7 @@ class WebFluxAutoConfiguration {
         eventStore: EventStore,
         exceptionHandler: ExceptionHandler
     ): AggregateTracingHandlerFunctionFactory {
-        return AggregateTracingHandlerFunctionFactory(eventStore, exceptionHandler)
+        return AggregateTracingHandlerFunctionFactory(eventStore = eventStore, exceptionHandler = exceptionHandler)
     }
 
     @Bean
@@ -175,7 +239,101 @@ class WebFluxAutoConfiguration {
         snapshotRepository: SnapshotRepository,
         exceptionHandler: ExceptionHandler
     ): LoadSnapshotHandlerFunctionFactory {
-        return LoadSnapshotHandlerFunctionFactory(snapshotRepository, exceptionHandler)
+        return LoadSnapshotHandlerFunctionFactory(
+            snapshotRepository = snapshotRepository,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun listQuerySnapshotHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): ListQuerySnapshotHandlerFunctionFactory {
+        return ListQuerySnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun listQuerySnapshotStateHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): ListQuerySnapshotStateHandlerFunctionFactory {
+        return ListQuerySnapshotStateHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun pagedQuerySnapshotHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): PagedQuerySnapshotHandlerFunctionFactory {
+        return PagedQuerySnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun pagedQuerySnapshotStateHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): PagedQuerySnapshotStateHandlerFunctionFactory {
+        return PagedQuerySnapshotStateHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun singleSnapshotHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): SingleSnapshotHandlerFunctionFactory {
+        return SingleSnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun singleSnapshotStateHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): SingleSnapshotStateHandlerFunctionFactory {
+        return SingleSnapshotStateHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun countSnapshotHandlerFunctionFactory(
+        snapshotQueryHandler: SnapshotQueryHandler,
+        exceptionHandler: ExceptionHandler
+    ): CountSnapshotHandlerFunctionFactory {
+        return CountSnapshotHandlerFunctionFactory(
+            snapshotQueryHandler = snapshotQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -188,10 +346,10 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): RegenerateSnapshotHandlerFunctionFactory {
         return RegenerateSnapshotHandlerFunctionFactory(
-            stateAggregateFactory,
-            eventStore,
-            snapshotRepository,
-            exceptionHandler
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            snapshotRepository = snapshotRepository,
+            exceptionHandler = exceptionHandler
         )
     }
 
@@ -205,10 +363,10 @@ class WebFluxAutoConfiguration {
         exceptionHandler: ExceptionHandler
     ): BatchRegenerateSnapshotHandlerFunctionFactory {
         return BatchRegenerateSnapshotHandlerFunctionFactory(
-            stateAggregateFactory,
-            eventStore,
-            snapshotRepository,
-            exceptionHandler
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            snapshotRepository = snapshotRepository,
+            exceptionHandler = exceptionHandler
         )
     }
 
@@ -220,7 +378,11 @@ class WebFluxAutoConfiguration {
         stateEventCompensator: StateEventCompensator,
         exceptionHandler: ExceptionHandler
     ): ResendStateEventFunctionFactory {
-        return ResendStateEventFunctionFactory(eventStore, stateEventCompensator, exceptionHandler)
+        return ResendStateEventFunctionFactory(
+            eventStore = eventStore,
+            stateEventCompensator = stateEventCompensator,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -230,7 +392,10 @@ class WebFluxAutoConfiguration {
         eventCompensator: DomainEventCompensator,
         exceptionHandler: ExceptionHandler
     ): DomainEventCompensateHandlerFunctionFactory {
-        return DomainEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
+        return DomainEventCompensateHandlerFunctionFactory(
+            eventCompensator = eventCompensator,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -240,7 +405,10 @@ class WebFluxAutoConfiguration {
         eventCompensator: StateEventCompensator,
         exceptionHandler: ExceptionHandler
     ): StateEventCompensateHandlerFunctionFactory {
-        return StateEventCompensateHandlerFunctionFactory(eventCompensator, exceptionHandler)
+        return StateEventCompensateHandlerFunctionFactory(
+            eventCompensator = eventCompensator,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
@@ -248,16 +416,51 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandHandlerFunctionFactory(
         commandGateway: CommandGateway,
+        commandMessageFactory: CommandMessageFactory,
         exceptionHandler: ExceptionHandler,
     ): CommandHandlerFunctionFactory {
-        return CommandHandlerFunctionFactory(commandGateway, exceptionHandler, DEFAULT_TIME_OUT)
+        return CommandHandlerFunctionFactory(
+            commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory,
+            exceptionHandler = exceptionHandler,
+            timeout = DEFAULT_TIME_OUT
+        )
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadEventStreamHandlerFunctionFactory(eventStore: EventStore): LoadEventStreamHandlerFunctionFactory {
-        return LoadEventStreamHandlerFunctionFactory(eventStore)
+        return LoadEventStreamHandlerFunctionFactory(eventStore = eventStore)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun globalIdHandlerFunctionFactory(): GlobalIdHandlerFunctionFactory {
+        return GlobalIdHandlerFunctionFactory()
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun generateBIScriptHandlerFunctionFactory(
+        @Nullable kafkaProperties: KafkaProperties?
+    ): GenerateBIScriptHandlerFunctionFactory {
+        if (kafkaProperties == null) {
+            return GenerateBIScriptHandlerFunctionFactory()
+        }
+        return GenerateBIScriptHandlerFunctionFactory(
+            kafkaBootstrapServers = kafkaProperties.bootstrapServersToString(),
+            topicPrefix = kafkaProperties.topicPrefix
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun getWowMetadataHandlerFunctionFactory(): GetWowMetadataHandlerFunctionFactory {
+        return GetWowMetadataHandlerFunctionFactory()
     }
 
     @Bean

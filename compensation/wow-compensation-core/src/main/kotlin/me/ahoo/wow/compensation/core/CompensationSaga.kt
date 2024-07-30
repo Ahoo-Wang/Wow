@@ -15,7 +15,7 @@ package me.ahoo.wow.compensation.core
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.StatelessSaga
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
@@ -49,10 +49,23 @@ class CompensationSaga(
         }
         val eventAggregateId = compensationPrepared.eventId.aggregateId
         val eventVersion = compensationPrepared.eventId.version
-        val target = CompensationTarget(id = aggregateId.id, processor = compensationPrepared.processor)
-        return when (compensationPrepared.functionKind) {
-            FunctionKind.EVENT -> domainEventCompensator.compensate(eventAggregateId, eventVersion, target).then()
-            FunctionKind.STATE_EVENT -> stateEventCompensator.compensate(eventAggregateId, eventVersion, target).then()
+        val target = CompensationTarget(
+            id = aggregateId.id,
+            function = compensationPrepared.function
+        )
+        return when (compensationPrepared.function.functionKind) {
+            FunctionKind.EVENT -> domainEventCompensator.compensate(
+                aggregateId = eventAggregateId,
+                version = eventVersion,
+                target = target
+            ).then()
+
+            FunctionKind.STATE_EVENT -> stateEventCompensator.compensate(
+                aggregateId = eventAggregateId,
+                version = eventVersion,
+                target = target
+            ).then()
+
             else -> {
                 Mono.empty()
             }

@@ -15,11 +15,13 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -28,6 +30,7 @@ class DefaultDeleteAggregateFunction<C : Any>(
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultDeleteAggregate::class.java
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = commandAggregate.commandRoot
     override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND

@@ -3,14 +3,14 @@ package me.ahoo.wow.compensation.core
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.handler.FilterChain
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -82,6 +82,7 @@ class CompensationFilterTest {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
             every { processorName } returns "processorName"
+            every { name } returns "name"
             every { getAnnotation(Retry::class.java) } returns Retry(true, 1, 1, 1)
         }
         val exchange = mockk<DomainEventExchange<*>> {

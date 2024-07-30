@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.ApplyRetrySpec
-import me.ahoo.wow.compensation.api.ChangeFunctionKind
+import me.ahoo.wow.compensation.api.ChangeFunction
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
 import me.ahoo.wow.compensation.api.ExecutionFailedApplied
@@ -26,7 +26,7 @@ import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
-import me.ahoo.wow.compensation.api.FunctionKindChanged
+import me.ahoo.wow.compensation.api.FunctionChanged
 import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
@@ -44,14 +44,14 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         nextRetryAtCalculator: NextRetryAtCalculator
     ): ExecutionFailedCreated {
         val retryState = nextRetryAtCalculator.nextRetryState(retrySpec, 0, command.executeAt)
+        val commandRetrySpec = command.retrySpec ?: retrySpec.materialize()
         return ExecutionFailedCreated(
             eventId = command.eventId,
-            processor = command.processor,
-            functionKind = command.functionKind,
+            function = command.function,
             error = command.error,
             executeAt = command.executeAt,
             retryState = retryState,
-            retrySpec = retrySpec.materialize(),
+            retrySpec = commandRetrySpec,
             recoverable = command.recoverable
         )
     }
@@ -82,8 +82,7 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
         val retryState = nextRetryAtCalculator.nextRetryState(this.state.retrySpec, retries)
         return CompensationPrepared(
             eventId = this.state.eventId,
-            processor = this.state.processor,
-            functionKind = this.state.functionKind,
+            function = this.state.function,
             retryState = retryState
         )
     }
@@ -124,10 +123,16 @@ class ExecutionFailed(private val state: ExecutionFailedState) {
     }
 
     @OnCommand
-    fun onChangeFunctionKind(command: ChangeFunctionKind): FunctionKindChanged {
-        require(this.state.functionKind != command.functionKind) {
-            "ExecutionFailed functionKind is already changed to ${this.state.functionKind}."
+    fun onChangeFunctionKind(command: ChangeFunction): FunctionChanged {
+        require(!state.function.isSameFunction(command)) {
+            "ExecutionFailed function is already changed to ${state.function}."
         }
-        return FunctionKindChanged(command.functionKind)
+        return FunctionChanged(
+            functionKind = command.functionKind,
+            contextName = command.contextName,
+            processorName = command.processorName,
+            name = command.name
+
+        )
     }
 }

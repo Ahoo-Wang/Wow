@@ -15,6 +15,8 @@ package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
@@ -27,13 +29,13 @@ class CartSaga {
      */
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
     @OnEvent
-    fun onOrderCreated(orderCreated: OrderCreated): RemoveCartItem? {
+    fun onOrderCreated(orderCreated: OrderCreated): CommandBuilder? {
         if (!orderCreated.fromCart) {
             return null
         }
         return RemoveCartItem(
-            id = orderCreated.customerId,
             productIds = orderCreated.items.map { it.productId }.toSet(),
-        )
+        ).commandBuilder()
+            .aggregateId(orderCreated.customerId)
     }
 }

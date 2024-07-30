@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.BooleanSchema
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
@@ -22,11 +23,11 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -40,6 +41,7 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
@@ -49,6 +51,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_V
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RESULT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.LOCAL_FIRST_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
@@ -59,6 +62,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_O
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.openapi.toJsonContent
+import me.ahoo.wow.serialization.MessageRecords
 
 class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -67,7 +71,11 @@ class CommandRouteSpec(
 ) : AggregateRouteSpec {
 
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.${commandRouteMetadata.commandMetadata.name}"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .operation(commandRouteMetadata.commandMetadata.name)
+            .build()
+
     override val method: String
         get() {
             return commandRouteMetadata.method
@@ -97,8 +105,13 @@ class CommandRouteSpec(
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
                 return false
             }
-            val default = commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                !commandRouteMetadata.commandMetadata.isCreate
+            val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata
+                .any { it.variableName == MessageRecords.ID }
+            val default = hasIdPathVariable ||
+                (
+                    commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
+                        !commandRouteMetadata.commandMetadata.isCreate
+                    )
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
@@ -137,6 +150,7 @@ class CommandRouteSpec(
                 add(AGGREGATE_ID_PARAMETER.ref)
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)
+                add(LOCAL_FIRST_PARAMETER.ref)
                 commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
                     withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
                         it.required(variableMetadata.required)
@@ -189,6 +203,12 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .description("Unit: millisecond").let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
+        val TENANT_ID_PARAMETER = Parameter()
+            .name(CommandHeaders.TENANT_ID)
+            .`in`(ParameterIn.HEADER.toString())
+            .schema(StringSchema()).let {
+                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
+            }
         val AGGREGATE_ID_PARAMETER = Parameter()
             .name(CommandHeaders.AGGREGATE_ID)
             .`in`(ParameterIn.HEADER.toString())
@@ -205,6 +225,13 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .name(CommandHeaders.REQUEST_ID)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
+                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
+            }
+        val LOCAL_FIRST_PARAMETER = Parameter()
+            .name(CommandHeaders.LOCAL_FIRST)
+            .`in`(ParameterIn.HEADER.toString())
+            .required(false)
+            .schema(BooleanSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val COMMAND_RESULT_CONTENT = CommandResult::class.java.toSchemaRef().ref.toJsonContent()
@@ -253,9 +280,11 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .with(WAIT_CONTEXT_PARAMETER)
             .with(WAIT_PROCESSOR_PARAMETER)
             .with(WAIT_TIME_OUT_PARAMETER)
+            .with(TENANT_ID_PARAMETER)
             .with(AGGREGATE_ID_PARAMETER)
             .with(AGGREGATE_VERSION_PARAMETER)
             .with(REQUEST_ID_PARAMETER)
+            .with(LOCAL_FIRST_PARAMETER)
 
         components.responses
             .with(COMMAND_RESULT_RESPONSE)
@@ -288,15 +317,22 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     ): List<RouteSpec> {
         aggregateMetadata.state.aggregateType.toSchemaRef().schemas.mergeSchemas()
         return buildList {
-            aggregateMetadata.command.commandFunctionRegistry
-                .forEach { entry ->
-                    entry.key.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+            aggregateMetadata.command.registeredCommands
+                .forEach { commandType ->
+                    commandType.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                         it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
+
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                    it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
+                    add(it)
+                }
+            }
+            if (!aggregateMetadata.command.registeredRecoverAggregate) {
+                DefaultRecoverAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }

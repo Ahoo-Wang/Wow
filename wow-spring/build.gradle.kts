@@ -1,4 +1,5 @@
 dependencies {
     api(project(":wow-core"))
-    implementation("org.springframework:spring-context")
+    implementation(project(":wow-query"))
+    api("org.springframework:spring-context")
 }

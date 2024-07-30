@@ -9,7 +9,7 @@ coverage:
         threshold: 1%
     project:
       default:
-        target: 60%
+        target: 80%
         threshold: 1%
 ignore:
   - "document/.*"
@@ -17,3 +17,4 @@ ignore:
   - "test/wow-tck/.*"
   - "test/wow-test/.*"
   - "wow-api/.*"
+  - "wow-apiclient/.*"

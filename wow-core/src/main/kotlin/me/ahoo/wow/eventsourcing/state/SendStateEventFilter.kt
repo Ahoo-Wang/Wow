@@ -17,10 +17,10 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterType
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [SendDomainEventStreamFilter::class])
-class SendStateEventFilter(private val stateEventBus: StateEventBus) : Filter<ServerCommandExchange<*>> {
+class SendStateEventFilter(private val stateEventBus: StateEventBus) : ExchangeFilter<ServerCommandExchange<*>> {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
@@ -41,6 +41,7 @@ class SendStateEventFilter(private val stateEventBus: StateEventBus) : Filter<Se
             }
             val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
+                .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
                 .logErrorResume()
                 .then(next.filter(exchange))
         }

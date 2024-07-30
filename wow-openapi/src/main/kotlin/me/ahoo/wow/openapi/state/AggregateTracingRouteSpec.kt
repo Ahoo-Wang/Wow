@@ -18,11 +18,11 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
@@ -31,7 +31,13 @@ class AggregateTracingRouteSpec(
     override val aggregateMetadata: AggregateMetadata<*, *>,
 ) : AggregateRouteSpec {
     override val id: String
-        get() = "${aggregateMetadata.toStringWithAlias()}.getAggregateTracing"
+        get() = RouteIdSpec()
+            .aggregate(aggregateMetadata)
+            .appendTenant(appendTenantPath)
+            .resourceName("aggregate_tracing")
+            .operation("get")
+            .build()
+
     override val method: String
         get() = Https.Method.GET
     override val appendIdPath: Boolean

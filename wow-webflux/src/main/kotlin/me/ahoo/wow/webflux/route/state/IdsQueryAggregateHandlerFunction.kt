@@ -20,7 +20,7 @@ import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
+import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -35,7 +35,7 @@ class IdsQueryAggregateHandlerFunction(
     private val exceptionHandler: ExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
+        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         return request.bodyToMono(IdList)
             .flatMapIterable {
                 it.map { id ->

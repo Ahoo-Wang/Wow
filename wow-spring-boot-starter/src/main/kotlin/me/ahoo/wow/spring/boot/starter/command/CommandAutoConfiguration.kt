@@ -13,12 +13,20 @@
 
 package me.ahoo.wow.spring.boot.starter.command
 
+import jakarta.validation.Validator
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.LocalFirstCommandBus
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
+import me.ahoo.wow.command.factory.CommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -58,5 +66,35 @@ class CommandAutoConfiguration {
         distributedBus: DistributedCommandBus
     ): LocalFirstCommandBus {
         return LocalFirstCommandBus(distributedBus, localBus)
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun commandOptionsExtractorRegistry(
+        extractors: ObjectProvider<CommandBuilderRewriter>
+    ): CommandBuilderRewriterRegistry {
+        val registry = SimpleCommandBuilderRewriterRegistry()
+        extractors.orderedStream().forEach {
+            registry.register(it)
+        }
+        return registry
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun noOpValidator(): Validator {
+        return NoOpValidator
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun commandMessageFactory(
+        validator: Validator,
+        commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
+    ): CommandMessageFactory {
+        return SimpleCommandMessageFactory(
+            validator = validator,
+            commandBuilderRewriterRegistry = commandBuilderRewriterRegistry
+        )
     }
 }

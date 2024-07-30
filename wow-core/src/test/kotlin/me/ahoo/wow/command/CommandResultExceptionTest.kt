@@ -13,9 +13,11 @@ class CommandResultExceptionTest {
         val commandResult = mockk<CommandResult> {
             every { errorCode } returns "errorCode"
             every { errorMsg } returns "errorMsg"
+            every { bindingErrors } returns emptyList()
         }
         val commandResultException = CommandResultException(commandResult)
         assertThat(commandResultException.errorCode, equalTo(commandResult.errorCode))
         assertThat(commandResultException.errorMsg, equalTo(commandResult.errorMsg))
+        assertThat(commandResultException.bindingErrors, equalTo(commandResult.bindingErrors))
     }
 }

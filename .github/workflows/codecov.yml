@@ -4,11 +4,13 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
       - 'wow-example/**'
   workflow_dispatch:
 permissions:
@@ -40,7 +42,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
@@ -48,7 +50,7 @@ jobs:
         run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.12.0
+        uses: EnricoMi/publish-unit-test-result-action@v2.17.0
         if: always()
         with:
           ignore_runs: true
@@ -67,13 +69,15 @@ jobs:
             wow-webflux/build/test-results/**/*.xml
             wow-spring-boot-starter/build/test-results/**/*.xml
             wow-opentelemetry/build/test-results/**/*.xml
+            wow-query/build/test-results/**/*.xml
+            wow-models/build/test-results/**/*.xml
             compensation/compensation-core/build/test-results/**/*.xml
             compensation/compensation-domain/build/test-results/**/*.xml
             example/example-domain/build/test-results/**/*.xml
             example/transfer/example-transfer-domain/build/test-results/**/*.xml
 
       - name: Upload Code Coverage Report to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests # optional

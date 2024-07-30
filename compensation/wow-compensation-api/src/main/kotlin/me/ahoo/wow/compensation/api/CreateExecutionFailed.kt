@@ -15,14 +15,12 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.api.messaging.FunctionKind
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 
 @CreateAggregate
 data class CreateExecutionFailed(
     override val eventId: EventId,
-    override val processor: ProcessorInfoData,
-    override val functionKind: FunctionKind,
+    override val function: FunctionInfoData,
     override val error: ErrorDetails,
     override val executeAt: Long,
     val retrySpec: RetrySpec? = null,
@@ -31,11 +29,10 @@ data class CreateExecutionFailed(
 
 data class ExecutionFailedCreated(
     override val eventId: EventId,
-    override val processor: ProcessorInfoData,
-    override val functionKind: FunctionKind,
+    override val function: FunctionInfoData,
     override val error: ErrorDetails,
     override val executeAt: Long,
     override val retryState: RetryState,
     val retrySpec: RetrySpec,
-    override val recoverable: RecoverableType = RecoverableType.UNKNOWN
+    override val recoverable: RecoverableType = RecoverableType.UNKNOWN,
 ) : ExecutionFailedInfo, IRetryState

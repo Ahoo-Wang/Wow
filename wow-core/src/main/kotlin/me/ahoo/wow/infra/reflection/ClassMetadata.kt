@@ -10,67 +10,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.infra.reflection
 
-import java.lang.reflect.Field
-import java.lang.reflect.Method
-import java.util.function.Consumer
+import kotlin.reflect.KClass
+import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.starProjectedType
 
-/**
- * Class Metadata .
- *
- * @author ahoo wang
- */
 object ClassMetadata {
-    @JvmStatic
-    fun <T> visitField(type: Class<T>, fieldConsumer: Consumer<Field>) {
-        visit(
-            type,
-            object : ClassVisitor {
-                override fun visitField(field: Field) {
-                    fieldConsumer.accept(field)
-                }
-            },
-        )
-    }
-
-    @JvmStatic
-    fun <T> visitMethod(type: Class<T>, methodConsumer: Consumer<Method>) {
-        visit(
-            type,
-            object : ClassVisitor {
-                override fun visitMethod(method: Method) {
-                    methodConsumer.accept(method)
-                }
-            },
-        )
-    }
-
-    @JvmStatic
-    fun <T> visit(type: Class<T>, visitor: ClassVisitor) {
+    fun <T : Any> KClass<T>.visit(visitor: ClassVisitor<T>) {
         visitor.start()
-        visit(visitor, type)
-        for (interfaceType in type.interfaces) {
-            visit(visitor, interfaceType)
+        visitor.visitType(this.starProjectedType)
+        supertypes.forEach {
+            visitor.visitType(it)
         }
-        var currentDeclaringClass = type.superclass
-        while (Any::class.java != currentDeclaringClass && currentDeclaringClass != null) {
-            visit(visitor, currentDeclaringClass)
-            currentDeclaringClass = currentDeclaringClass.superclass
+        /**
+         * Can't compute ClassId for primitive type: long
+         *
+         * This is a known issue with Kotlin reflection. The issue is that Kotlin reflection doesn't support Java Record types.
+         *
+         * https://youtrack.jetbrains.com/issue/KT-58649
+         */
+        try {
+            constructors.forEach {
+                visitor.visitConstructor(it)
+            }
+        } catch (ignore: IllegalArgumentException) {
+            // ignore
+        }
+
+        memberProperties.forEach {
+            visitor.visitProperty(it)
+        }
+        memberFunctions.forEach {
+            visitor.visitFunction(it)
         }
         visitor.end()
-    }
-
-    private fun visit(visitor: ClassVisitor, currentDeclaringClass: Class<*>) {
-        visitor.visitClass(currentDeclaringClass)
-        for (declaredField in currentDeclaringClass.declaredFields) {
-            visitor.visitField(declaredField!!)
-        }
-        for (declaredConstructor in currentDeclaringClass.declaredConstructors) {
-            visitor.visitConstructor(declaredConstructor!!)
-        }
-        for (declaredMethod in currentDeclaringClass.declaredMethods) {
-            visitor.visitMethod(declaredMethod!!)
-        }
     }
 }

@@ -26,4 +26,4 @@ me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 me.ahoo.wow.spring.boot.starter.webflux.WowWebClientAutoConfiguration
 me.ahoo.wow.spring.boot.starter.compensation.CompensationAutoConfiguration
-me.ahoo.wow.spring.boot.starter.actuate.WowEndpointAutoConfiguration
+me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration

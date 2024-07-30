@@ -13,64 +13,73 @@
 
 package me.ahoo.wow.infra.reflection
 
-import java.lang.reflect.AnnotatedElement
+import java.lang.annotation.Inherited
 import java.util.concurrent.ConcurrentHashMap
-
-private data class AnnotatedElementTargetAnnotationTypeKey<T : Annotation>(
-    val annotatedElement: AnnotatedElement,
-    val targetAnnotationType: Class<T>
-)
+import kotlin.reflect.KAnnotatedElement
+import kotlin.reflect.KClass
+import kotlin.reflect.KMutableProperty
+import kotlin.reflect.KProperty
+import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.jvm.javaField
 
 object AnnotationScanner {
-    private val EMPTY = Any()
-    private val cache: ConcurrentHashMap<AnnotatedElementTargetAnnotationTypeKey<*>, Any> = ConcurrentHashMap()
+    private data class AnnotationCacheKey(
+        val annotatedElement: KAnnotatedElement,
+        val annotationClass: KClass<out Annotation>
+    )
 
-    private fun <T : Annotation> scan(
-        annotation: Annotation,
-        targetAnnotationType: Class<T>,
-        scanned: MutableSet<Annotation> = mutableSetOf()
-    ): T? {
-        if (targetAnnotationType.isInstance(annotation)) {
-            @Suppress("UNCHECKED_CAST")
-            return annotation as T
-        }
-        scanned.add(annotation)
-        for (it in annotation.annotationClass.annotations) {
-            if (scanned.contains(it)) {
-                continue
-            }
-            scanned.add(it)
-            val matched = scan(it, targetAnnotationType, scanned)
-            if (matched != null) {
-                return matched
+    private val NOT_FOUND = Any()
+    private val cache: ConcurrentHashMap<AnnotationCacheKey, Any> = ConcurrentHashMap()
+
+    fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
+        val found = mutableListOf<Annotation>()
+        found.addAll(annotations)
+        if (this is KProperty<*>) {
+            found.addAll(getter.annotations)
+            if (javaField != null) {
+                found.addAll(javaField!!.annotations)
             }
         }
-        return null
+
+        if (this is KMutableProperty<*>) {
+            found.addAll(this.setter.annotations)
+        }
+        return found
     }
 
-    fun <T : Annotation> scan(annotatedElement: AnnotatedElement, targetAnnotationType: Class<T>): T? {
-        val cacheKey = AnnotatedElementTargetAnnotationTypeKey(annotatedElement, targetAnnotationType)
-        val annotation =
-            cache.computeIfAbsent(cacheKey) { _ ->
-                for (it in annotatedElement.annotations) {
-                    val matched = scan(it, targetAnnotationType)
-                    if (matched != null) {
-                        return@computeIfAbsent matched
+    fun Iterable<Annotation>.mergeAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
+        for (annotation in this) {
+            val existed = scanned.any { it.annotationClass == annotation.annotationClass }
+            if (!existed) {
+                scanned.add(annotation)
+                annotation.annotationClass.annotations
+                    .filter {
+                        it.annotationClass.hasAnnotation<Inherited>()
                     }
-                }
-                EMPTY
+                    .mergeAnnotations(scanned)
             }
+        }
+        return scanned
+    }
 
-        return if (annotation == EMPTY) {
+    fun KAnnotatedElement.allAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
+        return intimateAnnotations().mergeAnnotations(scanned)
+    }
+
+    fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
+        val cacheKey = AnnotationCacheKey(this, annotationClass)
+        val annotation = cache.computeIfAbsent(cacheKey) { _ ->
+            allAnnotations().firstOrNull { it.annotationClass == annotationClass } ?: NOT_FOUND
+        }
+        return if (annotation == NOT_FOUND) {
             null
         } else {
             @Suppress("UNCHECKED_CAST")
-            annotation as T
+            annotation as A
         }
     }
 
-    inline fun <reified T : Annotation> AnnotatedElement.scan(): T? {
-        val targetAnnotationType = T::class.java
-        return scan(this, targetAnnotationType)
+    inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotation(): A? {
+        return scanAnnotation(A::class)
     }
 }

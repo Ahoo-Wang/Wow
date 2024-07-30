@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.messaging.processor.ProcessorInfoData
+import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import org.hamcrest.MatcherAssert.*
@@ -28,9 +28,18 @@ internal class WaitingForTest {
     @Test
     fun processed() {
         val waitStrategy = WaitingFor.processed(contextName)
-        val waitSignal = ProcessorInfoData(contextName, "processorName").toWaitSignal(
+
+        waitStrategy.next(
+            COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+                commandId = "commandId",
+                stage = CommandStage.SENT,
+                result = mapOf("sent" to "value")
+            )
+        )
+        val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
+            result = mapOf("result" to "value")
         )
         assertThat(
             waitStrategy.toString(),
@@ -41,7 +50,7 @@ internal class WaitingForTest {
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
             }
-            .expectNext(waitSignal)
+            .expectNext(waitSignal.copyResult(mapOf("sent" to "value", "result" to "value")))
             .verifyComplete()
     }
 
@@ -51,8 +60,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
-            contextName = contextName,
-            processorName = ""
+            function = COMMAND_GATEWAY_FUNCTION,
         )
         waitStrategy.waiting()
             .test()
@@ -69,8 +77,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.SNAPSHOT,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION,
         )
         waitStrategy.waiting()
             .test()
@@ -87,8 +94,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION,
             errorCode = "ERROR_CODE"
         )
         waitStrategy.waiting()
@@ -106,8 +112,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROJECTED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true
         )
         waitStrategy.waiting()
@@ -125,8 +130,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROJECTED,
-            contextName = contextName,
-            processorName = "processor",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "processor"),
             isLastProjection = true
         )
         waitStrategy.waiting()
@@ -144,8 +148,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROJECTED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = false
         )
         waitStrategy.waiting()
@@ -164,8 +167,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.EVENT_HANDLED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true
         )
         waitStrategy.waiting()
@@ -183,8 +185,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.SAGA_HANDLED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true
         )
         waitStrategy.waiting()
@@ -202,8 +203,7 @@ internal class WaitingForTest {
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
-            contextName = contextName,
-            processorName = "",
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true,
             errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
             errorMsg = "",
@@ -229,8 +229,7 @@ internal class WaitingForTest {
                     SimpleWaitSignal(
                         "commandId",
                         CommandStage.PROCESSED,
-                        contextName = contextName,
-                        processorName = "",
+                        function = COMMAND_GATEWAY_FUNCTION,
                     )
                 )
             }
@@ -249,13 +248,22 @@ internal class WaitingForTest {
                     SimpleWaitSignal(
                         "commandId",
                         CommandStage.PROJECTED,
-                        contextName = "no-matched-context",
-                        processorName = "",
+                        function = COMMAND_GATEWAY_FUNCTION,
                     )
                 )
             }
             .expectNextCount(0)
             .expectTimeout(Duration.ofMillis(100))
+            .verify()
+    }
+
+    @Test
+    fun waitingWhenError() {
+        val waitStrategy = WaitingFor.projected(contextName)
+        waitStrategy.error(IllegalArgumentException())
+        waitStrategy.waiting()
+            .test()
+            .expectError(IllegalArgumentException::class.java)
             .verify()
     }
 }

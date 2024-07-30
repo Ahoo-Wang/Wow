@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:2.6.11
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:3.5.3
           env:
             - name: LANG
               value: C.utf8

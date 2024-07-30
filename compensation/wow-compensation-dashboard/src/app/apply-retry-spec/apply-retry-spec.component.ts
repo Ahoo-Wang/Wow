@@ -53,6 +53,7 @@ export class ApplyRetrySpecComponent implements OnInit {
   constructor(private compensationClient: CompensationClient,
               private formBuilder: NonNullableFormBuilder,
               private message: NzMessageService) {
+
   }
 
   ngOnInit(): void {
@@ -83,4 +84,5 @@ export class ApplyRetrySpecComponent implements OnInit {
       }
     );
   }
+
 }

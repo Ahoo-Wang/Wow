@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.annotation
 
 import me.ahoo.wow.api.annotation.AggregateId
+import me.ahoo.wow.api.annotation.AggregateRoot
 
 class MockAggregate(val id: String)
 
@@ -26,3 +27,8 @@ abstract class MockAbstractCommandAggregate<S : MockAbstractStateAggregate>(val 
 
 class MockStateAggregate(id: String) : MockAbstractStateAggregate(id)
 class MockCommandAggregate(state: MockStateAggregate) : MockAbstractCommandAggregate<MockStateAggregate>(state)
+
+@AggregateRoot(commands = [MockMountCommand::class])
+class MockMountAggregate(val id: String)
+
+data class MockMountCommand(val id: String)

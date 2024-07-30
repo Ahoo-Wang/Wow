@@ -2,9 +2,7 @@ import {Component, Input, OnInit} from '@angular/core';
 import {NzCellFixedDirective, NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
 import {
   ExecutionFailedState,
-  ExecutionFailedStatus,
-  FunctionKind,
-  RecoverableType,
+  ExecutionFailedStatus, RecoverableType,
   RetrySpec
 } from "../api/ExecutionFailedState";
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
@@ -14,7 +12,7 @@ import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective, NzDrawerModule, NzDrawerService} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
-import {initialPagedQuery, PagedQuery, SortOrder} from "../api/PagedQuery";
+import {initialPagedQuery, PagedQuery} from "../api/PagedQuery";
 import {PagedList} from "../api/PagedList";
 import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
@@ -26,8 +24,16 @@ import {ActivatedRoute} from "@angular/router";
 import {NzSelectModule} from 'ng-zorro-antd/select';
 import {NzToolTipModule} from 'ng-zorro-antd/tooltip';
 import {NzDropDownModule} from 'ng-zorro-antd/dropdown';
-import {FormsModule} from "@angular/forms";
-
+import {FormControl, FormsModule, NonNullableFormBuilder, ReactiveFormsModule} from "@angular/forms";
+import {Condition, Conditions, Projections, Sort, SortDirection} from "../api/Query";
+import {NzInputModule} from 'ng-zorro-antd/input';
+import {NzColDirective, NzRowDirective} from "ng-zorro-antd/grid";
+import {NzFormControlComponent, NzFormDirective, NzFormItemComponent, NzFormLabelComponent} from "ng-zorro-antd/form";
+import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
+import {NzDividerModule} from 'ng-zorro-antd/divider';
+import {NzPopoverDirective} from "ng-zorro-antd/popover";
+import {NzSpaceModule} from 'ng-zorro-antd/space';
+import {NzFlexModule} from 'ng-zorro-antd/flex';
 
 @Component({
   selector: 'app-failed-list',
@@ -54,7 +60,16 @@ import {FormsModule} from "@angular/forms";
     NzSelectModule,
     NzToolTipModule,
     NzDropDownModule,
-    FormsModule
+    FormsModule,
+    NzInputModule,
+    NzColDirective,
+    NzFormControlComponent,
+    NzFormDirective,
+    NzFormItemComponent,
+    NzFormLabelComponent,
+    NzInputNumberComponent,
+    NzRowDirective,
+    ReactiveFormsModule, NzDividerModule, NzPopoverDirective, NzSpaceModule, NzFlexModule
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -62,14 +77,25 @@ export class FailedListComponent implements OnInit {
   pagedQuery: PagedQuery = initialPagedQuery;
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
   @Input({required: true}) category: FindCategory = FindCategory.TO_RETRY;
+  loading = false;
   current: ExecutionFailedState | undefined;
   errorInfoVisible = false
   expandSet = new Set<string>();
+  validateForm = this.formBuilder.group({
+    id: [''],
+    eventId: [''],
+    aggregateId: [''],
+    aggregateContext: [''],
+    aggregateName: [''],
+    processorContext: [''],
+    processorName: [''],
+  })
 
   constructor(private compensationClient: CompensationClient,
               private message: NzMessageService,
               private drawerService: NzDrawerService,
-              private activatedRoute: ActivatedRoute) {
+              private activatedRoute: ActivatedRoute,
+              private formBuilder: NonNullableFormBuilder) {
   }
 
   ngOnInit() {
@@ -84,11 +110,68 @@ export class FailedListComponent implements OnInit {
     }
   }
 
+  controlToCondition(control: FormControl<string>, to: (value: string) => Condition): Condition | null {
+    let value = control.value
+    if (!value || value.length == 0) {
+      return null
+    }
+    return to(value)
+  }
+
+  controlToContainsCondition(control: FormControl<string>, field: string): Condition | null {
+    return this.controlToCondition(control, value => Conditions.contains(field, value))
+  }
+
+  buildCondition() {
+    let conditions: Condition[] = []
+    let idCondition = this.controlToCondition(this.validateForm.controls.id, value => Conditions.id(value))
+    if (idCondition) {
+      conditions.push(idCondition)
+    }
+    let eventIdCondition = this.controlToContainsCondition(this.validateForm.controls.eventId, "state.eventId.id")
+    if (eventIdCondition) {
+      conditions.push(eventIdCondition)
+    }
+    let aggregateIdCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateId, "state.eventId.aggregateId.aggregateId")
+    if (aggregateIdCondition) {
+      conditions.push(aggregateIdCondition)
+    }
+    let aggregateContextCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateContext, "state.eventId.aggregateId.contextName")
+    if (aggregateContextCondition) {
+      conditions.push(aggregateContextCondition)
+    }
+    let aggregateNameCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateName, "state.eventId.aggregateId.aggregateName")
+    if (aggregateNameCondition) {
+      conditions.push(aggregateNameCondition)
+    }
+    let processorContextCondition = this.controlToContainsCondition(this.validateForm.controls.processorContext, "state.function.contextName")
+    if (processorContextCondition) {
+      conditions.push(processorContextCondition)
+    }
+    let processorNameCondition = this.controlToContainsCondition(this.validateForm.controls.processorName, "state.function.processorName")
+    if (processorNameCondition) {
+      conditions.push(processorNameCondition)
+    }
+    if (conditions.length > 0) {
+      this.pagedQuery.condition = Conditions.and(conditions)
+    } else {
+      this.pagedQuery.condition = Conditions.all()
+    }
+  }
+
   load() {
+    this.loading = true
+    this.buildCondition()
     this.compensationClient.find(this.category, this.pagedQuery).subscribe(resp => {
         this.pagedList = resp
+        this.loading = false
       }
     )
+  }
+
+  reset() {
+    this.validateForm.reset()
+    this.load()
   }
 
   showErrorInfoIfId() {
@@ -102,15 +185,21 @@ export class FailedListComponent implements OnInit {
   }
 
   onQueryParamsChange(params: NzTableQueryParams): void {
-    let sort = params.sort
+    let sort: Sort[] = params.sort
       .filter(sort => sort.value != null)
       .map(sort => {
-        return {field: sort.key, order: sort.value === "ascend" ? SortOrder.ASC : SortOrder.DESC}
+        let direction = sort.value === "ascend" ? SortDirection.ASC : SortDirection.DESC
+        return {field: sort.key, direction: direction}
       });
     if (sort.length == 0) {
       sort = initialPagedQuery.sort
     }
-    this.pagedQuery = {sort: sort, pageIndex: params.pageIndex, pageSize: params.pageSize}
+    this.pagedQuery = {
+      projection: Projections.all(),
+      sort: sort,
+      pagination: {index: params.pageIndex, size: params.pageSize},
+      condition: initialPagedQuery.condition
+    }
     this.load()
   }
 
@@ -138,16 +227,6 @@ export class FailedListComponent implements OnInit {
     this.compensationClient.markRecoverable(id, {recoverable})
       .subscribe(resp => {
         this.message.success("Mark Recoverable succeeded.");
-        this.load();
-      }, error => {
-        this.message.error(error.error.errorMsg);
-      })
-  }
-
-  changeFunctionKind(id: string, functionKind: FunctionKind): void {
-    this.compensationClient.changeFunctionKind(id, {functionKind})
-      .subscribe(resp => {
-        this.message.success("Change FunctionKind succeeded.");
         this.load();
       }, error => {
         this.message.error(error.error.errorMsg);

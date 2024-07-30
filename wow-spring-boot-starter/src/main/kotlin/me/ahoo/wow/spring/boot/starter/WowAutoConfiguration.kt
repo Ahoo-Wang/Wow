@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 
 /**
  * Wow AutoConfiguration .
@@ -35,6 +36,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
 
     companion object {
         const val SPRING_APPLICATION_NAME = "spring.application.name"
+        const val WOW_CURRENT_BOUNDED_CONTEXT = "wow.CurrentBoundedContext"
     }
 
     @Bean
@@ -43,9 +45,9 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         return SpringServiceProvider(beanFactory)
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun currentBoundedContext(applicationContext: ApplicationContext): NamedBoundedContext {
+    @Primary
+    @Bean(WOW_CURRENT_BOUNDED_CONTEXT)
+    fun wowCurrentBoundedContext(applicationContext: ApplicationContext): NamedBoundedContext {
         val contextName =
             wowProperties.contextName ?: applicationContext.environment.getRequiredProperty(SPRING_APPLICATION_NAME)
         return MaterializedNamedBoundedContext(contextName)

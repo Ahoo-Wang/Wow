@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import io.mockk.mockk
+import io.mockk.spyk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.wow.command.CommandGateway
@@ -28,14 +29,18 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.query.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -56,6 +61,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -67,6 +73,43 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(GlobalExceptionHandler::class.java)
+                    .hasBean("commandRouterFunction")
+                    .hasSingleBean(ExceptionHandler::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsWithKafkaProperties() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${GLOBAL_ERROR_ENABLED}=false"
+            )
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(DomainEventCompensator::class.java, { mockk() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(bootstrapServers = listOf("localhost:9092"))
+            })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .doesNotHaveBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(ExceptionHandler::class.java)
             }

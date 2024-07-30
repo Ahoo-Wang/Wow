@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -62,7 +63,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
 
-        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, contextName, "")
+        val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, COMMAND_GATEWAY_FUNCTION)
         var nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(false))
         val waitStrategy = WaitingFor.processed(contextName)

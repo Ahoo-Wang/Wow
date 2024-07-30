@@ -1,14 +1,88 @@
+<form nz-form [formGroup]="validateForm" nzLayout="vertical" class="search-form">
+  <div nz-row [nzGutter]="24">
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="id">Id</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="id" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="eventId">EventId</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="eventId" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateId">AggregateId</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateId" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateContext">AggregateContext</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateContext" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="aggregateName">AggregateName</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="aggregateName" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="processorContext">ProcessorContext</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="processorContext" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <nz-form-item>
+        <nz-form-label nzFor="processorName">ProcessorName</nz-form-label>
+        <nz-form-control>
+          <input type="text" formControlName="processorName" nz-input/>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <div nz-col [nzSpan]="6">
+      <div style="margin-top: 24px">
+        <button nz-button nzType="primary" (click)="load()" [nzLoading]="loading">
+          <span nz-icon nzType="search"></span>
+          Search
+        </button>
+        <button style="margin-left: 8px" nz-button nzType="default" (click)="reset()" [nzLoading]="loading"
+                [disabled]="!this.validateForm.dirty">
+          <span nz-icon nzType="rest"></span>
+          Reset
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+
 <nz-table nzBordered nzSize="middle" [nzScroll]="{ x: '1200px' }"
           nzShowSizeChanger [nzFrontPagination]="false" [nzHideOnSinglePage]="true"
-          [nzPageIndex]="pagedQuery.pageIndex" [nzPageSize]="pagedQuery.pageSize"
-          [nzData]="pagedList.list" [nzTotal]="pagedList.total"
-          (nzQueryParams)="onQueryParamsChange($event)"
+          [nzPageIndex]="pagedQuery.pagination.index" [nzPageSize]="pagedQuery.pagination.size"
+          [nzData]="pagedList.list" [nzTotal]="pagedList.total" [nzShowTotal]="totalTemplate"
+          (nzQueryParams)="onQueryParamsChange($event)" [nzLoading]="loading"
 >
   <thead>
   <tr>
     <th rowspan="2" width="36px"></th>
     <th rowspan="2" nzLeft nzColumnKey="_id" [nzSortFn]="true" [nzSortPriority]="1">Id</th>
-    <th colspan="4">Processor</th>
+    <th colspan="4">Function</th>
     <th colspan="5">EventId</th>
     <th colspan="3">RetryState</th>
     <th rowspan="2" width="60px">Status</th>
@@ -40,14 +114,10 @@
       <td nzLeft>
         <p nz-typography nzEllipsis nzCopyable [(nzContent)]="item.id"></p>
       </td>
-      <td>{{ item.processor.contextName }}</td>
-      <td>{{ item.processor.processorName }}</td>
+      <td>{{ item.function.contextName }}</td>
+      <td>{{ item.function.processorName }}.{{ item.function.name }}</td>
       <td>
-        <nz-select [(ngModel)]="item.functionKind" [nzBorderless]="true" nzSize="small"
-                   (ngModelChange)="changeFunctionKind(item.id,$event)">
-          <nz-option nzValue="EVENT" nzLabel="Event"></nz-option>
-          <nz-option nzValue="STATE_EVENT" nzLabel="StateEvent"></nz-option>
-        </nz-select>
+        {{ item.function.functionKind }}
       </td>
       <td>{{ item.executeAt|date:'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ item.eventId.aggregateId.contextName }}</td>
@@ -106,34 +176,34 @@
       </td>
       <td nzRight>
         <nz-button-group>
-          <button nz-button (click)="openErrorInfo(item)" nzSize="small">
+          <button nz-button (click)="openErrorInfo(item)" nzSize="small"
+                  nz-popover [nzPopoverOverlayStyle]="{width: '50vw'}"
+                  [nzPopoverTitle]="item.error.errorCode" [nzPopoverContent]="item.error.errorMsg">
             Error
           </button>
-          @switch (category) {
-            @case (FindCategory.TO_RETRY) {
-              <button nz-popconfirm
-                      nzPopconfirmTitle="Are you sure retry this Failed?"
-                      nzPopconfirmPlacement="top"
-                      nz-button
-                      (nzOnConfirm)="prepare(item.id)"
-                      nzSize="small"
-              >
-                Retry
-              </button>
-            }
-            @case (FindCategory.NON_RETRYABLE) {
-              <button nz-popconfirm
-                      [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
-                      nzPopconfirmPlacement="top"
-                      nz-button
-                      (nzOnConfirm)="forcePrepare(item.id)"
-                      nzSize="small"
-                      nzDanger
-              >
-                F-Retry
-              </button>
-            }
-          }
+          <ng-template [ngIf]="category==FindCategory.TO_RETRY">
+            <button nz-popconfirm
+                    nzPopconfirmTitle="Are you sure retry this Failed?"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="prepare(item.id)"
+                    nzSize="small"
+            >
+              Retry
+            </button>
+          </ng-template>
+          <ng-template [ngIf]="category==FindCategory.NON_RETRYABLE||category==FindCategory.UNRECOVERABLE">
+            <button nz-popconfirm
+                    [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
+                    nzPopconfirmPlacement="top"
+                    nz-button
+                    (nzOnConfirm)="forcePrepare(item.id)"
+                    nzSize="small"
+                    nzDanger
+            >
+              F-Retry
+            </button>
+          </ng-template>
         </nz-button-group>
       </td>
     </tr>
@@ -145,14 +215,15 @@
   </ng-container>
   </tbody>
 </nz-table>
-
+<ng-template #totalTemplate let-total>Total {{ total }} items</ng-template>
 <nz-drawer
   [nzClosable]="false"
   [nzVisible]="errorInfoVisible"
   nzPlacement="right"
   nzTitle="Error Info"
   (nzOnClose)="closeErrorInfo()"
-  nzWidth="1200px"
+  [nzExtra]="drawerOperateTpl"
+  nzWidth="80vw"
 >
   <ng-container *nzDrawerContent>
     <ng-template [ngIf]="errorInfoVisible">
@@ -160,3 +231,14 @@
     </ng-template>
   </ng-container>
 </nz-drawer>
+
+<ng-template #drawerOperateTpl>
+  <button nz-popconfirm
+          [nzPopconfirmTitle]="'Are you sure force retry this Failed?'"
+          nzPopconfirmPlacement="top"
+          nz-button
+          (nzOnConfirm)="forcePrepare(current?.id!!)"
+          nzDanger
+  > F-Retry
+  </button>
+</ng-template>

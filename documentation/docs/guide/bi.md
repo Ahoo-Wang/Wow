@@ -25,29 +25,13 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 
 ![商业智能](../public/images/bi/bi.svg)
 
-## 配置
-
-通过开启以下配置，暴露 _Wow_ ETL 工具的端点。
-
-```yaml {6}
-management:
-  endpoints:
-    web:
-      exposure:
-        include:
-          - wowBI
-```
-
 ## 生成 ETL 脚本
 
-`WowBIEndpoint` 提供了通过 `spring-boot-actuator` 暴露 *Wow* ETL 脚本生成的能力。
-
 ::: code-group
-
-```shell [curl]
+```shell [OpenAPI]
 curl -X 'GET' \
-  'http://localhost:8080/actuator/wowBI' \
-  -H 'accept: application/vnd.spring-boot.actuator.v3+json'
+  'http://localhost:8080/wow/bi/script' \
+  -H 'accept: application/sql'
 ```
 ```sql [自动生成的 ETL 脚本]
 -- global --

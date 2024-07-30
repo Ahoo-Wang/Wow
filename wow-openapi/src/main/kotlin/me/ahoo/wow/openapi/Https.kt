@@ -37,5 +37,7 @@ object Https {
 
     object MediaType {
         const val APPLICATION_JSON = "application/json"
+        const val APPLICATION_SQL = "application/sql"
+        const val TEXT_PLAIN = "text/plain"
     }
 }

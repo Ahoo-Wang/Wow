@@ -15,71 +15,80 @@ package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
+import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 
 class StatelessSagaFunction(
-    val actual: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
-    private val commandGateway: CommandGateway
-) :
-    MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>> {
-    override val contextName: String = actual.contextName
-    override val name: String = actual.name
-    override val processor: Any = actual.processor
-    override val supportedType: Class<*> = actual.supportedType
-    override val supportedTopics: Set<Any> = actual.supportedTopics
-    override val functionKind: FunctionKind = actual.functionKind
+    override val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
+    private val commandGateway: CommandGateway,
+    private val commandMessageFactory: CommandMessageFactory
+) : MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>>,
+    Decorator<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
+    override val contextName: String = delegate.contextName
+    override val name: String = delegate.name
+    override val processor: Any = delegate.processor
+    override val supportedType: Class<*> = delegate.supportedType
+    override val supportedTopics: Set<NamedAggregate> = delegate.supportedTopics
+    override val functionKind: FunctionKind = delegate.functionKind
+
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return actual.getAnnotation(annotationClass)
+        return delegate.getAnnotation(annotationClass)
     }
 
     override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
-        return actual.invoke(exchange)
-            .map {
-                toCommandStream(exchange.message, it)
+        return delegate.invoke(exchange)
+            .flatMapMany {
+                toCommandFlux(exchange.message, it)
             }
-            .flatMap { commandStream ->
+            .concatMap {
+                commandGateway.send(it).thenReturn(it)
+            }.collectList()
+            .map {
+                val commandStream = DefaultCommandStream(exchange.message.id, it)
                 exchange.setCommandStream(commandStream)
                 commandStream
-                    .toFlux()
-                    .concatMap {
-                        commandGateway.send(it)
-                    }
-                    .then(Mono.just(commandStream))
             }
     }
 
-    private fun toCommandStream(domainEvent: DomainEvent<*>, handleResult: Any): CommandStream {
+    private fun toCommandFlux(domainEvent: DomainEvent<*>, handleResult: Any): Publisher<CommandMessage<*>> {
         if (handleResult !is Iterable<*>) {
-            return DefaultCommandStream(
-                domainEventId = domainEvent.id,
-                commands = listOf(toCommand(domainEvent, handleResult)),
-            )
+            return toCommand(domainEvent = domainEvent, singleResult = handleResult)
         }
-        val commands = mutableListOf<CommandMessage<*>>()
-        handleResult.forEachIndexed { index, singleResult ->
-            requireNotNull(singleResult)
-            commands.add(toCommand(domainEvent, singleResult, index))
-        }
-        return DefaultCommandStream(domainEvent.id, commands)
+        return Flux.fromIterable(handleResult)
+            .index()
+            .flatMap {
+                toCommand(domainEvent = domainEvent, singleResult = it.t2, index = it.t1.toInt())
+            }
     }
 
-    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): CommandMessage<*> {
+    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
-            return singleResult
+            return singleResult.toMono()
         }
-        return singleResult.toCommandMessage(
-            requestId = "${domainEvent.id}-$index",
-            tenantId = domainEvent.aggregateId.tenantId,
-        )
+        val commandBuilder = if (singleResult is CommandBuilder) {
+            singleResult
+        } else {
+            singleResult.commandBuilder()
+        }
+        commandBuilder
+            .requestIfIfAbsent("${domainEvent.id}-$index")
+            .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
+        @Suppress("UNCHECKED_CAST")
+        return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
     }
 
     override fun toString(): String {
-        return "StatelessSagaFunction(actual=$actual)"
+        return "StatelessSagaFunction(actual=$delegate)"
     }
 }

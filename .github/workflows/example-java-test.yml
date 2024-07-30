@@ -17,10 +17,12 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
   pull_request:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
 env:
   CI: GITHUB_ACTIONS
 
@@ -39,7 +41,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 

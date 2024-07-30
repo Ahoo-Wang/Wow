@@ -2,9 +2,9 @@
   <nz-descriptions-item nzTitle="Id" [nzSpan]="1">
     <p nz-typography nzEllipsis nzCopyable [(nzContent)]="state.id"></p>
   </nz-descriptions-item>
-  <nz-descriptions-item nzTitle="Processor" [nzSpan]="1">
+  <nz-descriptions-item nzTitle="Function" [nzSpan]="1">
     <p nz-typography nzEllipsis nzExpandable>
-      {{ state.processor.processorName }}&#64;{{ state.processor.contextName }}
+      {{ state.function.processorName }}.{{state.function.name}}&#64;{{ state.function.contextName }}
     </p>
   </nz-descriptions-item>
   <nz-descriptions-item nzTitle="EventId" [nzSpan]="1">

@@ -17,7 +17,7 @@ import java.lang.annotation.Inherited
 
 const val DEFAULT_COMMAND_PATH = "__{command_name}__"
 
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class CommandRoute(
@@ -32,14 +32,26 @@ annotation class CommandRoute(
     val description: String = "",
 ) {
 
-    @Target(AnnotationTarget.FIELD)
+    @Target(
+        AnnotationTarget.FIELD,
+        AnnotationTarget.PROPERTY,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.ANNOTATION_CLASS
+    )
+    @Inherited
     annotation class PathVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],
         val required: Boolean = true
     )
 
-    @Target(AnnotationTarget.FIELD)
+    @Target(
+        AnnotationTarget.FIELD,
+        AnnotationTarget.PROPERTY,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.ANNOTATION_CLASS
+    )
+    @Inherited
     annotation class HeaderVariable(
         val name: String = "",
         val nestedPath: Array<String> = [],

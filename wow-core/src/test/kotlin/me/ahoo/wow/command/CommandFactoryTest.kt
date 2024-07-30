@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -26,17 +27,49 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 2000))
+
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
+    }
+
+    @Test
+    fun createFromBuilder() {
+        val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
+        val commandMessage = command.commandBuilder().toCommandMessage<MockCommandWithExpectedAggregateVersion>()
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
+    }
+
+    @Test
+    fun createWithInheritNamedAggregate() {
+        val command = MockCommandWithInheritNamedAggregate(GlobalIdGenerator.generateAsString(), "test", "test")
+        val commandMessage = command.toCommandMessage()
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+        assertThat(commandMessage.contextName, equalTo(command.contextName))
+        assertThat(commandMessage.aggregateName, equalTo(command.aggregateName))
     }
 
     @Test
     fun asCommand() {
         val command = MockCommandWithExpectedAggregateVersion(GlobalIdGenerator.generateAsString(), null)
-        val commandMessage = command.asCommandMessage()
+        val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 2000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test
@@ -47,7 +80,10 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.isCreate, equalTo(true))
         assertThat(commandMessage.aggregateVersion, equalTo(0))
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 1000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test
@@ -58,7 +94,10 @@ internal class CommandFactoryTest {
         assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.createTime, greaterThan(System.currentTimeMillis() - 1000))
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
     }
 
     @Test

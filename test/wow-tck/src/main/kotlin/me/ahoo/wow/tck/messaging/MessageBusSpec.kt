@@ -16,7 +16,7 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.infra.Decorator.Companion.getDelegate
+import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -49,8 +49,8 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
 
     open fun verify(block: BUS.() -> Unit) {
         createMessageBus().metrizable().use { bus ->
-            if (bus.getDelegate() is TopicKindCapable) {
-                assertThat((bus.getDelegate() as TopicKindCapable).topicKind, equalTo(topicKind))
+            if (bus.getOriginalDelegate() is TopicKindCapable) {
+                assertThat((bus.getOriginalDelegate() as TopicKindCapable).topicKind, equalTo(topicKind))
             }
             block(bus)
         }
@@ -107,10 +107,19 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     @Test
     fun sendPerformance() {
         verify {
-            val duration = sendLoop(messageBus = this)
+            val onReady = Sinks.empty<Void>()
+            receive(setOf(namedAggregate))
+                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .onReceive(onReady)
+                .doOnSubscribe {
+                    val duration = sendLoop(messageBus = this)
+                        .test()
+                        .verifyComplete()
+                    log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+                }
                 .test()
-                .verifyComplete()
-            log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+                .thenCancel()
+                .verify()
         }
     }
 

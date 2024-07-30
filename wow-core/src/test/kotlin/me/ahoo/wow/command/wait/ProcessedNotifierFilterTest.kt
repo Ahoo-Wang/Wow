@@ -17,15 +17,14 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 internal class ProcessedNotifierFilterTest {
 
-    @Suppress("UNCHECKED_CAST")
     @Test
     fun filter() {
         val processedNotifierFilter = ProcessedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))

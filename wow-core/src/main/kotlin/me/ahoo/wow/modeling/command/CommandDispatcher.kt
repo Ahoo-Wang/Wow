@@ -29,7 +29,7 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 
 /**
- * Aggregate Command Dispatcher .
+ * Command Dispatcher .
 
  * @author ahoo wang
  */

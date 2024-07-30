@@ -21,7 +21,12 @@ const val DEFAULT_AGGREGATE_ID_NAME = "id"
  *
  * @author ahoo wang
  */
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.PROPERTY_GETTER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Inherited
 annotation class AggregateId
 

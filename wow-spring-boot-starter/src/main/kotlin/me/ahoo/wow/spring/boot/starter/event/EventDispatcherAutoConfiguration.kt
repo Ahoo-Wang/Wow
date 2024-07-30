@@ -22,14 +22,15 @@ import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ErrorHandler
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
-import me.ahoo.wow.messaging.handler.LogResumeErrorHandler
+import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -68,7 +69,9 @@ class EventDispatcherAutoConfiguration {
     }
 
     @Bean
-    fun eventDispatcherFilterChain(filters: List<Filter<DomainEventExchange<*>>>): FilterChain<DomainEventExchange<*>> {
+    fun eventDispatcherFilterChain(
+        filters: List<ExchangeFilter<DomainEventExchange<*>>>
+    ): FilterChain<DomainEventExchange<*>> {
         return FilterChainBuilder<DomainEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(DomainEventDispatcher::class)
@@ -92,6 +95,7 @@ class EventDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun domainEventDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         domainEventBus: DomainEventBus,
         stateEventBus: StateEventBus,

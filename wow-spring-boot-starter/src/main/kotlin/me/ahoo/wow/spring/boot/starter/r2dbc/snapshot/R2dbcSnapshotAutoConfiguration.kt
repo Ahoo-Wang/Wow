@@ -26,6 +26,7 @@ import me.ahoo.wow.r2dbc.SnapshotDatabase
 import me.ahoo.wow.r2dbc.SnapshotSchema
 import me.ahoo.wow.sharding.ShardingRegistrar
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
@@ -33,6 +34,7 @@ import me.ahoo.wow.spring.boot.starter.r2dbc.ConditionalOnR2dbcEnabled
 import me.ahoo.wow.spring.boot.starter.r2dbc.DataSourceProperties
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingDataSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingProperties
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -88,6 +90,7 @@ class R2dbcSnapshotAutoConfiguration {
 
         @Bean
         fun snapshotDatabase(
+            @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
             boundedContext: NamedBoundedContext,
             connectionFactoryRegistrar: ConnectionFactoryRegistrar,
             shardingRegistrar: ShardingRegistrar,
@@ -106,6 +109,7 @@ class R2dbcSnapshotAutoConfiguration {
 
         @Bean
         fun snapshotSchema(
+            @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
             boundedContext: NamedBoundedContext,
             shardingRegistrar: ShardingRegistrar,
             shardingProperties: ShardingProperties

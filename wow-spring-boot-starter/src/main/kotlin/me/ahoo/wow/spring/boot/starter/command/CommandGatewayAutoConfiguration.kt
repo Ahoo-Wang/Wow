@@ -15,12 +15,10 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
-import jakarta.validation.Validator
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
@@ -31,8 +29,9 @@ import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -46,11 +45,6 @@ import org.springframework.context.annotation.Primary
 @AutoConfiguration
 @ConditionalOnWowEnabled
 class CommandGatewayAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean
-    fun noOpValidator(): Validator {
-        return NoOpValidator
-    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -59,8 +53,8 @@ class CommandGatewayAutoConfiguration {
         matchIfMissing = false,
         havingValue = "false",
     )
-    fun noOpIdempotencyChecker(): IdempotencyChecker {
-        return NoOpIdempotencyChecker
+    fun noOpIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
+        return DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker }
     }
 
     @Bean
@@ -70,14 +64,16 @@ class CommandGatewayAutoConfiguration {
         matchIfMissing = true,
         havingValue = "true",
     )
-    fun idempotencyChecker(commandProperties: CommandProperties): IdempotencyChecker {
+    fun idempotencyChecker(commandProperties: CommandProperties): AggregateIdempotencyCheckerProvider {
         val bloomFilter = commandProperties.idempotency.bloomFilter
-        return BloomFilterIdempotencyChecker(bloomFilter.ttl) {
-            BloomFilter.create(
-                Funnels.stringFunnel(Charsets.UTF_8),
-                bloomFilter.expectedInsertions,
-                bloomFilter.fpp,
-            )
+        return DefaultAggregateIdempotencyCheckerProvider {
+            BloomFilterIdempotencyChecker(bloomFilter.ttl) {
+                BloomFilter.create(
+                    Funnels.stringFunnel(Charsets.UTF_8),
+                    bloomFilter.expectedInsertions,
+                    bloomFilter.fpp,
+                )
+            }
         }
     }
 
@@ -131,16 +127,14 @@ class CommandGatewayAutoConfiguration {
     fun commandGateway(
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
-        validator: Validator,
-        idempotencyChecker: IdempotencyChecker,
+        idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
-            idempotencyChecker = idempotencyChecker,
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            validator = validator,
+            idempotencyCheckerProvider = idempotencyCheckerProvider,
+            waitStrategyRegistrar = waitStrategyRegistrar
         )
     }
 }

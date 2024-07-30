@@ -74,7 +74,7 @@ abstract class StateAggregateRepositorySpec {
     fun loadWhenNotFound() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
         val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
-        aggregateRepository.load(aggregateMetadata.state, aggregateId)
+        aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .consumeNextWith {
                 assertThat(it.initialized, equalTo(false))

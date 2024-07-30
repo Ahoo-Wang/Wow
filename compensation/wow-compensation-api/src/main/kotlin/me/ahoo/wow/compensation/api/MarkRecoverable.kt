@@ -19,7 +19,7 @@ import me.ahoo.wow.api.exception.RecoverableType
 
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class MarkRecoverable(
-    @CommandRoute.PathVariable
+    @field:CommandRoute.PathVariable
     override val id: String,
     override val recoverable: RecoverableType,
 ) : Identifier, IRecoverable

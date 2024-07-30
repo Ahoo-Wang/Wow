@@ -25,10 +25,13 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.handler.Filter
-import me.ahoo.wow.messaging.handler.FilterChain
-import me.ahoo.wow.messaging.handler.FilterChainBuilder
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -50,6 +53,15 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
     )
     fun inMemorySnapshotRepository(): SnapshotRepository {
         return InMemorySnapshotRepository()
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = [SnapshotProperties.STORAGE],
+        havingValue = SnapshotStorage.IN_MEMORY_NAME,
+    )
+    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
+        return NoOpSnapshotQueryServiceFactory
     }
 
     @Bean
@@ -90,7 +102,7 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
     }
 
     @Bean
-    fun snapshotFilterChain(filters: List<Filter<StateEventExchange<*>>>): FilterChain<StateEventExchange<*>> {
+    fun snapshotFilterChain(filters: List<ExchangeFilter<StateEventExchange<*>>>): FilterChain<StateEventExchange<*>> {
         return FilterChainBuilder<StateEventExchange<*>>()
             .addFilters(filters)
             .filterCondition(SnapshotDispatcher::class)
@@ -106,6 +118,7 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
 
     @Bean
     fun snapshotDispatcher(
+        @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         snapshotHandler: SnapshotHandler,
         stateEventBus: StateEventBus

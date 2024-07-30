@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.messaging.FunctionKind
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import java.lang.annotation.Inherited
 
 const val DEFAULT_ON_SOURCING_NAME = "onSourcing"
@@ -23,7 +23,7 @@ const val DEFAULT_ON_SOURCING_NAME = "onSourcing"
  * @author ahoo wang
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @OnMessage(FunctionKind.SOURCING, defaultFunctionName = DEFAULT_ON_SOURCING_NAME)
 @MustBeDocumented

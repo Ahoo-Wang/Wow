@@ -33,27 +33,51 @@ public final class FastInvoke {
      *
      * @param method method
      * @param target target
-     * @param args args
+     * @param args   args
+     * @param <T>    result type
      * @return result
      * @throws InvocationTargetException InvocationTargetException
-     * @throws IllegalAccessException IllegalAccessException
+     * @throws IllegalAccessException    IllegalAccessException
      */
-    @SuppressWarnings("AvoidObjectArrays")
-    public static Object invoke(@NotNull Method method, Object target, Object[] args)
+    @SuppressWarnings({"AvoidObjectArrays", "unchecked"})
+    public static <T> T invoke(@NotNull Method method, Object target, Object[] args)
             throws InvocationTargetException, IllegalAccessException {
-        return method.invoke(target, args);
+        return (T) method.invoke(target, args);
+    }
+
+    /**
+     * safe invoke target object method
+     *
+     * @param method method
+     * @param target target
+     * @param args   args
+     * @param <T>    result type
+     * @return result
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws IllegalAccessException    IllegalAccessException
+     */
+    public static <T> T safeInvoke(@NotNull Method method, Object target, Object[] args)
+            throws InvocationTargetException, IllegalAccessException {
+        try {
+            return invoke(method, target, args);
+        } catch (InvocationTargetException targetException) {
+            if (targetException.getTargetException() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw targetException;
+        }
     }
 
     /**
      * create instance
      *
      * @param constructor create instance
-     * @param args args
-     * @param <T> instance type
+     * @param args        args
+     * @param <T>         instance type
      * @return instance
      * @throws InvocationTargetException InvocationTargetException
-     * @throws InstantiationException InstantiationException
-     * @throws IllegalAccessException IllegalAccessException
+     * @throws InstantiationException    InstantiationException
+     * @throws IllegalAccessException    IllegalAccessException
      */
     @NotNull
     @SuppressWarnings("AvoidObjectArrays")
@@ -61,5 +85,29 @@ public final class FastInvoke {
             throws InvocationTargetException, InstantiationException,
             IllegalAccessException {
         return constructor.newInstance(args);
+    }
+
+    /**
+     * safe create instance
+     *
+     * @param constructor create instance
+     * @param args        args
+     * @param <T>         instance type
+     * @return instance
+     * @throws InvocationTargetException InvocationTargetException
+     * @throws InstantiationException    InstantiationException
+     * @throws IllegalAccessException    IllegalAccessException
+     */
+    public static <T> T safeNewInstance(@NotNull Constructor<T> constructor, Object[] args)
+            throws InvocationTargetException, InstantiationException,
+            IllegalAccessException {
+        try {
+            return newInstance(constructor, args);
+        } catch (InvocationTargetException targetException) {
+            if (targetException.getTargetException() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw targetException;
+        }
     }
 }

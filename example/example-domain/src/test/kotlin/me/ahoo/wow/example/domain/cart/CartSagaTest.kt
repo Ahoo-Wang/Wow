@@ -36,10 +36,10 @@ class CartSagaTest {
                     } returns true
                 },
             )
-            .expectCommandBody<RemoveCartItem> {
-                assertThat(it.id, equalTo("customerId"))
-                assertThat(it.productIds, hasSize(1))
-                assertThat(it.productIds.first(), equalTo(orderItem.productId))
+            .expectCommand<RemoveCartItem> {
+                assertThat(it.aggregateId.id, equalTo("customerId"))
+                assertThat(it.body.productIds, hasSize(1))
+                assertThat(it.body.productIds.first(), equalTo(orderItem.productId))
             }
             .verify()
     }

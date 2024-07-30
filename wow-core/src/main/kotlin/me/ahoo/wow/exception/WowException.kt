@@ -14,6 +14,7 @@
 package me.ahoo.wow.exception
 
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import me.ahoo.wow.api.exception.RecoverableType
@@ -23,10 +24,16 @@ import java.util.concurrent.TimeoutException
 open class WowException(
     final override val errorCode: String,
     errorMsg: String,
-    cause: Throwable? = null
+    cause: Throwable? = null,
+    override val bindingErrors: List<BindingError> = emptyList(),
 ) : RuntimeException(errorMsg, cause), ErrorInfo {
+    override val message: String
+        get() = errorMsg
     override val errorMsg: String
-        get() = message ?: ""
+        get() {
+            val firstBindingError = bindingErrors.firstOrNull() ?: return super.message ?: ""
+            return "${firstBindingError.name}:${firstBindingError.msg}"
+        }
 }
 
 /**
@@ -96,8 +103,8 @@ fun Throwable.toErrorInfo(): ErrorInfo {
     return when (this) {
         is ErrorInfo -> this.materialize()
         else -> ErrorInfo.of(
-            getErrorCode(),
-            getErrorMsg()
+            errorCode = getErrorCode(),
+            errorMsg = getErrorMsg()
         )
     }
 }
@@ -109,9 +116,10 @@ fun Throwable.toWowException(
     return when (this) {
         is WowException -> this
         else -> WowException(
-            errorCode,
-            errorMsg,
-            this,
+            errorCode = errorCode,
+            errorMsg = errorMsg,
+            bindingErrors = emptyList(),
+            cause = this,
         )
     }
 }

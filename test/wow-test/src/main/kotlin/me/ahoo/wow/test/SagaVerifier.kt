@@ -15,17 +15,21 @@ package me.ahoo.wow.test
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
-import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.test.saga.stateless.DefaultWhenStage
 import me.ahoo.wow.test.saga.stateless.WhenStage
+import me.ahoo.wow.test.validation.TestValidator
 
 /**
  * Stateless Saga Verifier .
@@ -38,22 +42,27 @@ object SagaVerifier {
         return DefaultCommandGateway(
             SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             InMemoryCommandBus(),
-            NoOpIdempotencyChecker,
+            DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
             SimpleWaitStrategyRegistrar,
-            NoOpValidator,
         )
     }
 
     @JvmStatic
+    @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
-        commandGateway: CommandGateway = defaultCommandGateway()
+        commandGateway: CommandGateway = defaultCommandGateway(),
+        commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
+            validator = TestValidator,
+            commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
+        )
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory
         )
     }
 

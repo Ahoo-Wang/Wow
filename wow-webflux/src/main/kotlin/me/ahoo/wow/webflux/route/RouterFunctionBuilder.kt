@@ -36,17 +36,18 @@ class RouterFunctionBuilder(
             "router is empty!"
         }
         val routerFunctionBuilder = RouterFunctions.route()
-        val acceptPredicate = RequestPredicates.accept(MediaType.APPLICATION_JSON)
         for (routeSpec in routerSpecs) {
+            val acceptMediaTypes = MediaType.parseMediaTypes(routeSpec.accept).toTypedArray()
+            val acceptPredicate = RequestPredicates.accept(*acceptMediaTypes)
             val httpMethod = HttpMethod.valueOf(routeSpec.method)
-            val requestPredicate =
-                RequestPredicates.path(routeSpec.path).and(RequestPredicates.method(httpMethod)).and(acceptPredicate)
+            val requestPredicate = RequestPredicates.path(routeSpec.path)
+                .and(RequestPredicates.method(httpMethod))
+                .and(acceptPredicate)
 
             @Suppress("UNCHECKED_CAST")
-            val factory =
-                requireNotNull(
-                    routeHandlerFunctionRegistrar.getFactory(routeSpec)
-                ) as RouteHandlerFunctionFactory<RouteSpec>
+            val factory = requireNotNull(routeHandlerFunctionRegistrar.getFactory(routeSpec)) {
+                "RouteHandlerFunctionFactory not found for routeSpec:$routeSpec"
+            } as RouteHandlerFunctionFactory<RouteSpec>
             val handlerFunction = factory.create(routeSpec)
             routerFunctionBuilder.route(
                 requestPredicate,

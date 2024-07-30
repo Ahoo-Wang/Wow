@@ -19,6 +19,7 @@ on:
     paths-ignore:
       - 'examples/**'
       - 'documentation/**'
+      - 'schema/**'
     branches:
       - '**'
     tags:
@@ -27,6 +28,7 @@ on:
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
+      - 'schema/**'
     branches:
       - 'main'
   workflow_dispatch:
@@ -46,15 +48,19 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Packages
+        working-directory: compensation/wow-compensation-dashboard
+        run: npm install && npm install -g @angular/cli
+
       - name: Build Dashboard-UI
         working-directory: compensation/wow-compensation-dashboard
-        run: npm install && npm install -g @angular/cli && ng build
+        run: ng build
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
@@ -102,7 +108,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64,linux/arm64
           context: compensation/wow-compensation-server
