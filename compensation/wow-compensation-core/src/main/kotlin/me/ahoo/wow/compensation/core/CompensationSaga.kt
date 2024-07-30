@@ -14,6 +14,7 @@
 package me.ahoo.wow.compensation.core
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.AggregateId
@@ -34,6 +35,7 @@ class CompensationSaga(
         private val log = LoggerFactory.getLogger(CompensationSaga::class.java)
     }
 
+    @Retry(enabled = false)
     @OnEvent
     fun onCompensationPrepared(compensationPrepared: CompensationPrepared, aggregateId: AggregateId): Mono<Void> {
         val isLocal = compensationPrepared.eventId.aggregateId.isLocal()

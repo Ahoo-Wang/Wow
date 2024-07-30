@@ -16,3 +16,8 @@ db.snapshot.createIndex({tenantId: "hashed"});
 sh.enableSharding("wow_db");
 sh.shardCollection("wow_db.snapshot", { "_id" : "hashed" });
 sh.shardCollection("wow_db.event_stream", { "aggregateId" : "hashed" });
+
+
+sh.enableSharding("compensation_db");
+sh.shardCollection("compensation_db.execution_failed_snapshot", { "_id" : "hashed" });
+sh.shardCollection("compensation_db.execution_failed_event_stream", { "aggregateId" : "hashed" });
