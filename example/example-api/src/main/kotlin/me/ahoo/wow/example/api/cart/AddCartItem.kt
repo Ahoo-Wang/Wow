@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Order
 
+@Order(1)
 @AllowCreate
 @CommandRoute(
     method = CommandRoute.Method.POST,
