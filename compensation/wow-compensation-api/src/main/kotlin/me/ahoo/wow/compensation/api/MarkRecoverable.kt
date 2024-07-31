@@ -15,8 +15,10 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.exception.RecoverableType
 
+@Order(7)
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class MarkRecoverable(
     @field:CommandRoute.PathVariable
