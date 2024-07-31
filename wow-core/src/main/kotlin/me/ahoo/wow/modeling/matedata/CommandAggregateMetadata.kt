@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.matedata
 
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
@@ -51,7 +52,7 @@ data class CommandAggregateMetadata<C : Any>(
             RecoverAggregate::class.java.isAssignableFrom(it)
         }
     val registeredCommands: List<Class<*>> by lazy {
-        commandFunctionRegistry.keys.toList() + mountedCommands
+        (commandFunctionRegistry.keys.toList() + mountedCommands).sortedByOrder()
     }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {

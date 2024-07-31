@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.example.api.cart
 
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
 
+@Order(4)
 @Summary("挂载的命令")
 class MountedCommand
