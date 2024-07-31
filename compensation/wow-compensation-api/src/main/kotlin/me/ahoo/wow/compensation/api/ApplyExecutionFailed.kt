@@ -17,8 +17,10 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
 import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.exception.RecoverableType
 
+@Order(4)
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class ApplyExecutionFailed(
     @field:PathVariable override val id: String,

@@ -17,7 +17,9 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CommandRoute.AppendPath
 import me.ahoo.wow.api.annotation.CommandRoute.PathVariable
+import me.ahoo.wow.api.annotation.Order
 
+@Order(3)
 @CommandRoute(appendIdPath = AppendPath.ALWAYS)
 data class ApplyExecutionSuccess(@field:PathVariable override val id: String, override val executeAt: Long) :
     Identifier, ExecuteAt

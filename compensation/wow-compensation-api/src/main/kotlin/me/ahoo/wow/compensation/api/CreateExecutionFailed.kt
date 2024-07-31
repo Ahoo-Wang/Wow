@@ -14,9 +14,12 @@
 package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.ORDER_FIRST
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 
+@Order(ORDER_FIRST)
 @CreateAggregate
 data class CreateExecutionFailed(
     override val eventId: EventId,

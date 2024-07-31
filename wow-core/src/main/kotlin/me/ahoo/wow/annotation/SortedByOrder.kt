@@ -14,11 +14,32 @@
 package me.ahoo.wow.annotation
 
 import me.ahoo.wow.api.annotation.Order
+import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
+
+private fun <T : Any> T.getKClass(): KClass<*> {
+    return when (this) {
+        is KClass<*> -> {
+            this
+        }
+
+        is Class<*> -> {
+            this.kotlin
+        }
+
+        else -> {
+            this.javaClass.kotlin
+        }
+    }
+}
+
+private fun <T : Any> T.getOrder(): Order {
+    return getKClass().findAnnotation<Order>() ?: Order()
+}
 
 fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
     val sortedByOrderList = this.map {
-        val order: Order = it.javaClass.kotlin.findAnnotation<Order>() ?: Order()
+        val order: Order = it.getOrder()
         it to order
     }.sortedBy { it.second.value }
 
@@ -34,7 +55,7 @@ fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
 private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, Order>) {
     val beforeValues = current.second.before
     for (beforeClass in beforeValues) {
-        val beforeIndex = indexOfFirst { it.first::class == beforeClass }
+        val beforeIndex = indexOfFirst { it.first.getKClass() == beforeClass }
         if (beforeIndex == -1) {
             continue
         }
@@ -50,7 +71,7 @@ private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, 
 private fun <T : Any> MutableList<Pair<T, Order>>.moveToAfter(current: Pair<T, Order>) {
     val afterValues = current.second.after
     for (afterClass in afterValues) {
-        val afterIndex = indexOfFirst { it.first::class == afterClass }
+        val afterIndex = indexOfFirst { it.first.getKClass() == afterClass }
         if (afterIndex == -1) {
             continue
         }

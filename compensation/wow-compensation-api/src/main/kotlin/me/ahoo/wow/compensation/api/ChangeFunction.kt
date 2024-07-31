@@ -15,9 +15,11 @@ package me.ahoo.wow.compensation.api
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionKind
 
+@Order(6)
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class ChangeFunction(
     @field:CommandRoute.PathVariable

@@ -42,6 +42,50 @@ class SortedByOrderKtTest {
         assertThat(sortedList, hasSize(5))
         assertThat(sortedList, contains(Before, OrderFirst, OrderLast, Undefined, After))
     }
+
+    @Test
+    fun sortByOrderClass() {
+        val sortedList = listOf(
+            OrderLast::class.java,
+            OrderFirst::class.java,
+            Before::class.java,
+            After::class.java,
+            Undefined::class.java
+        ).sortedByOrder()
+        assertThat(sortedList, hasSize(5))
+        assertThat(
+            sortedList,
+            contains(
+                Before::class.java,
+                OrderFirst::class.java,
+                OrderLast::class.java,
+                Undefined::class.java,
+                After::class.java
+            )
+        )
+    }
+
+    @Test
+    fun sortByOrderKClass() {
+        val sortedList = listOf(
+            OrderLast::class,
+            OrderFirst::class,
+            Before::class,
+            After::class,
+            Undefined::class
+        ).sortedByOrder()
+        assertThat(sortedList, hasSize(5))
+        assertThat(
+            sortedList,
+            contains(
+                Before::class,
+                OrderFirst::class,
+                OrderLast::class,
+                Undefined::class,
+                After::class
+            )
+        )
+    }
 }
 
 @Order(before = [Undefined::class, OrderFirst::class])
