@@ -24,33 +24,33 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 
 fun Any.toDomainEventStream(
-    command: CommandMessage<*>,
+    upstream: CommandMessage<*>,
     aggregateVersion: Int,
     header: Header = DefaultHeader.empty()
 ): DomainEventStream {
-    header.inject(command)
+    header.inject(upstream)
     val eventStreamId = generateGlobalId()
-    val aggregateId = command.aggregateId
+    val aggregateId = upstream.aggregateId
     val streamVersion = aggregateVersion + 1
     val createTime = System.currentTimeMillis()
 
     val events = when (this) {
         is Iterable<*> -> {
-            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
         }
 
         is Array<*> -> {
-            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
         }
 
         else -> {
-            toDomainEvents(streamVersion, aggregateId, command, header, createTime)
+            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
         }
     }
 
     return SimpleDomainEventStream(
         id = eventStreamId,
-        requestId = command.requestId,
+        requestId = upstream.requestId,
         header = header,
         body = events,
     )

@@ -48,7 +48,7 @@ internal class ProjectionProcessorMetadataParserTest {
         val eventHandlerRegistry = projectionProcessorMetadata<MockProjector>().toMessageFunctionRegistry(mockProjector)
         val createdState = GlobalIdGenerator.generateAsString()
         val created = MockAggregateChanged(createdState).toDomainEventStream(
-            command = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
+            upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 0,
         ).first()
         eventHandlerRegistry.first {
