@@ -17,11 +17,11 @@ import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.api.naming.QualifiedNamed
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 
-interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
-    FunctionInfo {
+interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> : QualifiedNamed, FunctionInfo {
 
     /**
      * Message body types supported by the message function.
@@ -40,7 +40,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
     /**
      * The fully qualified name of the function.
      */
-    val qualifiedName: String
+    override val qualifiedName: String
         get() = "$processorName.$name(${supportedType.simpleName})"
 
     fun <M> supportMessage(message: M): Boolean

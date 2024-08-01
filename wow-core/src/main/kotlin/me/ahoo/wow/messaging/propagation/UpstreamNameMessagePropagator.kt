@@ -13,26 +13,26 @@
 
 package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.naming.Named
 
-class CommandNameMessagePropagator : MessagePropagator {
+class UpstreamNameMessagePropagator : MessagePropagator {
     companion object {
-        private const val COMMAND_NAME = "command.name"
-        val Header.commandName: String?
+        private const val UPSTREAM_NAME = "upstream.name"
+        val Header.upstreamName: String?
             get() {
-                return this[COMMAND_NAME]
+                return this[UPSTREAM_NAME]
             }
 
-        fun Header.withCommandName(commandName: String): Header {
-            return this.with(COMMAND_NAME, commandName)
+        fun Header.withUpstreamName(upstreamName: String): Header {
+            return this.with(UPSTREAM_NAME, upstreamName)
         }
     }
 
     override fun inject(header: Header, upstream: Message<*, *>) {
-        if (upstream is CommandMessage) {
-            header.withCommandName(upstream.name)
+        if (upstream is Named) {
+            header.withUpstreamName(upstream.name)
         }
     }
 }
