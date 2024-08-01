@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.factory
 
 import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
@@ -28,6 +29,7 @@ interface CommandBuilder : Identifier {
     val namedAggregate: NamedAggregate?
     val header: Header
     val createTime: Long
+    val upstream: DomainEvent<*>?
 
     /**
      * Command Body
@@ -111,6 +113,8 @@ interface CommandBuilder : Identifier {
      */
     fun createTime(createTime: Long): CommandBuilder
 
+    fun upstream(upstream: DomainEvent<*>): CommandBuilder
+
     companion object {
 
         fun Any.commandBuilder(): CommandBuilder {
@@ -141,6 +145,8 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
     override var header: Header = DefaultHeader.empty()
         private set
     override var createTime: Long = System.currentTimeMillis()
+        private set
+    override var upstream: DomainEvent<*>? = null
         private set
 
     override fun body(body: Any): CommandBuilder {
@@ -190,6 +196,11 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
 
     override fun createTime(createTime: Long): CommandBuilder {
         this.createTime = createTime
+        return this
+    }
+
+    override fun upstream(upstream: DomainEvent<*>): CommandBuilder {
+        this.upstream = upstream
         return this
     }
 }

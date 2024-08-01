@@ -48,7 +48,7 @@ object MockDomainEventStreams {
             eventCounter++
         }
         return events.toDomainEventStream(
-            command = GivenInitializationCommand(
+            upstream = GivenInitializationCommand(
                 aggregateId = aggregateId,
             ),
             aggregateVersion = aggregateVersion,

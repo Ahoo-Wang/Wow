@@ -117,7 +117,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
                 )
 
             val domainEventStream = events.toDomainEventStream(
-                command = initializationCommand,
+                upstream = initializationCommand,
                 aggregateVersion = it.version,
             )
             try {

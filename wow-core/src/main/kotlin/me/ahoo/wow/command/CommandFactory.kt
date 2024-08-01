@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.TenantId
@@ -23,6 +24,8 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
+import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
 import me.ahoo.wow.modeling.aggregateId
 
 @Suppress("LongParameterList")
@@ -34,8 +37,12 @@ fun <C : Any> C.toCommandMessage(
     aggregateVersion: Int? = null,
     namedAggregate: NamedAggregate? = null,
     header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
+    createTime: Long = System.currentTimeMillis(),
+    upstream: DomainEvent<*>? = null,
 ): CommandMessage<C> {
+    upstream?.let {
+        header.inject(it)
+    }
     val metadata = javaClass.commandMetadata()
     val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)
     requireNotNull(commandNamedAggregate) {
@@ -61,7 +68,7 @@ fun <C : Any> C.toCommandMessage(
         name = metadata.name,
         isCreate = metadata.isCreate,
         allowCreate = metadata.allowCreate,
-    )
+    ).ensureTraceId()
 }
 
 fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
@@ -73,6 +80,7 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
         aggregateVersion = aggregateVersion,
         namedAggregate = namedAggregate,
         header = header,
-        createTime = createTime
+        createTime = createTime,
+        upstream = upstream,
     )
 }

@@ -71,7 +71,7 @@ abstract class ProjectionDispatcherSpec {
         projectionDispatcher.run()
 
         val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
-            command = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
+            upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
             aggregateVersion = 1,
         )
         domainEventBus.send(eventStream).block()

@@ -55,7 +55,7 @@ abstract class SnapshotRepositorySpec {
         val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
         val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
         val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
-            command = command,
+            upstream = command,
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(eventStream)
@@ -135,7 +135,7 @@ abstract class SnapshotRepositorySpec {
         val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
         val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
         val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
-            command = command,
+            upstream = command,
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(eventStream)
@@ -147,7 +147,7 @@ abstract class SnapshotRepositorySpec {
             .verifyComplete()
 
         val eventStream2 = listOf(aggregateCreated, changed).toDomainEventStream(
-            command = command,
+            upstream = command,
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(eventStream2)

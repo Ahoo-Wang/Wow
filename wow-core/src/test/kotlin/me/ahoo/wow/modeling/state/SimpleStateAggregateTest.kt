@@ -126,7 +126,7 @@ internal class SimpleStateAggregateTest {
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
         val domainEventStream = changed.toDomainEventStream(
-            command = GivenInitializationCommand(stateAggregate.aggregateId),
+            upstream = GivenInitializationCommand(stateAggregate.aggregateId),
             aggregateVersion = stateAggregate.version,
         )
 
@@ -141,7 +141,7 @@ internal class SimpleStateAggregateTest {
         val changed = MockAggregateChanged("changed")
         val streamHeadVersion = stateAggregate.version + 1
         val domainEventStream = changed.toDomainEventStream(
-            command = GivenInitializationCommand(stateAggregate.aggregateId),
+            upstream = GivenInitializationCommand(stateAggregate.aggregateId),
             aggregateVersion = streamHeadVersion,
         )
 
@@ -163,7 +163,7 @@ internal class SimpleStateAggregateTest {
         val changed = MockAggregateChanged("changed")
         val streamHeadVersion = stateAggregate.version + 1
         val domainEventStream = changed.toDomainEventStream(
-            command = GivenInitializationCommand(
+            upstream = GivenInitializationCommand(
                 stateAggregate.aggregateId.aggregateId(GlobalIdGenerator.generateAsString()),
             ),
             aggregateVersion = streamHeadVersion,
@@ -184,7 +184,7 @@ internal class SimpleStateAggregateTest {
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val wrongEvent = WrongEvent()
         val domainEventStream = wrongEvent.toDomainEventStream(
-            command = GivenInitializationCommand(stateAggregate.aggregateId),
+            upstream = GivenInitializationCommand(stateAggregate.aggregateId),
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(domainEventStream)
@@ -198,7 +198,7 @@ internal class SimpleStateAggregateTest {
         val errorIgnoreEvent =
             ErrorIgnoreEvent(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
         val domainEventStream = errorIgnoreEvent.toDomainEventStream(
-            command = GivenInitializationCommand(stateAggregate.aggregateId),
+            upstream = GivenInitializationCommand(stateAggregate.aggregateId),
             aggregateVersion = stateAggregate.version,
         )
         stateAggregate.onSourcing(domainEventStream)

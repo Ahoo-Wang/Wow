@@ -54,7 +54,7 @@ abstract class StateAggregateRepositorySpec {
 
         val command = GivenInitializationCommand(aggregateId)
         val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
-        val eventStream = stateChanged.toDomainEventStream(command = command, aggregateVersion = 0)
+        val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
         assertThat(stateAggregate, notNullValue())

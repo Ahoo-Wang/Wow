@@ -25,7 +25,7 @@ internal class SimpleDomainEventStreamTest : DomainEventStreamSpec() {
         aggregateVersion: Int
     ): DomainEventStream {
         return events.toDomainEventStream(
-            command = GivenInitializationCommand(aggregateId),
+            upstream = GivenInitializationCommand(aggregateId),
             aggregateVersion = aggregateVersion,
         )
     }

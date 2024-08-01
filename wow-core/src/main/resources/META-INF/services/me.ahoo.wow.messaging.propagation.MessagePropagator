@@ -12,4 +12,4 @@
 #
 me.ahoo.wow.messaging.propagation.WaitStrategyMessagePropagator
 me.ahoo.wow.messaging.propagation.CommandOperatorMessagePropagator
-me.ahoo.wow.messaging.propagation.UpstreamNameMessagePropagator
+me.ahoo.wow.messaging.propagation.TraceMessagePropagator

@@ -13,13 +13,35 @@
 
 package me.ahoo.wow.messaging.propagation
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.Named
 
-class UpstreamNameMessagePropagator : MessagePropagator {
+class TraceMessagePropagator : MessagePropagator {
     companion object {
+        private const val TRACE_ID = "trace.id"
+        private const val UPSTREAM_ID = "upstream.id"
         private const val UPSTREAM_NAME = "upstream.name"
+
+        val Header.traceId: String?
+            get() {
+                return this[TRACE_ID]
+            }
+
+        fun Header.withTraceId(traceId: String): Header {
+            return this.with(TRACE_ID, traceId)
+        }
+
+        val Header.upstreamId: String?
+            get() {
+                return this[UPSTREAM_ID]
+            }
+
+        fun Header.withUpstreamId(upstreamId: String): Header {
+            return this.with(UPSTREAM_ID, upstreamId)
+        }
+
         val Header.upstreamName: String?
             get() {
                 return this[UPSTREAM_NAME]
@@ -28,9 +50,20 @@ class UpstreamNameMessagePropagator : MessagePropagator {
         fun Header.withUpstreamName(upstreamName: String): Header {
             return this.with(UPSTREAM_NAME, upstreamName)
         }
+
+        fun <C : Any> CommandMessage<C>.ensureTraceId(): CommandMessage<C> {
+            if (header.traceId == null) {
+                header.withTraceId(id)
+            }
+            return this
+        }
     }
 
     override fun inject(header: Header, upstream: Message<*, *>) {
+        upstream.header.traceId?.let {
+            header.withTraceId(it)
+        }
+        header.withUpstreamId(upstream.id)
         if (upstream is Named) {
             header.withUpstreamName(upstream.name)
         }
