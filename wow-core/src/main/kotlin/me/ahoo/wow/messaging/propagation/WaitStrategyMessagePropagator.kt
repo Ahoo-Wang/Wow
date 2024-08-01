@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.propagation
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
@@ -22,6 +23,9 @@ import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
 
 class WaitStrategyMessagePropagator : MessagePropagator {
     override fun inject(header: Header, upstream: Message<*, *>) {
+        if (upstream !is CommandMessage<*>) {
+            return
+        }
         val upstreamHeader = upstream.header
         val commandWaitEndpoint = upstreamHeader[COMMAND_WAIT_ENDPOINT] ?: return
         header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)

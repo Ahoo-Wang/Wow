@@ -24,6 +24,7 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -74,6 +75,7 @@ class StatelessSagaFunction(
 
     private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
+            singleResult.header.inject(domainEvent)
             return singleResult.toMono()
         }
         val commandBuilder = if (singleResult is CommandBuilder) {
@@ -84,6 +86,9 @@ class StatelessSagaFunction(
         commandBuilder
             .requestIfIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
+            .header {
+                it.inject(domainEvent)
+            }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
     }
