@@ -78,7 +78,7 @@ class AggregateTracingHandlerFunction(
                 sourcing(
                     aggregateId,
                     eventStreams.take(index + 1).map {
-                        it.deepCody()
+                        it.deepCody(DomainEventStream::class.java)
                     }
                 )
             }
