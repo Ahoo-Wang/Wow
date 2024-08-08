@@ -61,8 +61,8 @@ fun <T> JsonNode.toObject(objectType: Class<T>): T {
     return JsonSerializer.treeToValue(this, objectType)
 }
 
-fun <T : Any> T.deepCody(objectType: Class<T>): T {
-    return this.toJsonString().toObject(objectType)
+fun <T : Any> T.deepCody(): T {
+    return this.toJsonString().toObject(this.javaClass)
 }
 
 inline fun <reified T> String.toObject(): T {
@@ -71,8 +71,4 @@ inline fun <reified T> String.toObject(): T {
 
 inline fun <reified T> JsonNode.toObject(): T {
     return toObject(T::class.java)
-}
-
-inline fun <reified T : Any> T.deepCody(): T {
-    return deepCody(T::class.java)
 }
