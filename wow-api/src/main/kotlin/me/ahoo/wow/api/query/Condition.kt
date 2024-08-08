@@ -216,6 +216,11 @@ data class Condition(
      */
     val not: Boolean = false,
 ) : RewritableCondition<Condition> {
+    fun <V> valueAs(): V {
+        @Suppress("UNCHECKED_CAST")
+        return value as V
+    }
+
     override fun withCondition(newCondition: Condition): Condition {
         return newCondition
     }
