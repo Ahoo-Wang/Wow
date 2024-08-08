@@ -27,6 +27,7 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.event.JsonDomainEvent
@@ -150,6 +151,18 @@ internal class JsonSerializerTest {
         val input = output.toObject<StateEvent<*>>()
         assertThat(input, equalTo(stateEvent))
     }
+
+    @Test
+    fun deepCody() {
+        val mutableData = MutableData(generateGlobalId())
+        val deepCopied = mutableData.deepCody()
+        assertThat(mutableData, equalTo(deepCopied))
+        mutableData.id = generateGlobalId()
+        deepCopied.id = generateGlobalId()
+        assertThat(mutableData, not(deepCopied))
+    }
 }
 
 data class QueryById(val id: String)
+
+data class MutableData(var id: String)

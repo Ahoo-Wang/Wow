@@ -24,6 +24,7 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
+import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -74,7 +75,12 @@ class AggregateTracingHandlerFunction(
             }
             val aggregateId = eventStreams.first().aggregateId
             return List(eventStreams.size) { index ->
-                sourcing(aggregateId, eventStreams.take(index + 1))
+                sourcing(
+                    aggregateId,
+                    eventStreams.take(index + 1).map {
+                        it.deepCody()
+                    }
+                )
             }
         }
     }
