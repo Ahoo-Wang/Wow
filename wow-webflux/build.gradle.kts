@@ -5,4 +5,5 @@ dependencies {
     implementation("org.springframework:spring-context")
     implementation("org.springframework:spring-webflux")
     testImplementation(project(":wow-tck"))
+    testImplementation(project(":example-domain"))
 }
