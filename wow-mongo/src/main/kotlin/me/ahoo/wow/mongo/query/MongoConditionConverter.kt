@@ -48,7 +48,7 @@ object MongoConditionConverter : ConditionConverter<Bson> {
     }
 
     override fun ids(condition: Condition): Bson {
-        return Filters.`in`(Documents.ID_FIELD, condition.value as List<*>)
+        return Filters.`in`(Documents.ID_FIELD, condition.valueAs<Iterable<String>>())
     }
 
     override fun tenantId(condition: Condition): Bson {
@@ -82,20 +82,19 @@ object MongoConditionConverter : ConditionConverter<Bson> {
     }
 
     override fun contains(condition: Condition): Bson {
-        return Filters.regex(condition.field, condition.value as String)
+        return Filters.regex(condition.field, condition.valueAs<String>())
     }
 
     override fun isIn(condition: Condition): Bson {
-        return Filters.`in`(condition.field, condition.value as List<*>)
+        return Filters.`in`(condition.field, condition.valueAs<Iterable<*>>())
     }
 
     override fun notIn(condition: Condition): Bson {
-        return Filters.nin(condition.field, condition.value as List<*>)
+        return Filters.nin(condition.field, condition.valueAs<Iterable<*>>())
     }
 
-    @Suppress("UNCHECKED_CAST")
     override fun between(condition: Condition): Bson {
-        val valueIterable = condition.value as Iterable<Any>
+        val valueIterable = condition.valueAs<Iterable<Any>>()
         val ite = valueIterable.iterator()
         require(ite.hasNext()) {
             "BETWEEN operator value must be a array with 2 elements."
@@ -109,7 +108,7 @@ object MongoConditionConverter : ConditionConverter<Bson> {
     }
 
     override fun allIn(condition: Condition): Bson {
-        return Filters.all(condition.field, condition.value as List<*>)
+        return Filters.all(condition.field, condition.valueAs<Iterable<*>>())
     }
 
     override fun startsWith(condition: Condition): Bson {
@@ -226,16 +225,15 @@ object MongoConditionConverter : ConditionConverter<Bson> {
     override fun raw(condition: Condition): Bson {
         return when (condition.value) {
             is Bson -> {
-                condition.value as Bson
+                condition.valueAs()
             }
 
             is String -> {
-                Document.parse(condition.value as String)
+                Document.parse(condition.valueAs<String>())
             }
 
             is Map<*, *> -> {
-                @Suppress("UNCHECKED_CAST")
-                Document(condition.value as Map<String, *>)
+                Document(condition.valueAs<Map<String, *>>())
             }
 
             else -> {
