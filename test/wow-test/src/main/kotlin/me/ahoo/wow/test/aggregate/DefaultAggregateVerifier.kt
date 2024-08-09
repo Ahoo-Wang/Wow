@@ -16,6 +16,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -24,6 +25,7 @@ import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.test.validation.validate
@@ -202,7 +204,11 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     ): VerifiedStage<S> {
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
-        val forkedResult = verifiedResult.copy(stateAggregate = forkedStateAggregate)
+        val forkedEventStream = verifiedResult.domainEventStream?.deepCody(DomainEventStream::class.java)
+        val forkedResult = verifiedResult.copy(
+            stateAggregate = forkedStateAggregate,
+            domainEventStream = forkedEventStream
+        )
         val forkedServiceProvider = serviceProviderSupplier(serviceProvider)
         val forkedCommandAggregateFactory = commandAggregateFactorySupplier()
         val forkedGivenStage = DefaultVerifiedStage(
