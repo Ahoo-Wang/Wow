@@ -14,20 +14,18 @@
 package me.ahoo.wow.spring.query
 
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryService
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
-import org.springframework.core.ResolvableType
 
-class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
+class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
     companion object {
-        private val log = LoggerFactory.getLogger(SnapshotQueryServiceRegistrar::class.java)
+        private val log = LoggerFactory.getLogger(EventStreamQueryServiceRegistrar::class.java)
     }
 
     override fun registerQueryService(
@@ -35,32 +33,26 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
         registry: BeanDefinitionRegistry
     ) {
         val namedAggregate = entry.key
-        val beanName = "${namedAggregate.toStringWithAlias()}.SnapshotQueryService"
+        val beanName = "${namedAggregate.toStringWithAlias()}.EventStreamQueryService"
         if (log.isInfoEnabled) {
-            log.info("Register SnapshotQueryService [$beanName].")
+            log.info("Register EventStreamQueryService [$beanName].")
         }
         if (registry.containsBeanDefinition(beanName)) {
             if (log.isWarnEnabled) {
-                log.warn("SnapshotQueryService [$beanName] already exists - Ignore.")
+                log.warn("EventStreamQueryService [$beanName] already exists - Ignore.")
             }
             return
         }
-        val genericType = entry.value.aggregateMetadata<Any, Any>().state.aggregateType
-        val snapshotQueryServiceType = ResolvableType.forClassWithGenerics(
-            SnapshotQueryService::class.java,
-            genericType
-        )
-
-        val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(snapshotQueryServiceType) {
-            val queryServiceFactory: SnapshotQueryServiceFactory =
-                appContext.getBeanProvider(SnapshotQueryServiceFactory::class.java).getOrNoOp()
-            queryServiceFactory.create<Any>(namedAggregate)
+        val beanDefinitionBuilder = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryService::class.java) {
+            val queryServiceFactory: EventStreamQueryServiceFactory =
+                appContext.getBeanProvider(EventStreamQueryServiceFactory::class.java).getOrNoOp()
+            queryServiceFactory.create(namedAggregate)
         }
 
         registry.registerBeanDefinition(beanName, beanDefinitionBuilder.beanDefinition)
     }
 }
 
-fun ObjectProvider<SnapshotQueryServiceFactory>.getOrNoOp(): SnapshotQueryServiceFactory {
-    return this.getIfAvailable { NoOpSnapshotQueryServiceFactory }
+fun ObjectProvider<EventStreamQueryServiceFactory>.getOrNoOp(): EventStreamQueryServiceFactory {
+    return this.getIfAvailable { NoOpEventStreamQueryServiceFactory }
 }

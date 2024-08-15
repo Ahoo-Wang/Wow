@@ -17,6 +17,9 @@ import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
@@ -25,6 +28,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.query.EventStreamQueryServiceRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryServiceRegistrar
 import me.ahoo.wow.spring.query.getOrNoOp
 import org.springframework.beans.factory.ObjectProvider
@@ -40,7 +44,7 @@ import org.springframework.context.annotation.Import
  * @author ahoo wang
  */
 @AutoConfiguration
-@Import(SnapshotQueryServiceRegistrar::class)
+@Import(SnapshotQueryServiceRegistrar::class, EventStreamQueryServiceRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
     @Bean
@@ -77,5 +81,17 @@ class QueryAutoConfiguration {
         @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<SnapshotQueryContext<*, *, *>>
     ): SnapshotQueryHandler {
         return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SnapshotQueryServiceFactory::class)
+    fun noOpSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
+        return NoOpSnapshotQueryServiceFactory
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(EventStreamQueryServiceFactory::class)
+    fun noOpEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
+        return NoOpEventStreamQueryServiceFactory
     }
 }

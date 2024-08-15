@@ -23,7 +23,9 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
+import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
@@ -61,15 +63,37 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
         mongoClient: MongoClient,
         @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): EventStore {
+        val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
+        if (mongoProperties.autoInitSchema) {
+            EventStreamSchemaInitializer(eventStoreDatabase).initAll()
+        }
+        return MongoEventStore(eventStoreDatabase)
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        EventStoreProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = EventStoreStorage.MONGO_NAME,
+    )
+    fun mongoEventStreamQueryServiceFactory(
+        mongoClient: MongoClient,
+        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+    ): EventStreamQueryServiceFactory {
+        val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
+        return MongoEventStreamQueryServiceFactory(eventStoreDatabase)
+    }
+
+    private fun getEventStreamDatabase(
+        dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        mongoClient: MongoClient
+    ): MongoDatabase {
         val eventStoreDatabaseName = mongoProperties.eventStreamDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(eventStoreDatabaseName) {
             "${MongoProperties.PREFIX}.event-stream-database must not be null!"
         }
         val eventStoreDatabase = mongoClient.getDatabase(eventStoreDatabaseName)
-        if (mongoProperties.autoInitSchema) {
-            EventStreamSchemaInitializer(eventStoreDatabase).initAll()
-        }
-        return MongoEventStore(eventStoreDatabase)
+        return eventStoreDatabase
     }
 
     @Bean
@@ -83,7 +107,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
         mongoClient: MongoClient,
         @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): SnapshotRepository {
-        val snapshotDatabase = getMongoDatabase(dataMongoProperties, mongoClient)
+        val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
             SnapshotSchemaInitializer(snapshotDatabase).initAll()
         }
@@ -101,11 +125,11 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
         mongoClient: MongoClient,
         @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
     ): SnapshotQueryServiceFactory {
-        val snapshotDatabase = getMongoDatabase(dataMongoProperties, mongoClient)
+        val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         return MongoSnapshotQueryServiceFactory(snapshotDatabase)
     }
 
-    private fun getMongoDatabase(
+    private fun getMongoSnapshotDatabase(
         dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
         mongoClient: MongoClient
     ): MongoDatabase {
