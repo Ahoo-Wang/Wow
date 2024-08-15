@@ -17,9 +17,9 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.BeanFactoryAware
