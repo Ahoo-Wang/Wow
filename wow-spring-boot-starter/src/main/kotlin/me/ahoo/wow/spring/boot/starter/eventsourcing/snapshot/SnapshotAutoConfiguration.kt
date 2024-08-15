@@ -28,8 +28,8 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.query.NoOpSnapshotQueryServiceFactory
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher

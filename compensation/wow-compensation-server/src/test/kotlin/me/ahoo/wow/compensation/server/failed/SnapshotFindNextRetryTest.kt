@@ -3,8 +3,8 @@ package me.ahoo.wow.compensation.server.failed
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties
-import me.ahoo.wow.query.condition
-import me.ahoo.wow.query.nestedState
+import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.dsl.nestedState
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

@@ -2,9 +2,9 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.query.filter.MaskingSnapshotQueryFilter
-import me.ahoo.wow.query.filter.SnapshotQueryHandler
-import me.ahoo.wow.query.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test

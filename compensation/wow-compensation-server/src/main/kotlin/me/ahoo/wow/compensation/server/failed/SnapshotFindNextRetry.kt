@@ -23,11 +23,11 @@ import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.RETRY_STAT
 import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.RETRY_STATE__TIMEOUT_AT
 import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.STATUS
 import me.ahoo.wow.compensation.domain.FindNextRetry
-import me.ahoo.wow.query.SnapshotQueryService
-import me.ahoo.wow.query.listQuery
-import me.ahoo.wow.query.nestedState
-import me.ahoo.wow.query.query
-import me.ahoo.wow.query.toState
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.nestedState
+import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.query.snapshot.toState
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository

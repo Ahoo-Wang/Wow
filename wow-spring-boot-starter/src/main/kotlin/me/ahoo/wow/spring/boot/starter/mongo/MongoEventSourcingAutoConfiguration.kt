@@ -23,8 +23,8 @@ import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
-import me.ahoo.wow.mongo.query.MongoSnapshotQueryServiceFactory
-import me.ahoo.wow.query.SnapshotQueryServiceFactory
+import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
