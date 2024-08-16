@@ -22,11 +22,13 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
@@ -39,6 +41,7 @@ import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
@@ -117,6 +120,8 @@ class WebFluxAutoConfiguration {
             "stateEventCompensateHandlerFunctionFactory"
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
+        const val LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "listQueryEventStreamHandlerFunctionFactory"
         const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
         const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
         const val GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "getWowMetadataHandlerFunctionFactory"
@@ -430,8 +435,24 @@ class WebFluxAutoConfiguration {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun loadEventStreamHandlerFunctionFactory(eventStore: EventStore): LoadEventStreamHandlerFunctionFactory {
-        return LoadEventStreamHandlerFunctionFactory(eventStore = eventStore)
+    fun loadEventStreamHandlerFunctionFactory(
+        eventStore: EventStore,
+        exceptionHandler: ExceptionHandler
+    ): LoadEventStreamHandlerFunctionFactory {
+        return LoadEventStreamHandlerFunctionFactory(eventStore = eventStore, exceptionHandler = exceptionHandler)
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun listQueryEventStreamHandlerFunctionFactory(
+        eventStreamQueryServiceFactoryProvider: ObjectProvider<EventStreamQueryServiceFactory>,
+        exceptionHandler: ExceptionHandler
+    ): ListQueryEventStreamHandlerFunctionFactory {
+        return ListQueryEventStreamHandlerFunctionFactory(
+            eventStreamQueryServiceFactory = eventStreamQueryServiceFactoryProvider.getOrNoOp(),
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
