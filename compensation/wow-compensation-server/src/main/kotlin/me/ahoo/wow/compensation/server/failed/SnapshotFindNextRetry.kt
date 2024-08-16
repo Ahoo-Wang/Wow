@@ -25,7 +25,7 @@ import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties.STATUS
 import me.ahoo.wow.compensation.domain.FindNextRetry
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.dsl.nestedState
+import me.ahoo.wow.query.snapshot.nestedState
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.toState
 import me.ahoo.wow.serialization.MessageRecords

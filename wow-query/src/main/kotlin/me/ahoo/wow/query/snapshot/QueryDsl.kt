@@ -20,8 +20,13 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.query.dsl.NestedFieldDsl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+
+fun NestedFieldDsl.nestedState() {
+    this.nested(STATE_FIELD)
+}
 
 fun <S : Any> IListQuery.query(queryService: SnapshotQueryService<S>): Flux<MaterializedSnapshot<S>> {
     return queryService.list(this)
