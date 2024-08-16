@@ -28,6 +28,7 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
 import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
@@ -445,11 +446,11 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun listQueryEventStreamHandlerFunctionFactory(
-        eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+        eventStreamQueryServiceFactoryProvider: ObjectProvider<EventStreamQueryServiceFactory>,
         exceptionHandler: ExceptionHandler
     ): ListQueryEventStreamHandlerFunctionFactory {
         return ListQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = eventStreamQueryServiceFactory,
+            eventStreamQueryServiceFactory = eventStreamQueryServiceFactoryProvider.getOrNoOp(),
             exceptionHandler = exceptionHandler
         )
     }
