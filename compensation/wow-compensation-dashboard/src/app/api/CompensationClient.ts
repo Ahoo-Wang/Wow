@@ -19,11 +19,12 @@ import {CommandResult, Stage} from "./CommandResult";
 import {ApplyRetrySpec} from "./ApplyRetrySpec";
 import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
-import {DomainEventStream} from "./DomainEventStream";
+import {DomainEventStream, EventStreamHistory} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunction} from "./ChangeFunction";
 import {RetryConditions} from "./RetryConditions";
-import {Conditions, Operator, Projections} from "./Query";
+import {Conditions, Operator, Projections, SortDirection} from "./Query";
+import {ListQuery} from "./ListQuery";
 
 export enum FindCategory {
   ALL = 'all',
@@ -94,6 +95,16 @@ export class CompensationClient {
 
   loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {
     return this.httpClient.get<DomainEventStream[]>(`${this.aggregateApi}/${id}/event/${headVersion}/${tailVersion}`)
+  }
+
+  listHistory(id: string): Observable<EventStreamHistory[]> {
+    const listQuery: ListQuery = {
+      condition: Conditions.eq("aggregateId", id),
+      projection: {include: ["_id", "version", "createTime", "body.id", "body.name"], exclude: []},
+      sort: [{field: "version", direction: SortDirection.DESC}],
+      limit: 100
+    };
+    return this.httpClient.post<EventStreamHistory[]>(`${this.aggregateApi}/event/list`, listQuery)
   }
 
   loadState(id: string): Observable<ExecutionFailedState> {
