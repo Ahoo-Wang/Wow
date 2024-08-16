@@ -19,7 +19,7 @@ import {CommandResult, Stage} from "./CommandResult";
 import {ApplyRetrySpec} from "./ApplyRetrySpec";
 import {PagedQuery} from "./PagedQuery";
 import {PagedList} from "./PagedList";
-import {DomainEventStream, EventStreamHistory} from "./DomainEventStream";
+import {EventStreamHistory} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunction} from "./ChangeFunction";
 import {RetryConditions} from "./RetryConditions";
@@ -91,10 +91,6 @@ export class CompensationClient {
     }
 
     return this.query(pagedQuery);
-  }
-
-  loadEventStream(id: string, headVersion: number = 1, tailVersion: number = 2147483647): Observable<DomainEventStream[]> {
-    return this.httpClient.get<DomainEventStream[]>(`${this.aggregateApi}/${id}/event/${headVersion}/${tailVersion}`)
   }
 
   listHistory(id: string): Observable<EventStreamHistory[]> {
