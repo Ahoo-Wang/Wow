@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.query.snapshot.nestedState
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

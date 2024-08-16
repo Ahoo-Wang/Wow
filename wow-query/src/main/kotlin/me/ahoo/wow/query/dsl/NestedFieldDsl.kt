@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.query.dsl
 
-import me.ahoo.wow.query.snapshot.STATE_FIELD
-
 abstract class NestedFieldDsl {
     protected var nestedField: String = ""
         private set
@@ -30,8 +28,4 @@ abstract class NestedFieldDsl {
         }
         return "$nestedField$nestedFieldDelimiter$this"
     }
-}
-
-fun NestedFieldDsl.nestedState() {
-    this.nested(STATE_FIELD)
 }
