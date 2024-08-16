@@ -1,6 +1,6 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {CompensationClient} from "../api/CompensationClient";
-import {DomainEventStream} from "../api/DomainEventStream";
+import {DomainEventStream, EventStreamHistory} from "../api/DomainEventStream";
 import {NzTableCellDirective, NzTableModule} from "ng-zorro-antd/table";
 import {DatePipe, NgForOf} from "@angular/common";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
@@ -20,7 +20,7 @@ import {NzTypographyComponent} from "ng-zorro-antd/typography";
 })
 export class FailedHistoryComponent implements OnInit {
   @Input({required: true}) id!: string;
-  eventStreams: DomainEventStream[] = [];
+  eventStreams: EventStreamHistory[] = [];
 
   constructor(private compensationClient: CompensationClient) {
   }
@@ -30,7 +30,7 @@ export class FailedHistoryComponent implements OnInit {
   }
 
   load() {
-    this.compensationClient.loadEventStream(this.id, 1, 100).subscribe(resp => {
+    this.compensationClient.listHistory(this.id).subscribe(resp => {
       this.eventStreams = resp
     })
   }

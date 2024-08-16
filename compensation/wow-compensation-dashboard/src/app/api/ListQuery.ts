@@ -11,37 +11,19 @@
  * limitations under the License.
  */
 
-export interface WrappedDomainEvent {
-  body: any;
-  bodyType: string;
-  id: string;
-  name: string;
-  revision: string;
+
+import {Condition, Conditions, Pagination, Projection, Projections, Sort, SortDirection} from "./Query";
+
+export interface ListQuery {
+  projection: Projection
+  condition: Condition;
+  sort: Sort[];
+  limit: number;
 }
 
-export interface DomainEventStream {
-  aggregateId: string;
-  aggregateName: string;
-  body: WrappedDomainEvent[];
-  commandId: string;
-  contextName: string;
-  createTime: number;
-  header: Map<String, String>;
-  id: string;
-  requestId: string;
-  tenantId: string;
-  version: number;
-}
-
-
-export interface EventStreamHistory {
-  id: string;
-  version: number;
-  createTime: number;
-  body: DomainEventInfo[];
-}
-
-export interface DomainEventInfo {
-  id: string;
-  name: string;
-}
+export const initialListQuery: ListQuery = {
+  projection: Projections.all(),
+  condition: Conditions.all(),
+  sort: [{field: "_id", direction: SortDirection.DESC}],
+  limit: 10,
+};
