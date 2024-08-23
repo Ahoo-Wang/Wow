@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.slf4j.LoggerFactory
 import reactor.kotlin.core.publisher.toMono
 
@@ -51,6 +52,8 @@ class SnapshotSchemaInitializer(private val database: MongoDatabase) {
         val snapshotCollection = database.getCollection(collectionName)
         snapshotCollection.createTenantIdIndex()
         snapshotCollection.createIndex(Indexes.hashed(Documents.ID_FIELD))
+            .toMono().toBlockable().block()
+        snapshotCollection.createIndex(Indexes.hashed(StateAggregateRecords.DELETED))
             .toMono().toBlockable().block()
     }
 }
