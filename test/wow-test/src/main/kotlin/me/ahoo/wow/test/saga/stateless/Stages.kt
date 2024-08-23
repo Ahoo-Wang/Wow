@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
@@ -142,6 +143,7 @@ interface ExpectStage<T : Any> {
 }
 
 data class ExpectedResult<T>(
+    val exchange: DomainEventExchange<*>,
     val processor: T,
     val commandStream: CommandStream?,
     val error: Throwable? = null
