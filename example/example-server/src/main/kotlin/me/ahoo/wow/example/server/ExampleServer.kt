@@ -15,13 +15,13 @@ package me.ahoo.wow.example.server
 
 import me.ahoo.coapi.spring.EnableCoApi
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.apiclient.RestCommandGateway
+import me.ahoo.wow.apiclient.command.ReactiveRestCommandGateway
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.domain.ExampleBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-@EnableCoApi(clients = [RestCommandGateway::class])
+@EnableCoApi(clients = [ReactiveRestCommandGateway::class])
 @BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
     scanBasePackageClasses = [ExampleBoundedContext::class, ExampleServer::class],

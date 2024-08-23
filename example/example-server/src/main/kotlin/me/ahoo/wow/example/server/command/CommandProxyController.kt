@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.example.server.command
 
-import me.ahoo.wow.apiclient.RestCommandGateway
+import me.ahoo.wow.apiclient.command.CommandRequest
+import me.ahoo.wow.apiclient.command.ReactiveRestCommandGateway
 import me.ahoo.wow.command.CommandResult
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -23,9 +24,9 @@ import reactor.core.publisher.Mono
 
 @RestController
 @HttpExchange("command-proxy")
-class CommandProxyController(private val restCommandGateway: RestCommandGateway) {
+class CommandProxyController(private val restCommandGateway: ReactiveRestCommandGateway) {
     @PostExchange
-    fun send(@RequestBody command: RestCommandGateway.CommandRequest): Mono<CommandResult> {
+    fun send(@RequestBody command: CommandRequest): Mono<CommandResult> {
         return restCommandGateway.send(command)
     }
 }
