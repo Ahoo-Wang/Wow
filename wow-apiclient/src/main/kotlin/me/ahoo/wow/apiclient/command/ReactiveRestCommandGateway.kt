@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.apiclient
+package me.ahoo.wow.apiclient.command
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.coapi.api.CoApi
-import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
+import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.validate
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.command.CommandHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
@@ -30,10 +28,7 @@ import reactor.core.publisher.Mono
 import java.net.URI
 
 @CoApi
-interface RestCommandGateway {
-    companion object {
-        const val COMMAND_SEND_ENDPOINT = "wow/command/send"
-    }
+interface ReactiveRestCommandGateway : RestCommandGateway {
 
     @PostExchange(COMMAND_SEND_ENDPOINT)
     fun send(
@@ -65,9 +60,7 @@ interface RestCommandGateway {
     ): Mono<ResponseEntity<CommandResult>>
 
     fun send(commandRequest: CommandRequest): Mono<CommandResult> {
-        if (commandRequest.body is CommandValidator) {
-            commandRequest.body.validate()
-        }
+        commandRequest.validate()
         return send(
             sendUri = commandRequest.sendUri,
             commandType = commandRequest.commandType,
@@ -85,50 +78,7 @@ interface RestCommandGateway {
         ).mapNotNull<CommandResult> {
             it.body
         }.onErrorMap(WebClientResponseException::class.java) {
-            val commandResult = checkNotNull(it.getResponseBodyAs(CommandResult::class.java))
-            CommandResultException(commandResult, it)
+            it.toException()
         }
-    }
-
-    data class CommandRequest(
-        val body: Any,
-        val waitStrategy: WaitStrategy = WaitStrategy(),
-        val aggregateId: String? = null,
-        val aggregateVersion: Int? = null,
-        val tenantId: String? = null,
-        val requestId: String? = null,
-        val context: String? = null,
-        val aggregate: String? = null,
-        val serviceUri: String? = null,
-        val type: String? = null
-    ) {
-        companion object {
-            const val COMMAND_SEND_ENDPOINT = "wow/command/send"
-        }
-
-        @get:JsonIgnore
-        val commandType: String
-            get() = type ?: body::class.java.name
-
-        @get:JsonIgnore
-        val serviceId: String by lazy {
-            if (!context.isNullOrBlank()) {
-                return@lazy context
-            }
-            return@lazy MetadataSearcher.scopeContext.requiredSearch(commandType).contextName
-        }
-
-        @get:JsonIgnore
-        val sendUri: URI by lazy {
-            val serviceHost = serviceUri ?: "http://$serviceId"
-            return@lazy URI.create("$serviceHost/$COMMAND_SEND_ENDPOINT")
-        }
-
-        data class WaitStrategy(
-            val waitStage: CommandStage = CommandStage.PROCESSED,
-            val waitContext: String? = null,
-            val waitProcessor: String? = null,
-            val waitTimeout: Long? = null
-        )
     }
 }
