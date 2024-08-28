@@ -12,7 +12,7 @@ guava = "33.3.0-jre"
 hamcrest = "3.0"
 mockk = "1.13.12"
 kotlinCompileTesting = "0.5.1"
-swagger = "2.2.22"
+swagger = "2.2.23"
 springDoc = "2.6.0"
 jte = "3.1.12"
 # plugins
