@@ -28,30 +28,29 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_REQUEST
 import me.ahoo.wow.serialization.MessageRecords
 
-abstract class EventCompensateRouteSpec(
+class EventCompensateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateMetadata: AggregateMetadata<*, *>,
 ) : AggregateRouteSpec {
 
-    abstract val topicKind: String
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .resourceName(topicKind)
             .operation("compensate").build()
 
     override val summary: String
-        get() = "Compensate $topicKind"
+        get() = "Event Compensate"
     override val method: String
         get() = Https.Method.PUT
     override val appendPathSuffix: String
-        get() = "$topicKind/{${MessageRecords.VERSION}}/compensate"
-    override val requestBody: RequestBody? = COMPENSATION_TARGET_REQUEST
+        get() = "{${MessageRecords.VERSION}}/compensate"
+    override val requestBody: RequestBody = COMPENSATION_TARGET_REQUEST
     override val responses: ApiResponses
         get() = IntegerSchema().toResponse().let {
             it.description("Number of event streams compensated")
@@ -63,9 +62,16 @@ abstract class EventCompensateRouteSpec(
         get() = super.parameters + RoutePaths.VERSION
 }
 
-abstract class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
         val COMPENSATION_TARGET_SCHEMA = CompensationTarget::class.java.toSchemaRef()
         val COMPENSATION_TARGET_REQUEST = CompensationTarget::class.java.toRequestBody()
+    }
+
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): List<RouteSpec> {
+        return listOf(EventCompensateRouteSpec(currentContext, aggregateMetadata))
     }
 }

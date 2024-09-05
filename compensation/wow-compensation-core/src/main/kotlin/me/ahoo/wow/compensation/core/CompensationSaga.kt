@@ -16,20 +16,17 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.StatelessSaga
-import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
-import me.ahoo.wow.event.compensation.DomainEventCompensator
-import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.CompensationTarget
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
 @StatelessSaga
 class CompensationSaga(
-    private val domainEventCompensator: DomainEventCompensator,
-    private val stateEventCompensator: StateEventCompensator
+    private val eventCompensateSupporter: EventCompensateSupporter
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(CompensationSaga::class.java)
@@ -55,22 +52,10 @@ class CompensationSaga(
             id = aggregateId.id,
             function = compensationPrepared.function
         )
-        return when (compensationPrepared.function.functionKind) {
-            FunctionKind.EVENT -> domainEventCompensator.compensate(
-                aggregateId = eventAggregateId,
-                version = eventVersion,
-                target = target
-            ).then()
-
-            FunctionKind.STATE_EVENT -> stateEventCompensator.compensate(
-                aggregateId = eventAggregateId,
-                version = eventVersion,
-                target = target
-            ).then()
-
-            else -> {
-                Mono.empty()
-            }
-        }
+        return eventCompensateSupporter.compensate(
+            aggregateId = eventAggregateId,
+            version = eventVersion,
+            target = target
+        ).then()
     }
 }
