@@ -22,6 +22,5 @@ me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpecFactory
 me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpecFactory
 me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory
 me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpecFactory
-me.ahoo.wow.openapi.event.DomainEventCompensateRouteSpecFactory
-me.ahoo.wow.openapi.event.state.StateEventCompensateRouteSpecFactory
+me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory
 me.ahoo.wow.openapi.event.state.ResendStateEventRouteSpecFactory

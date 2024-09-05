@@ -15,10 +15,10 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
@@ -40,11 +40,10 @@ import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.event.ArchiveAggregateIdHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.DomainEventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
-import me.ahoo.wow.webflux.route.event.state.StateEventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
@@ -114,10 +113,8 @@ class WebFluxAutoConfiguration {
         const val BATCH_REGENERATE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "batchRegenerateSnapshotHandlerFunctionFactory"
         const val RESEND_STATE_EVENT_FUNCTION_FACTORY_BEAN_NAME = "resendStateEventFunctionFactory"
-        const val DOMAIN_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
-            "domainEventCompensateHandlerFunctionFactory"
-        const val STATE_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
-            "stateEventCompensateHandlerFunctionFactory"
+        const val EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "eventCompensateHandlerFunctionFactory"
         const val COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "commandHandlerFunctionFactory"
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
         const val LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
@@ -392,26 +389,13 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [DOMAIN_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun domainEventCompensateHandlerFunctionFactory(
-        eventCompensator: DomainEventCompensator,
+    @ConditionalOnMissingBean(name = [EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun eventCompensateHandlerFunctionFactory(
+        eventCompensateSupporter: EventCompensateSupporter,
         exceptionHandler: ExceptionHandler
-    ): DomainEventCompensateHandlerFunctionFactory {
-        return DomainEventCompensateHandlerFunctionFactory(
-            eventCompensator = eventCompensator,
-            exceptionHandler = exceptionHandler
-        )
-    }
-
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [STATE_EVENT_COMPENSATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun stateEventCompensateHandlerFunctionFactory(
-        eventCompensator: StateEventCompensator,
-        exceptionHandler: ExceptionHandler
-    ): StateEventCompensateHandlerFunctionFactory {
-        return StateEventCompensateHandlerFunctionFactory(
-            eventCompensator = eventCompensator,
+    ): EventCompensateHandlerFunctionFactory {
+        return EventCompensateHandlerFunctionFactory(
+            eventCompensateSupporter = eventCompensateSupporter,
             exceptionHandler = exceptionHandler
         )
     }
