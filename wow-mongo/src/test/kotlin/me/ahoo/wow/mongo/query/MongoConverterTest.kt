@@ -57,6 +57,14 @@ class MongoConverterTest {
     }
 
     @Test
+    fun toMongoFilterNorError() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("", Operator.NOR, "")
+                .toMongoFilter()
+        }
+    }
+
+    @Test
     fun today() {
         val actual = Condition.today("field").toMongoFilter()
         val expected = Filters.and(
