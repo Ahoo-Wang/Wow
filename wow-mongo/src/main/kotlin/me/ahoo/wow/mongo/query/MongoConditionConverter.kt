@@ -43,6 +43,13 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         return Filters.or(condition.children.map { convert(it) })
     }
 
+    override fun nor(condition: Condition): Bson {
+        require(condition.children.isNotEmpty()) {
+            "NOR operator children cannot be empty."
+        }
+        return Filters.nor(condition.children.map { convert(it) })
+    }
+
     override fun id(condition: Condition): Bson {
         return Filters.eq(condition.value)
     }
@@ -241,11 +248,6 @@ object MongoConditionConverter : ConditionConverter<Bson> {
                 Document.parse(conditionValueJson)
             }
         }
-    }
-
-    override fun not(not: Boolean, target: Bson): Bson {
-        if (!not) return target
-        return Filters.nor(target)
     }
 
     fun Condition.toMongoFilter(): Bson {

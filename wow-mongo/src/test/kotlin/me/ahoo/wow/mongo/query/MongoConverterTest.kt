@@ -241,7 +241,7 @@ class MongoConverterTest {
             return Stream.of(
                 Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
-                Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
+                Arguments.of(Condition.nor(Condition.all()), Filters.nor(Filters.empty())),
                 Arguments.of(Condition.id("id"), Filters.eq("id")),
                 Arguments.of(Condition.ids("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
                 Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),

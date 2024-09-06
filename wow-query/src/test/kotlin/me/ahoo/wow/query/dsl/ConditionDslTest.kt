@@ -33,7 +33,7 @@ class ConditionDslTest {
             and {
                 tenantId("tenantId")
             }
-            not {
+            nor {
                 all()
             }
             id("id")
@@ -93,7 +93,7 @@ class ConditionDslTest {
                     listOf(
                         Condition.deleted(false),
                         Condition.and(Condition.tenantId("tenantId")),
-                        Condition.all().not(),
+                        Condition.nor(Condition.all()),
                         Condition.id("id"),
                         Condition.ids("id", "id2"),
                         Condition.eq("field1", "value1"),
