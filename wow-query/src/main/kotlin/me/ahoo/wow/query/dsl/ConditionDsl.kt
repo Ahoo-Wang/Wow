@@ -91,15 +91,15 @@ class ConditionDsl : NestedFieldDsl() {
         condition(nestedCondition)
     }
 
-    fun not(block: ConditionDsl.() -> Unit) {
+    fun nor(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
         nestedDsl.nested(nestedField)
         nestedDsl.block()
         if (nestedDsl.conditions.isEmpty()) {
             return
         }
-        val nestedCondition = nestedDsl.build()
-        condition(nestedCondition.not())
+        val nestedCondition = Condition.nor(nestedDsl.conditions)
+        condition(nestedCondition)
     }
 
     fun all() {

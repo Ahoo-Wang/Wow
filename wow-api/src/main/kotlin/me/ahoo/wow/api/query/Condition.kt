@@ -25,6 +25,11 @@ enum class Operator {
     OR,
 
     /**
+     * 对提供的条件列表执行逻辑非
+     */
+    NOR,
+
+    /**
      * 匹配`id`字段值等于指定值的所有文档
      */
     ID,
@@ -208,13 +213,9 @@ data class Condition(
     val operator: Operator,
     val value: Any = EMPTY_VALUE,
     /**
-     * When `operator` is `AND` or `OR`, `children` cannot be empty.
+     * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
     val children: List<Condition> = emptyList(),
-    /**
-     * 匹配所有与传入条件不匹配的文档
-     */
-    val not: Boolean = false,
 ) : RewritableCondition<Condition> {
     fun <V> valueAs(): V {
         @Suppress("UNCHECKED_CAST")
@@ -232,13 +233,6 @@ data class Condition(
         return and(this, append)
     }
 
-    fun not(not: Boolean = true): Condition {
-        if (this.not == not) {
-            return this
-        }
-        return copy(not = not)
-    }
-
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
@@ -247,6 +241,8 @@ data class Condition(
         fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
         fun or(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.OR, children = conditions.toList())
         fun or(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.OR, children = conditions)
+        fun nor(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.NOR, children = conditions.toList())
+        fun nor(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.NOR, children = conditions)
         fun all() = ALL
         fun eq(field: String, value: Any) = Condition(field, Operator.EQ, value)
         fun ne(field: String, value: Any) = Condition(field, Operator.NE, value)
