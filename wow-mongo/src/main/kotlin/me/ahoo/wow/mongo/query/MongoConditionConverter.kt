@@ -245,7 +245,7 @@ object MongoConditionConverter : ConditionConverter<Bson> {
 
     override fun not(not: Boolean, target: Bson): Bson {
         if (!not) return target
-        return Filters.not(target)
+        return Filters.nor(target)
     }
 
     fun Condition.toMongoFilter(): Bson {
