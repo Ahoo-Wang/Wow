@@ -25,7 +25,6 @@ class ConditionConverter : TargetTypeModifyConverter() {
         resolvedSchema.properties[Condition::operator.name]?.setDefault(Operator.ALL.name)
         resolvedSchema.properties[Condition::value.name]?.setDefault(EMPTY_VALUE)
         resolvedSchema.properties[Condition::children.name]?.setDefault(emptyList<Condition>())
-        resolvedSchema.properties["not"]?.setDefault(false)
         return resolvedSchema
     }
 }
