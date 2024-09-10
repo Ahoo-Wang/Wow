@@ -15,7 +15,6 @@ package me.ahoo.wow.apiclient.command
 
 import me.ahoo.coapi.api.CoApi
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
-import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.validate
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -27,57 +26,47 @@ import org.springframework.web.service.annotation.PostExchange
 import java.net.URI
 
 @CoApi
-interface SyncRestCommandGateway : RestCommandGateway {
+interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResult>, CommandResult> {
     @PostExchange(COMMAND_SEND_ENDPOINT)
-    fun send(
+    override fun send(
         sendUri: URI,
         @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)
         commandType: String,
         @RequestBody
         command: Any,
         @RequestHeader(CommandHeaders.WAIT_STAGE, required = false)
-        waitStage: CommandStage = CommandStage.PROCESSED,
+        waitStage: CommandStage,
         @RequestHeader(CommandHeaders.WAIT_CONTEXT, required = false)
-        waitContext: String? = null,
+        waitContext: String?,
         @RequestHeader(CommandHeaders.WAIT_PROCESSOR, required = false)
-        waitProcessor: String? = null,
+        waitProcessor: String?,
         @RequestHeader(CommandHeaders.WAIT_TIME_OUT, required = false)
-        waitTimeout: Long? = null,
+        waitTimeout: Long?,
         @RequestHeader(CommandHeaders.TENANT_ID, required = false)
-        tenantId: String? = null,
+        tenantId: String?,
         @RequestHeader(CommandHeaders.AGGREGATE_ID, required = false)
-        aggregateId: String? = null,
+        aggregateId: String?,
         @RequestHeader(CommandHeaders.AGGREGATE_VERSION, required = false)
-        aggregateVersion: Int? = null,
+        aggregateVersion: Int?,
         @RequestHeader(CommandHeaders.REQUEST_ID, required = false)
-        requestId: String? = null,
+        requestId: String?,
+        @RequestHeader(CommandHeaders.LOCAL_FIRST, required = false)
+        localFirst: Boolean?,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
-        context: String? = null,
+        context: String?,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_NAME, required = false)
-        aggregate: String? = null
+        aggregate: String?
     ): ResponseEntity<CommandResult>
 
-    fun send(commandRequest: CommandRequest): CommandResult {
-        commandRequest.validate()
+    override fun send(commandRequest: CommandRequest): CommandResult {
         try {
-            val responseEntity = send(
-                sendUri = commandRequest.sendUri,
-                commandType = commandRequest.commandType,
-                command = commandRequest.body,
-                waitStage = commandRequest.waitStrategy.waitStage,
-                waitContext = commandRequest.waitStrategy.waitContext,
-                waitProcessor = commandRequest.waitStrategy.waitProcessor,
-                waitTimeout = commandRequest.waitStrategy.waitTimeout,
-                tenantId = commandRequest.tenantId,
-                aggregateId = commandRequest.aggregateId,
-                aggregateVersion = commandRequest.aggregateVersion,
-                requestId = commandRequest.requestId,
-                context = commandRequest.context,
-                aggregate = commandRequest.aggregate
-            )
-            return checkNotNull(responseEntity.body)
+            return super.send(commandRequest)
         } catch (webclientResponseError: WebClientResponseException) {
             throw webclientResponseError.toException()
         }
+    }
+
+    override fun unwrapResponse(response: ResponseEntity<CommandResult>): CommandResult {
+        return checkNotNull(response.body)
     }
 }
