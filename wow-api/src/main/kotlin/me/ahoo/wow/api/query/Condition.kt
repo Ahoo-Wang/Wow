@@ -216,6 +216,7 @@ data class Condition(
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
     val children: List<Condition> = emptyList(),
+    val options: Map<String, Any> = emptyMap()
 ) : RewritableCondition<Condition> {
     fun <V> valueAs(): V {
         @Suppress("UNCHECKED_CAST")
@@ -233,9 +234,18 @@ data class Condition(
         return and(this, append)
     }
 
+    fun ignoreCase(): Boolean? {
+        return options[IGNORE_CASE_OPTION_KEY] as? Boolean
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
+
+        const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
+        val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
+        val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
+        fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
 
         fun and(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.AND, children = conditions.toList())
         fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
@@ -250,13 +260,16 @@ data class Condition(
         fun lt(field: String, value: Any) = Condition(field, Operator.LT, value)
         fun gte(field: String, value: Any) = Condition(field, Operator.GTE, value)
         fun lte(field: String, value: Any) = Condition(field, Operator.LTE, value)
-        fun contains(field: String, value: Any) = Condition(field, Operator.CONTAINS, value)
+        fun contains(field: String, value: String, ignoreCase: Boolean = false) =
+            Condition(field, Operator.CONTAINS, value, options = ignoreCaseOptions(ignoreCase))
+        fun startsWith(field: String, value: String, ignoreCase: Boolean = false) =
+            Condition(field, Operator.STARTS_WITH, value, options = ignoreCaseOptions(ignoreCase))
+        fun endsWith(field: String, value: String, ignoreCase: Boolean = false) =
+            Condition(field, Operator.ENDS_WITH, value, options = ignoreCaseOptions(ignoreCase))
         fun isIn(field: String, value: List<Any>) = Condition(field, Operator.IN, value)
         fun notIn(field: String, value: List<Any>) = Condition(field, Operator.NOT_IN, value)
         fun <V> between(field: String, start: V, end: V) = Condition(field, Operator.BETWEEN, listOf(start, end))
         fun all(field: String, value: List<Any>) = Condition(field, Operator.ALL_IN, value)
-        fun startsWith(field: String, value: Any) = Condition(field, Operator.STARTS_WITH, value)
-        fun endsWith(field: String, value: Any) = Condition(field, Operator.ENDS_WITH, value)
         fun elemMatch(field: String, value: Condition) = Condition(field, Operator.ELEM_MATCH, children = listOf(value))
         fun isNull(field: String) = Condition(field, Operator.NULL)
         fun notNull(field: String) = Condition(field, Operator.NOT_NULL)
