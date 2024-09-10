@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.withLocalFirst
 
 interface CommandBuilder : Identifier {
     val body: Any
@@ -106,6 +107,17 @@ interface CommandBuilder : Identifier {
      * @see me.ahoo.wow.api.command.CommandMessage.header
      */
     fun header(customize: (header: Header) -> Unit): CommandBuilder
+
+    /**
+     * Enable Local First mode?
+     *
+     * @see me.ahoo.wow.messaging.LocalFirstMessageBus
+     */
+    fun localFirst(localFirst: Boolean = true): CommandBuilder {
+        return header {
+            it.withLocalFirst(localFirst)
+        }
+    }
 
     /**
      * Create Time
