@@ -88,8 +88,24 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         return Filters.lte(condition.field, condition.value)
     }
 
+    private fun regex(field: String, value: String, ignoreCase: Boolean?): Bson {
+        return if (ignoreCase == true) {
+            Filters.regex(field, value, "i")
+        } else {
+            Filters.regex(field, value)
+        }
+    }
+
     override fun contains(condition: Condition): Bson {
-        return Filters.regex(condition.field, condition.valueAs<String>())
+        return regex(condition.field, condition.valueAs(), condition.ignoreCase())
+    }
+
+    override fun startsWith(condition: Condition): Bson {
+        return regex(condition.field, "^${condition.valueAs<String>()}", condition.ignoreCase())
+    }
+
+    override fun endsWith(condition: Condition): Bson {
+        return regex(condition.field, "${condition.valueAs<String>()}$", condition.ignoreCase())
     }
 
     override fun isIn(condition: Condition): Bson {
@@ -116,14 +132,6 @@ object MongoConditionConverter : ConditionConverter<Bson> {
 
     override fun allIn(condition: Condition): Bson {
         return Filters.all(condition.field, condition.valueAs<Iterable<*>>())
-    }
-
-    override fun startsWith(condition: Condition): Bson {
-        return Filters.regex(condition.field, "^${condition.value}")
-    }
-
-    override fun endsWith(condition: Condition): Bson {
-        return Filters.regex(condition.field, "${condition.value}$")
     }
 
     override fun elemMatch(condition: Condition): Bson {

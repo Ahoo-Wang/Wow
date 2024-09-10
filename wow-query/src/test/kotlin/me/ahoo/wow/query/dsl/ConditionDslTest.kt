@@ -45,13 +45,16 @@ class ConditionDslTest {
             "field5" gte 1
             "field6" lte 1
             "field7" contains "value7"
+            "field7".contains("value7", true)
             "field8" isIn listOf("value8")
             "field9" notIn listOf("value9")
             "field10" between (1 to 2)
             "field100" between 1 to 2
             "field11" all listOf("value11")
             "field12" startsWith "value12"
+            "field12".startsWith("value12", true)
             "field12" endsWith "value12"
+            "field12".endsWith("value12", true)
             "field13" elemMatch {
                 "field14" eq "value14"
             }
@@ -103,13 +106,16 @@ class ConditionDslTest {
                         Condition.gte("field5", 1),
                         Condition.lte("field6", 1),
                         Condition.contains("field7", "value7"),
+                        Condition.contains("field7", "value7", true),
                         Condition.isIn("field8", listOf("value8")),
                         Condition.notIn("field9", listOf("value9")),
                         Condition.between("field10", 1, 2),
                         Condition.between("field100", 1, 2),
                         Condition.all("field11", listOf("value11")),
                         Condition.startsWith("field12", "value12"),
+                        Condition.startsWith("field12", "value12", true),
                         Condition.endsWith("field12", "value12"),
+                        Condition.endsWith("field12", "value12", true),
                         Condition.elemMatch("field13", Condition.eq("field14", "value14")),
                         Condition.isNull("field15"),
                         Condition.notNull("field16"),
@@ -324,11 +330,27 @@ class ConditionDslTest {
     }
 
     @Test
+    fun contains() {
+        val condition = condition {
+            QueryModel::id contains "value1"
+        }
+        assertThat(condition, equalTo(Condition.contains("id", "value1")))
+    }
+
+    @Test
     fun startsWith() {
         val condition = condition {
             QueryModel::id startsWith "value1"
         }
         assertThat(condition, equalTo(Condition.startsWith("id", "value1")))
+    }
+
+    @Test
+    fun endsWith() {
+        val condition = condition {
+            QueryModel::id endsWith "value1"
+        }
+        assertThat(condition, equalTo(Condition.endsWith("id", "value1")))
     }
 
     @Test
