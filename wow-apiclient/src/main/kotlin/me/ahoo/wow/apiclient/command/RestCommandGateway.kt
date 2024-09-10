@@ -16,9 +16,68 @@ package me.ahoo.wow.apiclient.command
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.openapi.command.CommandHeaders
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.reactive.function.client.WebClientResponseException
+import org.springframework.web.service.annotation.PostExchange
+import java.net.URI
 
-interface RestCommandGateway {
+interface RestCommandGateway<RW, RB> {
+    @PostExchange(COMMAND_SEND_ENDPOINT)
+    fun send(
+        sendUri: URI,
+        @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)
+        commandType: String,
+        @RequestBody
+        command: Any,
+        @RequestHeader(CommandHeaders.WAIT_STAGE, required = false)
+        waitStage: CommandStage = CommandStage.PROCESSED,
+        @RequestHeader(CommandHeaders.WAIT_CONTEXT, required = false)
+        waitContext: String? = null,
+        @RequestHeader(CommandHeaders.WAIT_PROCESSOR, required = false)
+        waitProcessor: String? = null,
+        @RequestHeader(CommandHeaders.WAIT_TIME_OUT, required = false)
+        waitTimeout: Long? = null,
+        @RequestHeader(CommandHeaders.TENANT_ID, required = false)
+        tenantId: String? = null,
+        @RequestHeader(CommandHeaders.AGGREGATE_ID, required = false)
+        aggregateId: String? = null,
+        @RequestHeader(CommandHeaders.AGGREGATE_VERSION, required = false)
+        aggregateVersion: Int? = null,
+        @RequestHeader(CommandHeaders.REQUEST_ID, required = false)
+        requestId: String? = null,
+        @RequestHeader(CommandHeaders.LOCAL_FIRST, required = false)
+        localFirst: Boolean? = null,
+        @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
+        context: String? = null,
+        @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_NAME, required = false)
+        aggregate: String? = null
+    ): RW
+
+    fun send(commandRequest: CommandRequest): RB {
+        commandRequest.validate()
+        val wrappedResponse = send(
+            sendUri = commandRequest.sendUri,
+            commandType = commandRequest.commandType,
+            command = commandRequest.body,
+            waitStage = commandRequest.waitStrategy.waitStage,
+            waitContext = commandRequest.waitStrategy.waitContext,
+            waitProcessor = commandRequest.waitStrategy.waitProcessor,
+            waitTimeout = commandRequest.waitStrategy.waitTimeout,
+            tenantId = commandRequest.tenantId,
+            aggregateId = commandRequest.aggregateId,
+            aggregateVersion = commandRequest.aggregateVersion,
+            requestId = commandRequest.requestId,
+            localFirst = commandRequest.localFirst,
+            context = commandRequest.context,
+            aggregate = commandRequest.aggregate
+        )
+        return unwrapResponse(wrappedResponse)
+    }
+
+    fun unwrapResponse(response: RW): RB
 
     companion object {
         fun CommandRequest.validate() {
