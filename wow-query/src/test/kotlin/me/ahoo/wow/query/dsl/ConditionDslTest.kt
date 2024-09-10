@@ -45,6 +45,7 @@ class ConditionDslTest {
             "field5" gte 1
             "field6" lte 1
             "field7" contains "value7"
+            "field7".contains("value7", false)
             "field7".contains("value7", true)
             "field8" isIn listOf("value8")
             "field9" notIn listOf("value9")
@@ -52,8 +53,10 @@ class ConditionDslTest {
             "field100" between 1 to 2
             "field11" all listOf("value11")
             "field12" startsWith "value12"
+            "field12".startsWith("value12", false)
             "field12".startsWith("value12", true)
             "field12" endsWith "value12"
+            "field12".endsWith("value12", false)
             "field12".endsWith("value12", true)
             "field13" elemMatch {
                 "field14" eq "value14"
@@ -106,6 +109,7 @@ class ConditionDslTest {
                         Condition.gte("field5", 1),
                         Condition.lte("field6", 1),
                         Condition.contains("field7", "value7"),
+                        Condition.contains("field7", "value7", false),
                         Condition.contains("field7", "value7", true),
                         Condition.isIn("field8", listOf("value8")),
                         Condition.notIn("field9", listOf("value9")),
@@ -113,8 +117,10 @@ class ConditionDslTest {
                         Condition.between("field100", 1, 2),
                         Condition.all("field11", listOf("value11")),
                         Condition.startsWith("field12", "value12"),
+                        Condition.startsWith("field12", "value12", false),
                         Condition.startsWith("field12", "value12", true),
                         Condition.endsWith("field12", "value12"),
+                        Condition.endsWith("field12", "value12", false),
                         Condition.endsWith("field12", "value12", true),
                         Condition.elemMatch("field13", Condition.eq("field14", "value14")),
                         Condition.isNull("field15"),
@@ -220,6 +226,20 @@ class ConditionDslTest {
                         Condition.eq("state.field4", "value4")
                     )
                 )
+            )
+        )
+    }
+
+    @Test
+    fun nor() {
+        val condition = condition {
+            nor {
+            }
+        }
+        assertThat(
+            condition,
+            equalTo(
+                Condition.ALL
             )
         )
     }
