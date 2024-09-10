@@ -53,6 +53,8 @@ interface ReactiveRestCommandGateway : RestCommandGateway {
         aggregateVersion: Int? = null,
         @RequestHeader(CommandHeaders.REQUEST_ID, required = false)
         requestId: String? = null,
+        @RequestHeader(CommandHeaders.LOCAL_FIRST, required = false)
+        localFirst: Boolean? = null,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
         context: String? = null,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_NAME, required = false)
@@ -73,9 +75,10 @@ interface ReactiveRestCommandGateway : RestCommandGateway {
             aggregateId = commandRequest.aggregateId,
             aggregateVersion = commandRequest.aggregateVersion,
             requestId = commandRequest.requestId,
+            localFirst = commandRequest.localFirst,
             context = commandRequest.context,
             aggregate = commandRequest.aggregate
-        ).mapNotNull<CommandResult> {
+        ).mapNotNull {
             it.body
         }.onErrorMap(WebClientResponseException::class.java) {
             it.toException()

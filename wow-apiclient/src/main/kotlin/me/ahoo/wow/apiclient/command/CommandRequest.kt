@@ -27,6 +27,7 @@ data class CommandRequest(
     val aggregateVersion: Int? = null,
     val tenantId: String? = null,
     val requestId: String? = null,
+    val localFirst: Boolean? = null,
     val context: String? = null,
     val aggregate: String? = null,
     val serviceUri: String? = null,
