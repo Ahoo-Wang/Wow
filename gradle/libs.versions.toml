@@ -19,7 +19,7 @@ jte = "3.1.13"
 testRetry = "1.6.0"
 detekt = "1.23.7"
 dokka = "1.9.20"
-kotlin = "2.0.10"
+kotlin = "2.0.21"
 publishPlugin = "2.0.0"
 ksp = "2.0.10-1.0.24"
 
