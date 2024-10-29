@@ -22,6 +22,7 @@ import org.springframework.validation.FieldError
 import org.springframework.validation.method.MethodValidationResult
 import org.springframework.validation.method.ParameterValidationResult
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -146,6 +147,38 @@ class GlobalExceptionHandlerTest {
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
             response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.contentType = MediaType.APPLICATION_JSON
+            response.writeWith(any())
+        }
+    }
+
+    @Test
+    fun handleNoResourceFoundException() {
+        val request = mockk<ServerHttpRequest> {
+            every { method } returns HttpMethod.GET
+            every { uri } returns URI.create("http://localhost:8080")
+        }
+
+        val response = mockk<ServerHttpResponse> {
+            every { setStatusCode(any()) } returns true
+            every { headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND) } returns Unit
+            every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
+            every { bufferFactory() } returns DefaultDataBufferFactory()
+            every { writeWith(any()) } returns Mono.empty()
+        }
+
+        val exchange = mockk<ServerWebExchange> {
+            every { getRequest() } returns request
+            every { getResponse() } returns response
+        }
+
+        GlobalExceptionHandler.handle(exchange, NoResourceFoundException("error"))
+            .test()
+            .verifyComplete()
+
+        verify {
+            response.setStatusCode(HttpStatus.NOT_FOUND)
+            response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }

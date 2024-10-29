@@ -26,6 +26,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
@@ -41,6 +42,7 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         val errorInfo = when (ex) {
             is HandlerMethodValidationException -> ex.toBindingErrorInfo()
             is BindingResult -> ex.toBindingErrorInfo()
+            is NoResourceFoundException -> ErrorInfo.of(ErrorCodes.NOT_FOUND, errorMsg = ex.message)
             else -> ex.toErrorInfo()
         }
         val status = errorInfo.toHttpStatus()
