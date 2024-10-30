@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.command
 
+import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.command.CommandValidationException.Companion.toCommandValidationException
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -27,11 +30,22 @@ import reactor.core.publisher.Mono
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
+    private val validator: Validator,
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
     private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
 
-    private fun check(command: CommandMessage<*>): Mono<Boolean> {
+    private fun <C : Any> validate(commandBody: C) {
+        if (commandBody is CommandValidator) {
+            commandBody.validate()
+        }
+        val constraintViolations = validator.validate(commandBody)
+        if (constraintViolations.isNotEmpty()) {
+            throw constraintViolations.toCommandValidationException(commandBody)
+        }
+    }
+
+    private fun idempotencyCheck(command: CommandMessage<*>): Mono<Void> {
         return idempotencyCheckerProvider.getChecker(command.aggregateId.namedAggregate.materialize())
             .check(command.requestId)
             .doOnNext {
@@ -41,13 +55,20 @@ class DefaultCommandGateway(
                 if (!it) {
                     throw DuplicateRequestIdException(command.aggregateId, command.requestId)
                 }
-            }
+            }.then()
+    }
+
+    private fun <C : Any> check(command: CommandMessage<C>): Mono<Void> {
+        return idempotencyCheck(command)
+            .then(
+                Mono.fromRunnable<Void> {
+                    validate(command.body)
+                }
+            )
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        return check(message).flatMap {
-            commandBus.send(message)
-        }
+        return check(message).then(commandBus.send(message))
     }
 
     override fun <C : Any> send(
@@ -58,20 +79,22 @@ class DefaultCommandGateway(
         require(waitStrategy.stage != CommandStage.SENT) {
             "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
         }
-        return check(command).flatMap {
-            command.header.injectWaitStrategy(
-                commandWaitEndpoint = commandWaitEndpoint.endpoint,
-                stage = waitStrategy.stage,
-                context = waitStrategy.contextName,
-                processor = waitStrategy.processorName
-            )
-            waitStrategyRegistrar.register(command.commandId, waitStrategy)
-            val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
-            commandBus.send(command)
-                .doOnError {
-                    waitStrategyRegistrar.unregister(command.commandId)
-                }
-                .thenReturn(commandExchange)
-        }
+        return check(command).then(
+            Mono.defer {
+                command.header.injectWaitStrategy(
+                    commandWaitEndpoint = commandWaitEndpoint.endpoint,
+                    stage = waitStrategy.stage,
+                    context = waitStrategy.contextName,
+                    processor = waitStrategy.processorName
+                )
+                waitStrategyRegistrar.register(command.commandId, waitStrategy)
+                val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
+                commandBus.send(command)
+                    .doOnError {
+                        waitStrategyRegistrar.unregister(command.commandId)
+                    }
+                    .thenReturn(commandExchange)
+            }
+        )
     }
 }

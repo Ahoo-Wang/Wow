@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.command
 
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.tck.command.CommandGatewaySpec
@@ -32,6 +34,23 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val commandMessage: CommandMessage<Any> = mockk()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        }
+    }
+
+    @Test
+    fun validateCommandBody() {
+        val messageGateway = createMessageBus()
+        val commandMessage: CommandMessage<CommandValidator> = mockk {
+            every { body } returns MockCommandBody()
+        }
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        }
+    }
+
+    class MockCommandBody : CommandValidator {
+        override fun validate() {
+            throw CommandValidationException(this)
         }
     }
 }
