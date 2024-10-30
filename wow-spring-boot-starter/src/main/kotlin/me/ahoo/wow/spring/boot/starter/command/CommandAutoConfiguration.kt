@@ -89,11 +89,9 @@ class CommandAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun commandMessageFactory(
-        validator: Validator,
         commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
     ): CommandMessageFactory {
         return SimpleCommandMessageFactory(
-            validator = validator,
             commandBuilderRewriterRegistry = commandBuilderRewriterRegistry
         )
     }

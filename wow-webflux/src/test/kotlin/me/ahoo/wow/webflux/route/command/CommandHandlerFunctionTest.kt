@@ -20,7 +20,6 @@ import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
@@ -50,7 +49,7 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             commandRouteMetadata,
             commandGateway,
-            SimpleCommandMessageFactory(NoOpValidator, (SimpleCommandBuilderRewriterRegistry())),
+            SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
             DefaultExceptionHandler,
         )
         val request = mockk<ServerRequest> {

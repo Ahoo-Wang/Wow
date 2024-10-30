@@ -11,15 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.factory
+package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.Path
 import me.ahoo.wow.api.exception.BindingError
-import me.ahoo.wow.command.MockCreateCommand
-import me.ahoo.wow.command.factory.CommandValidationException.Companion.toBindingErrors
+import me.ahoo.wow.command.CommandValidationException.Companion.toBindingErrors
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.id.GlobalIdGenerator
 import org.hamcrest.MatcherAssert.*
