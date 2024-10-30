@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
-const val COMMAND_WAIT_PREFIX = "command.wait."
+const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
 const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
 const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"

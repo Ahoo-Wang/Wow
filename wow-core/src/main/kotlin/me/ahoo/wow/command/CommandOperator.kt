@@ -16,7 +16,7 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.messaging.Header
 
 object CommandOperator {
-    private const val OPERATOR_HEADER = "command.operator"
+    private const val OPERATOR_HEADER = "command_operator"
     val Header.operator: String?
         get() {
             return this[OPERATOR_HEADER]

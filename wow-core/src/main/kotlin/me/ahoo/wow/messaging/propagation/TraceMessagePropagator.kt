@@ -20,9 +20,9 @@ import me.ahoo.wow.api.naming.Named
 
 class TraceMessagePropagator : MessagePropagator {
     companion object {
-        private const val TRACE_ID = "trace.id"
-        private const val UPSTREAM_ID = "upstream.id"
-        private const val UPSTREAM_NAME = "upstream.name"
+        private const val TRACE_ID = "trace_id"
+        private const val UPSTREAM_ID = "upstream_id"
+        private const val UPSTREAM_NAME = "upstream_name"
 
         val Header.traceId: String?
             get() {
