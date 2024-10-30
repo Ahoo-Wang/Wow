@@ -4,7 +4,6 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
@@ -40,7 +39,7 @@ class CommandParserTest {
                 id = GlobalIdGenerator.generateAsString(),
                 data = GlobalIdGenerator.generateAsString(),
             ),
-            SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
+            SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry())
         ).test()
             .expectNextCount(1)
             .verifyComplete()
