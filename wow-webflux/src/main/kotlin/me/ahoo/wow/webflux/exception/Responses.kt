@@ -20,6 +20,7 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
@@ -40,7 +41,10 @@ fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
         .bodyValue(this.toJsonString())
 }
 
-fun Mono<*>.toServerResponse(exceptionHandler: ExceptionHandler = DefaultExceptionHandler): Mono<ServerResponse> {
+fun Mono<*>.toServerResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+): Mono<ServerResponse> {
     return flatMap {
         if (it is ErrorInfo) {
             return@flatMap it.toServerResponse()
@@ -50,6 +54,6 @@ fun Mono<*>.toServerResponse(exceptionHandler: ExceptionHandler = DefaultExcepti
             .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
             .bodyValue(it.toJsonString())
     }.onErrorResume {
-        exceptionHandler.handle(it)
+        exceptionHandler.handle(request, it)
     }
 }

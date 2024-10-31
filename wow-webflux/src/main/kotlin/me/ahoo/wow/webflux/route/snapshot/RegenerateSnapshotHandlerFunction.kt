@@ -21,7 +21,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
@@ -35,7 +35,7 @@ class RegenerateSnapshotHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
         aggregateMetadata = aggregateMetadata,
@@ -51,7 +51,7 @@ class RegenerateSnapshotHandlerFunction(
         return handler.handle(aggregateId)
             .throwNotFoundIfEmpty()
             .then()
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
@@ -59,7 +59,7 @@ class RegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<RegenerateSnapshotRouteSpec> {
     override val supportedSpec: Class<RegenerateSnapshotRouteSpec>
         get() = RegenerateSnapshotRouteSpec::class.java

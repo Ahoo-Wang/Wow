@@ -29,7 +29,7 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -56,7 +56,7 @@ class EventCompensateHandlerFunctionTest {
                     stateEventBus = InMemoryStateEventBus(),
                 )
             ),
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             EventCompensateRouteSpec(
                 currentContext = MOCK_AGGREGATE_METADATA,

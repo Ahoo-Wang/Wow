@@ -9,7 +9,7 @@ import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -22,7 +22,10 @@ class ListQueryEventStreamHandlerFunctionTest {
     @Test
     fun handle() {
         val handlerFunction =
-            ListQueryEventStreamHandlerFunctionFactory(NoOpEventStreamQueryServiceFactory, DefaultExceptionHandler)
+            ListQueryEventStreamHandlerFunctionFactory(
+                NoOpEventStreamQueryServiceFactory,
+                DefaultRequestExceptionHandler
+            )
                 .create(
                     ListQueryEventStreamRouteSpec(
                         MOCK_AGGREGATE_METADATA,

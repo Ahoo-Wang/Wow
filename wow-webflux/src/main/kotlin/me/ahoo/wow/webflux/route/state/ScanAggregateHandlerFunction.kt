@@ -18,7 +18,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.ScanAggregateRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -30,7 +30,7 @@ class ScanAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -46,14 +46,14 @@ class ScanAggregateHandlerFunction(
             it.initialized && !it.deleted
         }.map { it.state }
             .collectList()
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
 class ScanAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ScanAggregateRouteSpec> {
     override val supportedSpec: Class<ScanAggregateRouteSpec>
         get() = ScanAggregateRouteSpec::class.java

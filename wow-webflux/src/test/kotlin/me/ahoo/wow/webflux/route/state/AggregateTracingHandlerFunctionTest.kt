@@ -15,7 +15,7 @@ import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
 import org.hamcrest.Matchers.hasSize
@@ -42,7 +42,7 @@ class AggregateTracingHandlerFunctionTest {
                 assertThat(it.items, hasSize(1))
             }
             .verify()
-        val handlerFunction = AggregateTracingHandlerFunctionFactory(eventStore, DefaultExceptionHandler)
+        val handlerFunction = AggregateTracingHandlerFunctionFactory(eventStore, DefaultRequestExceptionHandler)
             .create(
                 AggregateTracingRouteSpec(
                     aggregateMetadata<Cart, CartState>(),

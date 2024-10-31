@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.BatchRegenerateSnapshotRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -33,7 +33,7 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
         aggregateMetadata,
@@ -61,7 +61,7 @@ class BatchRegenerateSnapshotHandlerFunction(
                 }
                 BatchResult(nextCursorId, acc.size + 1)
             }
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
@@ -69,7 +69,7 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<BatchRegenerateSnapshotRouteSpec> {
     override val supportedSpec: Class<BatchRegenerateSnapshotRouteSpec>
         get() = BatchRegenerateSnapshotRouteSpec::class.java

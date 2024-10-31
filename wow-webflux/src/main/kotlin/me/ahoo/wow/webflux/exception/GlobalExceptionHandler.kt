@@ -53,7 +53,7 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 
-    private fun ServerHttpRequest.formatRequest(): String {
+    fun ServerHttpRequest.formatRequest(): String {
         return "HTTP $method $uri"
     }
 

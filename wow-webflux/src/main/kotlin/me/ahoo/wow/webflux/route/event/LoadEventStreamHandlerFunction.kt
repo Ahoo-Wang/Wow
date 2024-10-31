@@ -18,7 +18,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 class LoadEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) :
     HandlerFunction<ServerResponse> {
 
@@ -46,13 +46,13 @@ class LoadEventStreamHandlerFunction(
                 headVersion = headVersion,
                 tailVersion = tailVersion
             ).collectList()
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<LoadEventStreamRouteSpec> {
     override val supportedSpec: Class<LoadEventStreamRouteSpec>
         get() = LoadEventStreamRouteSpec::class.java

@@ -29,7 +29,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -50,7 +50,7 @@ class CommandHandlerFunctionTest {
             commandRouteMetadata,
             commandGateway,
             SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
-            DefaultExceptionHandler,
+            DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { bodyToMono(commandRouteMetadata.commandMetadata.commandType) } returns MockCreateAggregate(

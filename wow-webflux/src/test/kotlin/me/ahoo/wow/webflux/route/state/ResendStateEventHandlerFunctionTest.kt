@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -44,7 +44,7 @@ class ResendStateEventHandlerFunctionTest {
                 eventStore = eventStore,
                 stateEventBus = InMemoryStateEventBus(),
             ),
-            DefaultExceptionHandler,
+            DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID

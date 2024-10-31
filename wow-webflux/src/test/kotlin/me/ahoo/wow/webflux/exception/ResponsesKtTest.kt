@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.exception
 
+import io.mockk.mockk
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
@@ -50,7 +51,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
-            .toServerResponse(DefaultExceptionHandler)
+            .toServerResponse(mockk(), DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.OK))

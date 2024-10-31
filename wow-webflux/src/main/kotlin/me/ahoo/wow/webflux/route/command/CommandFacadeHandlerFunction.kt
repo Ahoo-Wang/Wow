@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -34,7 +34,7 @@ import java.time.Duration
 class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
 
@@ -49,14 +49,14 @@ class CommandFacadeHandlerFunction(
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
             handler.handle(request, it.t1, it.t2)
-        }.toServerResponse(exceptionHandler)
+        }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
     override val supportedSpec: Class<CommandFacadeRouteSpec>

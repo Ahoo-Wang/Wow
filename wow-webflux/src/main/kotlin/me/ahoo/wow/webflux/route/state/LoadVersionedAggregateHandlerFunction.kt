@@ -18,7 +18,7 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -27,7 +27,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 class LoadVersionedAggregateHandlerFunction(
     aggregateMetadata: AggregateMetadata<*, *>,
     stateAggregateRepository: StateAggregateRepository,
-    exceptionHandler: ExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ) : AbstractLoadAggregateHandlerFunction(aggregateMetadata, stateAggregateRepository, exceptionHandler) {
     override fun getVersion(request: ServerRequest): Int {
         return request.pathVariable(MessageRecords.VERSION).toInt()
@@ -42,7 +42,7 @@ class LoadVersionedAggregateHandlerFunction(
 
 class LoadVersionedAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<LoadVersionedAggregateRouteSpec> {
     override val supportedSpec: Class<LoadVersionedAggregateRouteSpec>
         get() = LoadVersionedAggregateRouteSpec::class.java

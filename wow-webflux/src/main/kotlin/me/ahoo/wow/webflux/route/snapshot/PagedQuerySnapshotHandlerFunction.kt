@@ -18,7 +18,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
 import me.ahoo.wow.query.snapshot.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 class PagedQuerySnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -40,13 +40,13 @@ class PagedQuerySnapshotHandlerFunction(
                 val pagedQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
                 snapshotQueryHandler.dynamicPaged(aggregateMetadata, pagedQuery)
                     .writeRawRequest(request)
-            }.toServerResponse(exceptionHandler)
+            }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class PagedQuerySnapshotHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<PagedQuerySnapshotRouteSpec> {
     override val supportedSpec: Class<PagedQuerySnapshotRouteSpec>
         get() = PagedQuerySnapshotRouteSpec::class.java

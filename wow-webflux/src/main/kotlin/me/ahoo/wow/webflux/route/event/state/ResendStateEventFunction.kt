@@ -18,7 +18,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.state.ResendStateEventRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -30,7 +30,7 @@ class ResendStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler =
         ResendStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
@@ -39,14 +39,14 @@ class ResendStateEventFunction(
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
         return handler.handle(cursorId, limit)
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
 class ResendStateEventFunctionFactory(
     private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ResendStateEventRouteSpec> {
     override val supportedSpec: Class<ResendStateEventRouteSpec>
         get() = ResendStateEventRouteSpec::class.java
