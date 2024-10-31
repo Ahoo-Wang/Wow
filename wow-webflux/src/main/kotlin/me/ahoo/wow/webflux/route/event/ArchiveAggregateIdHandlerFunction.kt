@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.event
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -27,17 +27,17 @@ import reactor.core.publisher.Mono
 class ArchiveAggregateIdHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return eventStore.archiveAggregateId(aggregateMetadata.namedAggregate)
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
 class ArchiveAggregateIdHandlerFunctionFactory(
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ArchiveAggregateIdRouteSpec> {
     override val supportedSpec: Class<ArchiveAggregateIdRouteSpec>
         get() = ArchiveAggregateIdRouteSpec::class.java

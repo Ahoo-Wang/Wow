@@ -19,7 +19,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 abstract class AbstractLoadAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     abstract fun getVersion(request: ServerRequest): Int
@@ -51,6 +51,6 @@ abstract class AbstractLoadAggregateHandlerFunction(
                 it.state
             }
             .throwNotFoundIfEmpty()
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }

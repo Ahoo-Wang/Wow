@@ -18,7 +18,7 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -41,7 +41,7 @@ class CommandHandlerFunction(
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
@@ -58,14 +58,14 @@ class CommandHandlerFunction(
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
             handler.handle(request, it, aggregateMetadata)
-        }.toServerResponse(exceptionHandler)
+        }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class CommandHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
     private val commandMessageFactory: CommandMessageFactory,
-    private val exceptionHandler: ExceptionHandler,
+    private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandRouteSpec> {
     override val supportedSpec: Class<CommandRouteSpec>

@@ -9,7 +9,7 @@ import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
@@ -22,7 +22,10 @@ class LoadEventStreamHandlerFunctionTest {
     @Test
     fun handle() {
         val eventStore = InMemoryEventStore()
-        val handlerFunction = LoadEventStreamHandlerFunctionFactory(eventStore = eventStore, DefaultExceptionHandler)
+        val handlerFunction = LoadEventStreamHandlerFunctionFactory(
+            eventStore = eventStore,
+            DefaultRequestExceptionHandler
+        )
             .create(LoadEventStreamRouteSpec(MOCK_AGGREGATE_METADATA, aggregateMetadata = MOCK_AGGREGATE_METADATA))
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()

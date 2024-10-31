@@ -23,14 +23,16 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunction
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.test.test
+import java.net.URI
 
 class LoadAggregateHandlerFunctionTest {
 
@@ -43,9 +45,11 @@ class LoadAggregateHandlerFunctionTest {
                 snapshotRepository = NoOpSnapshotRepository,
                 eventStore = InMemoryEventStore(),
             ),
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
+            every { method() } returns HttpMethod.GET
+            every { uri() } returns URI.create("http://localhost")
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
         }

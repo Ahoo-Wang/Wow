@@ -8,7 +8,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -23,7 +23,7 @@ class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
     fun handle() {
         val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         ).create(PagedQuerySnapshotStateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, false))
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()

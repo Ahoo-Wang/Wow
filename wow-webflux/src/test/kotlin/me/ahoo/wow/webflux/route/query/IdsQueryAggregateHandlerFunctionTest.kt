@@ -9,7 +9,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.state.IdList
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunction
 import org.hamcrest.MatcherAssert
@@ -31,7 +31,7 @@ class IdsQueryAggregateHandlerFunctionTest {
                 snapshotRepository = NoOpSnapshotRepository,
                 eventStore = InMemoryEventStore(),
             ),
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()

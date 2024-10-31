@@ -18,7 +18,7 @@ import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -38,7 +38,7 @@ class CommandFacadeHandlerFunctionTest {
         val handlerFunction = CommandFacadeHandlerFunction(
             commandGateway,
             SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
-            DefaultExceptionHandler
+            DefaultRequestExceptionHandler
         )
         val request = mockk<ServerRequest> {
             every { body(CommandFacadeBodyExtractor) } returns Tuples.of(

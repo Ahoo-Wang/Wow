@@ -25,7 +25,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.deepCody
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
@@ -37,7 +37,7 @@ import reactor.core.publisher.Mono
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -51,7 +51,7 @@ class AggregateTracingHandlerFunction(
             ).collectList()
             .map {
                 aggregateMetadata.state.trace(it)
-            }.toServerResponse(exceptionHandler)
+            }.toServerResponse(request, exceptionHandler)
     }
 
     companion object {
@@ -88,7 +88,7 @@ class AggregateTracingHandlerFunction(
 
 class AggregateTracingHandlerFunctionFactory(
     private val eventStore: EventStore,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<AggregateTracingRouteSpec> {
     override val supportedSpec: Class<AggregateTracingRouteSpec>
         get() = AggregateTracingRouteSpec::class.java

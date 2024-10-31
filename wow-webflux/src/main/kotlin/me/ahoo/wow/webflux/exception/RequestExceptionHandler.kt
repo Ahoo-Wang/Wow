@@ -16,18 +16,23 @@ package me.ahoo.wow.webflux.exception
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.exception.toErrorInfo
 import org.slf4j.LoggerFactory
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-interface ExceptionHandler {
-    fun handle(throwable: Throwable): Mono<ServerResponse>
+interface RequestExceptionHandler {
+    fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
 }
 
-object DefaultExceptionHandler : ExceptionHandler {
-    private val log = LoggerFactory.getLogger(DefaultExceptionHandler::class.java)
-    override fun handle(throwable: Throwable): Mono<ServerResponse> {
+object DefaultRequestExceptionHandler : RequestExceptionHandler {
+    private val log = LoggerFactory.getLogger(DefaultRequestExceptionHandler::class.java)
+    fun ServerRequest.formatRequest(): String {
+        return "HTTP ${method()} ${uri()}"
+    }
+
+    override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
         if (log.isWarnEnabled) {
-            log.warn(throwable.message, throwable)
+            log.warn(request.formatRequest(), throwable)
         }
         if (throwable is CommandResultException) {
             return throwable.commandResult.toServerResponse()
