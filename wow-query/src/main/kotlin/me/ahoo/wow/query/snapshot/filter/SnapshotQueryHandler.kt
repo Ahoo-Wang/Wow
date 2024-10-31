@@ -26,6 +26,7 @@ import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.modeling.toStringWithAlias
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -36,6 +37,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.SINGLE
         ).setQuery(singleQuery)
         return handle(context)
+            .checkpoint("Single ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
@@ -49,6 +51,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.DYNAMIC_SINGLE
         ).setQuery(singleQuery)
         return handle(context)
+            .checkpoint("DynamicSingle ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
@@ -62,6 +65,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.LIST
         ).setQuery(query)
         return handle(context)
+            .checkpoint("List ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .thenMany(
                 Flux.defer {
                     context.getRequiredResult()
@@ -75,6 +79,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.DYNAMIC_LIST
         ).setQuery(query)
         return handle(context)
+            .checkpoint("DynamicList ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .thenMany(
                 Flux.defer {
                     context.getRequiredResult()
@@ -91,6 +96,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.PAGED
         ).setQuery(pagedQuery)
         return handle(context)
+            .checkpoint("Paged ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
@@ -107,6 +113,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             queryType = QueryType.DYNAMIC_PAGED
         ).setQuery(pagedQuery)
         return handle(context)
+            .checkpoint("DynamicPaged ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
@@ -117,6 +124,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
         val context = CountSnapshotQueryContext(namedAggregate).setQuery(condition)
         return handle(context)
+            .checkpoint("Count ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
