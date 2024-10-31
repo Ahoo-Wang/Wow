@@ -24,9 +24,10 @@ class SimpleCommandMessageFactory(
 
     override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
-        val extractor = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
+        val rewriter = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
-        return extractor.rewrite(commandBuilder)
+        return rewriter.rewrite(commandBuilder)
+            .checkpoint("Rewrite $rewriter [SimpleCommandMessageFactory]")
             .map {
                 it.toCommandMessage()
             }
