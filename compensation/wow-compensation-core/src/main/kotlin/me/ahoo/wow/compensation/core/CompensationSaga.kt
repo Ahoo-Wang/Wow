@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.compensation.core
 
+import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
@@ -24,7 +24,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-@StatelessSaga
+@EventProcessor
 class CompensationSaga(
     private val eventCompensateSupporter: EventCompensateSupporter
 ) {

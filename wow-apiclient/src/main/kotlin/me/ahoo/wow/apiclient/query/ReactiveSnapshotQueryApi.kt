@@ -19,8 +19,9 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -37,14 +38,22 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun singleState(@RequestBody singleQuery: ISingleQuery): Mono<S>
 
     fun getById(id: String): Mono<MaterializedSnapshot<S>> {
-        SingleQuery(condition = Condition.id(id)).let {
-            return single(it)
+        return singleQuery {
+            condition {
+                id(id)
+            }
+        }.let {
+            return single(it).switchNotFoundToEmpty()
         }
     }
 
     fun getStateById(id: String): Mono<S> {
-        SingleQuery(condition = Condition.id(id)).let {
-            return singleState(it)
+        singleQuery {
+            condition {
+                id(id)
+            }
+        }.let {
+            return singleState(it).switchNotFoundToEmpty()
         }
     }
 
@@ -70,6 +79,12 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun count(@RequestBody condition: Condition): Mono<Long>
 }
 
+internal fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
+    return onErrorResume(WebClientResponseException.NotFound::class.java) {
+        Mono.empty()
+    }
+}
+
 fun <S : Any> IListQuery.query(snapshotQueryApi: ReactiveSnapshotQueryApi<S>): Flux<MaterializedSnapshot<S>> {
     return snapshotQueryApi.list(this)
 }
@@ -79,7 +94,7 @@ fun <S : Any> IPagedQuery.query(snapshotQueryApi: ReactiveSnapshotQueryApi<S>): 
 }
 
 fun <S : Any> ISingleQuery.query(snapshotQueryApi: ReactiveSnapshotQueryApi<S>): Mono<MaterializedSnapshot<S>> {
-    return snapshotQueryApi.single(this)
+    return snapshotQueryApi.single(this).switchNotFoundToEmpty()
 }
 
 fun <S : Any> IListQuery.queryState(snapshotQueryApi: ReactiveSnapshotQueryApi<S>): Flux<S> {
@@ -91,7 +106,7 @@ fun <S : Any> IPagedQuery.queryState(snapshotQueryApi: ReactiveSnapshotQueryApi<
 }
 
 fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: ReactiveSnapshotQueryApi<S>): Mono<S> {
-    return snapshotQueryApi.singleState(this)
+    return snapshotQueryApi.singleState(this).switchNotFoundToEmpty()
 }
 
 fun IListQuery.dynamicQuery(snapshotQueryApi: ReactiveSnapshotQueryApi<*>): Flux<Map<String, Any>> {
@@ -103,7 +118,7 @@ fun IPagedQuery.dynamicQuery(snapshotQueryApi: ReactiveSnapshotQueryApi<*>): Mon
 }
 
 fun ISingleQuery.dynamicQuery(snapshotQueryApi: ReactiveSnapshotQueryApi<*>): Mono<Map<String, Any>> {
-    return snapshotQueryApi.dynamicSingle(this)
+    return snapshotQueryApi.dynamicSingle(this).switchNotFoundToEmpty()
 }
 
 fun Condition.count(snapshotQueryApi: ReactiveSnapshotQueryApi<*>): Mono<Long> {

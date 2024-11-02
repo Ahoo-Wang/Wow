@@ -19,30 +19,39 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.service.annotation.PostExchange
 
 interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody singleQuery: ISingleQuery): MaterializedSnapshot<S>
+    fun single(@RequestBody singleQuery: ISingleQuery): MaterializedSnapshot<S>?
 
     @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Map<String, Any>
+    fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Map<String, Any>?
 
     @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
-    fun singleState(@RequestBody singleQuery: ISingleQuery): S
+    fun singleState(@RequestBody singleQuery: ISingleQuery): S?
 
-    fun getById(id: String): MaterializedSnapshot<S> {
-        SingleQuery(condition = Condition.id(id)).let {
-            return single(it)
+    fun getById(id: String): MaterializedSnapshot<S>? {
+        singleQuery {
+            condition {
+                id(id)
+            }
+        }.let {
+            return switchNotFoundToNull { single(it) }
         }
     }
 
-    fun getStateById(id: String): S {
-        SingleQuery(condition = Condition.id(id)).let {
-            return singleState(it)
+    fun getStateById(id: String): S? {
+        singleQuery {
+            condition {
+                id(id)
+            }
+        }.let {
+            return switchNotFoundToNull { singleState(it) }
         }
     }
 
@@ -68,6 +77,14 @@ interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun count(@RequestBody condition: Condition): Long
 }
 
+internal fun <T> switchNotFoundToNull(query: () -> T): T? {
+    return try {
+        query()
+    } catch (ignore: HttpClientErrorException.NotFound) {
+        null
+    }
+}
+
 fun <S : Any> IListQuery.query(snapshotQueryApi: SyncSnapshotQueryApi<S>): List<MaterializedSnapshot<S>> {
     return snapshotQueryApi.list(this)
 }
@@ -76,8 +93,8 @@ fun <S : Any> IPagedQuery.query(snapshotQueryApi: SyncSnapshotQueryApi<S>): Page
     return snapshotQueryApi.paged(this)
 }
 
-fun <S : Any> ISingleQuery.query(snapshotQueryApi: SyncSnapshotQueryApi<S>): MaterializedSnapshot<S> {
-    return snapshotQueryApi.single(this)
+fun <S : Any> ISingleQuery.query(snapshotQueryApi: SyncSnapshotQueryApi<S>): MaterializedSnapshot<S>? {
+    return switchNotFoundToNull { snapshotQueryApi.single(this) }
 }
 
 fun <S : Any> IListQuery.queryState(snapshotQueryApi: SyncSnapshotQueryApi<S>): List<S> {
@@ -88,8 +105,8 @@ fun <S : Any> IPagedQuery.queryState(snapshotQueryApi: SyncSnapshotQueryApi<S>):
     return snapshotQueryApi.pagedState(this)
 }
 
-fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: SyncSnapshotQueryApi<S>): S {
-    return snapshotQueryApi.singleState(this)
+fun <S : Any> ISingleQuery.queryState(snapshotQueryApi: SyncSnapshotQueryApi<S>): S? {
+    return switchNotFoundToNull { snapshotQueryApi.singleState(this) }
 }
 
 fun IListQuery.dynamicQuery(snapshotQueryApi: SyncSnapshotQueryApi<*>): List<Map<String, Any>> {
@@ -100,8 +117,8 @@ fun IPagedQuery.dynamicQuery(snapshotQueryApi: SyncSnapshotQueryApi<*>): PagedLi
     return snapshotQueryApi.dynamicPaged(this)
 }
 
-fun ISingleQuery.dynamicQuery(snapshotQueryApi: SyncSnapshotQueryApi<*>): Map<String, Any> {
-    return snapshotQueryApi.dynamicSingle(this)
+fun ISingleQuery.dynamicQuery(snapshotQueryApi: SyncSnapshotQueryApi<*>): Map<String, Any>? {
+    return switchNotFoundToNull { snapshotQueryApi.dynamicSingle(this) }
 }
 
 fun Condition.count(snapshotQueryApi: SyncSnapshotQueryApi<*>): Long {
