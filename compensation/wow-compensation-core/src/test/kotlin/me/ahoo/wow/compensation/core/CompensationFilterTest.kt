@@ -107,7 +107,7 @@ class CompensationFilterTest {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = CompensationFilter(commandBus)
         val sink = Sinks.empty<Void>()
-        commandBus.receive(setOf(CompensationSagaTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
             .doOnNext {
                 sink.tryEmitEmpty()
             }
@@ -143,7 +143,7 @@ class CompensationFilterTest {
     fun filterErrorRetryDisable() {
         val commandBus = InMemoryCommandBus()
         val sink = Sinks.empty<Void>()
-        commandBus.receive(setOf(CompensationSagaTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
             .doOnNext {
                 sink.tryEmitEmpty()
             }
