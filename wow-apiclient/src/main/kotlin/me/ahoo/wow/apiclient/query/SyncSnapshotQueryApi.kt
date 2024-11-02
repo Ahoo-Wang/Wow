@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.dsl.singleQuery
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.service.annotation.PostExchange
 
 interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
@@ -80,6 +81,8 @@ interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
 internal fun <T> switchNotFoundToNull(query: () -> T): T? {
     return try {
         query()
+    } catch (ignore: WebClientResponseException.NotFound) {
+        null
     } catch (ignore: HttpClientErrorException.NotFound) {
         null
     }

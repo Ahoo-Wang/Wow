@@ -17,11 +17,13 @@ import me.ahoo.coapi.spring.EnableCoApi
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.apiclient.command.ReactiveRestCommandGateway
 import me.ahoo.wow.example.api.ExampleService
+import me.ahoo.wow.example.api.client.CartQueryClient
+import me.ahoo.wow.example.api.client.CartQuerySyncClient
 import me.ahoo.wow.example.domain.ExampleBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-@EnableCoApi(clients = [ReactiveRestCommandGateway::class])
+@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class,CartQuerySyncClient::class])
 @BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
     scanBasePackageClasses = [ExampleBoundedContext::class, ExampleServer::class],

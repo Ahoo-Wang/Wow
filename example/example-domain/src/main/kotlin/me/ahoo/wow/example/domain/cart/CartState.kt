@@ -18,9 +18,10 @@ import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
+import me.ahoo.wow.example.api.cart.ICartInfo
 
-class CartState(val id: String) {
-    var items: List<CartItem> = listOf()
+class CartState(val id: String) : ICartInfo {
+    override var items: List<CartItem> = listOf()
         private set
 
     @OnSourcing
