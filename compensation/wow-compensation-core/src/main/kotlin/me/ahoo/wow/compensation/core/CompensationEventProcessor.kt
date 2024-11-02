@@ -25,11 +25,11 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
 @EventProcessor
-class CompensationSaga(
+class CompensationEventProcessor(
     private val eventCompensateSupporter: EventCompensateSupporter
 ) {
     companion object {
-        private val log = LoggerFactory.getLogger(CompensationSaga::class.java)
+        private val log = LoggerFactory.getLogger(CompensationEventProcessor::class.java)
     }
 
     @Retry(enabled = false)

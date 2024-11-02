@@ -18,7 +18,7 @@ import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
-class CompensationSagaTest {
+class CompensationEventProcessorTest {
     companion object {
         internal val LOCAL_AGGREGATE = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
     }
@@ -28,7 +28,7 @@ class CompensationSagaTest {
         val compensationPrepared = mockk<CompensationPrepared> {
             every { eventId.aggregateId } returns "test.not_local".toNamedAggregate().aggregateId()
         }
-        sagaVerifier<CompensationSaga>()
+        sagaVerifier<CompensationEventProcessor>()
             .inject(mockk<EventCompensateSupporter>())
             .`when`(compensationPrepared)
             .expectNoCommand()
@@ -49,7 +49,7 @@ class CompensationSagaTest {
                 )
             } returns Mono.empty()
         }
-        sagaVerifier<CompensationSaga>()
+        sagaVerifier<CompensationEventProcessor>()
             .inject(eventCompensateSupporter)
             .`when`(compensationPrepared)
             .expectNoCommand()
