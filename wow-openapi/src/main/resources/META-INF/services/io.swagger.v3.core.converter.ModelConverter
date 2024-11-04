@@ -25,3 +25,4 @@ me.ahoo.wow.openapi.converter.ProjectionConverter
 me.ahoo.wow.openapi.converter.ListQueryConverter
 me.ahoo.wow.openapi.converter.PaginationConverter
 me.ahoo.wow.openapi.converter.PagedQueryConverter
+me.ahoo.wow.openapi.converter.SingleQueryConverter

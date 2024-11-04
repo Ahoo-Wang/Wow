@@ -17,10 +17,14 @@ import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
-object ElasticsearchConditionConverter : ConditionConverter<Query> {
+object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
+    const val TENANT_ID_KEYWORD = MessageRecords.TENANT_ID + ".keyword"
     override fun and(condition: Condition): Query {
         return Query.Builder().bool { builder ->
             builder.filter(condition.children.map { convert(it) })
@@ -54,7 +58,7 @@ object ElasticsearchConditionConverter : ConditionConverter<Query> {
 
     override fun tenantId(condition: Condition): Query {
         return Query.Builder().term {
-            it.field(MessageRecords.TENANT_ID)
+            it.field(TENANT_ID_KEYWORD)
                 .value(FieldValue.of(condition.value))
         }.build()
     }
@@ -71,7 +75,9 @@ object ElasticsearchConditionConverter : ConditionConverter<Query> {
     }
 
     override fun ne(condition: Condition): Query {
-        TODO()
+        return Query.Builder().bool { builder ->
+            builder.mustNot(eq(condition))
+        }.build()
     }
 
     override fun gt(condition: Condition): Query {
@@ -103,23 +109,49 @@ object ElasticsearchConditionConverter : ConditionConverter<Query> {
     }
 
     override fun contains(condition: Condition): Query {
-        TODO()
+        return Query.Builder().match {
+            it.field(condition.field)
+                .query(condition.valueAs<String>())
+        }.build()
     }
 
     override fun isIn(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().terms {
+            it.field(condition.field)
+                .terms { builder ->
+                    condition.valueAs<List<Any>>().map {
+                        FieldValue.of(it)
+                    }.toList().let { builder.value(it) }
+                }
+        }.build()
     }
 
     override fun notIn(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().bool { builder ->
+            builder.mustNot(isIn(condition))
+        }.build()
     }
 
     override fun between(condition: Condition): Query {
-        TODO("Not yet implemented")
+        val valueIterable = condition.valueAs<Iterable<Any>>()
+        val ite = valueIterable.iterator()
+        require(ite.hasNext()) {
+            "BETWEEN operator value must be a array with 2 elements."
+        }
+        val first = ite.next()
+        require(ite.hasNext()) {
+            "BETWEEN operator value must be a array with 2 elements."
+        }
+        val second = ite.next()
+        return Query.Builder().range {
+            it.field(condition.field)
+                .gte(JsonData.of(first))
+                .lte(JsonData.of(second))
+        }.build()
     }
 
     override fun allIn(condition: Condition): Query {
-        TODO("Not yet implemented")
+        TODO()
     }
 
     override fun startsWith(condition: Condition): Query {
@@ -130,67 +162,69 @@ object ElasticsearchConditionConverter : ConditionConverter<Query> {
     }
 
     override fun endsWith(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().regexp {
+            it.field(condition.field)
+                .value(".*${condition.valueAs<String>()}")
+        }.build()
     }
 
     override fun elemMatch(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().nested {
+            it.path(condition.field)
+                .query(Query.Builder().bool { builder ->
+                    builder.filter(condition.children.map { convert(it) })
+                }.build())
+        }.build()
     }
 
     override fun isNull(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().term {
+            it.field(condition.field)
+                .value(FieldValue.NULL)
+        }.build()
     }
 
     override fun notNull(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().bool {
+            it.mustNot(isNull(condition))
+        }.build()
     }
 
     override fun isTrue(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().term {
+            it.field(condition.field)
+                .value(FieldValue.TRUE)
+        }.build()
     }
 
     override fun isFalse(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().term {
+            it.field(condition.field)
+                .value(FieldValue.FALSE)
+        }.build()
     }
 
     override fun deleted(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return Query.Builder().term {
+            it.field(StateAggregateRecords.DELETED)
+                .value(FieldValue.of(condition.value))
+        }.build()
     }
 
-    override fun today(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun tomorrow(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun thisWeek(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun nextWeek(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun lastWeek(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun thisMonth(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun lastMonth(condition: Condition): Query {
-        TODO("Not yet implemented")
-    }
-
-    override fun recentDays(condition: Condition): Query {
-        TODO("Not yet implemented")
+    override fun timeRange(
+        field: String,
+        from: LocalDateTime,
+        to: LocalDateTime
+    ): Query {
+        return Query.Builder().range {
+            it.field(field)
+                .gte(JsonData.of(from.toInstant(ZoneOffset.UTC).toEpochMilli()))
+                .lte(JsonData.of(to.toInstant(ZoneOffset.UTC).toEpochMilli()))
+        }.build()
     }
 
     override fun raw(condition: Condition): Query {
-        TODO("Not yet implemented")
+        return condition.valueAs<Query>()
     }
 
     fun Condition.toQuery(): Query {
