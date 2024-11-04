@@ -15,6 +15,10 @@ package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.temporal.TemporalAdjusters
 
 interface ConditionConverter<T> {
     @Suppress("CyclomaticComplexMethod")
@@ -84,13 +88,82 @@ interface ConditionConverter<T> {
     fun isTrue(condition: Condition): T
     fun isFalse(condition: Condition): T
     fun deleted(condition: Condition): T
-    fun today(condition: Condition): T
-    fun tomorrow(condition: Condition): T
-    fun thisWeek(condition: Condition): T
-    fun nextWeek(condition: Condition): T
-    fun lastWeek(condition: Condition): T
-    fun thisMonth(condition: Condition): T
-    fun lastMonth(condition: Condition): T
-    fun recentDays(condition: Condition): T
+    fun today(condition: Condition): T {
+        val startOfDay = LocalDateTime.now().with(LocalTime.MIN)
+        val endOfDay = LocalDateTime.now().with(LocalTime.MAX)
+        return timeRange(condition.field, startOfDay, endOfDay)
+    }
+
+    fun tomorrow(condition: Condition): T {
+        val startOfTomorrow = LocalDateTime.now().plusDays(1).with(LocalTime.MIN)
+        val endOfTomorrow = LocalDateTime.now().plusDays(1).with(LocalTime.MAX)
+        return timeRange(
+            condition.field,
+            startOfTomorrow,
+            endOfTomorrow
+        )
+    }
+
+    fun thisWeek(condition: Condition): T {
+        val startOfWeek =
+            LocalDateTime.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
+        val endOfWeek = LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+        return timeRange(condition.field, startOfWeek, endOfWeek)
+    }
+
+    fun nextWeek(condition: Condition): T {
+        val startOfNextWeek = LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .with(LocalTime.MIN)
+        val endOfNextWeek =
+            LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+        return timeRange(
+            condition.field,
+            startOfNextWeek,
+            endOfNextWeek
+        )
+    }
+
+    fun lastWeek(condition: Condition): T {
+        val startOfLastWeek = LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .with(LocalTime.MIN)
+        val endOfLastWeek =
+            LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+        return timeRange(
+            condition.field,
+            startOfLastWeek,
+            endOfLastWeek
+        )
+    }
+
+    fun thisMonth(condition: Condition): T {
+        val startOfMonth = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN)
+        val endOfMonth = LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+        return timeRange(condition.field, startOfMonth, endOfMonth)
+    }
+
+    fun lastMonth(condition: Condition): T {
+        val startOfLastMonth = LocalDateTime.now().minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN)
+        val endOfLastMonth =
+            LocalDateTime.now().minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+        return timeRange(
+            condition.field,
+            startOfLastMonth,
+            endOfLastMonth
+        )
+    }
+
+    fun recentDays(condition: Condition): T {
+        val days = condition.value as Number
+        val startOfRecentDays = LocalDateTime.now().minusDays(days.toLong() - 1).with(LocalTime.MIN)
+        val endOfRecentDays = LocalDateTime.now().with(LocalTime.MAX)
+        return timeRange(
+            condition.field,
+            startOfRecentDays,
+            endOfRecentDays
+        )
+    }
+
+    fun timeRange(field: String, from: LocalDateTime, to: LocalDateTime): T
+
     fun raw(condition: Condition): T
 }
