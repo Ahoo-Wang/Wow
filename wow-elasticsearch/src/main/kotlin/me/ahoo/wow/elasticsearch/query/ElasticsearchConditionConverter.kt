@@ -171,9 +171,11 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     override fun elemMatch(condition: Condition): Query {
         return Query.Builder().nested {
             it.path(condition.field)
-                .query(Query.Builder().bool { builder ->
-                    builder.filter(condition.children.map { convert(it) })
-                }.build())
+                .query(
+                    Query.Builder().bool { builder ->
+                        builder.filter(condition.children.map { convert(it) })
+                    }.build()
+                )
         }.build()
     }
 
