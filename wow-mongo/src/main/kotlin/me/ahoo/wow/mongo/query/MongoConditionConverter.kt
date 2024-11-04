@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
@@ -25,7 +25,7 @@ import org.bson.conversions.Bson
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-object MongoConditionConverter : ConditionConverter<Bson> {
+object MongoConditionConverter : AbstractConditionConverter<Bson>() {
     override fun and(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "AND operator children cannot be empty."
