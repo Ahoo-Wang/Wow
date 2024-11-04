@@ -1,5 +1,6 @@
 dependencies {
     api(project(":wow-core"))
+    api(project(":wow-query"))
     api("org.springframework.data:spring-data-elasticsearch")
     testImplementation(project(":wow-tck"))
     testImplementation("org.testcontainers:testcontainers")
