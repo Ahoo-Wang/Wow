@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+@file:Suppress("NoWildcardImports")
+
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.*
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.converter.AbstractConditionConverter
@@ -26,110 +29,110 @@ import java.time.ZoneOffset
 object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     const val TENANT_ID_KEYWORD = MessageRecords.TENANT_ID + ".keyword"
     override fun and(condition: Condition): Query {
-        return Query.Builder().bool { builder ->
+        return bool { builder ->
             builder.filter(condition.children.map { convert(it) })
-        }.build()
+        }
     }
 
     override fun or(condition: Condition): Query {
-        return Query.Builder().bool { builder ->
+        return bool { builder ->
             builder.should(condition.children.map { convert(it) })
                 .minimumShouldMatch("1")
-        }.build()
+        }
     }
 
     override fun nor(condition: Condition): Query {
-        return Query.Builder().bool { builder ->
+        return bool { builder ->
             builder.mustNot(condition.children.map { convert(it) })
-        }.build()
+        }
     }
 
     override fun id(condition: Condition): Query {
-        return Query.Builder().ids {
+        return ids {
             it.values(condition.valueAs<String>())
-        }.build()
+        }
     }
 
     override fun ids(condition: Condition): Query {
-        return Query.Builder().ids {
+        return ids {
             it.values(condition.valueAs<List<String>>())
-        }.build()
+        }
     }
 
     override fun tenantId(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(TENANT_ID_KEYWORD)
                 .value(FieldValue.of(condition.value))
-        }.build()
+        }
     }
 
     override fun all(condition: Condition): Query {
-        return Query.Builder().matchAll { it }.build()
+        return matchAll { it }
     }
 
     override fun eq(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(condition.field)
                 .value(FieldValue.of(condition.value))
-        }.build()
+        }
     }
 
     override fun ne(condition: Condition): Query {
-        return Query.Builder().bool { builder ->
+        return bool { builder ->
             builder.mustNot(eq(condition))
-        }.build()
+        }
     }
 
     override fun gt(condition: Condition): Query {
-        return Query.Builder().range {
+        return range {
             it.field(condition.field)
                 .gte(JsonData.of(condition.value))
-        }.build()
+        }
     }
 
     override fun lt(condition: Condition): Query {
-        return Query.Builder().range {
+        return range {
             it.field(condition.field)
                 .lte(JsonData.of(condition.value))
-        }.build()
+        }
     }
 
     override fun gte(condition: Condition): Query {
-        return Query.Builder().range {
+        return range {
             it.field(condition.field)
                 .gte(JsonData.of(condition.value))
-        }.build()
+        }
     }
 
     override fun lte(condition: Condition): Query {
-        return Query.Builder().range {
+        return range {
             it.field(condition.field)
                 .lte(JsonData.of(condition.value))
-        }.build()
+        }
     }
 
     override fun contains(condition: Condition): Query {
-        return Query.Builder().match {
+        return matchPhrase {
             it.field(condition.field)
                 .query(condition.valueAs<String>())
-        }.build()
+        }
     }
 
     override fun isIn(condition: Condition): Query {
-        return Query.Builder().terms {
+        return terms {
             it.field(condition.field)
                 .terms { builder ->
                     condition.valueAs<List<Any>>().map {
                         FieldValue.of(it)
                     }.toList().let { builder.value(it) }
                 }
-        }.build()
+        }
     }
 
     override fun notIn(condition: Condition): Query {
-        return Query.Builder().bool { builder ->
+        return bool { builder ->
             builder.mustNot(isIn(condition))
-        }.build()
+        }
     }
 
     override fun between(condition: Condition): Query {
@@ -143,74 +146,83 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
             "BETWEEN operator value must be a array with 2 elements."
         }
         val second = ite.next()
-        return Query.Builder().range {
+        return range {
             it.field(condition.field)
                 .gte(JsonData.of(first))
                 .lte(JsonData.of(second))
-        }.build()
+        }
     }
 
     override fun allIn(condition: Condition): Query {
-        TODO()
+        val values = condition.valueAs<List<String>>()
+        return termsSet { builder ->
+            builder.field(condition.field)
+                .terms(values)
+                .minimumShouldMatchScript {
+                    it.inline {
+                        it.source(values.size.toString())
+                    }
+                }
+        }
     }
 
     override fun startsWith(condition: Condition): Query {
-        return Query.Builder().prefix {
+        return prefix {
             it.field(condition.field)
                 .value(condition.valueAs<String>())
-        }.build()
+        }
     }
 
     override fun endsWith(condition: Condition): Query {
-        return Query.Builder().regexp {
+        return wildcard {
             it.field(condition.field)
-                .value(".*${condition.valueAs<String>()}")
-        }.build()
+                .value("*${condition.valueAs<String>()}")
+        }
     }
 
     override fun elemMatch(condition: Condition): Query {
-        return Query.Builder().nested {
+        return nested {
             it.path(condition.field)
                 .query(
-                    Query.Builder().bool { builder ->
+                    bool { builder ->
                         builder.filter(condition.children.map { convert(it) })
-                    }.build()
+                    }
                 )
-        }.build()
+        }
     }
 
     override fun isNull(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(condition.field)
                 .value(FieldValue.NULL)
-        }.build()
+        }
     }
 
     override fun notNull(condition: Condition): Query {
-        return Query.Builder().bool {
+        return bool {
             it.mustNot(isNull(condition))
-        }.build()
+        }
     }
 
     override fun isTrue(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(condition.field)
                 .value(FieldValue.TRUE)
-        }.build()
+        }
     }
 
     override fun isFalse(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(condition.field)
                 .value(FieldValue.FALSE)
-        }.build()
+        }
     }
 
     override fun deleted(condition: Condition): Query {
-        return Query.Builder().term {
+        return term {
             it.field(StateAggregateRecords.DELETED)
                 .value(FieldValue.of(condition.value))
-        }.build()
+        }
     }
 
     override fun timeRange(
@@ -218,17 +230,18 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
         from: LocalDateTime,
         to: LocalDateTime
     ): Query {
-        return Query.Builder().range {
+        return range {
             it.field(field)
                 .gte(JsonData.of(from.toInstant(ZoneOffset.UTC).toEpochMilli()))
                 .lte(JsonData.of(to.toInstant(ZoneOffset.UTC).toEpochMilli()))
-        }.build()
+        }
     }
 
     override fun raw(condition: Condition): Query {
         require(condition.value is Query) {
             "raw condition value must be a Query."
         }
+
         return condition.valueAs<Query>()
     }
 

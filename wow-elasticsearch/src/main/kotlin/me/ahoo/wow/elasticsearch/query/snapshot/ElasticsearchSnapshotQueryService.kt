@@ -98,12 +98,18 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         val searchRequest = SearchRequest.of {
             it.index(snapshotIndexName)
                 .query(pagedQuery.condition.toQuery())
-                .sort(pagedQuery.sort.toSortOptions())
-                .source {
-                    it.filter(pagedQuery.projection.toSourceFilter())
-                }
                 .from(pagedQuery.pagination.offset())
                 .size(pagedQuery.pagination.size)
+
+            if (pagedQuery.sort.isNotEmpty()) {
+                it.sort(pagedQuery.sort.toSortOptions())
+            }
+            if (!pagedQuery.projection.isEmpty()) {
+                it.source {
+                    it.filter(pagedQuery.projection.toSourceFilter())
+                }
+            }
+            it
         }
         return elasticsearchClient.search(searchRequest, Map::class.java)
             .mapNotNull<PagedList<DynamicDocument>> { result ->
