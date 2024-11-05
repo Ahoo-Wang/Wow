@@ -101,6 +101,13 @@ class ElasticsearchSnapshotQueryServiceTest {
             condition {
                 id(snapshot.aggregateId.id)
             }
+            projection {
+                include("contextName")
+                exclude("firstEventTime")
+            }
+            sort {
+                "version".asc()
+            }
         }.dynamicQuery(snapshotQueryService)
             .test()
             .expectNextCount(1)

@@ -14,11 +14,14 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
 import me.ahoo.wow.query.dsl.condition
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchConditionConverterTest {
     @Test
@@ -164,6 +167,22 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
+    fun `between condition to Query - should throw exception when value is empty`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            Condition("field", Operator.BETWEEN, listOf<Int>()).toQuery()
+        }
+        assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
+    }
+
+    @Test
+    fun `between condition to Query - should throw exception when value just one`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            Condition("field", Operator.BETWEEN, listOf(1)).toQuery()
+        }
+        assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
+    }
+
+    @Test
     fun `allIn condition to Query`() {
         val query = condition {
             "field" all listOf("value1", "value2")
@@ -238,11 +257,29 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
+    fun `today condition to Query`() {
+        val query = condition {
+            "field".today()
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
     fun `raw to query`() {
         val rawQuery = Query.Builder().matchAll { it }.build()
         val query = condition {
             raw(rawQuery)
         }.toQuery()
         assertThat(query, equalTo(rawQuery))
+    }
+
+    @Test
+    fun `raw to query - should throw exception when raw query is String`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            condition {
+                raw("")
+            }.toQuery()
+        }
+        assertThat(exception.message, equalTo("raw condition value must be a Query."))
     }
 }
