@@ -22,13 +22,223 @@ import org.junit.jupiter.api.Test
 
 class ElasticsearchConditionConverterTest {
     @Test
-    fun `should convert condition to Query`() {
+    fun `all condition to Query`() {
         val query = condition { }.toQuery()
         assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 
     @Test
-    fun rawConvert() {
+    fun `and condition to Query`() {
+        val query = condition {
+            and {
+                id("1")
+            }
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+    }
+
+    @Test
+    fun `or condition to Query`() {
+        val query = condition {
+            or {
+                id("1")
+            }
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertThat(query.bool().should().isNotEmpty(), equalTo(true))
+    }
+
+    @Test
+    fun `nor condition to Query`() {
+        val query = condition {
+            nor {
+                id("1")
+            }
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertThat(query.bool().mustNot().isNotEmpty(), equalTo(true))
+    }
+
+    @Test
+    fun `id condition to Query`() {
+        val query = condition {
+            id("1")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Ids))
+    }
+
+    @Test
+    fun `ids condition to Query`() {
+        val query = condition {
+            ids(listOf("1", "2"))
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Ids))
+    }
+
+    @Test
+    fun `tenantId condition to Query`() {
+        val query = condition {
+            tenantId("1")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `eq condition to Query`() {
+        val query = condition {
+            "field" eq "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `ne condition to Query`() {
+        val query = condition {
+            "field" ne "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+    }
+
+    @Test
+    fun `gt condition to Query`() {
+        val query = condition {
+            "field" gt "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
+    fun `gte condition to Query`() {
+        val query = condition {
+            "field" gte "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
+    fun `lt condition to Query`() {
+        val query = condition {
+            "field" lt "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
+    fun `lte condition to Query`() {
+        val query = condition {
+            "field" lte "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
+    fun `contains condition to Query`() {
+        val query = condition {
+            "field" contains "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.MatchPhrase))
+    }
+
+    @Test
+    fun `isIn condition to Query`() {
+        val query = condition {
+            "field" isIn listOf("value")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Terms))
+    }
+
+    @Test
+    fun `notIn condition to Query`() {
+        val query = condition {
+            "field" notIn listOf("value")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+    }
+
+    @Test
+    fun `between condition to Query`() {
+        val query = condition {
+            "field" between 1 to 2
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Range))
+    }
+
+    @Test
+    fun `allIn condition to Query`() {
+        val query = condition {
+            "field" all listOf("value1", "value2")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.TermsSet))
+    }
+
+    @Test
+    fun `startsWith condition to Query`() {
+        val query = condition {
+            "field" startsWith "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Prefix))
+    }
+
+    @Test
+    fun `endsWith condition to Query`() {
+        val query = condition {
+            "field" endsWith "value"
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Wildcard))
+    }
+
+    @Test
+    fun `elemMatch condition to Query`() {
+        val query = condition {
+            "field" elemMatch {
+                "subField" eq "value"
+            }
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Nested))
+    }
+
+    @Test
+    fun `isNull condition to Query`() {
+        val query = condition {
+            "field".isNull()
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `notNull condition to Query`() {
+        val query = condition {
+            "field".notNull()
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+    }
+
+    @Test
+    fun `isTrue condition to Query`() {
+        val query = condition {
+            "field".isTrue()
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `isFalse condition to Query`() {
+        val query = condition {
+            "field".isFalse()
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `deleted condition to Query`() {
+        val query = condition {
+            deleted(true)
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
+    fun `raw to query`() {
         val rawQuery = Query.Builder().matchAll { it }.build()
         val query = condition {
             raw(rawQuery)
