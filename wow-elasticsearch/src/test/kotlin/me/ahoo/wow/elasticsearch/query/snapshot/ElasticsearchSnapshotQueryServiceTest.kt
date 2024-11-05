@@ -14,8 +14,14 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
+import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
@@ -27,8 +33,6 @@ import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.container.ElasticsearchLauncher
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -36,6 +40,7 @@ import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.kotlin.test.test
+import java.time.Clock
 
 class ElasticsearchSnapshotQueryServiceTest {
     companion object {
@@ -48,13 +53,11 @@ class ElasticsearchSnapshotQueryServiceTest {
 
     private val aggregateMetadata = MOCK_AGGREGATE_METADATA
     lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
+    lateinit var snapshotRepository: SnapshotRepository
+    lateinit var snapshot: Snapshot<MockStateAggregate>
 
     @BeforeEach
     fun init() {
-        snapshotQueryService = createSnapshotQueryService()
-    }
-
-    fun createSnapshotQueryService(): SnapshotQueryService<MockStateAggregate> {
         val clientConfiguration = ClientConfiguration.builder()
             .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
             .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
@@ -66,17 +69,29 @@ class ElasticsearchSnapshotQueryServiceTest {
         val factory = ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient = elasticsearchClient
         )
-        return factory.create(aggregateMetadata)
+        snapshotQueryService = factory.create(aggregateMetadata)
+        snapshotRepository = ElasticsearchSnapshotRepository(
+            elasticsearchClient = elasticsearchClient
+        )
+
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+        val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        snapshot =
+            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+        snapshotRepository.save(snapshot)
+            .test()
+            .verifyComplete()
     }
 
     @Test
     fun single() {
         singleQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
         }.query(snapshotQueryService)
             .test()
+            .expectNextCount(1)
             .verifyComplete()
     }
 
@@ -84,21 +99,24 @@ class ElasticsearchSnapshotQueryServiceTest {
     fun dynamicSingle() {
         singleQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
         }.dynamicQuery(snapshotQueryService)
             .test()
+            .expectNextCount(1)
             .verifyComplete()
     }
 
     @Test
-    fun query() {
+    fun list() {
         listQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
+            limit(10)
         }.query(snapshotQueryService)
             .test()
+            .expectNextCount(1)
             .verifyComplete()
     }
 
@@ -106,10 +124,12 @@ class ElasticsearchSnapshotQueryServiceTest {
     fun dynamicList() {
         listQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
+            limit(10)
         }.dynamicQuery(snapshotQueryService)
             .test()
+            .expectNextCount(1)
             .verifyComplete()
     }
 
@@ -117,13 +137,11 @@ class ElasticsearchSnapshotQueryServiceTest {
     fun paged() {
         pagedQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
         }.query(snapshotQueryService)
             .test()
-            .consumeNextWith {
-                assertThat(it.total, equalTo(0L))
-            }
+            .expectNextCount(1)
             .verifyComplete()
     }
 
@@ -131,23 +149,21 @@ class ElasticsearchSnapshotQueryServiceTest {
     fun dynamicPaged() {
         pagedQuery {
             condition {
-                tenantId(generateGlobalId())
+                id(snapshot.aggregateId.id)
             }
         }.dynamicQuery(snapshotQueryService)
             .test()
-            .consumeNextWith {
-                assertThat(it.total, equalTo(0L))
-            }
+            .expectNextCount(1)
             .verifyComplete()
     }
 
     @Test
     fun count() {
         condition {
-            tenantId(generateGlobalId())
+            id(snapshot.aggregateId.id)
         }.count(snapshotQueryService)
             .test()
-            .expectNext(0L)
+            .expectNext(1L)
             .verifyComplete()
     }
 }
