@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.query.dsl.projection
+import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 
@@ -25,8 +27,8 @@ class ElasticsearchProjectionConverterTest {
             exclude("field2")
         }
 
-        val sourceFilter = ElasticsearchProjectionConverter.convert(projection)
-        assertThat(sourceFilter.includes(), org.hamcrest.CoreMatchers.hasItem("field1"))
-        assertThat(sourceFilter.excludes(), org.hamcrest.CoreMatchers.hasItem("field2"))
+        val sourceFilter = projection.toSourceFilter()
+        assertThat(sourceFilter.includes(), hasItem("field1"))
+        assertThat(sourceFilter.excludes(), hasItem("field2"))
     }
 }
