@@ -18,7 +18,9 @@ import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
 import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
+import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -53,5 +55,12 @@ class ElasticsearchSnapshotAutoConfiguration {
         snapshotIndexNameConverter: SnapshotIndexNameConverter
     ): SnapshotRepository {
         return ElasticsearchSnapshotRepository(elasticsearchClient, snapshotIndexNameConverter)
+    }
+
+    @Bean
+    fun elasticsearchSnapshotQueryServiceFactory(
+        elasticsearchClient: ReactiveElasticsearchClient,
+    ): SnapshotQueryServiceFactory {
+        return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
     }
 }
