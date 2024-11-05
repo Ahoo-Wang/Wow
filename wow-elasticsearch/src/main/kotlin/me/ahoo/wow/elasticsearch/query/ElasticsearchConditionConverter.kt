@@ -226,6 +226,9 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     }
 
     override fun raw(condition: Condition): Query {
+        require(condition.value is Query) {
+            "raw condition value must be a Query."
+        }
         return condition.valueAs<Query>()
     }
 
