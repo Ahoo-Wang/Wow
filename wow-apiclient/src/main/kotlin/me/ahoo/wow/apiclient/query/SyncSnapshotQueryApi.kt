@@ -78,7 +78,7 @@ interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun count(@RequestBody condition: Condition): Long
 }
 
-internal fun <T> switchNotFoundToNull(query: () -> T): T? {
+fun <T> switchNotFoundToNull(query: () -> T): T? {
     return try {
         query()
     } catch (ignore: WebClientResponseException.NotFound) {

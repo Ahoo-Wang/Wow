@@ -79,7 +79,7 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun count(@RequestBody condition: Condition): Mono<Long>
 }
 
-internal fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
+fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
     return onErrorResume(WebClientResponseException.NotFound::class.java) {
         Mono.empty()
     }
