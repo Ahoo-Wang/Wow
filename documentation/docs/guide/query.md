@@ -1,7 +1,7 @@
 # 查询服务
 
 :::tip
-目前仅 `wow-mongo` 模块支持查询服务。
+目前 `wow-mongo` 模块 与 `wow-elasticsearch` 模块支持查询服务。
 :::
 
 ## 操作符
@@ -696,6 +696,7 @@ private lateinit var queryService: SnapshotQueryService<OrderState>
 ```kotlin [根据 Bean Name 手动获取]
 val queryService = applicationContext.getBean("example.order.SnapshotQueryService") as SnapshotQueryService<OrderState>
 ```
+
 :::
 
 
