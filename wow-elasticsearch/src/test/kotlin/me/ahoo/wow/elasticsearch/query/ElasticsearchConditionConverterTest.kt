@@ -274,12 +274,18 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
-    fun `raw to query - should throw exception when raw query is String`() {
-        val exception = assertThrows<IllegalArgumentException> {
-            condition {
-                raw("")
-            }.toQuery()
-        }
-        assertThat(exception.message, equalTo("raw condition value must be a Query."))
+    fun `string raw to query`() {
+        val query = condition {
+            raw("""{"match_all":{}}""")
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
+    }
+
+    @Test
+    fun `map raw to query`() {
+        val query = condition {
+            raw(mapOf("match_all" to emptyMap<String, String>()))
+        }.toQuery()
+        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 }
