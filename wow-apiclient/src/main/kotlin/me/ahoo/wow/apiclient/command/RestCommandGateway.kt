@@ -100,7 +100,7 @@ interface RestCommandGateway<RW, RB> {
                 return RestCommandGatewayException(
                     request = request,
                     errorCode = errorCode,
-                    errorMsg = "[$errorCode] ${this.message}",
+                    errorMsg = this.message,
                     cause = this
                 )
             }
@@ -110,7 +110,7 @@ interface RestCommandGateway<RW, RB> {
                     return RestCommandGatewayException(
                         request = request,
                         errorCode = it.errorCode,
-                        errorMsg = "[$errorCode] ${it.errorMsg}",
+                        errorMsg = it.errorMsg,
                         cause = CommandResultException(it, this),
                         bindingErrors = it.bindingErrors
                     )
@@ -124,7 +124,7 @@ interface RestCommandGateway<RW, RB> {
                     return RestCommandGatewayException(
                         request = request,
                         errorCode = it.errorCode,
-                        errorMsg = "[$errorCode] ${it.errorMsg}",
+                        errorMsg = it.errorMsg,
                         cause = this,
                         bindingErrors = it.bindingErrors
                     )
@@ -136,7 +136,7 @@ interface RestCommandGateway<RW, RB> {
             return RestCommandGatewayException(
                 request = request,
                 errorCode = errorCode,
-                errorMsg = "[$errorCode] ${this.message}",
+                errorMsg = this.message,
                 cause = this
             )
         }
