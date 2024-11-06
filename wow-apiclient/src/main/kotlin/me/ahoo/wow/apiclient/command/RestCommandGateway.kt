@@ -19,6 +19,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.serialization.toObject
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.reactive.function.client.WebClientResponseException
@@ -93,12 +94,23 @@ interface RestCommandGateway<RW, RB> {
         }
 
         fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
+            val errorCode = this.headers.getFirst(CommandHeaders.WOW_ERROR_CODE).orEmpty()
+            val responseBody = this.responseBodyAsString
+            if (responseBody.isBlank()) {
+                return RestCommandGatewayException(
+                    request = request,
+                    errorCode = errorCode,
+                    errorMsg = "[$errorCode] ${this.message}",
+                    cause = this
+                )
+            }
+
             try {
-                getResponseBodyAs(CommandResult::class.java)?.let {
+                responseBody.toObject<CommandResult>().let {
                     return RestCommandGatewayException(
                         request = request,
                         errorCode = it.errorCode,
-                        errorMsg = it.errorMsg,
+                        errorMsg = "[$errorCode] ${it.errorMsg}",
                         cause = CommandResultException(it, this),
                         bindingErrors = it.bindingErrors
                     )
@@ -107,14 +119,12 @@ interface RestCommandGateway<RW, RB> {
                 // ignore
             }
 
-            val errorCode = this.headers.getFirst(CommandHeaders.WOW_ERROR_CODE).orEmpty()
-
             try {
-                getResponseBodyAs(DefaultErrorInfo::class.java)?.let {
+                responseBody.toObject<DefaultErrorInfo>().let {
                     return RestCommandGatewayException(
                         request = request,
                         errorCode = it.errorCode,
-                        errorMsg = it.errorMsg,
+                        errorMsg = "[$errorCode] ${it.errorMsg}",
                         cause = this,
                         bindingErrors = it.bindingErrors
                     )
@@ -126,7 +136,7 @@ interface RestCommandGateway<RW, RB> {
             return RestCommandGatewayException(
                 request = request,
                 errorCode = errorCode,
-                errorMsg = this.message,
+                errorMsg = "[$errorCode] ${this.message}",
                 cause = this
             )
         }
