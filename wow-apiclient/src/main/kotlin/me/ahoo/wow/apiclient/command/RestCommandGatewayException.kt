@@ -17,7 +17,7 @@ import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.exception.WowException
 
 class RestCommandGatewayException(
-    val request:CommandRequest,
+    val request: CommandRequest,
     errorCode: String,
     errorMsg: String,
     cause: Throwable,

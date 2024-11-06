@@ -46,6 +46,7 @@ object ErrorCodes {
     const val DUPLICATE_REQUEST_ID = "DuplicateRequestId"
     const val COMMAND_VALIDATION = "CommandValidation"
     const val REWRITE_NO_COMMAND = "RewriteNoCommand"
+
     //endregion
     //region EventSourcing
     const val EVENT_VERSION_CONFLICT = "EventVersionConflict"

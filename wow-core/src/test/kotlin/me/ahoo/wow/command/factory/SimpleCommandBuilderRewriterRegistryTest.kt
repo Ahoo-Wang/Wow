@@ -33,7 +33,6 @@ class MockCommandBuilderRewriter : CommandBuilderRewriter {
     }
 }
 
-
 class EmptyCommandBuilderRewriter : CommandBuilderRewriter {
     override val supportedCommandType: Class<MockCreateCommand>
         get() = MockCreateCommand::class.java
