@@ -13,18 +13,16 @@
 
 package me.ahoo.wow.command.factory
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
-import reactor.core.publisher.Mono
+import me.ahoo.wow.exception.ErrorCodes.REWRITE_NO_COMMAND
+import me.ahoo.wow.exception.WowException
 
-interface CommandMessageFactory {
-    /**
-     * Create a CommandMessage from a CommandBuilder
-     *
-     */
-    fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>>
-    fun <TARGET : Any> create(body: Any): Mono<CommandMessage<TARGET>> {
-        val commandBuilder = body.commandBuilder()
-        return create(commandBuilder)
-    }
-}
+class RewriteNoCommandException(
+    val commandBuilder: CommandBuilder,
+    val rewriter: CommandBuilderRewriter,
+    errorMsg: String = "Rewriter[$rewriter] did not return command.",
+    cause: Throwable? = null
+) : WowException(
+    errorCode = REWRITE_NO_COMMAND,
+    errorMsg = errorMsg,
+    cause = cause,
+)

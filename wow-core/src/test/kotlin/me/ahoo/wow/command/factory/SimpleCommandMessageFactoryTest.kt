@@ -28,4 +28,16 @@ class SimpleCommandMessageFactoryTest {
             .expectNextCount(1)
             .verifyComplete()
     }
+
+    @Test
+    fun createIfEmpty() {
+        val registry = SimpleCommandBuilderRewriterRegistry()
+        registry.register(EmptyCommandBuilderRewriter())
+        val factory = SimpleCommandMessageFactory(registry)
+        val command = MockCreateCommand("")
+        factory.create<MockCreateCommand>(command)
+            .test()
+            .expectError(RewriteNoCommandException::class.java)
+            .verify()
+    }
 }

@@ -60,11 +60,11 @@ interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<Co
         aggregate: String?
     ): Mono<ResponseEntity<CommandResult>>
 
-    override fun unwrapResponse(response: Mono<ResponseEntity<CommandResult>>): Mono<CommandResult> {
+    override fun unwrapResponse(commandRequest: CommandRequest, response: Mono<ResponseEntity<CommandResult>>): Mono<CommandResult> {
         return response.mapNotNull<CommandResult> {
             it.body
         }.onErrorMap(WebClientResponseException::class.java) {
-            it.toException()
+            it.toException(commandRequest)
         }
     }
 }

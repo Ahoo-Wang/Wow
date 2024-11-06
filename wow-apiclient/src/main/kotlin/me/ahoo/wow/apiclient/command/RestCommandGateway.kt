@@ -14,6 +14,7 @@
 package me.ahoo.wow.apiclient.command
 
 import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
@@ -56,6 +57,11 @@ interface RestCommandGateway<RW, RB> {
         aggregate: String? = null
     ): RW
 
+    /**
+     * Send a command request.
+     *
+     * @throws RestCommandGatewayException if the request fails
+     */
     fun send(commandRequest: CommandRequest): RB {
         commandRequest.validate()
         val wrappedResponse = send(
@@ -74,10 +80,10 @@ interface RestCommandGateway<RW, RB> {
             context = commandRequest.context,
             aggregate = commandRequest.aggregate
         )
-        return unwrapResponse(wrappedResponse)
+        return unwrapResponse(commandRequest, wrappedResponse)
     }
 
-    fun unwrapResponse(response: RW): RB
+    fun unwrapResponse(commandRequest: CommandRequest, response: RW): RB
 
     companion object {
         fun CommandRequest.validate() {
@@ -86,16 +92,43 @@ interface RestCommandGateway<RW, RB> {
             }
         }
 
-        fun WebClientResponseException.toException(): Exception {
+        fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
             try {
-                val commandResult = getResponseBodyAs(CommandResult::class.java)
-                if (commandResult != null) {
-                    return CommandResultException(commandResult, this)
+                getResponseBodyAs(CommandResult::class.java)?.let {
+                    return RestCommandGatewayException(
+                        request = request,
+                        errorCode = it.errorCode,
+                        errorMsg = it.errorMsg,
+                        cause = CommandResultException(it, this),
+                        bindingErrors = it.bindingErrors
+                    )
                 }
             } catch (ignore: Throwable) {
                 // ignore
             }
-            return this
+
+            val errorCode = this.headers.getFirst(CommandHeaders.WOW_ERROR_CODE).orEmpty()
+
+            try {
+                getResponseBodyAs(DefaultErrorInfo::class.java)?.let {
+                    return RestCommandGatewayException(
+                        request = request,
+                        errorCode = it.errorCode,
+                        errorMsg = it.errorMsg,
+                        cause = this,
+                        bindingErrors = it.bindingErrors
+                    )
+                }
+            } catch (ignore: Throwable) {
+                // ignore
+            }
+
+            return RestCommandGatewayException(
+                request = request,
+                errorCode = errorCode,
+                errorMsg = this.message,
+                cause = this
+            )
         }
     }
 }
