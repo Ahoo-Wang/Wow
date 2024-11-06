@@ -27,4 +27,7 @@ class RestCommandGatewayException(
     errorMsg = errorMsg,
     cause = cause,
     bindingErrors = bindingErrors
-)
+) {
+    override val message: String
+        get() = "[$errorCode] - $errorMsg"
+}
