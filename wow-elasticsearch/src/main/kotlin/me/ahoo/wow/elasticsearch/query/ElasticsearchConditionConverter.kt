@@ -23,6 +23,8 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import me.ahoo.wow.serialization.toJsonString
+import java.io.StringReader
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -237,11 +239,23 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     }
 
     override fun raw(condition: Condition): Query {
-        require(condition.value is Query) {
-            "raw condition value must be a Query."
-        }
+        return when (condition.value) {
+            is Query -> {
+                condition.valueAs<Query>()
+            }
 
-        return condition.valueAs<Query>()
+            is String -> {
+                condition.valueAs<String>().toQuery()
+            }
+
+            else -> {
+                condition.value.toJsonString().toQuery()
+            }
+        }
+    }
+
+    private fun String.toQuery(): Query {
+        return Query.Builder().withJson(StringReader(this)).build()
     }
 
     fun Condition.toQuery(): Query {
