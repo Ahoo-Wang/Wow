@@ -28,6 +28,11 @@ class SimpleCommandMessageFactory(
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
         return rewriter.rewrite(commandBuilder)
             .checkpoint("Rewrite $rewriter [SimpleCommandMessageFactory]")
+            .switchIfEmpty(
+                Mono.defer {
+                    RewriteNoCommandException(commandBuilder = commandBuilder, rewriter = rewriter).toMono()
+                },
+            )
             .map {
                 it.toCommandMessage()
             }

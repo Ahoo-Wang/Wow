@@ -11,20 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.factory
+package me.ahoo.wow.apiclient.command
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
-import reactor.core.publisher.Mono
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.exception.WowException
 
-interface CommandMessageFactory {
-    /**
-     * Create a CommandMessage from a CommandBuilder
-     *
-     */
-    fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>>
-    fun <TARGET : Any> create(body: Any): Mono<CommandMessage<TARGET>> {
-        val commandBuilder = body.commandBuilder()
-        return create(commandBuilder)
-    }
-}
+class RestCommandGatewayException(
+    val request:CommandRequest,
+    errorCode: String,
+    errorMsg: String,
+    cause: Throwable,
+    bindingErrors: List<BindingError> = emptyList()
+) : WowException(
+    errorCode = errorCode,
+    errorMsg = errorMsg,
+    cause = cause,
+    bindingErrors = bindingErrors
+)

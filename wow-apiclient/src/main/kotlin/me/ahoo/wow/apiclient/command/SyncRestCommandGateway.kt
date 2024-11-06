@@ -62,11 +62,14 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
         try {
             return super.send(commandRequest)
         } catch (webclientResponseError: WebClientResponseException) {
-            throw webclientResponseError.toException()
+            throw webclientResponseError.toException(commandRequest)
         }
     }
 
-    override fun unwrapResponse(response: ResponseEntity<CommandResult>): CommandResult {
+    override fun unwrapResponse(
+        commandRequest: CommandRequest,
+        response: ResponseEntity<CommandResult>
+    ): CommandResult {
         return checkNotNull(response.body)
     }
 }

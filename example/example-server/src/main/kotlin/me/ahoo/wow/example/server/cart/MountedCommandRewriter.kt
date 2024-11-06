@@ -11,20 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.factory
+package me.ahoo.wow.example.server.cart
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
+import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.command.factory.CommandBuilderRewriter
+import me.ahoo.wow.example.api.cart.MountedCommand
+import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 
-interface CommandMessageFactory {
-    /**
-     * Create a CommandMessage from a CommandBuilder
-     *
-     */
-    fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>>
-    fun <TARGET : Any> create(body: Any): Mono<CommandMessage<TARGET>> {
-        val commandBuilder = body.commandBuilder()
-        return create(commandBuilder)
+@Service
+class MountedCommandRewriter : CommandBuilderRewriter {
+    override val supportedCommandType: Class<*>
+        get() = MountedCommand::class.java
+
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+        return Mono.empty()
     }
+
 }

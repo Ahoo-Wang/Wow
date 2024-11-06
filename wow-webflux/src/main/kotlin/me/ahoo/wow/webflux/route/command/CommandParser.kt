@@ -18,7 +18,6 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -88,7 +87,7 @@ object CommandParser {
                 header.withOperator(it.name)
             }
         }.then(
-            commandMessageFactory.create<Any>(commandBuilder).throwNotFoundIfEmpty("Not found command.")
+            commandMessageFactory.create<Any>(commandBuilder)
         )
     }
 }
