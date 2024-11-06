@@ -25,7 +25,7 @@ import org.springframework.web.service.annotation.PostExchange
 import java.net.URI
 
 interface RestCommandGateway<RW, RB> {
-    @PostExchange(COMMAND_SEND_ENDPOINT)
+    @PostExchange
     fun send(
         sendUri: URI,
         @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)
