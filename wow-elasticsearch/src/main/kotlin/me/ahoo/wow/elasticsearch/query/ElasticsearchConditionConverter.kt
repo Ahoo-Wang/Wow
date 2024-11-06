@@ -27,7 +27,6 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
-    const val TENANT_ID_KEYWORD = MessageRecords.TENANT_ID + ".keyword"
     override fun and(condition: Condition): Query {
         return bool { builder ->
             builder.filter(condition.children.map { convert(it) })
@@ -61,7 +60,7 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
 
     override fun tenantId(condition: Condition): Query {
         return term {
-            it.field(TENANT_ID_KEYWORD)
+            it.field(MessageRecords.TENANT_ID)
                 .value(FieldValue.of(condition.value))
         }
     }

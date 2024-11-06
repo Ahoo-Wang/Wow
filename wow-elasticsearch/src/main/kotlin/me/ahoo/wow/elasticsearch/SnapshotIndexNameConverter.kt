@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.toStringWithAlias
 
@@ -22,6 +23,6 @@ interface SnapshotIndexNameConverter {
 
 object DefaultSnapshotIndexNameConverter : SnapshotIndexNameConverter {
     override fun convert(namedAggregate: NamedAggregate): String {
-        return "${namedAggregate.toStringWithAlias()}.snapshot"
+        return "${Wow.WOW_PREFIX}${namedAggregate.toStringWithAlias()}.snapshot"
     }
 }
