@@ -118,6 +118,10 @@ export class FailedListComponent implements OnInit {
     return to(value)
   }
 
+  controlToEqCondition(control: FormControl<string>, field: string): Condition | null {
+    return this.controlToCondition(control, value => Conditions.eq(field, value))
+  }
+
   controlToContainsCondition(control: FormControl<string>, field: string): Condition | null {
     return this.controlToCondition(control, value => Conditions.contains(field, value))
   }
@@ -128,11 +132,11 @@ export class FailedListComponent implements OnInit {
     if (idCondition) {
       conditions.push(idCondition)
     }
-    let eventIdCondition = this.controlToContainsCondition(this.validateForm.controls.eventId, "state.eventId.id")
+    let eventIdCondition = this.controlToEqCondition(this.validateForm.controls.eventId, "state.eventId.id")
     if (eventIdCondition) {
       conditions.push(eventIdCondition)
     }
-    let aggregateIdCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateId, "state.eventId.aggregateId.aggregateId")
+    let aggregateIdCondition = this.controlToEqCondition(this.validateForm.controls.aggregateId, "state.eventId.aggregateId.aggregateId")
     if (aggregateIdCondition) {
       conditions.push(aggregateIdCondition)
     }

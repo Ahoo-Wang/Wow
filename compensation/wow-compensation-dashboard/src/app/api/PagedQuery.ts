@@ -24,6 +24,6 @@ export interface PagedQuery {
 export const initialPagedQuery: PagedQuery = {
   projection: Projections.all(),
   condition: Conditions.all(),
-  sort: [{field: "_id", direction: SortDirection.DESC}],
+  sort: [{field: "firstEventTime", direction: SortDirection.DESC}],
   pagination: {index: 1, size: 10},
 };

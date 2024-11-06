@@ -37,12 +37,12 @@ data:
           accept-case-insensitive-enums: true
         autoconfigure:
           exclude:
-            - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
-            - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
-            - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+            - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+      elasticsearch:
+        username: elastic
+        password: elastic
+        uris: dev-es-default.dev.svc.cluster.local:9200
       data:
-        mongodb:
-          uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
         redis:
           cluster:
             max-redirects: 3
@@ -59,3 +59,6 @@ data:
     wow:
       kafka:
         bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
+      eventsourcing:
+        snapshot:
+          storage: elasticsearch

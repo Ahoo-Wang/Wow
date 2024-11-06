@@ -31,10 +31,20 @@ spring:
       write-dates-as-timestamps: true
     mapper:
       accept-case-insensitive-enums: true
+  autoconfigure:
+    exclude:
+#      - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
   data:
     mongodb:
-      uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
-
+      uri: mongodb://root:root@mongodb-dev-mongodb-sharded.dev.svc.cluster.local:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+      database: compensation_db
+  elasticsearch:
+    username: elastic
+    password: elastic
+    uris: dev-es-default.dev.svc.cluster.local:9200
 cosid:
   machine:
     enabled: true
@@ -44,6 +54,9 @@ cosid:
     enabled: true
 wow:
   kafka:
-    bootstrap-servers: localhost:51466
+    bootstrap-servers: 'kafka-dev-0.kafka-dev-headless.dev.svc.cluster.local:9093'
+#  eventsourcing:
+#    snapshot:
+#      storage: elasticsearch
 
 
