@@ -29,7 +29,7 @@ import java.net.URI
 @CoApi
 interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<CommandResult>>, Mono<CommandResult>> {
 
-    @PostExchange(COMMAND_SEND_ENDPOINT)
+    @PostExchange
     override fun send(
         sendUri: URI,
         @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)

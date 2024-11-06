@@ -27,7 +27,7 @@ import java.net.URI
 
 @CoApi
 interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResult>, CommandResult> {
-    @PostExchange(COMMAND_SEND_ENDPOINT)
+    @PostExchange
     override fun send(
         sendUri: URI,
         @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)
