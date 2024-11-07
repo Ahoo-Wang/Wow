@@ -62,6 +62,10 @@ application {
     )
 }
 
+tasks.startScripts {
+    classpath = files("${'$'}APP_HOME/lib/*", "${'$'}APP_HOME/plugins/*")
+}
+
 dependencies {
     implementation(platform(project(":wow-dependencies")))
     kapt(platform(project(":wow-dependencies")))
