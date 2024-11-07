@@ -140,19 +140,19 @@ export class FailedListComponent implements OnInit {
     if (aggregateIdCondition) {
       conditions.push(aggregateIdCondition)
     }
-    let aggregateContextCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateContext, "state.eventId.aggregateId.contextName")
+    let aggregateContextCondition = this.controlToEqCondition(this.validateForm.controls.aggregateContext, "state.eventId.aggregateId.contextName")
     if (aggregateContextCondition) {
       conditions.push(aggregateContextCondition)
     }
-    let aggregateNameCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateName, "state.eventId.aggregateId.aggregateName")
+    let aggregateNameCondition = this.controlToEqCondition(this.validateForm.controls.aggregateName, "state.eventId.aggregateId.aggregateName")
     if (aggregateNameCondition) {
       conditions.push(aggregateNameCondition)
     }
-    let processorContextCondition = this.controlToContainsCondition(this.validateForm.controls.processorContext, "state.function.contextName")
+    let processorContextCondition = this.controlToEqCondition(this.validateForm.controls.processorContext, "state.function.contextName")
     if (processorContextCondition) {
       conditions.push(processorContextCondition)
     }
-    let processorNameCondition = this.controlToContainsCondition(this.validateForm.controls.processorName, "state.function.processorName")
+    let processorNameCondition = this.controlToEqCondition(this.validateForm.controls.processorName, "state.function.processorName")
     if (processorNameCondition) {
       conditions.push(processorNameCondition)
     }
