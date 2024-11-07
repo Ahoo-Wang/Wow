@@ -1,0 +1,221 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": "3",
+      "number_of_replicas": "2"
+    }
+  },
+  "mappings": {
+    "dynamic_templates": [
+      {
+        "id_string_as_keyword": {
+          "match": "id",
+          "match_mapping_type": "string",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "id_suffix_string_as_keyword": {
+          "match": "*Id",
+          "match_mapping_type": "string",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      }
+    ],
+    "properties": {
+      "aggregateId": {
+        "type": "keyword"
+      },
+      "aggregateName": {
+        "type": "keyword"
+      },
+      "contextName": {
+        "type": "keyword"
+      },
+      "deleted": {
+        "type": "boolean"
+      },
+      "eventId": {
+        "type": "keyword"
+      },
+      "eventTime": {
+        "type": "long"
+      },
+      "firstEventTime": {
+        "type": "long"
+      },
+      "firstOperator": {
+        "type": "keyword"
+      },
+      "operator": {
+        "type": "keyword"
+      },
+      "snapshotTime": {
+        "type": "long"
+      },
+      "state": {
+        "properties": {
+          "error": {
+            "properties": {
+              "bindingErrors": {
+                "type": "nested",
+                "properties": {
+                  "msg": {
+                    "type": "text",
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                      }
+                    }
+                  },
+                  "name": {
+                    "type": "text",
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword",
+                        "ignore_above": 256
+                      }
+                    }
+                  }
+                }
+              },
+              "errorCode": {
+                "type": "keyword"
+              },
+              "errorMsg": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "stackTrace": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              },
+              "succeeded": {
+                "type": "boolean"
+              }
+            }
+          },
+          "eventId": {
+            "properties": {
+              "aggregateId": {
+                "properties": {
+                  "aggregateId": {
+                    "type": "keyword"
+                  },
+                  "aggregateName": {
+                    "type": "keyword"
+                  },
+                  "contextName": {
+                    "type": "keyword"
+                  },
+                  "tenantId": {
+                    "type": "keyword"
+                  }
+                }
+              },
+              "id": {
+                "type": "keyword"
+              },
+              "initialized": {
+                "type": "boolean"
+              },
+              "isInitialVersion": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          },
+          "executeAt": {
+            "type": "long"
+          },
+          "function": {
+            "properties": {
+              "contextName": {
+                "type": "keyword"
+              },
+              "functionKind": {
+                "type": "keyword"
+              },
+              "name": {
+                "type": "keyword"
+              },
+              "processorName": {
+                "type": "keyword"
+              }
+            }
+          },
+          "id": {
+            "type": "keyword"
+          },
+          "isBelowRetryThreshold": {
+            "type": "boolean"
+          },
+          "isRetryable": {
+            "type": "boolean"
+          },
+          "recoverable": {
+            "type": "keyword"
+          },
+          "retrySpec": {
+            "properties": {
+              "executionTimeout": {
+                "type": "integer"
+              },
+              "maxRetries": {
+                "type": "integer"
+              },
+              "minBackoff": {
+                "type": "integer"
+              }
+            }
+          },
+          "retryState": {
+            "properties": {
+              "nextRetryAt": {
+                "type": "long"
+              },
+              "retries": {
+                "type": "integer"
+              },
+              "retryAt": {
+                "type": "long"
+              },
+              "timeoutAt": {
+                "type": "long"
+              }
+            }
+          },
+          "status": {
+            "type": "keyword"
+          },
+          "tenantId": {
+            "type": "keyword"
+          }
+        }
+      },
+      "tenantId": {
+        "type": "keyword"
+      },
+      "version": {
+        "type": "integer"
+      }
+    }
+  }
+}
