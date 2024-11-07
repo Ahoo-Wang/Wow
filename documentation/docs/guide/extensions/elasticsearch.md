@@ -44,8 +44,8 @@ POST _index_template/wow-snapshot-template
   ],
   "template": {
     "settings": {
-      "number_of_shards": 1,
-      "number_of_replicas": 1
+      "number_of_shards": 3,
+      "number_of_replicas": 2
     },
     "mappings": {
       "properties": {
@@ -107,7 +107,7 @@ POST _index_template/wow-snapshot-template
           }
         },
         {
-          "Id_string_as_keyword": {
+          "id_suffix_string_as_keyword": {
             "match": "*Id",
             "match_mapping_type": "string",
             "mapping": {
