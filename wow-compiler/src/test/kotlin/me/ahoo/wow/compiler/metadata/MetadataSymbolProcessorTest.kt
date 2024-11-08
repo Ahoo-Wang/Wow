@@ -37,10 +37,9 @@ class MetadataSymbolProcessorTest {
                 )
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
-            languageVersion = "1.9"
         }
         val result = compilation.compile()
-        assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+        assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
     }
 
     @OptIn(ExperimentalCompilerApi::class)
@@ -56,10 +55,9 @@ class MetadataSymbolProcessorTest {
                 )
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
-            languageVersion = "1.9"
         }
         val result = compilation.compile()
-        assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+        assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
     }
 
     @OptIn(ExperimentalCompilerApi::class)
@@ -75,9 +73,8 @@ class MetadataSymbolProcessorTest {
             sources = exampleDomainFiles + exampleApiFiles
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
-            languageVersion = "1.9"
         }
         val result = compilation.compile()
-        assertThat(result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+        assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
     }
 }
