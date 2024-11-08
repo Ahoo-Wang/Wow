@@ -9,14 +9,16 @@ local requestId = ARGV[3];
 local version = tonumber(ARGV[4]);
 local value = ARGV[5];
 
-local eventStreamKey = contextAlias .. "." .. aggregateName .. ":es:" .. aggregateIdKey
+local eventStreamPrefixKey = contextAlias .. "." .. aggregateName .. ":es";
+
+local eventStreamKey = eventStreamPrefixKey .. ":" .. aggregateIdKey
 
 local count = redis.call("ZCARD", eventStreamKey)
 if count ~= (version - 1) then
     return "EventVersionConflict";
 end
 
-local requestIdxKey = eventStreamKey .. ":req_idx"
+local requestIdxKey = eventStreamPrefixKey .. ":req_idx"
 local added = redis.call("SADD", requestIdxKey, requestId)
 if added == 0 then
     return "DuplicateRequestId";

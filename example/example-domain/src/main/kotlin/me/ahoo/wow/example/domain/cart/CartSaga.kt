@@ -17,12 +17,16 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
+import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.spring.stereotype.StatelessSaga
 
 @StatelessSaga
 class CartSaga {
+    @Suppress("unused")
+    @OnEvent
+    fun onCartItemAdded(event: CartItemAdded) = Unit
 
     /**
      * 下单之后删除购物车相应商品
