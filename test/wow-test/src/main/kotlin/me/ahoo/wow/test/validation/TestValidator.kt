@@ -16,7 +16,7 @@ package me.ahoo.wow.test.validation
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.validation.CommandValidator
-import me.ahoo.wow.command.factory.CommandValidationException.Companion.toCommandValidationException
+import me.ahoo.wow.command.CommandValidationException.Companion.toCommandValidationException
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator
 
 val TestValidator: Validator = Validation.byDefaultProvider()

@@ -19,7 +19,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
 import me.ahoo.wow.query.snapshot.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 class SingleSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -42,13 +42,13 @@ class SingleSnapshotHandlerFunction(
                 snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
                     .writeRawRequest(request)
                     .throwNotFoundIfEmpty()
-            }.toServerResponse(exceptionHandler)
+            }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class SingleSnapshotHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<SingleSnapshotRouteSpec> {
     override val supportedSpec: Class<SingleSnapshotRouteSpec>
         get() = SingleSnapshotRouteSpec::class.java

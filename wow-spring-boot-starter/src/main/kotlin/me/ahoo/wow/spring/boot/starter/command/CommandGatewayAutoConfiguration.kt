@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import jakarta.validation.Validator
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
@@ -127,12 +128,14 @@ class CommandGatewayAutoConfiguration {
     fun commandGateway(
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
+        validator: Validator,
         idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
         waitStrategyRegistrar: WaitStrategyRegistrar
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
+            validator = validator,
             idempotencyCheckerProvider = idempotencyCheckerProvider,
             waitStrategyRegistrar = waitStrategyRegistrar
         )

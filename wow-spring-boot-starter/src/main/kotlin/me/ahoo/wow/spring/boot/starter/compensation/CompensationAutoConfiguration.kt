@@ -14,10 +14,11 @@
 package me.ahoo.wow.spring.boot.starter.compensation
 
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.compensation.core.CompensationEventProcessor
 import me.ahoo.wow.compensation.core.CompensationFilter
-import me.ahoo.wow.compensation.core.CompensationSaga
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -28,15 +29,22 @@ import org.springframework.context.annotation.Bean
 class CompensationAutoConfiguration {
 
     @Bean
+    fun eventCompensateSupporter(
+        domainEventCompensator: DomainEventCompensator,
+        stateEventCompensator: StateEventCompensator
+    ): EventCompensateSupporter {
+        return EventCompensateSupporter(domainEventCompensator, stateEventCompensator)
+    }
+
+    @Bean
     fun compensationFilter(commandGateway: CommandGateway): CompensationFilter {
         return CompensationFilter(commandGateway)
     }
 
     @Bean
-    fun compensationSaga(
-        domainEventCompensator: DomainEventCompensator,
-        stateEventCompensator: StateEventCompensator
-    ): CompensationSaga {
-        return CompensationSaga(domainEventCompensator, stateEventCompensator)
+    fun compensationEventProcessor(
+        eventCompensateSupporter: EventCompensateSupporter,
+    ): CompensationEventProcessor {
+        return CompensationEventProcessor(eventCompensateSupporter)
     }
 }

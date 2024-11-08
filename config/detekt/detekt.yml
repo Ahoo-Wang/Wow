@@ -28,6 +28,7 @@ style:
       - org.hamcrest.Matchers.*
       - org.hamcrest.MatcherAssert.*
       - org.junit.jupiter.api.Assertions.*
+      - co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.*
 naming:
   MemberNameEqualsClassName:
     active: false

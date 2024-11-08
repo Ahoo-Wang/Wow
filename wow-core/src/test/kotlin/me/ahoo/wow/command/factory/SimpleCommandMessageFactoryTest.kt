@@ -1,13 +1,6 @@
 package me.ahoo.wow.command.factory
 
-import io.mockk.every
-import io.mockk.mockk
-import jakarta.validation.Path
-import jakarta.validation.Validator
-import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.MockCreateCommand
-import me.ahoo.wow.command.validation.NoOpValidator
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -16,7 +9,7 @@ class SimpleCommandMessageFactoryTest {
     @Test
     fun createIfNotFound() {
         val registry = SimpleCommandBuilderRewriterRegistry()
-        val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
+        val factory = SimpleCommandMessageFactory(registry)
         val command = MockCreateCommand("")
         factory.create<MockCreateCommand>(command)
             .test()
@@ -28,7 +21,7 @@ class SimpleCommandMessageFactoryTest {
     fun createIfFound() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockCommandBuilderRewriter())
-        val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
+        val factory = SimpleCommandMessageFactory(registry)
         val command = MockCreateCommand("")
         factory.create<MockCreateCommand>(command)
             .test()
@@ -37,41 +30,14 @@ class SimpleCommandMessageFactoryTest {
     }
 
     @Test
-    fun validateError() {
-        val path = mockk<Path>()
-        every { path.toString() } returns "propertyPath"
-        val constraintViolations = setOf(
-            mockk<jakarta.validation.ConstraintViolation<Any>> {
-                every { propertyPath } returns path
-                every { message } returns "message"
-            }
-        )
-        val validator = mockk<Validator> {
-            every { validate<Any>(any()) } returns constraintViolations
-        }
+    fun createIfEmpty() {
         val registry = SimpleCommandBuilderRewriterRegistry()
-        val factory = SimpleCommandMessageFactory(validator, registry)
-        val commandMessage = factory.create<MockCreateCommand>(MockCreateCommand(""))
-        Assertions.assertThrows(CommandValidationException::class.java) {
-            commandMessage.block()
-        }
-    }
-
-    @Test
-    fun validateCommandBody() {
-        val validator = mockk<Validator> {
-        }
-        val registry = SimpleCommandBuilderRewriterRegistry()
-        val factory = SimpleCommandMessageFactory(validator, registry)
-        factory.create<MockCommandBody>(MockCommandBody())
+        registry.register(EmptyCommandBuilderRewriter())
+        val factory = SimpleCommandMessageFactory(registry)
+        val command = MockCreateCommand("")
+        factory.create<MockCreateCommand>(command)
             .test()
-            .expectError(CommandValidationException::class.java)
+            .expectError(RewriteNoCommandException::class.java)
             .verify()
-    }
-
-    class MockCommandBody : CommandValidator {
-        override fun validate() {
-            throw CommandValidationException(this)
-        }
     }
 }

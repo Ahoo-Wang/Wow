@@ -73,6 +73,7 @@ dependencies {
     implementation(project(":wow-spring-boot-starter"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-mongo"))
+    implementation(project(":wow-elasticsearch"))
     implementation(libs.jte)
     implementation(libs.jte.kotlin)
     implementation("me.ahoo.cosid:cosid-mongo")

@@ -16,13 +16,12 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-internal const val STATE_FIELD = "state"
-
 fun DynamicDocument.toState(): DynamicDocument {
-    return getNestedDocument(STATE_FIELD)
+    return getNestedDocument(StateAggregateRecords.STATE)
 }
 
 fun <S : Any> Mono<MaterializedSnapshot<S>>.toState(): Mono<S> {

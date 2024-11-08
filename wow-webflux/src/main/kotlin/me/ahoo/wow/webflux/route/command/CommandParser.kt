@@ -86,6 +86,8 @@ object CommandParser {
             commandBuilder.header { header ->
                 header.withOperator(it.name)
             }
-        }.then(commandMessageFactory.create(commandBuilder))
+        }.then(
+            commandMessageFactory.create<Any>(commandBuilder)
+        )
     }
 }

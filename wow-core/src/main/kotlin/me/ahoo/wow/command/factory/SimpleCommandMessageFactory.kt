@@ -13,37 +13,26 @@
 
 package me.ahoo.wow.command.factory
 
-import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.command.validation.CommandValidator
-import me.ahoo.wow.command.factory.CommandValidationException.Companion.toCommandValidationException
 import me.ahoo.wow.command.toCommandMessage
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class SimpleCommandMessageFactory(
-    private val validator: Validator,
     private val commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
 ) : CommandMessageFactory {
 
-    @Suppress("TooGenericExceptionCaught")
     override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
-        if (body is CommandValidator) {
-            try {
-                body.validate()
-            } catch (error: Throwable) {
-                return error.toMono()
-            }
-        }
-        val constraintViolations = validator.validate(body)
-        if (constraintViolations.isNotEmpty()) {
-            return constraintViolations.toCommandValidationException(body).toMono()
-        }
-
-        val extractor = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
+        val rewriter = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
-        return extractor.rewrite(commandBuilder)
+        return rewriter.rewrite(commandBuilder)
+            .checkpoint("Rewrite $rewriter [SimpleCommandMessageFactory]")
+            .switchIfEmpty(
+                Mono.defer {
+                    RewriteNoCommandException(commandBuilder = commandBuilder, rewriter = rewriter).toMono()
+                },
+            )
             .map {
                 it.toCommandMessage()
             }

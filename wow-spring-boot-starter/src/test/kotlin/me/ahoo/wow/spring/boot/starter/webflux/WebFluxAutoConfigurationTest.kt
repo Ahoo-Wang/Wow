@@ -21,12 +21,12 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
-import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
@@ -39,8 +39,8 @@ import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.ExceptionHandler
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -59,8 +59,8 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
             .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
@@ -75,7 +75,7 @@ internal class WebFluxAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
-                    .hasSingleBean(ExceptionHandler::class.java)
+                    .hasSingleBean(RequestExceptionHandler::class.java)
             }
     }
 
@@ -92,8 +92,8 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
-            .withBean(DomainEventCompensator::class.java, { mockk() })
             .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
             .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
             .withBean(KafkaProperties::class.java, {
                 KafkaProperties(bootstrapServers = listOf("localhost:9092"))
@@ -111,7 +111,7 @@ internal class WebFluxAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .doesNotHaveBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
-                    .hasSingleBean(ExceptionHandler::class.java)
+                    .hasSingleBean(RequestExceptionHandler::class.java)
             }
     }
 }

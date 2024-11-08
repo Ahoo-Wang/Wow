@@ -57,6 +57,14 @@ class MongoConverterTest {
     }
 
     @Test
+    fun toMongoFilterNorError() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition("", Operator.NOR, "")
+                .toMongoFilter()
+        }
+    }
+
+    @Test
     fun today() {
         val actual = Condition.today("field").toMongoFilter()
         val expected = Filters.and(
@@ -236,12 +244,13 @@ class MongoConverterTest {
     }
 
     companion object {
+        @Suppress("LongMethod")
         @JvmStatic
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
-                Arguments.of(Condition.all().not(), Filters.not(Filters.empty())),
+                Arguments.of(Condition.nor(Condition.all()), Filters.nor(Filters.empty())),
                 Arguments.of(Condition.id("id"), Filters.eq("id")),
                 Arguments.of(Condition.ids("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
                 Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),
@@ -251,6 +260,7 @@ class MongoConverterTest {
                 Arguments.of(Condition.gte("id", 1), Filters.gte("id", 1)),
                 Arguments.of(Condition.lte("id", 1), Filters.lte("id", 1)),
                 Arguments.of(Condition.contains("id", "value"), Filters.regex("id", "value")),
+                Arguments.of(Condition.contains("id", "value", true), Filters.regex("id", "value", "i")),
                 Arguments.of(Condition.isIn("id", listOf("value")), Filters.`in`("id", listOf("value"))),
                 Arguments.of(Condition.notIn("id", listOf("value")), Filters.nin("id", listOf("value"))),
                 Arguments.of(
@@ -265,7 +275,9 @@ class MongoConverterTest {
                     Filters.elemMatch("id", Filters.eq("id", "id"))
                 ),
                 Arguments.of(Condition.startsWith("id", "value"), Filters.regex("id", "^value")),
+                Arguments.of(Condition.startsWith("id", "value", true), Filters.regex("id", "^value", "i")),
                 Arguments.of(Condition.endsWith("id", "value"), Filters.regex("id", "value$")),
+                Arguments.of(Condition.endsWith("id", "value", true), Filters.regex("id", "value$", "i")),
                 Arguments.of(
                     Condition.and(listOf(Condition("id", Operator.EQ, "id"))),
                     Filters.and(Filters.eq("id", "id"))

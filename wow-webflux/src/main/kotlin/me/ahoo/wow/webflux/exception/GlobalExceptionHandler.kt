@@ -26,6 +26,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
@@ -41,17 +42,18 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         val errorInfo = when (ex) {
             is HandlerMethodValidationException -> ex.toBindingErrorInfo()
             is BindingResult -> ex.toBindingErrorInfo()
+            is NoResourceFoundException -> ErrorInfo.of(ErrorCodes.NOT_FOUND, errorMsg = ex.message)
             else -> ex.toErrorInfo()
         }
         val status = errorInfo.toHttpStatus()
         val response = exchange.response
-        response.setStatusCode(status)
+        response.statusCode = status
         response.headers.set(CommandHeaders.WOW_ERROR_CODE, errorInfo.errorCode)
         response.headers.contentType = MediaType.APPLICATION_JSON
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 
-    private fun ServerHttpRequest.formatRequest(): String {
+    fun ServerHttpRequest.formatRequest(): String {
         return "HTTP $method $uri"
     }
 

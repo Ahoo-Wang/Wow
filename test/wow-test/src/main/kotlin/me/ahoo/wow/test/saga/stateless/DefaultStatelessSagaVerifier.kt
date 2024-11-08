@@ -91,6 +91,7 @@ internal class DefaultWhenStage<T : Any>(
             .ofType(CommandStream::class.java)
             .map {
                 ExpectedResult(
+                    exchange = eventExchange,
                     processor = processor,
                     commandStream = it,
                 )
@@ -98,6 +99,7 @@ internal class DefaultWhenStage<T : Any>(
             .onErrorResume {
                 Mono.just(
                     ExpectedResult(
+                        exchange = eventExchange,
                         processor = processor,
                         commandStream = null,
                         error = it
@@ -106,6 +108,7 @@ internal class DefaultWhenStage<T : Any>(
             }.switchIfEmpty {
                 Mono.just(
                     ExpectedResult(
+                        exchange = eventExchange,
                         processor = processor,
                         commandStream = DefaultCommandStream(
                             domainEventId = eventExchange.message.id,

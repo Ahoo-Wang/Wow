@@ -19,7 +19,7 @@ import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.Contexts.writeRawRequest
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
 class ListQueryEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStreamQueryService: EventStreamQueryService,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -42,13 +42,13 @@ class ListQueryEventStreamHandlerFunction(
                 eventStreamQueryService.dynamicList(query)
                     .collectList()
                     .writeRawRequest(request)
-            }.toServerResponse(exceptionHandler)
+            }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class ListQueryEventStreamHandlerFunctionFactory(
     private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ListQueryEventStreamRouteSpec> {
     override val supportedSpec: Class<ListQueryEventStreamRouteSpec>
         get() = ListQueryEventStreamRouteSpec::class.java

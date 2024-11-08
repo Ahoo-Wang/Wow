@@ -11,31 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.apiclient
+package me.ahoo.wow.apiclient.command
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import me.ahoo.coapi.api.CoApi
 import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.command.CommandHeaders
-import org.springframework.http.ResponseEntity
+import me.ahoo.wow.serialization.toObject
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.service.annotation.PostExchange
-import reactor.core.publisher.Mono
 import java.net.URI
 
-@CoApi
-interface RestCommandGateway {
-    companion object {
-        const val COMMAND_SEND_ENDPOINT = "wow/command/send"
-    }
-
-    @PostExchange(COMMAND_SEND_ENDPOINT)
+interface RestCommandGateway<RW, RB> {
+    @PostExchange
     fun send(
         sendUri: URI,
         @RequestHeader(CommandHeaders.COMMAND_TYPE, required = false)
@@ -58,17 +50,22 @@ interface RestCommandGateway {
         aggregateVersion: Int? = null,
         @RequestHeader(CommandHeaders.REQUEST_ID, required = false)
         requestId: String? = null,
+        @RequestHeader(CommandHeaders.LOCAL_FIRST, required = false)
+        localFirst: Boolean? = null,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
         context: String? = null,
         @RequestHeader(CommandHeaders.COMMAND_AGGREGATE_NAME, required = false)
         aggregate: String? = null
-    ): Mono<ResponseEntity<CommandResult>>
+    ): RW
 
-    fun send(commandRequest: CommandRequest): Mono<CommandResult> {
-        if (commandRequest.body is CommandValidator) {
-            commandRequest.body.validate()
-        }
-        return send(
+    /**
+     * Send a command request.
+     *
+     * @throws RestCommandGatewayException if the request fails
+     */
+    fun send(commandRequest: CommandRequest): RB {
+        commandRequest.validate()
+        val wrappedResponse = send(
             sendUri = commandRequest.sendUri,
             commandType = commandRequest.commandType,
             command = commandRequest.body,
@@ -80,55 +77,68 @@ interface RestCommandGateway {
             aggregateId = commandRequest.aggregateId,
             aggregateVersion = commandRequest.aggregateVersion,
             requestId = commandRequest.requestId,
+            localFirst = commandRequest.localFirst,
             context = commandRequest.context,
             aggregate = commandRequest.aggregate
-        ).mapNotNull<CommandResult> {
-            it.body
-        }.onErrorMap(WebClientResponseException::class.java) {
-            val commandResult = checkNotNull(it.getResponseBodyAs(CommandResult::class.java))
-            CommandResultException(commandResult, it)
-        }
+        )
+        return unwrapResponse(commandRequest, wrappedResponse)
     }
 
-    data class CommandRequest(
-        val body: Any,
-        val waitStrategy: WaitStrategy = WaitStrategy(),
-        val aggregateId: String? = null,
-        val aggregateVersion: Int? = null,
-        val tenantId: String? = null,
-        val requestId: String? = null,
-        val context: String? = null,
-        val aggregate: String? = null,
-        val serviceUri: String? = null,
-        val type: String? = null
-    ) {
-        companion object {
-            const val COMMAND_SEND_ENDPOINT = "wow/command/send"
-        }
+    fun unwrapResponse(commandRequest: CommandRequest, response: RW): RB
 
-        @get:JsonIgnore
-        val commandType: String
-            get() = type ?: body::class.java.name
-
-        @get:JsonIgnore
-        val serviceId: String by lazy {
-            if (!context.isNullOrBlank()) {
-                return@lazy context
+    companion object {
+        fun CommandRequest.validate() {
+            if (body is CommandValidator) {
+                body.validate()
             }
-            return@lazy MetadataSearcher.scopeContext.requiredSearch(commandType).contextName
         }
 
-        @get:JsonIgnore
-        val sendUri: URI by lazy {
-            val serviceHost = serviceUri ?: "http://$serviceId"
-            return@lazy URI.create("$serviceHost/$COMMAND_SEND_ENDPOINT")
-        }
+        fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
+            val errorCode = this.headers.getFirst(CommandHeaders.WOW_ERROR_CODE).orEmpty()
+            val responseBody = this.responseBodyAsString
+            if (responseBody.isBlank()) {
+                return RestCommandGatewayException(
+                    request = request,
+                    errorCode = errorCode,
+                    errorMsg = this.message,
+                    cause = this
+                )
+            }
 
-        data class WaitStrategy(
-            val waitStage: CommandStage = CommandStage.PROCESSED,
-            val waitContext: String? = null,
-            val waitProcessor: String? = null,
-            val waitTimeout: Long? = null
-        )
+            try {
+                responseBody.toObject<CommandResult>().let {
+                    return RestCommandGatewayException(
+                        request = request,
+                        errorCode = it.errorCode,
+                        errorMsg = it.errorMsg,
+                        cause = CommandResultException(it, this),
+                        bindingErrors = it.bindingErrors
+                    )
+                }
+            } catch (ignore: Throwable) {
+                // ignore
+            }
+
+            try {
+                responseBody.toObject<DefaultErrorInfo>().let {
+                    return RestCommandGatewayException(
+                        request = request,
+                        errorCode = it.errorCode,
+                        errorMsg = it.errorMsg,
+                        cause = this,
+                        bindingErrors = it.bindingErrors
+                    )
+                }
+            } catch (ignore: Throwable) {
+                // ignore
+            }
+
+            return RestCommandGatewayException(
+                request = request,
+                errorCode = errorCode,
+                errorMsg = this.message,
+                cause = this
+            )
+        }
     }
 }

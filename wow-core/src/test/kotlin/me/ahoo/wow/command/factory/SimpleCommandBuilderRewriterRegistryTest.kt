@@ -32,3 +32,12 @@ class MockCommandBuilderRewriter : CommandBuilderRewriter {
         return Mono.just(commandBuilder)
     }
 }
+
+class EmptyCommandBuilderRewriter : CommandBuilderRewriter {
+    override val supportedCommandType: Class<MockCreateCommand>
+        get() = MockCreateCommand::class.java
+
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+        return Mono.empty()
+    }
+}

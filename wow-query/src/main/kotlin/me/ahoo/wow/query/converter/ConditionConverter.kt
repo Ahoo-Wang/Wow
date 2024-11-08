@@ -19,9 +19,10 @@ import me.ahoo.wow.api.query.Operator
 interface ConditionConverter<T> {
     @Suppress("CyclomaticComplexMethod")
     fun convert(condition: Condition): T {
-        val target = when (condition.operator) {
+        return when (condition.operator) {
             Operator.AND -> and(condition)
             Operator.OR -> or(condition)
+            Operator.NOR -> nor(condition)
             Operator.ID -> id(condition)
             Operator.IDS -> ids(condition)
             Operator.TENANT_ID -> tenantId(condition)
@@ -55,11 +56,11 @@ interface ConditionConverter<T> {
             Operator.RECENT_DAYS -> recentDays(condition)
             Operator.RAW -> raw(condition)
         }
-        return not(condition.not, target)
     }
 
     fun and(condition: Condition): T
     fun or(condition: Condition): T
+    fun nor(condition: Condition): T
     fun id(condition: Condition): T
     fun ids(condition: Condition): T
     fun tenantId(condition: Condition): T
@@ -92,5 +93,4 @@ interface ConditionConverter<T> {
     fun lastMonth(condition: Condition): T
     fun recentDays(condition: Condition): T
     fun raw(condition: Condition): T
-    fun not(not: Boolean, target: T): T
 }

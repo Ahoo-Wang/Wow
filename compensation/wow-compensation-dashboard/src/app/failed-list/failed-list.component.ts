@@ -118,6 +118,10 @@ export class FailedListComponent implements OnInit {
     return to(value)
   }
 
+  controlToEqCondition(control: FormControl<string>, field: string): Condition | null {
+    return this.controlToCondition(control, value => Conditions.eq(field, value))
+  }
+
   controlToContainsCondition(control: FormControl<string>, field: string): Condition | null {
     return this.controlToCondition(control, value => Conditions.contains(field, value))
   }
@@ -128,27 +132,27 @@ export class FailedListComponent implements OnInit {
     if (idCondition) {
       conditions.push(idCondition)
     }
-    let eventIdCondition = this.controlToContainsCondition(this.validateForm.controls.eventId, "state.eventId.id")
+    let eventIdCondition = this.controlToEqCondition(this.validateForm.controls.eventId, "state.eventId.id")
     if (eventIdCondition) {
       conditions.push(eventIdCondition)
     }
-    let aggregateIdCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateId, "state.eventId.aggregateId.aggregateId")
+    let aggregateIdCondition = this.controlToEqCondition(this.validateForm.controls.aggregateId, "state.eventId.aggregateId.aggregateId")
     if (aggregateIdCondition) {
       conditions.push(aggregateIdCondition)
     }
-    let aggregateContextCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateContext, "state.eventId.aggregateId.contextName")
+    let aggregateContextCondition = this.controlToEqCondition(this.validateForm.controls.aggregateContext, "state.eventId.aggregateId.contextName")
     if (aggregateContextCondition) {
       conditions.push(aggregateContextCondition)
     }
-    let aggregateNameCondition = this.controlToContainsCondition(this.validateForm.controls.aggregateName, "state.eventId.aggregateId.aggregateName")
+    let aggregateNameCondition = this.controlToEqCondition(this.validateForm.controls.aggregateName, "state.eventId.aggregateId.aggregateName")
     if (aggregateNameCondition) {
       conditions.push(aggregateNameCondition)
     }
-    let processorContextCondition = this.controlToContainsCondition(this.validateForm.controls.processorContext, "state.function.contextName")
+    let processorContextCondition = this.controlToEqCondition(this.validateForm.controls.processorContext, "state.function.contextName")
     if (processorContextCondition) {
       conditions.push(processorContextCondition)
     }
-    let processorNameCondition = this.controlToContainsCondition(this.validateForm.controls.processorName, "state.function.processorName")
+    let processorNameCondition = this.controlToEqCondition(this.validateForm.controls.processorName, "state.function.processorName")
     if (processorNameCondition) {
       conditions.push(processorNameCondition)
     }

@@ -1,7 +1,7 @@
 # 查询服务
 
 :::tip
-目前仅 `wow-mongo` 模块支持查询服务。
+目前 `wow-mongo` 模块 与 `wow-elasticsearch` 模块支持查询服务。
 :::
 
 ## 操作符
@@ -10,6 +10,7 @@
 |-------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | AND         | 对提供的条件列表执行逻辑与                                                                                                                                |
 | OR          | 对提供的条件列表执行逻辑或                                                                                                                                |
+| NOR         | 对提供的条件列表执行逻辑或非                                                                                                                               |
 | ID          | 匹配`id`字段值等于指定值的所有文档                                                                                                                          |
 | IDS         | 匹配`id`字段值等于指定值列表中的任何值的所有文档                                                                                                                   |
 | TENANT_ID   | 匹配`tenantId`字段值等于指定值的所有文档                                                                                                                    |
@@ -56,7 +57,7 @@ condition {
         tenantId("tenantId")
         all()
     }
-    not {
+    nor {
         all()
     }
     id("id")
@@ -695,6 +696,7 @@ private lateinit var queryService: SnapshotQueryService<OrderState>
 ```kotlin [根据 Bean Name 手动获取]
 val queryService = applicationContext.getBean("example.order.SnapshotQueryService") as SnapshotQueryService<OrderState>
 ```
+
 :::
 
 

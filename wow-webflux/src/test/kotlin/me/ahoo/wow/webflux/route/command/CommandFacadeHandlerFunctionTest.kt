@@ -7,7 +7,6 @@ import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -19,7 +18,7 @@ import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -38,8 +37,8 @@ class CommandFacadeHandlerFunctionTest {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val handlerFunction = CommandFacadeHandlerFunction(
             commandGateway,
-            SimpleCommandMessageFactory(NoOpValidator, (SimpleCommandBuilderRewriterRegistry())),
-            DefaultExceptionHandler
+            SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+            DefaultRequestExceptionHandler
         )
         val request = mockk<ServerRequest> {
             every { body(CommandFacadeBodyExtractor) } returns Tuples.of(

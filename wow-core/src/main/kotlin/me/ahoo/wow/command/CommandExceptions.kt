@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.command
 
+import jakarta.validation.ConstraintViolation
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
 import me.ahoo.wow.exception.WowException
 
@@ -38,3 +42,33 @@ class CommandResultException(val commandResult: CommandResult, cause: Throwable?
         cause = cause,
         bindingErrors = commandResult.bindingErrors
     )
+
+class CommandValidationException(
+    val command: Any,
+    errorMsg: String = "Command validation failed.",
+    cause: Throwable? = null,
+    bindingErrors: List<BindingError> = emptyList(),
+) : WowException(
+    errorCode = COMMAND_VALIDATION,
+    errorMsg = errorMsg,
+    cause = cause,
+    bindingErrors = bindingErrors
+),
+    ErrorInfo {
+
+    companion object {
+
+        internal fun Set<ConstraintViolation<*>>.toBindingErrors(): List<BindingError> {
+            return this.map {
+                BindingError(it.propertyPath.toString(), it.message)
+            }
+        }
+
+        fun <T> Set<ConstraintViolation<T>>.toCommandValidationException(
+            command: Any,
+            errorMsg: String = "Command validation failed."
+        ): CommandValidationException {
+            return CommandValidationException(command, errorMsg = errorMsg, bindingErrors = toBindingErrors())
+        }
+    }
+}

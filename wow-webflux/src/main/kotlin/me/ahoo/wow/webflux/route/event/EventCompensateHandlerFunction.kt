@@ -14,24 +14,27 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensator
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.event.EventCompensateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> {
+class EventCompensateHandlerFunction(
+    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val eventCompensateSupporter: EventCompensateSupporter,
+    private val exceptionHandler: RequestExceptionHandler
+) : HandlerFunction<ServerResponse> {
 
-    abstract val aggregateMetadata: AggregateMetadata<*, *>
-    abstract val eventCompensator: EventCompensator
-    abstract val exceptionHandler: ExceptionHandler
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
@@ -42,11 +45,28 @@ abstract class EventCompensateHandlerFunction : HandlerFunction<ServerResponse> 
                 }
                 val version = request.pathVariable(MessageRecords.VERSION).toInt()
                 val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-                eventCompensator.compensate(
+
+                eventCompensateSupporter.compensate(
                     aggregateId = aggregateId,
                     target = it,
                     version = version
                 )
-            }.toServerResponse(exceptionHandler)
+            }.toServerResponse(request, exceptionHandler)
+    }
+}
+
+class EventCompensateHandlerFunctionFactory(
+    private val eventCompensateSupporter: EventCompensateSupporter,
+    private val exceptionHandler: RequestExceptionHandler
+) : RouteHandlerFunctionFactory<EventCompensateRouteSpec> {
+    override val supportedSpec: Class<EventCompensateRouteSpec>
+        get() = EventCompensateRouteSpec::class.java
+
+    override fun create(spec: EventCompensateRouteSpec): HandlerFunction<ServerResponse> {
+        return EventCompensateHandlerFunction(
+            spec.aggregateMetadata,
+            eventCompensateSupporter,
+            exceptionHandler
+        )
     }
 }

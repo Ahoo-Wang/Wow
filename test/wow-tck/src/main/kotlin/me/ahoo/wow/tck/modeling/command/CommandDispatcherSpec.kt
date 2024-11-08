@@ -57,6 +57,7 @@ import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.test.validation.TestValidator
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.BeforeEach
@@ -96,6 +97,7 @@ abstract class CommandDispatcherSpec {
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
+            validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
         )

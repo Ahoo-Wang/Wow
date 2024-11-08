@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-const val LOCAL_FIRST_HEADER = "local.first"
+const val LOCAL_FIRST_HEADER = "local_first"
 
 fun Header.withLocalFirst(localFirst: Boolean = true): Header {
     return with(LOCAL_FIRST_HEADER, localFirst.toString())

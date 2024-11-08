@@ -39,6 +39,7 @@ class ListQueryDslTest {
                     "field4" eq "value4"
                 }
             }
+            projection { }
         }
         assertThat(query.projection, equalTo(Projection.ALL))
         assertThat(query.limit, equalTo(1))

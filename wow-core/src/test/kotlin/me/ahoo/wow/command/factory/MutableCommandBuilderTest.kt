@@ -2,6 +2,7 @@ package me.ahoo.wow.command.factory
 
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.isLocalFirst
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
@@ -41,6 +42,8 @@ class MutableCommandBuilderTest {
             .header {
                 it.with("key", "value")
             }
+            .localFirst(true)
+            .localFirst()
             .createTime(1)
             .body(newBody)
 
@@ -52,7 +55,7 @@ class MutableCommandBuilderTest {
         assertThat(commandBuilder.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
         assertThat(commandBuilder.header["key"], equalTo("value"))
         assertThat(commandBuilder.createTime, equalTo(1))
-
+        assertThat(commandBuilder.header.isLocalFirst(), equalTo(true))
         commandBuilder.requestIfIfAbsent("requestId2")
             .tenantIdIfAbsent("tenantId2")
 

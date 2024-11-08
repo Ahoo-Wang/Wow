@@ -20,7 +20,6 @@ import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
@@ -30,7 +29,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -50,8 +49,8 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             commandRouteMetadata,
             commandGateway,
-            SimpleCommandMessageFactory(NoOpValidator, (SimpleCommandBuilderRewriterRegistry())),
-            DefaultExceptionHandler,
+            SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+            DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { bodyToMono(commandRouteMetadata.commandMetadata.commandType) } returns MockCreateAggregate(

@@ -17,7 +17,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpec
-import me.ahoo.wow.webflux.exception.ExceptionHandler
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
@@ -32,7 +32,7 @@ object IdList : ParameterizedTypeReference<Set<String>>()
 class IdsQueryAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
@@ -49,13 +49,13 @@ class IdsQueryAggregateHandlerFunction(
             }
             .map { it.state }
             .collectList()
-            .toServerResponse(exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
 class IdsQueryAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: ExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<IdsQueryAggregateRouteSpec> {
     override val supportedSpec: Class<IdsQueryAggregateRouteSpec>
         get() = IdsQueryAggregateRouteSpec::class.java

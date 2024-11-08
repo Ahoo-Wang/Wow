@@ -18,8 +18,8 @@ package me.ahoo.wow.api.command.validation
  *
  * 由命令体实现该接口，用于校验命令体的合法性
  *
- * @see me.ahoo.wow.command.factory.CommandMessageFactory
- * @see me.ahoo.wow.command.factory.CommandValidationException
+ * @see me.ahoo.wow.command.CommandValidationException
+ * @see me.ahoo.wow.command.DefaultCommandGateway
  */
 fun interface CommandValidator {
     /**

@@ -91,15 +91,15 @@ class ConditionDsl : NestedFieldDsl() {
         condition(nestedCondition)
     }
 
-    fun not(block: ConditionDsl.() -> Unit) {
+    fun nor(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
         nestedDsl.nested(nestedField)
         nestedDsl.block()
         if (nestedDsl.conditions.isEmpty()) {
             return
         }
-        val nestedCondition = nestedDsl.build()
-        condition(nestedCondition.not())
+        val nestedCondition = Condition.nor(nestedDsl.conditions)
+        condition(nestedCondition)
     }
 
     fun all() {
@@ -174,11 +174,15 @@ class ConditionDsl : NestedFieldDsl() {
         name lte value
     }
 
-    infix fun String.contains(value: Any) {
-        condition(Condition.contains(this.withNestedField(), value))
+    fun String.contains(value: String, ignoreCase: Boolean = false) {
+        condition(Condition.contains(this.withNestedField(), value, ignoreCase))
     }
 
-    infix fun KCallable<*>.contains(value: Any) {
+    infix fun String.contains(value: String) {
+        this.contains(value, false)
+    }
+
+    infix fun KCallable<*>.contains(value: String) {
         name contains value
     }
 
@@ -222,19 +226,27 @@ class ConditionDsl : NestedFieldDsl() {
         name all value
     }
 
-    infix fun String.startsWith(value: Any) {
-        condition(Condition.startsWith(this.withNestedField(), value))
+    fun String.startsWith(value: String, ignoreCase: Boolean = false) {
+        condition(Condition.startsWith(this.withNestedField(), value, ignoreCase))
     }
 
-    infix fun KCallable<*>.startsWith(value: Any) {
+    infix fun String.startsWith(value: String) {
+        this.startsWith(value, false)
+    }
+
+    infix fun KCallable<*>.startsWith(value: String) {
         name startsWith value
     }
 
-    infix fun String.endsWith(value: Any) {
-        condition(Condition.endsWith(this.withNestedField(), value))
+    fun String.endsWith(value: String, ignoreCase: Boolean = false) {
+        condition(Condition.endsWith(this.withNestedField(), value, ignoreCase))
     }
 
-    infix fun KCallable<*>.endsWith(value: Any) {
+    infix fun String.endsWith(value: String) {
+        this.endsWith(value, false)
+    }
+
+    infix fun KCallable<*>.endsWith(value: String) {
         name endsWith value
     }
 

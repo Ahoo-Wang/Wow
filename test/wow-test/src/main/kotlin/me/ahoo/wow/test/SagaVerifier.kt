@@ -42,6 +42,7 @@ object SagaVerifier {
         return DefaultCommandGateway(
             SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             InMemoryCommandBus(),
+            validator = TestValidator,
             DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
             SimpleWaitStrategyRegistrar,
         )
@@ -53,7 +54,6 @@ object SagaVerifier {
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
         commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
-            validator = TestValidator,
             commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
         )
     ): WhenStage<T> {

@@ -7,7 +7,7 @@ import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
@@ -22,7 +22,7 @@ class CountSnapshotHandlerFunctionTest {
     fun handle() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         ).create(CountSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns null

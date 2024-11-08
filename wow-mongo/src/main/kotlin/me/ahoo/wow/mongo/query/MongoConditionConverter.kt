@@ -16,19 +16,16 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.converter.ConditionConverter
+import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.time.DayOfWeek
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneOffset
-import java.time.temporal.TemporalAdjusters
 
-object MongoConditionConverter : ConditionConverter<Bson> {
+object MongoConditionConverter : AbstractConditionConverter<Bson>() {
     override fun and(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "AND operator children cannot be empty."
@@ -41,6 +38,13 @@ object MongoConditionConverter : ConditionConverter<Bson> {
             "OR operator children cannot be empty."
         }
         return Filters.or(condition.children.map { convert(it) })
+    }
+
+    override fun nor(condition: Condition): Bson {
+        require(condition.children.isNotEmpty()) {
+            "NOR operator children cannot be empty."
+        }
+        return Filters.nor(condition.children.map { convert(it) })
     }
 
     override fun id(condition: Condition): Bson {
@@ -81,8 +85,24 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         return Filters.lte(condition.field, condition.value)
     }
 
+    private fun regex(field: String, value: String, ignoreCase: Boolean?): Bson {
+        return if (ignoreCase == true) {
+            Filters.regex(field, value, "i")
+        } else {
+            Filters.regex(field, value)
+        }
+    }
+
     override fun contains(condition: Condition): Bson {
-        return Filters.regex(condition.field, condition.valueAs<String>())
+        return regex(condition.field, condition.valueAs(), condition.ignoreCase())
+    }
+
+    override fun startsWith(condition: Condition): Bson {
+        return regex(condition.field, "^${condition.valueAs<String>()}", condition.ignoreCase())
+    }
+
+    override fun endsWith(condition: Condition): Bson {
+        return regex(condition.field, "${condition.valueAs<String>()}$", condition.ignoreCase())
     }
 
     override fun isIn(condition: Condition): Bson {
@@ -111,14 +131,6 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         return Filters.all(condition.field, condition.valueAs<Iterable<*>>())
     }
 
-    override fun startsWith(condition: Condition): Bson {
-        return Filters.regex(condition.field, "^${condition.value}")
-    }
-
-    override fun endsWith(condition: Condition): Bson {
-        return Filters.regex(condition.field, "${condition.value}$")
-    }
-
     override fun elemMatch(condition: Condition): Bson {
         return Filters.elemMatch(condition.field, condition.children.first().let { convert(it) })
     }
@@ -143,82 +155,10 @@ object MongoConditionConverter : ConditionConverter<Bson> {
         return Filters.eq(StateAggregateRecords.DELETED, condition.value)
     }
 
-    override fun today(condition: Condition): Bson {
-        val startOfDay = LocalDateTime.now().with(LocalTime.MIN)
-        val endOfDay = LocalDateTime.now().with(LocalTime.MAX)
+    override fun timeRange(field: String, from: LocalDateTime, to: LocalDateTime): Bson {
         return Filters.and(
-            Filters.gte(condition.field, startOfDay.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfDay.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun tomorrow(condition: Condition): Bson {
-        val startOfTomorrow = LocalDateTime.now().plusDays(1).with(LocalTime.MIN)
-        val endOfTomorrow = LocalDateTime.now().plusDays(1).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfTomorrow.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfTomorrow.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun thisWeek(condition: Condition): Bson {
-        val startOfWeek =
-            LocalDateTime.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
-        val endOfWeek = LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfWeek.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfWeek.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun nextWeek(condition: Condition): Bson {
-        val startOfNextWeek = LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .with(LocalTime.MIN)
-        val endOfNextWeek =
-            LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfNextWeek.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfNextWeek.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun lastWeek(condition: Condition): Bson {
-        val startOfLastWeek = LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .with(LocalTime.MIN)
-        val endOfLastWeek =
-            LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfLastWeek.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfLastWeek.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun thisMonth(condition: Condition): Bson {
-        val startOfMonth = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN)
-        val endOfMonth = LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfMonth.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfMonth.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun lastMonth(condition: Condition): Bson {
-        val startOfLastMonth = LocalDateTime.now().minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN)
-        val endOfLastMonth =
-            LocalDateTime.now().minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfLastMonth.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfLastMonth.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
-    }
-
-    override fun recentDays(condition: Condition): Bson {
-        val days = condition.value as Number
-        val startOfRecentDays = LocalDateTime.now().minusDays(days.toLong() - 1).with(LocalTime.MIN)
-        val endOfRecentDays = LocalDateTime.now().with(LocalTime.MAX)
-        return Filters.and(
-            Filters.gte(condition.field, startOfRecentDays.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(condition.field, endOfRecentDays.toInstant(ZoneOffset.UTC).toEpochMilli())
+            Filters.gte(field, from.toInstant(ZoneOffset.UTC).toEpochMilli()),
+            Filters.lte(field, to.toInstant(ZoneOffset.UTC).toEpochMilli())
         )
     }
 
@@ -241,11 +181,6 @@ object MongoConditionConverter : ConditionConverter<Bson> {
                 Document.parse(conditionValueJson)
             }
         }
-    }
-
-    override fun not(not: Boolean, target: Bson): Bson {
-        if (!not) return target
-        return Filters.not(target)
     }
 
     fun Condition.toMongoFilter(): Bson {

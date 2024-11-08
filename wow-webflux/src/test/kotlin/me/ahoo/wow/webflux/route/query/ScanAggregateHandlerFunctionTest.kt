@@ -9,7 +9,7 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.state.ScanAggregateHandlerFunction
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
@@ -31,7 +31,7 @@ class ScanAggregateHandlerFunctionTest {
                 eventStore = eventStore,
             ),
             eventStore = eventStore,
-            exceptionHandler = DefaultExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns AggregateIdScanner.FIRST_CURSOR_ID
