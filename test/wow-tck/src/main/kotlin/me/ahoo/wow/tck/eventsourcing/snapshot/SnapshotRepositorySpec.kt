@@ -18,6 +18,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -172,6 +173,28 @@ abstract class SnapshotRepositorySpec {
                     equalTo(stateAggregate.state.data),
                 )
             }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateId() {
+        val snapshotRepository = createSnapshotRepository().metrizable()
+        val cursorId = generateGlobalId()
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        val snapshot: Snapshot<MockStateAggregate> =
+            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+        snapshotRepository.save(snapshot)
+            .test()
+            .verifyComplete()
+
+        snapshotRepository.scanAggregateId(snapshot.aggregateId, cursorId = cursorId, limit = 1)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+        snapshotRepository.scanAggregateId(snapshot.aggregateId, cursorId = snapshot.aggregateId.id, limit = 1)
+            .test()
+            .expectNextCount(0)
             .verifyComplete()
     }
 }

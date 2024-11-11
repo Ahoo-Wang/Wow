@@ -18,6 +18,7 @@ import io.mockk.mockk
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
@@ -37,14 +38,14 @@ class ResendStateEventHandlerFunctionTest {
     fun handle() {
         val eventStore = InMemoryEventStore()
         val handlerFunction = ResendStateEventFunction(
-            MOCK_AGGREGATE_METADATA,
-            eventStore,
-            StateEventCompensator(
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            snapshotRepository = NoOpSnapshotRepository,
+            stateEventCompensator = StateEventCompensator(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,
                 stateEventBus = InMemoryStateEventBus(),
             ),
-            DefaultRequestExceptionHandler,
+            exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID

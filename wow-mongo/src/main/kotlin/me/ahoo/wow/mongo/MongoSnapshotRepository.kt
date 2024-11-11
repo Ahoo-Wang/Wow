@@ -14,18 +14,23 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRepository {
@@ -84,5 +89,23 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             .doOnNext {
                 check(it.wasAcknowledged())
             }.then()
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        val snapshotCollectionName = namedAggregate.toSnapshotCollectionName()
+        return database.getCollection(snapshotCollectionName)
+            .find(Filters.gt(Documents.ID_FIELD, cursorId))
+            .projection(Projections.include(MessageRecords.TENANT_ID))
+            .limit(limit)
+            .toFlux()
+            .map {
+                val aggregateId = it.getString(Documents.ID_FIELD)
+                val tenantId = it.getString(MessageRecords.TENANT_ID)
+                namedAggregate.aggregateId(aggregateId, tenantId)
+            }
     }
 }

@@ -14,12 +14,18 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class ElasticsearchSnapshotRepository(
@@ -57,5 +63,39 @@ class ElasticsearchSnapshotRepository(
                 .document(snapshot)
                 .refresh(refreshPolicy)
         }.then()
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        return elasticsearchClient.search({
+            it.index(namedAggregate.toSnapshotIndexName())
+                .query {
+                    it.range {
+                        it.field(MessageRecords.AGGREGATE_ID)
+                            .gt(JsonData.of(cursorId))
+                    }
+                }
+                .source {
+                    it.filter {
+                        it.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
+                    }
+                }
+                .size(limit)
+                .sort {
+                    it.field {
+                        it.field(MessageRecords.AGGREGATE_ID).order(SortOrder.Asc)
+                    }
+                }
+        }, Map::class.java).flatMapIterable<AggregateId> {
+            it.hits().hits().map { hit ->
+                val source = requireNotNull(hit.source())
+                val aggregateId = checkNotNull(source[MessageRecords.AGGREGATE_ID] as String)
+                val tenantId = checkNotNull(source[MessageRecords.TENANT_ID] as String)
+                namedAggregate.aggregateId(aggregateId, tenantId)
+            }
+        }
     }
 }

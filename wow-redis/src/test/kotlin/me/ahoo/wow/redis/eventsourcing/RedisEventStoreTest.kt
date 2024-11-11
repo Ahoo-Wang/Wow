@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.redis.RedisInitializer
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import reactor.kotlin.test.test
 
 class RedisEventStoreTest : EventStoreSpec() {
     protected lateinit var redisInitializer: RedisInitializer
@@ -37,24 +35,5 @@ class RedisEventStoreTest : EventStoreSpec() {
 
     override fun createEventStore(): EventStore {
         return RedisEventStore(redisInitializer.redisTemplate)
-    }
-
-    override fun scanAggregateId() = Unit
-
-    override fun tailCursorId() {
-        eventStore.tailCursorId(namedAggregate)
-            .test()
-            .expectNext(AggregateIdScanner.FIRST_CURSOR_ID)
-            .verifyComplete()
-    }
-
-    override fun archiveAggregateId() {
-        eventStore.archiveAggregateId(namedAggregate)
-            .test()
-            .verifyComplete()
-
-        eventStore.archiveAggregateId(namedAggregate, AggregateIdScanner.FIRST_CURSOR_ID)
-            .test()
-            .verifyComplete()
     }
 }

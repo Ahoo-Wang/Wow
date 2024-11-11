@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
@@ -29,14 +29,14 @@ import reactor.core.publisher.Mono
 class ScanAggregateHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val eventStore: EventStore,
+    private val snapshotRepository: SnapshotRepository,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return eventStore.scanAggregateId(
+        return snapshotRepository.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             cursorId = cursorId,
             limit = limit,
@@ -52,7 +52,7 @@ class ScanAggregateHandlerFunction(
 
 class ScanAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val eventStore: EventStore,
+    private val snapshotRepository: SnapshotRepository,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ScanAggregateRouteSpec> {
     override val supportedSpec: Class<ScanAggregateRouteSpec>
@@ -62,7 +62,7 @@ class ScanAggregateHandlerFunctionFactory(
         return ScanAggregateHandlerFunction(
             aggregateMetadata = spec.aggregateMetadata,
             stateAggregateRepository = stateAggregateRepository,
-            eventStore = eventStore,
+            snapshotRepository = snapshotRepository,
             exceptionHandler = exceptionHandler,
         )
     }

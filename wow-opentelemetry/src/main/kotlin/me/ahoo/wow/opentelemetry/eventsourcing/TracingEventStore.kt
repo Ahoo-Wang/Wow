@@ -15,7 +15,6 @@ package me.ahoo.wow.opentelemetry.eventsourcing
 
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
@@ -33,27 +32,11 @@ class TracingEventStore(override val delegate: EventStore) : EventStore, Decorat
         }
     }
 
-    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
-        return delegate.tailCursorId(namedAggregate)
-    }
-
-    override fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
-        return delegate.archiveAggregateId(namedAggregate)
-    }
-
-    override fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
-        return delegate.archiveAggregateId(namedAggregate, tailCursorId)
-    }
-
     override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return Flux.defer {
             val parentContext = Context.current()
             val source = delegate.load(aggregateId, headVersion, tailVersion)
             TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
-    }
-
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, cursorId, limit)
     }
 }

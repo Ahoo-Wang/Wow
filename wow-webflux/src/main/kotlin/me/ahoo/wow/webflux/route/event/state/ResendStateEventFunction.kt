@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.state.ResendStateEventRouteSpec
@@ -28,12 +28,12 @@ import reactor.core.publisher.Mono
 
 class ResendStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStore: EventStore,
+    private val snapshotRepository: SnapshotRepository,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        ResendStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator)
+        ResendStateEventHandler(aggregateMetadata, snapshotRepository, stateEventCompensator)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
@@ -44,7 +44,7 @@ class ResendStateEventFunction(
 }
 
 class ResendStateEventFunctionFactory(
-    private val eventStore: EventStore,
+    private val snapshotRepository: SnapshotRepository,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ResendStateEventRouteSpec> {
@@ -54,7 +54,7 @@ class ResendStateEventFunctionFactory(
     override fun create(spec: ResendStateEventRouteSpec): HandlerFunction<ServerResponse> {
         return ResendStateEventFunction(
             aggregateMetadata = spec.aggregateMetadata,
-            eventStore = eventStore,
+            snapshotRepository = snapshotRepository,
             stateEventCompensator = stateEventCompensator,
             exceptionHandler = exceptionHandler,
         )

@@ -1,0 +1,72 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.elasticsearch
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.google.common.io.Resources
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
+import org.springframework.core.io.ClassPathResource
+import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
+import org.springframework.data.elasticsearch.core.document.Document
+import org.springframework.data.elasticsearch.core.index.PutIndexTemplateRequest
+import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
+import reactor.core.publisher.Mono
+
+class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElasticsearchOperations) {
+    companion object {
+        private val log = org.slf4j.LoggerFactory.getLogger(IndexTemplateInitializer::class.java)
+        private const val EVENT_STREAM_TEMPLATE_NAME = "wow-event-stream-template"
+        private const val SNAPSHOT_TEMPLATE_NAME = "wow-snapshot-template"
+        private const val INDEX_PATTERNS_KEY = "index_patterns"
+        private const val TEMPLATE_KEY = "template"
+        private const val MAPPINGS_KEY = "mappings"
+    }
+
+    private val eventStreamTemplate: JsonNode =
+        ClassPathResource("templates/$EVENT_STREAM_TEMPLATE_NAME.json").let {
+            Resources.toString(it.url, Charsets.UTF_8).toObject<JsonNode>()
+        }
+    private val snapshotTemplate: JsonNode =
+        ClassPathResource("templates/$SNAPSHOT_TEMPLATE_NAME.json").let {
+            Resources.toString(it.url, Charsets.UTF_8).toObject<JsonNode>()
+        }
+
+    fun initEventStreamTemplate(): Mono<Boolean> {
+        return initTemplate(EVENT_STREAM_TEMPLATE_NAME, eventStreamTemplate)
+    }
+
+    fun initSnapshotTemplate(): Mono<Boolean> {
+        return initTemplate(SNAPSHOT_TEMPLATE_NAME, snapshotTemplate)
+    }
+
+    fun initTemplate(name: String, template: JsonNode): Mono<Boolean> {
+        if (log.isInfoEnabled) {
+            log.info("initTemplate - name:$name .")
+        }
+        val indexPatterns = template.get(INDEX_PATTERNS_KEY).map {
+            it.asText()
+        }.toList().toTypedArray()
+        val mappings = template.get(TEMPLATE_KEY).get(MAPPINGS_KEY).toJsonString().let {
+            Document.parse(it)
+        }
+        val putIndexTemplateRequest = PutIndexTemplateRequest.builder()
+            .withName(name)
+            .withIndexPatterns(*indexPatterns)
+            .withMapping(mappings)
+            .build()
+        return elasticsearchOperations.indexOps(IndexCoordinates.of(name))
+            .putIndexTemplate(putIndexTemplateRequest)
+    }
+}

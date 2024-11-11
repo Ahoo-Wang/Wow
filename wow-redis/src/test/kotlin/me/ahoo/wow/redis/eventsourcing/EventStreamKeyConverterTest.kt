@@ -14,6 +14,7 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.MatcherAssert.*
@@ -31,14 +32,8 @@ class EventStreamKeyConverterTest {
 
     @Test
     fun toAggregateIdKey() {
-        val actual = EventStreamKeyConverter.toAggregateIdKey(aggregateId)
+        val actual = aggregateId.toKey()
         assertThat(actual, equalTo("{id@tenantId}"))
-    }
-
-    @Test
-    fun toAggregateId() {
-        val actual = EventStreamKeyConverter.toAggregateId(MOCK_AGGREGATE_METADATA, "{id@tenantId}")
-        assertThat(actual, equalTo(aggregateId))
     }
 
     @Test

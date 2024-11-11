@@ -14,9 +14,12 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemorySnapshotRepository : SnapshotRepository {
@@ -32,5 +35,13 @@ class InMemorySnapshotRepository : SnapshotRepository {
         return Mono.fromRunnable {
             aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
         }
+    }
+
+    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+        return aggregateIdMapSnapshot.keys.sortedBy { it.id }.toFlux()
+            .filter {
+                it.id > cursorId
+            }
+            .take(limit.toLong())
     }
 }

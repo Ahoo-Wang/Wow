@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
  * EventStore .
  * @author ahoo wang
  */
-interface EventStore : AggregateIdScanner {
+interface EventStore {
     /**
      * Append event stream to EventStore.
      * Ensure transaction consistency.

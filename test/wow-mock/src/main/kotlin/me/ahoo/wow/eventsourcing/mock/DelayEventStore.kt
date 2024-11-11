@@ -14,7 +14,6 @@
 package me.ahoo.wow.eventsourcing.mock
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -34,21 +33,5 @@ class DelayEventStore(
 
     override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return delegate.load(aggregateId, headVersion, tailVersion).delaySubscription(delaySupplier())
-    }
-
-    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
-        return delegate.tailCursorId(namedAggregate)
-    }
-
-    override fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
-        return delegate.archiveAggregateId(namedAggregate)
-    }
-
-    override fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
-        return delegate.archiveAggregateId(namedAggregate, tailCursorId)
-    }
-
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
     }
 }

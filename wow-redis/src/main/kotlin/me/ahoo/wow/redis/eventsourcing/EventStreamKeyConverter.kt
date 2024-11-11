@@ -15,30 +15,20 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 object EventStreamKeyConverter : AggregateKeyConverter {
-    private const val ID_DELIMITER = "@"
+    const val ID_DELIMITER = "@"
     fun NamedAggregate.toKeyPrefix(): String {
         return "${toStringWithAlias()}${DELIMITER}es$DELIMITER"
     }
 
-    fun toAggregateIdKey(aggregateId: AggregateId): String {
-        return "${aggregateId.id}$ID_DELIMITER${aggregateId.tenantId}".wrap()
-    }
-
-    fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
-        val prefix = namedAggregate.toKeyPrefix()
-        val idWithTenantId = key.removePrefix(prefix).unwrap()
-        idWithTenantId.split(ID_DELIMITER).let {
-            return namedAggregate.aggregateId(it[0], it[1])
-        }
+    fun AggregateId.toKey(): String {
+        return "${id}$ID_DELIMITER$tenantId".wrap()
     }
 
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.toKeyPrefix()}${toAggregateIdKey(aggregateId)}"
+        return "${aggregateId.toKeyPrefix()}${aggregateId.toKey()}"
     }
 }

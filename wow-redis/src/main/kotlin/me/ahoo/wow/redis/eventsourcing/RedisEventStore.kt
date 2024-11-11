@@ -14,14 +14,13 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
@@ -29,7 +28,6 @@ import org.springframework.core.io.Resource
 import org.springframework.data.domain.Range
 import org.springframework.data.redis.connection.Limit
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import org.springframework.data.redis.core.ScanOptions
 import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -44,7 +42,7 @@ class RedisEventStore(
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val aggregateKey = EventStreamKeyConverter.toAggregateIdKey(eventStream.aggregateId)
+        val aggregateKey = eventStream.aggregateId.toKey()
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
             listOf(aggregateKey),
@@ -72,20 +70,6 @@ class RedisEventStore(
         return redisTemplate.opsForZSet().rangeByScore(key, range, Limit.unlimited())
             .map {
                 it.toObject<DomainEventStream>()
-            }
-    }
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        cursorId: String,
-        limit: Int
-    ): Flux<AggregateId> {
-        val keyPrefix = namedAggregate.toKeyPrefix()
-        val keyPattern = "$keyPrefix*"
-        val options = ScanOptions.scanOptions().match(keyPattern).count(limit.toLong()).build()
-        return redisTemplate.scan(options)
-            .map {
-                EventStreamKeyConverter.toAggregateId(namedAggregate, it)
             }
     }
 }

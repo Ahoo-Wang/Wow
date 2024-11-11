@@ -36,16 +36,16 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
-        aggregateMetadata,
-        stateAggregateFactory,
-        eventStore,
-        snapshotRepository,
+        aggregateMetadata = aggregateMetadata,
+        stateAggregateFactory = stateAggregateFactory,
+        eventStore = eventStore,
+        snapshotRepository = snapshotRepository,
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
-        return eventStore.scanAggregateId(
+        return snapshotRepository.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             cursorId = cursorId,
             limit = limit,
