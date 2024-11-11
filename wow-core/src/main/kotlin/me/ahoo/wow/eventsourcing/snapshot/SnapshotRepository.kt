@@ -14,12 +14,15 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
  * Snapshot Repository.
  */
-interface SnapshotRepository {
+interface SnapshotRepository : AggregateIdScanner {
 
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun getVersion(aggregateId: AggregateId): Mono<Int> {
@@ -41,5 +44,13 @@ object NoOpSnapshotRepository : SnapshotRepository {
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return Mono.empty()
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        cursorId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        return Flux.empty()
     }
 }

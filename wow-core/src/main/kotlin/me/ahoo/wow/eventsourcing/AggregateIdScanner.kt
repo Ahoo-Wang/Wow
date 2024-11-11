@@ -16,23 +16,10 @@ package me.ahoo.wow.eventsourcing
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 
 interface AggregateIdScanner {
     companion object {
         const val FIRST_CURSOR_ID = "(0)"
-    }
-
-    fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
-        return Mono.just(FIRST_CURSOR_ID)
-    }
-
-    fun archiveAggregateId(namedAggregate: NamedAggregate): Mono<Void> {
-        return Mono.empty()
-    }
-
-    fun archiveAggregateId(namedAggregate: NamedAggregate, tailCursorId: String): Mono<Void> {
-        return Mono.empty()
     }
 
     fun scanAggregateId(

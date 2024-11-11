@@ -14,6 +14,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
@@ -28,6 +29,7 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
@@ -54,6 +56,14 @@ internal class SnapshotDispatcherTest {
                         Mono.empty()
                     },
                 )
+            }
+
+            override fun scanAggregateId(
+                namedAggregate: NamedAggregate,
+                cursorId: String,
+                limit: Int
+            ): Flux<AggregateId> {
+                return inMemorySnapshotRepository.scanAggregateId(namedAggregate, cursorId, limit)
             }
         }
         val snapshotStrategy = SimpleSnapshotStrategy(

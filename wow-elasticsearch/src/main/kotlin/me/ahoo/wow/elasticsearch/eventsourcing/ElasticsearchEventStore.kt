@@ -15,15 +15,12 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
-import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
-import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
@@ -115,32 +112,6 @@ class ElasticsearchEventStore(
                 .sort(sort)
         }, DomainEventStream::class.java).map<List<DomainEventStream>> {
             it.hits().hits().map { hit -> hit.source() as DomainEventStream }
-        }
-    }
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        cursorId: String,
-        limit: Int
-    ): Flux<AggregateId> {
-        TODO("Not yet implemented")
-    }
-
-    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
-        return elasticsearchClient.search({ searchBuilder ->
-            searchBuilder.index(namedAggregate.toEventStreamIndexName())
-                .size(1)
-                .sort {
-                    it.field {
-                        it.field(MessageRecords.AGGREGATE_ID).order(SortOrder.Desc)
-                    }
-                }
-                .source {
-                    it.fetch(false)
-                }
-        }, Map::class.java).map<String> {
-            val hit = it.hits().hits().firstOrNull() ?: return@map FIRST_CURSOR_ID
-            hit.sort().first().stringValue()
         }
     }
 }

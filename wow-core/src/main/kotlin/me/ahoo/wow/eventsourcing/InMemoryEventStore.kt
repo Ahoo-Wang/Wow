@@ -13,7 +13,6 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
@@ -71,23 +70,5 @@ class InMemoryEventStore : AbstractEventStore() {
                 .map { it.copy() }
                 .toFlux()
         }
-    }
-
-    override fun tailCursorId(namedAggregate: NamedAggregate): Mono<String> {
-        val tailCursorId = events.keys()
-            .asSequence()
-            .map {
-                it.id
-            }
-            .maxOrNull() ?: AggregateIdScanner.FIRST_CURSOR_ID
-        return Mono.just(tailCursorId)
-    }
-
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return events.keys()
-            .asSequence()
-            .filter { it.isSameAggregateName(namedAggregate) && it.id > cursorId }
-            .sorted()
-            .take(limit).toFlux()
     }
 }

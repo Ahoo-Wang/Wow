@@ -4,8 +4,9 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -21,12 +22,12 @@ class ResendStateEventHandlerTest {
     fun handle() {
         val eventStore = InMemoryEventStore()
         val commandMessage = MockCreateAggregate("1", "data").toCommandMessage()
-        val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
+        val eventStream = MockAggregateCreated(generateGlobalId())
             .toDomainEventStream(commandMessage, 0)
         eventStore.appendStream(eventStream).test().verifyComplete()
         val handlerFunction = ResendStateEventHandler(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            eventStore = eventStore,
+            snapshotRepository = NoOpSnapshotRepository,
             stateEventCompensator = StateEventCompensator(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,

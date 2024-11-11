@@ -30,7 +30,7 @@ class ScanAggregateHandlerFunctionTest {
                 snapshotRepository = NoOpSnapshotRepository,
                 eventStore = eventStore,
             ),
-            eventStore = eventStore,
+            snapshotRepository = NoOpSnapshotRepository,
             exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {

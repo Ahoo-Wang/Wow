@@ -20,7 +20,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 const val SNAPSHOT_TABLE = "snapshot"
 
-data class SnapshotStatement(val load: String, val loadByVersion: String, val save: String)
+data class SnapshotStatement(
+    val load: String,
+    val loadByVersion: String,
+    val save: String,
+    val scan: String
+)
 
 object SnapshotStatementGenerator {
     private val statements = ConcurrentHashMap<String, SnapshotStatement>()
@@ -40,7 +45,14 @@ object SnapshotStatementGenerator {
      values 
      (?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim()
-            SnapshotStatement(loadStatement, loadByVersionStatement, saveStatement)
+            val scanStatement =
+                "select aggregate_id,tenant_id from $tableName where aggregate_id > ? order by aggregate_id asc limit ?"
+            SnapshotStatement(
+                load = loadStatement,
+                loadByVersion = loadByVersionStatement,
+                save = saveStatement,
+                scan = scanStatement
+            )
         }
     }
 }
@@ -49,6 +61,7 @@ interface SnapshotSchema {
     fun load(aggregateId: AggregateId): String
     fun loadByVersion(aggregateId: AggregateId): String
     fun save(aggregateId: AggregateId): String
+    fun scan(aggregateId: AggregateId): String
 }
 
 class SimpleSnapshotSchema : SnapshotSchema {
@@ -63,6 +76,10 @@ class SimpleSnapshotSchema : SnapshotSchema {
 
     override fun save(aggregateId: AggregateId): String {
         return SnapshotStatementGenerator.generate(aggregateId.namedAggregate).save
+    }
+
+    override fun scan(aggregateId: AggregateId): String {
+        return SnapshotStatementGenerator.generate(aggregateId.namedAggregate).scan
     }
 }
 
@@ -82,5 +99,10 @@ class ShardingSnapshotSchema(private val sharding: AggregateIdSharding) :
     override fun save(aggregateId: AggregateId): String {
         val tableName = sharding.sharding(aggregateId)
         return SnapshotStatementGenerator.generate(tableName).save
+    }
+
+    override fun scan(aggregateId: AggregateId): String {
+        val tableName = sharding.sharding(aggregateId)
+        return SnapshotStatementGenerator.generate(tableName).scan
     }
 }
