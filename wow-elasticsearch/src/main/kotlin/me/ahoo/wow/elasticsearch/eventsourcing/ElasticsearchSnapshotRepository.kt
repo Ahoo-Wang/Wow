@@ -96,8 +96,6 @@ class ElasticsearchSnapshotRepository(
                 val tenantId = checkNotNull(source[MessageRecords.TENANT_ID] as String)
                 namedAggregate.aggregateId(aggregateId, tenantId)
             }
-        }.doOnError {
-            it.printStackTrace()
         }
     }
 }
