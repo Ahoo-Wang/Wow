@@ -49,6 +49,7 @@ class ElasticsearchEventStore(
             it.index(eventStream.aggregateId.toEventStreamIndexName())
                 .id(eventStream.toDocId())
                 .document(eventStream)
+                .routing(eventStream.aggregateId.id)
                 .opType(OpType.Create)
                 .refresh(refreshPolicy)
         }.onErrorResume {
@@ -109,6 +110,7 @@ class ElasticsearchEventStore(
             it.index(aggregateId.toEventStreamIndexName())
                 .query(query)
                 .size(DEFAULT_BATCH_SIZE)
+                .routing(aggregateId.id)
                 .sort(sort)
         }, DomainEventStream::class.java).map<List<DomainEventStream>> {
             it.hits().hits().map { hit -> hit.source() as DomainEventStream }
