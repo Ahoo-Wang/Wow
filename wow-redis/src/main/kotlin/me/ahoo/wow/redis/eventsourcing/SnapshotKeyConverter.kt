@@ -14,13 +14,28 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.ID_DELIMITER
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 
-fun interface SnapshotKeyConverter : AggregateKeyConverter
+object DefaultSnapshotKeyConverter : AggregateKeyConverter {
+    fun NamedAggregate.toKeyPrefix(): String {
+        return "${toStringWithAlias()}${DELIMITER}snapshot$DELIMITER"
+    }
 
-object DefaultSnapshotKeyConverter : SnapshotKeyConverter {
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.toStringWithAlias()}:snapshot:${aggregateId.id.wrap()}"
+        return "${aggregateId.toKeyPrefix()}${aggregateId.toKey()}"
+    }
+
+    fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
+        val prefix = namedAggregate.toKeyPrefix()
+        val idWithTenantId = key.removePrefix(prefix).unwrap()
+        idWithTenantId.split(ID_DELIMITER).let {
+            require(it.size == 2) { "Invalid key:$key" }
+            return namedAggregate.aggregateId(it[0], it[1])
+        }
     }
 }

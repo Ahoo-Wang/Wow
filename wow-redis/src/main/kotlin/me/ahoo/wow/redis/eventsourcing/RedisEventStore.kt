@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
@@ -41,7 +42,7 @@ class RedisEventStore(
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val aggregateKey = EventStreamKeyConverter.toAggregateIdKey(eventStream.aggregateId)
+        val aggregateKey = eventStream.aggregateId.toKey()
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
             listOf(aggregateKey),

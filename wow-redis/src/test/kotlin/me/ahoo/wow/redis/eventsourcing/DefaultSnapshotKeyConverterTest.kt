@@ -25,6 +25,16 @@ class DefaultSnapshotKeyConverterTest {
     fun convert() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
         val actual = DefaultSnapshotKeyConverter.convert(aggregateId)
-        assertThat(actual, equalTo("tck.mock_aggregate:snapshot:{id}"))
+        assertThat(actual, equalTo("tck.mock_aggregate:snapshot:{id@tenantId}"))
+    }
+
+    @Test
+    fun toAggregateId() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
+        val actual = DefaultSnapshotKeyConverter.toAggregateId(
+            MOCK_AGGREGATE_METADATA,
+            "tck.mock_aggregate:snapshot:{id@tenantId}"
+        )
+        assertThat(actual, equalTo(aggregateId))
     }
 }
