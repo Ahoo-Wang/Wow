@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.Pagination
 
 /**
  * ```kotlin
@@ -37,7 +38,7 @@ import me.ahoo.wow.api.query.ListQuery
  * ```
  */
 class ListQueryDsl : QueryableDsl<IListQuery>() {
-    private var limit: Int = Int.MAX_VALUE
+    private var limit: Int = Pagination.DEFAULT.size
 
     fun limit(limit: Int) {
         this.limit = limit

@@ -14,8 +14,8 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
-import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
-import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
+import me.ahoo.wow.elasticsearch.WowJsonpMapper
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -64,7 +64,7 @@ class ElasticsearchSnapshotQueryServiceTest {
             .withBasicAuth("elastic", ElasticsearchLauncher.ELASTIC_PWD)
             .build()
         val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
-        val transport = RestClientTransport(restClient, SnapshotJsonpMapper)
+        val transport = RestClientTransport(restClient, WowJsonpMapper)
         val elasticsearchClient = ReactiveElasticsearchClient(transport)
         val factory = ElasticsearchSnapshotQueryServiceFactory(
             elasticsearchClient = elasticsearchClient

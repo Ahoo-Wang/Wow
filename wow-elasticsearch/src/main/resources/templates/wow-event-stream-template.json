@@ -1,0 +1,78 @@
+{
+  "index_patterns": [
+    "wow.*.es"
+  ],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 2
+    },
+    "mappings": {
+      "properties": {
+        "aggregateId": {
+          "type": "keyword"
+        },
+        "aggregateName": {
+          "type": "keyword"
+        },
+        "body": {
+          "properties": {
+            "bodyType": {
+              "type": "keyword"
+            },
+            "id": {
+                "type": "keyword"
+            },
+            "name": {
+              "type": "keyword"
+            },
+            "revision": {
+              "type": "keyword"
+            }
+          }
+        },
+        "commandId": {
+          "type": "keyword"
+        },
+        "contextName": {
+          "type": "keyword"
+        },
+        "createTime": {
+          "type": "long"
+        },
+        "header": {
+          "properties": {
+            "upstream_id": {
+              "type": "keyword"
+            },
+            "upstream_name": {
+              "type": "keyword"
+            }
+          }
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "requestId": {
+          "type": "keyword"
+        },
+        "tenantId": {
+          "type": "keyword"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "string_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
