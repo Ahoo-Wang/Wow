@@ -139,6 +139,7 @@ class R2dbcSnapshotRepository(
             {
                 it.createStatement(snapshotSchema.scan(aggregateId))
                     .bind(0, cursorId)
+                    .bind(1, limit)
                     .execute()
             },
             Connection::close,
