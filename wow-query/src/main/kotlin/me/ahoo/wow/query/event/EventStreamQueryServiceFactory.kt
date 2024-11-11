@@ -19,6 +19,18 @@ fun interface EventStreamQueryServiceFactory {
     fun create(namedAggregate: NamedAggregate): EventStreamQueryService
 }
 
+abstract class AbstractEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
+    private val queryServiceCache = mutableMapOf<NamedAggregate, EventStreamQueryService>()
+
+    override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
+        return queryServiceCache.computeIfAbsent(namedAggregate) {
+            createQueryService(it)
+        }
+    }
+
+    protected abstract fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService
+}
+
 object NoOpEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
     override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
         return NoOpEventStreamQueryService(namedAggregate = namedAggregate)

@@ -2,6 +2,7 @@ description = "The Technology Compatibility Kit"
 
 dependencies {
     api(project(":wow-core"))
+    api(project(":wow-query"))
     api("io.projectreactor:reactor-test")
     api("me.ahoo.cosid:cosid-test")
     api("org.hamcrest:hamcrest")

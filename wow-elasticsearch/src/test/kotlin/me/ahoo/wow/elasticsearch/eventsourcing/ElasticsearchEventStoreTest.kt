@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
-import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
+import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.tck.container.ElasticsearchLauncher
@@ -24,10 +24,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchTemplate
-import org.springframework.data.elasticsearch.core.convert.ElasticsearchCustomConversions
-import org.springframework.data.elasticsearch.core.convert.MappingElasticsearchConverter
-import org.springframework.data.elasticsearch.core.mapping.SimpleElasticsearchMappingContext
 import java.time.Duration
 
 class ElasticsearchEventStoreTest : EventStoreSpec() {
@@ -37,14 +33,6 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
         fun waitLauncher() {
             ElasticsearchLauncher.isRunning
         }
-    }
-
-    private fun initTemplate(elasticsearchClient: ReactiveElasticsearchClient) {
-        val mappingContext = SimpleElasticsearchMappingContext()
-        val converter = MappingElasticsearchConverter(mappingContext)
-        converter.setConversions(ElasticsearchCustomConversions(emptyList<Any>()))
-        val elasticsearchTemplate = ReactiveElasticsearchTemplate(elasticsearchClient, converter)
-        IndexTemplateInitializer(elasticsearchTemplate).initEventStreamTemplate().block()
     }
 
     override fun createEventStore(): EventStore {
@@ -58,7 +46,7 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
         val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
         val transport = RestClientTransport(restClient, WowJsonpMapper)
         val elasticsearchClient = ReactiveElasticsearchClient(transport)
-        initTemplate(elasticsearchClient)
+        elasticsearchClient.initEventStreamTemplate()
         return ElasticsearchEventStore(
             elasticsearchClient = elasticsearchClient
         )

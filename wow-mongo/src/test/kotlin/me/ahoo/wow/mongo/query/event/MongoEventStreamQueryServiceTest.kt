@@ -1,50 +1,30 @@
 package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.reactivestreams.client.MongoClients
-import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.SchemaInitializerSpec
-import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.dynamicQuery
-import me.ahoo.wow.query.event.query
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.tck.container.MongoLauncher
-import me.ahoo.wow.tck.mock.MockCommandAggregate
-import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import reactor.kotlin.test.test
 
-class MongoEventStreamQueryServiceTest {
-    lateinit var queryService: EventStreamQueryService
+class MongoEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
+    lateinit var database: MongoDatabase
 
     @BeforeEach
-    fun init() {
+    override fun setup() {
         val client = MongoClients.create(MongoLauncher.getConnectionString())
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
-        queryService =
-            MongoEventStreamQueryServiceFactory(database).create(aggregateMetadata<MockCommandAggregate, MockStateAggregate>())
+        database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+        super.setup()
     }
 
-    @Test
-    fun list() {
-        listQuery {
-            condition {
-                tenantId(GlobalIdGenerator.generateAsString())
-            }
-        }.query(queryService)
-            .test()
-            .verifyComplete()
+    override fun createEventStore(): EventStore {
+        return MongoEventStore(database)
     }
 
-    @Test
-    fun dynamicList() {
-        listQuery {
-            condition {
-                tenantId(GlobalIdGenerator.generateAsString())
-            }
-        }.dynamicQuery(queryService)
-            .test()
-            .verifyComplete()
+    override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
+        return MongoEventStreamQueryServiceFactory(database)
     }
 }
