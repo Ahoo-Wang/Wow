@@ -19,6 +19,7 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemorySnapshotRepository : SnapshotRepository {
@@ -37,6 +38,10 @@ class InMemorySnapshotRepository : SnapshotRepository {
     }
 
     override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return Flux.fromIterable(aggregateIdMapSnapshot.keys)
+        return aggregateIdMapSnapshot.keys.sortedBy { it.id }.toFlux()
+            .filter {
+                it.id > cursorId
+            }
+            .take(limit.toLong())
     }
 }

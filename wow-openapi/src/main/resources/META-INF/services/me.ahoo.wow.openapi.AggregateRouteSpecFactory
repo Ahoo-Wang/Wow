@@ -19,7 +19,6 @@ me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpecFactory
 me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpecFactory
 #event
-me.ahoo.wow.openapi.event.ArchiveAggregateIdRouteSpecFactory
 me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory
 me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpecFactory
 me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory
