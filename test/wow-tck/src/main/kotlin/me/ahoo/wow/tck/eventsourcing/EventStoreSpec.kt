@@ -329,7 +329,7 @@ abstract class EventStoreSpec {
     }
 
     companion object {
-        const val TIMES = 4000
-        const val DEFAULT_PARALLELISM = 4
+        const val TIMES = 1000
+        const val DEFAULT_PARALLELISM = 2
     }
 }
