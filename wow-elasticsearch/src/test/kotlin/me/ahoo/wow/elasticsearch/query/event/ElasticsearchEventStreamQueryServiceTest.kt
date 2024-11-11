@@ -11,20 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.eventsourcing
+package me.ahoo.wow.elasticsearch.query.event
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
-import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
+import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchLauncher
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
+class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
     companion object {
         @JvmStatic
         @BeforeAll
@@ -33,7 +36,10 @@ internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
         }
     }
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    lateinit var elasticsearchClient: ReactiveElasticsearchClient
+
+    @BeforeEach
+    override fun setup() {
         val clientConfiguration = ClientConfiguration.builder()
             .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
             .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
@@ -41,10 +47,16 @@ internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
             .build()
         val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
         val transport = RestClientTransport(restClient, WowJsonpMapper)
-        val elasticsearchClient = ReactiveElasticsearchClient(transport)
-        elasticsearchClient.initSnapshotTemplate()
-        return ElasticsearchSnapshotRepository(
-            elasticsearchClient = elasticsearchClient
-        )
+        elasticsearchClient = ReactiveElasticsearchClient(transport)
+        elasticsearchClient.initEventStreamTemplate()
+        super.setup()
+    }
+
+    override fun createEventStore(): EventStore {
+        return ElasticsearchEventStore(elasticsearchClient)
+    }
+
+    override fun createEventStreamQueryServiceFactory(): EventStreamQueryServiceFactory {
+        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
     }
 }

@@ -29,8 +29,4 @@ object IndexNameConverter {
     fun NamedAggregate.toEventStreamIndexName(): String {
         return "${Wow.WOW_PREFIX}${this.toStringWithAlias()}$EVENT_STREAM_SUFFIX"
     }
-
-    fun NamedAggregate.toAggregateIdIndexName(): String {
-        return "${Wow.WOW_PREFIX}${this.toStringWithAlias()}$AGGREGATE_ID_SUFFIX"
-    }
 }

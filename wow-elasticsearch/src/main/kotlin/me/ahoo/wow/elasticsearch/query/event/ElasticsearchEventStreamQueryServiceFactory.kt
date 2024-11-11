@@ -11,21 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.event
+package me.ahoo.wow.elasticsearch.query.event
 
-import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.query.event.AbstractEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryService
+import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-class MongoEventStreamQueryServiceFactory(private val database: MongoDatabase) :
+class ElasticsearchEventStreamQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
     AbstractEventStreamQueryServiceFactory() {
-
     override fun createQueryService(namedAggregate: NamedAggregate): EventStreamQueryService {
-        val collectionName = namedAggregate.toEventStreamCollectionName()
-        val collection = database.getCollection(collectionName)
-        return MongoEventStreamQueryService(namedAggregate.materialize(), collection)
+        return ElasticsearchEventStreamQueryService(namedAggregate, elasticsearchClient)
     }
 }
