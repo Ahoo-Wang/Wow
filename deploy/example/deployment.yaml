@@ -21,9 +21,14 @@ spec:
       annotations:
         instrumentation.opentelemetry.io/inject-java: "true"
     spec:
+      tolerations:
+        - key: "test"
+          operator: "Equal"
+          value: service
+          effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:3.5.3
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:3.15.5
           env:
             - name: LANG
               value: C.utf8

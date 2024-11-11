@@ -10,12 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.elasticsearch
+package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import org.springframework.data.elasticsearch.RestStatusException
@@ -24,31 +24,26 @@ import reactor.core.publisher.Mono
 
 class ElasticsearchSnapshotRepository(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter,
-    private val refreshPolicy: Refresh = Refresh.WaitFor
+    private val refreshPolicy: Refresh = Refresh.True
 ) : SnapshotRepository {
     companion object {
-        private const val NOT_FOUND_STATUS = 404
-    }
-
-    private fun NamedAggregate.toIndexName(): String {
-        return snapshotIndexNameConverter.convert(namedAggregate = this)
+        private const val NOT_FOUND_CODE = 404
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return elasticsearchClient.get({
-            it.index(aggregateId.toIndexName())
+            it.index(aggregateId.toSnapshotIndexName())
                 .id(aggregateId.id)
         }, Snapshot::class.java)
             .mapNotNull<Snapshot<S>> {
                 it.source() as Snapshot<S>?
             }
             .onErrorResume {
-                if (it is RestStatusException && it.status == NOT_FOUND_STATUS) {
+                if (it is RestStatusException && it.status == NOT_FOUND_CODE) {
                     return@onErrorResume Mono.empty()
                 }
-                if (it is ElasticsearchException && it.response().status() == NOT_FOUND_STATUS) {
+                if (it is ElasticsearchException && it.response().status() == NOT_FOUND_CODE) {
                     return@onErrorResume Mono.empty()
                 }
                 Mono.error(it)
@@ -57,7 +52,7 @@ class ElasticsearchSnapshotRepository(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return elasticsearchClient.index {
-            it.index(snapshot.aggregateId.toIndexName())
+            it.index(snapshot.aggregateId.toSnapshotIndexName())
                 .id(snapshot.aggregateId.id)
                 .document(snapshot)
                 .refresh(refreshPolicy)

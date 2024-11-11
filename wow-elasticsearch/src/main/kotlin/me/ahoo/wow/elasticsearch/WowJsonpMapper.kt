@@ -13,16 +13,6 @@
 
 package me.ahoo.wow.elasticsearch
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.serialization.JsonSerializer
 
-interface SnapshotIndexNameConverter {
-    fun convert(namedAggregate: NamedAggregate): String
-}
-
-object DefaultSnapshotIndexNameConverter : SnapshotIndexNameConverter {
-    override fun convert(namedAggregate: NamedAggregate): String {
-        return "${Wow.WOW_PREFIX}${namedAggregate.toStringWithAlias()}.snapshot"
-    }
-}
+val WowJsonpMapper = co.elastic.clients.json.jackson.JacksonJsonpMapper(JsonSerializer)

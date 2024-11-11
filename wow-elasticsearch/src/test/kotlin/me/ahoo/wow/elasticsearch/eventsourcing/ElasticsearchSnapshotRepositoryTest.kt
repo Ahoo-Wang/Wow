@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch
+package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
+import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.tck.container.ElasticsearchLauncher
 import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
@@ -38,8 +39,9 @@ internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
             .withBasicAuth("elastic", ElasticsearchLauncher.ELASTIC_PWD)
             .build()
         val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
-        val transport = RestClientTransport(restClient, SnapshotJsonpMapper)
+        val transport = RestClientTransport(restClient, WowJsonpMapper)
         val elasticsearchClient = ReactiveElasticsearchClient(transport)
+
         return ElasticsearchSnapshotRepository(
             elasticsearchClient = elasticsearchClient
         )

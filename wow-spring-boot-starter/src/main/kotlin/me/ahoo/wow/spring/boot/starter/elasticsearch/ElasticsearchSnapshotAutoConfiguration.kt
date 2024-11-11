@@ -14,10 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.jackson.JacksonJsonpMapper
-import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
-import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
-import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
-import me.ahoo.wow.elasticsearch.SnapshotJsonpMapper
+import me.ahoo.wow.elasticsearch.WowJsonpMapper
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
@@ -39,22 +37,17 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
     havingValue = SnapshotStorage.ELASTICSEARCH_NAME,
 )
 class ElasticsearchSnapshotAutoConfiguration {
-    @Bean
-    fun snapshotIndexNameConverter(): SnapshotIndexNameConverter {
-        return DefaultSnapshotIndexNameConverter
-    }
 
     @Bean
     fun jacksonJsonpMapper(): JacksonJsonpMapper {
-        return SnapshotJsonpMapper
+        return WowJsonpMapper
     }
 
     @Bean
     fun snapshotRepository(
-        elasticsearchClient: ReactiveElasticsearchClient,
-        snapshotIndexNameConverter: SnapshotIndexNameConverter
+        elasticsearchClient: ReactiveElasticsearchClient
     ): SnapshotRepository {
-        return ElasticsearchSnapshotRepository(elasticsearchClient, snapshotIndexNameConverter)
+        return ElasticsearchSnapshotRepository(elasticsearchClient)
     }
 
     @Bean

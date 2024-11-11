@@ -28,8 +28,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
-import me.ahoo.wow.elasticsearch.SnapshotIndexNameConverter
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
@@ -43,10 +42,9 @@ import reactor.core.publisher.Mono
 
 class ElasticsearchSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
-    private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val snapshotIndexNameConverter: SnapshotIndexNameConverter = DefaultSnapshotIndexNameConverter
+    private val elasticsearchClient: ReactiveElasticsearchClient
 ) : SnapshotQueryService<S> {
-    private val snapshotIndexName = snapshotIndexNameConverter.convert(namedAggregate)
+    private val snapshotIndexName = namedAggregate.toSnapshotIndexName()
     private val snapshotType = TypeFactory.defaultInstance()
         .constructParametricType(
             MaterializedSnapshot::class.java,

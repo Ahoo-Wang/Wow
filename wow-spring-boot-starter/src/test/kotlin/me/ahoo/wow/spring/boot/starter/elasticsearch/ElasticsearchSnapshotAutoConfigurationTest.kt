@@ -14,8 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.jackson.JacksonJsonpMapper
-import me.ahoo.wow.elasticsearch.DefaultSnapshotIndexNameConverter
-import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -43,7 +42,6 @@ internal class ElasticsearchSnapshotAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(DefaultSnapshotIndexNameConverter::class.java)
                     .hasSingleBean(JacksonJsonpMapper::class.java)
                     .hasSingleBean(ElasticsearchSnapshotRepository::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
