@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.common.io.Resources
+import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
@@ -69,4 +70,11 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
         return elasticsearchOperations.indexOps(IndexCoordinates.of(name))
             .putIndexTemplate(putIndexTemplateRequest)
     }
+
+    fun initAll() {
+        initEventStreamTemplate().subscribe(InitSubscriber("InitEventStreamTemplate"))
+        initSnapshotTemplate().subscribe(InitSubscriber("InitEventStreamTemplate"))
+    }
+
+    class InitSubscriber(override val name: String) : SafeSubscriber<Boolean>()
 }
