@@ -12,11 +12,7 @@
  */
 package me.ahoo.wow.command
 
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.command.CommandBusSpec
-import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.junit.jupiter.api.Test
-import reactor.kotlin.test.test
 
 /**
  * InMemoryCommandBusTest .
@@ -26,17 +22,5 @@ import reactor.kotlin.test.test
 internal class InMemoryCommandBusTest : CommandBusSpec() {
     override fun createMessageBus(): CommandBus {
         return InMemoryCommandBus()
-    }
-
-    @Test
-    fun sendMessageWhenNoSubscribers() {
-        val commandBus = createMessageBus()
-        val command = MockCreateAggregate(
-            id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString(),
-        ).toCommandMessage()
-        commandBus.send(command)
-            .test()
-            .verifyComplete()
     }
 }

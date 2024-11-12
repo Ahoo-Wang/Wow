@@ -23,6 +23,8 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks.EmissionException
+import reactor.core.publisher.Sinks.EmitResult
 
 const val LOCAL_FIRST_HEADER = "local_first"
 
@@ -61,6 +63,25 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
     private val localBusName: String
         get() = localBus.javaClass.simpleName
 
+    private fun logLocalSendError(message: M, error: Throwable) {
+        if (error is EmissionException && error.reason == EmitResult.FAIL_ZERO_SUBSCRIBER) {
+            if (LOG.isDebugEnabled) {
+                LOG.debug(
+                    "[$localBusName] Failed to send local message[{}], No subscriber.",
+                    message.id
+                )
+            }
+            return
+        }
+        if (LOG.isErrorEnabled) {
+            LOG.error(
+                "[$localBusName] Failed to send local message[{}], LocalFirst mode temporarily disabled.",
+                message.id,
+                error
+            )
+        }
+    }
+
     @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
         if (!message.shouldLocalFirst()) {
@@ -73,13 +94,8 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
             @Suppress("UNCHECKED_CAST")
             val distributedMessage = message.copy() as M
             if (it.hasError()) {
-                if (LOG.isErrorEnabled) {
-                    LOG.error(
-                        "[$localBusName] Failed to send local message[{}], LocalFirst mode temporarily disabled.",
-                        message.id,
-                        it.throwable!!
-                    )
-                }
+                val error = it.throwable!!
+                logLocalSendError(message, error)
                 distributedMessage.withLocalFirst(false)
             }
             distributedBus.send(distributedMessage)
