@@ -2,8 +2,8 @@ package me.ahoo.wow.spring.boot.starter.mock
 
 import me.ahoo.wow.eventsourcing.mock.DelayEventStore
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -17,7 +17,7 @@ class MockEventStoreAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.DELAY_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.DELAY_NAME}",
             )
             .withUserConfiguration(
                 MockEventStoreAutoConfiguration::class.java,

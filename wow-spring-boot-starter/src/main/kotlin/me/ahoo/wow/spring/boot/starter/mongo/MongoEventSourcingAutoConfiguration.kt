@@ -28,11 +28,10 @@ import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryServiceFactory
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
@@ -57,7 +56,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
         matchIfMissing = true,
-        havingValue = EventStoreStorage.MONGO_NAME,
+        havingValue = StorageType.MONGO_NAME,
     )
     fun mongoEventStore(
         mongoClient: MongoClient,
@@ -74,7 +73,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
         matchIfMissing = true,
-        havingValue = EventStoreStorage.MONGO_NAME,
+        havingValue = StorageType.MONGO_NAME,
     )
     fun mongoEventStreamQueryServiceFactory(
         mongoClient: MongoClient,
@@ -101,7 +100,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
         matchIfMissing = true,
-        havingValue = SnapshotStorage.MONGO_NAME,
+        havingValue = StorageType.MONGO_NAME,
     )
     fun mongoSnapshotRepository(
         mongoClient: MongoClient,
@@ -119,7 +118,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
         matchIfMissing = true,
-        havingValue = SnapshotStorage.MONGO_NAME,
+        havingValue = StorageType.MONGO_NAME,
     )
     fun mongoSnapshotQueryServiceFactory(
         mongoClient: MongoClient,

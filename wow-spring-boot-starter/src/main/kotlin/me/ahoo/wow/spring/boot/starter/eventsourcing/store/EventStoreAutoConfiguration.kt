@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.store
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -29,7 +30,7 @@ class EventStoreAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
-        havingValue = EventStoreStorage.IN_MEMORY_NAME,
+        havingValue = StorageType.IN_MEMORY_NAME,
     )
     fun inMemoryEventStore(): EventStore {
         return InMemoryEventStore()

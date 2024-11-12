@@ -18,10 +18,9 @@ import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -38,8 +37,8 @@ class RedisEventSourcingAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${SnapshotProperties.STORAGE}=${SnapshotStorage.REDIS_NAME}",
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.REDIS_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.REDIS_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.REDIS_NAME}",
                 "${PrepareProperties.STORAGE}=${PrepareStorage.REDIS_NAME}",
             )
             .withBean(ReactiveStringRedisTemplate::class.java, {
