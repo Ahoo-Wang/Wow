@@ -14,35 +14,20 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.transport.rest_client.RestClientTransport
+import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.query.dsl.condition
-import me.ahoo.wow.query.dsl.listQuery
-import me.ahoo.wow.query.dsl.pagedQuery
-import me.ahoo.wow.query.dsl.singleQuery
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.count
-import me.ahoo.wow.query.snapshot.dynamicQuery
-import me.ahoo.wow.query.snapshot.query
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchLauncher
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import reactor.kotlin.test.test
-import java.time.Clock
 
-class ElasticsearchSnapshotQueryServiceTest {
+class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
     companion object {
         @JvmStatic
         @BeforeAll
@@ -51,13 +36,10 @@ class ElasticsearchSnapshotQueryServiceTest {
         }
     }
 
-    private val aggregateMetadata = MOCK_AGGREGATE_METADATA
-    lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
-    lateinit var snapshotRepository: SnapshotRepository
-    lateinit var snapshot: Snapshot<MockStateAggregate>
+    lateinit var elasticsearchClient: ReactiveElasticsearchClient
 
     @BeforeEach
-    fun init() {
+    override fun setup() {
         val clientConfiguration = ClientConfiguration.builder()
             .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
             .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
@@ -65,112 +47,16 @@ class ElasticsearchSnapshotQueryServiceTest {
             .build()
         val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
         val transport = RestClientTransport(restClient, WowJsonpMapper)
-        val elasticsearchClient = ReactiveElasticsearchClient(transport)
-        val factory = ElasticsearchSnapshotQueryServiceFactory(
-            elasticsearchClient = elasticsearchClient
-        )
-        snapshotQueryService = factory.create(aggregateMetadata)
-        snapshotRepository = ElasticsearchSnapshotRepository(
-            elasticsearchClient = elasticsearchClient
-        )
-
-        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
-        val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
-        snapshot =
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotRepository.save(snapshot)
-            .test()
-            .verifyComplete()
+        elasticsearchClient = ReactiveElasticsearchClient(transport)
+        elasticsearchClient.initSnapshotTemplate()
+        super.setup()
     }
 
-    @Test
-    fun single() {
-        singleQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-        }.query(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
+    override fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory {
+        return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
     }
 
-    @Test
-    fun dynamicSingle() {
-        singleQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-            projection {
-                include("contextName")
-                exclude("firstEventTime")
-            }
-            sort {
-                "version".asc()
-            }
-        }.dynamicQuery(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun list() {
-        listQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-            limit(10)
-        }.query(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun dynamicList() {
-        listQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-            limit(10)
-        }.dynamicQuery(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun paged() {
-        pagedQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-        }.query(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun dynamicPaged() {
-        pagedQuery {
-            condition {
-                id(snapshot.aggregateId.id)
-            }
-        }.dynamicQuery(snapshotQueryService)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-    }
-
-    @Test
-    fun count() {
-        condition {
-            id(snapshot.aggregateId.id)
-        }.count(snapshotQueryService)
-            .test()
-            .expectNext(1L)
-            .verifyComplete()
+    override fun createSnapshotRepository(): SnapshotRepository {
+        return ElasticsearchSnapshotRepository(elasticsearchClient)
     }
 }
