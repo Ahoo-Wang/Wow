@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 import me.ahoo.wow.eventsourcing.snapshot.DEFAULT_VERSION_OFFSET
 import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 
@@ -24,7 +25,7 @@ data class SnapshotProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
     var strategy: Strategy = Strategy.ALL,
     var versionOffset: Int = DEFAULT_VERSION_OFFSET,
-    var storage: SnapshotStorage = SnapshotStorage.MONGO
+    var storage: StorageType = StorageType.MONGO
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
@@ -41,24 +42,5 @@ enum class Strategy {
     companion object {
         const val ALL_NAME = "all"
         const val VERSION_OFFSET_NAME = "version_offset"
-    }
-}
-
-enum class SnapshotStorage {
-    MONGO,
-    REDIS,
-    R2DBC,
-    ELASTICSEARCH,
-    IN_MEMORY,
-    DELAY
-    ;
-
-    companion object {
-        const val MONGO_NAME = "mongo"
-        const val REDIS_NAME = "redis"
-        const val R2DBC_NAME = "r2dbc"
-        const val ELASTICSEARCH_NAME = "elasticsearch"
-        const val IN_MEMORY_NAME = "in_memory"
-        const val DELAY_NAME = "delay"
     }
 }

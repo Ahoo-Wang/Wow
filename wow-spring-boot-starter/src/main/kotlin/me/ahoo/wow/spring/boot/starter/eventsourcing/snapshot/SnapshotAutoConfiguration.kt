@@ -30,6 +30,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -47,7 +48,7 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
     @Bean
     @ConditionalOnProperty(
         value = [SnapshotProperties.STORAGE],
-        havingValue = SnapshotStorage.IN_MEMORY_NAME,
+        havingValue = StorageType.IN_MEMORY_NAME,
     )
     fun inMemorySnapshotRepository(): SnapshotRepository {
         return InMemorySnapshotRepository()

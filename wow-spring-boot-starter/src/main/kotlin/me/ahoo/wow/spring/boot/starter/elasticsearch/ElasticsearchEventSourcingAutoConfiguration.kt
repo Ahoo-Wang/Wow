@@ -15,28 +15,32 @@ package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.jackson.JacksonJsonpMapper
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 @AutoConfiguration(after = [ElasticsearchRestClientAutoConfiguration::class])
 @ConditionalOnWowEnabled
-@ConditionalOnSnapshotEnabled
-@ConditionalOnProperty(
-    SnapshotProperties.STORAGE,
-    havingValue = SnapshotStorage.ELASTICSEARCH_NAME,
-)
-class ElasticsearchSnapshotAutoConfiguration {
+@ConditionalOnClass(ElasticsearchEventStore::class)
+@EnableConfigurationProperties(ElasticsearchProperties::class)
+class ElasticsearchEventSourcingAutoConfiguration {
 
     @Bean
     fun jacksonJsonpMapper(): JacksonJsonpMapper {
@@ -44,6 +48,35 @@ class ElasticsearchSnapshotAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(
+        EventStoreProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = StorageType.ELASTICSEARCH_NAME,
+    )
+    fun elasticsearchEventStore(
+        elasticsearchClient: ReactiveElasticsearchClient
+    ): EventStore {
+        return ElasticsearchEventStore(elasticsearchClient)
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        EventStoreProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = StorageType.ELASTICSEARCH_NAME,
+    )
+    fun elasticsearchEventStreamQueryServiceFactory(
+        elasticsearchClient: ReactiveElasticsearchClient
+    ): EventStreamQueryServiceFactory {
+        return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
+    }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnProperty(
+        SnapshotProperties.STORAGE,
+        havingValue = StorageType.ELASTICSEARCH_NAME,
+    )
     fun snapshotRepository(
         elasticsearchClient: ReactiveElasticsearchClient
     ): SnapshotRepository {
@@ -51,6 +84,11 @@ class ElasticsearchSnapshotAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnProperty(
+        SnapshotProperties.STORAGE,
+        havingValue = StorageType.ELASTICSEARCH_NAME,
+    )
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
     ): SnapshotQueryServiceFactory {

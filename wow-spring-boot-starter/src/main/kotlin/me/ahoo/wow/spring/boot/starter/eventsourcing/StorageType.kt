@@ -11,16 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.eventsourcing.store
+package me.ahoo.wow.spring.boot.starter.eventsourcing
 
-import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import org.springframework.boot.context.properties.ConfigurationProperties
+enum class StorageType {
+    MONGO,
+    REDIS,
+    R2DBC,
+    ELASTICSEARCH,
+    IN_MEMORY,
+    DELAY
+    ;
 
-@ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
-class EventStoreProperties(var storage: StorageType = StorageType.MONGO) {
     companion object {
-        const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
-        const val STORAGE = "$PREFIX.storage"
+        const val MONGO_NAME = "mongo"
+        const val REDIS_NAME = "redis"
+        const val R2DBC_NAME = "r2dbc"
+        const val ELASTICSEARCH_NAME = "elasticsearch"
+        const val IN_MEMORY_NAME = "in_memory"
+        const val DELAY_NAME = "delay"
     }
 }

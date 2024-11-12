@@ -11,16 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.eventsourcing.store
+package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.DefaultValue
 
-@ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
-class EventStoreProperties(var storage: StorageType = StorageType.MONGO) {
+@ConfigurationProperties(prefix = ElasticsearchProperties.PREFIX)
+class ElasticsearchProperties(
+    @DefaultValue("true") override val enabled: Boolean = true,
+    @DefaultValue("true") var autoInitTemplate: Boolean = true,
+) : EnabledCapable {
     companion object {
-        const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
-        const val STORAGE = "$PREFIX.storage"
+        const val PREFIX = "${Wow.WOW_PREFIX}elasticsearch"
     }
 }

@@ -18,10 +18,9 @@ import me.ahoo.wow.r2dbc.EventStreamSchema
 import me.ahoo.wow.r2dbc.SnapshotSchema
 import me.ahoo.wow.sharding.ShardingRegistrar
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -35,8 +34,8 @@ internal class ShardingDataSourcingAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${SnapshotProperties.STORAGE}=${SnapshotStorage.R2DBC_NAME}",
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.R2DBC_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.R2DBC_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.R2DBC_NAME}",
             )
             .withPropertyValues("${DataSourceProperties.PREFIX}.type=sharding")
             .withPropertyValues(

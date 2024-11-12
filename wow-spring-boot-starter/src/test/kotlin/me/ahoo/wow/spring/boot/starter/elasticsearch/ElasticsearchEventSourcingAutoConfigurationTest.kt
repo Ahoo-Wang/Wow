@@ -14,11 +14,14 @@
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.jackson.JacksonJsonpMapper
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
@@ -26,23 +29,26 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-internal class ElasticsearchSnapshotAutoConfigurationTest {
+internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
     fun contextLoads() {
         contextRunner
             .enableWow()
-            .withPropertyValues("${SnapshotProperties.STORAGE}=${SnapshotStorage.ELASTICSEARCH_NAME}")
+            .withPropertyValues("${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
+            .withPropertyValues("${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}")
             .withBean(ReactiveElasticsearchClient::class.java, {
                 mock(ReactiveElasticsearchClient::class.java)
             })
             .withUserConfiguration(
-                ElasticsearchSnapshotAutoConfiguration::class.java,
+                ElasticsearchEventSourcingAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(JacksonJsonpMapper::class.java)
+                    .hasSingleBean(ElasticsearchEventStore::class.java)
+                    .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)
                     .hasSingleBean(ElasticsearchSnapshotRepository::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
             }

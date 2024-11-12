@@ -27,9 +27,9 @@ import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -47,8 +47,8 @@ internal class SnapshotAutoConfigurationTest {
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withPropertyValues(
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.IN_MEMORY_NAME}",
-                "${SnapshotProperties.STORAGE}=${SnapshotStorage.IN_MEMORY_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
                 "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
             )
             .withUserConfiguration(
@@ -75,8 +75,8 @@ internal class SnapshotAutoConfigurationTest {
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
             .withPropertyValues(
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.IN_MEMORY_NAME}",
-                "${SnapshotProperties.STORAGE}=${SnapshotStorage.IN_MEMORY_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
                 "${SnapshotProperties.STRATEGY}=${Strategy.VERSION_OFFSET_NAME}",
                 "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
             )

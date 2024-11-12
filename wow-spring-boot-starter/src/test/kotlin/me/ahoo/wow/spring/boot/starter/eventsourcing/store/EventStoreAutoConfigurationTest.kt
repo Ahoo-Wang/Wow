@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.store
 
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -28,7 +29,7 @@ class EventStoreAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withPropertyValues(
-                "${EventStoreProperties.STORAGE}=${EventStoreStorage.IN_MEMORY_NAME}",
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
             )
             .withUserConfiguration(
                 EventStoreAutoConfiguration::class.java,

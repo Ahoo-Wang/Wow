@@ -20,11 +20,10 @@ import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreStorage
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
@@ -47,7 +46,7 @@ class RedisEventSourcingAutoConfiguration {
     @Bean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
-        havingValue = EventStoreStorage.REDIS_NAME,
+        havingValue = StorageType.REDIS_NAME,
     )
     fun redisEventStore(redisTemplate: ReactiveStringRedisTemplate): EventStore {
         return RedisEventStore(redisTemplate)
@@ -57,7 +56,7 @@ class RedisEventSourcingAutoConfiguration {
     @ConditionalOnSnapshotEnabled
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
-        havingValue = SnapshotStorage.REDIS_NAME,
+        havingValue = StorageType.REDIS_NAME,
     )
     fun redisSnapshotRepository(redisTemplate: ReactiveStringRedisTemplate): SnapshotRepository {
         return RedisSnapshotRepository(redisTemplate)
