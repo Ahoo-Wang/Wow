@@ -2,6 +2,8 @@
 
 _Elasticsearch_ 扩展提供了对 _Elasticsearch_ 的支持，实现了以下接口：
 
+- `EventStore`
+- `EventStreamQueryService`
 - `SnapshotRepository`
 - `SnapshotQueryService`
 
@@ -30,8 +32,94 @@ implementation 'me.ahoo.wow:wow-elasticsearch'
 ```yaml
 wow:
   eventsourcing:
+    store:
+      storage: elasticsearch
     snapshot:
       storage: elasticsearch
+```
+
+### 配置事件流索引模板
+
+```http request
+POST _index_template/wow-event-stream-template
+{
+  "index_patterns": [
+    "wow.*.es"
+  ],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 2
+    },
+    "mappings": {
+      "properties": {
+        "aggregateId": {
+          "type": "keyword"
+        },
+        "aggregateName": {
+          "type": "keyword"
+        },
+        "body": {
+          "properties": {
+            "bodyType": {
+              "type": "keyword"
+            },
+            "id": {
+                "type": "keyword"
+            },
+            "name": {
+              "type": "keyword"
+            },
+            "revision": {
+              "type": "keyword"
+            }
+          }
+        },
+        "commandId": {
+          "type": "keyword"
+        },
+        "contextName": {
+          "type": "keyword"
+        },
+        "createTime": {
+          "type": "long"
+        },
+        "header": {
+          "properties": {
+            "upstream_id": {
+              "type": "keyword"
+            },
+            "upstream_name": {
+              "type": "keyword"
+            }
+          }
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "requestId": {
+          "type": "keyword"
+        },
+        "tenantId": {
+          "type": "keyword"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "string_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
 ```
 
 ### 配置快照索引模板

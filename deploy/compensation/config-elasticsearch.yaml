@@ -35,14 +35,14 @@ data:
           write-dates-as-timestamps: true
         mapper:
           accept-case-insensitive-enums: true
+      autoconfigure:
+        exclude:
+          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
       elasticsearch:
         username: elastic
         password: elastic
         uris: dev-es-default.dev.svc.cluster.local:9200
       data:
-        mongodb:
-          uri: mongodb://root:root@localhost:27017/?authSource=admin&maxIdleTimeMS=60000
-          database: compensation_db
         redis:
           cluster:
             max-redirects: 3
@@ -60,5 +60,7 @@ data:
       kafka:
         bootstrap-servers: 'kafka-test-0.kafka-test-headless.test.svc.cluster.local:9093'
       eventsourcing:
+        store:
+          storage: elasticsearch
         snapshot:
           storage: elasticsearch

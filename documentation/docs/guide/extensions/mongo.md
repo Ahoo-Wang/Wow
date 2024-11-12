@@ -3,10 +3,10 @@
 _Mongo_ 扩展提供了对 MongoDB 的支持，实现了以下接口：
 
 - `EventStore`
-- `PrepareKey`
 - `EventStreamQueryService`
 - `SnapshotRepository`
 - `SnapshotQueryService`
+- `PrepareKey`
 
 ## 安装
 
