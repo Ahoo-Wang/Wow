@@ -43,6 +43,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 LOG.debug("Send to [{}] \n {}.", sink.currentSubscriberCount(), message)
             }
             if (sink.currentSubscriberCount() == 0) {
+                message.withLocalFirst(false)
                 return@fromRunnable
             }
             message.withReadOnly()
