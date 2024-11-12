@@ -15,9 +15,23 @@ package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
+import java.util.concurrent.ConcurrentHashMap
 
 interface SnapshotQueryServiceFactory {
     fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S>
+}
+
+abstract class AbstractSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
+    private val queryServiceCache = ConcurrentHashMap<NamedAggregate, SnapshotQueryService<*>>()
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
+        return queryServiceCache.computeIfAbsent(namedAggregate.materialize()) {
+            createQueryService(it)
+        } as SnapshotQueryService<S>
+    }
+
+    protected abstract fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*>
 }
 
 object NoOpSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {

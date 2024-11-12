@@ -14,24 +14,13 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
-import java.util.concurrent.ConcurrentHashMap
 
 class ElasticsearchSnapshotQueryServiceFactory(private val elasticsearchClient: ReactiveElasticsearchClient) :
-    SnapshotQueryServiceFactory {
-    private val queryServiceCache = ConcurrentHashMap<NamedAggregate, SnapshotQueryService<*>>()
-
-    @Suppress("UNCHECKED_CAST")
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
-        return queryServiceCache.computeIfAbsent(namedAggregate.materialize()) {
-            createQueryService(it)
-        } as SnapshotQueryService<S>
-    }
-
-    private fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
+    AbstractSnapshotQueryServiceFactory() {
+    override fun createQueryService(namedAggregate: NamedAggregate): SnapshotQueryService<*> {
         return ElasticsearchSnapshotQueryService<Any>(namedAggregate, elasticsearchClient)
     }
 }
