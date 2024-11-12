@@ -52,7 +52,6 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     @Bean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
-        matchIfMissing = true,
         havingValue = StorageType.ELASTICSEARCH_NAME,
     )
     fun elasticsearchEventStore(
@@ -64,7 +63,6 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     @Bean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
-        matchIfMissing = true,
         havingValue = StorageType.ELASTICSEARCH_NAME,
     )
     fun indexTemplateInitializer(elasticsearchOperations: ReactiveElasticsearchOperations): IndexTemplateInitializer {
@@ -78,7 +76,6 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     @Bean
     @ConditionalOnProperty(
         EventStoreProperties.STORAGE,
-        matchIfMissing = true,
         havingValue = StorageType.ELASTICSEARCH_NAME,
     )
     fun elasticsearchEventStreamQueryServiceFactory(
