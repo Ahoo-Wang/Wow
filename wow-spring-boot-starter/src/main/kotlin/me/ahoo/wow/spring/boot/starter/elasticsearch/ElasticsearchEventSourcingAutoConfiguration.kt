@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
 import co.elastic.clients.json.jackson.JacksonJsonpMapper
+import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
@@ -35,12 +36,13 @@ import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestCli
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 
 @AutoConfiguration(after = [ElasticsearchRestClientAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnClass(ElasticsearchEventStore::class)
 @EnableConfigurationProperties(ElasticsearchProperties::class)
-class ElasticsearchEventSourcingAutoConfiguration {
+class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchProperties: ElasticsearchProperties) {
 
     @Bean
     fun jacksonJsonpMapper(): JacksonJsonpMapper {
@@ -57,6 +59,20 @@ class ElasticsearchEventSourcingAutoConfiguration {
         elasticsearchClient: ReactiveElasticsearchClient
     ): EventStore {
         return ElasticsearchEventStore(elasticsearchClient)
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        EventStoreProperties.STORAGE,
+        matchIfMissing = true,
+        havingValue = StorageType.ELASTICSEARCH_NAME,
+    )
+    fun indexTemplateInitializer(elasticsearchOperations: ReactiveElasticsearchOperations): IndexTemplateInitializer {
+        val initializer = IndexTemplateInitializer(elasticsearchOperations)
+        if (elasticsearchProperties.autoInitTemplate) {
+            initializer.initAll()
+        }
+        return initializer
     }
 
     @Bean
