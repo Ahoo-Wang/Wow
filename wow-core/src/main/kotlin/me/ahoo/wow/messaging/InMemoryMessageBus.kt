@@ -37,12 +37,15 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     private val sender = Schedulers.newSingle(this::class.java.simpleName)
 
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable<Void?> {
+        return Mono.fromRunnable<Void> {
+            val sink = computeSink(message)
             if (LOG.isDebugEnabled) {
-                LOG.debug("Send {}.", message)
+                LOG.debug("Send to [{}] \n {}.", sink.currentSubscriberCount(), message)
+            }
+            if (sink.currentSubscriberCount() == 0) {
+                return@fromRunnable
             }
             message.withReadOnly()
-            val sink = computeSink(message)
             sink.tryEmitNext(message).orThrow()
         }.subscribeOn(sender)
     }
