@@ -30,7 +30,7 @@ spec:
             - name: TZ
               value: Asia/Shanghai
             - name: JAVA_OPTS
-              value: -Xms1792M  -Xmx1792M
+              value: -Xms1792M  -Xmx1792M -Dreactor.netty.pool.maxConnections=500 -Dreactor.netty.pool.maxIdleTime=20000 -Dreactor.netty.pool.maxLifeTime=60000
           ports:
             - name: http
               protocol: TCP
