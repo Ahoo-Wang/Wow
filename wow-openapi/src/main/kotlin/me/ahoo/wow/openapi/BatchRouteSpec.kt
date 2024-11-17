@@ -19,7 +19,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.openapi.BatchRouteSpecFactory.Companion.BATCH_RESULT_RESPONSE
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
-import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID_PARAMETER
+import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 
 interface BatchRouteSpec : AggregateRouteSpec {
@@ -31,7 +31,7 @@ interface BatchRouteSpec : AggregateRouteSpec {
 
     override val parameters: List<Parameter>
         get() = super.parameters + listOf(
-            BATCH_CURSOR_ID_PARAMETER.ref,
+            BATCH_AFTER_ID_PARAMETER.ref,
             BATCH_LIMIT_PARAMETER.ref
         )
 }

@@ -47,7 +47,7 @@ class RedisSnapshotRepository(
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
         val keyPrefix = namedAggregate.toKeyPrefix()
@@ -59,7 +59,7 @@ class RedisSnapshotRepository(
             .map {
                 DefaultSnapshotKeyConverter.toAggregateId(namedAggregate, it)
             }.filter {
-                it.id > cursorId
+                it.id > afterId
             }
     }
 }

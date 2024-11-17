@@ -48,7 +48,7 @@ object NoOpSnapshotRepository : SnapshotRepository {
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
         return Flux.empty()

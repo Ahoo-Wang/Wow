@@ -50,10 +50,10 @@ class MetricSnapshotRepository(delegate: SnapshotRepository) :
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, cursorId, limit)
+        return delegate.scanAggregateId(namedAggregate, afterId, limit)
             .name(Wow.WOW_PREFIX + "snapshot.save")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)

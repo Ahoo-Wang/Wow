@@ -8,7 +8,7 @@ class BatchResultTest {
     @Test
     fun test() {
         val batchResult = BatchResult("cursorId", 1)
-        assertThat(batchResult.cursorId, equalTo("cursorId"))
+        assertThat(batchResult.afterId, equalTo("cursorId"))
         assertThat(batchResult.size, equalTo(1))
     }
 }

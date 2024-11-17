@@ -19,7 +19,7 @@ import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID
+import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
 
 class BatchRegenerateSnapshotRouteSpec(
@@ -38,7 +38,7 @@ class BatchRegenerateSnapshotRouteSpec(
     override val method: String
         get() = Https.Method.PUT
     override val appendPathSuffix: String
-        get() = "snapshot/{$BATCH_CURSOR_ID}/{$BATCH_LIMIT}"
+        get() = "snapshot/{$BATCH_AFTER_ID}/{$BATCH_LIMIT}"
 }
 
 class BatchRegenerateSnapshotRouteSpecFactory : BatchRouteSpecFactory() {

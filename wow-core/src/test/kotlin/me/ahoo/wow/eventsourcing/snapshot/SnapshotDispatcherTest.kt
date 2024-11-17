@@ -60,10 +60,10 @@ internal class SnapshotDispatcherTest {
 
             override fun scanAggregateId(
                 namedAggregate: NamedAggregate,
-                cursorId: String,
+                afterId: String,
                 limit: Int
             ): Flux<AggregateId> {
-                return inMemorySnapshotRepository.scanAggregateId(namedAggregate, cursorId, limit)
+                return inMemorySnapshotRepository.scanAggregateId(namedAggregate, afterId, limit)
             }
         }
         val snapshotStrategy = SimpleSnapshotStrategy(

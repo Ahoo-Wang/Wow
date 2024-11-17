@@ -39,7 +39,7 @@ class ScanAggregateRouteSpec(
         get() = Https.Method.GET
 
     override val appendPathSuffix: String
-        get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
+        get() = "state/{${RoutePaths.BATCH_AFTER_ID}}/{${RoutePaths.BATCH_LIMIT}}"
 
     override val summary: String
         get() = "Scan state aggregate"

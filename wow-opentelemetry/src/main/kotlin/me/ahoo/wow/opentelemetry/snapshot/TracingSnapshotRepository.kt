@@ -48,9 +48,9 @@ class TracingSnapshotRepository(override val delegate: SnapshotRepository) :
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, cursorId, limit)
+        return delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

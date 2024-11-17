@@ -37,7 +37,7 @@ class ResendStateEventRouteSpec(
     override val summary: String
         get() = "Resend State Event"
     override val appendPathSuffix: String
-        get() = "state/{${RoutePaths.BATCH_CURSOR_ID}}/{${RoutePaths.BATCH_LIMIT}}"
+        get() = "state/{${RoutePaths.BATCH_AFTER_ID}}/{${RoutePaths.BATCH_LIMIT}}"
 }
 
 class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {
