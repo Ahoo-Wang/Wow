@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
+import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -41,7 +41,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID
+            every { pathVariable(RoutePaths.BATCH_AFTER_ID) } returns FIRST_ID
             every { pathVariable(RoutePaths.BATCH_LIMIT) } returns Int.MAX_VALUE.toString()
         }
         handlerFunction.handle(request)

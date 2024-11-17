@@ -93,12 +93,12 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
         val snapshotCollectionName = namedAggregate.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
-            .find(Filters.gt(Documents.ID_FIELD, cursorId))
+            .find(Filters.gt(Documents.ID_FIELD, afterId))
             .projection(Projections.include(MessageRecords.TENANT_ID))
             .limit(limit)
             .batchSize(limit)

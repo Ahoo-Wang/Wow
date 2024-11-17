@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
+import me.ahoo.wow.webflux.route.toBatchResult
 import reactor.core.publisher.Mono
 
 class ResendStateEventHandler(
@@ -39,9 +40,9 @@ class ResendStateEventHandler(
             )
     }
 
-    fun handle(cursorId: String, limit: Int): Mono<BatchResult> {
+    fun handle(afterId: String, limit: Int): Mono<BatchResult> {
         val target = CompensationTarget(function = RESEND_FUNCTION)
-        return snapshotRepository.scanAggregateId(aggregateMetadata.namedAggregate, cursorId, limit)
+        return snapshotRepository.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
             .flatMap { aggregateId ->
                 stateEventCompensator.resend(
                     aggregateId = aggregateId,
@@ -49,14 +50,6 @@ class ResendStateEventHandler(
                     headVersion = DEFAULT_HEAD_VERSION,
                     tailVersion = Int.MAX_VALUE
                 ).thenReturn(aggregateId)
-            }
-            .reduce(BatchResult(cursorId, 0)) { acc, aggregateId ->
-                val nextCursorId = if (aggregateId.id > acc.cursorId) {
-                    aggregateId.id
-                } else {
-                    acc.cursorId
-                }
-                BatchResult(nextCursorId, acc.size + 1)
-            }
+            }.toBatchResult(afterId)
     }
 }

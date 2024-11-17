@@ -34,11 +34,11 @@ class ScanAggregateHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val cursorId = request.pathVariable(RoutePaths.BATCH_CURSOR_ID)
+        val afterId = request.pathVariable(RoutePaths.BATCH_AFTER_ID)
         val limit = request.pathVariable(RoutePaths.BATCH_LIMIT).toInt()
         return snapshotRepository.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
-            cursorId = cursorId,
+            afterId = afterId,
             limit = limit,
         ).flatMapSequential {
             stateAggregateRepository.load<Any>(it)

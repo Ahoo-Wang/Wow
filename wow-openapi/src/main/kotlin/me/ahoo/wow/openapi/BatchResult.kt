@@ -13,7 +13,17 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.exception.ErrorInfo
+
+/**
+ * The result of a batch operation.
+ *
+ * @param afterId The ID of the last record successfully executed in batch processing.
+ * @param size Number of records successfully processed in the batch.
+ */
 data class BatchResult(
-    val cursorId: String,
-    val size: Int
-)
+    val afterId: String,
+    val size: Int,
+    override val errorCode: String = ErrorInfo.SUCCEEDED,
+    override val errorMsg: String = ErrorInfo.SUCCEEDED_MESSAGE
+) : ErrorInfo

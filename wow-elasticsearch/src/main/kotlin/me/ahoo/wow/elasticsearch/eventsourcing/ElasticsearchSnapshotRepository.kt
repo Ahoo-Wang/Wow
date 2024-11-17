@@ -67,7 +67,7 @@ class ElasticsearchSnapshotRepository(
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
         return elasticsearchClient.search({
@@ -75,7 +75,7 @@ class ElasticsearchSnapshotRepository(
                 .query {
                     it.range {
                         it.field(MessageRecords.AGGREGATE_ID)
-                            .gt(JsonData.of(cursorId))
+                            .gt(JsonData.of(afterId))
                     }
                 }
                 .source {

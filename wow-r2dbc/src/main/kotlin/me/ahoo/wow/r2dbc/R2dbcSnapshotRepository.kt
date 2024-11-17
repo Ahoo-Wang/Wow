@@ -128,7 +128,7 @@ class R2dbcSnapshotRepository(
 
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String,
+        afterId: String,
         limit: Int
     ): Flux<AggregateId> {
         val aggregateId = namedAggregate.aggregateId("0")
@@ -138,7 +138,7 @@ class R2dbcSnapshotRepository(
             /* resourceClosure = */
             {
                 it.createStatement(snapshotSchema.scan(aggregateId))
-                    .bind(0, cursorId)
+                    .bind(0, afterId)
                     .bind(1, limit)
                     .execute()
             },

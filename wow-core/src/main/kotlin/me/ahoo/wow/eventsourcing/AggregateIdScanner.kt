@@ -19,12 +19,12 @@ import reactor.core.publisher.Flux
 
 interface AggregateIdScanner {
     companion object {
-        const val FIRST_CURSOR_ID = "(0)"
+        const val FIRST_ID = "(0)"
     }
 
     fun scanAggregateId(
         namedAggregate: NamedAggregate,
-        cursorId: String = FIRST_CURSOR_ID,
+        afterId: String = FIRST_ID,
         limit: Int = 10
     ): Flux<AggregateId>
 }

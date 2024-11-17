@@ -37,10 +37,10 @@ class InMemorySnapshotRepository : SnapshotRepository {
         }
     }
 
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
+    override fun scanAggregateId(namedAggregate: NamedAggregate, afterId: String, limit: Int): Flux<AggregateId> {
         return aggregateIdMapSnapshot.keys.sortedBy { it.id }.toFlux()
             .filter {
-                it.id > cursorId
+                it.id > afterId
             }
             .take(limit.toLong())
     }

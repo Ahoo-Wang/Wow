@@ -34,7 +34,7 @@ class ScanAggregateHandlerFunctionTest {
             exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns AggregateIdScanner.FIRST_CURSOR_ID
+            every { pathVariable(RoutePaths.BATCH_AFTER_ID) } returns AggregateIdScanner.FIRST_ID
             every { pathVariable(RoutePaths.BATCH_LIMIT) } returns Int.MAX_VALUE.toString()
         }
         handlerFunction.handle(request)

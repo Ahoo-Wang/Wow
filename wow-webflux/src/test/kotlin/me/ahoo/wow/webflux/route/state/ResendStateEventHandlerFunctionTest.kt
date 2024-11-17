@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.state
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_CURSOR_ID
+import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
@@ -48,7 +48,7 @@ class ResendStateEventHandlerFunctionTest {
             exceptionHandler = DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.BATCH_CURSOR_ID) } returns FIRST_CURSOR_ID
+            every { pathVariable(RoutePaths.BATCH_AFTER_ID) } returns FIRST_ID
             every { pathVariable(RoutePaths.BATCH_LIMIT) } returns Int.MAX_VALUE.toString()
         }
         handlerFunction.handle(request)

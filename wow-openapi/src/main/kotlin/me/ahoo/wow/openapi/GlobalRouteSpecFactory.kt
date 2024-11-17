@@ -24,7 +24,7 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
-import me.ahoo.wow.openapi.RoutePaths.BATCH_CURSOR_ID_PARAMETER
+import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.TAIL_VERSION
@@ -47,7 +47,7 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
         components.parameters
             .with(HEAD_VERSION)
             .with(TAIL_VERSION)
-            .with(BATCH_CURSOR_ID_PARAMETER)
+            .with(BATCH_AFTER_ID_PARAMETER)
             .with(BATCH_LIMIT_PARAMETER)
         components.responses
             .withBadRequest()

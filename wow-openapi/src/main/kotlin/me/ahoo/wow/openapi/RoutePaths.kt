@@ -29,7 +29,7 @@ object RoutePaths {
     const val HEAD_VERSION_KEY = "headVersion"
     const val TAIL_VERSION_KEY = "tailVersion"
 
-    const val BATCH_CURSOR_ID = "cursorId"
+    const val BATCH_AFTER_ID = "afterId"
     const val BATCH_LIMIT = "limit"
 
     val VERSION: Parameter = Parameter()
@@ -52,13 +52,13 @@ object RoutePaths {
         .example(Int.MAX_VALUE).let {
             ParameterRef("${Wow.WOW_PREFIX}$TAIL_VERSION_KEY", it)
         }
-    val BATCH_CURSOR_ID_PARAMETER = Parameter()
-        .name(BATCH_CURSOR_ID)
+    val BATCH_AFTER_ID_PARAMETER = Parameter()
+        .name(BATCH_AFTER_ID)
         .`in`(ParameterIn.PATH.toString())
         .schema(StringSchema())
-        .example(AggregateIdScanner.FIRST_CURSOR_ID)
-        .description("The cursor id of batch.").let {
-            ParameterRef("${Wow.WOW_PREFIX}$BATCH_CURSOR_ID", it)
+        .example(AggregateIdScanner.FIRST_ID)
+        .description("The ID of the last record in the batch.").let {
+            ParameterRef("${Wow.WOW_PREFIX}$BATCH_AFTER_ID", it)
         }
     val BATCH_LIMIT_PARAMETER = Parameter()
         .name(BATCH_LIMIT)

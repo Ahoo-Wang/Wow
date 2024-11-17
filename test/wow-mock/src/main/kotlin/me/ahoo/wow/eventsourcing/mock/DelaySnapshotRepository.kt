@@ -36,7 +36,7 @@ class DelaySnapshotRepository(
         return delegate.save(snapshot).delaySubscription(delaySupplier())
     }
 
-    override fun scanAggregateId(namedAggregate: NamedAggregate, cursorId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, cursorId, limit).delaySubscription(delaySupplier())
+    override fun scanAggregateId(namedAggregate: NamedAggregate, afterId: String, limit: Int): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, afterId, limit).delaySubscription(delaySupplier())
     }
 }

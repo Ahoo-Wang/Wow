@@ -188,11 +188,11 @@ abstract class SnapshotRepositorySpec {
             .test()
             .verifyComplete()
 
-        snapshotRepository.scanAggregateId(snapshot.aggregateId, cursorId = cursorId, limit = 1)
+        snapshotRepository.scanAggregateId(snapshot.aggregateId, afterId = cursorId, limit = 1)
             .test()
             .expectNextCount(1)
             .verifyComplete()
-        snapshotRepository.scanAggregateId(snapshot.aggregateId, cursorId = snapshot.aggregateId.id, limit = 1)
+        snapshotRepository.scanAggregateId(snapshot.aggregateId, afterId = snapshot.aggregateId.id, limit = 1)
             .test()
             .expectNextCount(0)
             .verifyComplete()
