@@ -43,7 +43,7 @@ class ResendStateEventHandler(
     fun handle(afterId: String, limit: Int): Mono<BatchResult> {
         val target = CompensationTarget(function = RESEND_FUNCTION)
         return snapshotRepository.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
-            .concatMap { aggregateId ->
+            .flatMapSequential { aggregateId ->
                 stateEventCompensator.resend(
                     aggregateId = aggregateId,
                     target = target,

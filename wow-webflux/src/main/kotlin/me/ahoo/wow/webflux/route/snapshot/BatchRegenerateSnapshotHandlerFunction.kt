@@ -49,7 +49,7 @@ class BatchRegenerateSnapshotHandlerFunction(
             namedAggregate = aggregateMetadata.namedAggregate,
             afterId = afterId,
             limit = limit,
-        ).concatMap { aggregateId ->
+        ).flatMapSequential { aggregateId ->
             handler.handle(aggregateId).thenReturn(aggregateId)
         }.toBatchResult(afterId).toServerResponse(request, exceptionHandler)
     }
