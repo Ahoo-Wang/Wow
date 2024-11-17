@@ -42,14 +42,17 @@ class BatchResultsKtTest {
 
     @Test
     fun toBatchResultWhenError() {
-        // Arrange
-        val flux = Flux.error<AggregateId>(RuntimeException("error"))
+        val flux = Flux.create<AggregateId> { sink ->
+            sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id1"))
+            sink.error(RuntimeException("error"))
+            sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id2"))
+        }
         val afterId = "id0"
 
         // Act
         flux.toBatchResult(afterId)
             .test()
-            .expectNext(BatchResult(afterId, 0, ErrorCodes.BAD_REQUEST, "error"))
+            .expectNext(BatchResult("id1", 1, ErrorCodes.BAD_REQUEST, "error"))
             .verifyComplete()
     }
 }
