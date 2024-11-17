@@ -23,9 +23,7 @@ fun Flux<AggregateId>.toBatchResult(afterId: String): Mono<BatchResult> {
     return this.materialize().reduce(BatchResult(afterId, 0)) { acc, signal ->
         if (signal.isOnError) {
             val error = signal.throwable!!.toErrorInfo()
-            return@reduce BatchResult(
-                afterId = acc.afterId,
-                size = acc.size,
+            return@reduce acc.copy(
                 errorCode = error.errorCode,
                 errorMsg = error.errorMsg
             )
@@ -37,7 +35,7 @@ fun Flux<AggregateId>.toBatchResult(afterId: String): Mono<BatchResult> {
             } else {
                 acc.afterId
             }
-            return@reduce BatchResult(nextAfterId, acc.size + 1)
+            return@reduce BatchResult(afterId = nextAfterId, size = acc.size + 1)
         }
         acc
     }
