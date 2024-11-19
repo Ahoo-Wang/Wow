@@ -14,12 +14,15 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class BatchResultsKtTest {
@@ -44,15 +47,24 @@ class BatchResultsKtTest {
     fun toBatchResultWhenError() {
         val flux = Flux.create<AggregateId> { sink ->
             sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id1"))
-            sink.error(RuntimeException("error"))
             sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id2"))
+        }.flatMap<AggregateId> {
+            if (it.id == "id2") {
+                RuntimeException("error").toMono<AggregateId>().onErrorMapBatchTaskException(it)
+            } else {
+                it.toMono()
+            }
         }
         val afterId = "id0"
 
         // Act
         flux.toBatchResult(afterId)
             .test()
-            .expectNext(BatchResult("id1", 1, ErrorCodes.BAD_REQUEST, "error"))
+            .consumeNextWith {
+                assertThat(it.afterId, equalTo("id1"))
+                assertThat(it.errorCode, equalTo("BatchTaskError"))
+                assertThat(it.afterId, equalTo("id1"))
+            }
             .verifyComplete()
     }
 }
