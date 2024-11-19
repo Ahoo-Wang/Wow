@@ -19,9 +19,14 @@ import me.ahoo.wow.openapi.BatchResult
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+private val log = org.slf4j.LoggerFactory.getLogger("Wow.BatchResult")
+
 fun Flux<AggregateId>.toBatchResult(afterId: String): Mono<BatchResult> {
     return this.materialize().reduce(BatchResult(afterId, 0)) { acc, signal ->
         if (signal.isOnError) {
+            if (log.isWarnEnabled) {
+                log.warn("Reduce onError.", signal.throwable)
+            }
             val error = signal.throwable!!.toErrorInfo()
             return@reduce acc.copy(
                 errorCode = error.errorCode,

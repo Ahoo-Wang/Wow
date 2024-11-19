@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
+import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.toBatchResult
 import reactor.core.publisher.Mono
 
@@ -49,7 +50,7 @@ class ResendStateEventHandler(
                     target = target,
                     headVersion = DEFAULT_HEAD_VERSION,
                     tailVersion = Int.MAX_VALUE
-                ).thenReturn(aggregateId)
+                ).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
             }.toBatchResult(afterId)
     }
 }
