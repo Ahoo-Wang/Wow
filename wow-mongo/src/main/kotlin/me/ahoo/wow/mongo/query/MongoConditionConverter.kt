@@ -85,6 +85,27 @@ object MongoConditionConverter : AbstractConditionConverter<Bson>() {
         return Filters.lte(condition.field, condition.value)
     }
 
+    /**
+     * Escape special characters in regular expressions
+     * @return Escaped string
+     */
+    private fun String.escapeRegex(): String {
+        return replace("\\", "\\\\")
+            .replace("^", "\\^")
+            .replace("$", "\\$")
+            .replace(".", "\\.")
+            .replace("|", "\\|")
+            .replace("?", "\\?")
+            .replace("*", "\\*")
+            .replace("+", "\\+")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+            .replace("[", "\\[")
+            .replace("]", "\\]")
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+    }
+
     private fun regex(field: String, value: String, ignoreCase: Boolean?): Bson {
         return if (ignoreCase == true) {
             Filters.regex(field, value, "i")
@@ -94,15 +115,15 @@ object MongoConditionConverter : AbstractConditionConverter<Bson>() {
     }
 
     override fun contains(condition: Condition): Bson {
-        return regex(condition.field, condition.valueAs(), condition.ignoreCase())
+        return regex(condition.field, condition.valueAs<String>().escapeRegex(), condition.ignoreCase())
     }
 
     override fun startsWith(condition: Condition): Bson {
-        return regex(condition.field, "^${condition.valueAs<String>()}", condition.ignoreCase())
+        return regex(condition.field, "^${condition.valueAs<String>().escapeRegex()}", condition.ignoreCase())
     }
 
     override fun endsWith(condition: Condition): Bson {
-        return regex(condition.field, "${condition.valueAs<String>()}$", condition.ignoreCase())
+        return regex(condition.field, "${condition.valueAs<String>().escapeRegex()}$", condition.ignoreCase())
     }
 
     override fun isIn(condition: Condition): Bson {
