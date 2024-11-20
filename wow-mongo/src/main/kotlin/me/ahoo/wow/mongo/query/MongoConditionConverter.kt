@@ -85,11 +85,33 @@ object MongoConditionConverter : AbstractConditionConverter<Bson>() {
         return Filters.lte(condition.field, condition.value)
     }
 
+    /**
+     * Escape special characters in regular expressions
+     * @return Escaped string
+     */
+    private fun String.escapeRegex(): String {
+        return replace("\\", "\\\\")
+            .replace("^", "\\^")
+            .replace("$", "\\$")
+            .replace(".", "\\.")
+            .replace("|", "\\|")
+            .replace("?", "\\?")
+            .replace("*", "\\*")
+            .replace("+", "\\+")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+            .replace("[", "\\[")
+            .replace("]", "\\]")
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+    }
+
     private fun regex(field: String, value: String, ignoreCase: Boolean?): Bson {
+        val escapedValue = value.escapeRegex()
         return if (ignoreCase == true) {
-            Filters.regex(field, value, "i")
+            Filters.regex(field, escapedValue, "i")
         } else {
-            Filters.regex(field, value)
+            Filters.regex(field, escapedValue)
         }
     }
 
