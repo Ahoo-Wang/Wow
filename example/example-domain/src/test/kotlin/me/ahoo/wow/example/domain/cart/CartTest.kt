@@ -23,7 +23,7 @@ import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.RemoveCartItem
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregate.whenCommand
@@ -40,7 +40,7 @@ class CartTest {
     @Test
     fun addCartItem() {
         val addCartItem = AddCartItem(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -56,9 +56,28 @@ class CartTest {
     }
 
     @Test
+    fun testGivenState() {
+        val addCartItem = AddCartItem(
+            id = generateGlobalId(),
+            productId = "productId",
+            quantity = 1,
+        )
+
+        aggregateVerifier<Cart, CartState>()
+            .givenState(CartState(addCartItem.id), 1)
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                assertThat(it.items, hasSize(1))
+            }
+            .verify()
+    }
+
+    @Test
     fun addCartItemIfSameProduct() {
         val addCartItem = AddCartItem(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -117,7 +136,7 @@ class CartTest {
             }
         }.toTypedArray()
         val addCartItem = AddCartItem(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -159,7 +178,7 @@ class CartTest {
     @Test
     fun changeQuantity() {
         val changeQuantity = ChangeQuantity(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             productId = "productId",
             quantity = 2,
         )
@@ -185,7 +204,7 @@ class CartTest {
     @Test
     fun onCreateThenDeleteThenRecover() {
         val addCartItem = AddCartItem(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )

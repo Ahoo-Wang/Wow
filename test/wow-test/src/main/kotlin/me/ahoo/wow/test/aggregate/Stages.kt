@@ -43,6 +43,10 @@ interface GivenStage<S : Any> {
     fun givenEvent(vararg events: Any): WhenStage<S> {
         return given(*events)
     }
+
+    fun givenState(state: S, version: Int): WhenStage<S>
+
+    fun givenState(state: StateAggregate<S>): WhenStage<S>
 }
 
 interface WhenStage<S : Any> {
