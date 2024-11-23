@@ -24,6 +24,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
@@ -57,6 +58,23 @@ internal class DefaultGivenStage<C : Any, S : Any>(
             stateAggregateFactory,
             commandAggregateFactory,
             serviceProvider,
+        )
+    }
+
+    override fun givenState(state: S, version: Int): WhenStage<S> {
+        val stateAggregate = metadata.toStateAggregate(
+            state = state,
+            version = version,
+        )
+        return givenState(stateAggregate)
+    }
+
+    override fun givenState(state: StateAggregate<S>): WhenStage<S> {
+        return GivenStateWhenStage(
+            metadata = metadata,
+            stateAggregate = state,
+            commandAggregateFactory = commandAggregateFactory,
+            serviceProvider = serviceProvider,
         )
     }
 }
@@ -153,6 +171,52 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     }
 }
 
+internal class GivenStateWhenStage<C : Any, S : Any>(
+    private val metadata: AggregateMetadata<C, S>,
+    private val stateAggregate: StateAggregate<S>,
+    private val commandAggregateFactory: CommandAggregateFactory,
+    private val serviceProvider: ServiceProvider
+) : WhenStage<S> {
+
+    override fun `when`(
+        command: Any,
+        header: Header
+    ): ExpectStage<S> {
+        val commandMessage = command.toCommandMessage(
+            aggregateId = stateAggregate.aggregateId.id,
+            namedAggregate = stateAggregate.aggregateId.namedAggregate,
+            tenantId = stateAggregate.aggregateId.tenantId,
+            header = header,
+        )
+        val commandAggregate = commandAggregateFactory.create(metadata, stateAggregate)
+        val serverCommandExchange = SimpleServerCommandExchange(
+            message = commandMessage,
+        ).setServiceProvider(serviceProvider)
+
+        val expectedResultMono = commandAggregate.process(serverCommandExchange).map {
+            ExpectedResult(
+                exchange = serverCommandExchange,
+                stateAggregate = stateAggregate,
+                domainEventStream = serverCommandExchange.getEventStream(),
+                error = serverCommandExchange.getError(),
+            )
+        }.onErrorResume {
+            ExpectedResult(
+                exchange = serverCommandExchange,
+                stateAggregate = stateAggregate,
+                domainEventStream = serverCommandExchange.getEventStream(),
+                error = it,
+            ).toMono()
+        }
+        return DefaultExpectStage(
+            metadata = metadata,
+            commandAggregateFactory = commandAggregateFactory,
+            serviceProvider = serviceProvider,
+            expectedResultMono = expectedResultMono,
+        )
+    }
+}
+
 internal class DefaultVerifiedStage<C : Any, S : Any>(
     override val verifiedResult: ExpectedResult<S>,
     private val metadata: AggregateMetadata<C, S>,
@@ -178,6 +242,23 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
                     return Mono.just(verifiedResult.stateAggregate as StateAggregate<S>)
                 }
             },
+            commandAggregateFactory = commandAggregateFactory,
+            serviceProvider = serviceProvider,
+        )
+    }
+
+    override fun givenState(state: S, version: Int): WhenStage<S> {
+        val stateAggregate = metadata.toStateAggregate(
+            state = state,
+            version = version,
+        )
+        return givenState(stateAggregate)
+    }
+
+    override fun givenState(state: StateAggregate<S>): WhenStage<S> {
+        return GivenStateWhenStage(
+            metadata = metadata,
+            stateAggregate = state,
             commandAggregateFactory = commandAggregateFactory,
             serviceProvider = serviceProvider,
         )
