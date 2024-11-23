@@ -23,8 +23,9 @@ import {EventStreamHistory} from "./DomainEventStream";
 import {MarkRecoverable} from "./MarkRecoverable";
 import {ChangeFunction} from "./ChangeFunction";
 import {RetryConditions} from "./RetryConditions";
-import {Conditions, Operator, Projections, SortDirection} from "./Query";
+import {Conditions, Operator, Projections} from "./Query";
 import {ListQuery} from "./ListQuery";
+import {eventStreamVersionedPagedQuery, MAX_VERSION} from "./EventStreamQuery";
 
 export enum FindCategory {
   ALL = 'all',
@@ -93,13 +94,8 @@ export class CompensationClient {
     return this.query(pagedQuery);
   }
 
-  listHistory(id: string): Observable<EventStreamHistory[]> {
-    const listQuery: ListQuery = {
-      condition: Conditions.eq("aggregateId", id),
-      projection: {include: ["_id", "version", "createTime", "body.id", "body.name"], exclude: []},
-      sort: [{field: "version", direction: SortDirection.DESC}],
-      limit: 100
-    };
+  listHistory(id: string, maxVersion: number = MAX_VERSION, pageIndex: number = 1, pageSize: number = 10): Observable<EventStreamHistory[]> {
+    const listQuery: ListQuery = eventStreamVersionedPagedQuery(id, maxVersion, pageIndex, pageSize)
     return this.httpClient.post<EventStreamHistory[]>(`${this.aggregateApi}/event/list`, listQuery)
   }
 

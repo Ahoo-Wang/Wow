@@ -1,4 +1,7 @@
-<nz-table [nzData]="eventStreams" nzSize="middle" [nzShowPagination]="false">
+<nz-table [nzData]="eventStreams" nzSize="middle" nzShowSizeChanger [nzFrontPagination]="false"
+          [(nzPageIndex)]="pagination.index" [(nzPageSize)]="pagination.size"
+          [nzTotal]="maxVersion"
+          (nzQueryParams)="load()">
   <thead>
   <tr>
     <th>StreamId</th>
