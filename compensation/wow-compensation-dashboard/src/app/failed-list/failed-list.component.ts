@@ -209,31 +209,38 @@ export class FailedListComponent implements OnInit {
 
   prepare(id: string): void {
     this.compensationClient.prepare(id)
-      .subscribe(resp => {
-        this.message.success("Prepare succeeded.");
-        this.load();
-      }, error => {
-        this.message.error(error.error.errorMsg);
+      .subscribe({
+        next: (resp) => {
+          this.message.success("Prepare succeeded.");
+          this.load();
+        }, error: (error) => {
+          this.message.error(error.error.errorMsg);
+        }
       })
   }
 
   forcePrepare(id: string): void {
     this.compensationClient.forcePrepare(id)
-      .subscribe(resp => {
-        this.message.success("Force Prepare succeeded.");
-        this.load();
-      }, error => {
-        this.message.error(error.error.errorMsg);
+      .subscribe({
+        next: (resp) => {
+          this.message.success("Force Prepare succeeded.");
+          this.load();
+        }, error: (error) => {
+          this.message.error(error.error.errorMsg);
+        }
       })
   }
 
   markRecoverable(id: string, recoverable: RecoverableType): void {
     this.compensationClient.markRecoverable(id, {recoverable})
-      .subscribe(resp => {
-        this.message.success("Mark Recoverable succeeded.");
-        this.load();
-      }, error => {
-        this.message.error(error.error.errorMsg);
+      .subscribe({
+        next: (resp) => {
+          this.message.success("Mark Recoverable succeeded.");
+          this.load();
+        },
+        error: (error) => {
+          this.message.error(error.error.errorMsg);
+        }
       })
   }
 
