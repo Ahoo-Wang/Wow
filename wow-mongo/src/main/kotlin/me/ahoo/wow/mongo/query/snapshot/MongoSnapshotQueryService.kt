@@ -90,6 +90,7 @@ class MongoSnapshotQueryService<S : Any>(
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
+            .batchSize(listQuery.limit)
             .toFlux()
             .toMaterializedSnapshot(snapshotType)
     }
@@ -97,6 +98,7 @@ class MongoSnapshotQueryService<S : Any>(
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
+            .batchSize(listQuery.limit)
             .toFlux()
             .toDynamicDocument()
     }
@@ -115,6 +117,7 @@ class MongoSnapshotQueryService<S : Any>(
             .sort(sort)
             .skip(pagedQuery.pagination.offset())
             .limit(pagedQuery.pagination.size)
+            .batchSize(pagedQuery.pagination.size)
             .toFlux()
         val listMappedPublisher = documentMap(listPublisher).collectList()
         return Mono.zip(totalPublisher, listMappedPublisher)
