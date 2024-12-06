@@ -90,7 +90,6 @@ class MongoSnapshotQueryService<S : Any>(
     override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<S>> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
-            .batchSize(listQuery.limit)
             .toFlux()
             .toMaterializedSnapshot(snapshotType)
     }
@@ -98,7 +97,6 @@ class MongoSnapshotQueryService<S : Any>(
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
-            .batchSize(listQuery.limit)
             .toFlux()
             .toDynamicDocument()
     }

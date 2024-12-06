@@ -101,7 +101,6 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
             .find(Filters.gt(Documents.ID_FIELD, afterId))
             .projection(Projections.include(MessageRecords.TENANT_ID))
             .limit(limit)
-            .batchSize(limit)
             .toFlux()
             .map {
                 val aggregateId = it.getString(Documents.ID_FIELD)
