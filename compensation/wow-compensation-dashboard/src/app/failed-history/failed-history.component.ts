@@ -35,9 +35,7 @@ export class FailedHistoryComponent implements OnInit {
     this.compensationClient.listHistory(this.id, this.maxVersion, this.pagination.index, this.pagination.size)
       .subscribe(resp => {
           if (this.pagination.index == 1 && resp.length > 0) {
-            {
-              this.maxVersion = resp[0].version
-            }
+            this.maxVersion = resp[0].version
           }
           this.eventStreams = resp
         }

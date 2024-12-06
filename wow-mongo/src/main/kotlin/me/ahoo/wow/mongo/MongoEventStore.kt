@@ -86,7 +86,6 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 ),
             )
             .limit(limit)
-            .batchSize(limit)
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()

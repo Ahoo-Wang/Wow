@@ -44,7 +44,6 @@ class MongoEventStreamQueryService(
     override fun list(listQuery: IListQuery): Flux<DomainEventStream> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
-            .batchSize(listQuery.limit)
             .toFlux()
             .map {
                 it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
@@ -54,7 +53,6 @@ class MongoEventStreamQueryService(
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         return findDocument(listQuery)
             .limit(listQuery.limit)
-            .batchSize(listQuery.limit)
             .toFlux()
             .map {
                 it.replacePrimaryKeyToId().toDynamicDocument()
