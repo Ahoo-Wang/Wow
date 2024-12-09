@@ -99,6 +99,16 @@ class MongoConverterTest {
     }
 
     @Test
+    fun beforeTodayStringValue() {
+        val actual = Condition.beforeToday("field", "12:00").toMongoFilter()
+        val expected = Filters.lt(
+            "field",
+            OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
     fun tomorrow() {
         val actual = Condition.tomorrow("field").toMongoFilter()
         val expected = Filters.and(

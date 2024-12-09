@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Condition
-import java.time.LocalTime
 import kotlin.reflect.KCallable
 
 /**
@@ -301,7 +300,7 @@ class ConditionDsl : NestedFieldDsl() {
         name.today()
     }
 
-    infix fun String.beforeToday(time: LocalTime) {
+    infix fun String.beforeToday(time: Any) {
         condition(Condition.beforeToday(this.withNestedField(), time))
     }
 
