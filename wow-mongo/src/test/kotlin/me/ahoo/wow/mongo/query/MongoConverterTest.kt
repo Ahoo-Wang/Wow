@@ -109,6 +109,13 @@ class MongoConverterTest {
     }
 
     @Test
+    fun beforeTodayWrongValue() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition.beforeToday("field", Any()).toMongoFilter()
+        }
+    }
+
+    @Test
     fun tomorrow() {
         val actual = Condition.tomorrow("field").toMongoFilter()
         val expected = Filters.and(
