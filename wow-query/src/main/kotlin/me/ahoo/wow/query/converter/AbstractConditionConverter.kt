@@ -35,7 +35,15 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     }
 
     override fun beforeToday(condition: Condition): T {
-        val ltDateTime = now(condition).with(condition.valueAs()).toInstant().toEpochMilli()
+        val conditionValue = condition.value
+        val time = when (conditionValue) {
+            is String -> LocalTime.parse(conditionValue)
+            is LocalTime -> conditionValue
+            else -> {
+                throw IllegalArgumentException("Unsupported condition value type:${conditionValue::class.java}")
+            }
+        }
+        val ltDateTime = now(condition).with(time).toInstant().toEpochMilli()
         val ltCondition = Condition.lt(condition.field, ltDateTime)
         return lt(ltCondition)
     }
