@@ -158,7 +158,7 @@ enum class Operator {
     TODAY,
 
     /**
-     * 匹配*数值类型时间戳*字段在今天_time_之前范围区间的所有文档
+     * 匹配*数值类型时间戳*字段在今天_time_之前的所有文档
      */
     BEFORE_TODAY,
 
