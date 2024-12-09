@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.LocalTime
 import java.util.stream.Stream
 
 class ConditionDslTest {
@@ -74,6 +75,7 @@ class ConditionDslTest {
                 "field4" eq "value4"
             }
             "field19".today()
+            "field20" beforeToday LocalTime.of(17, 0)
             "field20".tomorrow()
             "field21".thisWeek()
             "field22".nextWeek()
@@ -140,6 +142,7 @@ class ConditionDslTest {
                             )
                         ),
                         Condition.today("field19"),
+                        Condition.beforeToday("field20", LocalTime.of(17, 0)),
                         Condition.tomorrow("field20"),
                         Condition.thisWeek("field21"),
                         Condition.nextWeek("field22"),

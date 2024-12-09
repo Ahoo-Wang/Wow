@@ -17,7 +17,17 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.*
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.converter.AbstractConditionConverter
@@ -25,8 +35,6 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
 import java.io.StringReader
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     override fun and(condition: Condition): Query {
@@ -223,18 +231,6 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
         return term {
             it.field(StateAggregateRecords.DELETED)
                 .value(FieldValue.of(condition.value))
-        }
-    }
-
-    override fun timeRange(
-        field: String,
-        from: LocalDateTime,
-        to: LocalDateTime
-    ): Query {
-        return range {
-            it.field(field)
-                .gte(JsonData.of(from.toInstant(ZoneOffset.UTC).toEpochMilli()))
-                .lte(JsonData.of(to.toInstant(ZoneOffset.UTC).toEpochMilli()))
         }
     }
 

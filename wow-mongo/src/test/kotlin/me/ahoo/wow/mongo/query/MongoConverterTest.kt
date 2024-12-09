@@ -20,8 +20,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.DayOfWeek
-import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 import java.util.stream.Stream
@@ -68,8 +68,32 @@ class MongoConverterTest {
     fun today() {
         val actual = Condition.today("field").toMongoFilter()
         val expected = Filters.and(
-            Filters.gte("field", LocalDateTime.now().with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte("field", LocalDateTime.now().with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli())
+            Filters.gte("field", OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()),
+            Filters.lte("field", OffsetDateTime.now().with(LocalTime.MAX).toInstant().toEpochMilli())
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun todayUTC() {
+        val actual = Condition.today("field").copy(
+            options = mapOf(
+                Condition.ZONE_ID_OPTION_KEY to "UTC"
+            )
+        ).toMongoFilter()
+        val expected = Filters.and(
+            Filters.gte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MIN).toInstant().toEpochMilli()),
+            Filters.lte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MAX).toInstant().toEpochMilli())
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun beforeToday() {
+        val actual = Condition.beforeToday("field", LocalTime.NOON).toMongoFilter()
+        val expected = Filters.lt(
+            "field",
+            OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
         )
         assertThat(actual, equalTo(expected))
     }
@@ -80,11 +104,11 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().plusDays(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().plusDays(1).with(LocalTime.MIN).toInstant().toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().plusDays(1).with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().plusDays(1).with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -96,13 +120,13 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
-                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
+                    .toInstant().toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
-                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
+                    .toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -114,13 +138,13 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                    .with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .with(LocalTime.MIN).toInstant().toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-                    .with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                    .with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -132,13 +156,13 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                    .with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .with(LocalTime.MIN).toInstant().toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-                    .with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+                    .with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -150,12 +174,12 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().withDayOfMonth(1).with(LocalTime.MIN).toInstant().toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
-                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+                    .toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -167,13 +191,13 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC)
+                OffsetDateTime.now().minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN).toInstant()
                     .toEpochMilli()
             ),
             Filters.lte(
                 "field",
-                LocalDateTime.now().minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
-                    .toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
+                    .toInstant().toEpochMilli()
             )
         )
         assertThat(actual, equalTo(expected))
@@ -185,9 +209,9 @@ class MongoConverterTest {
         val expected = Filters.and(
             Filters.gte(
                 "field",
-                LocalDateTime.now().minusDays(1).with(LocalTime.MIN).toInstant(ZoneOffset.UTC).toEpochMilli()
+                OffsetDateTime.now().minusDays(1).with(LocalTime.MIN).toInstant().toEpochMilli()
             ),
-            Filters.lte("field", LocalDateTime.now().with(LocalTime.MAX).toInstant(ZoneOffset.UTC).toEpochMilli())
+            Filters.lte("field", OffsetDateTime.now().with(LocalTime.MAX).toInstant().toEpochMilli())
         )
         assertThat(actual, equalTo(expected))
     }

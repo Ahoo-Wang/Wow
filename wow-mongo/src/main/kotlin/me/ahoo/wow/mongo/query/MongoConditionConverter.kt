@@ -22,8 +22,6 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 object MongoConditionConverter : AbstractConditionConverter<Bson>() {
     override fun and(condition: Condition): Bson {
@@ -174,13 +172,6 @@ object MongoConditionConverter : AbstractConditionConverter<Bson>() {
 
     override fun deleted(condition: Condition): Bson {
         return Filters.eq(StateAggregateRecords.DELETED, condition.value)
-    }
-
-    override fun timeRange(field: String, from: LocalDateTime, to: LocalDateTime): Bson {
-        return Filters.and(
-            Filters.gte(field, from.toInstant(ZoneOffset.UTC).toEpochMilli()),
-            Filters.lte(field, to.toInstant(ZoneOffset.UTC).toEpochMilli())
-        )
     }
 
     override fun raw(condition: Condition): Bson {
