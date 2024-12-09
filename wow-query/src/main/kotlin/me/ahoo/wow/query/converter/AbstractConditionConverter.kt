@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.Condition
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 
 abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
@@ -24,6 +25,12 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val startOfDay = LocalDateTime.now().with(LocalTime.MIN)
         val endOfDay = LocalDateTime.now().with(LocalTime.MAX)
         return timeRange(condition.field, startOfDay, endOfDay)
+    }
+
+    override fun beforeToday(condition: Condition): T {
+        val ltDateTime = LocalDateTime.now().with(condition.valueAs()).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val ltCondition = Condition.lt(condition.field, ltDateTime)
+        return lt(ltCondition)
     }
 
     override fun tomorrow(condition: Condition): T {
@@ -95,5 +102,10 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    abstract fun timeRange(field: String, from: LocalDateTime, to: LocalDateTime): T
+    fun timeRange(field: String, from: LocalDateTime, to: LocalDateTime): T {
+        val fromEpoch = from.toInstant(ZoneOffset.UTC).toEpochMilli()
+        val toEpoch = to.toInstant(ZoneOffset.UTC).toEpochMilli()
+        val betweenCondition = Condition.between(field, fromEpoch, toEpoch)
+        return between(betweenCondition)
+    }
 }

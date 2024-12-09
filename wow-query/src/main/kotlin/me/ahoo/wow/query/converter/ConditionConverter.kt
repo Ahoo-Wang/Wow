@@ -47,6 +47,7 @@ interface ConditionConverter<T> {
             Operator.FALSE -> isFalse(condition)
             Operator.DELETED -> deleted(condition)
             Operator.TODAY -> today(condition)
+            Operator.BEFORE_TODAY -> beforeToday(condition)
             Operator.TOMORROW -> tomorrow(condition)
             Operator.THIS_WEEK -> thisWeek(condition)
             Operator.NEXT_WEEK -> nextWeek(condition)
@@ -85,6 +86,7 @@ interface ConditionConverter<T> {
     fun isFalse(condition: Condition): T
     fun deleted(condition: Condition): T
     fun today(condition: Condition): T
+    fun beforeToday(condition: Condition): T
     fun tomorrow(condition: Condition): T
     fun thisWeek(condition: Condition): T
     fun nextWeek(condition: Condition): T
