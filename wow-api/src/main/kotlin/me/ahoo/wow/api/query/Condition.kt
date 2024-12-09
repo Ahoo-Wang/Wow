@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import java.time.LocalTime
+import java.time.ZoneId
 
 data class Condition(
     val field: String,
@@ -45,11 +46,21 @@ data class Condition(
         return options[IGNORE_CASE_OPTION_KEY] as? Boolean
     }
 
+    fun zoneId(): ZoneId? {
+        val zoneIdOptionValue = options[ZONE_ID_OPTION_KEY] ?: return null
+        return when (zoneIdOptionValue) {
+            is String -> ZoneId.of(zoneIdOptionValue)
+            is ZoneId -> zoneIdOptionValue
+            else -> null
+        }
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
 
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
+        const val ZONE_ID_OPTION_KEY = "zoneId"
         val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
         val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
         fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
