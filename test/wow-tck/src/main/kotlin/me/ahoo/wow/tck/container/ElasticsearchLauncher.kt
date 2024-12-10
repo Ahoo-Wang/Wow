@@ -15,17 +15,19 @@ package me.ahoo.wow.tck.container
 
 import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.utility.DockerImageName
+import java.time.Duration
 
 object ElasticsearchLauncher {
     const val ELASTIC_PWD = "wow"
     val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
         DockerImageName
-            .parse("elasticsearch")
+            .parse("docker.elastic.co/elasticsearch/elasticsearch")
             .withTag("8.15.5"),
     )
         .withPassword(ELASTIC_PWD)
         .withNetworkAliases("elasticsearch")
         .withReuse(true)
+        .withStartupTimeout(Duration.ofMinutes(5))
 
     init {
         ELASTICSEARCH_CONTAINER.start()
