@@ -20,7 +20,7 @@ object ElasticsearchLauncher {
     const val ELASTIC_PWD = "wow"
     val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
         DockerImageName
-            .parse("docker.elastic.co/elasticsearch/elasticsearch")
+            .parse("elasticsearch")
             .withTag("8.15.5"),
     )
         .withPassword(ELASTIC_PWD)
