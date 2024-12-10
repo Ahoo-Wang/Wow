@@ -21,7 +21,7 @@ object ElasticsearchLauncher {
     val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
         DockerImageName
             .parse("docker.elastic.co/elasticsearch/elasticsearch")
-            .withTag("8.7.1"),
+            .withTag("8.15.5"),
     )
         .withPassword(ELASTIC_PWD)
         .withNetworkAliases("elasticsearch")
