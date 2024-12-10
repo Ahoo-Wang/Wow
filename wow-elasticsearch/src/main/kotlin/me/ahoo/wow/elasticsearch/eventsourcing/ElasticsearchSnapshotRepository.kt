@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
@@ -74,8 +73,10 @@ class ElasticsearchSnapshotRepository(
             it.index(namedAggregate.toSnapshotIndexName())
                 .query {
                     it.range {
-                        it.field(MessageRecords.AGGREGATE_ID)
-                            .gt(JsonData.of(afterId))
+                        it.term {
+                            it.field(MessageRecords.AGGREGATE_ID)
+                                .gt(afterId)
+                        }
                     }
                 }
                 .source {
