@@ -3,7 +3,7 @@
 springBoot = "3.4.0"
 cosid = "2.10.0"
 simba = "2.6.0"
-coapi="1.9.0"
+coapi="1.8.0"
 testcontainers = "1.20.4"
 opentelemetry = "1.45.0"
 opentelemetryInstrumentation = "2.10.0"
