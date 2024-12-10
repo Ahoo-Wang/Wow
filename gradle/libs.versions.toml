@@ -1,6 +1,6 @@
 [versions]
 # libraries
-springBoot = "3.3.5"
+springBoot = "3.4.0"
 cosid = "2.10.0"
 simba = "2.5.2"
 coapi="1.8.0"
