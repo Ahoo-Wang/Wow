@@ -94,29 +94,37 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
 
     override fun gt(condition: Condition): Query {
         return range {
-            it.field(condition.field)
-                .gte(JsonData.of(condition.value))
+            it.untyped {
+                it.field(condition.field)
+                    .gte(JsonData.of(condition.value))
+            }
         }
     }
 
     override fun lt(condition: Condition): Query {
         return range {
-            it.field(condition.field)
-                .lte(JsonData.of(condition.value))
+            it.untyped {
+                it.field(condition.field)
+                    .lte(JsonData.of(condition.value))
+            }
         }
     }
 
     override fun gte(condition: Condition): Query {
         return range {
-            it.field(condition.field)
-                .gte(JsonData.of(condition.value))
+            it.untyped {
+                it.field(condition.field)
+                    .gte(JsonData.of(condition.value))
+            }
         }
     }
 
     override fun lte(condition: Condition): Query {
         return range {
-            it.field(condition.field)
-                .lte(JsonData.of(condition.value))
+            it.untyped {
+                it.field(condition.field)
+                    .lte(JsonData.of(condition.value))
+            }
         }
     }
 
@@ -156,9 +164,11 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
         }
         val second = ite.next()
         return range {
-            it.field(condition.field)
-                .gte(JsonData.of(first))
-                .lte(JsonData.of(second))
+            it.untyped {
+                it.field(condition.field)
+                    .gte(JsonData.of(first))
+                    .lte(JsonData.of(second))
+            }
         }
     }
 
@@ -167,11 +177,7 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
         return termsSet { builder ->
             builder.field(condition.field)
                 .terms(values)
-                .minimumShouldMatchScript {
-                    it.inline {
-                        it.source(values.size.toString())
-                    }
-                }
+                .minimumShouldMatch(values.size.toString())
         }
     }
 

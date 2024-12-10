@@ -27,6 +27,7 @@ import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.net.URI
+import java.util.function.BiFunction
 
 class GlobalExceptionHandlerTest {
 
@@ -129,13 +130,15 @@ class GlobalExceptionHandlerTest {
         val error = mockk<MessageSourceResolvable> {
             every { defaultMessage } returns "error"
         }
+
         val methodValidationResult = mockk<MethodValidationResult> {
-            every { allValidationResults } returns listOf(
+            every { parameterValidationResults } returns listOf(
                 ParameterValidationResult(
                     methodParameter,
                     "file",
                     listOf(error),
-                    null, null, null
+                    null, null, null,
+                    BiFunction<MessageSourceResolvable, Class<*>, Any> { _, _ -> IllegalArgumentException("No source object of the given type") }
                 )
             )
             every { isForReturnValue } returns false
