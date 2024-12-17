@@ -30,7 +30,9 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.serialization.event.JsonDomainEvent
+import me.ahoo.wow.serialization.event.StateJsonRecord
 import me.ahoo.wow.serialization.event.toDomainEventRecord
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -150,6 +152,21 @@ internal class JsonSerializerTest {
         assertThat(output, notNullValue())
         val input = output.toObject<StateEvent<*>>()
         assertThat(input, equalTo(stateEvent))
+    }
+
+    @Test
+    fun stateEventStreamIfNotFound() {
+        val namedAggregate = "not.found".toNamedAggregate(generateGlobalId())
+        val eventStream = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
+            eventCount = 1,
+        )
+        val stateRoot = mapOf<String, String>("id" to generateGlobalId())
+        val stateEvent = eventStream.toStateEvent(stateRoot)
+        val output = stateEvent.toJsonString()
+        assertThat(output, notNullValue())
+        val input = output.toObject<StateEvent<*>>()
+        assertThat(input.state, instanceOf(StateJsonRecord::class.java))
     }
 
     @Test
