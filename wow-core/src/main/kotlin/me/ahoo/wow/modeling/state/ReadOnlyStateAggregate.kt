@@ -21,7 +21,6 @@ interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version {
 
     val state: S
 
-
     /**
      * 用于生成领域事件版本号.
      */
