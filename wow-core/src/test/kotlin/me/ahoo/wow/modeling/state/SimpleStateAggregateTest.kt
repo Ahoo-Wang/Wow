@@ -111,16 +111,6 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun aggregateType() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
-        val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 1)
-        assertThat(
-            stateAggregate.aggregateType,
-            equalTo<Class<out MockStateAggregate>>(mockAggregate.javaClass),
-        )
-    }
-
-    @Test
     fun sourcing() {
         val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)

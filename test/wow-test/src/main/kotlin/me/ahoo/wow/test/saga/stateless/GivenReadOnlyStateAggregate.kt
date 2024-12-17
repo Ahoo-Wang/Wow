@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 class GivenReadOnlyStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     override val state: S,
-    override val aggregateType: Class<S>,
     override val version: Int,
     override val deleted: Boolean,
     override val eventId: String,
@@ -46,7 +45,6 @@ class GivenReadOnlyStateAggregate<S : Any>(
             return GivenReadOnlyStateAggregate(
                 aggregateId = domainEvent.aggregateId,
                 state = this,
-                aggregateType = this.javaClass,
                 version = domainEvent.version,
                 deleted = false,
                 eventId = domainEvent.id,

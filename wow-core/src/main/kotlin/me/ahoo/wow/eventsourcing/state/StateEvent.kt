@@ -19,8 +19,6 @@ import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
-    override val aggregateType: Class<S>
-        get() = state.javaClass
     override val eventId: String
         get() = id
     override val operator: String

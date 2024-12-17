@@ -15,17 +15,12 @@ package me.ahoo.wow.modeling.state
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.TypedAggregate
 
-interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version, TypedAggregate<S> {
+interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version {
     override val aggregateId: AggregateId
 
     val state: S
 
-    /**
-     * State Aggregation Type
-     */
-    override val aggregateType: Class<S>
 
     /**
      * 用于生成领域事件版本号.
