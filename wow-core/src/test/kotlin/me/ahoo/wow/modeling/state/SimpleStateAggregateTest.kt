@@ -17,7 +17,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
@@ -73,7 +73,7 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun id() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         assertThat(stateAggregate.aggregateId.id, equalTo(mockAggregate.id))
         assertThat(stateAggregate.initialized, equalTo(false))
@@ -85,7 +85,7 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun createWhenFullArgs() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate =
             SimpleStateAggregate(
                 aggregateId = aggregateMetadata.aggregateId(mockAggregate.id),
@@ -98,21 +98,21 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun version() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 1)
         assertThat(stateAggregate.version, equalTo(1))
     }
 
     @Test
     fun aggregateRoot() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 1)
         assertThat(stateAggregate.state, equalTo(mockAggregate))
     }
 
     @Test
     fun sourcing() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
         val domainEventStream = changed.toDomainEventStream(
@@ -126,7 +126,7 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun sourcingGivenFailVersion() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
         val streamHeadVersion = stateAggregate.version + 1
@@ -148,13 +148,13 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun sourcingGivenWrongAggregateId() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
         val streamHeadVersion = stateAggregate.version + 1
         val domainEventStream = changed.toDomainEventStream(
             upstream = GivenInitializationCommand(
-                stateAggregate.aggregateId.aggregateId(GlobalIdGenerator.generateAsString()),
+                stateAggregate.aggregateId.aggregateId(generateGlobalId()),
             ),
             aggregateVersion = streamHeadVersion,
         )
@@ -170,7 +170,7 @@ internal class SimpleStateAggregateTest {
      */
     @Test
     fun sourcingGivenWrongEvent() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val wrongEvent = WrongEvent()
         val domainEventStream = wrongEvent.toDomainEventStream(
@@ -183,10 +183,10 @@ internal class SimpleStateAggregateTest {
 
     @Test
     fun sourcingGivenErrorIgnoreEvent() {
-        val mockAggregate = MockStateAggregate(GlobalIdGenerator.generateAsString())
+        val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val errorIgnoreEvent =
-            ErrorIgnoreEvent(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            ErrorIgnoreEvent(generateGlobalId(), generateGlobalId())
         val domainEventStream = errorIgnoreEvent.toDomainEventStream(
             upstream = GivenInitializationCommand(stateAggregate.aggregateId),
             aggregateVersion = stateAggregate.version,
