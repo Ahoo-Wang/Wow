@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
+import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -30,29 +30,33 @@ import reactor.core.publisher.Mono
 
 class LoadSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-        return snapshotRepository
-            .load<Any>(aggregateId)
+        val singleQuery = singleQuery {
+            condition {
+                tenantId(tenantId)
+                id(id)
+            }
+        }
+        return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadSnapshotHandlerFunctionFactory(
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<LoadSnapshotRouteSpec> {
     override val supportedSpec: Class<LoadSnapshotRouteSpec>
         get() = LoadSnapshotRouteSpec::class.java
 
     override fun create(spec: LoadSnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(spec.aggregateMetadata, snapshotRepository, exceptionHandler)
+        return LoadSnapshotHandlerFunction(spec.aggregateMetadata, snapshotQueryHandler, exceptionHandler)
     }
 }
