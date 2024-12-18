@@ -13,49 +13,16 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.event.CountEventStreamRouteSpec
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.toServerResponse
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.CommandParser.getTenantId
-import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Mono
-
-class CountEventStreamHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : HandlerFunction<ServerResponse> {
-
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(Condition::class.java)
-            .flatMap {
-                val condition = if (tenantId == null) it else it.appendTenantId(tenantId)
-                eventStreamQueryHandler.count(aggregateMetadata, condition)
-                    .writeRawRequest(request)
-            }.toServerResponse(request, exceptionHandler)
-    }
-}
+import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 
 class CountEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryHandler: EventStreamQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<CountEventStreamRouteSpec> {
-    override val supportedSpec: Class<CountEventStreamRouteSpec>
-        get() = CountEventStreamRouteSpec::class.java
-
-    override fun create(spec: CountEventStreamRouteSpec): HandlerFunction<ServerResponse> {
-        return CountEventStreamHandlerFunction(
-            spec.aggregateMetadata,
-            eventStreamQueryHandler,
-            exceptionHandler
-        )
-    }
-}
+    eventStreamQueryHandler: EventStreamQueryHandler,
+    exceptionHandler: RequestExceptionHandler
+) : CountQueryHandlerFunctionFactory<CountEventStreamRouteSpec>(
+    CountEventStreamRouteSpec::class.java,
+    eventStreamQueryHandler,
+    exceptionHandler
+)

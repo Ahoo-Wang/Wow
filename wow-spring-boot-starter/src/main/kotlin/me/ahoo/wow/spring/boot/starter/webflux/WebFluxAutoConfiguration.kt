@@ -38,6 +38,7 @@ import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
+import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
@@ -116,6 +117,7 @@ class WebFluxAutoConfiguration {
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
         const val LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "listQueryEventStreamHandlerFunctionFactory"
+        const val COUNT_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countEventStreamHandlerFunctionFactory"
         const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
         const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
         const val GET_WOW_METADATA_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "getWowMetadataHandlerFunctionFactory"
@@ -425,6 +427,19 @@ class WebFluxAutoConfiguration {
     ): ListQueryEventStreamHandlerFunctionFactory {
         return ListQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [COUNT_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun countEventStreamHandlerFunctionFactory(
+        queryHandler: EventStreamQueryHandler,
+        exceptionHandler: RequestExceptionHandler
+    ): CountEventStreamHandlerFunctionFactory {
+        return CountEventStreamHandlerFunctionFactory(
+            eventStreamQueryHandler = queryHandler,
             exceptionHandler = exceptionHandler
         )
     }

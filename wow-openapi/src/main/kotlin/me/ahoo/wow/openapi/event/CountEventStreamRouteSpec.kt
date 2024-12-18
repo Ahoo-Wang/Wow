@@ -48,7 +48,7 @@ class CountEventStreamRouteSpec(
         get() = "event/count"
 
     override val summary: String
-        get() = "Count event stream"
+        get() = "Count Event Stream"
     override val requestBody: RequestBody = Condition::class.java.toRequestBody()
 
     override val responses: ApiResponses
