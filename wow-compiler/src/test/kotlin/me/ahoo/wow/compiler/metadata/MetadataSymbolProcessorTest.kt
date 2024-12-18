@@ -14,8 +14,8 @@
 package me.ahoo.wow.compiler.metadata
 
 import com.tschuchort.compiletesting.KotlinCompilation
-import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.symbolProcessorProviders
+import me.ahoo.wow.compiler.SourceFiles.toSourceFile
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
@@ -32,11 +32,12 @@ class MetadataSymbolProcessorTest {
         val compilation = KotlinCompilation().apply {
             sources =
                 listOf(
-                    SourceFile.fromPath(mockBoundedContextFile),
-                    SourceFile.fromPath(mockCompilerAggregateFile),
+                    mockBoundedContextFile.toSourceFile(),
+                    mockCompilerAggregateFile.toSourceFile(),
                 )
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -50,11 +51,12 @@ class MetadataSymbolProcessorTest {
         val compilation = KotlinCompilation().apply {
             sources =
                 listOf(
-                    SourceFile.fromPath(mockBoundedContextFile),
-                    SourceFile.fromPath(mockCompilerAggregateFile),
+                    mockBoundedContextFile.toSourceFile(),
+                    mockCompilerAggregateFile.toSourceFile(),
                 )
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
@@ -65,14 +67,15 @@ class MetadataSymbolProcessorTest {
     fun processExample() {
         val exampleApiDir = File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api")
         val exampleApiFiles = exampleApiDir.walkTopDown().filter { it.isFile }.toList()
-            .map { SourceFile.fromPath(it) }
+            .map { it.toSourceFile() }
         val exampleDomainDir = File("../example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain")
         val exampleDomainFiles = exampleDomainDir.walkTopDown().filter { it.isFile }.toList()
-            .map { SourceFile.fromPath(it) }
+            .map { it.toSourceFile() }
         val compilation = KotlinCompilation().apply {
             sources = exampleDomainFiles + exampleApiFiles
             symbolProcessorProviders = mutableListOf(MetadataSymbolProcessorProvider())
             inheritClassPath = true
+            languageVersion = "1.9"
         }
         val result = compilation.compile()
         assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
