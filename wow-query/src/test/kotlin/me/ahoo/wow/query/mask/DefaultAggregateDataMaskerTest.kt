@@ -17,7 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.sameInstance
 import org.hamcrest.MatcherAssert.*
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 class DefaultAggregateDataMaskerTest {
     @Test
     fun main() {
-        val mockStateDataMasker = MockStateDataMasker()
+        val mockStateDataMasker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
         val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)
         val dynamicDocument = mutableMapOf<String, Any>().toDynamicDocument()
@@ -55,7 +55,7 @@ class DefaultAggregateDataMaskerTest {
 
     @Test
     fun maskPagedList() {
-        val mockStateDataMasker = MockStateDataMasker()
+        val mockStateDataMasker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
         val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
@@ -64,7 +64,7 @@ class DefaultAggregateDataMaskerTest {
     }
 }
 
-class MockStateDataMasker : StateDynamicDocumentMasker {
+class MockStateDataMasker(override val namedAggregate: NamedAggregate) : StateDynamicDocumentMasker {
     companion object {
         const val KEY = "key"
         const val VALUE = "value"
@@ -74,7 +74,4 @@ class MockStateDataMasker : StateDynamicDocumentMasker {
         dynamicDocument.put(KEY, VALUE)
         return dynamicDocument
     }
-
-    override val namedAggregate: NamedAggregate
-        get() = "test.test".toNamedAggregate()
 }

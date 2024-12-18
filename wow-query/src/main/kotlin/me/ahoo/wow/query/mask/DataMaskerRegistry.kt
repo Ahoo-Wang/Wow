@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.materialize
 import java.util.concurrent.ConcurrentHashMap
 
 interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> {
@@ -26,19 +27,19 @@ abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMaske
     private val maskers = ConcurrentHashMap<NamedAggregate, AggregateDataMasker<MASKER>>()
 
     override fun register(masker: MASKER) {
-        maskers.compute(masker.namedAggregate) { _, aggregateDataMasker ->
+        maskers.compute(masker.namedAggregate.materialize()) { _, aggregateDataMasker ->
             aggregateDataMasker?.addMasker(masker) ?: DefaultAggregateDataMasker(listOf(masker))
         }
     }
 
     override fun unregister(masker: MASKER) {
-        maskers.compute(masker.namedAggregate) { _, aggregateDataMasker ->
+        maskers.compute(masker.namedAggregate.materialize()) { _, aggregateDataMasker ->
             aggregateDataMasker?.removeMasker(masker) ?: DefaultAggregateDataMasker.empty()
         }
     }
 
     override fun getAggregateDataMasker(namedAggregate: NamedAggregate): AggregateDataMasker<MASKER> {
-        return maskers.computeIfAbsent(namedAggregate) {
+        return maskers.computeIfAbsent(namedAggregate.materialize()) {
             DefaultAggregateDataMasker.empty<MASKER>()
         }
     }
