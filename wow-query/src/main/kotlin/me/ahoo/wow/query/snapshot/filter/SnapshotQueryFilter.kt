@@ -29,47 +29,47 @@ interface SnapshotQueryFilter : Filter<SnapshotQueryContext<*, *, *>>
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
 @Suppress("UNCHECKED_CAST")
-class TailSnapshotQueryFilter<S : Any>(private val snapshotQueryServiceFactory: SnapshotQueryServiceFactory) :
+class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
     SnapshotQueryFilter {
     override fun filter(
         context: SnapshotQueryContext<*, *, *>,
         next: FilterChain<SnapshotQueryContext<*, *, *>>
     ): Mono<Void> {
-        val snapshotQueryService = snapshotQueryServiceFactory.create<S>(context.namedAggregate)
+        val queryService = queryServiceFactory.create<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
                 context as SingleSnapshotQueryContext<MaterializedSnapshot<S>>
-                context.setResult(snapshotQueryService.single(context.getQuery()))
+                context.setResult(queryService.single(context.getQuery()))
             }
 
             QueryType.DYNAMIC_SINGLE -> {
                 context as SingleSnapshotQueryContext<DynamicDocument>
-                context.setResult(snapshotQueryService.dynamicSingle(context.getQuery()))
+                context.setResult(queryService.dynamicSingle(context.getQuery()))
             }
 
             QueryType.LIST -> {
                 context as ListSnapshotQueryContext<MaterializedSnapshot<S>>
-                context.setResult(snapshotQueryService.list(context.getQuery()))
+                context.setResult(queryService.list(context.getQuery()))
             }
 
             QueryType.DYNAMIC_LIST -> {
                 context as ListSnapshotQueryContext<DynamicDocument>
-                context.setResult(snapshotQueryService.dynamicList(context.getQuery()))
+                context.setResult(queryService.dynamicList(context.getQuery()))
             }
 
             QueryType.PAGED -> {
                 context as PagedSnapshotQueryContext<MaterializedSnapshot<S>>
-                context.setResult(snapshotQueryService.paged(context.getQuery()))
+                context.setResult(queryService.paged(context.getQuery()))
             }
 
             QueryType.DYNAMIC_PAGED -> {
                 context as PagedSnapshotQueryContext<DynamicDocument>
-                context.setResult(snapshotQueryService.dynamicPaged(context.getQuery()))
+                context.setResult(queryService.dynamicPaged(context.getQuery()))
             }
 
             QueryType.COUNT -> {
                 context as CountSnapshotQueryContext
-                context.setResult(snapshotQueryService.count(context.getQuery()))
+                context.setResult(queryService.count(context.getQuery()))
             }
         }
         return next.filter(context)

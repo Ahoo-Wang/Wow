@@ -17,35 +17,24 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.snapshot.filter.CountSnapshotQueryContext
-import me.ahoo.wow.query.snapshot.filter.ListSnapshotQueryContext
-import me.ahoo.wow.query.snapshot.filter.PagedSnapshotQueryContext
-import me.ahoo.wow.query.snapshot.filter.QueryType
-import me.ahoo.wow.query.snapshot.filter.SingleSnapshotQueryContext
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryContext
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*>> {
+interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*, *, *>> {
 
-
-    fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<MaterializedSnapshot<S>> {
-        val context = ListSnapshotQueryContext<MaterializedSnapshot<S>>(
+    fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<DomainEventStream> {
+        val context = ListEventStreamQueryContext(
             namedAggregate = namedAggregate,
-            queryType = QueryType.LIST
         ).setQuery(query)
         return handle(context)
-            .checkpoint("List ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
+            .checkpoint("List ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
             .thenMany(
                 Flux.defer {
                     context.getRequiredResult()
@@ -54,12 +43,11 @@ interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*>> {
     }
 
     fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
-        val context = ListSnapshotQueryContext<DynamicDocument>(
+        val context = DynamicListEventStreamQueryContext(
             namedAggregate = namedAggregate,
-            queryType = QueryType.DYNAMIC_LIST
         ).setQuery(query)
         return handle(context)
-            .checkpoint("DynamicList ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
+            .checkpoint("DynamicList ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
             .thenMany(
                 Flux.defer {
                     context.getRequiredResult()
@@ -67,44 +55,10 @@ interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*>> {
             )
     }
 
-    fun <S : Any> paged(
-        namedAggregate: NamedAggregate,
-        pagedQuery: IPagedQuery
-    ): Mono<PagedList<MaterializedSnapshot<S>>> {
-        val context = PagedSnapshotQueryContext<MaterializedSnapshot<S>>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.PAGED
-        ).setQuery(pagedQuery)
-        return handle(context)
-            .checkpoint("Paged ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
-
-    fun dynamicPaged(
-        namedAggregate: NamedAggregate,
-        pagedQuery: IPagedQuery
-    ): Mono<PagedList<DynamicDocument>> {
-        val context = PagedSnapshotQueryContext<DynamicDocument>(
-            namedAggregate = namedAggregate,
-            queryType = QueryType.DYNAMIC_PAGED
-        ).setQuery(pagedQuery)
-        return handle(context)
-            .checkpoint("DynamicPaged ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
-
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = CountSnapshotQueryContext(namedAggregate).setQuery(condition)
+        val context = CountEventStreamQueryContext(namedAggregate).setQuery(condition)
         return handle(context)
-            .checkpoint("Count ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")
+            .checkpoint("Count ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
             .then(
                 Mono.defer {
                     context.getRequiredResult()
@@ -113,10 +67,10 @@ interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*>> {
     }
 }
 
-class DefaultSnapshotQueryHandler(
-    chain: FilterChain<SnapshotQueryContext<*, *, *>>,
-    errorHandler: ErrorHandler<SnapshotQueryContext<*, *, *>> = LogErrorHandler()
-) : SnapshotQueryHandler, AbstractHandler<SnapshotQueryContext<*, *, *>>(
+class DefaultEventStreamQueryHandler(
+    chain: FilterChain<EventStreamQueryContext<*, *, *>>,
+    errorHandler: ErrorHandler<EventStreamQueryContext<*, *, *>> = LogErrorHandler()
+) : EventStreamQueryHandler, AbstractHandler<EventStreamQueryContext<*, *, *>>(
     chain,
     errorHandler,
 )

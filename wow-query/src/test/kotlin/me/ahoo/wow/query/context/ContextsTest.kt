@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.snapshot.filter
+package me.ahoo.wow.query.context
 
 import me.ahoo.wow.query.context.Contexts.getRawRequest
 import me.ahoo.wow.query.context.Contexts.writeRawRequest
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
+import org.hamcrest.CoreMatchers
+import org.hamcrest.MatcherAssert
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -26,7 +26,7 @@ class ContextsTest {
     @Test
     fun writeRawRequest() {
         Mono.deferContextual {
-            assertThat(it.getRawRequest<ContextsTest>(), equalTo(this))
+            MatcherAssert.assertThat(it.getRawRequest<ContextsTest>(), CoreMatchers.equalTo(this))
             Mono.empty<Void>()
         }.writeRawRequest(this)
             .test()

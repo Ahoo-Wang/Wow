@@ -15,7 +15,9 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.context.QueryContext
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -32,17 +34,26 @@ enum class QueryType(val isDynamic: Boolean) {
     COUNT(false),
 }
 
-
-class ListSnapshotQueryContext<R>(
-    override val namedAggregate: NamedAggregate,
-    override val queryType: QueryType,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : EventStreamQueryContext<ListSnapshotQueryContext<R>, IListQuery, Flux<R>>
-
-class CountSnapshotQueryContext(
+class ListEventStreamQueryContext(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : EventStreamQueryContext<CountSnapshotQueryContext, Condition, Mono<Long>> {
+) : EventStreamQueryContext<ListEventStreamQueryContext, IListQuery, Flux<DomainEventStream>> {
+    override val queryType: QueryType
+        get() = QueryType.LIST
+}
+
+class DynamicListEventStreamQueryContext(
+    override val namedAggregate: NamedAggregate,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : EventStreamQueryContext<DynamicListEventStreamQueryContext, IListQuery, Flux<DynamicDocument>> {
+    override val queryType: QueryType
+        get() = QueryType.DYNAMIC_LIST
+}
+
+class CountEventStreamQueryContext(
+    override val namedAggregate: NamedAggregate,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : EventStreamQueryContext<CountEventStreamQueryContext, Condition, Mono<Long>> {
     override val queryType: QueryType
         get() = QueryType.COUNT
 }

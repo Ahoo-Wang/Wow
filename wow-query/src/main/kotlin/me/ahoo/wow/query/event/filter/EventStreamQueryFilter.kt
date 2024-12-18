@@ -15,43 +15,41 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import reactor.core.publisher.Mono
 
-@Suppress("UNCHECKED_CAST")
-@Order(ORDER_LAST, before = [TailEventStreamQueryFilter::class])
 @FilterType(EventStreamQueryHandler::class)
-class MaskingEventStreamQueryFilter(
-    private val maskerRegistry: EventStreamMaskerRegistry
-) : EventStreamQueryFilter {
+interface EventStreamQueryFilter : Filter<EventStreamQueryContext<*, *, *>>
+
+@Order(ORDER_LAST)
+@FilterType(EventStreamQueryHandler::class)
+@Suppress("UNCHECKED_CAST")
+class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQueryServiceFactory) :
+    EventStreamQueryFilter {
     override fun filter(
         context: EventStreamQueryContext<*, *, *>,
         next: FilterChain<EventStreamQueryContext<*, *, *>>
     ): Mono<Void> {
-        return next.filter(context).then(
-            Mono.defer {
-                tryMask(context)
-                Mono.empty()
+        val queryService = queryServiceFactory.create(context.namedAggregate)
+        when (context.queryType) {
+            QueryType.LIST -> {
+                context as ListEventStreamQueryContext
+                context.setResult(queryService.list(context.getQuery()))
             }
-        )
-    }
 
-    @Suppress("LongMethod")
-    private fun tryMask(context: EventStreamQueryContext<*, *, *>) {
-        if (context.queryType != QueryType.DYNAMIC_LIST) {
-            return
-        }
-        val aggregateDataMasker = maskerRegistry.getAggregateDataMasker(context.namedAggregate)
-        if (aggregateDataMasker.isEmpty()) {
-            return
-        }
-        context as DynamicListEventStreamQueryContext
-        context.rewriteResult { result ->
-            result.map {
-                aggregateDataMasker.mask(it)
+            QueryType.DYNAMIC_LIST -> {
+                context as DynamicListEventStreamQueryContext
+                context.setResult(queryService.dynamicList(context.getQuery()))
+            }
+
+            QueryType.COUNT -> {
+                context as CountEventStreamQueryContext
+                context.setResult(queryService.count(context.getQuery()))
             }
         }
+        return next.filter(context)
     }
 }
