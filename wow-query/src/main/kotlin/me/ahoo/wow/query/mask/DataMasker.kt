@@ -18,12 +18,12 @@ import me.ahoo.wow.api.query.DynamicDocument
 
 interface DataMasker
 
-interface DynamicDocumentDataMasker {
+interface DynamicDocumentMasker {
     fun mask(dynamicDocument: DynamicDocument): DynamicDocument
 }
 
-interface AggregateDynamicDocumentDataMasker : DynamicDocumentDataMasker, NamedAggregateDecorator
+interface AggregateDynamicDocumentMasker : DynamicDocumentMasker, NamedAggregateDecorator
 
-interface StateDataMasker : AggregateDynamicDocumentDataMasker
+interface StateDynamicDocumentMasker : AggregateDynamicDocumentMasker
 
-interface EventStreamDataMasker : AggregateDynamicDocumentDataMasker
+interface EventStreamDynamicDocumentMasker : AggregateDynamicDocumentMasker

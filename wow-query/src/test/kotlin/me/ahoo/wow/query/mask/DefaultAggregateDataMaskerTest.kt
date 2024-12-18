@@ -27,7 +27,7 @@ class DefaultAggregateDataMaskerTest {
     @Test
     fun main() {
         val mockStateDataMasker = MockStateDataMasker()
-        val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDataMasker>()
+        val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)
         val dynamicDocument = mutableMapOf<String, Any>().toDynamicDocument()
         aggregateDataMasker.mask(dynamicDocument)
@@ -40,7 +40,7 @@ class DefaultAggregateDataMaskerTest {
     @Test
     fun maskEmptyPagedList() {
         val pagedList = PagedList(0, emptyList<DynamicDocument>())
-        val maskedPagedList = DefaultAggregateDataMasker.empty<StateDataMasker>()
+        val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
         assertThat(maskedPagedList, sameInstance(pagedList))
     }
@@ -48,7 +48,7 @@ class DefaultAggregateDataMaskerTest {
     @Test
     fun maskPagedListEmptyMasker() {
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
-        val maskedPagedList = DefaultAggregateDataMasker.empty<StateDataMasker>()
+        val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
         assertThat(maskedPagedList, sameInstance(pagedList))
     }
@@ -56,7 +56,7 @@ class DefaultAggregateDataMaskerTest {
     @Test
     fun maskPagedList() {
         val mockStateDataMasker = MockStateDataMasker()
-        val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDataMasker>()
+        val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
         val maskedPagedList = aggregateDataMasker.mask(pagedList)
@@ -64,7 +64,7 @@ class DefaultAggregateDataMaskerTest {
     }
 }
 
-class MockStateDataMasker : StateDataMasker {
+class MockStateDataMasker : StateDynamicDocumentMasker {
     companion object {
         const val KEY = "key"
         const val VALUE = "value"

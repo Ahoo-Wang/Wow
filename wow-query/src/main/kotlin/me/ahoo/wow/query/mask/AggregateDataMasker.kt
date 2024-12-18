@@ -17,7 +17,7 @@ import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 
-interface AggregateDataMasker<MASKER : DynamicDocumentDataMasker> : DynamicDocumentDataMasker {
+interface AggregateDataMasker<MASKER : DynamicDocumentMasker> : DynamicDocumentMasker {
     val maskers: List<MASKER>
     fun isEmpty(): Boolean = maskers.isEmpty()
     fun addMasker(masker: MASKER): AggregateDataMasker<MASKER>
@@ -25,7 +25,7 @@ interface AggregateDataMasker<MASKER : DynamicDocumentDataMasker> : DynamicDocum
     override fun mask(dynamicDocument: DynamicDocument): DynamicDocument
 }
 
-class DefaultAggregateDataMasker<MASKER : DynamicDocumentDataMasker>(override val maskers: List<MASKER>) :
+class DefaultAggregateDataMasker<MASKER : DynamicDocumentMasker>(override val maskers: List<MASKER>) :
     AggregateDataMasker<MASKER> {
     override fun addMasker(masker: MASKER): AggregateDataMasker<MASKER> {
         val sortedMaskers = (maskers + masker).sortedByOrder()
@@ -48,15 +48,15 @@ class DefaultAggregateDataMasker<MASKER : DynamicDocumentDataMasker>(override va
     }
 
     companion object {
-        val EMPTY = DefaultAggregateDataMasker<DynamicDocumentDataMasker>(emptyList())
+        val EMPTY = DefaultAggregateDataMasker<DynamicDocumentMasker>(emptyList())
 
         @Suppress("UNCHECKED_CAST")
-        fun <MASKER : DynamicDocumentDataMasker> empty(): DefaultAggregateDataMasker<MASKER> =
+        fun <MASKER : DynamicDocumentMasker> empty(): DefaultAggregateDataMasker<MASKER> =
             EMPTY as DefaultAggregateDataMasker<MASKER>
     }
 }
 
-fun <MASKER : DynamicDocumentDataMasker> AggregateDataMasker<MASKER>.mask(pagedList: PagedList<DynamicDocument>): PagedList<DynamicDocument> {
+fun <MASKER : DynamicDocumentMasker> AggregateDataMasker<MASKER>.mask(pagedList: PagedList<DynamicDocument>): PagedList<DynamicDocument> {
     if (pagedList.list.isEmpty() || isEmpty()) {
         return pagedList
     }

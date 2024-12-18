@@ -16,13 +16,13 @@ package me.ahoo.wow.query.mask
 import me.ahoo.wow.api.modeling.NamedAggregate
 import java.util.concurrent.ConcurrentHashMap
 
-interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentDataMasker> {
+interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> {
     fun register(masker: MASKER)
     fun unregister(masker: MASKER)
     fun getAggregateDataMasker(namedAggregate: NamedAggregate): AggregateDataMasker<MASKER>
 }
 
-abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentDataMasker> : DataMaskerRegistry<MASKER> {
+abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> : DataMaskerRegistry<MASKER> {
     private val maskers = ConcurrentHashMap<NamedAggregate, AggregateDataMasker<MASKER>>()
 
     override fun register(masker: MASKER) {
@@ -44,6 +44,6 @@ abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentDataM
     }
 }
 
-object StateDataMaskerRegistry : AbstractDataMaskerRegistry<StateDataMasker>()
+object StateDataMaskerRegistry : AbstractDataMaskerRegistry<StateDynamicDocumentMasker>()
 
-object EventStreamDataMaskerRegistry : AbstractDataMaskerRegistry<EventStreamDataMasker>()
+object EventStreamDataMaskerRegistry : AbstractDataMaskerRegistry<EventStreamDynamicDocumentMasker>()
