@@ -60,7 +60,7 @@ class ElasticsearchEventStreamQueryService(
             .flatMapIterable { result ->
                 result.hits()?.hits()?.map { hit ->
                     hit.source()?.let {
-                        (it as Map<String, Any>).toDynamicDocument()
+                        (it as MutableMap<String, Any>).toDynamicDocument()
                     }
                 } as List<DynamicDocument>? ?: emptyList()
             }

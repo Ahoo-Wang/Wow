@@ -19,6 +19,8 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
+import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
@@ -47,9 +49,21 @@ import org.springframework.context.annotation.Import
 @Import(SnapshotQueryServiceRegistrar::class, EventStreamQueryServiceRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
+
     @Bean
-    fun maskingSnapshotQueryFilter(): SnapshotQueryFilter {
-        return MaskingSnapshotQueryFilter
+    fun stateDataMaskerRegistry(
+        maskers: List<StateDynamicDocumentMasker>
+    ): StateDataMaskerRegistry {
+        val stateDataMaskerRegistry = StateDataMaskerRegistry()
+        maskers.forEach {
+            stateDataMaskerRegistry.register(it)
+        }
+        return stateDataMaskerRegistry
+    }
+
+    @Bean
+    fun maskingSnapshotQueryFilter(stateDataMaskerRegistry: StateDataMaskerRegistry): SnapshotQueryFilter {
+        return MaskingSnapshotQueryFilter(stateDataMaskerRegistry)
     }
 
     @Bean

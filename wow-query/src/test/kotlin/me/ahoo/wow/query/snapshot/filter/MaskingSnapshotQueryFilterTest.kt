@@ -15,20 +15,26 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DataMasking
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.mask.DataMasking
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
+import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilterTest.DataMaskable.Companion.MASKED_PWD
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -39,8 +45,9 @@ import reactor.kotlin.test.test
 
 class MaskingSnapshotQueryFilterTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(MockSnapshotQueryServiceFactory)
+    private val stateDataMaskerRegistry = StateDataMaskerRegistry()
     private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter))
+        .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
     private val queryHandler = DefaultSnapshotQueryHandler(
@@ -48,24 +55,50 @@ class MaskingSnapshotQueryFilterTest {
         LogErrorHandler()
     )
 
+    init {
+        stateDataMaskerRegistry.register(MockSnapshotMasker)
+    }
+
     @Test
     fun single() {
         val query = singleQuery { }
         queryHandler.single<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.state.pwd, equalTo("******"))
+                assertThat(it.state.pwd, equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }
 
     @Test
-    fun query() {
+    fun dynamicSingle() {
+        val query = singleQuery { }
+        queryHandler.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
+            .test()
+            .consumeNextWith {
+                assertThat(it.getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun list() {
         val query = listQuery { }
         queryHandler.list<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.state.pwd, equalTo("******"))
+                assertThat(it.state.pwd, equalTo(MASKED_PWD))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicList() {
+        val query = listQuery { }
+        queryHandler.dynamicList(MockSnapshotQueryService.namedAggregate, query)
+            .test()
+            .consumeNextWith {
+                assertThat(it.getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }
@@ -77,7 +110,19 @@ class MaskingSnapshotQueryFilterTest {
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(1))
-                assertThat(it.list.first().state.pwd, equalTo("******"))
+                assertThat(it.list.first().state.pwd, equalTo(MASKED_PWD))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicPaged() {
+        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
+        queryHandler.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(1))
+                assertThat(it.list.first().getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }
@@ -93,8 +138,22 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     data class DataMaskable(val pwd: String) : DataMasking<DataMaskable> {
+        companion object {
+            const val MASKED_PWD = "******"
+        }
+
         override fun mask(): DataMaskable {
-            return copy(pwd = "******")
+            return copy(pwd = MASKED_PWD)
+        }
+    }
+
+    object MockSnapshotMasker : StateDynamicDocumentMasker {
+        override val namedAggregate: NamedAggregate
+            get() = MockSnapshotQueryService.namedAggregate
+
+        override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
+            dynamicDocument.getNestedDocument("state").put("pwd", MASKED_PWD)
+            return dynamicDocument
         }
     }
 
@@ -124,12 +183,14 @@ class MaskingSnapshotQueryFilterTest {
             deleted = false
         )
 
+        private val dynamicDocument = snapshot.toJsonString().toObject<MutableMap<String, Any>>().toDynamicDocument()
+
         override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<DataMaskable>> {
             return snapshot.toMono()
         }
 
         override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
-            return Mono.empty()
+            return dynamicDocument.toMono()
         }
 
         override fun list(listQuery: IListQuery): Flux<MaterializedSnapshot<DataMaskable>> {
@@ -137,7 +198,7 @@ class MaskingSnapshotQueryFilterTest {
         }
 
         override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
-            return Flux.empty()
+            return Flux.just(dynamicDocument)
         }
 
         override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<DataMaskable>>> {
@@ -145,7 +206,7 @@ class MaskingSnapshotQueryFilterTest {
         }
 
         override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
-            return PagedList.empty<DynamicDocument>().toMono()
+            return PagedList(1, listOf(dynamicDocument)).toMono()
         }
 
         override fun count(condition: Condition): Mono<Long> {
