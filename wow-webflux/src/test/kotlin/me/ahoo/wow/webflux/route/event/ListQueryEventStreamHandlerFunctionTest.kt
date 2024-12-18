@@ -4,15 +4,8 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
-import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.EventStreamQueryContext
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -25,22 +18,13 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 class ListQueryEventStreamHandlerFunctionTest {
-    private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<EventStreamQueryContext<*, *, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter))
-        .filterCondition(EventStreamQueryHandler::class)
-        .build()
-    private val queryHandler = DefaultEventStreamQueryHandler(
-        queryFilterChain,
-        LogErrorHandler()
-    )
 
     @Test
     fun handle() {
         val handlerFunction =
             ListQueryEventStreamHandlerFunctionFactory(
-                queryHandler,
-                DefaultRequestExceptionHandler
+                eventStreamQueryHandler = MockQueryHandler.queryHandler,
+                exceptionHandler = DefaultRequestExceptionHandler
             )
                 .create(
                     ListQueryEventStreamRouteSpec(
