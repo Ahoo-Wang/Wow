@@ -20,6 +20,14 @@ interface DataMasking<SOURCE : DataMasking<SOURCE>> : DataMasker {
     fun mask(): SOURCE
 }
 
+fun <S : Any> S.tryMask(): S {
+    if (this is DataMasking<*>) {
+        @Suppress("UNCHECKED_CAST")
+        return this.mask() as S
+    }
+    return this
+}
+
 fun <S : Any> MaterializedSnapshot<S>.tryMask(): MaterializedSnapshot<S> {
     val state = this.state
     if (state is DataMasking<*>) {

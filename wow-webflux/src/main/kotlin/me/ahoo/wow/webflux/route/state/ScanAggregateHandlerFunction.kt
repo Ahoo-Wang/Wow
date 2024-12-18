@@ -18,6 +18,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.ScanAggregateRouteSpec
+import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -44,7 +45,7 @@ class ScanAggregateHandlerFunction(
             stateAggregateRepository.load<Any>(it)
         }.filter {
             it.initialized && !it.deleted
-        }.map { it.state }
+        }.map { it.state.tryMask() }
             .collectList()
             .toServerResponse(request, exceptionHandler)
     }
