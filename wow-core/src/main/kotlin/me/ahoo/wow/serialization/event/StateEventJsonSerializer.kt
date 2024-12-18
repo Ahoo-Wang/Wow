@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.configuration.aggregateType
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -44,12 +44,17 @@ object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::c
         val stateEventRecord = p.codec.readTree<ObjectNode>(p)
         val eventStream = stateEventRecord.toEventStreamRecord()
             .toDomainEventStream()
-        val metadata = eventStream.requiredAggregateType<Any>()
-            .aggregateMetadata<Any, Any>().state
         val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asText().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateEventRecord[DELETED].asBoolean()
-        val stateRoot = stateEventRecord[STATE].toObject(metadata.aggregateType)
+        val stateRecord = stateEventRecord[STATE] as ObjectNode
+        val aggregateType = eventStream.aggregateType<Any>()
+        val stateRoot = if (aggregateType == null) {
+            StateJsonRecord(stateRecord)
+        } else {
+            val stateMetadata = aggregateType.aggregateMetadata<Any, Any>().state
+            stateRecord.toObject(stateMetadata.aggregateType)
+        }
         return eventStream.toStateEvent(
             state = stateRoot,
             firstOperator = firstOperator,
