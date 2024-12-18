@@ -227,11 +227,11 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadSnapshotHandlerFunctionFactory(
-        snapshotRepository: SnapshotRepository,
+        snapshotQueryHandler: SnapshotQueryHandler,
         exceptionHandler: RequestExceptionHandler
     ): LoadSnapshotHandlerFunctionFactory {
         return LoadSnapshotHandlerFunctionFactory(
-            snapshotRepository = snapshotRepository,
+            snapshotQueryHandler = snapshotQueryHandler,
             exceptionHandler = exceptionHandler
         )
     }
