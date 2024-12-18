@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query.event
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
@@ -30,7 +31,9 @@ import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 
 class MongoEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
@@ -57,5 +60,10 @@ class MongoEventStreamQueryService(
             .map {
                 it.replacePrimaryKeyToId().toDynamicDocument()
             }
+    }
+
+    override fun count(condition: Condition): Mono<Long> {
+        val filter = converter.convert(condition)
+        return collection.countDocuments(filter).toMono()
     }
 }

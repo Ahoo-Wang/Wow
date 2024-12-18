@@ -15,14 +15,17 @@ package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 interface EventStreamQueryService : NamedAggregateDecorator {
     fun list(listQuery: IListQuery): Flux<DomainEventStream>
     fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument>
+    fun count(condition: Condition): Mono<Long>
 }
 
 class NoOpEventStreamQueryService(override val namedAggregate: NamedAggregate) : EventStreamQueryService {
@@ -32,5 +35,9 @@ class NoOpEventStreamQueryService(override val namedAggregate: NamedAggregate) :
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         return Flux.empty()
+    }
+
+    override fun count(condition: Condition): Mono<Long> {
+        return Mono.just(0)
     }
 }
