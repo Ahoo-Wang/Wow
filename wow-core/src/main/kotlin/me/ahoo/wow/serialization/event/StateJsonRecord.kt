@@ -16,4 +16,6 @@ package me.ahoo.wow.serialization.event
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.serialization.JsonRecord
 
-data class StateJsonRecord(override val actual: ObjectNode) : JsonRecord
+interface StateRecord : JsonRecord
+
+data class StateJsonRecord(override val actual: ObjectNode) : StateRecord
