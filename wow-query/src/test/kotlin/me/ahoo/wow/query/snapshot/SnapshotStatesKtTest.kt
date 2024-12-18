@@ -39,7 +39,7 @@ class SnapshotStatesKtTest {
 
     @Test
     fun dyToState() {
-        val snapshot = SimpleDynamicDocument(mapOf("state" to SimpleDynamicDocument(mapOf("id" to "id"))))
+        val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         snapshot.toMono().toStateDocument().test().consumeNextWith {
             assertThat(it.getValue<String>("id"), equalTo("id"))
         }.verifyComplete()
@@ -55,7 +55,7 @@ class SnapshotStatesKtTest {
 
     @Test
     fun dyFluxToState() {
-        val snapshot = SimpleDynamicDocument(mapOf("state" to SimpleDynamicDocument(mapOf("id" to "id"))))
+        val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         Flux.just(snapshot).toStateDocument().test().consumeNextWith {
             assertThat(it.getValue<String>("id"), equalTo("id"))
         }.verifyComplete()
@@ -75,7 +75,7 @@ class SnapshotStatesKtTest {
     @Test
     fun dyToStatePagedList() {
         val snapshot = SimpleDynamicDocument(
-            mapOf("state" to SimpleDynamicDocument(mapOf("id" to "id")))
+            mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id")))
         ) as DynamicDocument
         val pagedList = PagedList(1, listOf(snapshot))
         Mono.just(pagedList).toStateDocumentPagedList().test()

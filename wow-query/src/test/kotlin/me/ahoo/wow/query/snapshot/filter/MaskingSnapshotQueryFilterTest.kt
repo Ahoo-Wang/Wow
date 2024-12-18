@@ -15,7 +15,6 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DataMasking
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -27,6 +26,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.mask.DataMasking
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import org.hamcrest.CoreMatchers.equalTo

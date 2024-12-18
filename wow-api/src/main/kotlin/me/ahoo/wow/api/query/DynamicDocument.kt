@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-interface DynamicDocument : Map<String, Any> {
+interface DynamicDocument : MutableMap<String, Any> {
     @Suppress("UNCHECKED_CAST")
     fun <V> getValue(key: String): V {
         return get(key) as V
@@ -22,13 +22,13 @@ interface DynamicDocument : Map<String, Any> {
     fun getNestedDocument(key: String): DynamicDocument
 }
 
-class SimpleDynamicDocument(val delegation: Map<String, Any>) : DynamicDocument, Map<String, Any> by delegation {
+class SimpleDynamicDocument(val delegation: MutableMap<String, Any>) : DynamicDocument, MutableMap<String, Any> by delegation {
 
     override fun getNestedDocument(key: String): DynamicDocument {
         return getValue<DynamicDocument>(key).toDynamicDocument()
     }
 
     companion object {
-        fun Map<String, Any>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(this)
+        fun MutableMap<String, Any>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(this)
     }
 }

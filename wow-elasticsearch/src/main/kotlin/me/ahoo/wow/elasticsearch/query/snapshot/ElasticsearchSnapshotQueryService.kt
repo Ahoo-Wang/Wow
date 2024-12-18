@@ -113,7 +113,7 @@ class ElasticsearchSnapshotQueryService<S : Any>(
             .mapNotNull<PagedList<DynamicDocument>> { result ->
                 val list = result.hits()?.hits()?.map { hit ->
                     hit.source()?.let {
-                        (it as Map<String, Any>).toDynamicDocument()
+                        (it as MutableMap<String, Any>).toDynamicDocument()
                     }
                 } as List<DynamicDocument>? ?: emptyList()
                 PagedList(result.hits()?.total()?.value() ?: 0, list)

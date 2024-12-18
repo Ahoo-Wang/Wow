@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.query.mask
 
-interface DataMasking<SOURCE : DataMasking<SOURCE>> {
+import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.PagedList
+
+interface DataMasking<SOURCE : DataMasking<SOURCE>> : DataMasker {
     fun mask(): SOURCE
 }
 

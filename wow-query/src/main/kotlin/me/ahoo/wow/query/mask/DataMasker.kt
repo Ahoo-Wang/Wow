@@ -11,9 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query
+package me.ahoo.wow.query.mask
 
-interface DataMasker<S : Any> {
-    fun mask(snapshot: MaterializedSnapshot<S>): MaterializedSnapshot<S>
+import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.query.DynamicDocument
+
+interface DataMasker
+
+interface DynamicDocumentDataMasker {
     fun mask(dynamicDocument: DynamicDocument): DynamicDocument
 }
+
+interface AggregateDynamicDocumentDataMasker : DynamicDocumentDataMasker, NamedAggregateDecorator
+
+interface StateDataMasker : AggregateDynamicDocumentDataMasker
+
+interface EventStreamDataMasker : AggregateDynamicDocumentDataMasker
