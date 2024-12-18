@@ -11,25 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.context
+package me.ahoo.wow.query.filter
 
-import me.ahoo.wow.query.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.filter.Handler
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.test.test
 
-class ContextsTest {
-
-    @Test
-    fun writeRawRequest() {
-        Mono.deferContextual {
-            MatcherAssert.assertThat(it.getRawRequest<ContextsTest>(), CoreMatchers.equalTo(this))
-            Mono.empty<Void>()
-        }.writeRawRequest(this)
-            .test()
-            .verifyComplete()
-    }
+interface QueryHandler<CONTEXT : QueryContext<*, *, *>> : Handler<CONTEXT> {
+    fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument>
+    fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long>
 }
