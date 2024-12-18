@@ -11,25 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.snapshot.filter
+package me.ahoo.wow.query.context
 
-import me.ahoo.wow.query.snapshot.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.snapshot.filter.Contexts.writeRawRequest
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
-import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.kotlin.test.test
+import reactor.util.context.ContextView
 
-class ContextsTest {
+object Contexts {
+    private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
 
-    @Test
-    fun writeRawRequest() {
-        Mono.deferContextual {
-            assertThat(it.getRawRequest<ContextsTest>(), equalTo(this))
-            Mono.empty<Void>()
-        }.writeRawRequest(this)
-            .test()
-            .verifyComplete()
+    fun <T> Mono<T>.writeRawRequest(request: Any): Mono<T> {
+        return this.contextWrite {
+            it.put(RAW_REQUEST_KEY, request)
+        }
+    }
+
+    fun <R> ContextView.getRawRequest(): R? {
+        @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
+        return this.getOrDefault(RAW_REQUEST_KEY, null)
     }
 }
