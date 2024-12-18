@@ -24,13 +24,13 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.filter.QueryHandler
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
+interface SnapshotQueryHandler : QueryHandler<SnapshotQueryContext<*, *, *>> {
     fun <S : Any> single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
         val context = SingleSnapshotQueryContext<MaterializedSnapshot<S>>(
             namedAggregate = namedAggregate,
@@ -73,7 +73,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
+    override fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
         val context = ListSnapshotQueryContext<DynamicDocument>(
             namedAggregate = namedAggregate,
             queryType = QueryType.DYNAMIC_LIST
@@ -121,7 +121,7 @@ interface SnapshotQueryHandler : Handler<SnapshotQueryContext<*, *, *>> {
             )
     }
 
-    fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
+    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
         val context = CountSnapshotQueryContext(namedAggregate).setQuery(condition)
         return handle(context)
             .checkpoint("Count ${namedAggregate.toStringWithAlias()} [SnapshotQueryHandler]")

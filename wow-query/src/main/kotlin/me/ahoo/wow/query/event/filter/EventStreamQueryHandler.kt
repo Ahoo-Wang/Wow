@@ -21,13 +21,13 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.filter.QueryHandler
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*, *, *>> {
+interface EventStreamQueryHandler : QueryHandler<EventStreamQueryContext<*, *, *>> {
 
     fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<DomainEventStream> {
         val context = ListEventStreamQueryContext(
@@ -42,7 +42,7 @@ interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*, *, *>> {
             )
     }
 
-    fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
+    override fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
         val context = DynamicListEventStreamQueryContext(
             namedAggregate = namedAggregate,
         ).setQuery(query)
@@ -55,7 +55,7 @@ interface EventStreamQueryHandler : Handler<EventStreamQueryContext<*, *, *>> {
             )
     }
 
-    fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
+    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
         val context = CountEventStreamQueryContext(namedAggregate).setQuery(condition)
         return handle(context)
             .checkpoint("Count ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")

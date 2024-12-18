@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.context
+package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 
