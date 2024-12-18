@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpec
-import me.ahoo.wow.query.context.Contexts.writeRawRequest
+import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocumentPagedList
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
