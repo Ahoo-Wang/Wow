@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.snapshot.filter
+package me.ahoo.wow.query.context
 
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView

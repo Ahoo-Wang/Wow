@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
-import me.ahoo.wow.query.snapshot.filter.Contexts.getRawRequest
-import me.ahoo.wow.query.snapshot.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.context.Contexts.getRawRequest
+import me.ahoo.wow.query.context.Contexts.writeRawRequest
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
