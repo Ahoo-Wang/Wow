@@ -2,7 +2,6 @@ package me.ahoo.wow.webflux.route.event
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandHeaders
@@ -21,9 +20,8 @@ class LoadEventStreamHandlerFunctionTest {
 
     @Test
     fun handle() {
-        val eventStore = InMemoryEventStore()
         val handlerFunction = LoadEventStreamHandlerFunctionFactory(
-            eventStore = eventStore,
+            eventStreamQueryHandler = MockQueryHandler.queryHandler,
             DefaultRequestExceptionHandler
         )
             .create(LoadEventStreamRouteSpec(MOCK_AGGREGATE_METADATA, aggregateMetadata = MOCK_AGGREGATE_METADATA))

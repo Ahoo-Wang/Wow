@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -29,35 +30,38 @@ import reactor.core.publisher.Mono
 
 class LoadEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStore: EventStore,
+    private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) :
-    HandlerFunction<ServerResponse> {
+) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val headVersion = request.pathVariable(RoutePaths.HEAD_VERSION_KEY).toInt()
         val tailVersion = request.pathVariable(RoutePaths.TAIL_VERSION_KEY).toInt()
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-        return eventStore
-            .load(
-                aggregateId = aggregateId,
-                headVersion = headVersion,
-                tailVersion = tailVersion
-            ).collectList()
+        val limit = tailVersion - headVersion + 1
+        val listQuery = listQuery {
+            condition {
+                tenantId(tenantId)
+                MessageRecords.AGGREGATE_ID to id
+                MessageRecords.VERSION between headVersion to tailVersion
+            }
+            limit(limit)
+        }
+        return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
+            .collectList()
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
-    private val eventStore: EventStore,
+    private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<LoadEventStreamRouteSpec> {
     override val supportedSpec: Class<LoadEventStreamRouteSpec>
         get() = LoadEventStreamRouteSpec::class.java
 
     override fun create(spec: LoadEventStreamRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadEventStreamHandlerFunction(spec.aggregateMetadata, eventStore, exceptionHandler)
+        return LoadEventStreamHandlerFunction(spec.aggregateMetadata, eventStreamQueryHandler, exceptionHandler)
     }
 }

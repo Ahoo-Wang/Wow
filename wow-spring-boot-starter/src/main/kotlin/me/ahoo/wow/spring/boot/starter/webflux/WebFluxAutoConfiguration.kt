@@ -407,10 +407,13 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun loadEventStreamHandlerFunctionFactory(
-        eventStore: EventStore,
+        eventStreamQueryHandler: EventStreamQueryHandler,
         exceptionHandler: RequestExceptionHandler
     ): LoadEventStreamHandlerFunctionFactory {
-        return LoadEventStreamHandlerFunctionFactory(eventStore = eventStore, exceptionHandler = exceptionHandler)
+        return LoadEventStreamHandlerFunctionFactory(
+            eventStreamQueryHandler = eventStreamQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean
