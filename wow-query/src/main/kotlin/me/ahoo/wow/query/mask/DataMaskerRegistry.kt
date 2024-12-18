@@ -56,6 +56,6 @@ abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMaske
     }
 }
 
-object StateDataMaskerRegistry : AbstractDataMaskerRegistry<StateDynamicDocumentMasker>()
+class StateDataMaskerRegistry : AbstractDataMaskerRegistry<StateDynamicDocumentMasker>()
 
-object EventStreamDataMaskerRegistry : AbstractDataMaskerRegistry<EventStreamDynamicDocumentMasker>()
+class EventStreamDataMaskerRegistry : AbstractDataMaskerRegistry<EventStreamDynamicDocumentMasker>()

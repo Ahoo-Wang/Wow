@@ -25,24 +25,26 @@ class StateDataMaskerRegistryTest {
 
     @Test
     fun main() {
+        val stateDataMaskerRegistry = StateDataMaskerRegistry()
         val masker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
-        StateDataMaskerRegistry.unregister(masker)
-        StateDataMaskerRegistry.register(masker)
-        val aggregateDataMasker = StateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
+        stateDataMaskerRegistry.unregister(masker)
+        stateDataMaskerRegistry.register(masker)
+        val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
         assertThat(aggregateDataMasker.maskers.size, equalTo(1))
         assertThat(aggregateDataMasker.maskers.first(), sameInstance(masker))
-        StateDataMaskerRegistry.register(masker)
+        stateDataMaskerRegistry.register(masker)
         val aggregateDataMasker2 =
-            StateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
+            stateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
         assertThat(aggregateDataMasker2.maskers.size, equalTo(2))
-        StateDataMaskerRegistry.unregister(masker)
-        StateDataMaskerRegistry.unregister(masker)
+        stateDataMaskerRegistry.unregister(masker)
+        stateDataMaskerRegistry.unregister(masker)
     }
 
     @Test
     fun getEmpty() {
+        val stateDataMaskerRegistry = StateDataMaskerRegistry()
         val namedAggregate = "${generateGlobalId()}.${generateGlobalId()}".toNamedAggregate()
-        val aggregateDataMasker = StateDataMaskerRegistry.getAggregateDataMasker(namedAggregate)
+        val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(namedAggregate)
         assertThat(aggregateDataMasker.maskers.isEmpty(), equalTo(true))
     }
 }

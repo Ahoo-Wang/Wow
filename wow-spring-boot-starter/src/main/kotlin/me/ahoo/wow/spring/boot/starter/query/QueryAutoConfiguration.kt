@@ -49,9 +49,21 @@ import org.springframework.context.annotation.Import
 @Import(SnapshotQueryServiceRegistrar::class, EventStreamQueryServiceRegistrar::class)
 @ConditionalOnWowEnabled
 class QueryAutoConfiguration {
+
     @Bean
-    fun maskingSnapshotQueryFilter(): SnapshotQueryFilter {
-        return MaskingSnapshotQueryFilter
+    fun stateDataMaskerRegistry(
+        maskers: List<StateDynamicDocumentMasker>
+    ): StateDataMaskerRegistry {
+        val stateDataMaskerRegistry = StateDataMaskerRegistry()
+        maskers.forEach {
+            stateDataMaskerRegistry.register(it)
+        }
+        return stateDataMaskerRegistry
+    }
+
+    @Bean
+    fun maskingSnapshotQueryFilter(stateDataMaskerRegistry: StateDataMaskerRegistry): SnapshotQueryFilter {
+        return MaskingSnapshotQueryFilter(stateDataMaskerRegistry)
     }
 
     @Bean
@@ -69,16 +81,6 @@ class QueryAutoConfiguration {
             .addFilters(filters)
             .filterCondition(SnapshotQueryHandler::class)
             .build()
-    }
-
-    @Bean
-    fun stateDataMaskerRegistry(
-        maskers: List<StateDynamicDocumentMasker>
-    ): StateDataMaskerRegistry {
-        maskers.forEach {
-            StateDataMaskerRegistry.register(it)
-        }
-        return StateDataMaskerRegistry
     }
 
     @Bean("snapshotQueryErrorHandler")

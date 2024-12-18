@@ -45,8 +45,9 @@ import reactor.kotlin.test.test
 
 class MaskingSnapshotQueryFilterTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(MockSnapshotQueryServiceFactory)
+    private val stateDataMaskerRegistry = StateDataMaskerRegistry()
     private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
-        .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter))
+        .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
     private val queryHandler = DefaultSnapshotQueryHandler(
@@ -55,7 +56,7 @@ class MaskingSnapshotQueryFilterTest {
     )
 
     init {
-        StateDataMaskerRegistry.register(MockSnapshotMasker)
+        stateDataMaskerRegistry.register(MockSnapshotMasker)
     }
 
     @Test

@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono
 @Suppress("UNCHECKED_CAST")
 @Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
 @FilterType(SnapshotQueryHandler::class)
-object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
+class MaskingSnapshotQueryFilter(private val stateDataMaskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter {
     override fun filter(
         context: SnapshotQueryContext<*, *, *>,
         next: FilterChain<SnapshotQueryContext<*, *, *>>
@@ -80,7 +80,7 @@ object MaskingSnapshotQueryFilter : SnapshotQueryFilter {
     }
 
     private fun tryMaskDynamicDocument(context: SnapshotQueryContext<*, *, *>) {
-        val aggregateDataMasker = StateDataMaskerRegistry.getAggregateDataMasker(context.namedAggregate)
+        val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(context.namedAggregate)
         if (aggregateDataMasker.isEmpty()) {
             return
         }
