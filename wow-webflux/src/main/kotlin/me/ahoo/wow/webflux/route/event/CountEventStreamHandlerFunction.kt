@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
-import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.openapi.event.CountEventStreamRouteSpec
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -27,7 +27,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class ListQueryEventStreamHandlerFunction(
+class CountEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
@@ -35,25 +35,24 @@ class ListQueryEventStreamHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(ListQuery::class.java)
+        return request.bodyToMono(Condition::class.java)
             .flatMap {
-                val query = if (tenantId == null) it else it.appendTenantId(tenantId)
-                eventStreamQueryHandler.dynamicList(aggregateMetadata, query)
-                    .collectList()
+                val condition = if (tenantId == null) it else it.appendTenantId(tenantId)
+                eventStreamQueryHandler.count(aggregateMetadata, condition)
                     .writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
     }
 }
 
-class ListQueryEventStreamHandlerFunctionFactory(
+class CountEventStreamHandlerFunctionFactory(
     private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<ListQueryEventStreamRouteSpec> {
-    override val supportedSpec: Class<ListQueryEventStreamRouteSpec>
-        get() = ListQueryEventStreamRouteSpec::class.java
+) : RouteHandlerFunctionFactory<CountEventStreamRouteSpec> {
+    override val supportedSpec: Class<CountEventStreamRouteSpec>
+        get() = CountEventStreamRouteSpec::class.java
 
-    override fun create(spec: ListQueryEventStreamRouteSpec): HandlerFunction<ServerResponse> {
-        return ListQueryEventStreamHandlerFunction(
+    override fun create(spec: CountEventStreamRouteSpec): HandlerFunction<ServerResponse> {
+        return CountEventStreamHandlerFunction(
             spec.aggregateMetadata,
             eventStreamQueryHandler,
             exceptionHandler

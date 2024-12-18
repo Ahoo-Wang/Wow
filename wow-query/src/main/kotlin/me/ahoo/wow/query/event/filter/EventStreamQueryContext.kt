@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.query.context.QueryContext
+import me.ahoo.wow.query.filter.QueryContext
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
