@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -47,6 +48,16 @@ class NoOpSnapshotQueryServiceFactoryTest {
             }
         }.dynamicQuery(queryService)
             .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun count() {
+        condition {
+            "test" eq "test"
+        }.count(queryService)
+            .test()
+            .expectNext(0)
             .verifyComplete()
     }
 }

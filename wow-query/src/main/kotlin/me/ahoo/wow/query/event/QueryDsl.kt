@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.query.event
 
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 fun IListQuery.query(queryService: EventStreamQueryService): Flux<DomainEventStream> {
     return queryService.list(this)
@@ -24,4 +26,8 @@ fun IListQuery.query(queryService: EventStreamQueryService): Flux<DomainEventStr
 
 fun IListQuery.dynamicQuery(queryService: EventStreamQueryService): Flux<DynamicDocument> {
     return queryService.dynamicList(this)
+}
+
+fun Condition.count(queryService: EventStreamQueryService): Mono<Long> {
+    return queryService.count(this)
 }
