@@ -43,7 +43,7 @@ class LoadEventStreamHandlerFunction(
         val listQuery = listQuery {
             condition {
                 tenantId(tenantId)
-                MessageRecords.AGGREGATE_ID to id
+                MessageRecords.AGGREGATE_ID eq id
                 MessageRecords.VERSION between headVersion to tailVersion
             }
             limit(limit)
