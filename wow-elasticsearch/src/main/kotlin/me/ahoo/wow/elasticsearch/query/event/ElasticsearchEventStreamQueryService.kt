@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query.event
 
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
@@ -28,6 +29,7 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
@@ -64,5 +66,16 @@ class ElasticsearchEventStreamQueryService(
                     }
                 } as List<DynamicDocument>? ?: emptyList()
             }
+    }
+
+    override fun count(condition: Condition): Mono<Long> {
+        val searchRequest = SearchRequest.of {
+            it.index(eventStreamIndexName)
+                .query(condition.toQuery())
+                .size(0)
+            it
+        }
+        return elasticsearchClient.search(searchRequest, Map::class.java)
+            .map { it.hits()?.total()?.value() ?: 0 }
     }
 }

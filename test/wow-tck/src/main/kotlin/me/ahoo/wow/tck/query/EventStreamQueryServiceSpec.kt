@@ -18,14 +18,16 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.count
 import me.ahoo.wow.query.event.dynamicQuery
 import me.ahoo.wow.query.event.query
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -76,6 +78,18 @@ abstract class EventStreamQueryServiceSpec {
                 tenantId(eventStream.aggregateId.tenantId)
             }
         }.dynamicQuery(eventStreamQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun count() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+        condition {
+            tenantId(eventStream.aggregateId.tenantId)
+        }.count(eventStreamQueryService)
             .test()
             .expectNextCount(1)
             .verifyComplete()
