@@ -19,6 +19,8 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.mask.StateDataMaskerRegistry
+import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
@@ -67,6 +69,16 @@ class QueryAutoConfiguration {
             .addFilters(filters)
             .filterCondition(SnapshotQueryHandler::class)
             .build()
+    }
+
+    @Bean
+    fun stateDataMaskerRegistry(
+        maskers: List<StateDynamicDocumentMasker>
+    ): StateDataMaskerRegistry {
+        maskers.forEach {
+            StateDataMaskerRegistry.register(it)
+        }
+        return StateDataMaskerRegistry
     }
 
     @Bean("snapshotQueryErrorHandler")
