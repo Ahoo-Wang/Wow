@@ -29,6 +29,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
@@ -62,6 +63,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
             .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
@@ -95,6 +97,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(StateEventCompensator::class.java, { mockk() })
             .withBean(EventCompensateSupporter::class.java, { mockk() })
             .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
             .withBean(KafkaProperties::class.java, {
                 KafkaProperties(bootstrapServers = listOf("localhost:9092"))
             })

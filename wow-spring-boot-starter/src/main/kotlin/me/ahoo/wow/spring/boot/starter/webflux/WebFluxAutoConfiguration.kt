@@ -22,13 +22,12 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
-import me.ahoo.wow.spring.query.getOrNoOp
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -418,11 +417,11 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun listQueryEventStreamHandlerFunctionFactory(
-        eventStreamQueryServiceFactoryProvider: ObjectProvider<EventStreamQueryServiceFactory>,
+        eventStreamQueryHandler: EventStreamQueryHandler,
         exceptionHandler: RequestExceptionHandler
     ): ListQueryEventStreamHandlerFunctionFactory {
         return ListQueryEventStreamHandlerFunctionFactory(
-            eventStreamQueryServiceFactory = eventStreamQueryServiceFactoryProvider.getOrNoOp(),
+            eventStreamQueryHandler = eventStreamQueryHandler,
             exceptionHandler = exceptionHandler
         )
     }

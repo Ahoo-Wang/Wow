@@ -19,6 +19,14 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.EventStreamQueryContext
+import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.MaskingEventStreamQueryFilter
+import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
+import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
+import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
@@ -54,11 +62,22 @@ class QueryAutoConfiguration {
     fun stateDataMaskerRegistry(
         maskers: List<StateDynamicDocumentMasker>
     ): StateDataMaskerRegistry {
-        val stateDataMaskerRegistry = StateDataMaskerRegistry()
+        val maskerRegistry = StateDataMaskerRegistry()
         maskers.forEach {
-            stateDataMaskerRegistry.register(it)
+            maskerRegistry.register(it)
         }
-        return stateDataMaskerRegistry
+        return maskerRegistry
+    }
+
+    @Bean
+    fun eventStreamMaskerRegistry(
+        maskers: List<EventStreamDynamicDocumentMasker>
+    ): EventStreamMaskerRegistry {
+        val maskerRegistry = EventStreamMaskerRegistry()
+        maskers.forEach {
+            maskerRegistry.register(it)
+        }
+        return maskerRegistry
     }
 
     @Bean
@@ -67,10 +86,22 @@ class QueryAutoConfiguration {
     }
 
     @Bean
+    fun maskingEventStreamQueryFilter(eventStreamMaskerRegistry: EventStreamMaskerRegistry): EventStreamQueryFilter {
+        return MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)
+    }
+
+    @Bean
     fun tailSnapshotQueryFilter(
         snapshotQueryServiceFactory: ObjectProvider<SnapshotQueryServiceFactory>,
     ): TailSnapshotQueryFilter<Any> {
         return TailSnapshotQueryFilter(snapshotQueryServiceFactory.getOrNoOp())
+    }
+
+    @Bean
+    fun tailEventStreamQueryFilter(
+        eventStreamQueryServiceFactory: ObjectProvider<EventStreamQueryServiceFactory>,
+    ): TailEventStreamQueryFilter {
+        return TailEventStreamQueryFilter(eventStreamQueryServiceFactory.getOrNoOp())
     }
 
     @Bean
@@ -83,9 +114,25 @@ class QueryAutoConfiguration {
             .build()
     }
 
+    @Bean
+    fun eventStreamQueryFilterChain(
+        filters: List<Filter<EventStreamQueryContext<*, *, *>>>
+    ): FilterChain<EventStreamQueryContext<*, *, *>> {
+        return FilterChainBuilder<EventStreamQueryContext<*, *, *>>()
+            .addFilters(filters)
+            .filterCondition(EventStreamQueryHandler::class)
+            .build()
+    }
+
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
     fun snapshotQueryErrorHandler(): ErrorHandler<SnapshotQueryContext<*, *, *>> {
+        return LogErrorHandler()
+    }
+
+    @Bean("eventStreamQueryErrorHandler")
+    @ConditionalOnMissingBean(name = ["eventStreamQueryErrorHandler"])
+    fun eventStreamQueryErrorHandler(): ErrorHandler<EventStreamQueryContext<*, *, *>> {
         return LogErrorHandler()
     }
 
@@ -95,6 +142,14 @@ class QueryAutoConfiguration {
         @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<SnapshotQueryContext<*, *, *>>
     ): SnapshotQueryHandler {
         return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
+    }
+
+    @Bean
+    fun eventStreamQueryHandler(
+        @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<EventStreamQueryContext<*, *, *>>,
+        @Qualifier("eventStreamQueryErrorHandler") queryErrorHandler: ErrorHandler<EventStreamQueryContext<*, *, *>>
+    ): EventStreamQueryHandler {
+        return DefaultEventStreamQueryHandler(chain, queryErrorHandler)
     }
 
     @Bean

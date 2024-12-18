@@ -17,8 +17,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.query.context.Contexts.writeRawRequest
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -30,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class ListQueryEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val eventStreamQueryService: EventStreamQueryService,
+    private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -39,7 +38,7 @@ class ListQueryEventStreamHandlerFunction(
         return request.bodyToMono(ListQuery::class.java)
             .flatMap {
                 val query = if (tenantId == null) it else it.appendTenantId(tenantId)
-                eventStreamQueryService.dynamicList(query)
+                eventStreamQueryHandler.dynamicList(aggregateMetadata, query)
                     .collectList()
                     .writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
@@ -47,20 +46,17 @@ class ListQueryEventStreamHandlerFunction(
 }
 
 class ListQueryEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+    private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<ListQueryEventStreamRouteSpec> {
     override val supportedSpec: Class<ListQueryEventStreamRouteSpec>
         get() = ListQueryEventStreamRouteSpec::class.java
 
     override fun create(spec: ListQueryEventStreamRouteSpec): HandlerFunction<ServerResponse> {
-        eventStreamQueryServiceFactory.create(spec.aggregateMetadata)
-            .let { eventStreamQueryService ->
-                return ListQueryEventStreamHandlerFunction(
-                    spec.aggregateMetadata,
-                    eventStreamQueryService,
-                    exceptionHandler
-                )
-            }
+        return ListQueryEventStreamHandlerFunction(
+            spec.aggregateMetadata,
+            eventStreamQueryHandler,
+            exceptionHandler
+        )
     }
 }
