@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.command.CommandParser.getTenantIdOrDefault
@@ -48,7 +49,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
             }
             .map {
                 checkVersion(version, it)
-                it.state
+                it.state.tryMask()
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
