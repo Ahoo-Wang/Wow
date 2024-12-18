@@ -1,7 +1,6 @@
 package me.ahoo.wow.spring.boot.starter.query
 
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilter
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
@@ -24,9 +23,12 @@ class QueryAutoConfigurationTest {
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
                     .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
                     .hasSingleBean(TailSnapshotQueryFilter::class.java)
-                    .hasSingleBean(FilterChain::class.java)
-                    .hasSingleBean(ErrorHandler::class.java)
+                    .hasBean("snapshotQueryFilterChain")
+                    .hasBean("eventStreamQueryFilterChain")
+                    .hasBean("snapshotQueryErrorHandler")
+                    .hasBean("eventStreamQueryErrorHandler")
                     .hasSingleBean(SnapshotQueryHandler::class.java)
+                    .hasSingleBean(EventStreamQueryHandler::class.java)
             }
     }
 
