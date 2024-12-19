@@ -52,7 +52,6 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
     }
 
     override fun setError(throwable: Throwable) {
-        attributes[ERROR_KEY] = throwable
         setAttribute(ERROR_KEY, throwable)
     }
 
