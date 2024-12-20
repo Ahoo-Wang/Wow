@@ -3,13 +3,12 @@ import {FailedListComponent} from "../failed-list/failed-list.component";
 import {FindCategory} from "../api/CompensationClient";
 
 @Component({
-  selector: 'app-unrecoverable',
-  standalone: true,
+    selector: 'app-unrecoverable',
     imports: [
         FailedListComponent
     ],
-  templateUrl: './unrecoverable.component.html',
-  styleUrl: './unrecoverable.component.scss'
+    templateUrl: './unrecoverable.component.html',
+    styleUrl: './unrecoverable.component.scss'
 })
 export class UnrecoverableComponent {
 

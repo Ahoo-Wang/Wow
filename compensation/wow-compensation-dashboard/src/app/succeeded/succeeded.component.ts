@@ -3,13 +3,12 @@ import {FindCategory} from "../api/CompensationClient";
 import {FailedListComponent} from "../failed-list/failed-list.component";
 
 @Component({
-  selector: 'app-succeeded',
-  standalone: true,
-  imports: [
-    FailedListComponent
-  ],
-  templateUrl: './succeeded.component.html',
-  styleUrl: './succeeded.component.scss'
+    selector: 'app-succeeded',
+    imports: [
+        FailedListComponent
+    ],
+    templateUrl: './succeeded.component.html',
+    styleUrl: './succeeded.component.scss'
 })
 export class SucceededComponent {
 
