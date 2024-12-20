@@ -15,14 +15,14 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.filter.QueryFilter
 import reactor.core.publisher.Mono
 
 @FilterType(EventStreamQueryHandler::class)
-interface EventStreamQueryFilter : Filter<EventStreamQueryContext<*, *, *>>
+interface EventStreamQueryFilter : QueryFilter<EventStreamQueryContext<*, *, *>>
 
 @Order(ORDER_LAST)
 @FilterType(EventStreamQueryHandler::class)

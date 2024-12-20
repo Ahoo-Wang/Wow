@@ -17,14 +17,14 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import reactor.core.publisher.Mono
 
 @FilterType(SnapshotQueryHandler::class)
-interface SnapshotQueryFilter : Filter<SnapshotQueryContext<*, *, *>>
+interface SnapshotQueryFilter : QueryFilter<SnapshotQueryContext<*, *, *>>
 
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
