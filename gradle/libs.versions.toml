@@ -21,7 +21,7 @@ detekt = "1.23.7"
 dokka = "2.0.0"
 kotlin = "2.0.21"
 publishPlugin = "2.0.0"
-ksp = "2.0.21-1.0.28"
+ksp = "2.1.0-1.0.29"
 
 [libraries]
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
