@@ -109,6 +109,16 @@ class MongoConverterTest {
     }
 
     @Test
+    fun beforeTodayLongValue() {
+        val actual = Condition.beforeToday("field", 0).toMongoFilter()
+        val expected = Filters.lt(
+            "field",
+            OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
     fun beforeTodayWrongValue() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition.beforeToday("field", Any()).toMongoFilter()
