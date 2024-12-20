@@ -37,6 +37,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     override fun beforeToday(condition: Condition): T {
         val conditionValue = condition.value
         val time = when (conditionValue) {
+            is Number -> LocalTime.ofSecondOfDay(conditionValue.toLong())
             is String -> LocalTime.parse(conditionValue)
             is LocalTime -> conditionValue
             else -> {
