@@ -8,13 +8,12 @@ import {
 import {DatePipe, NgForOf, NgIf} from "@angular/common";
 import {CompensationClient, FindCategory} from "../api/CompensationClient";
 import {NzMessageService} from "ng-zorro-antd/message";
-import {NzButtonComponent, NzButtonGroupComponent} from "ng-zorro-antd/button";
+import {NzButtonModule} from 'ng-zorro-antd/button';
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective, NzDrawerModule, NzDrawerService} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
 import {initialPagedQuery, PagedQuery} from "../api/PagedQuery";
 import {PagedList} from "../api/PagedList";
-import {NzBadgeComponent} from "ng-zorro-antd/badge";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
 import {FailedHistoryComponent} from "../failed-history/failed-history.component";
@@ -29,7 +28,6 @@ import {Condition, Conditions, Projections, Sort, SortDirection} from "../api/Qu
 import {NzInputModule} from 'ng-zorro-antd/input';
 import {NzColDirective, NzRowDirective} from "ng-zorro-antd/grid";
 import {NzFormControlComponent, NzFormDirective, NzFormItemComponent, NzFormLabelComponent} from "ng-zorro-antd/form";
-import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
 import {NzDividerModule} from 'ng-zorro-antd/divider';
 import {NzPopoverDirective} from "ng-zorro-antd/popover";
 import {NzSpaceModule} from 'ng-zorro-antd/space';
@@ -37,20 +35,17 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
 
 @Component({
   selector: 'app-failed-list',
-  standalone: true,
   templateUrl: './failed-list.component.html',
   imports: [
     NzTableModule,
     NzCellFixedDirective,
     NgForOf,
-    NzButtonGroupComponent,
+    NzButtonModule,
     NzPopconfirmDirective,
-    NzButtonComponent,
     DatePipe,
     NzDrawerComponent,
     NzDrawerContentDirective,
     NzTypographyComponent,
-    NzBadgeComponent,
     NzCountdownComponent,
     ErrorComponent,
     NgIf,
@@ -67,7 +62,6 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
     NzFormDirective,
     NzFormItemComponent,
     NzFormLabelComponent,
-    NzInputNumberComponent,
     NzRowDirective,
     ReactiveFormsModule, NzDividerModule, NzPopoverDirective, NzSpaceModule, NzFlexModule
   ],

@@ -1,7 +1,7 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {CompensationClient} from "../api/CompensationClient";
 import {EventStreamHistory} from "../api/DomainEventStream";
-import {NzTableCellDirective, NzTableModule} from "ng-zorro-antd/table";
+import {NzTableModule} from "ng-zorro-antd/table";
 import {DatePipe, NgForOf} from "@angular/common";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
 import {Pagination} from "../api/Query";
@@ -9,7 +9,6 @@ import {MAX_VERSION} from "../api/EventStreamQuery";
 
 @Component({
   selector: 'app-failed-history',
-  standalone: true,
   imports: [
     NzTableModule,
     NgForOf,

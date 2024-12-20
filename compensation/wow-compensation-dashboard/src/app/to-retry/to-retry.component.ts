@@ -3,13 +3,12 @@ import {FailedListComponent} from "../failed-list/failed-list.component";
 import {FindCategory} from "../api/CompensationClient";
 
 @Component({
-  selector: 'app-to-retry',
-  standalone: true,
-  imports: [
-    FailedListComponent
-  ],
-  templateUrl: './to-retry.component.html',
-  styleUrl: './to-retry.component.scss'
+    selector: 'app-to-retry',
+    imports: [
+        FailedListComponent
+    ],
+    templateUrl: './to-retry.component.html',
+    styleUrl: './to-retry.component.scss'
 })
 export class ToRetryComponent {
 

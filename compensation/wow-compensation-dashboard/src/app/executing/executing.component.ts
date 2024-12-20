@@ -3,13 +3,12 @@ import {FailedListComponent} from "../failed-list/failed-list.component";
 import {FindCategory} from "../api/CompensationClient";
 
 @Component({
-  selector: 'app-executing',
-  standalone: true,
+    selector: 'app-executing',
     imports: [
         FailedListComponent
     ],
-  templateUrl: './executing.component.html',
-  styleUrl: './executing.component.scss'
+    templateUrl: './executing.component.html',
+    styleUrl: './executing.component.scss'
 })
 export class ExecutingComponent {
 

@@ -17,13 +17,12 @@ import {
   NzFormModule
 } from "ng-zorro-antd/form";
 import {NzColDirective} from "ng-zorro-antd/grid";
-import {NzInputDirective, NzInputGroupComponent} from "ng-zorro-antd/input";
+import {NzInputDirective} from "ng-zorro-antd/input";
 import {NzButtonComponent} from "ng-zorro-antd/button";
 import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
 
 @Component({
-  selector: 'app-apply-retry-spec',
-  standalone: true,
+    selector: 'app-apply-retry-spec',
   imports: [
     NzFormModule,
     NzFormLabelComponent,
@@ -33,12 +32,11 @@ import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
     NzFormDirective,
     NzFormControlComponent,
     NzButtonComponent,
-    NzInputNumberComponent,
     FormsModule,
-    NzInputGroupComponent
+    NzInputNumberComponent
   ],
-  templateUrl: './apply-retry-spec.component.html',
-  styleUrl: './apply-retry-spec.component.scss'
+    templateUrl: './apply-retry-spec.component.html',
+    styleUrl: './apply-retry-spec.component.scss'
 })
 export class ApplyRetrySpecComponent implements OnInit {
   @Input({required: true}) id!: string;
