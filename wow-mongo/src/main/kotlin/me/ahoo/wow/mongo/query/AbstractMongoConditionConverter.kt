@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -29,21 +28,21 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
         require(condition.children.isNotEmpty()) {
             "AND operator children cannot be empty."
         }
-        return Filters.and(condition.children.map { SnapshotConditionConverter.convert(it) })
+        return Filters.and(condition.children.map { convert(it) })
     }
 
     override fun or(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "OR operator children cannot be empty."
         }
-        return Filters.or(condition.children.map { SnapshotConditionConverter.convert(it) })
+        return Filters.or(condition.children.map { convert(it) })
     }
 
     override fun nor(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "NOR operator children cannot be empty."
         }
-        return Filters.nor(condition.children.map { SnapshotConditionConverter.convert(it) })
+        return Filters.nor(condition.children.map { convert(it) })
     }
 
     override fun id(condition: Condition): Bson {
@@ -154,7 +153,7 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
     override fun elemMatch(condition: Condition): Bson {
         return Filters.elemMatch(
             condition.field,
-            condition.children.first().let { SnapshotConditionConverter.convert(it) }
+            condition.children.first().let { convert(it) }
         )
     }
 
