@@ -14,6 +14,14 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.PagedList
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
 const val QUERY_KEY = "__QUERY__"
 const val RESULT_KEY = "__RESULT__"
@@ -22,7 +30,7 @@ const val RESULT_KEY = "__RESULT__"
 interface QueryContext<SOURCE : QueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
     val attributes: MutableMap<String, Any>
     val namedAggregate: NamedAggregate
-
+    val queryType: QueryType
     fun setQuery(query: Q): SOURCE {
         return setAttribute(QUERY_KEY, query)
     }
@@ -55,4 +63,30 @@ interface QueryContext<SOURCE : QueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
     fun <V> getAttribute(key: String): V? {
         return attributes[key] as V?
     }
+}
+
+class SingleQueryContext<R : Any>(
+    override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : QueryContext<SingleQueryContext<R>, ISingleQuery, Mono<R>>
+
+class ListQueryContext<R : Any>(
+    override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : QueryContext<ListQueryContext<R>, IListQuery, Flux<R>>
+
+class PagedQueryContext<R : Any>(
+    override val namedAggregate: NamedAggregate,
+    override val queryType: QueryType,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : QueryContext<PagedQueryContext<R>, IPagedQuery, Mono<PagedList<R>>>
+
+class CountQueryContext(
+    override val namedAggregate: NamedAggregate,
+    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
+) : QueryContext<CountQueryContext, Condition, Mono<Long>> {
+    override val queryType: QueryType
+        get() = QueryType.COUNT
 }

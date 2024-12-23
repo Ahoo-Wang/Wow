@@ -15,39 +15,54 @@ package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.query.filter.ListQueryContext
+import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
+import me.ahoo.wow.query.filter.PagedQueryContext
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.filter.SingleQueryContext
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
-import me.ahoo.wow.query.mask.mask
+import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.tryMask
 import reactor.core.publisher.Mono
 
 @Suppress("UNCHECKED_CAST")
 @Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
 @FilterType(SnapshotQueryHandler::class)
-class MaskingSnapshotQueryFilter(private val maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter {
+class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,
+    MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry) {
     override fun filter(
-        context: SnapshotQueryContext<*, *, *>,
-        next: FilterChain<SnapshotQueryContext<*, *, *>>
+        context: QueryContext<*, *, *>,
+        next: FilterChain<QueryContext<*, *, *>>
     ): Mono<Void> {
         return next.filter(context).then(
             Mono.defer {
-                tryMask(context)
+                mask(context)
                 Mono.empty()
             }
         )
     }
 
     @Suppress("LongMethod")
-    private fun tryMask(context: SnapshotQueryContext<*, *, *>) {
+    private fun mask(context: QueryContext<*, *, *>) {
         if (context.queryType == QueryType.COUNT) {
             return
         }
+        if (context.queryType.isDynamic) {
+            maskDynamicDocument(context)
+            return
+        }
+
+        maskState(context)
+    }
+
+    private fun maskState(context: QueryContext<*, *, *>) {
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleSnapshotQueryContext<MaterializedSnapshot<Any>>
+                context as SingleQueryContext<MaterializedSnapshot<Any>>
                 context.rewriteResult { result ->
                     result.map {
                         it.tryMask()
@@ -56,7 +71,7 @@ class MaskingSnapshotQueryFilter(private val maskerRegistry: StateDataMaskerRegi
             }
 
             QueryType.LIST -> {
-                context as ListSnapshotQueryContext<MaterializedSnapshot<Any>>
+                context as ListQueryContext<MaterializedSnapshot<Any>>
                 context.rewriteResult { result ->
                     result.map {
                         it.tryMask()
@@ -65,49 +80,10 @@ class MaskingSnapshotQueryFilter(private val maskerRegistry: StateDataMaskerRegi
             }
 
             QueryType.PAGED -> {
-                context as PagedSnapshotQueryContext<MaterializedSnapshot<Any>>
+                context as PagedQueryContext<MaterializedSnapshot<Any>>
                 context.rewriteResult { result ->
                     result.map {
                         it.tryMask()
-                    }
-                }
-            }
-
-            else -> {
-                tryMaskDynamicDocument(context)
-            }
-        }
-    }
-
-    private fun tryMaskDynamicDocument(context: SnapshotQueryContext<*, *, *>) {
-        val aggregateDataMasker = maskerRegistry.getAggregateDataMasker(context.namedAggregate)
-        if (aggregateDataMasker.isEmpty()) {
-            return
-        }
-        when (context.queryType) {
-            QueryType.DYNAMIC_SINGLE -> {
-                context as SingleSnapshotQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
-                    result.map {
-                        aggregateDataMasker.mask(it)
-                    }
-                }
-            }
-
-            QueryType.DYNAMIC_LIST -> {
-                context as ListSnapshotQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
-                    result.map {
-                        aggregateDataMasker.mask(it)
-                    }
-                }
-            }
-
-            QueryType.DYNAMIC_PAGED -> {
-                context as PagedSnapshotQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
-                    result.map {
-                        aggregateDataMasker.mask(it)
                     }
                 }
             }

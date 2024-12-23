@@ -13,64 +13,20 @@
 
 package me.ahoo.wow.query.event.filter
 
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
-import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.filter.AbstractQueryHandler
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 
-interface EventStreamQueryHandler : QueryHandler<EventStreamQueryContext<*, *, *>> {
-
-    fun <S : Any> list(namedAggregate: NamedAggregate, query: IListQuery): Flux<DomainEventStream> {
-        val context = ListEventStreamQueryContext(
-            namedAggregate = namedAggregate,
-        ).setQuery(query)
-        return handle(context)
-            .checkpoint("List ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
-            .thenMany(
-                Flux.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
-
-    override fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
-        val context = DynamicListEventStreamQueryContext(
-            namedAggregate = namedAggregate,
-        ).setQuery(query)
-        return handle(context)
-            .checkpoint("DynamicList ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
-            .thenMany(
-                Flux.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
-
-    override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = CountEventStreamQueryContext(namedAggregate).setQuery(condition)
-        return handle(context)
-            .checkpoint("Count ${namedAggregate.toStringWithAlias()} [EventStreamQueryHandler]")
-            .then(
-                Mono.defer {
-                    context.getRequiredResult()
-                }
-            )
-    }
-}
+interface EventStreamQueryHandler : QueryHandler<QueryContext<*, *, *>, DomainEventStream>
 
 class DefaultEventStreamQueryHandler(
-    chain: FilterChain<EventStreamQueryContext<*, *, *>>,
-    errorHandler: ErrorHandler<EventStreamQueryContext<*, *, *>> = LogErrorHandler()
-) : EventStreamQueryHandler, AbstractHandler<EventStreamQueryContext<*, *, *>>(
+    chain: FilterChain<QueryContext<*, *, *>>,
+    errorHandler: ErrorHandler<QueryContext<*, *, *>> = LogErrorHandler()
+) : EventStreamQueryHandler, AbstractQueryHandler<QueryContext<*, *, *>, DomainEventStream>(
     chain,
     errorHandler,
 )

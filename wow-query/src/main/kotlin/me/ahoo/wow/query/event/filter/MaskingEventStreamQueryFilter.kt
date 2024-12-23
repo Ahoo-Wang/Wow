@@ -15,43 +15,14 @@ package me.ahoo.wow.query.event.filter
 
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
+import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
+import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
-import reactor.core.publisher.Mono
 
 @Suppress("UNCHECKED_CAST")
 @Order(ORDER_LAST, before = [TailEventStreamQueryFilter::class])
 @FilterType(EventStreamQueryHandler::class)
 class MaskingEventStreamQueryFilter(
-    private val maskerRegistry: EventStreamMaskerRegistry
-) : EventStreamQueryFilter {
-    override fun filter(
-        context: EventStreamQueryContext<*, *, *>,
-        next: FilterChain<EventStreamQueryContext<*, *, *>>
-    ): Mono<Void> {
-        return next.filter(context).then(
-            Mono.defer {
-                tryMask(context)
-                Mono.empty()
-            }
-        )
-    }
-
-    @Suppress("LongMethod")
-    private fun tryMask(context: EventStreamQueryContext<*, *, *>) {
-        if (context.queryType != QueryType.DYNAMIC_LIST) {
-            return
-        }
-        val aggregateDataMasker = maskerRegistry.getAggregateDataMasker(context.namedAggregate)
-        if (aggregateDataMasker.isEmpty()) {
-            return
-        }
-        context as DynamicListEventStreamQueryContext
-        context.rewriteResult { result ->
-            result.map {
-                aggregateDataMasker.mask(it)
-            }
-        }
-    }
-}
+    maskerRegistry: EventStreamMaskerRegistry
+) : EventStreamQueryFilter, MaskingDynamicDocumentQueryFilter<EventStreamDynamicDocumentMasker>(maskerRegistry)
