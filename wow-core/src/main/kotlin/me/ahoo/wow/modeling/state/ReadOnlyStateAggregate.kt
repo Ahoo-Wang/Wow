@@ -42,3 +42,17 @@ interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version {
     val eventTime: Long
     //endregion
 }
+
+abstract class AbstractReadOnlyStateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
+    init {
+        ensureAware()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    protected fun ensureAware() {
+        if (state is ReadOnlyStateAggregateAware<*>) {
+            val readOnlyStateAggregateAware = state as ReadOnlyStateAggregateAware<S>
+            readOnlyStateAggregateAware.setReadOnlyStateAggregate(this)
+        }
+    }
+}

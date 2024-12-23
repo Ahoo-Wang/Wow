@@ -16,6 +16,7 @@ package me.ahoo.wow.test.saga.stateless
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.CommandOperator.operator
+import me.ahoo.wow.modeling.state.AbstractReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 class GivenReadOnlyStateAggregate<S : Any>(
@@ -28,7 +29,8 @@ class GivenReadOnlyStateAggregate<S : Any>(
     override val operator: String,
     override val firstEventTime: Long,
     override val eventTime: Long
-) : ReadOnlyStateAggregate<S> {
+) : AbstractReadOnlyStateAggregate<S>() {
+
     companion object {
         fun Any.toReadOnlyStateAggregate(domainEvent: DomainEvent<*>): ReadOnlyStateAggregate<*> {
             if (this is ReadOnlyStateAggregate<*>) {

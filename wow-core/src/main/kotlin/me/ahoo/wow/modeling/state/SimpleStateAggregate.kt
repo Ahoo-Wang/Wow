@@ -37,7 +37,8 @@ class SimpleStateAggregate<S : Any>(
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
     override var deleted: Boolean = false,
-) : StateAggregate<S>,
+) : AbstractReadOnlyStateAggregate<S>(),
+    StateAggregate<S>,
     TypedAggregate<S> by metadata {
 
     private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)

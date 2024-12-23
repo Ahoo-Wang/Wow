@@ -16,6 +16,7 @@ package me.ahoo.wow.eventsourcing.state
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.modeling.state.AbstractReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 interface StateEvent<S : Any> : DomainEventStream, ReadOnlyStateAggregate<S> {
@@ -62,7 +63,7 @@ data class StateEventData<S : Any>(
     override val firstOperator: String = delegate.header.operator.orEmpty(),
     override val firstEventTime: Long = delegate.createTime,
     override val deleted: Boolean = false
-) : StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate {
+) : AbstractReadOnlyStateAggregate<S>(), StateEvent<S>, Decorator<DomainEventStream>, DomainEventStream by delegate {
     override fun copy(): StateEvent<S> {
         return copy(delegate = delegate.copy())
     }

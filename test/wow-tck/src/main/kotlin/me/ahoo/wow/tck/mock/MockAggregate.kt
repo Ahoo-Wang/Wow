@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.tck.mock
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
 
 val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
 
@@ -44,15 +47,21 @@ class MockCommandAggregate(val state: MockStateAggregate) {
     }
 }
 
-data class MockStateAggregate(val id: String) {
+data class MockStateAggregate(val id: String) : ReadOnlyStateAggregateAware<MockStateAggregate> {
     var data: String = ""
         private set
 
+    @field:JsonIgnore
+    private var readOnlyStateAggregate: ReadOnlyStateAggregate<MockStateAggregate>? = null
     private fun onSourcing(aggregateCreated: MockAggregateCreated) {
         data = aggregateCreated.data
     }
 
     private fun onSourcing(changed: MockAggregateChanged) {
         data = changed.data
+    }
+
+    override fun setReadOnlyStateAggregate(readOnlyStateAggregate: ReadOnlyStateAggregate<MockStateAggregate>) {
+        this.readOnlyStateAggregate = readOnlyStateAggregate
     }
 }
