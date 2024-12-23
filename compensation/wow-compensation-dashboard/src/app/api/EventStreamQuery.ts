@@ -9,7 +9,7 @@ function eventStreamVersionedNextQuery(aggregateId: string, endVersion: number =
     projection: {include: ["_id", "id", VERSION, "createTime", "body.id", "body.name"], exclude: []},
     condition: Conditions.and(
       [
-        Conditions.eq("aggregateId", aggregateId),
+        Conditions.aggregateId(aggregateId),
         Conditions.lte(VERSION, endVersion)
       ]
     ),

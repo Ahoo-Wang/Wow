@@ -97,12 +97,18 @@ data class Condition(
         fun isFalse(field: String) = Condition(field, Operator.FALSE)
         fun id(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.ID, value = value)
         fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
-        fun ids(vararg value: String) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value.toList())
+        fun ids(vararg value: String) = ids(value.asList())
+        fun aggregateId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.AGGREGATE_ID, value = value)
+        fun aggregateIds(value: List<String>) =
+            Condition(field = EMPTY_VALUE, operator = Operator.AGGREGATE_IDS, value = value)
+
+        fun aggregateIds(vararg value: String) = aggregateIds(value.asList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
         fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
         fun today(field: String) = Condition(field = field, operator = Operator.TODAY)
         fun beforeToday(field: String, time: Any) =
             Condition(field = field, operator = Operator.BEFORE_TODAY, value = time)
+
         fun tomorrow(field: String) = Condition(field = field, operator = Operator.TOMORROW)
         fun thisWeek(field: String) = Condition(field = field, operator = Operator.THIS_WEEK)
         fun nextWeek(field: String) = Condition(field = field, operator = Operator.NEXT_WEEK)

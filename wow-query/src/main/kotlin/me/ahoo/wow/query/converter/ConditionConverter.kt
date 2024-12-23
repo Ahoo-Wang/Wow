@@ -25,6 +25,8 @@ interface ConditionConverter<T> {
             Operator.NOR -> nor(condition)
             Operator.ID -> id(condition)
             Operator.IDS -> ids(condition)
+            Operator.AGGREGATE_ID -> aggregateId(condition)
+            Operator.AGGREGATE_IDS -> aggregateIds(condition)
             Operator.TENANT_ID -> tenantId(condition)
             Operator.ALL -> all(condition)
             Operator.EQ -> eq(condition)
@@ -63,6 +65,8 @@ interface ConditionConverter<T> {
     fun or(condition: Condition): T
     fun nor(condition: Condition): T
     fun id(condition: Condition): T
+    fun aggregateId(condition: Condition): T
+    fun aggregateIds(condition: Condition): T
     fun ids(condition: Condition): T
     fun tenantId(condition: Condition): T
     fun all(condition: Condition): T

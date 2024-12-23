@@ -40,6 +40,16 @@ enum class Operator {
     IDS,
 
     /**
+     * 匹配聚合根ID等于指定值的文档
+     */
+    AGGREGATE_ID,
+
+    /**
+     * 匹配聚合ID等于指定值列表中的任何值的所有文档
+     */
+    AGGREGATE_IDS,
+
+    /**
      * 匹配`tenantId`字段值等于指定值的所有文档
      */
     TENANT_ID,

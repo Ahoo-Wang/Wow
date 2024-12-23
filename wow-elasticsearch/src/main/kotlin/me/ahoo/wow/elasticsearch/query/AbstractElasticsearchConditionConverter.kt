@@ -36,7 +36,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
 import java.io.StringReader
 
-object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
+abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     override fun and(condition: Condition): Query {
         return bool { builder ->
             builder.filter(condition.children.map { convert(it) })
@@ -258,9 +258,5 @@ object ElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
 
     private fun String.toQuery(): Query {
         return Query.Builder().withJson(StringReader(this)).build()
-    }
-
-    fun Condition.toQuery(): Query {
-        return convert(this)
     }
 }

@@ -20,7 +20,6 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
-import me.ahoo.wow.mongo.query.MongoConditionConverter
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.serialization.toObject
@@ -30,7 +29,7 @@ import org.bson.conversions.Bson
 class MongoEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: ConditionConverter<Bson> = MongoConditionConverter
+    override val converter: ConditionConverter<Bson> = EventStreamConditionConverter
 ) : AbstractMongoQueryService<DomainEventStream>(), EventStreamQueryService {
 
     override fun toTypedResult(document: Document): DomainEventStream {

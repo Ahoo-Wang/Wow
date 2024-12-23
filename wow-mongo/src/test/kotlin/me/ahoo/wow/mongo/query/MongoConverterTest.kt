@@ -8,9 +8,9 @@ import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.MongoConditionConverter.toMongoFilter
 import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
 import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
+import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import org.bson.conversions.Bson
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -32,11 +32,15 @@ class MongoConverterTest {
     fun toMongoFilterBetweenError() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition("id", Operator.BETWEEN, listOf<Int>())
-                .toMongoFilter()
+                .let {
+                    SnapshotConditionConverter.convert(it)
+                }
         }
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition("id", Operator.BETWEEN, listOf(1))
-                .toMongoFilter()
+                .let {
+                    SnapshotConditionConverter.convert(it)
+                }
         }
     }
 
@@ -44,7 +48,9 @@ class MongoConverterTest {
     fun toMongoFilterAndError() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition("", Operator.AND, "")
-                .toMongoFilter()
+                .let {
+                    SnapshotConditionConverter.convert(it)
+                }
         }
     }
 
@@ -52,7 +58,9 @@ class MongoConverterTest {
     fun toMongoFilterOrError() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition("", Operator.OR, "")
-                .toMongoFilter()
+                .let {
+                    SnapshotConditionConverter.convert(it)
+                }
         }
     }
 
@@ -60,13 +68,17 @@ class MongoConverterTest {
     fun toMongoFilterNorError() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             Condition("", Operator.NOR, "")
-                .toMongoFilter()
+                .let {
+                    SnapshotConditionConverter.convert(it)
+                }
         }
     }
 
     @Test
     fun today() {
-        val actual = Condition.today("field").toMongoFilter()
+        val actual = Condition.today("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte("field", OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()),
             Filters.lte("field", OffsetDateTime.now().with(LocalTime.MAX).toInstant().toEpochMilli())
@@ -80,7 +92,9 @@ class MongoConverterTest {
             options = mapOf(
                 Condition.ZONE_ID_OPTION_KEY to "UTC"
             )
-        ).toMongoFilter()
+        ).let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MIN).toInstant().toEpochMilli()),
             Filters.lte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MAX).toInstant().toEpochMilli())
@@ -90,7 +104,9 @@ class MongoConverterTest {
 
     @Test
     fun beforeToday() {
-        val actual = Condition.beforeToday("field", LocalTime.NOON).toMongoFilter()
+        val actual = Condition.beforeToday("field", LocalTime.NOON).let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.lt(
             "field",
             OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
@@ -100,7 +116,9 @@ class MongoConverterTest {
 
     @Test
     fun beforeTodayStringValue() {
-        val actual = Condition.beforeToday("field", "12:00").toMongoFilter()
+        val actual = Condition.beforeToday("field", "12:00").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.lt(
             "field",
             OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
@@ -110,7 +128,9 @@ class MongoConverterTest {
 
     @Test
     fun beforeTodayLongValue() {
-        val actual = Condition.beforeToday("field", 0).toMongoFilter()
+        val actual = Condition.beforeToday("field", 0).let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.lt(
             "field",
             OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()
@@ -121,13 +141,17 @@ class MongoConverterTest {
     @Test
     fun beforeTodayWrongValue() {
         Assertions.assertThrows(IllegalArgumentException::class.java) {
-            Condition.beforeToday("field", Any()).toMongoFilter()
+            Condition.beforeToday("field", Any()).let {
+                SnapshotConditionConverter.convert(it)
+            }
         }
     }
 
     @Test
     fun tomorrow() {
-        val actual = Condition.tomorrow("field").toMongoFilter()
+        val actual = Condition.tomorrow("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -143,7 +167,9 @@ class MongoConverterTest {
 
     @Test
     fun thisWeek() {
-        val actual = Condition.thisWeek("field").toMongoFilter()
+        val actual = Condition.thisWeek("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -161,7 +187,9 @@ class MongoConverterTest {
 
     @Test
     fun nextWeek() {
-        val actual = Condition.nextWeek("field").toMongoFilter()
+        val actual = Condition.nextWeek("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -179,7 +207,9 @@ class MongoConverterTest {
 
     @Test
     fun lastWeek() {
-        val actual = Condition.lastWeek("field").toMongoFilter()
+        val actual = Condition.lastWeek("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -197,7 +227,9 @@ class MongoConverterTest {
 
     @Test
     fun thisMonth() {
-        val actual = Condition.thisMonth("field").toMongoFilter()
+        val actual = Condition.thisMonth("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -214,7 +246,9 @@ class MongoConverterTest {
 
     @Test
     fun lastMonth() {
-        val actual = Condition.lastMonth("field").toMongoFilter()
+        val actual = Condition.lastMonth("field").let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -232,7 +266,9 @@ class MongoConverterTest {
 
     @Test
     fun recentDays() {
-        val actual = Condition.recentDays("field", 2).toMongoFilter()
+        val actual = Condition.recentDays("field", 2).let {
+            SnapshotConditionConverter.convert(it)
+        }
         val expected = Filters.and(
             Filters.gte(
                 "field",
@@ -246,20 +282,26 @@ class MongoConverterTest {
     @Test
     fun rawBson() {
         val expected = Filters.eq("id", "id")
-        val actual = Condition.raw(expected).toMongoFilter()
+        val actual = Condition.raw(expected).let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(actual, equalTo(expected))
     }
 
     @Test
     fun rawString() {
-        val actual = Condition.raw("{\"id\":\"id\"}").toMongoFilter().toBsonDocument()
+        val actual = Condition.raw("{\"id\":\"id\"}").let {
+            SnapshotConditionConverter.convert(it)
+        }.toBsonDocument()
         val expected = Filters.eq("id", "id").toBsonDocument()
         assertThat(actual, equalTo(expected))
     }
 
     @Test
     fun rawMap() {
-        val actual = Condition.raw(mapOf("id" to "id")).toMongoFilter().toBsonDocument()
+        val actual = Condition.raw(mapOf("id" to "id")).let {
+            SnapshotConditionConverter.convert(it)
+        }.toBsonDocument()
         val expected = Filters.eq("id", "id").toBsonDocument()
         assertThat(actual, equalTo(expected))
     }
@@ -268,7 +310,9 @@ class MongoConverterTest {
 
     @Test
     fun rawObject() {
-        val actual = Condition.raw(RawObj("id")).toMongoFilter().toBsonDocument()
+        val actual = Condition.raw(RawObj("id")).let {
+            SnapshotConditionConverter.convert(it)
+        }.toBsonDocument()
         val expected = Filters.eq("id", "id").toBsonDocument()
         assertThat(actual, equalTo(expected))
     }
@@ -276,7 +320,9 @@ class MongoConverterTest {
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
     fun toMongoFilter(condition: Condition, expected: Bson) {
-        val actual = condition.toMongoFilter().toBsonDocument()
+        val actual = condition.let {
+            SnapshotConditionConverter.convert(it)
+        }.toBsonDocument()
         assertThat(actual, equalTo(expected.toBsonDocument()))
     }
 
@@ -303,7 +349,9 @@ class MongoConverterTest {
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.nor(Condition.all()), Filters.nor(Filters.empty())),
                 Arguments.of(Condition.id("id"), Filters.eq("id")),
+                Arguments.of(Condition.aggregateId("id"), Filters.eq("id")),
                 Arguments.of(Condition.ids("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
+                Arguments.of(Condition.aggregateIds("id", "id2"), Filters.`in`(Documents.ID_FIELD, "id", "id2")),
                 Arguments.of(Condition.eq("id", "id"), Filters.eq("id", "id")),
                 Arguments.of(Condition.ne("id", "id"), Filters.ne("id", "id")),
                 Arguments.of(Condition.gt("id", 1), Filters.gt("id", 1)),

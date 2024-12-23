@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
@@ -24,16 +25,17 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
-import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
 import me.ahoo.wow.elasticsearch.query.ElasticsearchProjectionConverter.toSourceFilter
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.QueryService
+import me.ahoo.wow.query.converter.ConditionConverter
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
+    abstract val conditionConverter: ConditionConverter<Query>
     abstract val indexName: String
     abstract fun toTypedResult(document: DynamicDocument): R
 
@@ -81,7 +83,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
     override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
         val searchRequest = SearchRequest.of {
             it.index(indexName)
-                .query(pagedQuery.condition.toQuery())
+                .query(conditionConverter.convert(pagedQuery.condition))
                 .from(pagedQuery.pagination.offset())
                 .size(pagedQuery.pagination.size)
 

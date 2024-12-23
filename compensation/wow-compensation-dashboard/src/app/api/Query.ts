@@ -4,6 +4,8 @@ export enum Operator {
   NOR = "NOR",
   ID = "ID",
   IDS = "IDS",
+  AGGREGATE_ID = "AGGREGATE_ID",
+  AGGREGATE_IDS = "AGGREGATE_IDS",
   DELETED = "DELETED",
   TENANT_ID = "TENANT_ID",
   ALL = "ALL",
@@ -91,6 +93,15 @@ export class Conditions {
 
   static ids(value: string[]): Condition {
     return {field: "", operator: Operator.IDS, value: value, children: []}
+  }
+
+
+  static aggregateId(value: string): Condition {
+    return {field: "", operator: Operator.AGGREGATE_ID, value: value, children: []}
+  }
+
+  static aggregateIds(value: string[]): Condition {
+    return {field: "", operator: Operator.AGGREGATE_IDS, value: value, children: []}
   }
 
   static deleted(value: boolean): Condition {

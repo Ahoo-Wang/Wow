@@ -23,7 +23,6 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
-import me.ahoo.wow.mongo.query.MongoConditionConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
@@ -33,7 +32,7 @@ import org.bson.conversions.Bson
 class MongoSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
     override val collection: MongoCollection<Document>,
-    override val converter: ConditionConverter<Bson> = MongoConditionConverter
+    override val converter: ConditionConverter<Bson> = SnapshotConditionConverter
 ) : AbstractMongoQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
 
     private val snapshotType = TypeFactory.defaultInstance()
