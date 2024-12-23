@@ -21,12 +21,12 @@ import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
 
-interface SnapshotQueryHandler : QueryHandler<QueryContext<*, *, *>, MaterializedSnapshot<Any>>
+interface SnapshotQueryHandler : QueryHandler<MaterializedSnapshot<Any>>
 
 class DefaultSnapshotQueryHandler(
-    chain: FilterChain<QueryContext<*, *, *>>,
-    errorHandler: ErrorHandler<QueryContext<*, *, *>> = LogErrorHandler()
-) : SnapshotQueryHandler, AbstractQueryHandler<QueryContext<*, *, *>, MaterializedSnapshot<Any>>(
+    chain: FilterChain<QueryContext<*, *>>,
+    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
+) : SnapshotQueryHandler, AbstractQueryHandler<MaterializedSnapshot<Any>>(
     chain,
     errorHandler,
 )

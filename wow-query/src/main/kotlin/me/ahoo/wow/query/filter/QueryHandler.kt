@@ -27,7 +27,7 @@ import me.ahoo.wow.filter.Handler
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface QueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any> : Handler<CONTEXT> {
+interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R>
     fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument>
     fun list(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<R>
@@ -38,11 +38,11 @@ interface QueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any> : Handler<CONTE
 }
 
 @Suppress("UNCHECKED_CAST")
-abstract class AbstractQueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any>(
-    private val chain: FilterChain<CONTEXT>,
-    private val errorHandler: ErrorHandler<CONTEXT>
-) : QueryHandler<CONTEXT, R> {
-    override fun handle(context: CONTEXT): Mono<Void> {
+abstract class AbstractQueryHandler<R : Any>(
+    private val chain: FilterChain<QueryContext<*, *>>,
+    private val errorHandler: ErrorHandler<QueryContext<*, *>>
+) : QueryHandler<R> {
+    override fun handle(context: QueryContext<*, *>): Mono<Void> {
         return chain.filter(context)
             .onErrorResume {
                 if (context is ErrorAccessor) {
@@ -53,53 +53,53 @@ abstract class AbstractQueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any>(
     }
 
     override fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R> {
-        val context = SingleQueryContext<R>(
+        val context = DefaultQueryContext<ISingleQuery, Mono<R>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.SINGLE
-        ).setQuery(singleQuery) as CONTEXT
+        ).setQuery(singleQuery)
         return handle(context)
             .then(
                 Mono.defer {
-                    context.getRequiredResult() as Mono<R>
+                    context.getRequiredResult()
                 }
             )
     }
 
     override fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument> {
-        val context = SingleQueryContext<DynamicDocument>(
+        val context = DefaultQueryContext<ISingleQuery, Mono<DynamicDocument>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.DYNAMIC_SINGLE
-        ).setQuery(singleQuery) as CONTEXT
+        ).setQuery(singleQuery)
         return handle(context)
             .then(
                 Mono.defer {
-                    context.getRequiredResult() as Mono<DynamicDocument>
+                    context.getRequiredResult()
                 }
             )
     }
 
     override fun list(namedAggregate: NamedAggregate, query: IListQuery): Flux<R> {
-        val context = ListQueryContext<R>(
+        val context = DefaultQueryContext<IListQuery, Flux<R>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.LIST
-        ).setQuery(query) as CONTEXT
+        ).setQuery(query)
         return handle(context)
             .thenMany(
                 Flux.defer {
-                    context.getRequiredResult() as Flux<R>
+                    context.getRequiredResult()
                 }
             )
     }
 
     override fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
-        val context = ListQueryContext<DynamicDocument>(
+        val context = DefaultQueryContext<IListQuery, Flux<DynamicDocument>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.DYNAMIC_LIST
-        ).setQuery(query) as CONTEXT
+        ).setQuery(query)
         return handle(context)
             .thenMany(
                 Flux.defer {
-                    context.getRequiredResult() as Flux<DynamicDocument>
+                    context.getRequiredResult()
                 }
             )
     }
@@ -108,14 +108,14 @@ abstract class AbstractQueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any>(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<R>> {
-        val context = PagedQueryContext<R>(
+        val context = DefaultQueryContext<IPagedQuery, Mono<PagedList<R>>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.PAGED
-        ).setQuery(pagedQuery) as CONTEXT
+        ).setQuery(pagedQuery)
         return handle(context)
             .then(
                 Mono.defer {
-                    context.getRequiredResult() as Mono<PagedList<R>>
+                    context.getRequiredResult()
                 }
             )
     }
@@ -124,24 +124,27 @@ abstract class AbstractQueryHandler<CONTEXT : QueryContext<*, *, *>, R : Any>(
         namedAggregate: NamedAggregate,
         pagedQuery: IPagedQuery
     ): Mono<PagedList<DynamicDocument>> {
-        val context = PagedQueryContext<DynamicDocument>(
+        val context = DefaultQueryContext<IPagedQuery, Mono<PagedList<DynamicDocument>>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.DYNAMIC_PAGED
-        ).setQuery(pagedQuery) as CONTEXT
+        ).setQuery(pagedQuery)
         return handle(context)
             .then(
                 Mono.defer {
-                    context.getRequiredResult() as Mono<PagedList<DynamicDocument>>
+                    context.getRequiredResult()
                 }
             )
     }
 
     override fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long> {
-        val context = CountQueryContext(namedAggregate).setQuery(condition) as CONTEXT
+        val context = DefaultQueryContext<Condition, Mono<Long>>(
+            namedAggregate = namedAggregate,
+            queryType = QueryType.COUNT
+        ).setQuery(condition)
         return handle(context)
             .then(
                 Mono.defer {
-                    context.getRequiredResult() as Mono<Long>
+                    context.getRequiredResult()
                 }
             )
     }

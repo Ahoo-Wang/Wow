@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.RewritableCondition
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -27,11 +28,11 @@ const val QUERY_KEY = "__QUERY__"
 const val RESULT_KEY = "__RESULT__"
 
 @Suppress("UNCHECKED_CAST")
-interface QueryContext<SOURCE : QueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
+interface QueryContext<Q : Any, R : Any> {
+    val queryType: QueryType
     val attributes: MutableMap<String, Any>
     val namedAggregate: NamedAggregate
-    val queryType: QueryType
-    fun setQuery(query: Q): SOURCE {
+    fun setQuery(query: Q): QueryContext<Q, R> {
         return setAttribute(QUERY_KEY, query)
     }
 
@@ -39,54 +40,58 @@ interface QueryContext<SOURCE : QueryContext<SOURCE, Q, R>, Q : Any, R : Any> {
         return checkNotNull(getAttribute<Q>(QUERY_KEY))
     }
 
-    fun rewriteQuery(rewrite: (Q) -> Q): SOURCE {
+    fun rewriteQuery(rewrite: (Q) -> Q): QueryContext<Q, R> {
         return setQuery(rewrite(getQuery()))
     }
 
-    fun setResult(result: R): SOURCE {
+    fun setResult(result: R): QueryContext<Q, R> {
         return setAttribute(RESULT_KEY, result)
+    }
+
+    fun setResult(handle: (Q) -> R): QueryContext<Q, R> {
+        return setResult(handle(getQuery()))
     }
 
     fun getRequiredResult(): R {
         return checkNotNull(getAttribute<R>(RESULT_KEY))
     }
 
-    fun rewriteResult(rewrite: (R) -> R): SOURCE {
+    fun rewriteResult(rewrite: (R) -> R): QueryContext<Q, R> {
         return setResult(rewrite(getRequiredResult()))
     }
 
-    fun setAttribute(key: String, value: Any): SOURCE {
+    fun setAttribute(key: String, value: Any): QueryContext<Q, R> {
         attributes[key] = value
-        return this as SOURCE
+        return this
     }
 
     fun <V> getAttribute(key: String): V? {
         return attributes[key] as V?
     }
+
+    fun <E> asSingleQuery(): QueryContext<ISingleQuery, Mono<E>> {
+        return this as QueryContext<ISingleQuery, Mono<E>>
+    }
+
+    fun <E> asListQuery(): QueryContext<IListQuery, Flux<E>> {
+        return this as QueryContext<IListQuery, Flux<E>>
+    }
+
+    fun <E> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
+        return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
+    }
+
+    fun asRewritableQuery(): QueryContext<RewritableCondition<*>, R> {
+        return this as QueryContext<RewritableCondition<*>, R>
+    }
+
+    fun asCountQuery(): QueryContext<Condition, Mono<Long>> {
+        return this as QueryContext<Condition, Mono<Long>>
+    }
 }
 
-class SingleQueryContext<R : Any>(
-    override val namedAggregate: NamedAggregate,
+class DefaultQueryContext<Q : Any, R : Any>(
     override val queryType: QueryType,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : QueryContext<SingleQueryContext<R>, ISingleQuery, Mono<R>>
-
-class ListQueryContext<R : Any>(
-    override val namedAggregate: NamedAggregate,
-    override val queryType: QueryType,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : QueryContext<ListQueryContext<R>, IListQuery, Flux<R>>
-
-class PagedQueryContext<R : Any>(
-    override val namedAggregate: NamedAggregate,
-    override val queryType: QueryType,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : QueryContext<PagedQueryContext<R>, IPagedQuery, Mono<PagedList<R>>>
-
-class CountQueryContext(
     override val namedAggregate: NamedAggregate,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap(),
-) : QueryContext<CountQueryContext, Condition, Mono<Long>> {
-    override val queryType: QueryType
-        get() = QueryType.COUNT
-}
+) : QueryContext<Q, R>

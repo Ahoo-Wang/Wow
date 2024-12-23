@@ -105,9 +105,9 @@ class QueryAutoConfiguration {
 
     @Bean
     fun snapshotQueryFilterChain(
-        filters: List<Filter<QueryContext<*, *, *>>>
-    ): FilterChain<QueryContext<*, *, *>> {
-        return FilterChainBuilder<QueryContext<*, *, *>>()
+        filters: List<Filter<QueryContext<*, *>>>
+    ): FilterChain<QueryContext<*, *>> {
+        return FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(filters)
             .filterCondition(SnapshotQueryHandler::class)
             .build()
@@ -115,9 +115,9 @@ class QueryAutoConfiguration {
 
     @Bean
     fun eventStreamQueryFilterChain(
-        filters: List<Filter<QueryContext<*, *, *>>>
-    ): FilterChain<QueryContext<*, *, *>> {
-        return FilterChainBuilder<QueryContext<*, *, *>>()
+        filters: List<Filter<QueryContext<*, *>>>
+    ): FilterChain<QueryContext<*, *>> {
+        return FilterChainBuilder<QueryContext<*, *>>()
             .addFilters(filters)
             .filterCondition(EventStreamQueryHandler::class)
             .build()
@@ -125,28 +125,28 @@ class QueryAutoConfiguration {
 
     @Bean("snapshotQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["snapshotQueryErrorHandler"])
-    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *, *>> {
+    fun snapshotQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> {
         return LogErrorHandler()
     }
 
     @Bean("eventStreamQueryErrorHandler")
     @ConditionalOnMissingBean(name = ["eventStreamQueryErrorHandler"])
-    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *, *>> {
+    fun eventStreamQueryErrorHandler(): ErrorHandler<QueryContext<*, *>> {
         return LogErrorHandler()
     }
 
     @Bean
     fun snapshotQueryHandler(
-        @Qualifier("snapshotQueryFilterChain") chain: FilterChain<QueryContext<*, *, *>>,
-        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *, *>>
+        @Qualifier("snapshotQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
+        @Qualifier("snapshotQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
     ): SnapshotQueryHandler {
         return DefaultSnapshotQueryHandler(chain, queryErrorHandler)
     }
 
     @Bean
     fun eventStreamQueryHandler(
-        @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<QueryContext<*, *, *>>,
-        @Qualifier("eventStreamQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *, *>>
+        @Qualifier("eventStreamQueryFilterChain") chain: FilterChain<QueryContext<*, *>>,
+        @Qualifier("eventStreamQueryErrorHandler") queryErrorHandler: ErrorHandler<QueryContext<*, *>>
     ): EventStreamQueryHandler {
         return DefaultEventStreamQueryHandler(chain, queryErrorHandler)
     }

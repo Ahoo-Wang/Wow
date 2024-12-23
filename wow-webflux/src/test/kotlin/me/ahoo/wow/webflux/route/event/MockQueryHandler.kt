@@ -23,7 +23,7 @@ import me.ahoo.wow.query.filter.QueryContext
 
 object MockQueryHandler {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(EventStreamQueryHandler::class)
         .build()

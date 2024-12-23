@@ -17,6 +17,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -27,7 +28,7 @@ import reactor.kotlin.test.test
 
 class DefaultEventStreamQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(EventStreamQueryHandler::class)
         .build()
@@ -35,6 +36,24 @@ class DefaultEventStreamQueryHandlerTest {
         queryFilterChain,
         LogErrorHandler()
     )
+
+    @Test
+    fun single() {
+        val query = singleQuery {
+        }
+
+        queryHandler.single(MOCK_AGGREGATE_METADATA, query)
+            .test().verifyComplete()
+    }
+
+    @Test
+    fun dynamicSingle() {
+        val query = singleQuery {
+        }
+
+        queryHandler.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
+            .test().verifyComplete()
+    }
 
     @Test
     fun query() {
@@ -48,6 +67,28 @@ class DefaultEventStreamQueryHandlerTest {
         val query = listQuery { }
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
+    }
+
+    @Test
+    fun pagedQuery() {
+        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
+        queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicPaged() {
+        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
+        queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0))
+            }
+            .verifyComplete()
     }
 
     @Test

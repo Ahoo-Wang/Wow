@@ -17,4 +17,4 @@ import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterType
 
 @FilterType(QueryHandler::class)
-interface QueryFilter<CONTEXT : QueryContext<*, *, *>> : Filter<CONTEXT>
+interface QueryFilter<CONTEXT : QueryContext<*, *>> : Filter<CONTEXT>

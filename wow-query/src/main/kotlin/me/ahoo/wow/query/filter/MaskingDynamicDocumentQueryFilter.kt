@@ -24,10 +24,10 @@ import reactor.core.publisher.Mono
 abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocumentMasker>(
     protected val maskerRegistry: DataMaskerRegistry<MASKER>
 ) :
-    QueryFilter<QueryContext<*, *, *>> {
+    QueryFilter<QueryContext<*, *>> {
     override fun filter(
-        context: QueryContext<*, *, *>,
-        next: FilterChain<QueryContext<*, *, *>>
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         return next.filter(context).then(
             Mono.defer {
@@ -37,7 +37,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
         )
     }
 
-    fun maskDynamicDocument(context: QueryContext<*, *, *>) {
+    fun maskDynamicDocument(context: QueryContext<*, *>) {
         if (!context.queryType.isDynamic) {
             return
         }
@@ -47,8 +47,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
         }
         when (context.queryType) {
             QueryType.DYNAMIC_SINGLE -> {
-                context as SingleQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
+                context.asSingleQuery<DynamicDocument>().rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)
                     }
@@ -56,8 +55,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             }
 
             QueryType.DYNAMIC_LIST -> {
-                context as ListQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
+                context.asListQuery<DynamicDocument>().rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)
                     }
@@ -65,8 +63,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             }
 
             QueryType.DYNAMIC_PAGED -> {
-                context as PagedQueryContext<DynamicDocument>
-                context.rewriteResult { result ->
+                context.asPagedQuery<DynamicDocument>().rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)
                     }

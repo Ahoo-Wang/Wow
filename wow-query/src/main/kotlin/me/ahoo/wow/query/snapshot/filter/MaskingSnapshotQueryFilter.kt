@@ -18,12 +18,9 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.filter.ListQueryContext
 import me.ahoo.wow.query.filter.MaskingDynamicDocumentQueryFilter
-import me.ahoo.wow.query.filter.PagedQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.filter.SingleQueryContext
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.tryMask
@@ -35,8 +32,8 @@ import reactor.core.publisher.Mono
 class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,
     MaskingDynamicDocumentQueryFilter<StateDynamicDocumentMasker>(maskerRegistry) {
     override fun filter(
-        context: QueryContext<*, *, *>,
-        next: FilterChain<QueryContext<*, *, *>>
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         return next.filter(context).then(
             Mono.defer {
@@ -47,7 +44,7 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
     }
 
     @Suppress("LongMethod")
-    private fun mask(context: QueryContext<*, *, *>) {
+    private fun mask(context: QueryContext<*, *>) {
         if (context.queryType == QueryType.COUNT) {
             return
         }
@@ -59,11 +56,10 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
         maskState(context)
     }
 
-    private fun maskState(context: QueryContext<*, *, *>) {
+    private fun maskState(context: QueryContext<*, *>) {
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleQueryContext<MaterializedSnapshot<Any>>
-                context.rewriteResult { result ->
+                context.asSingleQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
                     result.map {
                         it.tryMask()
                     }
@@ -71,8 +67,7 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
             }
 
             QueryType.LIST -> {
-                context as ListQueryContext<MaterializedSnapshot<Any>>
-                context.rewriteResult { result ->
+                context.asListQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
                     result.map {
                         it.tryMask()
                     }
@@ -80,8 +75,7 @@ class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : Snap
             }
 
             QueryType.PAGED -> {
-                context as PagedQueryContext<MaterializedSnapshot<Any>>
-                context.rewriteResult { result ->
+                context.asPagedQuery<MaterializedSnapshot<Any>>().rewriteResult { result ->
                     result.map {
                         it.tryMask()
                     }
