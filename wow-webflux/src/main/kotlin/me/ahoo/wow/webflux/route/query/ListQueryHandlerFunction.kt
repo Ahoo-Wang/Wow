@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryHandler: QueryHandler<*, *>,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -47,7 +47,7 @@ class ListQueryHandlerFunction(
 
 open class ListQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
-    private val queryHandler: QueryHandler<*>,
+    private val queryHandler: QueryHandler<*, *>,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<SPEC> {
 
