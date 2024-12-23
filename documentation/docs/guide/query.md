@@ -248,6 +248,36 @@ pagedQuery {
 }.query(queryService)
 ```
 
+## 重写查询
+
+```kotlin
+@Component
+@Order(ORDER_FIRST)
+@FilterType(SnapshotQueryHandler::class)
+class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
+
+    override fun filter(
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>,
+    ): Mono<Void> {
+
+        return Mono.deferContextual {
+            /**
+             * 重写查询，将仓库ID附加到查询条件中。
+             */
+            context.asRewritableQuery().rewriteQuery { query ->
+                val warehouseIdCondition = condition {
+                    nestedState()
+                    WarehouseIdCapable::warehouseId.name eq warehouseId
+                }
+                query.appendCondition(warehouseIdCondition)
+            }
+            next.filter(context)
+        }
+    }
+}
+```
+
 ## OpenAPI
 
 **Wow** 除了为命令(`Command`)自动生成了 _OpenAPI_ 端点，另外还提供了查询(`Query`) _OpenAPI_ 端点。
