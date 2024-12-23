@@ -45,7 +45,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Generate KotlinDoc
-        run: ./gradlew dokkaHtmlMultimodule
+        run: ./gradlew dokkaHtmlMultiModule
 
       - name: Copy To Documentation
         run: cp -R build/dokka/htmlMultiModule documentation/docs/public/dokka
