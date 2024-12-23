@@ -60,7 +60,6 @@ import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.ScanAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -96,7 +95,6 @@ class WebFluxAutoConfiguration {
             "loadVersionedAggregateHandlerFunctionFactory"
         const val IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "idsQueryAggregateHandlerFunctionFactory"
-        const val SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "scanAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
         const val PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "pagedQuerySnapshotHandlerFunctionFactory"
@@ -197,21 +195,6 @@ class WebFluxAutoConfiguration {
     ): IdsQueryAggregateHandlerFunctionFactory {
         return IdsQueryAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler
-        )
-    }
-
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [SCAN_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun scanAggregateHandlerFunctionFactory(
-        stateAggregateRepository: StateAggregateRepository,
-        snapshotRepository: SnapshotRepository,
-        exceptionHandler: RequestExceptionHandler
-    ): ScanAggregateHandlerFunctionFactory {
-        return ScanAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateAggregateRepository,
-            snapshotRepository = snapshotRepository,
             exceptionHandler = exceptionHandler
         )
     }
