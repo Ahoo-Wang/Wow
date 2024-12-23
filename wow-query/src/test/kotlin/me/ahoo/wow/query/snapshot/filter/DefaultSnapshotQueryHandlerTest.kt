@@ -28,7 +28,7 @@ import reactor.kotlin.test.test
 
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
+    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()

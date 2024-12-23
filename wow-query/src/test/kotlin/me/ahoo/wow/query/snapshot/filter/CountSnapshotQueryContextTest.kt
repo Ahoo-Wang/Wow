@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.dsl.condition
-import me.ahoo.wow.query.filter.CountQueryContext
+import me.ahoo.wow.query.filter.DefaultQueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -24,10 +26,13 @@ class CountSnapshotQueryContextTest {
 
     @Test
     fun rewriteQuery() {
-        val context = CountQueryContext(MOCK_AGGREGATE_METADATA)
+        val context = DefaultQueryContext<Condition, Any>(
+            queryType = QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA
+        )
         val query = condition { }
         context.setQuery(query)
-        context.rewriteQuery {
+        context.asRewritableQuery().rewriteQuery {
             it.appendTenantId("tenantId")
         }
         assertThat(

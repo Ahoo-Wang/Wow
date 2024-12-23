@@ -14,20 +14,24 @@
 package me.ahoo.wow.query.filter
 
 import me.ahoo.wow.api.query.DynamicDocument
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.query.mask.AggregateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.DataMaskerRegistry
 import me.ahoo.wow.query.mask.mask
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 @Suppress("UNCHECKED_CAST")
 abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocumentMasker>(
     protected val maskerRegistry: DataMaskerRegistry<MASKER>
 ) :
-    QueryFilter<QueryContext<*, *, *>> {
+    QueryFilter<QueryContext<*, *>> {
     override fun filter(
-        context: QueryContext<*, *, *>,
-        next: FilterChain<QueryContext<*, *, *>>
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         return next.filter(context).then(
             Mono.defer {
@@ -37,7 +41,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
         )
     }
 
-    fun maskDynamicDocument(context: QueryContext<*, *, *>) {
+    fun maskDynamicDocument(context: QueryContext<*, *>) {
         if (!context.queryType.isDynamic) {
             return
         }
@@ -47,7 +51,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
         }
         when (context.queryType) {
             QueryType.DYNAMIC_SINGLE -> {
-                context as SingleQueryContext<DynamicDocument>
+                context as QueryContext<ISingleQuery, Mono<DynamicDocument>>
                 context.rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)
@@ -56,7 +60,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             }
 
             QueryType.DYNAMIC_LIST -> {
-                context as ListQueryContext<DynamicDocument>
+                context as QueryContext<IListQuery, Flux<DynamicDocument>>
                 context.rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)
@@ -65,7 +69,7 @@ abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocume
             }
 
             QueryType.DYNAMIC_PAGED -> {
-                context as PagedQueryContext<DynamicDocument>
+                context as QueryContext<IListQuery, Mono<PagedList<DynamicDocument>>>
                 context.rewriteResult { result ->
                     result.map {
                         aggregateDataMasker.mask(it)

@@ -19,18 +19,14 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.query.filter.CountQueryContext
-import me.ahoo.wow.query.filter.ListQueryContext
-import me.ahoo.wow.query.filter.PagedQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.filter.SingleQueryContext
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import reactor.core.publisher.Mono
 
 @FilterType(SnapshotQueryHandler::class)
-interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *, *>>
+interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
@@ -38,44 +34,51 @@ interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *, *>>
 class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
     SnapshotQueryFilter {
     override fun filter(
-        context: QueryContext<*, *, *>,
-        next: FilterChain<QueryContext<*, *, *>>
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         val queryService = queryServiceFactory.create<S>(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleQueryContext<MaterializedSnapshot<S>>
-                context.setResult(queryService.single(context.getQuery()))
+                context.asSingleQuery<MaterializedSnapshot<S>>().setResult {
+                    queryService.single(it)
+                }
             }
 
             QueryType.DYNAMIC_SINGLE -> {
-                context as SingleQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicSingle(context.getQuery()))
+                context.asSingleQuery<DynamicDocument>().setResult {
+                    queryService.dynamicSingle(it)
+                }
             }
 
             QueryType.LIST -> {
-                context as ListQueryContext<MaterializedSnapshot<S>>
-                context.setResult(queryService.list(context.getQuery()))
+                context.asListQuery<MaterializedSnapshot<S>>().setResult {
+                    queryService.list(it)
+                }
             }
 
             QueryType.DYNAMIC_LIST -> {
-                context as ListQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicList(context.getQuery()))
+                context.asListQuery<DynamicDocument>().setResult {
+                    queryService.dynamicList(it)
+                }
             }
 
             QueryType.PAGED -> {
-                context as PagedQueryContext<MaterializedSnapshot<S>>
-                context.setResult(queryService.paged(context.getQuery()))
+                context.asPagedQuery<MaterializedSnapshot<S>>().setResult {
+                    queryService.paged(it)
+                }
             }
 
             QueryType.DYNAMIC_PAGED -> {
-                context as PagedQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicPaged(context.getQuery()))
+                context.asPagedQuery<DynamicDocument>().setResult {
+                    queryService.dynamicPaged(it)
+                }
             }
 
             QueryType.COUNT -> {
-                context as CountQueryContext
-                context.setResult(queryService.count(context.getQuery()))
+                context.asCountQuery().setResult {
+                    queryService.count(it)
+                }
             }
         }
         return next.filter(context)

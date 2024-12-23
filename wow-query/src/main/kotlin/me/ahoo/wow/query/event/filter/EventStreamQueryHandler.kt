@@ -21,12 +21,12 @@ import me.ahoo.wow.query.filter.AbstractQueryHandler
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryHandler
 
-interface EventStreamQueryHandler : QueryHandler<QueryContext<*, *, *>, DomainEventStream>
+interface EventStreamQueryHandler : QueryHandler<DomainEventStream>
 
 class DefaultEventStreamQueryHandler(
-    chain: FilterChain<QueryContext<*, *, *>>,
-    errorHandler: ErrorHandler<QueryContext<*, *, *>> = LogErrorHandler()
-) : EventStreamQueryHandler, AbstractQueryHandler<QueryContext<*, *, *>, DomainEventStream>(
+    chain: FilterChain<QueryContext<*, *>>,
+    errorHandler: ErrorHandler<QueryContext<*, *>> = LogErrorHandler()
+) : EventStreamQueryHandler, AbstractQueryHandler<DomainEventStream>(
     chain,
     errorHandler,
 )

@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 
 class DefaultEventStreamQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(EventStreamQueryHandler::class)
         .build()

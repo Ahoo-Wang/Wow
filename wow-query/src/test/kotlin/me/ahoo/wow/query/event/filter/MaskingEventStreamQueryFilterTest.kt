@@ -48,7 +48,7 @@ import reactor.kotlin.test.test
 class MaskingEventStreamQueryFilterTest {
     private val eventStreamMaskerRegistry = EventStreamMaskerRegistry()
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(MockEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)))
         .filterCondition(EventStreamQueryHandler::class)
         .build()

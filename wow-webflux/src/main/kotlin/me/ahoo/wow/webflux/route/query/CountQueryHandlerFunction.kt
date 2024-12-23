@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryHandler: QueryHandler<*, *>,
+    private val queryHandler: QueryHandler<*>,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
@@ -46,7 +46,7 @@ class CountQueryHandlerFunction(
 
 open class CountQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
-    private val queryHandler: QueryHandler<*, *>,
+    private val queryHandler: QueryHandler<*>,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<SPEC> {
 

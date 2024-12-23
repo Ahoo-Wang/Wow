@@ -20,17 +20,13 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.filter.CountQueryContext
-import me.ahoo.wow.query.filter.ListQueryContext
-import me.ahoo.wow.query.filter.PagedQueryContext
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.filter.SingleQueryContext
 import reactor.core.publisher.Mono
 
 @FilterType(EventStreamQueryHandler::class)
-interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *, *>>
+interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
 @FilterType(EventStreamQueryHandler::class)
@@ -38,44 +34,51 @@ interface EventStreamQueryFilter : QueryFilter<QueryContext<*, *, *>>
 class TailEventStreamQueryFilter(private val queryServiceFactory: EventStreamQueryServiceFactory) :
     EventStreamQueryFilter {
     override fun filter(
-        context: QueryContext<*, *, *>,
-        next: FilterChain<QueryContext<*, *, *>>
+        context: QueryContext<*, *>,
+        next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         val queryService = queryServiceFactory.create(context.namedAggregate)
         when (context.queryType) {
             QueryType.SINGLE -> {
-                context as SingleQueryContext<DomainEventStream>
-                context.setResult(queryService.single(context.getQuery()))
+                context.asSingleQuery<DomainEventStream>().setResult {
+                    queryService.single(it)
+                }
             }
 
             QueryType.DYNAMIC_SINGLE -> {
-                context as SingleQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicSingle(context.getQuery()))
+                context.asSingleQuery<DynamicDocument>().setResult {
+                    queryService.dynamicSingle(it)
+                }
             }
 
             QueryType.LIST -> {
-                context as ListQueryContext<DomainEventStream>
-                context.setResult(queryService.list(context.getQuery()))
+                context.asListQuery<DomainEventStream>().setResult {
+                    queryService.list(it)
+                }
             }
 
             QueryType.DYNAMIC_LIST -> {
-                context as ListQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicList(context.getQuery()))
+                context.asListQuery<DynamicDocument>().setResult {
+                    queryService.dynamicList(it)
+                }
             }
 
             QueryType.PAGED -> {
-                context as PagedQueryContext<DomainEventStream>
-                context.setResult(queryService.paged(context.getQuery()))
+                context.asPagedQuery<DomainEventStream>().setResult {
+                    queryService.paged(it)
+                }
             }
 
             QueryType.DYNAMIC_PAGED -> {
-                context as PagedQueryContext<DynamicDocument>
-                context.setResult(queryService.dynamicPaged(context.getQuery()))
+                context.asPagedQuery<DynamicDocument>().setResult {
+                    queryService.dynamicPaged(it)
+                }
             }
 
             QueryType.COUNT -> {
-                context as CountQueryContext
-                context.setResult(queryService.count(context.getQuery()))
+                context.asCountQuery().setResult {
+                    queryService.count(it)
+                }
             }
         }
         return next.filter(context)
