@@ -20,6 +20,8 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.pagedQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.count
@@ -56,6 +58,34 @@ abstract class EventStreamQueryServiceSpec {
     }
 
     @Test
+    fun single() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+        singleQuery {
+            condition {
+                tenantId(eventStream.aggregateId.tenantId)
+            }
+        }.query(eventStreamQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicSingle() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+        singleQuery {
+            condition {
+                tenantId(eventStream.aggregateId.tenantId)
+            }
+        }.dynamicQuery(eventStreamQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
     fun list() {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
@@ -74,6 +104,34 @@ abstract class EventStreamQueryServiceSpec {
         val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
         eventStore.append(eventStream).block()
         listQuery {
+            condition {
+                tenantId(eventStream.aggregateId.tenantId)
+            }
+        }.dynamicQuery(eventStreamQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun paged() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+        pagedQuery {
+            condition {
+                tenantId(eventStream.aggregateId.tenantId)
+            }
+        }.query(eventStreamQueryService)
+            .test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicPaged() {
+        val eventStream = generateEventStream(namedAggregate.aggregateId(tenantId = generateGlobalId()))
+        eventStore.append(eventStream).block()
+        pagedQuery {
             condition {
                 tenantId(eventStream.aggregateId.tenantId)
             }
