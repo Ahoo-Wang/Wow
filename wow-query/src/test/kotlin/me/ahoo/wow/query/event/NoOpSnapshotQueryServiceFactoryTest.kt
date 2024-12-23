@@ -16,6 +16,8 @@ package me.ahoo.wow.query.event
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.pagedQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -27,6 +29,28 @@ class NoOpSnapshotQueryServiceFactoryTest {
     @Test
     fun aggregate() {
         assertThat(queryService.namedAggregate, equalTo("test.test".toNamedAggregate()))
+    }
+
+    @Test
+    fun single() {
+        singleQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.query(queryService)
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicSingle() {
+        singleQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.dynamicQuery(queryService)
+            .test()
+            .verifyComplete()
     }
 
     @Test
@@ -48,6 +72,34 @@ class NoOpSnapshotQueryServiceFactoryTest {
             }
         }.dynamicQuery(queryService)
             .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun paged() {
+        pagedQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.query(queryService)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun dynamicPaged() {
+        pagedQuery {
+            condition {
+                "test" eq "test"
+            }
+        }.dynamicQuery(queryService)
+            .test()
+            .consumeNextWith {
+                assertThat(it.total, equalTo(0))
+            }
             .verifyComplete()
     }
 

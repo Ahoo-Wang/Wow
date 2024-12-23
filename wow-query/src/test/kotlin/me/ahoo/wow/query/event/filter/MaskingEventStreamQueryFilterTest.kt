@@ -17,6 +17,9 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -91,12 +94,28 @@ object MockEventStreamQueryService : EventStreamQueryService {
     private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()))
 
     private val dynamicDocument = eventStream.toJsonString().toObject<MutableMap<String, Any>>().toDynamicDocument()
+    override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> {
+        return Mono.just(eventStream)
+    }
+
+    override fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument> {
+        return Mono.just(dynamicDocument)
+    }
+
     override fun list(listQuery: IListQuery): Flux<DomainEventStream> {
         return Flux.just(eventStream)
     }
 
     override fun dynamicList(listQuery: IListQuery): Flux<DynamicDocument> {
         return Flux.just(dynamicDocument)
+    }
+
+    override fun paged(pagedQuery: IPagedQuery): Mono<PagedList<DomainEventStream>> {
+        return Mono.just(PagedList(1, listOf(eventStream)))
+    }
+
+    override fun dynamicPaged(pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>> {
+        return Mono.just(PagedList(1, listOf(dynamicDocument)))
     }
 
     override fun count(condition: Condition): Mono<Long> {
