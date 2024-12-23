@@ -16,9 +16,9 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.RewritableCondition
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -77,8 +77,8 @@ interface QueryContext<Q : Any, R : Any> {
         return this as QueryContext<IListQuery, Flux<E>>
     }
 
-    fun <E> asPagedQuery(): QueryContext<PagedQuery, Mono<PagedList<E>>> {
-        return this as QueryContext<PagedQuery, Mono<PagedList<E>>>
+    fun <E> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
+        return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
     }
 
     fun asRewritableQuery(): QueryContext<RewritableCondition<*>, R> {
