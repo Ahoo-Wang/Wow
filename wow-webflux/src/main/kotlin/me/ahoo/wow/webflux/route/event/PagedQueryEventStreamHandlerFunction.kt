@@ -11,18 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.snapshot
+package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.openapi.event.PagedQueryEventStreamRouteSpec
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
 
-class PagedQuerySnapshotHandlerFunctionFactory(
-    snapshotQueryHandler: SnapshotQueryHandler,
+class PagedQueryEventStreamHandlerFunctionFactory(
+    eventStreamQueryHandler: EventStreamQueryHandler,
     exceptionHandler: RequestExceptionHandler
-) : PagedQueryHandlerFunctionFactory<PagedQuerySnapshotRouteSpec>(
-    PagedQuerySnapshotRouteSpec::class.java,
-    snapshotQueryHandler,
+) : PagedQueryHandlerFunctionFactory<PagedQueryEventStreamRouteSpec>(
+    PagedQueryEventStreamRouteSpec::class.java,
+    eventStreamQueryHandler,
     exceptionHandler
 )

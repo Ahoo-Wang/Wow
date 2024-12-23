@@ -42,6 +42,7 @@ import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
@@ -117,6 +118,8 @@ class WebFluxAutoConfiguration {
         const val LOAD_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadEventStreamHandlerFunctionFactory"
         const val LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "listQueryEventStreamHandlerFunctionFactory"
+        const val PAGED_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "pagedQueryEventStreamHandlerFunctionFactory"
         const val COUNT_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "countEventStreamHandlerFunctionFactory"
         const val GLOBAL_ID_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "globalIdHandlerFunctionFactory"
         const val GENERATE_BI_SCRIPT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "generateBIScriptHandlerFunctionFactory"
@@ -426,6 +429,19 @@ class WebFluxAutoConfiguration {
         exceptionHandler: RequestExceptionHandler
     ): ListQueryEventStreamHandlerFunctionFactory {
         return ListQueryEventStreamHandlerFunctionFactory(
+            eventStreamQueryHandler = eventStreamQueryHandler,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [PAGED_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun pagedQueryEventStreamHandlerFunctionFactory(
+        eventStreamQueryHandler: EventStreamQueryHandler,
+        exceptionHandler: RequestExceptionHandler
+    ): PagedQueryEventStreamHandlerFunctionFactory {
+        return PagedQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
             exceptionHandler = exceptionHandler
         )
