@@ -15,15 +15,15 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
-import me.ahoo.wow.query.snapshot.filter.SnapshotQueryContext
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 
 object MockQueryHandler {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
+    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()

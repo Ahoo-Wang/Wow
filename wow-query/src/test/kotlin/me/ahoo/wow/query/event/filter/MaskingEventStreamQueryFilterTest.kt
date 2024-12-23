@@ -29,6 +29,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.mask.EventStreamDynamicDocumentMasker
 import me.ahoo.wow.query.mask.EventStreamMaskerRegistry
 import me.ahoo.wow.serialization.MessageRecords
@@ -47,7 +48,7 @@ import reactor.kotlin.test.test
 class MaskingEventStreamQueryFilterTest {
     private val eventStreamMaskerRegistry = EventStreamMaskerRegistry()
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(MockEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<EventStreamQueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingEventStreamQueryFilter(eventStreamMaskerRegistry)))
         .filterCondition(EventStreamQueryHandler::class)
         .build()

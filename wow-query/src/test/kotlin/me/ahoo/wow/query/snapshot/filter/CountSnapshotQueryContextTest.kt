@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.snapshot.filter
 
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.query.filter.CountQueryContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -23,7 +24,7 @@ class CountSnapshotQueryContextTest {
 
     @Test
     fun rewriteQuery() {
-        val context = CountSnapshotQueryContext(MOCK_AGGREGATE_METADATA)
+        val context = CountQueryContext(MOCK_AGGREGATE_METADATA)
         val query = condition { }
         context.setQuery(query)
         context.rewriteQuery {

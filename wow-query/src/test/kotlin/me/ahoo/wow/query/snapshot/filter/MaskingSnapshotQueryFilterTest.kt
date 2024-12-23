@@ -27,6 +27,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.mask.DataMasking
 import me.ahoo.wow.query.mask.StateDataMaskerRegistry
 import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
@@ -46,7 +47,7 @@ import reactor.kotlin.test.test
 class MaskingSnapshotQueryFilterTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(MockSnapshotQueryServiceFactory)
     private val stateDataMaskerRegistry = StateDataMaskerRegistry()
-    private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
+    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter, MaskingSnapshotQueryFilter(stateDataMaskerRegistry)))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
@@ -62,10 +63,11 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun single() {
         val query = singleQuery { }
-        queryHandler.single<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
+        queryHandler.single(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.state.pwd, equalTo(MASKED_PWD))
+                val state = it.state as DataMaskable
+                assertThat(state.pwd, equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }
@@ -84,10 +86,11 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun list() {
         val query = listQuery { }
-        queryHandler.list<DataMaskable>(MockSnapshotQueryService.namedAggregate, query)
+        queryHandler.list(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.state.pwd, equalTo(MASKED_PWD))
+                val state = it.state as DataMaskable
+                assertThat(state.pwd, equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }
@@ -106,11 +109,12 @@ class MaskingSnapshotQueryFilterTest {
     @Test
     fun pagedQuery() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.paged<DataMaskable>(MockSnapshotQueryService.namedAggregate, pagedQuery)
+        queryHandler.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(1))
-                assertThat(it.list.first().state.pwd, equalTo(MASKED_PWD))
+                val state = it.list.first().state as DataMaskable
+                assertThat(state.pwd, equalTo(MASKED_PWD))
             }
             .verifyComplete()
     }

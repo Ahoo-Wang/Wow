@@ -18,6 +18,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -26,7 +27,7 @@ import reactor.kotlin.test.test
 
 class DefaultEventStreamQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<EventStreamQueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(EventStreamQueryHandler::class)
         .build()
@@ -38,7 +39,7 @@ class DefaultEventStreamQueryHandlerTest {
     @Test
     fun query() {
         val query = listQuery { }
-        queryHandler.list<Any>(MOCK_AGGREGATE_METADATA, query)
+        queryHandler.list(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 

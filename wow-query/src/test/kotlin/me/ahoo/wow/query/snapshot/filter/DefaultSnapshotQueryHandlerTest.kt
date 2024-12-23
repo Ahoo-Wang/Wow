@@ -18,6 +18,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.hamcrest.CoreMatchers.equalTo
@@ -27,7 +28,7 @@ import reactor.kotlin.test.test
 
 class DefaultSnapshotQueryHandlerTest {
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
-    private val snapshotQueryFilterChain = FilterChainBuilder<SnapshotQueryContext<*, *, *>>()
+    private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
@@ -41,7 +42,7 @@ class DefaultSnapshotQueryHandlerTest {
         val query = singleQuery {
         }
 
-        queryHandler.single<Any>(MOCK_AGGREGATE_METADATA, query)
+        queryHandler.single(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
@@ -57,7 +58,7 @@ class DefaultSnapshotQueryHandlerTest {
     @Test
     fun query() {
         val query = listQuery { }
-        queryHandler.list<Any>(MOCK_AGGREGATE_METADATA, query)
+        queryHandler.list(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
@@ -71,7 +72,7 @@ class DefaultSnapshotQueryHandlerTest {
     @Test
     fun pagedQuery() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
-        queryHandler.paged<Any>(MOCK_AGGREGATE_METADATA, pagedQuery)
+        queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
                 assertThat(it.total, equalTo(0))

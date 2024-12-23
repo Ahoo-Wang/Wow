@@ -17,13 +17,13 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
-import me.ahoo.wow.query.event.filter.EventStreamQueryContext
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
+import me.ahoo.wow.query.filter.QueryContext
 
 object MockQueryHandler {
     private val tailSnapshotQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
-    private val queryFilterChain = FilterChainBuilder<EventStreamQueryContext<*, *, *>>()
+    private val queryFilterChain = FilterChainBuilder<QueryContext<*, *, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(EventStreamQueryHandler::class)
         .build()
