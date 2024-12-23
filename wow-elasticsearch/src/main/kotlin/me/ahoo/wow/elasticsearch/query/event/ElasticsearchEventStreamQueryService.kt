@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -25,7 +27,8 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 
 class ElasticsearchEventStreamQueryService(
     override val namedAggregate: NamedAggregate,
-    override val elasticsearchClient: ReactiveElasticsearchClient
+    override val elasticsearchClient: ReactiveElasticsearchClient,
+    override val conditionConverter: ConditionConverter<Query> = EventStreamConditionConverter
 ) : AbstractElasticsearchQueryService<DomainEventStream>(), EventStreamQueryService {
     override val indexName: String = namedAggregate.toEventStreamIndexName()
 

@@ -118,6 +118,18 @@ class ConditionDsl : NestedFieldDsl() {
         ids(value.toList())
     }
 
+    fun aggregateId(value: String) {
+        condition(Condition.aggregateId(value))
+    }
+
+    fun aggregateIds(value: List<String>) {
+        condition(Condition.aggregateIds(value))
+    }
+
+    fun aggregateIds(vararg value: String) {
+        aggregateIds(value.toList())
+    }
+
     fun tenantId(value: String) {
         condition(Condition.tenantId(value))
     }

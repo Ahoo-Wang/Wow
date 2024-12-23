@@ -17,8 +17,8 @@ import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
-import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
+import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
@@ -104,7 +104,10 @@ class ElasticsearchEventStore(
             tenantId(aggregateId.tenantId)
             MessageRecords.AGGREGATE_ID eq aggregateId.id
             MessageRecords.VERSION between headVersion to tailVersion
-        }.toQuery()
+        }.let {
+            EventStreamConditionConverter.convert(it)
+        }
+
         val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
         return elasticsearchClient.search<DomainEventStream>({
             it.index(aggregateId.toEventStreamIndexName())

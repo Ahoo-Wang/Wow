@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
@@ -21,6 +22,7 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -28,7 +30,8 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 
 class ElasticsearchSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,
-    override val elasticsearchClient: ReactiveElasticsearchClient
+    override val elasticsearchClient: ReactiveElasticsearchClient,
+    override val conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
     override val indexName: String = namedAggregate.toSnapshotIndexName()
     private val snapshotType = TypeFactory.defaultInstance()

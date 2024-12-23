@@ -39,6 +39,8 @@ class ConditionDslTest {
             }
             id("id")
             ids("id", "id2")
+            aggregateId("id")
+            aggregateIds("id", "id2")
             "field1" eq "value1"
             "field2" ne "value2"
             "filed3" gt 1
@@ -104,6 +106,8 @@ class ConditionDslTest {
                         Condition.nor(Condition.all()),
                         Condition.id("id"),
                         Condition.ids("id", "id2"),
+                        Condition.aggregateId("id"),
+                        Condition.aggregateIds("id", "id2"),
                         Condition.eq("field1", "value1"),
                         Condition.ne("field2", "value2"),
                         Condition.gt("filed3", 1),

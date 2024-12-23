@@ -16,17 +16,19 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.elasticsearch.query.ElasticsearchConditionConverter.toQuery
+import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.dsl.condition
 import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchConditionConverterTest {
     @Test
     fun `all condition to Query`() {
-        val query = condition { }.toQuery()
+        val query = condition { }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 
@@ -36,7 +38,9 @@ class ElasticsearchConditionConverterTest {
             and {
                 id("1")
             }
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
@@ -46,7 +50,9 @@ class ElasticsearchConditionConverterTest {
             or {
                 id("1")
             }
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
         assertThat(query.bool().should().isNotEmpty(), equalTo(true))
     }
@@ -57,7 +63,9 @@ class ElasticsearchConditionConverterTest {
             nor {
                 id("1")
             }
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
         assertThat(query.bool().mustNot().isNotEmpty(), equalTo(true))
     }
@@ -66,7 +74,9 @@ class ElasticsearchConditionConverterTest {
     fun `id condition to Query`() {
         val query = condition {
             id("1")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Ids))
     }
 
@@ -74,7 +84,9 @@ class ElasticsearchConditionConverterTest {
     fun `ids condition to Query`() {
         val query = condition {
             ids(listOf("1", "2"))
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Ids))
     }
 
@@ -82,7 +94,9 @@ class ElasticsearchConditionConverterTest {
     fun `tenantId condition to Query`() {
         val query = condition {
             tenantId("1")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -90,7 +104,9 @@ class ElasticsearchConditionConverterTest {
     fun `eq condition to Query`() {
         val query = condition {
             "field" eq "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -98,7 +114,9 @@ class ElasticsearchConditionConverterTest {
     fun `ne condition to Query`() {
         val query = condition {
             "field" ne "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
@@ -106,7 +124,9 @@ class ElasticsearchConditionConverterTest {
     fun `gt condition to Query`() {
         val query = condition {
             "field" gt "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
@@ -114,7 +134,9 @@ class ElasticsearchConditionConverterTest {
     fun `gte condition to Query`() {
         val query = condition {
             "field" gte "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
@@ -122,7 +144,9 @@ class ElasticsearchConditionConverterTest {
     fun `lt condition to Query`() {
         val query = condition {
             "field" lt "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
@@ -130,7 +154,9 @@ class ElasticsearchConditionConverterTest {
     fun `lte condition to Query`() {
         val query = condition {
             "field" lte "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
@@ -138,7 +164,9 @@ class ElasticsearchConditionConverterTest {
     fun `contains condition to Query`() {
         val query = condition {
             "field" contains "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.MatchPhrase))
     }
 
@@ -146,7 +174,9 @@ class ElasticsearchConditionConverterTest {
     fun `isIn condition to Query`() {
         val query = condition {
             "field" isIn listOf("value")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Terms))
     }
 
@@ -154,7 +184,9 @@ class ElasticsearchConditionConverterTest {
     fun `notIn condition to Query`() {
         val query = condition {
             "field" notIn listOf("value")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
@@ -162,14 +194,18 @@ class ElasticsearchConditionConverterTest {
     fun `between condition to Query`() {
         val query = condition {
             "field" between 1 to 2
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
     @Test
     fun `between condition to Query - should throw exception when value is empty`() {
         val exception = assertThrows<IllegalArgumentException> {
-            Condition("field", Operator.BETWEEN, listOf<Int>()).toQuery()
+            Condition("field", Operator.BETWEEN, listOf<Int>()).let {
+                SnapshotConditionConverter.convert(it)
+            }
         }
         assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
     }
@@ -177,7 +213,9 @@ class ElasticsearchConditionConverterTest {
     @Test
     fun `between condition to Query - should throw exception when value just one`() {
         val exception = assertThrows<IllegalArgumentException> {
-            Condition("field", Operator.BETWEEN, listOf(1)).toQuery()
+            Condition("field", Operator.BETWEEN, listOf(1)).let {
+                SnapshotConditionConverter.convert(it)
+            }
         }
         assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
     }
@@ -186,7 +224,9 @@ class ElasticsearchConditionConverterTest {
     fun `allIn condition to Query`() {
         val query = condition {
             "field" all listOf("value1", "value2")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.TermsSet))
     }
 
@@ -194,7 +234,9 @@ class ElasticsearchConditionConverterTest {
     fun `startsWith condition to Query`() {
         val query = condition {
             "field" startsWith "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Prefix))
     }
 
@@ -202,7 +244,9 @@ class ElasticsearchConditionConverterTest {
     fun `endsWith condition to Query`() {
         val query = condition {
             "field" endsWith "value"
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Wildcard))
     }
 
@@ -212,7 +256,9 @@ class ElasticsearchConditionConverterTest {
             "field" elemMatch {
                 "subField" eq "value"
             }
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Nested))
     }
 
@@ -220,7 +266,9 @@ class ElasticsearchConditionConverterTest {
     fun `isNull condition to Query`() {
         val query = condition {
             "field".isNull()
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -228,7 +276,9 @@ class ElasticsearchConditionConverterTest {
     fun `notNull condition to Query`() {
         val query = condition {
             "field".notNull()
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
@@ -236,7 +286,9 @@ class ElasticsearchConditionConverterTest {
     fun `isTrue condition to Query`() {
         val query = condition {
             "field".isTrue()
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -244,7 +296,9 @@ class ElasticsearchConditionConverterTest {
     fun `isFalse condition to Query`() {
         val query = condition {
             "field".isFalse()
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -252,7 +306,9 @@ class ElasticsearchConditionConverterTest {
     fun `deleted condition to Query`() {
         val query = condition {
             deleted(true)
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Term))
     }
 
@@ -260,7 +316,9 @@ class ElasticsearchConditionConverterTest {
     fun `today condition to Query`() {
         val query = condition {
             "field".today()
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.Range))
     }
 
@@ -269,7 +327,9 @@ class ElasticsearchConditionConverterTest {
         val rawQuery = Query.Builder().matchAll { it }.build()
         val query = condition {
             raw(rawQuery)
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query, equalTo(rawQuery))
     }
 
@@ -277,7 +337,9 @@ class ElasticsearchConditionConverterTest {
     fun `string raw to query`() {
         val query = condition {
             raw("""{"match_all":{}}""")
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 
@@ -285,7 +347,9 @@ class ElasticsearchConditionConverterTest {
     fun `map raw to query`() {
         val query = condition {
             raw(mapOf("match_all" to emptyMap<String, String>()))
-        }.toQuery()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
         assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 }
