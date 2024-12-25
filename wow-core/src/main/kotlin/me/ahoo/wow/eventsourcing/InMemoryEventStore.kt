@@ -71,4 +71,18 @@ class InMemoryEventStore : AbstractEventStore() {
                 .toFlux()
         }
     }
+
+    public override fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        return Flux.defer {
+            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
+            eventsOfAgg
+                .filter { it.createTime in headEventTime..tailEventTime }
+                .map { it.copy() }
+                .toFlux()
+        }
+    }
 }

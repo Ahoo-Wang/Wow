@@ -36,7 +36,7 @@ interface EventStore {
     fun append(eventStream: DomainEventStream): Mono<Void>
 
     /**
-     * 根据聚合ID加载事件流.
+     * 根据聚合ID和事件版本号加载事件流.
      * ``` kotlin
      *  val offset=headVersion-1;
      *  val limit=tailVersion-headVersion+1;
@@ -53,6 +53,11 @@ interface EventStore {
         headVersion: Int = DEFAULT_HEAD_VERSION,
         tailVersion: Int = Int.MAX_VALUE
     ): Flux<DomainEventStream>
+
+    /**
+     * 根据聚合ID和事件发生时间戳加载事件流.
+     */
+    fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream>
 
     companion object {
         const val DEFAULT_HEAD_VERSION: Int = 1

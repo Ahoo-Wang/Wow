@@ -72,4 +72,12 @@ class RedisEventStore(
                 it.toObject<DomainEventStream>()
             }
     }
+
+    override fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        throw UnsupportedOperationException()
+    }
 }

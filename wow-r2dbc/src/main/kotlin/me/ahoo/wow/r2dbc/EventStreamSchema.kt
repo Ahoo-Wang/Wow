@@ -21,7 +21,11 @@ import java.util.concurrent.ConcurrentHashMap
 const val EVENT_STREAM_TABLE = "event_stream"
 const val EVENT_STREAM_LOGIC_NAME_PREFIX = EVENT_STREAM_TABLE + "_"
 
-data class EventStreamStatement(val load: String, val append: String)
+data class EventStreamStatement(
+    val load: String,
+    val loadByEventTime: String,
+    val append: String
+)
 
 object EventStreamStatementGenerator {
     private val statements = ConcurrentHashMap<String, EventStreamStatement>()
@@ -31,16 +35,29 @@ object EventStreamStatementGenerator {
         return generate(tableName)
     }
 
-    fun generate(tableName: String): EventStreamStatement {
-        return statements.computeIfAbsent(tableName) {
-            val loadStatement =
-                "select * from $tableName where aggregate_id=? and version between ? and ?"
-            val appendStatement = """
+    private fun loadByVersionSql(tableName: String): String {
+        return "select * from $tableName where aggregate_id=? and version between ? and ?"
+    }
+
+    private fun loadByEventTimeSql(tableName: String): String {
+        return "select * from $tableName where aggregate_id=? and create_time between ? and ?"
+    }
+
+    private fun appendSql(tableName: String): String {
+        return """
         insert into $tableName (id,aggregate_id,tenant_id,request_id,command_id,version,header,body,size,create_time) 
         values
         (?,?,?,?,?,?,?,?,?,?)
     """.trim()
-            EventStreamStatement(loadStatement, appendStatement)
+    }
+
+    fun generate(tableName: String): EventStreamStatement {
+        return statements.computeIfAbsent(tableName) {
+            EventStreamStatement(
+                load = loadByVersionSql(tableName),
+                loadByEventTime = loadByEventTimeSql(tableName),
+                append = appendSql(tableName)
+            )
         }
     }
 }
@@ -52,6 +69,7 @@ interface EventStreamSchema {
         get() = "u_idx_request_id"
 
     fun load(aggregateId: AggregateId): String
+    fun loadByEventTime(aggregateId: AggregateId): String
 
     fun append(aggregateId: AggregateId): String
 }
@@ -60,6 +78,10 @@ class SimpleEventStreamSchema : EventStreamSchema {
 
     override fun load(aggregateId: AggregateId): String =
         EventStreamStatementGenerator.generate(aggregateId).load
+
+    override fun loadByEventTime(aggregateId: AggregateId): String {
+        return EventStreamStatementGenerator.generate(aggregateId).loadByEventTime
+    }
 
     override fun append(aggregateId: AggregateId): String =
         EventStreamStatementGenerator.generate(aggregateId).append
@@ -71,6 +93,11 @@ class ShardingEventStreamSchema(private val sharding: AggregateIdSharding) :
     override fun load(aggregateId: AggregateId): String {
         val tableName = sharding.sharding(aggregateId)
         return EventStreamStatementGenerator.generate(tableName).load
+    }
+
+    override fun loadByEventTime(aggregateId: AggregateId): String {
+        val tableName = sharding.sharding(aggregateId)
+        return EventStreamStatementGenerator.generate(tableName).loadByEventTime
     }
 
     override fun append(aggregateId: AggregateId): String {

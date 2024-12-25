@@ -36,4 +36,6 @@ class RedisEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
         return RedisEventStore(redisInitializer.redisTemplate)
     }
+
+    override fun loadEventStreamByEventTime() = Unit
 }

@@ -263,6 +263,24 @@ abstract class EventStoreSpec {
     }
 
     @Test
+    open fun loadEventStreamByEventTime() {
+        val eventStore = createEventStore().metrizable()
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream)
+            .test()
+            .verifyComplete()
+        eventStore.load(eventStream.aggregateId, 0, eventStream.createTime)
+            .test()
+            .expectNextMatches { actualStream: DomainEventStream ->
+                assertThat(actualStream.aggregateId, equalTo(eventStream.aggregateId))
+                assertThat(actualStream.version, equalTo(1))
+                assertThat(actualStream.size, equalTo(10))
+                true
+            }
+            .verifyComplete()
+    }
+
+    @Test
     open fun loadEventStreamGivenWrongVersion() {
         val eventStore = createEventStore().metrizable()
         val eventStream = generateEventStream()
