@@ -36,4 +36,12 @@ class MetricEventStore(delegate: EventStore) : EventStore, AbstractMetricDecorat
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
     }
+
+    override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
+        return delegate.load(aggregateId, headEventTime, tailEventTime)
+            .name(Wow.WOW_PREFIX + "eventstore.load")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
 }

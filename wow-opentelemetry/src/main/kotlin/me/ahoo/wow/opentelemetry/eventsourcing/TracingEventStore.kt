@@ -39,4 +39,12 @@ class TracingEventStore(override val delegate: EventStore) : EventStore, Decorat
             TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
     }
+
+    override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
+        return Flux.defer {
+            val parentContext = Context.current()
+            val source = delegate.load(aggregateId, headEventTime, tailEventTime)
+            TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
+        }
+    }
 }
