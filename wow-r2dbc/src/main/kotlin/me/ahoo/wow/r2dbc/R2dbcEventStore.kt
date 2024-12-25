@@ -142,5 +142,4 @@ class R2dbcEventStore(
                 .bind(2, tailEventTime)
         }
     }
-
 }
