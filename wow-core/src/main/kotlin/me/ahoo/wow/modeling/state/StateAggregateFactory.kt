@@ -15,6 +15,10 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -36,15 +40,41 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         metadata: StateAggregateMetadata<S>,
         aggregateId: AggregateId
     ): StateAggregate<S> {
+        val stateRoot = metadata.constructState(aggregateId)
+        return create(
+            metadata = metadata,
+            aggregateId = aggregateId,
+            state = stateRoot,
+            version = Version.UNINITIALIZED_VERSION
+        )
+    }
+
+    fun <S : Any> create(
+        metadata: StateAggregateMetadata<S>,
+        aggregateId: AggregateId,
+        state: S,
+        version: Int,
+        eventId: String = "",
+        firstOperator: String = "",
+        operator: String = "",
+        firstEventTime: Long = 0,
+        eventTime: Long = 0,
+        deleted: Boolean = false
+    ): StateAggregate<S> {
         if (log.isDebugEnabled) {
             log.debug("Create {}.", aggregateId)
         }
-        val stateRoot = metadata.constructState(aggregateId)
         return SimpleStateAggregate(
             aggregateId = aggregateId,
             metadata = metadata,
-            version = Version.UNINITIALIZED_VERSION,
-            state = stateRoot,
+            state = state,
+            version = version,
+            eventId = eventId,
+            firstOperator = firstOperator,
+            operator = operator,
+            firstEventTime = firstEventTime,
+            eventTime = eventTime,
+            deleted = deleted,
         )
     }
 
@@ -53,5 +83,73 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             return constructorAccessor.invoke(arrayOf(aggregateId.id))
         }
         return constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
+    }
+
+    @JvmStatic
+    fun <S : Any> StateAggregateMetadata<S>.toStateAggregate(
+        aggregateId: AggregateId,
+        state: S,
+        version: Int,
+        eventId: String = "",
+        firstOperator: String = "",
+        operator: String = "",
+        firstEventTime: Long = 0,
+        eventTime: Long = 0,
+        deleted: Boolean = false
+    ): StateAggregate<S> {
+        return create(
+            metadata = this,
+            aggregateId = aggregateId,
+            state = state,
+            version = version,
+            eventId = eventId,
+            firstOperator = firstOperator,
+            operator = operator,
+            firstEventTime = firstEventTime,
+            eventTime = eventTime,
+            deleted = deleted
+        )
+    }
+
+    @JvmStatic
+    fun <S : Any> AggregateMetadata<*, S>.toStateAggregate(
+        state: S,
+        version: Int,
+        eventId: String = "",
+        firstOperator: String = "",
+        operator: String = "",
+        firstEventTime: Long = 0,
+        eventTime: Long = 0,
+        deleted: Boolean = false
+    ): StateAggregate<S> {
+        val aggregateId = aggregateId(this.state.aggregateIdAccessor[state])
+        return this.state.toStateAggregate(
+            aggregateId = aggregateId,
+            state = state,
+            version = version,
+            eventId = eventId,
+            firstOperator = firstOperator,
+            operator = operator,
+            firstEventTime = firstEventTime,
+            eventTime = eventTime,
+            deleted = deleted,
+        )
+    }
+
+    @JvmStatic
+    fun <S : Any> ReadOnlyStateAggregate<S>.toStateAggregate(): StateAggregate<S> {
+        val metadata = aggregateId.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, S>().state
+        return metadata.toStateAggregate(
+            aggregateId = aggregateId,
+            state = state,
+            version = version,
+            eventId = eventId,
+            firstOperator = firstOperator,
+            operator = operator,
+            firstEventTime = firstEventTime,
+            eventTime = eventTime,
+            deleted = deleted,
+        )
     }
 }

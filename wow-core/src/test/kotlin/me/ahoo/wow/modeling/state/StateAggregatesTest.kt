@@ -15,7 +15,7 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*

@@ -25,7 +25,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
