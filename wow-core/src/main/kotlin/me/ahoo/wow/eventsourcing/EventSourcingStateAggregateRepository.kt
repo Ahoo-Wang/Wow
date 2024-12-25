@@ -68,4 +68,24 @@ class EventSourcingStateAggregateRepository(
                     .then(Mono.just(stateAggregate))
             }
     }
+
+    override fun <S : Any> load(
+        aggregateId: AggregateId,
+        metadata: StateAggregateMetadata<S>,
+        tailEventTime: Long
+    ): Mono<StateAggregate<S>> {
+        return stateAggregateFactory.create(metadata, aggregateId)
+            .flatMap { stateAggregate ->
+                eventStore
+                    .load(
+                        aggregateId = aggregateId,
+                        headEventTime = stateAggregate.eventTime + 1,
+                        tailEventTime = tailEventTime
+                    )
+                    .map {
+                        stateAggregate.onSourcing(it)
+                    }
+                    .then(Mono.just(stateAggregate))
+            }
+    }
 }
