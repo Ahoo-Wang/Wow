@@ -15,6 +15,7 @@ package me.ahoo.wow.r2dbc
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.r2dbc.spi.Connection
 import io.r2dbc.spi.R2dbcDataIntegrityViolationException
+import io.r2dbc.spi.Statement
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
@@ -80,19 +81,11 @@ class R2dbcEventStore(
             }.then()
     }
 
-    public override fun loadStream(
-        aggregateId: AggregateId,
-        headVersion: Int,
-        tailVersion: Int
-    ): Flux<DomainEventStream> {
+    private fun load(aggregateId: AggregateId, statementSupplier: (Connection) -> Statement): Flux<DomainEventStream> {
         return Flux.usingWhen(
             database.createConnection(aggregateId),
             {
-                it.createStatement(eventStreamSchema.load(aggregateId))
-                    .bind(0, aggregateId.id)
-                    .bind(1, headVersion)
-                    .bind(2, tailVersion)
-                    .execute()
+                statementSupplier(it).execute()
             },
             Connection::close,
         ).flatMap {
@@ -123,4 +116,31 @@ class R2dbcEventStore(
             }
         }
     }
+
+    public override fun loadStream(
+        aggregateId: AggregateId,
+        headVersion: Int,
+        tailVersion: Int
+    ): Flux<DomainEventStream> {
+        return load(aggregateId) {
+            it.createStatement(eventStreamSchema.load(aggregateId))
+                .bind(0, aggregateId.id)
+                .bind(1, headVersion)
+                .bind(2, tailVersion)
+        }
+    }
+
+    override fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        return load(aggregateId) {
+            it.createStatement(eventStreamSchema.loadByEventTime(aggregateId))
+                .bind(0, aggregateId.id)
+                .bind(1, headEventTime)
+                .bind(2, tailEventTime)
+        }
+    }
+
 }

@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
@@ -100,14 +101,31 @@ class ElasticsearchEventStore(
         headVersion: Int,
         tailVersion: Int
     ): Mono<List<DomainEventStream>> {
-        val query = condition {
+        val condition = condition {
             tenantId(aggregateId.tenantId)
             MessageRecords.AGGREGATE_ID eq aggregateId.id
             MessageRecords.VERSION between headVersion to tailVersion
-        }.let {
-            EventStreamConditionConverter.convert(it)
         }
+        return searchEventStream(aggregateId, condition)
+    }
 
+    override fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        val condition = condition {
+            tenantId(aggregateId.tenantId)
+            MessageRecords.AGGREGATE_ID eq aggregateId.id
+            MessageRecords.CREATE_TIME between headEventTime to tailEventTime
+        }
+        return searchEventStream(aggregateId, condition).flatMapIterable {
+            it
+        }
+    }
+
+    private fun searchEventStream(aggregateId: AggregateId, condition: Condition): Mono<List<DomainEventStream>> {
+        val query = EventStreamConditionConverter.convert(condition)
         val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
         return elasticsearchClient.search<DomainEventStream>({
             it.index(aggregateId.toEventStreamIndexName())

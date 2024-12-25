@@ -91,7 +91,8 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
 
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return findStream(
-            aggregateId = aggregateId, filter = Filters.and(
+            aggregateId = aggregateId,
+            filter = Filters.and(
                 Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
                 Filters.gte(MessageRecords.VERSION, headVersion),
                 Filters.lte(MessageRecords.VERSION, tailVersion),
@@ -105,7 +106,8 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
         tailEventTime: Long
     ): Flux<DomainEventStream> {
         return findStream(
-            aggregateId = aggregateId, filter = Filters.and(
+            aggregateId = aggregateId,
+            filter = Filters.and(
                 Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
                 Filters.gte(MessageRecords.CREATE_TIME, headEventTime),
                 Filters.lte(MessageRecords.CREATE_TIME, tailEventTime),
