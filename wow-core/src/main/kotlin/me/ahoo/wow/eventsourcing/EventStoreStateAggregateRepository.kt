@@ -13,11 +13,13 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.slf4j.LoggerFactory
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -33,6 +35,21 @@ class EventStoreStateAggregateRepository(
         private val log = LoggerFactory.getLogger(EventStoreStateAggregateRepository::class.java)
     }
 
+    private fun <S : Any> loadStateAggregate(
+        aggregateId: AggregateId,
+        metadata: StateAggregateMetadata<S>,
+        loadEventStream: (StateAggregate<S>) -> Flux<DomainEventStream>
+    ): Mono<StateAggregate<S>> {
+        return stateAggregateFactory.create(metadata, aggregateId)
+            .flatMap { stateAggregate ->
+                loadEventStream(stateAggregate)
+                    .map {
+                        stateAggregate.onSourcing(it)
+                    }
+                    .then(Mono.just(stateAggregate))
+            }
+    }
+
     override fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,
@@ -41,18 +58,28 @@ class EventStoreStateAggregateRepository(
         if (log.isDebugEnabled) {
             log.debug("Load {} version:{}.", aggregateId, tailVersion)
         }
-        return stateAggregateFactory.create(metadata, aggregateId)
-            .flatMap { stateAggregate ->
-                eventStore
-                    .load(
-                        aggregateId = aggregateId,
-                        headVersion = stateAggregate.expectedNextVersion,
-                        tailVersion = tailVersion
-                    )
-                    .map {
-                        stateAggregate.onSourcing(it)
-                    }
-                    .then(Mono.just(stateAggregate))
-            }
+        return loadStateAggregate(aggregateId, metadata) {
+            eventStore
+                .load(
+                    aggregateId = aggregateId,
+                    headVersion = it.expectedNextVersion,
+                    tailVersion = tailVersion
+                )
+        }
+    }
+
+    override fun <S : Any> load(
+        aggregateId: AggregateId,
+        metadata: StateAggregateMetadata<S>,
+        tailEventTime: Long
+    ): Mono<StateAggregate<S>> {
+        return loadStateAggregate(aggregateId, metadata) {
+            eventStore
+                .load(
+                    aggregateId = aggregateId,
+                    headEventTime = it.eventTime + 1,
+                    tailEventTime = tailEventTime
+                )
+        }
     }
 }
