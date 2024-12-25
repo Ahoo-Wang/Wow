@@ -21,7 +21,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.deepCody
@@ -36,6 +36,7 @@ import reactor.core.publisher.Mono
 
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
@@ -50,7 +51,7 @@ class AggregateTracingHandlerFunction(
                 aggregateId = aggregateId,
             ).collectList()
             .map {
-                aggregateMetadata.state.trace(it)
+                aggregateMetadata.state.trace(stateAggregateFactory, it)
             }.toServerResponse(request, exceptionHandler)
     }
 
@@ -58,9 +59,10 @@ class AggregateTracingHandlerFunction(
 
         private fun <S : Any> StateAggregateMetadata<S>.sourcing(
             aggregateId: AggregateId,
+            stateAggregateFactory: StateAggregateFactory,
             eventStreams: List<DomainEventStream>
         ): StateEvent<S> {
-            val stateAggregate = ConstructorStateAggregateFactory.createStateAggregate(this, aggregateId)
+            val stateAggregate = stateAggregateFactory.create(this, aggregateId)
             eventStreams.forEach {
                 stateAggregate.onSourcing(it)
             }
@@ -68,6 +70,7 @@ class AggregateTracingHandlerFunction(
         }
 
         fun <S : Any> StateAggregateMetadata<S>.trace(
+            stateAggregateFactory: StateAggregateFactory,
             eventStreams: List<DomainEventStream>
         ): List<StateEvent<S>> {
             if (eventStreams.isEmpty()) {
@@ -77,6 +80,7 @@ class AggregateTracingHandlerFunction(
             return List(eventStreams.size) { index ->
                 sourcing(
                     aggregateId,
+                    stateAggregateFactory,
                     eventStreams.take(index + 1).map {
                         it.deepCody(DomainEventStream::class.java)
                     }
@@ -87,6 +91,7 @@ class AggregateTracingHandlerFunction(
 }
 
 class AggregateTracingHandlerFunctionFactory(
+    private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<AggregateTracingRouteSpec> {
@@ -94,6 +99,11 @@ class AggregateTracingHandlerFunctionFactory(
         get() = AggregateTracingRouteSpec::class.java
 
     override fun create(spec: AggregateTracingRouteSpec): HandlerFunction<ServerResponse> {
-        return AggregateTracingHandlerFunction(spec.aggregateMetadata, eventStore, exceptionHandler)
+        return AggregateTracingHandlerFunction(
+            spec.aggregateMetadata,
+            stateAggregateFactory,
+            eventStore,
+            exceptionHandler
+        )
     }
 }

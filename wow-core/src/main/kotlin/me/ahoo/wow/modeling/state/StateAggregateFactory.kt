@@ -18,7 +18,6 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import reactor.core.publisher.Mono
 
 /**
  * Aggregate Factory .
@@ -27,13 +26,13 @@ import reactor.core.publisher.Mono
  * @author ahoo wang
  */
 interface StateAggregateFactory {
-    fun <S : Any> create(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<StateAggregate<S>>
+    fun <S : Any> create(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): StateAggregate<S>
 }
 
 object ConstructorStateAggregateFactory : StateAggregateFactory {
     private val log: Logger = LoggerFactory.getLogger(ConstructorStateAggregateFactory::class.java)
 
-    fun <S : Any> createStateAggregate(
+    override fun <S : Any> create(
         metadata: StateAggregateMetadata<S>,
         aggregateId: AggregateId
     ): StateAggregate<S> {
@@ -54,14 +53,5 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             return constructorAccessor.invoke(arrayOf(aggregateId.id))
         }
         return constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
-    }
-
-    override fun <S : Any> create(
-        metadata: StateAggregateMetadata<S>,
-        aggregateId: AggregateId
-    ): Mono<StateAggregate<S>> {
-        return Mono.fromCallable {
-            createStateAggregate(metadata, aggregateId)
-        }
     }
 }

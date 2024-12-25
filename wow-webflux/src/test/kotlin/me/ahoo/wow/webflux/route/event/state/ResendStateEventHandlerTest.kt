@@ -28,7 +28,7 @@ class ResendStateEventHandlerTest {
         val snapshotRepository = InMemorySnapshotRepository()
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =
-            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId).block()!!
+            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)

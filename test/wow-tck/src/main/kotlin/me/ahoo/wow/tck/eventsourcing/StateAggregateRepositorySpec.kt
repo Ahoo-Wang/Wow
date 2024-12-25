@@ -36,7 +36,6 @@ import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 abstract class StateAggregateRepositorySpec {
@@ -126,10 +125,10 @@ abstract class StateAggregateRepositorySpec {
                 override fun <S : Any> create(
                     metadata: StateAggregateMetadata<S>,
                     aggregateId: AggregateId
-                ): Mono<StateAggregate<S>> {
+                ): StateAggregate<S> {
                     val stateRoot = MockStateAggregate(aggregateId.id)
                     @Suppress("UNCHECKED_CAST")
-                    return Mono.just(aggregateMetadata.toStateAggregate(stateRoot, 1) as StateAggregate<S>)
+                    return aggregateMetadata.toStateAggregate(stateRoot, 1) as StateAggregate<S>
                 }
             }
         val aggregateRepository = createStateAggregateRepository(stateAggregateFactory, TEST_EVENT_STORE)

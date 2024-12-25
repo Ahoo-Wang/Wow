@@ -30,18 +30,17 @@ class RegenerateSnapshotHandler(
 ) {
 
     fun handle(aggregateId: AggregateId): Mono<Snapshot<*>> {
-        return stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-            .flatMap { stateAggregate ->
-                eventStore
-                    .load(
-                        aggregateId = aggregateId,
-                        headVersion = stateAggregate.expectedNextVersion,
-                    )
-                    .map {
-                        stateAggregate.onSourcing(it)
-                    }
-                    .then(Mono.just(stateAggregate))
-            }.filter {
+        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+        return eventStore
+            .load(
+                aggregateId = aggregateId,
+                headVersion = stateAggregate.expectedNextVersion,
+            )
+            .map {
+                stateAggregate.onSourcing(it)
+            }
+            .then(Mono.just(stateAggregate))
+            .filter {
                 it.initialized
             }.flatMap {
                 val snapshot = SimpleSnapshot(it)
