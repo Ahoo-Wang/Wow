@@ -1,6 +1,6 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.equalTo
