@@ -32,7 +32,7 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
-import me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpecFactory.Companion.VERSION_PARAMETER
+import me.ahoo.wow.openapi.state.LoadTimeBasedAggregateRouteSpecFactory.Companion.CREATE_TIME_PARAMETER
 import me.ahoo.wow.serialization.MessageRecords
 
 class LoadTimeBasedAggregateRouteSpec(
@@ -53,13 +53,13 @@ class LoadTimeBasedAggregateRouteSpec(
         get() = true
 
     override val appendPathSuffix: String
-        get() = "state/{${MessageRecords.CREATE_TIME}}"
+        get() = "state/time/{${MessageRecords.CREATE_TIME}}"
 
     override val summary: String
         get() = "Load time based state aggregate"
 
     override val parameters: List<Parameter>
-        get() = super.parameters + VERSION_PARAMETER.ref
+        get() = super.parameters + CREATE_TIME_PARAMETER.ref
     override val requestBody: RequestBody? = null
     override val responses: ApiResponses
         get() = aggregateMetadata.state.aggregateType.toResponse().let {
@@ -69,18 +69,17 @@ class LoadTimeBasedAggregateRouteSpec(
 
 class LoadTimeBasedAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
-        val VERSION_PARAMETER = Parameter()
-            .name(MessageRecords.VERSION)
+        val CREATE_TIME_PARAMETER = Parameter()
+            .name(MessageRecords.CREATE_TIME)
             .`in`(ParameterIn.PATH.toString())
-            .schema(IntegerSchema())
-            .example(Int.MAX_VALUE).let {
-                ParameterRef("${Wow.WOW_PREFIX}${MessageRecords.VERSION}", it)
+            .schema(IntegerSchema()).let {
+                ParameterRef("${Wow.WOW_PREFIX}${MessageRecords.CREATE_TIME}", it)
             }
     }
 
     init {
         components.parameters
-            .with(VERSION_PARAMETER)
+            .with(CREATE_TIME_PARAMETER)
     }
 
     override fun create(
