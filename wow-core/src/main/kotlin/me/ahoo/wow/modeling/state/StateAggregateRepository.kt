@@ -36,4 +36,11 @@ interface StateAggregateRepository {
             .aggregateMetadata<Any, S>().state,
         tailVersion: Int = Int.MAX_VALUE
     ): Mono<StateAggregate<S>>
+
+    fun <S : Any> load(
+        aggregateId: AggregateId,
+        metadata: StateAggregateMetadata<S> = aggregateId.requiredAggregateType<Any>()
+            .aggregateMetadata<Any, S>().state,
+        tailEventTime: Long
+    ): Mono<StateAggregate<S>>
 }

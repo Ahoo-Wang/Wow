@@ -10,7 +10,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.tck.modeling.state
+
+package me.ahoo.wow.tck.eventsourcing
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -31,8 +32,8 @@ import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.hamcrest.MatcherAssert
+import org.hamcrest.Matchers
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -57,17 +58,44 @@ abstract class StateAggregateRepositorySpec {
         val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
-        assertThat(stateAggregate, notNullValue())
-        assertThat(stateAggregate.aggregateId, equalTo(aggregateId))
+        MatcherAssert.assertThat(stateAggregate, Matchers.notNullValue())
+        MatcherAssert.assertThat(stateAggregate.aggregateId, Matchers.equalTo(aggregateId))
         val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
-        assertThat(stateAggregate.version, equalTo(domainEventMessage.version))
-        assertThat(
+        MatcherAssert.assertThat(stateAggregate.version, Matchers.equalTo(domainEventMessage.version))
+        MatcherAssert.assertThat(
             stateAggregate.state.data,
-            equalTo(domainEventMessage.body.data),
+            Matchers.equalTo(domainEventMessage.body.data),
         )
 
         val stateAggregate1 = aggregateRepository.load<MockStateAggregate>(aggregateId, tailVersion = 1).block()!!
-        assertThat(stateAggregate1.version, equalTo(domainEventMessage.version))
+        MatcherAssert.assertThat(stateAggregate1.version, Matchers.equalTo(domainEventMessage.version))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun loadByEventTime() {
+        val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
+        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+
+        val command = GivenInitializationCommand(aggregateId)
+        val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
+        TEST_EVENT_STORE.append(eventStream).block()
+        val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
+        MatcherAssert.assertThat(stateAggregate, Matchers.notNullValue())
+        MatcherAssert.assertThat(stateAggregate.aggregateId, Matchers.equalTo(aggregateId))
+        val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
+        MatcherAssert.assertThat(stateAggregate.version, Matchers.equalTo(domainEventMessage.version))
+        MatcherAssert.assertThat(
+            stateAggregate.state.data,
+            Matchers.equalTo(domainEventMessage.body.data),
+        )
+
+        val stateAggregate1 = aggregateRepository.load<MockStateAggregate>(
+            aggregateId,
+            tailEventTime = domainEventMessage.createTime
+        ).block()!!
+        MatcherAssert.assertThat(stateAggregate1.version, Matchers.equalTo(domainEventMessage.version))
     }
 
     @Test
@@ -77,7 +105,7 @@ abstract class StateAggregateRepositorySpec {
         aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .consumeNextWith {
-                assertThat(it.initialized, equalTo(false))
+                MatcherAssert.assertThat(it.initialized, Matchers.equalTo(false))
             }
             .verifyComplete()
     }
@@ -110,8 +138,8 @@ abstract class StateAggregateRepositorySpec {
         aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .assertNext { stateAggregate: StateAggregate<MockStateAggregate> ->
-                assertThat(stateAggregate.initialized, equalTo(true))
-                assertThat(stateAggregate.version, equalTo(1))
+                MatcherAssert.assertThat(stateAggregate.initialized, Matchers.equalTo(true))
+                MatcherAssert.assertThat(stateAggregate.version, Matchers.equalTo(1))
             }
             .verifyComplete()
     }
