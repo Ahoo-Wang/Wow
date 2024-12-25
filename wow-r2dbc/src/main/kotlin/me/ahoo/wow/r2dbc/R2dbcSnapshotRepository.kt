@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux

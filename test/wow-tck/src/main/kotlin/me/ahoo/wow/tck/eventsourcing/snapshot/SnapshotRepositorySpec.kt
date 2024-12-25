@@ -49,7 +49,7 @@ abstract class SnapshotRepositorySpec {
             stateAggregateFactory.create(
                 aggregateMetadata.state,
                 aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
-            ).block()!!
+            )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
@@ -114,7 +114,7 @@ abstract class SnapshotRepositorySpec {
     fun save() {
         val snapshotRepository = createSnapshotRepository().metrizable()
         val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
-        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)
@@ -129,7 +129,7 @@ abstract class SnapshotRepositorySpec {
             stateAggregateFactory.create(
                 aggregateMetadata.state,
                 aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
-            ).block()!!
+            )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
@@ -181,7 +181,7 @@ abstract class SnapshotRepositorySpec {
         val snapshotRepository = createSnapshotRepository().metrizable()
         val cursorId = generateGlobalId()
         val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
-        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)

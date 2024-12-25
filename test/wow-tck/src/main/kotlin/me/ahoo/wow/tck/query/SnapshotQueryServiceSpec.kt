@@ -50,7 +50,7 @@ abstract class SnapshotQueryServiceSpec {
         snapshotQueryService = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =
-            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId).block()!!
+            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         snapshot =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         snapshotRepository.save(snapshot)

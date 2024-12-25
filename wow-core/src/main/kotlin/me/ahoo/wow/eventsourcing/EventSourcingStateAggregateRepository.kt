@@ -15,12 +15,13 @@ package me.ahoo.wow.eventsourcing
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 /**
  * Event Sourcing State Aggregate Repository .
@@ -49,9 +50,9 @@ class EventSourcingStateAggregateRepository(
                 .map {
                     it.toStateAggregate()
                 }
-                .switchIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
+                .defaultIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
         } else {
-            stateAggregateFactory.create(metadata, aggregateId)
+            stateAggregateFactory.create(metadata, aggregateId).toMono()
         }
 
         return loadStateAggregate
@@ -67,5 +68,23 @@ class EventSourcingStateAggregateRepository(
                     }
                     .then(Mono.just(stateAggregate))
             }
+    }
+
+    override fun <S : Any> load(
+        aggregateId: AggregateId,
+        metadata: StateAggregateMetadata<S>,
+        tailEventTime: Long
+    ): Mono<StateAggregate<S>> {
+        val stateAggregate = stateAggregateFactory.create(metadata, aggregateId)
+        return eventStore
+            .load(
+                aggregateId = aggregateId,
+                headEventTime = stateAggregate.eventTime + 1,
+                tailEventTime = tailEventTime
+            )
+            .map {
+                stateAggregate.onSourcing(it)
+            }
+            .then(Mono.just(stateAggregate))
     }
 }

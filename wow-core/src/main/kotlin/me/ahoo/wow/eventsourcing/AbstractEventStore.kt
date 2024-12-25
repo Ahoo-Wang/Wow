@@ -61,14 +61,31 @@ abstract class AbstractEventStore : EventStore {
             "$aggregateId headVersion[$headVersion] must be greater than -1!"
         }
         require(tailVersion >= headVersion) {
-            "$aggregateId headVersion[$headVersion] must be greater than or equal to 0!"
+            "$aggregateId headEventTime[$tailVersion] must be greater than or equal to headEventTime[$headVersion]!"
         }
         return loadStream(aggregateId, headVersion, tailVersion)
+    }
+
+    override fun load(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        require(tailEventTime >= headEventTime) {
+            "$aggregateId headEventTime[$headEventTime] must be greater than or equal to headEventTime[$headEventTime]!"
+        }
+        return loadStream(aggregateId, headEventTime, tailEventTime)
     }
 
     protected abstract fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
         tailVersion: Int
+    ): Flux<DomainEventStream>
+
+    protected abstract fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
     ): Flux<DomainEventStream>
 }

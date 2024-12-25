@@ -23,8 +23,8 @@ import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate.Companion.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
@@ -107,7 +107,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
         val expectedResultMono = stateAggregateFactory.create(
             metadata.state,
             commandAggregateId,
-        ).map {
+        ).toMono().map {
             try {
                 commandMessage.body.validate()
             } catch (throwable: Throwable) {
@@ -237,9 +237,9 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
                 override fun <S : Any> create(
                     metadata: StateAggregateMetadata<S>,
                     aggregateId: AggregateId
-                ): Mono<StateAggregate<S>> {
+                ): StateAggregate<S> {
                     @Suppress("UNCHECKED_CAST")
-                    return Mono.just(verifiedResult.stateAggregate as StateAggregate<S>)
+                    return verifiedResult.stateAggregate as StateAggregate<S>
                 }
             },
             commandAggregateFactory = commandAggregateFactory,

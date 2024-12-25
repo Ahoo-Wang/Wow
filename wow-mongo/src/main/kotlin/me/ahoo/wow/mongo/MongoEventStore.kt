@@ -31,6 +31,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.bson.Document
+import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -74,26 +75,43 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             }.then()
     }
 
-    override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
+    private fun findStream(aggregateId: AggregateId, filter: Bson): Flux<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
-        val limit = tailVersion - headVersion + 1
         return database.getCollection(eventStreamCollectionName)
-            .find(
-                Filters.and(
-                    Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
-                    Filters.gte(MessageRecords.VERSION, headVersion),
-                    Filters.lte(MessageRecords.VERSION, tailVersion),
-                ),
-            )
-            .limit(limit)
+            .find(filter)
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
                 require(domainEventStream.aggregateId == aggregateId) {
                     "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
                 }
-
                 domainEventStream
             }
+    }
+
+    override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
+        return findStream(
+            aggregateId = aggregateId,
+            filter = Filters.and(
+                Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+                Filters.gte(MessageRecords.VERSION, headVersion),
+                Filters.lte(MessageRecords.VERSION, tailVersion),
+            )
+        )
+    }
+
+    override fun loadStream(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> {
+        return findStream(
+            aggregateId = aggregateId,
+            filter = Filters.and(
+                Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+                Filters.gte(MessageRecords.CREATE_TIME, headEventTime),
+                Filters.lte(MessageRecords.CREATE_TIME, tailEventTime),
+            )
+        )
     }
 }

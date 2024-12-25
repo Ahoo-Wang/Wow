@@ -12,13 +12,7 @@
  */
 package me.ahoo.wow.modeling.state
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 
 /**
  * State Aggregate .
@@ -35,75 +29,4 @@ interface StateAggregate<S : Any> : ReadOnlyStateAggregate<S> {
      */
     @Throws(SourcingVersionConflictException::class)
     fun onSourcing(eventStream: DomainEventStream): StateAggregate<S>
-
-    companion object {
-
-        @JvmStatic
-        fun <S : Any> AggregateMetadata<*, S>.toStateAggregate(
-            state: S,
-            version: Int,
-            eventId: String = "",
-            firstOperator: String = "",
-            operator: String = "",
-            firstEventTime: Long = 0,
-            eventTime: Long = 0,
-            deleted: Boolean = false
-        ): StateAggregate<S> {
-            val aggregateId = aggregateId(this.state.aggregateIdAccessor[state])
-            return this.state.toStateAggregate(
-                aggregateId = aggregateId,
-                state = state,
-                version = version,
-                eventId = eventId,
-                firstOperator = firstOperator,
-                operator = operator,
-                firstEventTime = firstEventTime,
-                eventTime = eventTime,
-                deleted = deleted,
-            )
-        }
-
-        @JvmStatic
-        fun <S : Any> StateAggregateMetadata<S>.toStateAggregate(
-            aggregateId: AggregateId,
-            state: S,
-            version: Int,
-            eventId: String = "",
-            firstOperator: String = "",
-            operator: String = "",
-            firstEventTime: Long = 0,
-            eventTime: Long = 0,
-            deleted: Boolean = false
-        ): StateAggregate<S> {
-            return SimpleStateAggregate(
-                aggregateId = aggregateId,
-                metadata = this,
-                state = state,
-                version = version,
-                eventId = eventId,
-                firstOperator = firstOperator,
-                operator = operator,
-                firstEventTime = firstEventTime,
-                eventTime = eventTime,
-                deleted = deleted,
-            )
-        }
-
-        @JvmStatic
-        fun <S : Any> ReadOnlyStateAggregate<S>.toStateAggregate(): StateAggregate<S> {
-            val metadata = aggregateId.requiredAggregateType<Any>()
-                .aggregateMetadata<Any, S>().state
-            return metadata.toStateAggregate(
-                aggregateId = aggregateId,
-                state = state,
-                version = version,
-                eventId = eventId,
-                firstOperator = firstOperator,
-                operator = operator,
-                firstEventTime = firstEventTime,
-                eventTime = eventTime,
-                deleted = deleted,
-            )
-        }
-    }
 }
