@@ -59,6 +59,7 @@ import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFact
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.LoadTimeBasedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.wait.CommandWaitHandlerFunctionFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -93,6 +94,8 @@ class WebFluxAutoConfiguration {
         const val LOAD_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadAggregateHandlerFunctionFactory"
         const val LOAD_VERSIONED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "loadVersionedAggregateHandlerFunctionFactory"
+        const val LOAD_TIME_BASED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
+            "loadTimeBasedAggregateHandlerFunctionFactory"
         const val IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "idsQueryAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
@@ -181,6 +184,19 @@ class WebFluxAutoConfiguration {
         exceptionHandler: RequestExceptionHandler
     ): LoadVersionedAggregateHandlerFunctionFactory {
         return LoadVersionedAggregateHandlerFunctionFactory(
+            stateAggregateRepository = stateAggregateRepository,
+            exceptionHandler = exceptionHandler
+        )
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @ConditionalOnMissingBean(name = [LOAD_TIME_BASED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
+    fun loadTimeBasedAggregateHandlerFunctionFactory(
+        stateAggregateRepository: StateAggregateRepository,
+        exceptionHandler: RequestExceptionHandler
+    ): LoadTimeBasedAggregateHandlerFunctionFactory {
+        return LoadTimeBasedAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
             exceptionHandler = exceptionHandler
         )

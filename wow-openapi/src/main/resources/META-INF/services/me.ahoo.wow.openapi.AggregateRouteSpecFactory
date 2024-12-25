@@ -5,6 +5,7 @@ me.ahoo.wow.openapi.command.CommandRouteSpecFactory
 me.ahoo.wow.openapi.state.AggregateTracingRouteSpecFactory
 me.ahoo.wow.openapi.state.LoadAggregateRouteSpecFactory
 me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpecFactory
+me.ahoo.wow.openapi.state.LoadTimeBasedAggregateRouteSpecFactory
 me.ahoo.wow.openapi.state.IdsQueryAggregateRouteSpecFactory
 #snapshot
 me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpecFactory

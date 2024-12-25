@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.query
+package me.ahoo.wow.webflux.route.state
 
 import io.mockk.every
 import io.mockk.mockk
@@ -21,12 +21,12 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunction
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.hamcrest.MatcherAssert
+import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -38,15 +38,14 @@ class LoadAggregateHandlerFunctionTest {
 
     @Test
     fun handle() {
-        val handlerFunction = LoadAggregateHandlerFunction(
-            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+        val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotRepository = NoOpSnapshotRepository,
                 eventStore = InMemoryEventStore(),
             ),
             exceptionHandler = DefaultRequestExceptionHandler,
-        )
+        ).create(LoadAggregateRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA))
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")
@@ -56,7 +55,7 @@ class LoadAggregateHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.NOT_FOUND))
+                MatcherAssert.assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.NOT_FOUND))
             }.verifyComplete()
     }
 }
