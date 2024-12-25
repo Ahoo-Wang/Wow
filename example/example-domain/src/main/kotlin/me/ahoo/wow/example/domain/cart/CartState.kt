@@ -44,5 +44,4 @@ class CartState(val id: String) : ICartInfo {
             }
         }
     }
-
 }
