@@ -21,6 +21,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 class RegenerateSnapshotHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -31,6 +32,7 @@ class RegenerateSnapshotHandler(
 
     fun handle(aggregateId: AggregateId): Mono<Snapshot<*>> {
         return stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+            .toMono()
             .flatMap { stateAggregate ->
                 eventStore
                     .load(

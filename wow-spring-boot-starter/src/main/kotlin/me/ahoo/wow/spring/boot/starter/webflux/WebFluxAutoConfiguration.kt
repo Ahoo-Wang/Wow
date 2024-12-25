@@ -203,10 +203,15 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun aggregateTracingHandlerFunctionFactory(
+        stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
         exceptionHandler: RequestExceptionHandler
     ): AggregateTracingHandlerFunctionFactory {
-        return AggregateTracingHandlerFunctionFactory(eventStore = eventStore, exceptionHandler = exceptionHandler)
+        return AggregateTracingHandlerFunctionFactory(
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            exceptionHandler = exceptionHandler
+        )
     }
 
     @Bean

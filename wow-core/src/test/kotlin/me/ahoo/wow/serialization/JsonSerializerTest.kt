@@ -130,7 +130,7 @@ internal class JsonSerializerTest {
                 GlobalIdGenerator.generateAsString(),
                 tenantId = GlobalIdGenerator.generateAsString(),
             )
-        val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId).block()!!
+        val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         val output = snapshot.toJsonString()
