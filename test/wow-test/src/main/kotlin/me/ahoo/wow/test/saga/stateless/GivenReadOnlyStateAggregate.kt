@@ -29,6 +29,7 @@ class GivenReadOnlyStateAggregate<S : Any>(
     override val firstEventTime: Long,
     override val eventTime: Long
 ) : ReadOnlyStateAggregate<S> {
+
     companion object {
         fun Any.toReadOnlyStateAggregate(domainEvent: DomainEvent<*>): ReadOnlyStateAggregate<*> {
             if (this is ReadOnlyStateAggregate<*>) {

@@ -64,7 +64,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         if (log.isDebugEnabled) {
             log.debug("Create {}.", aggregateId)
         }
-        return SimpleStateAggregate(
+        val stateAggregate = SimpleStateAggregate(
             aggregateId = aggregateId,
             metadata = metadata,
             state = state,
@@ -76,6 +76,12 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             eventTime = eventTime,
             deleted = deleted,
         )
+        if (state is ReadOnlyStateAggregateAware<*>) {
+            @Suppress("UNCHECKED_CAST")
+            val aware = state as ReadOnlyStateAggregateAware<S>
+            aware.setReadOnlyStateAggregate(stateAggregate)
+        }
+        return stateAggregate
     }
 
     private fun <S : Any> StateAggregateMetadata<S>.constructState(aggregateId: AggregateId): S {
