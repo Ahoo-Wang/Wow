@@ -34,11 +34,12 @@ import reactor.kotlin.core.publisher.toMono
 
 class ElasticsearchEventStore(
     private val elasticsearchClient: ReactiveElasticsearchClient,
-    private val refreshPolicy: Refresh = Refresh.True
+    private val refreshPolicy: Refresh = Refresh.True,
+    private val batchSize: Int = DEFAULT_BATCH_SIZE
 ) : AbstractEventStore() {
     companion object {
         private const val VERSION_CONFLICT_CODE = 409
-        private const val DEFAULT_BATCH_SIZE = 100
+        private const val DEFAULT_BATCH_SIZE = 10000
     }
 
     private fun DomainEventStream.toDocId(): String {
@@ -77,7 +78,7 @@ class ElasticsearchEventStore(
         headVersion: Int,
         tailVersion: Int
     ): Flux<DomainEventStream> {
-        var endVersion = headVersion + DEFAULT_BATCH_SIZE - 1
+        var endVersion = headVersion + batchSize - 1
         if (tailVersion < endVersion) {
             endVersion = tailVersion
         }
@@ -106,7 +107,8 @@ class ElasticsearchEventStore(
             MessageRecords.AGGREGATE_ID eq aggregateId.id
             MessageRecords.VERSION between headVersion to tailVersion
         }
-        return searchEventStream(aggregateId, condition)
+        val size = tailVersion - headVersion + 1
+        return searchEventStream(aggregateId, condition, size)
     }
 
     override fun loadStream(
@@ -124,13 +126,17 @@ class ElasticsearchEventStore(
         }
     }
 
-    private fun searchEventStream(aggregateId: AggregateId, condition: Condition): Mono<List<DomainEventStream>> {
+    private fun searchEventStream(
+        aggregateId: AggregateId,
+        condition: Condition,
+        size: Int = batchSize
+    ): Mono<List<DomainEventStream>> {
         val query = EventStreamConditionConverter.convert(condition)
         val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
         return elasticsearchClient.search<DomainEventStream>({
             it.index(aggregateId.toEventStreamIndexName())
                 .query(query)
-                .size(DEFAULT_BATCH_SIZE)
+                .size(size)
                 .routing(aggregateId.id)
                 .sort(sort)
         }, DomainEventStream::class.java).map<List<DomainEventStream>> {
