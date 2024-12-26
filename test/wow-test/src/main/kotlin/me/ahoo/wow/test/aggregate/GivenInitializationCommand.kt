@@ -32,7 +32,7 @@ data class GivenInitializationCommand(
 ) : CommandMessage<GivenInitialization>, NamedAggregate by aggregateId {
     override val body: GivenInitialization = GivenInitialization
     override val aggregateVersion: Int? = null
-    override val name: String = GivenInitializationCommand::javaClass.name
+    override val name: String = GivenInitializationCommand::class.simpleName!!
     override val createTime: Long = System.currentTimeMillis()
     override fun copy(): CommandMessage<GivenInitialization> {
         return copy(header = header.copy())
