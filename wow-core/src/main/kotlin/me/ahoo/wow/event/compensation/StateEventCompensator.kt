@@ -16,6 +16,7 @@ package me.ahoo.wow.event.compensation
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
@@ -29,7 +30,12 @@ class StateEventCompensator(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val stateEventBus: StateEventBus
-) : EventCompensator {
+) : EventCompensator<StateEvent<*>> {
+
+    override fun compensate(eventStream: StateEvent<*>, target: CompensationTarget): Mono<Void> {
+        eventStream.withCompensation(target)
+        return stateEventBus.send(eventStream)
+    }
 
     override fun resend(
         aggregateId: AggregateId,
@@ -53,8 +59,7 @@ class StateEventCompensator(
                 it.version in headVersion..tailVersion
             }
             .concatMap {
-                it.withCompensation(target)
-                stateEventBus.send(it).thenReturn(it.aggregateId)
+                compensate(it, target).thenReturn(it.aggregateId)
             }.count()
     }
 }
