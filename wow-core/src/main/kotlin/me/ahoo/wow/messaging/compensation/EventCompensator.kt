@@ -14,12 +14,19 @@
 package me.ahoo.wow.messaging.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Mono
 
 /**
  * 事件补偿器
  */
-interface EventCompensator {
+interface EventCompensator<E : DomainEventStream> {
+
+    fun compensate(
+        eventStream: E,
+        target: CompensationTarget
+    ): Mono<Void>
+
     fun compensate(
         aggregateId: AggregateId,
         version: Int,
