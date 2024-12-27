@@ -38,6 +38,7 @@ annotation class CommandRoute(
         AnnotationTarget.PROPERTY_GETTER,
         AnnotationTarget.ANNOTATION_CLASS
     )
+    @Repeatable
     @Inherited
     annotation class PathVariable(
         val name: String = "",
@@ -51,6 +52,7 @@ annotation class CommandRoute(
         AnnotationTarget.PROPERTY_GETTER,
         AnnotationTarget.ANNOTATION_CLASS
     )
+    @Repeatable
     @Inherited
     annotation class HeaderVariable(
         val name: String = "",

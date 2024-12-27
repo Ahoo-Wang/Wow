@@ -30,6 +30,7 @@ import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import org.springframework.web.util.UriTemplate
 import kotlin.reflect.KProperty1
+import kotlin.reflect.full.findAnnotations
 
 object CommandRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
@@ -72,11 +73,11 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
     }
 
     override fun visitProperty(property: KProperty1<C, *>) {
-        property.scanAnnotation<CommandRoute.PathVariable>()?.let {
+        property.findAnnotations<CommandRoute.PathVariable>().forEach {
             val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             pathVariables.add(variableMetadata)
         }
-        property.scanAnnotation<CommandRoute.HeaderVariable>()?.let {
+        property.findAnnotations<CommandRoute.HeaderVariable>().forEach {
             val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             headerVariables.add(variableMetadata)
         }
