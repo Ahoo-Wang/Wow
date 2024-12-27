@@ -96,7 +96,7 @@ class CommandRouteMetadataParserTest {
     @Test
     fun decodeNested() {
         val commandRouteMetadata = commandRouteMetadata<NestedMockCommandRoute>()
-        assertThat(commandRouteMetadata.path, equalTo("{customerId}/{id}"))
+        assertThat(commandRouteMetadata.path, equalTo("{customerId}/{id}/{name}"))
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
         assertThat(customerIdPathVariable.fieldName, equalTo("id"))
@@ -108,6 +108,7 @@ class CommandRouteMetadataParserTest {
                 mapOf(
                     "id" to "id",
                     "customerId" to "customerId",
+                    "name" to "name",
                 )[it]
             },
             {
@@ -116,6 +117,7 @@ class CommandRouteMetadataParserTest {
         )
         assertThat(command.id, equalTo("id"))
         assertThat(command.customer.id, equalTo("customerId"))
+        assertThat(command.customer.name, equalTo("name"))
     }
 }
 
@@ -130,12 +132,13 @@ data class MockCommandRoute(
     val header: String = "header",
 )
 
-@CommandRoute("{customerId}/{id}")
+@CommandRoute("{customerId}/{id}/{name}")
 data class NestedMockCommandRoute(
     @CommandRoute.PathVariable
     val id: String,
     @CommandRoute.PathVariable(name = "customerId", nestedPath = ["id"])
+    @CommandRoute.PathVariable(name = "name", nestedPath = ["name"])
     val customer: Customer
 ) {
-    data class Customer(val id: String)
+    data class Customer(val id: String, val name: String)
 }
