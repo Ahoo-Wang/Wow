@@ -28,8 +28,10 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.ComponentRef.Companion.COMPONENTS_REF
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
@@ -75,7 +77,7 @@ class SchemaRef(
         fun Class<out Enum<*>>.toSchemaRef(default: String? = null): SchemaRef {
             val enumSchema = StringSchema()
             enumSchema._enum(this.enumConstants.map { it.toString() })
-            val schemaName = requireNotNull(this.toSchemaName())
+            val schemaName = this.toSchemaName()
             if (default.isNullOrBlank().not()) {
                 enumSchema.setDefault(default)
             }
@@ -91,18 +93,21 @@ class SchemaRef(
         }
 
         fun Class<*>.toRefSchema(): Schema<*> {
-            return requireNotNull(this.toSchemaName()).toRefSchema()
+            return this.toSchemaName().toRefSchema()
         }
 
         fun Schema<*>.toArraySchema(): ArraySchema {
             return ArraySchema().items(this)
         }
 
-        fun Class<*>.toSchemaName(): String? {
+        fun Class<*>.toSchemaName(): String {
             kotlin.scanAnnotation<io.swagger.v3.oas.annotations.media.Schema>()?.let {
                 if (it.name.isNotBlank()) {
                     return it.name
                 }
+            }
+            this.namedAggregate()?.let {
+                return "${it.toStringWithAlias()}.$simpleName"
             }
             namedBoundedContext()?.let {
                 it.getContextAlias().let { alias ->
@@ -112,11 +117,11 @@ class SchemaRef(
             if (name.startsWith("me.ahoo.wow.")) {
                 return Wow.WOW_PREFIX + simpleName
             }
-            return null
+            return simpleName
         }
 
         fun Class<*>.toSchemaRef(): SchemaRef {
-            val schemaName = requireNotNull(this.toSchemaName())
+            val schemaName = this.toSchemaName()
             val schemas = toSchemas()
             val component = requireNotNull(schemas[schemaName])
             return SchemaRef(schemaName, component, schemas)
@@ -135,7 +140,7 @@ class SchemaRef(
             propertySchemaRef: SchemaRef,
             isArray: Boolean = false
         ): SchemaRef {
-            val genericSchemaName = requireNotNull(this.toSchemaName())
+            val genericSchemaName = this.toSchemaName()
             val genericSchemas = toSchemas()
             val genericSchema = requireNotNull(genericSchemas[genericSchemaName])
             if (isArray) {
@@ -258,7 +263,7 @@ class RequestBodyRef(override val name: String, override val component: RequestB
 
         fun Class<*>.toRequestBodyRef(): RequestBodyRef {
             return RequestBodyRef(
-                name = requireNotNull(toSchemaName()),
+                name = toSchemaName(),
                 component = toRequestBody()
             )
         }
