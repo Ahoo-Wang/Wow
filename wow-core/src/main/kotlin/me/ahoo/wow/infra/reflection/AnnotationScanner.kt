@@ -28,8 +28,7 @@ object AnnotationScanner {
         val annotationClass: KClass<out Annotation>
     )
 
-    private val NOT_FOUND = Any()
-    private val cache: ConcurrentHashMap<AnnotationCacheKey, Any> = ConcurrentHashMap()
+    private val cache: ConcurrentHashMap<AnnotationCacheKey, List<Any>> = ConcurrentHashMap()
 
     fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
         val found = mutableListOf<Annotation>()
@@ -49,7 +48,7 @@ object AnnotationScanner {
 
     fun Iterable<Annotation>.mergeAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
         for (annotation in this) {
-            val existed = scanned.any { it.annotationClass == annotation.annotationClass }
+            val existed = scanned.any { it == annotation }
             if (!existed) {
                 scanned.add(annotation)
                 annotation.annotationClass.annotations
@@ -66,20 +65,24 @@ object AnnotationScanner {
         return intimateAnnotations().mergeAnnotations(scanned)
     }
 
-    fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
+    fun <A : Annotation> KAnnotatedElement.scanAnnotations(annotationClass: KClass<A>): List<A> {
         val cacheKey = AnnotationCacheKey(this, annotationClass)
-        val annotation = cache.computeIfAbsent(cacheKey) { _ ->
-            allAnnotations().firstOrNull { it.annotationClass == annotationClass } ?: NOT_FOUND
+        val annotations = cache.computeIfAbsent(cacheKey) { _ ->
+            allAnnotations().filter { it.annotationClass == annotationClass }
         }
-        return if (annotation == NOT_FOUND) {
-            null
-        } else {
-            @Suppress("UNCHECKED_CAST")
-            annotation as A
-        }
+        @Suppress("UNCHECKED_CAST")
+        return annotations as List<A>
+    }
+
+    fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
+        return scanAnnotations(annotationClass).firstOrNull<A>()
     }
 
     inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotation(): A? {
         return scanAnnotation(A::class)
+    }
+
+    inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotations(): List<A> {
+        return scanAnnotations(A::class)
     }
 }
