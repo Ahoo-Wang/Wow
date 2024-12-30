@@ -23,13 +23,32 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
 
 object AnnotationScanner {
+    val repeatableClass = java.lang.annotation.Repeatable::class
+    const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
+    const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
+
     private data class AnnotationCacheKey(
         val annotatedElement: KAnnotatedElement,
         val annotationClass: KClass<out Annotation>
     )
 
-    private val NOT_FOUND = Any()
-    private val cache: ConcurrentHashMap<AnnotationCacheKey, Any> = ConcurrentHashMap()
+    private val cache: ConcurrentHashMap<AnnotationCacheKey, List<Any>> = ConcurrentHashMap()
+
+    private fun Annotation.getRepeatableValue(): List<Annotation> {
+        val containerClass = this.annotationClass.java
+        if (containerClass.simpleName == REPEATABLE_CONTAINER_SIMPLE_NAME &&
+            containerClass.name.endsWith(REPEATABLE_CONTAINER_ENDS_WITH)
+        ) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val value = this.annotationClass.java.getMethod("value").invoke(this) as Array<Annotation>
+                return value.toList<Annotation>()
+            } catch (ignore: Exception) {
+                // ignore
+            }
+        }
+        return listOf(this)
+    }
 
     fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
         val found = mutableListOf<Annotation>()
@@ -37,7 +56,11 @@ object AnnotationScanner {
         if (this is KProperty<*>) {
             found.addAll(getter.annotations)
             if (javaField != null) {
-                found.addAll(javaField!!.annotations)
+                found.addAll(
+                    javaField!!.annotations.flatMap {
+                        it.getRepeatableValue()
+                    }
+                )
             }
         }
 
@@ -49,7 +72,7 @@ object AnnotationScanner {
 
     fun Iterable<Annotation>.mergeAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
         for (annotation in this) {
-            val existed = scanned.any { it.annotationClass == annotation.annotationClass }
+            val existed = scanned.any { it == annotation }
             if (!existed) {
                 scanned.add(annotation)
                 annotation.annotationClass.annotations
@@ -66,20 +89,24 @@ object AnnotationScanner {
         return intimateAnnotations().mergeAnnotations(scanned)
     }
 
-    fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
+    fun <A : Annotation> KAnnotatedElement.scanAnnotations(annotationClass: KClass<A>): List<A> {
         val cacheKey = AnnotationCacheKey(this, annotationClass)
-        val annotation = cache.computeIfAbsent(cacheKey) { _ ->
-            allAnnotations().firstOrNull { it.annotationClass == annotationClass } ?: NOT_FOUND
+        val annotations = cache.computeIfAbsent(cacheKey) { _ ->
+            allAnnotations().filter { it.annotationClass == annotationClass }
         }
-        return if (annotation == NOT_FOUND) {
-            null
-        } else {
-            @Suppress("UNCHECKED_CAST")
-            annotation as A
-        }
+        @Suppress("UNCHECKED_CAST")
+        return annotations as List<A>
+    }
+
+    fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
+        return scanAnnotations(annotationClass).firstOrNull<A>()
     }
 
     inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotation(): A? {
         return scanAnnotation(A::class)
+    }
+
+    inline fun <reified A : Annotation> KAnnotatedElement.scanAnnotations(): List<A> {
+        return scanAnnotations(A::class)
     }
 }

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotations
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
@@ -30,7 +31,6 @@ import me.ahoo.wow.serialization.toJsonString
 import org.slf4j.LoggerFactory
 import org.springframework.web.util.UriTemplate
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.findAnnotations
 
 object CommandRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
@@ -73,11 +73,11 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
     }
 
     override fun visitProperty(property: KProperty1<C, *>) {
-        property.findAnnotations<CommandRoute.PathVariable>().forEach {
+        property.scanAnnotations<CommandRoute.PathVariable>().forEach {
             val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             pathVariables.add(variableMetadata)
         }
-        property.findAnnotations<CommandRoute.HeaderVariable>().forEach {
+        property.scanAnnotations<CommandRoute.HeaderVariable>().forEach {
             val variableMetadata = property.toVariableMetadata(it.name, it.nestedPath, it.required)
             headerVariables.add(variableMetadata)
         }
