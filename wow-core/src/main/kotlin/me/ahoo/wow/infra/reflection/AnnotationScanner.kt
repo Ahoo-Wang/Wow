@@ -23,6 +23,10 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
 
 object AnnotationScanner {
+    val repeatableClass = java.lang.annotation.Repeatable::class
+    const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
+    const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
+
     private data class AnnotationCacheKey(
         val annotatedElement: KAnnotatedElement,
         val annotationClass: KClass<out Annotation>
@@ -30,13 +34,33 @@ object AnnotationScanner {
 
     private val cache: ConcurrentHashMap<AnnotationCacheKey, List<Any>> = ConcurrentHashMap()
 
+    private fun Annotation.getRepeatableValue(): List<Annotation> {
+        val containerClass = this.annotationClass.java
+        if (containerClass.simpleName == REPEATABLE_CONTAINER_SIMPLE_NAME &&
+            containerClass.name.endsWith(REPEATABLE_CONTAINER_ENDS_WITH)
+        ) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val value = this.annotationClass.java.getMethod("value").invoke(this) as Array<Annotation>
+                return value.toList<Annotation>()
+            } catch (ignore: Exception) {
+                // ignore
+            }
+        }
+        return listOf(this)
+    }
+
     fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
         val found = mutableListOf<Annotation>()
         found.addAll(annotations)
         if (this is KProperty<*>) {
             found.addAll(getter.annotations)
             if (javaField != null) {
-                found.addAll(javaField!!.annotations)
+                found.addAll(
+                    javaField!!.annotations.flatMap {
+                        it.getRepeatableValue()
+                    }
+                )
             }
         }
 
