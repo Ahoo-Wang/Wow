@@ -57,14 +57,11 @@ public final class FastInvoke {
      * @throws IllegalAccessException    IllegalAccessException
      */
     public static <T> T safeInvoke(@NotNull Method method, Object target, Object[] args)
-            throws InvocationTargetException, IllegalAccessException {
+            throws Throwable {
         try {
             return invoke(method, target, args);
         } catch (InvocationTargetException targetException) {
-            if (targetException.getTargetException() instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw targetException;
+            throw targetException.getTargetException();
         }
     }
 
@@ -99,15 +96,11 @@ public final class FastInvoke {
      * @throws IllegalAccessException    IllegalAccessException
      */
     public static <T> T safeNewInstance(@NotNull Constructor<T> constructor, Object[] args)
-            throws InvocationTargetException, InstantiationException,
-            IllegalAccessException {
+            throws Throwable {
         try {
             return newInstance(constructor, args);
         } catch (InvocationTargetException targetException) {
-            if (targetException.getTargetException() instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            throw targetException;
+            throw targetException.getTargetException();
         }
     }
 }

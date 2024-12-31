@@ -24,7 +24,6 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 import reactor.util.retry.Retry
 import java.time.Duration
 
@@ -59,11 +58,15 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val stateAggregateMono = if (exchange.message.isCreate) {
-            aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId).toMono()
+            Mono.fromCallable {
+                aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId)
+            }
         } else {
             stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
         }
-        return stateAggregateMono.map { commandAggregateFactory.create(aggregateMetadata, it) }
+        return stateAggregateMono.map {
+            commandAggregateFactory.create(aggregateMetadata, it)
+        }
             .flatMap {
                 /**
                  * remove error for retry.
