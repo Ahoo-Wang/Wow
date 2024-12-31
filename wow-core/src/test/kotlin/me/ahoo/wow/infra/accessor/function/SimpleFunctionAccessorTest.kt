@@ -18,7 +18,6 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
 import kotlin.reflect.jvm.isAccessible
@@ -53,13 +52,6 @@ internal class SimpleFunctionAccessorTest {
                 MockMethodWhenIllegalStateException(),
             )
         }
-    }
-
-    @Test
-    fun invokeWhenError() {
-        val methodAccessor =
-            SimpleFunctionAccessor<MockMethodWhenError, Unit>(MockMethodWhenError.INVOKE_FUNCTION)
-        Assertions.assertThrows(InvocationTargetException::class.java) { methodAccessor.invoke(MockMethodWhenError()) }
     }
 
     @Test

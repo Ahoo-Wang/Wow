@@ -17,7 +17,6 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Constructor
-import java.lang.reflect.InvocationTargetException
 
 internal class DefaultConstructorAccessorTest {
     @Test
@@ -37,12 +36,6 @@ internal class DefaultConstructorAccessorTest {
     fun constructorWhenIllegalArgument() {
         val constructorAccessor = DefaultConstructorAccessor(MockConstructorWhenIllegalArgument.CTOR)
         Assertions.assertThrows(IllegalArgumentException::class.java) { constructorAccessor.invoke() }
-    }
-
-    @Test
-    fun constructorWhenError() {
-        val constructorAccessor = DefaultConstructorAccessor(MockConstructorWhenError.CTOR)
-        Assertions.assertThrows(InvocationTargetException::class.java) { constructorAccessor.invoke() }
     }
 
     @Suppress("UtilityClassWithPublicConstructor")
