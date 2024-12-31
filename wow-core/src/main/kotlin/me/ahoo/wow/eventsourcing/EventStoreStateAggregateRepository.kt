@@ -40,12 +40,13 @@ class EventStoreStateAggregateRepository(
         metadata: StateAggregateMetadata<S>,
         loadEventStream: (StateAggregate<S>) -> Flux<DomainEventStream>
     ): Mono<StateAggregate<S>> {
-        val stateAggregate = stateAggregateFactory.create(metadata, aggregateId)
-        return loadEventStream(stateAggregate)
-            .map {
-                stateAggregate.onSourcing(it)
-            }
-            .then(Mono.just(stateAggregate))
+        return stateAggregateFactory.createAsMono(metadata, aggregateId).flatMap { stateAggregate ->
+            loadEventStream(stateAggregate)
+                .map {
+                    stateAggregate.onSourcing(it)
+                }
+                .then(Mono.just(stateAggregate))
+        }
     }
 
     override fun <S : Any> load(

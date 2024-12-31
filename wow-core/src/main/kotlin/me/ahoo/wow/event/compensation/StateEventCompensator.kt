@@ -45,21 +45,22 @@ class StateEventCompensator(
     ): Mono<Long> {
         val aggregateMetadata = aggregateId.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>()
-        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-        return eventStore
-            .load(
-                aggregateId = aggregateId,
-                tailVersion = tailVersion,
-            )
-            .map {
-                stateAggregate.onSourcing(it)
-                it.toStateEvent(stateAggregate)
-            }
-            .filter {
-                it.version in headVersion..tailVersion
-            }
-            .concatMap {
-                compensate(it, target).thenReturn(it.aggregateId)
-            }.count()
+        return stateAggregateFactory.createAsMono(aggregateMetadata.state, aggregateId).flatMap { stateAggregate ->
+            eventStore
+                .load(
+                    aggregateId = aggregateId,
+                    tailVersion = tailVersion,
+                )
+                .map {
+                    stateAggregate.onSourcing(it)
+                    it.toStateEvent(stateAggregate)
+                }
+                .filter {
+                    it.version in headVersion..tailVersion
+                }
+                .concatMap {
+                    compensate(it, target).thenReturn(it.aggregateId)
+                }.count()
+        }
     }
 }

@@ -22,6 +22,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import reactor.core.publisher.Mono
 
 /**
  * Aggregate Factory .
@@ -31,6 +32,11 @@ import org.slf4j.LoggerFactory
  */
 interface StateAggregateFactory {
     fun <S : Any> create(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): StateAggregate<S>
+    fun <S : Any> createAsMono(metadata: StateAggregateMetadata<S>, aggregateId: AggregateId): Mono<StateAggregate<S>> {
+        return Mono.fromCallable {
+            create(metadata, aggregateId)
+        }
+    }
 }
 
 object ConstructorStateAggregateFactory : StateAggregateFactory {

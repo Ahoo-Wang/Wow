@@ -104,10 +104,10 @@ internal class DefaultWhenStage<C : Any, S : Any>(
         )
         serverCommandExchange.setServiceProvider(serviceProvider)
         val commandAggregateId = commandMessage.aggregateId
-        val expectedResultMono = stateAggregateFactory.create(
+        val expectedResultMono = stateAggregateFactory.createAsMono(
             metadata.state,
             commandAggregateId,
-        ).toMono().map {
+        ).map {
             try {
                 commandMessage.body.validate()
             } catch (throwable: Throwable) {
