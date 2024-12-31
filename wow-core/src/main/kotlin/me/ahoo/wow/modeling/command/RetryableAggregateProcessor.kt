@@ -58,9 +58,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val stateAggregateMono = if (exchange.message.isCreate) {
-            Mono.fromCallable {
-                aggregateFactory.create(aggregateMetadata.state, exchange.message.aggregateId)
-            }
+            aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
         } else {
             stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
         }
