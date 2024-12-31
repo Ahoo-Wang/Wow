@@ -45,11 +45,16 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
         .filter {
-            val retryable = it.recoverable == RecoverableType.RECOVERABLE
-            if (retryable && log.isWarnEnabled) {
-                log.warn("Retry {}.", aggregateId, it)
+            it.recoverable == RecoverableType.RECOVERABLE
+        }.doBeforeRetry {
+            if (log.isWarnEnabled) {
+                log.warn(
+                    "[BeforeRetry] {} totalRetries[{}].",
+                    aggregateId,
+                    it.totalRetries(),
+                    it.failure()
+                )
             }
-            retryable
         }
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
