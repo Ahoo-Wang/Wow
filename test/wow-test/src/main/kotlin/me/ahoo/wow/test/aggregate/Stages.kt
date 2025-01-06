@@ -83,7 +83,18 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
         return expect {
-            assertThat("Expect the domain event stream is not null.", it.domainEventStream, notNullValue())
+            val reason = buildString {
+                append("Expect the domain event stream is not null.")
+                it.error?.let { error ->
+                    appendLine()
+                    append(error.stackTraceToString())
+                }
+            }
+            assertThat(
+                reason,
+                it.domainEventStream,
+                notNullValue()
+            )
             expected.accept(it.domainEventStream!!)
         }
     }
