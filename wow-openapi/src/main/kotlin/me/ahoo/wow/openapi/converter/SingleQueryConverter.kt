@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.Sort
 class SingleQueryConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = SingleQuery::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[SingleQuery::sort.name]?.setDefault(emptyList<Sort>())
+        resolvedSchema.properties[SingleQuery::sort.name]?.default = emptyList<Sort>()
         return resolvedSchema
     }
 }

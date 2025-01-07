@@ -19,8 +19,8 @@ import me.ahoo.wow.api.query.Pagination
 class PaginationConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = Pagination::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[Pagination::index.name]?.setDefault(Pagination.DEFAULT.index)
-        resolvedSchema.properties[Pagination::size.name]?.setDefault(Pagination.DEFAULT.size)
+        resolvedSchema.properties[Pagination::index.name]?.default = Pagination.DEFAULT.index
+        resolvedSchema.properties[Pagination::size.name]?.default = Pagination.DEFAULT.size
         return resolvedSchema
     }
 }

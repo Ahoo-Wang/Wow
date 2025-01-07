@@ -21,11 +21,11 @@ import me.ahoo.wow.api.query.Operator
 class ConditionConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = Condition::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[Condition::field.name]?.setDefault(EMPTY_VALUE)
-        resolvedSchema.properties[Condition::operator.name]?.setDefault(Operator.ALL.name)
-        resolvedSchema.properties[Condition::value.name]?.setDefault(EMPTY_VALUE)
-        resolvedSchema.properties[Condition::children.name]?.setDefault(emptyList<Condition>())
-        resolvedSchema.properties[Condition::options.name]?.setDefault(emptyMap<String, Any>())
+        resolvedSchema.properties[Condition::field.name]?.default = EMPTY_VALUE
+        resolvedSchema.properties[Condition::operator.name]?.default = Operator.ALL.name
+        resolvedSchema.properties[Condition::value.name]?.default = EMPTY_VALUE
+        resolvedSchema.properties[Condition::children.name]?.default = emptyList<Condition>()
+        resolvedSchema.properties[Condition::options.name]?.default = emptyMap<String, Any>()
         return resolvedSchema
     }
 }

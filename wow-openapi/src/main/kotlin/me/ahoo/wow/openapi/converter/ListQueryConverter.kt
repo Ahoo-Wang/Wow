@@ -22,8 +22,8 @@ import me.ahoo.wow.api.query.Sort
 class ListQueryConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = ListQuery::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[ListQuery::sort.name]?.setDefault(emptyList<Sort>())
-        resolvedSchema.properties[ListQuery::limit.name]?.setDefault(Pagination.DEFAULT.size)
+        resolvedSchema.properties[ListQuery::sort.name]?.default = emptyList<Sort>()
+        resolvedSchema.properties[ListQuery::limit.name]?.default = Pagination.DEFAULT.size
         resolvedSchema.properties.remove(Projection::isEmpty.name)
         return resolvedSchema
     }

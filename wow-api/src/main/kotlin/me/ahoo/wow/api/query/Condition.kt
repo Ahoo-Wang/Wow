@@ -16,7 +16,7 @@ package me.ahoo.wow.api.query
 import java.time.ZoneId
 
 data class Condition(
-    val field: String,
+    val field: String = "",
     val operator: Operator,
     val value: Any = EMPTY_VALUE,
     /**

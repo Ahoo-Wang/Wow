@@ -33,8 +33,8 @@ import me.ahoo.wow.serialization.MessageRecords
 class DomainEventConverter : ModelConverter {
     companion object {
         private val wrapTypes: Set<String> = setOf(
-            DomainEventStream::class.java.toSchemaName()!!,
-            StateEvent::class.java.toSchemaName()!!
+            DomainEventStream::class.java.toSchemaName(),
+            StateEvent::class.java.toSchemaName()
         )
     }
 

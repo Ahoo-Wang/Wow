@@ -60,9 +60,6 @@ class SingleSnapshotStateRouteSpec(
 }
 
 class SingleSnapshotStateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        SingleQuery::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,

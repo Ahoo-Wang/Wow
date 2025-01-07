@@ -15,6 +15,10 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.HeaderRef.Companion.with
@@ -28,6 +32,7 @@ import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.TAIL_VERSION
+import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_SCHEMA
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
@@ -43,6 +48,10 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
         SchemaRef.ERROR_INFO.schemas.mergeSchemas()
         BatchResult::class.java.toSchemas().mergeSchemas()
         COMPENSATION_TARGET_SCHEMA.schemas.mergeSchemas()
+        SingleQuery::class.java.toSchemaRef().schemas.mergeSchemas()
+        PagedQuery::class.java.toSchemaRef().schemas.mergeSchemas()
+        ListQuery::class.java.toSchemaRef().schemas.mergeSchemas()
+        Condition::class.java.toSchemaRef().schemas.mergeSchemas()
         components.headers.with(ERROR_CODE_HEADER)
         components.parameters
             .with(HEAD_VERSION)

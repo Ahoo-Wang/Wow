@@ -19,9 +19,9 @@ import me.ahoo.wow.api.query.Projection
 class ProjectionConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = Projection::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[Projection::include.name]?.setDefault(emptyList<String>())
-        resolvedSchema.properties[Projection::exclude.name]?.setDefault(emptyList<String>())
-        resolvedSchema.properties.remove(Projection::isEmpty.name)
+        resolvedSchema.properties[Projection::include.name]?.default = emptyList<String>()
+        resolvedSchema.properties[Projection::exclude.name]?.default = emptyList<String>()
+        resolvedSchema.properties.remove("empty")
         return resolvedSchema
     }
 }
