@@ -19,8 +19,22 @@ const val DEFAULT_ON_STATE_EVENT_NAME = "onStateEvent"
 
 /**
  * On State Event.
+ *
+ * Local Context:
+ *
  * ``` kotlin
+ *    @OnStateEvent
  *    fun onStateEvent(changed: Changed, state: State) {
+ *         //...
+ *     }
+ * ```
+ *
+ * Remote Context:
+ *
+ * ``` kotlin
+ *    @OnStateEvent
+ *    fun onStateEvent(changed: Changed, stateRecord: StateRecord) {
+ *      val state = stateRecord.toObject<StateData>()
  *         //...
  *     }
  * ```
