@@ -62,9 +62,6 @@ class PagedQueryEventStreamRouteSpec(
 }
 
 class PagedQueryEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        PagedQuery::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,

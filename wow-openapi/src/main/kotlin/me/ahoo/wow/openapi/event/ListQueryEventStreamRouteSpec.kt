@@ -25,7 +25,6 @@ import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
 class ListQueryEventStreamRouteSpec(
@@ -55,9 +54,6 @@ class ListQueryEventStreamRouteSpec(
 }
 
 class ListQueryEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        ListQuery::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,
