@@ -26,7 +26,6 @@ import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 
 class CountSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
@@ -58,9 +57,6 @@ class CountSnapshotRouteSpec(
 }
 
 class CountSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        Condition::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,

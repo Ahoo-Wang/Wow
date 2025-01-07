@@ -62,9 +62,6 @@ class PagedQuerySnapshotStateRouteSpec(
 }
 
 class PagedQuerySnapshotStateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        PagedQuery::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,

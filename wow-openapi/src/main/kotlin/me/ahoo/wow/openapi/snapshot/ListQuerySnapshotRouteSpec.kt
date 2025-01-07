@@ -63,9 +63,6 @@ class ListQuerySnapshotRouteSpec(
 }
 
 class ListQuerySnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        ListQuery::class.java.toSchemaRef().schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,
