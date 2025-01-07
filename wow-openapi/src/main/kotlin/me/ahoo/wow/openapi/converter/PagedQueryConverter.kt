@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.Sort
 class PagedQueryConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = PagedQuery::class.java
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[PagedQuery::sort.name]?.setDefault(emptyList<Sort>())
+        resolvedSchema.properties[PagedQuery::sort.name]?.default = emptyList<Sort>()
         return resolvedSchema
     }
 }

@@ -26,7 +26,7 @@ class CommandResultConverter : TargetTypeModifyConverter() {
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
         val result = checkNotNull(resolvedSchema.properties[CommandResult::result.name])
         result.additionalProperties = null
-        result.setDefault(emptyMap<String, Any>())
+        result.default = emptyMap<String, Any>()
         return resolvedSchema
     }
 }
