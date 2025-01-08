@@ -48,6 +48,7 @@ class CommandDispatcher(
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<*>> {
         return commandBus
             .receive(setOf(namedAggregate))
+            .filter { !it.message.isVoid }
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
     }

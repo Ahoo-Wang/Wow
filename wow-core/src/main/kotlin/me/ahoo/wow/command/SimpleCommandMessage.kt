@@ -31,6 +31,7 @@ data class SimpleCommandMessage<C : Any>(
     override val name: String = body.javaClass.toName(),
     override val isCreate: Boolean = false,
     override val allowCreate: Boolean = false,
+    override val isVoid: Boolean = false,
     override val createTime: Long = System.currentTimeMillis()
 ) : CommandMessage<C>, NamedAggregate by aggregateId {
     override fun copy(): CommandMessage<C> {

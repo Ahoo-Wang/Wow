@@ -25,11 +25,12 @@ import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.MountedCommand
 import me.ahoo.wow.example.api.cart.RemoveCartItem
+import me.ahoo.wow.example.api.cart.ViewCart
 
 const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
-@AggregateRoot(commands = [MountedCommand::class])
+@AggregateRoot(commands = [MountedCommand::class, ViewCart::class])
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
 

@@ -78,11 +78,7 @@ class StatelessSagaFunction(
             singleResult.header.inject(domainEvent)
             return singleResult.toMono()
         }
-        val commandBuilder = if (singleResult is CommandBuilder) {
-            singleResult
-        } else {
-            singleResult.commandBuilder()
-        }
+        val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
         commandBuilder
             .requestIfIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
