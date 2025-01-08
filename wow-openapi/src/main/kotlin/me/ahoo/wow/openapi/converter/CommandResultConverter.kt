@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.converter
 
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.CommandResultCapable
 
 /**
  * CommandResult Converter
@@ -24,8 +25,8 @@ class CommandResultConverter : TargetTypeModifyConverter() {
     override val targetType: Class<*> = CommandResult::class.java
 
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        val result = checkNotNull(resolvedSchema.properties[CommandResult::result.name])
-        result.additionalProperties = null
+        val result = checkNotNull(resolvedSchema.properties[CommandResultCapable::result.name])
+        result.additionalProperties = true
         result.default = emptyMap<String, Any>()
         return resolvedSchema
     }

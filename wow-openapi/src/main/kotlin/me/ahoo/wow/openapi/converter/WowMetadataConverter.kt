@@ -14,21 +14,19 @@
 package me.ahoo.wow.openapi.converter
 
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.Condition.Companion.EMPTY_VALUE
-import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.configuration.WowMetadata
 
-class ConditionConverter : TargetTypeModifyConverter() {
-    override val targetType: Class<*> = Condition::class.java
+/**
+ * WowMetadata Converter
+ */
+class WowMetadataConverter : TargetTypeModifyConverter() {
+
+    override val targetType: Class<*> = WowMetadata::class.java
+
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
-        resolvedSchema.properties[Condition::field.name]?.default = EMPTY_VALUE
-        resolvedSchema.properties[Condition::operator.name]?.default = Operator.ALL.name
-        resolvedSchema.properties[Condition::value.name]?.default = EMPTY_VALUE
-        resolvedSchema.properties[Condition::children.name]?.default = emptyList<Condition>()
-        resolvedSchema.properties[Condition::options.name]?.let {
-            it.default = emptyMap<String, Any>()
-            it.additionalProperties(true)
-        }
+        val result = checkNotNull(resolvedSchema.properties[WowMetadata::contexts.name])
+        result.additionalProperties = true
+        result.default = emptyMap<String, Any>()
         return resolvedSchema
     }
 }

@@ -23,6 +23,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 
 class BoundedContextSchemaNameConverter : ModelConverter {
     companion object {
+        const val STD_LIB_PREFIX = "java."
         fun AnnotatedType.getRawClass(): Class<*>? {
             val schemaType = this.type
             if (schemaType is Class<*>) {
@@ -52,14 +53,21 @@ class BoundedContextSchemaNameConverter : ModelConverter {
         context: ModelConverterContext,
         chain: Iterator<ModelConverter>
     ): Schema<*>? {
-        if (type.name.isNullOrBlank()) {
-            type.getRawClass()?.let {
-                type.name = it.toSchemaName()
-            }
-        }
+        resolveName(type)
         if (chain.hasNext()) {
             return chain.next().resolve(type, context, chain)
         }
         return null
+    }
+
+    private fun resolveName(type: AnnotatedType) {
+        if (type.name.isNullOrBlank().not()) {
+            return
+        }
+        val rawClass = type.getRawClass() ?: return
+        if (rawClass.name.startsWith(STD_LIB_PREFIX)) {
+            return
+        }
+        type.name = rawClass.toSchemaName()
     }
 }
