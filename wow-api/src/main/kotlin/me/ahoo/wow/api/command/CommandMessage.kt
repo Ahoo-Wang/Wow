@@ -46,8 +46,17 @@ interface CommandMessage<C : Any> :
 
     /**
      * is the create aggregate command
+     * @see me.ahoo.wow.api.annotation.CreateAggregate
      */
     val isCreate: Boolean
 
+    /**
+     * @see me.ahoo.wow.api.annotation.AllowCreate
+     */
     val allowCreate: Boolean
+
+    /**
+     * @see me.ahoo.wow.api.annotation.VoidCommand
+     */
+    val isVoid: Boolean
 }

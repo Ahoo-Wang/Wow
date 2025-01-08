@@ -23,6 +23,7 @@ import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toTenantIdGetterI
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
+import me.ahoo.wow.api.annotation.VoidCommand
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.configuration.MetadataSearcher
@@ -61,7 +62,8 @@ object CommandMetadataParser : CacheableMetadataParser() {
 
 internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C> {
     private val commandName: String = commandType.toName()
-    private val isCreateAggregate = commandType.isAnnotationPresent(CreateAggregate::class.java)
+    private val isCreate = commandType.isAnnotationPresent(CreateAggregate::class.java)
+    private val isVoid = commandType.isAnnotationPresent(VoidCommand::class.java)
     private var allowCreate: Boolean = commandType.isAnnotationPresent(AllowCreate::class.java)
     private var namedAggregateGetter: NamedAggregateGetter<C>? = null
     private var aggregateNameGetter: PropertyGetter<C, String>? = null
@@ -119,7 +121,7 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     }
 
     fun toMetadata(): CommandMetadata<C> {
-        if (aggregateIdGetter == null && !isCreateAggregate) {
+        if (aggregateIdGetter == null && !isCreate) {
             if (LOG.isWarnEnabled) {
                 LOG.warn(
                     "Command[$commandType] does not define an aggregate ID field and is not a create aggregate command.",
@@ -138,11 +140,12 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
             commandType = commandType,
             namedAggregateGetter = namedAggregateGetter,
             name = commandName,
-            isCreate = isCreateAggregate,
+            isCreate = isCreate,
             allowCreate = allowCreate,
+            isVoid = isVoid,
             aggregateIdGetter = aggregateIdGetter,
             aggregateVersionGetter = aggregateVersionGetter,
-            tenantIdGetter = tenantIdGetter,
+            tenantIdGetter = tenantIdGetter
         )
     }
 }

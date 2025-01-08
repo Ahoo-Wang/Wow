@@ -68,6 +68,7 @@ fun <C : Any> C.toCommandMessage(
         name = metadata.name,
         isCreate = metadata.isCreate,
         allowCreate = metadata.allowCreate,
+        isVoid = metadata.isVoid,
     ).ensureTraceId()
 }
 

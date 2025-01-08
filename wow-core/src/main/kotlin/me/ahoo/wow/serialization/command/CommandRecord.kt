@@ -24,6 +24,7 @@ import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 object CommandRecords {
     const val AGGREGATE_VERSION = "aggregateVersion"
     const val IS_CREATE = "isCreate"
+    const val IS_VOID = "isVoid"
     const val ALLOW_CREATE = "allowCreate"
 }
 
@@ -39,7 +40,9 @@ interface CommandRecord :
     val isCreate: Boolean
         get() = actual[CommandRecords.IS_CREATE].asBoolean()
     val allowCreate: Boolean
-        get() = actual.get(CommandRecords.ALLOW_CREATE)?.asBoolean() ?: false
+        get() = actual.get(CommandRecords.ALLOW_CREATE)?.asBoolean() == true
+    val isVoid: Boolean
+        get() = actual.get(CommandRecords.IS_VOID)?.asBoolean() == true
 }
 
 class DelegatingCommandRecord(override val actual: ObjectNode) : CommandRecord

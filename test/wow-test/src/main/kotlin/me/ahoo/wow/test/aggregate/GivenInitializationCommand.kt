@@ -28,6 +28,7 @@ data class GivenInitializationCommand(
     override val requestId: String = GlobalIdGenerator.generateAsString(),
     override val isCreate: Boolean = true,
     override val allowCreate: Boolean = false,
+    override val isVoid: Boolean = false,
     override val header: Header = DefaultHeader.empty()
 ) : CommandMessage<GivenInitialization>, NamedAggregate by aggregateId {
     override val body: GivenInitialization = GivenInitialization

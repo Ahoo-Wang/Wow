@@ -28,6 +28,7 @@ import me.ahoo.wow.serialization.MessageSerializer
 import me.ahoo.wow.serialization.command.CommandRecords.AGGREGATE_VERSION
 import me.ahoo.wow.serialization.command.CommandRecords.ALLOW_CREATE
 import me.ahoo.wow.serialization.command.CommandRecords.IS_CREATE
+import me.ahoo.wow.serialization.command.CommandRecords.IS_VOID
 import me.ahoo.wow.serialization.toObject
 
 object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessage::class.java) {
@@ -40,6 +41,7 @@ object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessa
             generator.writeNumberField(AGGREGATE_VERSION, it)
         }
         generator.writeBooleanField(IS_CREATE, value.isCreate)
+        generator.writeBooleanField(IS_VOID, value.isVoid)
         generator.writeBooleanField(ALLOW_CREATE, value.allowCreate)
     }
 }
@@ -65,6 +67,7 @@ object CommandJsonDeserializer : StdDeserializer<CommandMessage<*>>(CommandMessa
             name = commandRecord.name,
             isCreate = commandRecord.isCreate,
             allowCreate = commandRecord.allowCreate,
+            isVoid = commandRecord.isVoid,
             createTime = commandRecord.createTime,
         )
     }

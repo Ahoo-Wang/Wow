@@ -30,6 +30,7 @@ data class CommandMetadata<C>(
     override val name: String,
     val isCreate: Boolean,
     val allowCreate: Boolean,
+    val isVoid: Boolean,
     /**
      * Aggregate ID can be null if it is a create aggregate command.
      */
