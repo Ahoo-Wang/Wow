@@ -19,11 +19,6 @@ me.ahoo.wow.openapi.converter.SnapshotConverter
 me.ahoo.wow.openapi.converter.EventStreamConverter
 me.ahoo.wow.openapi.converter.DomainEventConverter
 me.ahoo.wow.openapi.converter.StateEventConverter
-me.ahoo.wow.openapi.converter.CommandResultConverter
-me.ahoo.wow.openapi.converter.WaitSignalConverter
-me.ahoo.wow.openapi.converter.BoundedContextConverter
-me.ahoo.wow.openapi.converter.WowMetadataConverter
-me.ahoo.wow.openapi.converter.MessageHeaderConverter
 me.ahoo.wow.openapi.converter.ConditionConverter
 me.ahoo.wow.openapi.converter.ProjectionConverter
 me.ahoo.wow.openapi.converter.ListQueryConverter

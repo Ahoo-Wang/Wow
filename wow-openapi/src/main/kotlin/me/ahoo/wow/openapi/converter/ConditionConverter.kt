@@ -25,10 +25,7 @@ class ConditionConverter : TargetTypeModifyConverter() {
         resolvedSchema.properties[Condition::operator.name]?.default = Operator.ALL.name
         resolvedSchema.properties[Condition::value.name]?.default = EMPTY_VALUE
         resolvedSchema.properties[Condition::children.name]?.default = emptyList<Condition>()
-        resolvedSchema.properties[Condition::options.name]?.let {
-            it.default = emptyMap<String, Any>()
-            it.additionalProperties(true)
-        }
+        resolvedSchema.properties[Condition::options.name]?.default = emptyMap<String, Any>()
         return resolvedSchema
     }
 }
