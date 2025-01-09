@@ -18,6 +18,7 @@ import me.ahoo.wow.api.messaging.Message
 
 class CommandRequestHeaderPropagator : MessagePropagator {
     companion object {
+        const val ENABLED_KEY = "wow.messaging.propagation.request"
         private const val USER_AGENT = "user_agent"
         private const val REMOTE_IP = "remote_ip"
         val Header.userAgent: String?
@@ -39,7 +40,12 @@ class CommandRequestHeaderPropagator : MessagePropagator {
         }
     }
 
+    private val enabled: Boolean = System.getProperty(ENABLED_KEY)?.toBoolean() != false
+
     override fun inject(header: Header, upstream: Message<*, *>) {
+        if (!enabled) {
+            return
+        }
         upstream.header.userAgent?.let {
             header.withUserAgent(it)
         }
