@@ -15,41 +15,16 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.command.CommandHeaders
-import me.ahoo.wow.webflux.route.command.CommandParser.parse
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.*
-
-fun ServerRequest.getCommandStage(): CommandStage {
-    return headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
-        CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
-    } ?: CommandStage.PROCESSED
-}
-
-fun ServerRequest.getWaitContext(): String {
-    return headers().firstHeader(CommandHeaders.WAIT_CONTEXT).orEmpty()
-}
-
-fun ServerRequest.getWaitProcessor(): String {
-    return headers().firstHeader(CommandHeaders.WAIT_PROCESSOR).orEmpty()
-}
-
-fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
-    return headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)?.toLongOrNull()?.let {
-        Duration.ofMillis(it)
-    } ?: default
-}
 
 class CommandHandler(
     private val commandGateway: CommandGateway,
-    private val commandMessageFactory: CommandMessageFactory,
+    private val commandMessageParser: CommandMessageParser,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
@@ -59,10 +34,10 @@ class CommandHandler(
         aggregateMetadata: AggregateMetadata<*, *>,
     ): Mono<CommandResult> {
         val commandWaitTimeout = request.getWaitTimeout(timeout)
-        return request.parse(
+        return commandMessageParser.parse(
             aggregateMetadata = aggregateMetadata,
             commandBody = commandBody,
-            commandMessageFactory = commandMessageFactory
+            request = request
         ).flatMap {
             val stage: CommandStage = request.getCommandStage()
             if (CommandStage.SENT == stage) {

@@ -37,7 +37,7 @@ class CommandFacadeHandlerFunctionTest {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val handlerFunction = CommandFacadeHandlerFunction(
             commandGateway,
-            SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),
             DefaultRequestExceptionHandler
         )
         val request = mockk<ServerRequest> {

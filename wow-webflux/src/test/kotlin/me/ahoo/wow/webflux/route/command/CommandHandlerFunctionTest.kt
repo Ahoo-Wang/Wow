@@ -49,7 +49,7 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             commandRouteMetadata,
             commandGateway,
-            SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),
             DefaultRequestExceptionHandler,
         )
         val request = mockk<ServerRequest> {

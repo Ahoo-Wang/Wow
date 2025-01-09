@@ -37,7 +37,9 @@ import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.CommandMessageParser
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
+import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
@@ -139,6 +141,13 @@ class WebFluxAutoConfiguration {
         return GlobalExceptionHandler
     }
 
+
+    @Bean
+    @ConditionalOnWebfluxGlobalErrorEnabled
+    fun commandMessageParser(commandMessageFactory: CommandMessageFactory,): CommandMessageParser {
+        return DefaultCommandMessageParser(commandMessageFactory)
+    }
+
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
@@ -153,12 +162,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandFacadeHandlerFunctionFactory(
         commandGateway: CommandGateway,
-        commandMessageFactory: CommandMessageFactory,
+        commandMessageParser: CommandMessageParser,
         exceptionHandler: RequestExceptionHandler,
     ): CommandFacadeHandlerFunctionFactory {
         return CommandFacadeHandlerFunctionFactory(
             commandGateway = commandGateway,
-            commandMessageFactory = commandMessageFactory,
+            commandMessageParser = commandMessageParser,
             exceptionHandler = exceptionHandler
         )
     }
@@ -401,12 +410,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandHandlerFunctionFactory(
         commandGateway: CommandGateway,
-        commandMessageFactory: CommandMessageFactory,
+        commandMessageParser: CommandMessageParser,
         exceptionHandler: RequestExceptionHandler,
     ): CommandHandlerFunctionFactory {
         return CommandHandlerFunctionFactory(
             commandGateway = commandGateway,
-            commandMessageFactory = commandMessageFactory,
+            commandMessageParser = commandMessageParser,
             exceptionHandler = exceptionHandler,
             timeout = DEFAULT_TIME_OUT
         )

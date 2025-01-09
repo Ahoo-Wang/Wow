@@ -14,7 +14,6 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -33,14 +32,14 @@ import java.time.Duration
  */
 class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
-    private val commandMessageFactory: CommandMessageFactory,
+    private val commandMessageParser: CommandMessageParser,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
 
     private val handler = CommandHandler(
         commandGateway = commandGateway,
-        commandMessageFactory = commandMessageFactory,
+        commandMessageParser = commandMessageParser,
         timeout = timeout
     )
 
@@ -55,7 +54,7 @@ class CommandFacadeHandlerFunction(
 
 class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
-    private val commandMessageFactory: CommandMessageFactory,
+    private val commandMessageParser: CommandMessageParser,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
@@ -65,7 +64,7 @@ class CommandFacadeHandlerFunctionFactory(
     override fun create(spec: CommandFacadeRouteSpec): HandlerFunction<ServerResponse> {
         return CommandFacadeHandlerFunction(
             commandGateway = commandGateway,
-            commandMessageFactory = commandMessageFactory,
+            commandMessageParser = commandMessageParser,
             exceptionHandler = exceptionHandler,
             timeout = timeout
         )
