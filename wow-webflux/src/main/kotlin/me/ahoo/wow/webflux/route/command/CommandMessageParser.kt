@@ -15,13 +15,13 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandOperator.withOperator
-import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders.AGGREGATE_VERSION
+import me.ahoo.wow.openapi.command.CommandRequestHeaders.REQUEST_ID
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
@@ -33,7 +33,10 @@ interface CommandMessageParser {
     ): Mono<CommandMessage<Any>>
 }
 
-class DefaultCommandMessageParser(private val commandMessageFactory: CommandMessageFactory) : CommandMessageParser {
+class DefaultCommandMessageParser(
+    private val commandMessageFactory: CommandMessageFactory,
+    private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
+) : CommandMessageParser {
     override fun parse(
         aggregateMetadata: AggregateMetadata<*, *>,
         commandBody: Any,
@@ -41,15 +44,17 @@ class DefaultCommandMessageParser(private val commandMessageFactory: CommandMess
     ): Mono<CommandMessage<Any>> {
         val aggregateId = request.getAggregateId()
         val tenantId = request.getTenantId(aggregateMetadata)
-        val aggregateVersion = request.headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION)?.toIntOrNull()
-        val requestId = request.headers().firstHeader(CommandRequestHeaders.REQUEST_ID).ifNotBlank { it }
+        val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
+        val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
         val commandBuilder = commandBody.commandBuilder()
             .aggregateId(aggregateId)
             .tenantId(tenantId)
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
-        injectExtensionHeaders(commandBuilder, request)
+        commandRequestHeaderAppends.forEach {
+            it.append(request, commandBuilder)
+        }
         request.getLocalFirst()?.let {
             commandBuilder.header { header ->
                 header.withLocalFirst(it)
@@ -62,19 +67,5 @@ class DefaultCommandMessageParser(private val commandMessageFactory: CommandMess
         }.then(
             commandMessageFactory.create<Any>(commandBuilder)
         )
-    }
-
-    private fun injectExtensionHeaders(commandBuilder: CommandBuilder, request: ServerRequest) {
-        val extendedHeaders = request.headers().asHttpHeaders()
-            .filter { (key, _) -> key.startsWith(CommandRequestHeaders.COMMAND_HEADER_X_PREFIX) }
-            .map { (key, value) ->
-                key.substring(CommandRequestHeaders.COMMAND_HEADER_X_PREFIX.length) to value.firstOrNull<String>().orEmpty()
-            }.toMap<String, String>()
-        if (extendedHeaders.isEmpty()) {
-            return
-        }
-        commandBuilder.header { header ->
-            header.with(extendedHeaders)
-        }
     }
 }

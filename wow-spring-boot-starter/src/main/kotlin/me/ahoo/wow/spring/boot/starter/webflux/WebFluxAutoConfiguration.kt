@@ -38,6 +38,8 @@ import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandMessageParser
+import me.ahoo.wow.webflux.route.command.CommandRequestExtendHeaderAppender
+import me.ahoo.wow.webflux.route.command.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -142,9 +144,20 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    fun commandRequestExtendHeaderAppender(): CommandRequestExtendHeaderAppender {
+        return CommandRequestExtendHeaderAppender
+    }
+
+    @Bean
     @ConditionalOnMissingBean
-    fun commandMessageParser(commandMessageFactory: CommandMessageFactory): CommandMessageParser {
-        return DefaultCommandMessageParser(commandMessageFactory)
+    fun commandMessageParser(
+        commandMessageFactory: CommandMessageFactory,
+        commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>
+    ): CommandMessageParser {
+        return DefaultCommandMessageParser(
+            commandMessageFactory = commandMessageFactory,
+            commandRequestHeaderAppends = commandRequestHeaderAppenderObjectProvider.toList<CommandRequestHeaderAppender>()
+        )
     }
 
     @Bean

@@ -35,7 +35,6 @@ class DefaultCommandMessageParserTest {
             every { principal() } returns Mono.empty()
             every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
             every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns false.toString()
-            every { headers().asHttpHeaders() } returns HttpHeaders()
         }
         val commandMessageParser =
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
@@ -76,7 +75,12 @@ class DefaultCommandMessageParserTest {
             )
         }
         val commandMessageParser =
-            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+                listOf(
+                    CommandRequestExtendHeaderAppender
+                )
+            )
         commandMessageParser.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             commandBody = MockCreateAggregate(
