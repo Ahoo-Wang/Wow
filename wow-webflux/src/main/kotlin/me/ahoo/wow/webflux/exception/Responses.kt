@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.springframework.http.MediaType

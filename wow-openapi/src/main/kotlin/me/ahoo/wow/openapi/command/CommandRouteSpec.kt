@@ -179,56 +179,56 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     companion object {
         val COMMAND_STAGE_SCHEMA = CommandStage::class.java.toSchemaRef(CommandStage.PROCESSED.name)
         val WAIT_STAGE_PARAMETER = Parameter()
-            .name(CommandHeaders.WAIT_STAGE)
+            .name(CommandRequestHeaders.WAIT_STAGE)
             .`in`(ParameterIn.HEADER.toString())
             .schema(COMMAND_STAGE_SCHEMA.ref).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val WAIT_CONTEXT_PARAMETER = Parameter()
-            .name(CommandHeaders.WAIT_CONTEXT)
+            .name(CommandRequestHeaders.WAIT_CONTEXT)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val WAIT_PROCESSOR_PARAMETER = Parameter()
-            .name(CommandHeaders.WAIT_PROCESSOR)
+            .name(CommandRequestHeaders.WAIT_PROCESSOR)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val WAIT_TIME_OUT_PARAMETER = Parameter()
-            .name(CommandHeaders.WAIT_TIME_OUT)
+            .name(CommandRequestHeaders.WAIT_TIME_OUT)
             .`in`(ParameterIn.HEADER.toString())
             .schema(IntegerSchema())
             .description("Unit: millisecond").let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val TENANT_ID_PARAMETER = Parameter()
-            .name(CommandHeaders.TENANT_ID)
+            .name(CommandRequestHeaders.TENANT_ID)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val AGGREGATE_ID_PARAMETER = Parameter()
-            .name(CommandHeaders.AGGREGATE_ID)
+            .name(CommandRequestHeaders.AGGREGATE_ID)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val AGGREGATE_VERSION_PARAMETER = Parameter()
-            .name(CommandHeaders.AGGREGATE_VERSION)
+            .name(CommandRequestHeaders.AGGREGATE_VERSION)
             .`in`(ParameterIn.HEADER.toString())
             .schema(IntegerSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val REQUEST_ID_PARAMETER = Parameter()
-            .name(CommandHeaders.REQUEST_ID)
+            .name(CommandRequestHeaders.REQUEST_ID)
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
         val LOCAL_FIRST_PARAMETER = Parameter()
-            .name(CommandHeaders.LOCAL_FIRST)
+            .name(CommandRequestHeaders.LOCAL_FIRST)
             .`in`(ParameterIn.HEADER.toString())
             .required(false)
             .schema(BooleanSchema()).let {

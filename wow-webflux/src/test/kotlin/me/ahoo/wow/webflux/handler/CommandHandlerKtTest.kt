@@ -3,7 +3,7 @@ package me.ahoo.wow.webflux.handler
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.webflux.route.command.getCommandStage
 import me.ahoo.wow.webflux.route.command.getWaitContext
 import me.ahoo.wow.webflux.route.command.getWaitProcessor
@@ -17,7 +17,7 @@ class CommandHandlerKtTest {
     @Test
     fun getCommandStage() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandHeaders.WAIT_STAGE) } returns "SENT"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns "SENT"
         }
         assertThat(request.getCommandStage(), equalTo(CommandStage.SENT))
     }
@@ -25,7 +25,7 @@ class CommandHandlerKtTest {
     @Test
     fun getCommandStageIfNull() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandHeaders.WAIT_STAGE) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns null
         }
         assertThat(request.getCommandStage(), equalTo(CommandStage.PROCESSED))
     }
@@ -33,7 +33,7 @@ class CommandHandlerKtTest {
     @Test
     fun getWaitContext() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandHeaders.WAIT_CONTEXT) } returns "test"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns "test"
         }
         assertThat(request.getWaitContext(), equalTo("test"))
     }
@@ -41,7 +41,7 @@ class CommandHandlerKtTest {
     @Test
     fun getWaitProcessor() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandHeaders.WAIT_PROCESSOR) } returns "test"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns "test"
         }
         assertThat(request.getWaitProcessor(), equalTo("test"))
     }

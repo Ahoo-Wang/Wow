@@ -4,7 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -30,7 +30,7 @@ class LoadEventStreamHandlerFunctionTest {
             every { pathVariable(RoutePaths.HEAD_VERSION_KEY) } returns "0"
             every { pathVariable(RoutePaths.TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns null
-            every { headers().firstHeader(CommandHeaders.TENANT_ID) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
         }
         handlerFunction.handle(request)
             .test()

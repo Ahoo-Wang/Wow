@@ -141,7 +141,6 @@ class WebFluxAutoConfiguration {
         return GlobalExceptionHandler
     }
 
-
     @Bean
     @ConditionalOnWebfluxGlobalErrorEnabled
     fun commandMessageParser(commandMessageFactory: CommandMessageFactory,): CommandMessageParser {
