@@ -11,13 +11,12 @@ import me.ahoo.wow.openapi.command.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import me.ahoo.wow.webflux.route.command.CommandParser.parse
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
-class CommandParserTest {
+class DefaultCommandMessageParserTest {
 
     @Test
     fun parse() {
@@ -33,13 +32,15 @@ class CommandParserTest {
             every { headers().firstHeader(CommandHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
             every { headers().firstHeader(CommandHeaders.LOCAL_FIRST) } returns false.toString()
         }
-        request.parse(
+        val commandMessageParser =
+            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
+        commandMessageParser.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             commandBody = MockCreateAggregate(
                 id = GlobalIdGenerator.generateAsString(),
                 data = GlobalIdGenerator.generateAsString(),
             ),
-            SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry())
+            request
         ).test()
             .expectNextCount(1)
             .verifyComplete()

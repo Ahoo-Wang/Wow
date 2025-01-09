@@ -12,6 +12,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.route.command.CommandHandler
+import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
@@ -40,7 +41,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry())
+            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
         )
         commandHandler.handle(
             request,
@@ -70,7 +71,7 @@ class CommandHandlerTest {
         }
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry())
+            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
         )
         commandHandler.handle(
             request,
