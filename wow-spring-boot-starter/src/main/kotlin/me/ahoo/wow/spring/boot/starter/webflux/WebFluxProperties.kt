@@ -26,6 +26,7 @@ class WebFluxProperties(
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
+        const val COMMAND_REQUEST_APPENDER_PREFIX = "$PREFIX.command.request.appender"
         const val GLOBAL_ERROR_ENABLED = "$PREFIX.global-error$ENABLED_SUFFIX_KEY"
     }
 

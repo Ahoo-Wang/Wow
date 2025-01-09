@@ -39,11 +39,12 @@ import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandMessageParser
-import me.ahoo.wow.webflux.route.command.CommandRequestExtendHeaderAppender
-import me.ahoo.wow.webflux.route.command.CommandRequestHeaderAppender
-import me.ahoo.wow.webflux.route.command.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
@@ -153,12 +154,22 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(
-        value = ["${WebFluxProperties.PREFIX}.command.request.appender.user$ENABLED_SUFFIX_KEY"],
+        value = ["${WebFluxProperties.COMMAND_REQUEST_APPENDER_PREFIX}.agent$ENABLED_SUFFIX_KEY"],
         matchIfMissing = true,
         havingValue = "true"
     )
     fun commandRequestUserAgentHeaderAppender(): CommandRequestUserAgentHeaderAppender {
         return CommandRequestUserAgentHeaderAppender
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = ["${WebFluxProperties.COMMAND_REQUEST_APPENDER_PREFIX}.ip$ENABLED_SUFFIX_KEY"],
+        matchIfMissing = true,
+        havingValue = "true"
+    )
+    fun commandRequestRemoteIpHeaderAppender(): CommandRequestRemoteIpHeaderAppender {
+        return CommandRequestRemoteIpHeaderAppender
     }
 
     @Bean

@@ -11,45 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.command
+package me.ahoo.wow.webflux.route.command.appender
 
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
-import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import org.springframework.util.MultiValueMap
 import org.springframework.web.reactive.function.server.ServerRequest
-import java.net.InetSocketAddress
-import java.util.*
 
-class CommandRequestUserAgentHeaderAppenderTest {
+class CommandRequestExtendHeaderAppenderTest {
     @Test
-    fun appendUserAgent() {
-        val userAgent = "test"
+    fun append() {
+        val headerKey = "app"
+        val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
+        val value = "oms"
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns userAgent
-            every { remoteAddress() } returns Optional.empty()
+            every { headers().asHttpHeaders() } returns HttpHeaders(
+                MultiValueMap.fromSingleValue<String, String>(
+                    mapOf(
+                        key to value
+                    )
+                )
+            )
         }
         val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
+        CommandRequestExtendHeaderAppender.append(request, commandHeader)
+        assertThat(commandHeader[headerKey], equalTo(value))
     }
 
     @Test
-    fun appendRemoteIp() {
-        val hostName = "test"
+    fun appendEmpty() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns null
-            every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
+            every { headers().asHttpHeaders() } returns HttpHeaders()
         }
         val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.remoteIp, equalTo(hostName))
+        CommandRequestExtendHeaderAppender.append(request, commandHeader)
+        assertThat(commandHeader.isEmpty(), equalTo(true))
     }
 }

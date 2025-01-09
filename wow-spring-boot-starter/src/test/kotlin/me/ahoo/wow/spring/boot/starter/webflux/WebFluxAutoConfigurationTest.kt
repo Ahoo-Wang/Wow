@@ -31,6 +31,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -42,6 +43,8 @@ import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBA
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -78,6 +81,40 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)
+            }
+    }
+
+    @Test
+    fun contextLoadsDisableAgentAppender() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${WebFluxProperties.COMMAND_REQUEST_APPENDER_PREFIX}.agent$ENABLED_SUFFIX_KEY=false",
+                "${WebFluxProperties.COMMAND_REQUEST_APPENDER_PREFIX}.ip$ENABLED_SUFFIX_KEY=false"
+            )
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .doesNotHaveBean(CommandRequestUserAgentHeaderAppender::class.java)
+                    .doesNotHaveBean(CommandRequestRemoteIpHeaderAppender::class.java)
             }
     }
 
