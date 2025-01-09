@@ -17,7 +17,7 @@ import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.slf4j.LoggerFactory
@@ -48,7 +48,7 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         val status = errorInfo.toHttpStatus()
         val response = exchange.response
         response.statusCode = status
-        response.headers.set(CommandHeaders.WOW_ERROR_CODE, errorInfo.errorCode)
+        response.headers.set(CommandRequestHeaders.WOW_ERROR_CODE, errorInfo.errorCode)
         response.headers.contentType = MediaType.APPLICATION_JSON
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }

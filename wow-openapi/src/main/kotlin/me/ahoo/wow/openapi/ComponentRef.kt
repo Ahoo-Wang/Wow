@@ -38,7 +38,7 @@ import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toRefSchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
-import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 
 interface ComponentRef<C> {
     val name: String
@@ -185,7 +185,7 @@ class HeaderRef(
     companion object {
         const val COMPONENTS_HEADERS_REF: String = COMPONENTS_REF + "headers/"
         val ERROR_CODE_HEADER = HeaderRef(
-            name = CommandHeaders.WOW_ERROR_CODE,
+            name = CommandRequestHeaders.WOW_ERROR_CODE,
             component = Header()
                 .content(StringSchema().toContent())
                 .description("Error Code"),
@@ -289,7 +289,7 @@ class ResponseRef(override val name: String, override val component: ApiResponse
 
         fun Content.toResponse(description: String = ErrorInfo.SUCCEEDED): ApiResponse {
             return ApiResponse()
-                .addHeaderObject(CommandHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
+                .addHeaderObject(CommandRequestHeaders.WOW_ERROR_CODE, ERROR_CODE_HEADER.ref)
                 .description(description)
                 .content(this)
         }

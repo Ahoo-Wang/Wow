@@ -4,7 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.command.CommandHeaders
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -45,7 +45,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { bufferFactory() } returns DefaultDataBufferFactory()
             every { writeWith(any()) } returns Mono.empty()
@@ -62,7 +62,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
@@ -77,7 +77,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { bufferFactory() } returns DefaultDataBufferFactory()
             every { writeWith(any()) } returns Mono.empty()
@@ -96,7 +96,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
@@ -111,7 +111,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { bufferFactory() } returns DefaultDataBufferFactory()
             every { writeWith(any()) } returns Mono.empty()
@@ -149,7 +149,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
@@ -164,7 +164,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND) } returns Unit
+            every { headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { bufferFactory() } returns DefaultDataBufferFactory()
             every { writeWith(any()) } returns Mono.empty()
@@ -181,7 +181,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.NOT_FOUND)
-            response.headers.set(CommandHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND)
+            response.headers.set(CommandRequestHeaders.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }

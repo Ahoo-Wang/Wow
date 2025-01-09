@@ -6,7 +6,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.openapi.command.CommandHeaders.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
