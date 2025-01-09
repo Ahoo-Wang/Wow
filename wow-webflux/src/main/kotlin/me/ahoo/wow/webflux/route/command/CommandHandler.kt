@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
@@ -39,22 +40,25 @@ class CommandHandler(
             commandBody = commandBody,
             request = request
         ).flatMap {
-            val stage: CommandStage = request.getCommandStage()
-            if (CommandStage.SENT == stage) {
-                commandGateway.sendAndWaitForSent(it)
-            } else {
-                val waitContext = request.getWaitContext().ifBlank {
-                    it.contextName
-                }
-                commandGateway.sendAndWait(
-                    command = it,
-                    waitStrategy = WaitingFor.stage(
-                        stage = stage,
-                        contextName = waitContext,
-                        processorName = request.getWaitProcessor()
-                    )
-                )
-            }.timeout(commandWaitTimeout)
+            sendCommand(it, request).timeout(commandWaitTimeout)
         }
+    }
+
+    private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Mono<CommandResult> {
+        val stage: CommandStage = request.getCommandStage()
+        if (commandMessage.isVoid || CommandStage.SENT == stage) {
+            return commandGateway.sendAndWaitForSent(commandMessage)
+        }
+        val waitContext = request.getWaitContext().ifBlank {
+            commandMessage.contextName
+        }
+        return commandGateway.sendAndWait(
+            command = commandMessage,
+            waitStrategy = WaitingFor.stage(
+                stage = stage,
+                contextName = waitContext,
+                processorName = request.getWaitProcessor()
+            )
+        )
     }
 }

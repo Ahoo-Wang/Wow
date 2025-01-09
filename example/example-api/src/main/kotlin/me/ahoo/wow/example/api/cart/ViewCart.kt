@@ -16,4 +16,4 @@ package me.ahoo.wow.example.api.cart
 import me.ahoo.wow.api.annotation.VoidCommand
 
 @VoidCommand
-data class ViewCart(val userAgent: String)
+class ViewCart
