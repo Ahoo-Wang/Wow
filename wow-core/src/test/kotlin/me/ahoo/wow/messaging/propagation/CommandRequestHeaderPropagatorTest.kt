@@ -48,4 +48,32 @@ class CommandRequestHeaderPropagatorTest {
         assertThat(injectedHeader.userAgent, equalTo(null))
         assertThat(injectedHeader.remoteIp, equalTo(null))
     }
+
+    @Test
+    fun injectDisabled() {
+        System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "false")
+        val injectedHeader = DefaultHeader.empty()
+        val upstreamMessage =
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+                .toCommandMessage()
+        upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
+        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        assertThat(injectedHeader.userAgent, equalTo(null))
+        assertThat(injectedHeader.remoteIp, equalTo(null))
+        System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)
+    }
+
+    @Test
+    fun injectEnabled() {
+        System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "true")
+        val injectedHeader = DefaultHeader.empty()
+        val upstreamMessage =
+            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+                .toCommandMessage()
+        upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
+        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        assertThat(injectedHeader.userAgent, equalTo(upstreamMessage.header.userAgent))
+        assertThat(injectedHeader.remoteIp, equalTo(upstreamMessage.header.remoteIp))
+        System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)
+    }
 }
