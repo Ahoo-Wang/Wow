@@ -15,14 +15,13 @@ package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withRemoteIp
-import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.server.ServerRequest
 import kotlin.jvm.optionals.getOrNull
 
 object CommandRequestRemoteIpHeaderAppender : CommandRequestHeaderAppender {
     const val X_FORWARDED_FOR = "X-Forwarded-For"
     const val DELIMITER = ','
-    private val log = LoggerFactory.getLogger(CommandRequestRemoteIpHeaderAppender::class.java)
+
     override fun append(request: ServerRequest, header: Header) {
         resolveRemoteIp(request)?.let {
             header.withRemoteIp(it)
@@ -34,19 +33,12 @@ object CommandRequestRemoteIpHeaderAppender : CommandRequestHeaderAppender {
     }
 
     private fun resolveRemoteIp(request: ServerRequest): String? {
-        val xForwardedHeaderValues: List<String>? = request.headers().header(X_FORWARDED_FOR)
-        if (xForwardedHeaderValues.isNullOrEmpty()) {
+        val xForwardedHeaderValue = request.headers().firstHeader(X_FORWARDED_FOR)
+        if (xForwardedHeaderValue.isNullOrBlank()) {
             return getRemoteIp(request)
         }
 
-        if (xForwardedHeaderValues.size > 1) {
-            if (log.isWarnEnabled) {
-                log.warn("Multiple X-Forwarded-For headers found, discarding all")
-            }
-            return getRemoteIp(request)
-        }
-
-        val xForwardedValues = xForwardedHeaderValues[0]
+        val xForwardedValues = xForwardedHeaderValue
             .split(DELIMITER)
             .filter { it.isNotBlank() }
             .reversed()

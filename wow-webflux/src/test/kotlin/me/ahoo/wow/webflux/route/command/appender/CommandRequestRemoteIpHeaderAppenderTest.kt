@@ -31,7 +31,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     fun append() {
         val hostName = "test"
         val request = mockk<ServerRequest> {
-            every { headers().header(X_FORWARDED_FOR) } returns listOf()
+            every { headers().firstHeader(X_FORWARDED_FOR) } returns ""
             every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
         }
         val commandHeader = DefaultHeader.empty()
@@ -44,7 +44,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     fun appendForwardedFor() {
         val hostName = "test"
         val request = mockk<ServerRequest> {
-            every { headers().header(X_FORWARDED_FOR) } returns listOf(hostName)
+            every { headers().firstHeader(X_FORWARDED_FOR) } returns hostName
         }
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
@@ -53,10 +53,10 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     }
 
     @Test
-    fun appendMultipleForwardedFor() {
+    fun appendEmptyForwardedFor() {
         val hostName = "test"
         val request = mockk<ServerRequest> {
-            every { headers().header(X_FORWARDED_FOR) } returns listOf(hostName, hostName)
+            every { headers().firstHeader(X_FORWARDED_FOR) } returns ","
             every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
         }
         val commandHeader = DefaultHeader.empty()
