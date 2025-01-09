@@ -14,8 +14,10 @@
 package me.ahoo.wow.tck.mock
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.VoidCommand
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
@@ -30,6 +32,10 @@ data class MockChangeAggregate(val id: String, val data: String)
 data class MockAggregateCreated(val data: String)
 data class MockAggregateChanged(val data: String)
 
+@VoidCommand
+data class MockVoidCommand(val data: String)
+
+@AggregateRoot(commands = [MockVoidCommand::class])
 class MockCommandAggregate(val state: MockStateAggregate) {
 
     @OnCommand

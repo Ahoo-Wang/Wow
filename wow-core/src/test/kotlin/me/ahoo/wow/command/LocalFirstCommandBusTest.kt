@@ -3,10 +3,12 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.InMemoryMessageBus
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.tck.command.CommandBusSpec
+import me.ahoo.wow.tck.mock.MockVoidCommand
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -40,6 +42,25 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                 }
                 .thenCancel()
                 .verify()
+        }
+    }
+
+    @Test
+    fun sendVoidCommand() {
+        verify {
+            val onReady = Sinks.empty<Void>()
+            val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
+            receive(setOf(namedAggregate))
+                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .onReceive(onReady)
+                .doOnSubscribe {
+                    onReady.asMono()
+                        .then(send(message))
+                        .delaySubscription(Duration.ofMillis(1000))
+                        .subscribe()
+                }
+                .test()
+                .verifyTimeout(Duration.ofMillis(100))
         }
     }
 }
