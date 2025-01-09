@@ -60,7 +60,12 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                         .subscribe()
                 }
                 .test()
-                .verifyTimeout(Duration.ofMillis(100))
+                .consumeNextWith {
+                    assertThat(it.message.id, equalTo(message.id))
+                    assertThat(it.message.isVoid, equalTo(true))
+                }
+                .thenCancel()
+                .verify()
         }
     }
 }
