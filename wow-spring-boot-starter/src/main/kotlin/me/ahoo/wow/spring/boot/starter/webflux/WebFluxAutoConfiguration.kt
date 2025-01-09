@@ -142,8 +142,8 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnWebfluxGlobalErrorEnabled
-    fun commandMessageParser(commandMessageFactory: CommandMessageFactory,): CommandMessageParser {
+    @ConditionalOnMissingBean
+    fun commandMessageParser(commandMessageFactory: CommandMessageFactory): CommandMessageParser {
         return DefaultCommandMessageParser(commandMessageFactory)
     }
 
