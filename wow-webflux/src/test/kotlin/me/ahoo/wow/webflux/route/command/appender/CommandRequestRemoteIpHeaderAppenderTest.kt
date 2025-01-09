@@ -11,44 +11,56 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.command
+package me.ahoo.wow.webflux.route.command.appender
 
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
-import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender.X_FORWARDED_FOR
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpHeaders
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.net.InetSocketAddress
 import java.util.*
 
-class CommandRequestUserAgentHeaderAppenderTest {
-    @Test
-    fun appendUserAgent() {
-        val userAgent = "test"
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns userAgent
-            every { remoteAddress() } returns Optional.empty()
-        }
-        val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
-    }
+class CommandRequestRemoteIpHeaderAppenderTest {
 
     @Test
-    fun appendRemoteIp() {
+    fun append() {
         val hostName = "test"
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns null
+            every { headers().header(X_FORWARDED_FOR) } returns listOf()
             every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
         }
         val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
+
+        assertThat(commandHeader.remoteIp, equalTo(hostName))
+    }
+
+    @Test
+    fun appendForwardedFor() {
+        val hostName = "test"
+        val request = mockk<ServerRequest> {
+            every { headers().header(X_FORWARDED_FOR) } returns listOf(hostName)
+        }
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
+
+        assertThat(commandHeader.remoteIp, equalTo(hostName))
+    }
+
+    @Test
+    fun appendMultipleForwardedFor() {
+        val hostName = "test"
+        val request = mockk<ServerRequest> {
+            every { headers().header(X_FORWARDED_FOR) } returns listOf(hostName, hostName)
+            every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
+        }
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
         assertThat(commandHeader.remoteIp, equalTo(hostName))
     }

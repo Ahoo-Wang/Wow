@@ -22,6 +22,7 @@ import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.AGGREGATE_VERSION
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.REQUEST_ID
+import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
