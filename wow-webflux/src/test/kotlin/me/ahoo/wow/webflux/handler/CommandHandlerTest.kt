@@ -28,7 +28,7 @@ class CommandHandlerTest {
     fun handleSent() {
         val request = mockk<ServerRequest> {
             every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns "SENT"
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns "test"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns null
             every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns "test"
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
