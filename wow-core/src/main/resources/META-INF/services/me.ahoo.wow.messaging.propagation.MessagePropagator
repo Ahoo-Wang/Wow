@@ -13,3 +13,4 @@
 me.ahoo.wow.messaging.propagation.WaitStrategyMessagePropagator
 me.ahoo.wow.messaging.propagation.CommandOperatorMessagePropagator
 me.ahoo.wow.messaging.propagation.TraceMessagePropagator
+me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator

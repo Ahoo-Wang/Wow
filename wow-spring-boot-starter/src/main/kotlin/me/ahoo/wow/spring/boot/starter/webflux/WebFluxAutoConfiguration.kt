@@ -25,6 +25,7 @@ import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
@@ -40,6 +41,7 @@ import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandMessageParser
 import me.ahoo.wow.webflux.route.command.CommandRequestExtendHeaderAppender
 import me.ahoo.wow.webflux.route.command.CommandRequestHeaderAppender
+import me.ahoo.wow.webflux.route.command.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -70,6 +72,7 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
@@ -146,6 +149,16 @@ class WebFluxAutoConfiguration {
     @Bean
     fun commandRequestExtendHeaderAppender(): CommandRequestExtendHeaderAppender {
         return CommandRequestExtendHeaderAppender
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+        value = ["${WebFluxProperties.PREFIX}.command.request.appender.user$ENABLED_SUFFIX_KEY"],
+        matchIfMissing = true,
+        havingValue = "true"
+    )
+    fun commandRequestUserAgentHeaderAppender(): CommandRequestUserAgentHeaderAppender {
+        return CommandRequestUserAgentHeaderAppender
     }
 
     @Bean
