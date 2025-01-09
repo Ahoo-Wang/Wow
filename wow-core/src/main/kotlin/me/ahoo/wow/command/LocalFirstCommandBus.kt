@@ -14,10 +14,8 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 import me.ahoo.wow.messaging.withLocalFirst
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class LocalFirstCommandBus(
@@ -29,11 +27,5 @@ class LocalFirstCommandBus(
             message.withLocalFirst(false)
         }
         return super.send(message)
-    }
-
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        return super.receive(namedAggregates).filter {
-            !it.message.isVoid
-        }
     }
 }

@@ -79,6 +79,9 @@ class DefaultCommandGateway(
         require(waitStrategy.stage != CommandStage.SENT) {
             "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
         }
+        require(!command.isVoid) {
+            "The wait strategy for the void command must be SENT."
+        }
         return check(command).then(
             Mono.defer {
                 command.header.injectWaitStrategy(
