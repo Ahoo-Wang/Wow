@@ -33,7 +33,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                 .doOnSubscribe {
                     onReady.asMono()
                         .then(send(message))
-                        .delaySubscription(Duration.ofMillis(1000))
+                        .delaySubscription(Duration.ofMillis(100))
                         .subscribe()
                 }
                 .test()
@@ -56,7 +56,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                 .doOnSubscribe {
                     onReady.asMono()
                         .then(send(message))
-                        .delaySubscription(Duration.ofMillis(1000))
+                        .delaySubscription(Duration.ofMillis(10))
                         .subscribe()
                 }
                 .test()

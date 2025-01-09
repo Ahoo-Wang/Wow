@@ -19,7 +19,9 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.tck.command.CommandGatewaySpec
+import me.ahoo.wow.tck.mock.MockVoidCommand
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -29,11 +31,20 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun sendWithSend() {
+    fun sendWithSent() {
         val messageGateway = createMessageBus()
         val commandMessage: CommandMessage<Any> = mockk()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        }
+    }
+
+    @Test
+    fun sendVoidCommand() {
+        val messageGateway = createMessageBus()
+        val commandMessage = MockVoidCommand(generateGlobalId()).toCommandMessage()
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.PROCESSED, "", ""))
         }
     }
 
