@@ -16,35 +16,41 @@ package me.ahoo.wow.webflux.route.command.appender
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
+import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import org.springframework.util.MultiValueMap
 import org.springframework.web.reactive.function.server.ServerRequest
 
-class CommandRequestUserAgentHeaderAppenderTest {
+class CommandRequestExtendHeaderAppenderTest {
     @Test
     fun append() {
-        val userAgent = "test"
+        val headerKey = "app"
+        val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
+        val value = "oms"
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns userAgent
+            every { headers().asHttpHeaders() } returns HttpHeaders(
+                MultiValueMap.fromSingleValue<String, String>(
+                    mapOf(
+                        key to value
+                    )
+                )
+            )
         }
         val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
+        CommandRequestExtendHeaderAppender.append(request, commandHeader)
+        assertThat(commandHeader[headerKey], equalTo(value))
     }
 
     @Test
-    fun appendIfNull() {
-        val userAgent = null
+    fun appendEmpty() {
         val request = mockk<ServerRequest> {
-            every { headers().firstHeader(HttpHeaders.USER_AGENT) } returns userAgent
+            every { headers().asHttpHeaders() } returns HttpHeaders()
         }
         val commandHeader = DefaultHeader.empty()
-        CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
+        CommandRequestExtendHeaderAppender.append(request, commandHeader)
+        assertThat(commandHeader.isEmpty(), equalTo(true))
     }
 }
