@@ -53,7 +53,7 @@ class DefaultCommandMessageParser(
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
         commandRequestHeaderAppends.forEach {
-            it.append(request, commandBuilder)
+            it.append(request, commandBuilder.header)
         }
         request.getLocalFirst()?.let {
             commandBuilder.header { header ->

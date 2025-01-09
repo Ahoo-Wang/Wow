@@ -13,16 +13,20 @@
 
 package me.ahoo.wow.webflux.route.command
 
-import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withRemoteIp
+import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withUserAgent
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.COMMAND_HEADER_X_PREFIX
+import org.springframework.http.HttpHeaders
 import org.springframework.web.reactive.function.server.ServerRequest
+import kotlin.jvm.optionals.getOrNull
 
 interface CommandRequestHeaderAppender {
-    fun append(request: ServerRequest, commandBuilder: CommandBuilder)
+    fun append(request: ServerRequest, header: Header)
 }
 
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
-    override fun append(request: ServerRequest, commandBuilder: CommandBuilder) {
+    override fun append(request: ServerRequest, header: Header) {
         val extendedHeaders = request.headers().asHttpHeaders()
             .filter { (key, _) -> key.startsWith(COMMAND_HEADER_X_PREFIX) }
             .map { (key, value) ->
@@ -31,8 +35,17 @@ object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
         if (extendedHeaders.isEmpty()) {
             return
         }
-        commandBuilder.header { header ->
-            header.with(extendedHeaders)
+        header.with(extendedHeaders)
+    }
+}
+
+object CommandRequestUserAgentHeaderAppender : CommandRequestHeaderAppender {
+    override fun append(request: ServerRequest, header: Header) {
+        request.headers().firstHeader(HttpHeaders.USER_AGENT)?.let {
+            header.withUserAgent(it)
+        }
+        request.remoteAddress().getOrNull()?.hostName?.let {
+            header.withRemoteIp(it)
         }
     }
 }

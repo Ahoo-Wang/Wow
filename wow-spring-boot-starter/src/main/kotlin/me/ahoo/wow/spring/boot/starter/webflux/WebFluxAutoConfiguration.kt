@@ -40,6 +40,7 @@ import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandMessageParser
 import me.ahoo.wow.webflux.route.command.CommandRequestExtendHeaderAppender
 import me.ahoo.wow.webflux.route.command.CommandRequestHeaderAppender
+import me.ahoo.wow.webflux.route.command.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -146,6 +147,11 @@ class WebFluxAutoConfiguration {
     @Bean
     fun commandRequestExtendHeaderAppender(): CommandRequestExtendHeaderAppender {
         return CommandRequestExtendHeaderAppender
+    }
+
+    @Bean
+    fun commandRequestUserAgentHeaderAppender(): CommandRequestUserAgentHeaderAppender {
+        return CommandRequestUserAgentHeaderAppender
     }
 
     @Bean
