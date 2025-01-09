@@ -10,6 +10,7 @@ import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockVoidCommand
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.route.command.CommandHandler
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
@@ -48,6 +49,37 @@ class CommandHandlerTest {
         commandHandler.handle(
             request,
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString()),
+            MOCK_AGGREGATE_METADATA
+        ).test()
+            .expectNextCount(1)
+            .verifyComplete()
+    }
+
+    @Test
+    fun handleVoidCommand() {
+        val request = mockk<ServerRequest> {
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns "PROCESSED"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns "test"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns "test"
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[RoutePaths.ID_KEY] } returns GlobalIdGenerator.generateAsString()
+            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns true.toString()
+            every { principal() } returns mockk<Principal> {
+                every { name } returns GlobalIdGenerator.generateAsString()
+            }.toMono()
+            every { headers().asHttpHeaders() } returns HttpHeaders()
+        }
+        val commandHandler = CommandHandler(
+            SagaVerifier.defaultCommandGateway(),
+            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
+        )
+        commandHandler.handle(
+            request,
+            MockVoidCommand(GlobalIdGenerator.generateAsString()),
             MOCK_AGGREGATE_METADATA
         ).test()
             .expectNextCount(1)
