@@ -2,9 +2,9 @@ description = "Wow Symbol Processing"
 
 dependencies {
     implementation(project(":wow-core"))
-    implementation(libs.kspSymbolProcessingApi)
-    testImplementation(libs.kotlinCompileTesting)
-    testImplementation(libs.kspSymbolProcessing)
+    implementation(libs.ksp.symbol.processing.api)
+    testImplementation(libs.kotlin.compile.testing)
+    testImplementation(libs.ksp.symbol.processing )
     testImplementation(project(":wow-api"))
     testImplementation(project(":wow-apiclient"))
     testImplementation(project(":wow-core"))

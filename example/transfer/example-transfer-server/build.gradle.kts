@@ -15,7 +15,7 @@ plugins {
     alias(libs.plugins.ksp)
     application
     alias(libs.plugins.kotlin)
-    alias(libs.plugins.kotlinSpring)
+    alias(libs.plugins.kotlin.spring)
     kotlin("kapt")
 }
 
