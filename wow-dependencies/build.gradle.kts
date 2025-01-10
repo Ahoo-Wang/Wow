@@ -12,22 +12,22 @@
  */
 
 dependencies {
-    api(platform(libs.springBootDependencies))
-    api(platform(libs.cosidBom))
-    api(platform(libs.simbaBom))
-    api(platform(libs.coapiBom))
-    api(platform(libs.opentelemetryBom))
-    api(platform(libs.opentelemetryInstrumentationBom))
-    api(platform(libs.testcontainersBom))
+    api(platform(libs.spring.boot.dependencies))
+    api(platform(libs.cosid.bom))
+    api(platform(libs.simba.bom))
+    api(platform(libs.coapi.bom))
+    api(platform(libs.opentelemetry.bom))
+    api(platform(libs.opentelemetry.instrumentation.bom))
+    api(platform(libs.testcontainers.bom))
     constraints {
         api(libs.guava)
-        api(libs.opentelemetrySemconv)
+        api(libs.opentelemetry.semconv)
         api(libs.swagger)
-        api(libs.springDocStarterCommon)
-        api(libs.springDocStarterWebfluxApi)
-        api(libs.springDocStarterWebfluxUi)
+        api(libs.springdoc.starter.common)
+        api(libs.springdoc.openapi.starter.webflux.api)
+        api(libs.springdoc.openapi.starter.webflux.ui)
         api(libs.hamcrest)
         api(libs.mockk)
-        api(libs.detektFormatting)
+        api(libs.detekt.formatting)
     }
 }

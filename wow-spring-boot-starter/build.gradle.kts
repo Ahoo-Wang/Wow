@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlinSpring)
+    alias(libs.plugins.kotlin.spring)
     kotlin("kapt")
 }
 java {
