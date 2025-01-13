@@ -13,7 +13,7 @@ hamcrest = "3.0"
 mockk = "1.13.16"
 kotlin-compile-testing = "0.7.0"
 swagger = "2.2.27"
-springdoc = "2.8.2"
+springdoc = "2.8.3"
 jte = "3.1.15"
 # plugins
 test-retry = "1.6.0"
