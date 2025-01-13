@@ -91,10 +91,10 @@ interface CommandGateway : CommandBus {
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.processed(command.contextName))
+        sendAndWait(command, WaitingFor.processed())
 
     fun <C : Any> sendAndWaitForSnapshot(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.snapshot(command.contextName))
+        sendAndWait(command, WaitingFor.snapshot())
 }

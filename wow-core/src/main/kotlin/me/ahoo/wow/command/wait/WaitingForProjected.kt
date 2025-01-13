@@ -13,20 +13,14 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import reactor.core.publisher.Mono
+class WaitingForProjected(
+    override val contextName: String,
+    override val processorName: String = ""
+) : WaitingForAfterProcessed() {
+    override val stage: CommandStage
+        get() = CommandStage.PROJECTED
 
-/**
- * Command Wait Strategy
- * @see WaitingFor
- */
-interface WaitStrategy : ProcessorInfo {
-    fun waiting(): Mono<WaitSignal>
-
-    fun error(throwable: Throwable)
-
-    /**
-     * 由下游(CommandBus or Aggregate or Projector)发送处理结果信号.
-     */
-    fun next(signal: WaitSignal)
+    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
+        return super.isWaitingForSignal(signal) && signal.isLastProjection
+    }
 }
