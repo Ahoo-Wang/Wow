@@ -14,10 +14,10 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
-import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
-import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.id.generateGlobalId
+import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -27,35 +27,6 @@ internal class WaitingForTest {
 
     @Test
     fun processed() {
-        val waitStrategy = WaitingFor.processed(contextName)
-
-        waitStrategy.next(
-            COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-                commandId = "commandId",
-                stage = CommandStage.SENT,
-                result = mapOf("sent" to "value")
-            )
-        )
-        val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-            commandId = "commandId",
-            stage = CommandStage.PROCESSED,
-            result = mapOf("result" to "value")
-        )
-        assertThat(
-            waitStrategy.toString(),
-            equalTo("WaitingFor(stage=PROCESSED, contextName='WaitingForTest', processorName='')")
-        )
-        waitStrategy.waiting()
-            .test()
-            .consumeSubscriptionWith {
-                waitStrategy.next(waitSignal)
-            }
-            .expectNext(waitSignal.copyResult(mapOf("sent" to "value", "result" to "value")))
-            .verifyComplete()
-    }
-
-    @Test
-    fun stage() {
         val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
@@ -72,8 +43,8 @@ internal class WaitingForTest {
     }
 
     @Test
-    fun snapshot() {
-        val waitStrategy = WaitingFor.snapshot(contextName)
+    fun processedIfSnapshot() {
+        val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.SNAPSHOT,
@@ -84,15 +55,39 @@ internal class WaitingForTest {
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
             }
-            .expectNext(waitSignal)
+            .verifyTimeout(Duration.ofMillis(100))
+    }
+
+    @Test
+    fun snapshot() {
+        val waitStrategy = WaitingFor.stage("SNAPSHOT", contextName)
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
+        val waitSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.SNAPSHOT,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
+        waitStrategy.waiting()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
+                waitStrategy.next(waitSignal)
+            }
+            .consumeNextWith {
+                assertThat(it.commandId, equalTo(waitSignal.commandId))
+            }
             .verifyComplete()
     }
 
     @Test
     fun snapshotFailFast() {
-        val waitStrategy = WaitingFor.snapshot(contextName)
+        val waitStrategy = WaitingFor.snapshot()
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
             errorCode = "ERROR_CODE"
@@ -108,9 +103,14 @@ internal class WaitingForTest {
 
     @Test
     fun projected() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingFor.stage("PROJECTED", contextName)
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true
@@ -118,6 +118,7 @@ internal class WaitingForTest {
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
                 waitStrategy.next(waitSignal)
             }
             .expectNext(waitSignal)
@@ -127,8 +128,13 @@ internal class WaitingForTest {
     @Test
     fun waitingForProjectedProcessor() {
         val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "processor"),
             isLastProjection = true
@@ -136,6 +142,7 @@ internal class WaitingForTest {
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
                 waitStrategy.next(waitSignal)
             }
             .expectNext(waitSignal)
@@ -145,8 +152,13 @@ internal class WaitingForTest {
     @Test
     fun waitingForProjectedWhenNotLast() {
         val waitStrategy = WaitingFor.projected(contextName)
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = false
@@ -154,6 +166,7 @@ internal class WaitingForTest {
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
                 waitStrategy.next(waitSignal)
             }
             .expectNextCount(0)
@@ -163,16 +176,22 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForEventHandled() {
-        val waitStrategy = WaitingFor.eventHandled(contextName)
+        val waitStrategy = WaitingFor.stage("EVENT_HANDLED", contextName)
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.EVENT_HANDLED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
-            isLastProjection = true
+            isLastProjection = false
         )
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
                 waitStrategy.next(waitSignal)
             }
             .expectNext(waitSignal)
@@ -181,61 +200,25 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForSagaHandled() {
-        val waitStrategy = WaitingFor.sagaHandled(contextName)
+        val waitStrategy = WaitingFor.stage("SAGA_HANDLED", contextName)
+        val processedSignal = SimpleWaitSignal(
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
+            commandId = generateGlobalId(),
             stage = CommandStage.SAGA_HANDLED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
-            isLastProjection = true
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName)
         )
         waitStrategy.waiting()
             .test()
             .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
                 waitStrategy.next(waitSignal)
             }
             .expectNext(waitSignal)
             .verifyComplete()
-    }
-
-    @Test
-    fun waitingWhenFailure() {
-        val waitStrategy = WaitingFor.processed(contextName)
-        val waitSignal = SimpleWaitSignal(
-            commandId = "commandId",
-            stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
-            isLastProjection = true,
-            errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
-            errorMsg = "",
-        )
-        waitStrategy.waiting()
-            .test()
-            .consumeSubscriptionWith {
-                waitStrategy.next(
-                    waitSignal,
-                )
-            }
-            .expectNext(waitSignal)
-            .verifyComplete()
-    }
-
-    @Test
-    fun waitingWhenNoMatchedStage() {
-        val waitStrategy = WaitingFor.projected(contextName)
-        waitStrategy.waiting()
-            .test()
-            .consumeSubscriptionWith {
-                waitStrategy.next(
-                    SimpleWaitSignal(
-                        "commandId",
-                        CommandStage.PROCESSED,
-                        function = COMMAND_GATEWAY_FUNCTION,
-                    )
-                )
-            }
-            .expectNextCount(0)
-            .expectTimeout(Duration.ofMillis(100))
-            .verify()
     }
 
     @Test
@@ -246,7 +229,7 @@ internal class WaitingForTest {
             .consumeSubscriptionWith {
                 waitStrategy.next(
                     SimpleWaitSignal(
-                        "commandId",
+                        generateGlobalId(),
                         CommandStage.PROJECTED,
                         function = COMMAND_GATEWAY_FUNCTION,
                     )
@@ -265,5 +248,12 @@ internal class WaitingForTest {
             .test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+    }
+
+    @Test
+    fun waitingForSent() {
+        Assertions.assertThrows<IllegalArgumentException>(IllegalArgumentException::class.java) {
+            WaitingFor.stage("SENT", contextName)
+        }
     }
 }

@@ -13,20 +13,10 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import reactor.core.publisher.Mono
-
-/**
- * Command Wait Strategy
- * @see WaitingFor
- */
-interface WaitStrategy : ProcessorInfo {
-    fun waiting(): Mono<WaitSignal>
-
-    fun error(throwable: Throwable)
-
-    /**
-     * 由下游(CommandBus or Aggregate or Projector)发送处理结果信号.
-     */
-    fun next(signal: WaitSignal)
+class WaitingForSagaHandled(
+    override val contextName: String,
+    override val processorName: String = ""
+) : WaitingForAfterProcessed() {
+    override val stage: CommandStage
+        get() = CommandStage.SAGA_HANDLED
 }
