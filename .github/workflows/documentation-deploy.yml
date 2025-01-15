@@ -59,7 +59,7 @@ jobs:
 
       - name: Build VitePress site
         working-directory: documentation
-        run: yarn run docs:build
+        run: yarn add -D vitepress && yarn run docs:build
 
       - name: Deploy to gh-pages
         uses: crazy-max/ghaction-github-pages@v4
