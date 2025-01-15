@@ -109,11 +109,20 @@
     z-index: 9999 !important;
 }
 
+
 .main img {
     display: block;
     margin-left: auto;
     margin-right: auto;
+}
+
+.main img {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2),
     0 6px 20px rgba(0, 0, 0, 0.19);
     border-radius: 8px;
+}
+
+html.dark .main img {
+    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1),
+    0 6px 20px rgba(255, 255, 255, 0.1);
 }
