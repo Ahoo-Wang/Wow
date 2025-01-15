@@ -60,10 +60,14 @@ import me.ahoo.wow.api.query.Pagination
 class PagedQueryDsl : QueryableDsl<IPagedQuery>() {
     private var pagination: Pagination = Pagination.DEFAULT
 
+    fun pagination(pagination: Pagination) {
+        this.pagination = pagination
+    }
+
     fun pagination(block: PaginationDsl.() -> Unit) {
         val dsl = PaginationDsl()
         dsl.block()
-        pagination = dsl.build()
+        pagination(dsl.build())
     }
 
     override fun build(): IPagedQuery {

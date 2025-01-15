@@ -22,22 +22,35 @@ abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
     protected var condition: Condition = Condition.all()
     protected var sort: List<Sort> = emptyList()
+
+    fun projection(projection: Projection) {
+        this.projection = projection
+    }
+
     fun projection(block: ProjectionDsl.() -> Unit) {
         val dsl = ProjectionDsl()
         dsl.block()
-        projection = dsl.build()
+        projection(dsl.build())
+    }
+
+    fun condition(condition: Condition) {
+        this.condition = condition
     }
 
     fun condition(block: ConditionDsl.() -> Unit) {
         val dsl = ConditionDsl()
         dsl.block()
-        condition = dsl.build()
+        condition(dsl.build())
+    }
+
+    fun sort(sort: List<Sort>) {
+        this.sort = sort
     }
 
     fun sort(block: SortDsl.() -> Unit) {
         val dsl = SortDsl()
         dsl.block()
-        sort = dsl.build()
+        sort(dsl.build())
     }
 
     abstract fun build(): Q
