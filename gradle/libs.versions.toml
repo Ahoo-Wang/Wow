@@ -16,7 +16,7 @@ swagger = "2.2.28"
 springdoc = "2.8.3"
 jte = "3.1.16"
 # plugins
-test-retry = "1.6.0"
+test-retry = "1.6.1"
 detekt = "1.23.7"
 dokka = "2.0.0"
 kotlin = "2.0.21"
