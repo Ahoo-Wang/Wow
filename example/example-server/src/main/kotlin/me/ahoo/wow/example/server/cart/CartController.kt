@@ -13,18 +13,26 @@
 
 package me.ahoo.wow.example.server.cart
 
+import io.swagger.v3.oas.annotations.Operation
 import me.ahoo.wow.apiclient.query.queryState
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartData
 import me.ahoo.wow.example.api.client.CartQueryClient
 import me.ahoo.wow.example.api.client.CartQuerySyncClient
 import me.ahoo.wow.query.dsl.singleQuery
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.service.annotation.GetExchange
+import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 @RestController
 class CartController(
+    private val commandGateway: CommandGateway,
     private val cartQueryClient: CartQueryClient,
     private val cartQuerySyncClient: CartQuerySyncClient
 ) {
@@ -43,5 +51,16 @@ class CartController(
 
             }.queryState(cartQuerySyncClient)
         }.subscribeOn(Schedulers.boundedElastic())
+    }
+
+    @Operation(description = "自定义发送命令")
+    @PostExchange("/cart/{userId}/customize-send-cmd")
+    fun customizeSendCmd(@PathVariable userId: String): Mono<CommandResult> {
+        val addCartItem = AddCartItem(
+            id = userId,
+            productId = "productId",
+            quantity = 1
+        )
+        return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage())
     }
 }
