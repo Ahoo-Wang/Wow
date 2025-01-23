@@ -18,6 +18,7 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
@@ -122,7 +123,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    fun timeRange(field: String, from: OffsetDateTime, to: OffsetDateTime): T {
+    fun timeRange(field: String, from: OffsetDateTime, to: OffsetDateTime, datePattern: DateTimeFormatter? = null): T {
         val fromEpoch = from.toInstant().toEpochMilli()
         val toEpoch = to.toInstant().toEpochMilli()
         val betweenCondition = Condition.between(field, fromEpoch, toEpoch)

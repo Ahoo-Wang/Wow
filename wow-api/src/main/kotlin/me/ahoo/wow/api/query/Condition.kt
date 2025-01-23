@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class Condition(
     val field: String = "",
@@ -54,12 +55,22 @@ data class Condition(
         }
     }
 
+    fun datePattern(): DateTimeFormatter? {
+        val datePatternOptionValue = options[DATE_PATTERN_OPTION_KEY] ?: return null
+        return when (datePatternOptionValue) {
+            is String -> DateTimeFormatter.ofPattern(datePatternOptionValue)
+            is DateTimeFormatter -> datePatternOptionValue
+            else -> null
+        }
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
 
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
         const val ZONE_ID_OPTION_KEY = "zoneId"
+        const val DATE_PATTERN_OPTION_KEY = "datePattern"
         val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
         val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
         fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
