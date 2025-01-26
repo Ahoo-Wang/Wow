@@ -28,11 +28,24 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         return OffsetDateTime.now(zoneId)
     }
 
+    private fun toDate(time: OffsetDateTime, datePattern: DateTimeFormatter?): Any {
+        return if (datePattern != null) {
+            time.format(datePattern)
+        } else {
+            time.toInstant().toEpochMilli()
+        }
+    }
+
     override fun today(condition: Condition): T {
         val now = now(condition)
         val startOfDay = now.with(LocalTime.MIN)
         val endOfDay = now.with(LocalTime.MAX)
-        return timeRange(condition.field, startOfDay, endOfDay)
+        return timeRange(
+            field = condition.field,
+            from = startOfDay,
+            to = endOfDay,
+            datePattern = condition.datePattern()
+        )
     }
 
     override fun beforeToday(condition: Condition): T {
@@ -45,8 +58,9 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
                 throw IllegalArgumentException("Unsupported condition value type:${conditionValue::class.java}")
             }
         }
-        val ltDateTime = now(condition).with(time).toInstant().toEpochMilli()
-        val ltCondition = Condition.lt(condition.field, ltDateTime)
+        val now = now(condition).with(time)
+        val ltDate = toDate(now, condition.datePattern())
+        val ltCondition = Condition.lt(condition.field, ltDate)
         return lt(ltCondition)
     }
 
@@ -55,9 +69,10 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val startOfTomorrow = now.plusDays(1).with(LocalTime.MIN)
         val endOfTomorrow = now.plusDays(1).with(LocalTime.MAX)
         return timeRange(
-            condition.field,
-            startOfTomorrow,
-            endOfTomorrow
+            field = condition.field,
+            from = startOfTomorrow,
+            to = endOfTomorrow,
+            datePattern = condition.datePattern()
         )
     }
 
@@ -66,7 +81,12 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val startOfWeek =
             now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
         val endOfWeek = now.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
-        return timeRange(condition.field, startOfWeek, endOfWeek)
+        return timeRange(
+            field = condition.field,
+            from = startOfWeek,
+            to = endOfWeek,
+            datePattern = condition.datePattern()
+        )
     }
 
     override fun nextWeek(condition: Condition): T {
@@ -75,9 +95,10 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             .with(LocalTime.MIN)
         val endOfNextWeek = now.plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
         return timeRange(
-            condition.field,
-            startOfNextWeek,
-            endOfNextWeek
+            field = condition.field,
+            from = startOfNextWeek,
+            to = endOfNextWeek,
+            datePattern = condition.datePattern()
         )
     }
 
@@ -87,9 +108,10 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             .with(LocalTime.MIN)
         val endOfLastWeek = now.minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
         return timeRange(
-            condition.field,
-            startOfLastWeek,
-            endOfLastWeek
+            field = condition.field,
+            from = startOfLastWeek,
+            to = endOfLastWeek,
+            datePattern = condition.datePattern()
         )
     }
 
@@ -97,7 +119,12 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val now = now(condition)
         val startOfMonth = now.withDayOfMonth(1).with(LocalTime.MIN)
         val endOfMonth = now.with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
-        return timeRange(condition.field, startOfMonth, endOfMonth)
+        return timeRange(
+            field = condition.field,
+            from = startOfMonth,
+            to = endOfMonth,
+            datePattern = condition.datePattern()
+        )
     }
 
     override fun lastMonth(condition: Condition): T {
@@ -107,7 +134,8 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         return timeRange(
             field = condition.field,
             from = startOfLastMonth,
-            to = endOfLastMonth
+            to = endOfLastMonth,
+            datePattern = condition.datePattern()
         )
     }
 
@@ -117,16 +145,18 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val startOfRecentDays = now.minusDays(days.toLong() - 1).with(LocalTime.MIN)
         val endOfRecentDays = now.with(LocalTime.MAX)
         return timeRange(
-            condition.field,
-            startOfRecentDays,
-            endOfRecentDays
+            field = condition.field,
+            from = startOfRecentDays,
+            to = endOfRecentDays,
+            datePattern = condition.datePattern()
         )
     }
 
     fun timeRange(field: String, from: OffsetDateTime, to: OffsetDateTime, datePattern: DateTimeFormatter? = null): T {
-        val fromEpoch = from.toInstant().toEpochMilli()
-        val toEpoch = to.toInstant().toEpochMilli()
-        val betweenCondition = Condition.between(field, fromEpoch, toEpoch)
+        val fromDate: Any = toDate(from, datePattern)
+        val toDate: Any = toDate(to, datePattern)
+        val betweenCondition = Condition.between(field, fromDate, toDate)
         return between(betweenCondition)
     }
+
 }
