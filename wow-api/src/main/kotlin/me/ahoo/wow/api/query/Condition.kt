@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class Condition(
     val field: String = "",
@@ -54,15 +55,34 @@ data class Condition(
         }
     }
 
+    fun datePattern(): DateTimeFormatter? {
+        val datePatternOptionValue = options[DATE_PATTERN_OPTION_KEY] ?: return null
+        return when (datePatternOptionValue) {
+            is String -> DateTimeFormatter.ofPattern(datePatternOptionValue)
+            is DateTimeFormatter -> datePatternOptionValue
+            else -> null
+        }
+    }
+
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
 
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
         const val ZONE_ID_OPTION_KEY = "zoneId"
+        const val DATE_PATTERN_OPTION_KEY = "datePattern"
         val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
         val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
         fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
+        fun datePatternOptions(value: Any?): Map<String, Any> {
+            if (value == null) {
+                return emptyMap()
+            }
+            require(value is String || value is DateTimeFormatter) {
+                "datePatternOptions value must be String or DateTimeFormatter"
+            }
+            return mapOf(DATE_PATTERN_OPTION_KEY to value)
+        }
 
         fun and(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.AND, children = conditions.toList())
         fun and(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.AND, children = conditions)
@@ -105,18 +125,42 @@ data class Condition(
         fun aggregateIds(vararg value: String) = aggregateIds(value.asList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
         fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
-        fun today(field: String) = Condition(field = field, operator = Operator.TODAY)
-        fun beforeToday(field: String, time: Any) =
-            Condition(field = field, operator = Operator.BEFORE_TODAY, value = time)
+        fun today(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.TODAY, options = datePatternOptions(datePattern))
 
-        fun tomorrow(field: String) = Condition(field = field, operator = Operator.TOMORROW)
-        fun thisWeek(field: String) = Condition(field = field, operator = Operator.THIS_WEEK)
-        fun nextWeek(field: String) = Condition(field = field, operator = Operator.NEXT_WEEK)
-        fun lastWeek(field: String) = Condition(field = field, operator = Operator.LAST_WEEK)
-        fun thisMonth(field: String) = Condition(field = field, operator = Operator.THIS_MONTH)
-        fun lastMonth(field: String) = Condition(field = field, operator = Operator.LAST_MONTH)
-        fun recentDays(field: String, days: Int) =
-            Condition(field = field, operator = Operator.RECENT_DAYS, value = days)
+        fun beforeToday(field: String, time: Any, datePattern: Any? = null) =
+            Condition(
+                field = field,
+                operator = Operator.BEFORE_TODAY,
+                value = time,
+                options = datePatternOptions(datePattern)
+            )
+
+        fun tomorrow(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.TOMORROW, options = datePatternOptions(datePattern))
+
+        fun thisWeek(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.THIS_WEEK, options = datePatternOptions(datePattern))
+
+        fun nextWeek(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.NEXT_WEEK, options = datePatternOptions(datePattern))
+
+        fun lastWeek(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.LAST_WEEK, options = datePatternOptions(datePattern))
+
+        fun thisMonth(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.THIS_MONTH, options = datePatternOptions(datePattern))
+
+        fun lastMonth(field: String, datePattern: Any? = null) =
+            Condition(field = field, operator = Operator.LAST_MONTH, options = datePatternOptions(datePattern))
+
+        fun recentDays(field: String, days: Int, datePattern: Any? = null) =
+            Condition(
+                field = field,
+                operator = Operator.RECENT_DAYS,
+                value = days,
+                options = datePatternOptions(datePattern)
+            )
 
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
