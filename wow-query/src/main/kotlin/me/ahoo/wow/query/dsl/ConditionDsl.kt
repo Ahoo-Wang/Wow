@@ -304,72 +304,76 @@ class ConditionDsl : NestedFieldDsl() {
         name.isFalse()
     }
 
-    fun String.today() {
-        condition(Condition.today(this.withNestedField()))
+    fun String.today(datePattern: Any? = null) {
+        condition(Condition.today(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.today() {
-        name.today()
+    fun KCallable<*>.today(datePattern: Any? = null) {
+        name.today(datePattern)
     }
 
     infix fun String.beforeToday(time: Any) {
         condition(Condition.beforeToday(this.withNestedField(), time))
     }
 
-    fun String.tomorrow() {
-        condition(Condition.tomorrow(this.withNestedField()))
+    fun String.tomorrow(datePattern: Any? = null) {
+        condition(Condition.tomorrow(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.tomorrow() {
-        name.tomorrow()
+    fun KCallable<*>.tomorrow(datePattern: Any? = null) {
+        name.tomorrow(datePattern)
     }
 
-    fun String.thisWeek() {
-        condition(Condition.thisWeek(this.withNestedField()))
+    fun String.thisWeek(datePattern: Any? = null) {
+        condition(Condition.thisWeek(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.thisWeek() {
-        name.thisWeek()
+    fun KCallable<*>.thisWeek(datePattern: Any? = null) {
+        name.thisWeek(datePattern)
     }
 
-    fun String.nextWeek() {
-        condition(Condition.nextWeek(this.withNestedField()))
+    fun String.nextWeek(datePattern: Any? = null) {
+        condition(Condition.nextWeek(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.nextWeek() {
-        name.nextWeek()
+    fun KCallable<*>.nextWeek(datePattern: Any? = null) {
+        name.nextWeek(datePattern)
     }
 
-    fun String.lastWeek() {
-        condition(Condition.lastWeek(this.withNestedField()))
+    fun String.lastWeek(datePattern: Any? = null) {
+        condition(Condition.lastWeek(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.lastWeek() {
-        name.lastWeek()
+    fun KCallable<*>.lastWeek(datePattern: Any? = null) {
+        name.lastWeek(datePattern)
     }
 
-    fun String.thisMonth() {
-        condition(Condition.thisMonth(this.withNestedField()))
+    fun String.thisMonth(datePattern: Any? = null) {
+        condition(Condition.thisMonth(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.thisMonth() {
-        name.thisMonth()
+    fun KCallable<*>.thisMonth(datePattern: Any? = null) {
+        name.thisMonth(datePattern)
     }
 
-    fun String.lastMonth() {
-        condition(Condition.lastMonth(this.withNestedField()))
+    fun String.lastMonth(datePattern: Any? = null) {
+        condition(Condition.lastMonth(this.withNestedField(), datePattern))
     }
 
-    fun KCallable<*>.lastMonth() {
-        name.lastMonth()
+    fun KCallable<*>.lastMonth(datePattern: Any? = null) {
+        name.lastMonth(datePattern)
+    }
+
+    fun String.recentDays(days: Int, datePattern: Any? = null) {
+        condition(Condition.recentDays(this.withNestedField(), days, datePattern))
     }
 
     infix fun String.recentDays(days: Int) {
-        condition(Condition.recentDays(this.withNestedField(), days))
+        this.recentDays(days, null)
     }
 
     infix fun KCallable<*>.recentDays(days: Int) {
-        name recentDays days
+        name.recentDays(days, null)
     }
 
     fun raw(value: Any) {

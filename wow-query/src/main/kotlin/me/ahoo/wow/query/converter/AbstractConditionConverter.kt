@@ -158,5 +158,4 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         val betweenCondition = Condition.between(field, fromDate, toDate)
         return between(betweenCondition)
     }
-
 }
