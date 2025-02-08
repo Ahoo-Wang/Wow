@@ -433,9 +433,9 @@ class ConditionDslTest {
     @Test
     fun today() {
         val condition = condition {
-            QueryModel::id.today()
+            QueryModel::id.today("yyyy-MM-dd")
         }
-        assertThat(condition, equalTo(Condition.today("id")))
+        assertThat(condition, equalTo(Condition.today("id", "yyyy-MM-dd")))
     }
 
     @Test

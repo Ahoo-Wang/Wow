@@ -23,6 +23,7 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.stream.Stream
 
@@ -148,6 +149,15 @@ class MongoConverterTest {
     }
 
     @Test
+    fun beforeTodayDateTimeFormatter() {
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            Condition.beforeToday("field", 0, Any()).let {
+                SnapshotConditionConverter.convert(it)
+            }
+        }
+    }
+
+    @Test
     fun tomorrow() {
         val actual = Condition.tomorrow("field").let {
             SnapshotConditionConverter.convert(it)
@@ -160,6 +170,25 @@ class MongoConverterTest {
             Filters.lte(
                 "field",
                 OffsetDateTime.now().plusDays(1).with(LocalTime.MAX).toInstant().toEpochMilli()
+            )
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
+    fun tomorrowDateTimeFormatter() {
+        val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val actual = Condition.tomorrow("field", dateTimeFormatter).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        val expected = Filters.and(
+            Filters.gte(
+                "field",
+                dateTimeFormatter.format(OffsetDateTime.now().plusDays(1).with(LocalTime.MIN))
+            ),
+            Filters.lte(
+                "field",
+                dateTimeFormatter.format(OffsetDateTime.now().plusDays(1).with(LocalTime.MAX))
             )
         )
         assertThat(actual, equalTo(expected))
