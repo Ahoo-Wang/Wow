@@ -22,7 +22,7 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class EventStreamKeyConverterTest {
-    private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
+    private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId", "ownerId")
 
     @Test
     fun toKeyPrefix() {
@@ -33,12 +33,12 @@ class EventStreamKeyConverterTest {
     @Test
     fun toAggregateIdKey() {
         val actual = aggregateId.toKey()
-        assertThat(actual, equalTo("{id@tenantId}"))
+        assertThat(actual, equalTo("{id@tenantId@ownerId}"))
     }
 
     @Test
     fun converter() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
-        assertThat(actual, equalTo("tck.mock_aggregate:es:{id@tenantId}"))
+        assertThat(actual, equalTo("tck.mock_aggregate:es:{id@tenantId@ownerId}"))
     }
 }
