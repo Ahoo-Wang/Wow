@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.modeling.equalTo
 import me.ahoo.wow.api.modeling.hash
@@ -24,7 +25,8 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 data class DefaultAggregateId(
     override val namedAggregate: NamedAggregate,
     override val id: String,
-    override val tenantId: String = TenantId.DEFAULT_TENANT_ID
+    override val tenantId: String = TenantId.DEFAULT_TENANT_ID,
+    override val ownerId: String = OwnerId.DEFAULT_OWNER_ID
 ) : AggregateId {
     private val hashCode: Int = hash()
     override fun equals(other: Any?): Boolean = equalTo(other)
@@ -37,15 +39,18 @@ data class DefaultAggregateId(
 
 fun NamedAggregate.aggregateId(
     id: String = generateId(),
-    tenantId: String = TenantId.DEFAULT_TENANT_ID
+    tenantId: String = TenantId.DEFAULT_TENANT_ID,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID
 ) =
     DefaultAggregateId(
         namedAggregate = materialize(),
         id = id,
         tenantId = tenantId,
+        ownerId = ownerId
     )
 
 fun AggregateMetadata<*, *>.aggregateId(
     id: String = generateId(),
-    tenantId: String = staticTenantId ?: TenantId.DEFAULT_TENANT_ID
-) = namedAggregate.aggregateId(id, tenantId)
+    tenantId: String = staticTenantId ?: TenantId.DEFAULT_TENANT_ID,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID
+) = namedAggregate.aggregateId(id, tenantId, ownerId)

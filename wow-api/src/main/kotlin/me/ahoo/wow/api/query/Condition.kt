@@ -71,8 +71,8 @@ data class Condition(
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
         const val ZONE_ID_OPTION_KEY = "zoneId"
         const val DATE_PATTERN_OPTION_KEY = "datePattern"
-        val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
-        val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
+        private val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
+        private val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
         fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
         fun datePatternOptions(value: Any?): Map<String, Any> {
             if (value == null) {

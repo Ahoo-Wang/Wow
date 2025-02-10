@@ -55,6 +55,12 @@ enum class Operator {
     TENANT_ID,
 
     /**
+     * TODO
+     * 匹配`ownerId`字段值等于指定值的所有文档
+     */
+//    OWNER_ID,
+
+    /**
      * 匹配`deleted`字段值等于指定值的所有文档
      */
     DELETED,

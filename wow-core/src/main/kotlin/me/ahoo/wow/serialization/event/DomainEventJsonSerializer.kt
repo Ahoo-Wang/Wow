@@ -21,12 +21,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.MessageSerializer
+import me.ahoo.wow.serialization.writeAggregateId
 
 object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent::class.java) {
 
     override fun writeExtendedInfo(generator: JsonGenerator, value: DomainEvent<*>) {
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeAggregateId(value.aggregateId, false)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeNumberField(DomainEventRecords.SEQUENCE, value.sequence)

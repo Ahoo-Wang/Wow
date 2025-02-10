@@ -19,18 +19,14 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.serialization.MessageRecords.AGGREGATE_ID
-import me.ahoo.wow.serialization.MessageRecords.AGGREGATE_NAME
 import me.ahoo.wow.serialization.MessageRecords.BODY
 import me.ahoo.wow.serialization.MessageRecords.BODY_TYPE
 import me.ahoo.wow.serialization.MessageRecords.COMMAND_ID
-import me.ahoo.wow.serialization.MessageRecords.CONTEXT_NAME
 import me.ahoo.wow.serialization.MessageRecords.CREATE_TIME
 import me.ahoo.wow.serialization.MessageRecords.HEADER
 import me.ahoo.wow.serialization.MessageRecords.ID
 import me.ahoo.wow.serialization.MessageRecords.NAME
 import me.ahoo.wow.serialization.MessageRecords.REQUEST_ID
-import me.ahoo.wow.serialization.MessageRecords.TENANT_ID
 import me.ahoo.wow.serialization.MessageRecords.VERSION
 
 object MessageRecords {
@@ -50,6 +46,7 @@ object MessageRecords {
     const val AGGREGATE_NAME = "aggregateName"
     const val AGGREGATE_ID = "aggregateId"
     const val TENANT_ID = "tenantId"
+    const val OWNER_ID = "ownerId"
     const val COMMAND_ID = "commandId"
     const val VERSION = "version"
 }
@@ -105,19 +102,21 @@ interface MessageRequestIdRecord : JsonRecord {
 
 interface MessageNamedBoundedContextRecord : JsonRecord, NamedBoundedContext {
     override val contextName: String
-        get() = actual[CONTEXT_NAME].asText()
+        get() = actual.contextName
 }
 
 interface MessageAggregateNameRecord : JsonRecord {
     val aggregateName: String
-        get() = actual[AGGREGATE_NAME].asText()
+        get() = actual.aggregateName
 }
 
 interface MessageAggregateIdRecord : JsonRecord {
     val aggregateId: String
-        get() = actual[AGGREGATE_ID].asText()
+        get() = actual.aggregateId
     val tenantId: String
-        get() = actual[TENANT_ID].asText()
+        get() = actual.tenantId
+    val ownerId: String
+        get() = actual.ownerId
 }
 
 interface MessageRecord : MessageIdRecord, HeaderRecord, MessageBodyRecord, MessageCreateTimeRecord

@@ -19,8 +19,6 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.event.upgrader.EventUpgraderFactory
 import me.ahoo.wow.infra.TypeNameMapper.toType
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageBodyRecord
@@ -30,6 +28,7 @@ import me.ahoo.wow.serialization.MessageIdRecord
 import me.ahoo.wow.serialization.MessageNameRecord
 import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.toAggregateId
 import me.ahoo.wow.serialization.toObject
 
 object DomainEventRecords {
@@ -56,11 +55,7 @@ interface DomainEventRecord :
         get() = actual[DomainEventRecords.IS_LAST].asBoolean()
 
     fun toAggregateId(): AggregateId {
-        return MaterializedNamedAggregate(contextName, aggregateName)
-            .aggregateId(
-                id = aggregateId,
-                tenantId = tenantId,
-            )
+        return actual.toAggregateId()
     }
 
     fun toDomainEvent(): DomainEvent<Any> {

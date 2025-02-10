@@ -21,21 +21,20 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.infra.TypeNameMapper.toType
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.MessageSerializer
 import me.ahoo.wow.serialization.command.CommandRecords.AGGREGATE_VERSION
 import me.ahoo.wow.serialization.command.CommandRecords.ALLOW_CREATE
 import me.ahoo.wow.serialization.command.CommandRecords.IS_CREATE
 import me.ahoo.wow.serialization.command.CommandRecords.IS_VOID
+import me.ahoo.wow.serialization.toAggregateId
 import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.writeAggregateId
 
 object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessage::class.java) {
 
     override fun writeExtendedInfo(generator: JsonGenerator, value: CommandMessage<*>) {
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeAggregateId(value.aggregateId, false)
         generator.writeStringField(MessageRecords.REQUEST_ID, value.requestId)
         value.aggregateVersion?.let {
             generator.writeNumberField(AGGREGATE_VERSION, it)
@@ -49,13 +48,7 @@ object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessa
 object CommandJsonDeserializer : StdDeserializer<CommandMessage<*>>(CommandMessage::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): CommandMessage<*> {
         val commandRecord = p.codec.readTree<ObjectNode>(p).toCommandRecord()
-        val contextName = commandRecord.contextName
-        val aggregateName = commandRecord.aggregateName
-        val aggregateId = MaterializedNamedAggregate(contextName, aggregateName)
-            .aggregateId(
-                id = commandRecord.aggregateId,
-                tenantId = commandRecord.tenantId,
-            )
+        val aggregateId = commandRecord.actual.toAggregateId()
         val bodyType = commandRecord.bodyType.toType<Any>()
         return SimpleCommandMessage(
             id = commandRecord.id,

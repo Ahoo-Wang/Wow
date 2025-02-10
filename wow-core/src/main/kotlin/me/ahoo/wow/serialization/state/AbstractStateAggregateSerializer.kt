@@ -21,15 +21,15 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
+import me.ahoo.wow.serialization.toAggregateId
 import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.writeAggregateId
 
 object StateAggregateRecords {
     const val STATE: String = "state"
@@ -45,10 +45,7 @@ abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(s
     StdSerializer<T>(stateAggregateType) {
     override fun serialize(value: T, generator: JsonGenerator, provider: SerializerProvider) {
         generator.writeStartObject()
-        generator.writeStringField(MessageRecords.CONTEXT_NAME, value.aggregateId.contextName)
-        generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateId.aggregateName)
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeAggregateId(value.aggregateId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
         generator.writeStringField(StateAggregateRecords.FIRST_OPERATOR, value.firstOperator)
@@ -68,11 +65,8 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
     StdDeserializer<T>(stateAggregateType) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): T {
         val stateRecord = p.codec.readTree<JsonNode>(p)
-        val namedAggregate = MaterializedNamedAggregate(
-            stateRecord[MessageRecords.CONTEXT_NAME].asText(),
-            stateRecord[MessageRecords.AGGREGATE_NAME].asText(),
-        )
-        val metadata = namedAggregate.requiredAggregateType<Any>()
+        val aggregateId = stateRecord.toAggregateId()
+        val metadata = aggregateId.namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
         val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
@@ -83,10 +77,6 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val deleted = stateRecord[DELETED].asBoolean()
         val stateRoot = stateRecord[STATE].toObject(metadata.aggregateType)
 
-        val aggregateId = namedAggregate.aggregateId(
-            id = stateRecord[MessageRecords.AGGREGATE_ID].asText(),
-            tenantId = stateRecord[MessageRecords.TENANT_ID].asText(),
-        )
         val stateAggregate =
             metadata.toStateAggregate(
                 aggregateId = aggregateId,

@@ -20,14 +20,13 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventStream
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageCommandIdRecord
 import me.ahoo.wow.serialization.MessageRequestIdRecord
 import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.toAggregateId
 
 interface EventStreamRecord :
     NamedBoundedContextMessageRecord,
@@ -37,11 +36,7 @@ interface EventStreamRecord :
     MessageAggregateIdRecord,
     MessageAggregateNameRecord {
     fun toAggregateId(): AggregateId {
-        return MaterializedNamedAggregate(contextName, aggregateName)
-            .aggregateId(
-                id = aggregateId,
-                tenantId = tenantId,
-            )
+        return actual.toAggregateId()
     }
 
     fun toDomainEventStream(): DomainEventStream {

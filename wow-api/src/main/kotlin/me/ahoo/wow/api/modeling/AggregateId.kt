@@ -20,6 +20,7 @@ fun AggregateId.equalTo(other: Any?): Boolean {
         this === other -> true
         other !is AggregateId -> false
         tenantId != other.tenantId -> false
+        ownerId != other.ownerId -> false
         contextName != other.contextName -> false
         aggregateName != other.aggregateName -> false
         id != other.id -> false
@@ -30,6 +31,7 @@ fun AggregateId.equalTo(other: Any?): Boolean {
 private const val HASH_MAGIC = 31
 fun AggregateId.hash(): Int {
     var result = tenantId.hashCode()
+    result = HASH_MAGIC * result + ownerId.hashCode()
     result = HASH_MAGIC * result + contextName.hashCode()
     result = HASH_MAGIC * result + aggregateName.hashCode()
     result = HASH_MAGIC * result + id.hashCode()
@@ -45,7 +47,8 @@ fun AggregateId.mod(divisor: Int): Int {
  *
  * @author ahoo wang
  */
-interface AggregateId : Identifier, NamedAggregate, NamedAggregateDecorator, TenantId, Comparable<AggregateId> {
+interface AggregateId : Identifier, NamedAggregate, NamedAggregateDecorator, TenantId, OwnerId,
+    Comparable<AggregateId> {
     /**
      * @see MaterializedNamedAggregate
      */

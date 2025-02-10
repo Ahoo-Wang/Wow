@@ -17,13 +17,13 @@ import com.fasterxml.jackson.core.JsonGenerator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.MessageSerializer
+import me.ahoo.wow.serialization.writeAggregateId
 
 abstract class AbstractEventStreamJsonSerializer<M : DomainEventStream>(messageType: Class<M>) :
     MessageSerializer<M>(messageType) {
 
     override fun writeExtendedInfo(generator: JsonGenerator, value: M) {
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeAggregateId(value.aggregateId, false)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
         generator.writeStringField(MessageRecords.REQUEST_ID, value.requestId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
