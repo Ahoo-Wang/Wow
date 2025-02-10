@@ -101,6 +101,16 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
+    fun `ownerId condition to Query`() {
+        val query = condition {
+            ownerId("1")
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertThat(query._kind(), equalTo(Query.Kind.Term))
+    }
+
+    @Test
     fun `eq condition to Query`() {
         val query = condition {
             "field" eq "value"

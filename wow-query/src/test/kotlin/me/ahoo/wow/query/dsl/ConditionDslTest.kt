@@ -431,6 +431,22 @@ class ConditionDslTest {
     }
 
     @Test
+    fun tenantId() {
+        val condition = condition {
+            tenantId("tenantId")
+        }
+        assertThat(condition, equalTo(Condition.tenantId("tenantId")))
+    }
+
+    @Test
+    fun ownerId() {
+        val condition = condition {
+            ownerId("ownerId")
+        }
+        assertThat(condition, equalTo(Condition.ownerId("ownerId")))
+    }
+
+    @Test
     fun today() {
         val condition = condition {
             QueryModel::id.today("yyyy-MM-dd")

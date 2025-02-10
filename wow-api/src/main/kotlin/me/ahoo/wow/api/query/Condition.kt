@@ -124,6 +124,7 @@ data class Condition(
 
         fun aggregateIds(vararg value: String) = aggregateIds(value.asList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
+        fun ownerId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.OWNER_ID, value = value)
         fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
         fun today(field: String, datePattern: Any? = null) =
             Condition(field = field, operator = Operator.TODAY, options = datePatternOptions(datePattern))
