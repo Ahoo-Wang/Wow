@@ -10,27 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.modeling.TenantId
 import java.lang.annotation.Inherited
 
-/**
- * TenantId .
- *
- * @author ahoo wang
- */
-@Target(
-    AnnotationTarget.FIELD,
-    AnnotationTarget.PROPERTY,
-    AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.ANNOTATION_CLASS
-)
+@Target(AnnotationTarget.CLASS)
 @Inherited
 @MustBeDocumented
-annotation class TenantId
-
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
-@MustBeDocumented
-annotation class StaticTenantId(val tenantId: String = TenantId.DEFAULT_TENANT_ID)
+annotation class ResourceOwner

@@ -51,7 +51,6 @@ class R2dbcSnapshotRepository(
                 it.map { readable ->
                     mapSnapshot<S>(
                         aggregateId = aggregateId,
-                        expectedVersion = null,
                         readable = readable,
                     )
                 }
@@ -61,7 +60,6 @@ class R2dbcSnapshotRepository(
 
     private fun <S : Any> mapSnapshot(
         aggregateId: AggregateId,
-        expectedVersion: Int?,
         readable: Readable
     ): Snapshot<S> {
         val actualAggregateId = checkNotNull(readable.get("aggregate_id", String::class.java))
@@ -71,9 +69,6 @@ class R2dbcSnapshotRepository(
             "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
         }
         val actualVersion = checkNotNull(readable.get("version", Int::class.java))
-        expectedVersion?.let {
-            check(actualVersion == expectedVersion)
-        }
         val eventId = readable.get("event_id", String::class.java).orEmpty()
         val firstOperator = readable.get("first_operator", String::class.java).orEmpty()
         val operator = readable.get("operator", String::class.java).orEmpty()
