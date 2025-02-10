@@ -37,15 +37,25 @@ fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): Strin
     return null
 }
 
+fun ServerRequest.getOwnerId(): String? {
+    pathVariables()[MessageRecords.OWNER_ID].ifNotBlank<String> {
+        return it
+    }
+    headers().firstHeader(CommandRequestHeaders.OWNER_ID).ifNotBlank<String> {
+        return it
+    }
+    return null
+}
+
 fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *>): String {
     return getTenantId(aggregateMetadata) ?: return TenantId.DEFAULT_TENANT_ID
 }
 
 fun ServerRequest.getAggregateId(): String? {
-    headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID).ifNotBlank<String> {
+    pathVariables()[RoutePaths.ID_KEY].ifNotBlank<String> {
         return it
     }
-    pathVariables()[RoutePaths.ID_KEY].ifNotBlank<String> {
+    headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID).ifNotBlank<String> {
         return it
     }
     return null
