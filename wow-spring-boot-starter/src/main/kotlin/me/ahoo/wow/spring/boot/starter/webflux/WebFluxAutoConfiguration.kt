@@ -64,7 +64,6 @@ import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.IdsQueryAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadTimeBasedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
@@ -242,19 +241,6 @@ class WebFluxAutoConfiguration {
         exceptionHandler: RequestExceptionHandler
     ): LoadTimeBasedAggregateHandlerFunctionFactory {
         return LoadTimeBasedAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler
-        )
-    }
-
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = [IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
-    fun idsQueryAggregateHandlerFunctionFactory(
-        stateAggregateRepository: StateAggregateRepository,
-        exceptionHandler: RequestExceptionHandler
-    ): IdsQueryAggregateHandlerFunctionFactory {
-        return IdsQueryAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
             exceptionHandler = exceptionHandler
         )
