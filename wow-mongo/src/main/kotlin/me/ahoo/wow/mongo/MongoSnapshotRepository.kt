@@ -20,6 +20,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.aggregateId
@@ -99,13 +100,14 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
         val snapshotCollectionName = namedAggregate.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.gt(Documents.ID_FIELD, afterId))
-            .projection(Projections.include(MessageRecords.TENANT_ID))
+            .projection(Projections.include(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID))
             .limit(limit)
             .toFlux()
             .map {
                 val aggregateId = it.getString(Documents.ID_FIELD)
                 val tenantId = it.getString(MessageRecords.TENANT_ID)
-                namedAggregate.aggregateId(aggregateId, tenantId)
+                val ownerId = it.getString(MessageRecords.OWNER_ID) ?: OwnerId.DEFAULT_OWNER_ID
+                namedAggregate.aggregateId(aggregateId, tenantId, ownerId)
             }
     }
 }

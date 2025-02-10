@@ -25,7 +25,7 @@ object EventStreamKeyConverter : AggregateKeyConverter {
     }
 
     fun AggregateId.toKey(): String {
-        return "${id}$ID_DELIMITER$tenantId".wrap()
+        return "${id}$ID_DELIMITER$tenantId$ID_DELIMITER$ownerId".wrap()
     }
 
     override fun convert(aggregateId: AggregateId): String {

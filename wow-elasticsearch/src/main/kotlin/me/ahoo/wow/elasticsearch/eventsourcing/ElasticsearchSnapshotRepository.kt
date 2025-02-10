@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -81,7 +82,7 @@ class ElasticsearchSnapshotRepository(
                 }
                 .source {
                     it.filter {
-                        it.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
+                        it.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID, MessageRecords.OWNER_ID)
                     }
                 }
                 .size(limit)
@@ -95,7 +96,8 @@ class ElasticsearchSnapshotRepository(
                 val source = requireNotNull(hit.source())
                 val aggregateId = checkNotNull(source[MessageRecords.AGGREGATE_ID] as String)
                 val tenantId = checkNotNull(source[MessageRecords.TENANT_ID] as String)
-                namedAggregate.aggregateId(aggregateId, tenantId)
+                val ownerId = source[MessageRecords.OWNER_ID]?.toString() ?: OwnerId.DEFAULT_OWNER_ID
+                namedAggregate.aggregateId(aggregateId, tenantId, ownerId)
             }
         }
     }

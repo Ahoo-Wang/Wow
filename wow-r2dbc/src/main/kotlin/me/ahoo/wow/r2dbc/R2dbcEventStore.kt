@@ -45,13 +45,14 @@ class R2dbcEventStore(
                     .bind(0, eventStreamRecord.id)
                     .bind(1, eventStream.aggregateId.id)
                     .bind(2, eventStream.aggregateId.tenantId)
-                    .bind(3, eventStreamRecord.requestId)
-                    .bind(4, eventStreamRecord.commandId)
-                    .bind(5, eventStreamRecord.version)
-                    .bind(6, eventStreamRecord.header.toJsonString())
-                    .bind(7, eventStreamRecord.body.toJsonString())
-                    .bind(8, eventStream.size)
-                    .bind(9, eventStreamRecord.createTime)
+                    .bind(3, eventStream.aggregateId.ownerId)
+                    .bind(4, eventStreamRecord.requestId)
+                    .bind(5, eventStreamRecord.commandId)
+                    .bind(6, eventStreamRecord.version)
+                    .bind(7, eventStreamRecord.header.toJsonString())
+                    .bind(8, eventStreamRecord.body.toJsonString())
+                    .bind(9, eventStream.size)
+                    .bind(10, eventStreamRecord.createTime)
                     .execute()
             },
             /* asyncCleanup = */
@@ -97,6 +98,10 @@ class R2dbcEventStore(
                 val tenantId = checkNotNull(readable.get("tenant_id", String::class.java))
                 require(tenantId == aggregateId.tenantId) {
                     "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
+                }
+                val ownerId = readable.get("owner_id", String::class.java)
+                require(ownerId == aggregateId.ownerId) {
+                    "The aggregated ownerId[${aggregateId.ownerId}] does not match the ownerId:[$ownerId] stored in the eventStore"
                 }
                 val commandId = checkNotNull(readable.get("command_id", String::class.java))
                 val version = checkNotNull(readable.get("version", Int::class.java))

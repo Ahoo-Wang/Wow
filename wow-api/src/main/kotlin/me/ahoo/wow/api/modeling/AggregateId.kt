@@ -47,7 +47,12 @@ fun AggregateId.mod(divisor: Int): Int {
  *
  * @author ahoo wang
  */
-interface AggregateId : Identifier, NamedAggregate, NamedAggregateDecorator, TenantId, OwnerId,
+interface AggregateId :
+    Identifier,
+    NamedAggregate,
+    NamedAggregateDecorator,
+    TenantId,
+    OwnerId,
     Comparable<AggregateId> {
     /**
      * @see MaterializedNamedAggregate

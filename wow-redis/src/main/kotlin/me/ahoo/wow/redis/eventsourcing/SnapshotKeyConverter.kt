@@ -34,8 +34,8 @@ object DefaultSnapshotKeyConverter : AggregateKeyConverter {
         val prefix = namedAggregate.toKeyPrefix()
         val idWithTenantId = key.removePrefix(prefix).unwrap()
         idWithTenantId.split(ID_DELIMITER).let {
-            require(it.size == 2) { "Invalid key:$key" }
-            return namedAggregate.aggregateId(it[0], it[1])
+            require(it.size == 3) { "Invalid key:$key" }
+            return namedAggregate.aggregateId(id = it[0], tenantId = it[1], ownerId = it[2])
         }
     }
 }

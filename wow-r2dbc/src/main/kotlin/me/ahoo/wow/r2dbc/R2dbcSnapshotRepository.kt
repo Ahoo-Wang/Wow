@@ -68,6 +68,10 @@ class R2dbcSnapshotRepository(
         require(tenantId == aggregateId.tenantId) {
             "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
         }
+        val ownerId = checkNotNull(readable.get("owner_id", String::class.java))
+        require(ownerId == aggregateId.ownerId) {
+            "The aggregated ownerId[${aggregateId.ownerId}] does not match the ownerId:[$ownerId] stored in the eventStore"
+        }
         val actualVersion = checkNotNull(readable.get("version", Int::class.java))
         val eventId = readable.get("event_id", String::class.java).orEmpty()
         val firstOperator = readable.get("first_operator", String::class.java).orEmpty()
@@ -103,16 +107,17 @@ class R2dbcSnapshotRepository(
                 it.createStatement(snapshotSchema.save(snapshot.aggregateId))
                     .bind(0, snapshot.aggregateId.id)
                     .bind(1, snapshot.aggregateId.tenantId)
-                    .bind(2, snapshot.version)
-                    .bind(3, snapshot.state.javaClass.name)
-                    .bind(4, snapshot.state.toJsonString())
-                    .bind(5, snapshot.eventId)
-                    .bind(6, snapshot.firstOperator)
-                    .bind(7, snapshot.operator)
-                    .bind(8, snapshot.firstEventTime)
-                    .bind(9, snapshot.eventTime)
-                    .bind(10, snapshot.snapshotTime)
-                    .bind(11, snapshot.deleted)
+                    .bind(2, snapshot.aggregateId.ownerId)
+                    .bind(3, snapshot.version)
+                    .bind(4, snapshot.state.javaClass.name)
+                    .bind(5, snapshot.state.toJsonString())
+                    .bind(6, snapshot.eventId)
+                    .bind(7, snapshot.firstOperator)
+                    .bind(8, snapshot.operator)
+                    .bind(9, snapshot.firstEventTime)
+                    .bind(10, snapshot.eventTime)
+                    .bind(11, snapshot.snapshotTime)
+                    .bind(12, snapshot.deleted)
                     .execute()
             },
             Connection::close,
@@ -143,7 +148,8 @@ class R2dbcSnapshotRepository(
                 it.map { readable ->
                     val aggregateId = checkNotNull(readable.get("aggregate_id", String::class.java))
                     val tenantId = checkNotNull(readable.get("tenant_id", String::class.java))
-                    namedAggregate.aggregateId(aggregateId, tenantId)
+                    val ownerId = checkNotNull(readable.get("owner_id", String::class.java))
+                    namedAggregate.aggregateId(aggregateId, tenantId, ownerId)
                 }
             }
     }
