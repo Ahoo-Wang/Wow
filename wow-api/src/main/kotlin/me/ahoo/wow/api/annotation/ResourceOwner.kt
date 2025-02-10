@@ -18,4 +18,17 @@ import java.lang.annotation.Inherited
 @Target(AnnotationTarget.CLASS)
 @Inherited
 @MustBeDocumented
-annotation class ResourceOwner
+annotation class ResourceOwner(
+    val appendPath: AppendPath = AppendPath.ALWAYS
+) {
+
+    enum class AppendPath {
+        NEVER,
+        ALWAYS,
+
+        /**
+         * owner id is aggregate Id
+         */
+        AGGREGATE_ID
+    }
+}

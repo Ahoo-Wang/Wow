@@ -27,5 +27,5 @@ annotation class AggregateRoot(
     /**
      * Mount commands to the aggregate root, mainly used for command rewriting scenarios. At the same time, it will generate command routes in OpenApi.
      */
-    val commands: Array<KClass<*>> = []
+    val commands: Array<KClass<*>> = [],
 )

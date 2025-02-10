@@ -16,6 +16,7 @@ package me.ahoo.wow.example.domain.order
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.annotation.ResourceOwner
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.command.ServerCommandExchange
@@ -51,6 +52,7 @@ import reactor.kotlin.core.publisher.toMono
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
 @AggregateRoot
+@ResourceOwner
 class Order(private val state: OrderState) {
     companion object {
         private val log = LoggerFactory.getLogger(Order::class.java)

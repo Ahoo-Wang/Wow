@@ -47,7 +47,10 @@ import java.time.Clock
 internal class JsonSerializerTest {
     @Test
     fun aggregateId() {
-        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(
+            tenantId = generateGlobalId(),
+            ownerId = generateGlobalId()
+        )
         val output = aggregateId.toJsonString()
         assertThat(output, notNullValue())
         val input = output.toObject<AggregateId>()
@@ -143,7 +146,7 @@ internal class JsonSerializerTest {
     fun stateEventStream() {
         val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregate.aggregateId(tenantId = GlobalIdGenerator.generateAsString()),
+            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId(), ownerId = generateGlobalId()),
             eventCount = 1,
         )
         val stateRoot = MockStateAggregate(eventStream.aggregateId.id)
