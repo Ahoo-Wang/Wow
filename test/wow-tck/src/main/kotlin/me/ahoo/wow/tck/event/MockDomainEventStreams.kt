@@ -13,9 +13,10 @@
 package me.ahoo.wow.tck.event
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -28,14 +29,11 @@ object MockDomainEventStreams {
     @JvmOverloads
     fun generateEventStream(
         aggregateId: AggregateId,
-        aggregateVersion: Int =
-            DEFAULT_AGGREGATE_VERSION,
-        eventCount: Int =
-            DEFAULT_EVENT_COUNT,
-        createdEventSupplier: (
-            AggregateId
-        ) -> Any = { _ -> MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
-        changedEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateChanged(GlobalIdGenerator.generateAsString()) }
+        aggregateVersion: Int = DEFAULT_AGGREGATE_VERSION,
+        eventCount: Int = DEFAULT_EVENT_COUNT,
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        createdEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateCreated(generateGlobalId()) },
+        changedEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateChanged(generateGlobalId()) }
     ): DomainEventStream {
         val events: MutableList<Any> = LinkedList()
         var eventCounter = 0
@@ -50,6 +48,7 @@ object MockDomainEventStreams {
         return events.toDomainEventStream(
             upstream = GivenInitializationCommand(
                 aggregateId = aggregateId,
+                ownerId = ownerId
             ),
             aggregateVersion = aggregateVersion,
         )
