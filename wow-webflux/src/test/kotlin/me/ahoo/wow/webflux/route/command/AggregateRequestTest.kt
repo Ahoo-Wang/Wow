@@ -16,13 +16,34 @@ package me.ahoo.wow.webflux.route.command
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.serialization.MessageRecords
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest
 
 class AggregateRequestTest {
+    @Test
+    fun getOwnerIdFromPathVariable() {
+        val ownerId = generateGlobalId()
+        val request = mockk<ServerRequest> {
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns ownerId
+        }
+        assertThat(request.getOwnerId(), equalTo(ownerId))
+    }
+
+    @Test
+    fun getOwnerIdFromHeader() {
+        val ownerId = generateGlobalId()
+        val request = mockk<ServerRequest> {
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns null
+            every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns ownerId
+        }
+        assertThat(request.getOwnerId(), equalTo(ownerId))
+    }
+
     @Test
     fun getCommandStage() {
         val request = mockk<ServerRequest> {
