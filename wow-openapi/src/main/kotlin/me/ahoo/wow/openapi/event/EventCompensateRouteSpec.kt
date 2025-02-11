@@ -48,6 +48,8 @@ class EventCompensateRouteSpec(
         get() = "Event Compensate"
     override val method: String
         get() = Https.Method.PUT
+    override val appendOwnerPath: Boolean
+        get() = false
     override val appendPathSuffix: String
         get() = "{${MessageRecords.VERSION}}/compensate"
     override val requestBody: RequestBody = COMPENSATION_TARGET_REQUEST

@@ -41,6 +41,8 @@ class LoadAggregateRouteSpec(
 
     override val method: String
         get() = Https.Method.GET
+    override val appendOwnerPath: Boolean
+        get() = false
     override val appendIdPath: Boolean
         get() = true
 

@@ -44,6 +44,8 @@ class LoadEventStreamRouteSpec(
             .operation("load").build()
     override val method: String
         get() = Https.Method.GET
+    override val appendOwnerPath: Boolean
+        get() = false
     override val appendIdPath: Boolean
         get() = true
     override val summary: String
