@@ -34,6 +34,7 @@ import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMA
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_NAME_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_OWNER_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_TYPE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.PATH
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
@@ -50,12 +51,17 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_OUT_PARAMETER
 import me.ahoo.wow.openapi.toJsonContent
 
-class CommandFacadeRouteSpec(
-    override val id: String,
-    override val path: String,
-    override val method: String,
-    override val summary: String,
-) : RouteSpec {
+object CommandFacadeRouteSpec : RouteSpec {
+    override val id: String = RouteIdSpec()
+        .prefix(Wow.WOW)
+        .resourceName("command")
+        .operation("send")
+        .build()
+    override val path: String
+        get() = PATH
+    override val method: String
+        get() = Https.Method.POST
+    override val summary: String = "send command"
     override val parameters: List<Parameter>
         get() {
             return buildList {
@@ -113,27 +119,12 @@ class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory {
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema())
             .description("Resource Owner Id")
-        val ID = RouteIdSpec()
-            .prefix(Wow.WOW)
-            .resourceName("command")
-            .operation("send")
-            .build()
-
         const val PATH = "/${Wow.WOW}/command/send"
-        const val METHOD = Https.Method.POST
-        const val SUMMARY = "send command"
     }
 
     override val components: Components = createComponents()
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
-        return listOf(
-            CommandFacadeRouteSpec(
-                ID,
-                PATH,
-                METHOD,
-                SUMMARY
-            )
-        )
+        return listOf(CommandFacadeRouteSpec)
     }
 }
