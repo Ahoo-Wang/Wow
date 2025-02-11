@@ -1,6 +1,6 @@
 package me.ahoo.wow.event
 
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -10,12 +10,12 @@ class DomainEventStreamTest {
     @Test
     fun ignoreSourcingIfNotInitialVersion() {
         val eventStream = MockNamedEvent().toDomainEvent(
-            aggregateId = GlobalIdGenerator.generateAsString(),
-            tenantId = GlobalIdGenerator.generateAsString(),
-            commandId = GlobalIdGenerator.generateAsString(),
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            commandId = generateGlobalId(),
             version = 2
         ).let {
-            SimpleDomainEventStream(requestId = GlobalIdGenerator.generateAsString(), body = listOf(it))
+            SimpleDomainEventStream(requestId = generateGlobalId(), body = listOf(it))
         }
 
         val ignoreSourcing = eventStream.ignoreSourcing()
@@ -25,12 +25,12 @@ class DomainEventStreamTest {
     @Test
     fun ignoreSourcing() {
         val eventStream = MockNamedEvent().toDomainEvent(
-            aggregateId = GlobalIdGenerator.generateAsString(),
-            tenantId = GlobalIdGenerator.generateAsString(),
-            commandId = GlobalIdGenerator.generateAsString(),
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            commandId = generateGlobalId(),
             version = 1
         ).let {
-            SimpleDomainEventStream(requestId = GlobalIdGenerator.generateAsString(), body = listOf(it))
+            SimpleDomainEventStream(requestId = generateGlobalId(), body = listOf(it))
         }
         val ignoreSourcing = eventStream.ignoreSourcing()
         assertThat(ignoreSourcing, equalTo(false))
@@ -39,15 +39,15 @@ class DomainEventStreamTest {
     @Test
     fun ignoreSourcingIfErrorEvent() {
         val eventStream = ErrorIgnoreEvent(
-            errorCode = GlobalIdGenerator.generateAsString(),
-            errorMsg = GlobalIdGenerator.generateAsString()
+            errorCode = generateGlobalId(),
+            errorMsg = generateGlobalId()
         ).toDomainEvent(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            commandId = generateGlobalId(),
             version = 1
         ).let {
-            SimpleDomainEventStream(requestId = GlobalIdGenerator.generateAsString(), body = listOf(it))
+            SimpleDomainEventStream(requestId = generateGlobalId(), body = listOf(it))
         }
         val ignoreSourcing = eventStream.ignoreSourcing()
         assertThat(ignoreSourcing, equalTo(true))

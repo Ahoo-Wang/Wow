@@ -72,6 +72,9 @@ class SimpleStateAggregate<S : Any>(
             sourcing(domainEvent)
         }
         version = eventStream.version
+        if (eventStream.ownerId.isNotBlank()) {
+            ownerId = eventStream.ownerId
+        }
         eventId = eventStream.id
         operator = eventStream.header.operator.orEmpty()
         eventTime = eventStream.createTime
@@ -89,7 +92,6 @@ class SimpleStateAggregate<S : Any>(
         if (domainEvent.body is AggregateRecovered) {
             deleted = false
         }
-        ownerId = domainEvent.ownerId
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
             sourcingFunction.invoke(SimpleDomainEventExchange(domainEvent))

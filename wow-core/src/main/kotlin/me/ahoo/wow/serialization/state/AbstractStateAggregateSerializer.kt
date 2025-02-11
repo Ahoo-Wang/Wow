@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
@@ -76,7 +77,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val metadata = namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
-        val ownerId = stateRecord[MessageRecords.OWNER_ID]?.asText().orEmpty()
+        val ownerId = stateRecord[MessageRecords.OWNER_ID]?.asText().orDefaultOwnerId()
         val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
         val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asText().orEmpty()
         val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asText().orEmpty()

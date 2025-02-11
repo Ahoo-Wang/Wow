@@ -20,7 +20,6 @@ import me.ahoo.wow.modeling.toStringWithAlias
 object IndexNameConverter {
     const val SNAPSHOT_SUFFIX = ".snapshot"
     const val EVENT_STREAM_SUFFIX = ".es"
-    const val AGGREGATE_ID_SUFFIX = ".id"
 
     fun NamedAggregate.toSnapshotIndexName(): String {
         return "${Wow.WOW_PREFIX}${this.toStringWithAlias()}$SNAPSHOT_SUFFIX"

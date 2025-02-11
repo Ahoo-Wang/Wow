@@ -21,5 +21,9 @@ interface OwnerId {
 
     companion object {
         const val DEFAULT_OWNER_ID = ""
+
+        fun String?.orDefaultOwnerId(): String {
+            return this ?: DEFAULT_OWNER_ID
+        }
     }
 }

@@ -134,6 +134,10 @@ class ConditionDsl : NestedFieldDsl() {
         condition(Condition.tenantId(value))
     }
 
+    fun ownerId(value: String) {
+        condition(Condition.ownerId(value))
+    }
+
     fun deleted(value: Boolean) {
         condition(Condition.deleted(value))
     }

@@ -51,6 +51,7 @@ interface EventStreamRecord :
         val commandId = commandId
         val requestId = requestId
         val version = version
+        val ownerId = ownerId
         val header = toMessageHeader()
         val createTime = createTime
         val aggregateId = toAggregateId()
@@ -61,6 +62,7 @@ interface EventStreamRecord :
                 actual = eventNode as ObjectNode,
                 streamedAggregateId = aggregateId,
                 streamedVersion = version,
+                streamedOwnerId = ownerId,
                 streamedHeader = header,
                 streamedCommandId = commandId,
                 sequence = sequence,
@@ -117,6 +119,7 @@ class StreamDomainEventRecord(
     override val actual: ObjectNode,
     private val streamedAggregateId: AggregateId,
     private val streamedVersion: Int,
+    private val streamedOwnerId: String,
     private val streamedHeader: Header,
     private val streamedCommandId: String,
     override val sequence: Int,
@@ -136,7 +139,8 @@ class StreamDomainEventRecord(
 
     override val version: Int
         get() = streamedVersion
-
+    override val ownerId: String
+        get() = streamedOwnerId
     override val commandId: String
         get() = streamedCommandId
 

@@ -15,7 +15,7 @@ package me.ahoo.wow.test
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
@@ -37,7 +37,7 @@ import me.ahoo.wow.test.aggregate.GivenStage
 object AggregateVerifier {
 
     fun <C : Any, S : Any> Class<C>.aggregateVerifier(
-        aggregateId: String = GlobalIdGenerator.generateAsString(),
+        aggregateId: String = generateGlobalId(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
         stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
         eventStore: EventStore = InMemoryEventStore(),
@@ -45,14 +45,14 @@ object AggregateVerifier {
     ): GivenStage<S> {
         val metadata: AggregateMetadata<C, S> = aggregateMetadata()
         return DefaultGivenStage(
-            metadata.aggregateId(
+            aggregateId = metadata.aggregateId(
                 id = aggregateId,
                 tenantId = tenantId,
             ),
-            metadata,
-            stateAggregateFactory,
-            SimpleCommandAggregateFactory(eventStore),
-            serviceProvider,
+            metadata = metadata,
+            stateAggregateFactory = stateAggregateFactory,
+            commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
+            serviceProvider = serviceProvider,
         )
     }
 
@@ -62,7 +62,7 @@ object AggregateVerifier {
     fun <C : Any, S : Any> aggregateVerifier(
         commandAggregateType: Class<C>,
         stateAggregateType: Class<S>,
-        aggregateId: String = GlobalIdGenerator.generateAsString(),
+        aggregateId: String = generateGlobalId(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
         stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
         eventStore: EventStore = InMemoryEventStore(),
@@ -79,7 +79,7 @@ object AggregateVerifier {
 }
 
 inline fun <reified C : Any, S : Any> aggregateVerifier(
-    aggregateId: String = GlobalIdGenerator.generateAsString(),
+    aggregateId: String = generateGlobalId(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID
 ): GivenStage<S> {
     return C::class.java.aggregateVerifier(
@@ -89,7 +89,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
 }
 
 inline fun <reified C : Any, S : Any> aggregateVerifier(
-    aggregateId: String = GlobalIdGenerator.generateAsString(),
+    aggregateId: String = generateGlobalId(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID,
     serviceProvider: ServiceProvider
 ): GivenStage<S> {
@@ -101,7 +101,7 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
 }
 
 inline fun <reified C : Any, S : Any> aggregateVerifier(
-    aggregateId: String = GlobalIdGenerator.generateAsString(),
+    aggregateId: String = generateGlobalId(),
     tenantId: String = TenantId.DEFAULT_TENANT_ID,
     eventStore: EventStore = InMemoryEventStore(),
     serviceProvider: ServiceProvider = SimpleServiceProvider()

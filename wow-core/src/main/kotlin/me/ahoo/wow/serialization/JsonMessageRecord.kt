@@ -16,6 +16,7 @@ package me.ahoo.wow.serialization
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.DefaultHeader
@@ -155,5 +156,5 @@ interface MessageVersionRecord : JsonRecord {
 
 interface OwnerIdRecord : JsonRecord {
     val ownerId: String
-        get() = actual[OWNER_ID]?.asText().orEmpty()
+        get() = actual[OWNER_ID]?.asText().orDefaultOwnerId()
 }

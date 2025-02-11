@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
 
@@ -22,6 +23,7 @@ data class MaterializedSnapshot<S : Any>(
     override val contextName: String,
     override val aggregateName: String,
     override val tenantId: String,
+    override val ownerId: String,
     val aggregateId: String,
     override val version: Int,
     val eventId: String,
@@ -32,4 +34,4 @@ data class MaterializedSnapshot<S : Any>(
     val state: S,
     val snapshotTime: Long,
     val deleted: Boolean
-) : NamedAggregate, TenantId, Version, Materialized
+) : NamedAggregate, TenantId,OwnerId, Version, Materialized

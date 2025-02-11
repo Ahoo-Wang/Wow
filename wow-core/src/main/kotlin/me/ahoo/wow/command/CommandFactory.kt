@@ -18,10 +18,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
@@ -30,10 +31,11 @@ import me.ahoo.wow.modeling.aggregateId
 
 @Suppress("LongParameterList")
 fun <C : Any> C.toCommandMessage(
-    id: String = GlobalIdGenerator.generateAsString(),
+    id: String = generateGlobalId(),
     requestId: String? = null,
     aggregateId: String? = null,
     tenantId: String? = null,
+    ownerId: String? = null,
     aggregateVersion: Int? = null,
     namedAggregate: NamedAggregate? = null,
     header: Header = DefaultHeader.empty(),
@@ -64,6 +66,7 @@ fun <C : Any> C.toCommandMessage(
         body = this,
         createTime = createTime,
         aggregateId = targetAggregateId,
+        ownerId = ownerId.orDefaultOwnerId(),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = metadata.isCreate,
@@ -78,6 +81,7 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
         requestId = requestId,
         aggregateId = aggregateId,
         tenantId = tenantId,
+        ownerId = ownerId,
         aggregateVersion = aggregateVersion,
         namedAggregate = namedAggregate,
         header = header,
