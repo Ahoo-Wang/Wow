@@ -25,7 +25,7 @@ class PathBuilder {
             segments.append(segment)
             return this
         }
-        segments.append("/").append(segment)
+        segments.append(PATH_SEPARATOR).append(segment)
         return this
     }
 

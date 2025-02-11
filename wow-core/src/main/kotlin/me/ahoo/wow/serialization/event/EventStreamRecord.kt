@@ -92,6 +92,7 @@ class FlatEventStreamRecord(
     private val rawAggregateId: AggregateId,
     override val header: ObjectNode,
     override val version: Int,
+    override val ownerId: String,
     override val commandId: String,
     override val requestId: String,
     override val body: JsonNode,

@@ -18,6 +18,7 @@ object CommandRequestHeaders {
     const val COMMAND_HEADERS_PREFIX = "Command-"
     const val WAIT_CONTEXT = "${COMMAND_HEADERS_PREFIX}Wait-Context"
     const val TENANT_ID = "${COMMAND_HEADERS_PREFIX}Tenant-Id"
+    const val OWNER_ID = "${COMMAND_HEADERS_PREFIX}Owner-Id"
     const val AGGREGATE_ID = "${COMMAND_HEADERS_PREFIX}Aggregate-Id"
     const val AGGREGATE_VERSION = "${COMMAND_HEADERS_PREFIX}Aggregate-Version"
     const val WAIT_STAGE = "${COMMAND_HEADERS_PREFIX}Wait-Stage"

@@ -17,6 +17,7 @@ import io.r2dbc.spi.Connection
 import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import io.r2dbc.spi.Statement
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
@@ -45,13 +46,14 @@ class R2dbcEventStore(
                     .bind(0, eventStreamRecord.id)
                     .bind(1, eventStream.aggregateId.id)
                     .bind(2, eventStream.aggregateId.tenantId)
-                    .bind(3, eventStreamRecord.requestId)
-                    .bind(4, eventStreamRecord.commandId)
-                    .bind(5, eventStreamRecord.version)
-                    .bind(6, eventStreamRecord.header.toJsonString())
-                    .bind(7, eventStreamRecord.body.toJsonString())
-                    .bind(8, eventStream.size)
-                    .bind(9, eventStreamRecord.createTime)
+                    .bind(3, eventStream.ownerId)
+                    .bind(4, eventStreamRecord.requestId)
+                    .bind(5, eventStreamRecord.commandId)
+                    .bind(6, eventStreamRecord.version)
+                    .bind(7, eventStreamRecord.header.toJsonString())
+                    .bind(8, eventStreamRecord.body.toJsonString())
+                    .bind(9, eventStream.size)
+                    .bind(10, eventStreamRecord.createTime)
                     .execute()
             },
             /* asyncCleanup = */
@@ -98,6 +100,7 @@ class R2dbcEventStore(
                 require(tenantId == aggregateId.tenantId) {
                     "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
                 }
+                val ownerId = readable.get("owner_id", String::class.java).orDefaultOwnerId()
                 val commandId = checkNotNull(readable.get("command_id", String::class.java))
                 val version = checkNotNull(readable.get("version", Int::class.java))
                 val header = checkNotNull(readable.get("header", String::class.java))
@@ -106,6 +109,7 @@ class R2dbcEventStore(
                 FlatEventStreamRecord(
                     id = id,
                     rawAggregateId = aggregateId,
+                    ownerId = ownerId,
                     header = header.toJsonNode() as ObjectNode,
                     body = body.toJsonNode(),
                     commandId = commandId,

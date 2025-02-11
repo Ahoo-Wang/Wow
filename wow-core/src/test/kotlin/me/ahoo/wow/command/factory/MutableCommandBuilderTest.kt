@@ -20,6 +20,7 @@ class MutableCommandBuilderTest {
         assertThat(commandBuilder.requestId, nullValue())
         assertThat(commandBuilder.aggregateId, nullValue())
         assertThat(commandBuilder.tenantId, nullValue())
+        assertThat(commandBuilder.ownerId, nullValue())
         assertThat(commandBuilder.aggregateVersion, nullValue())
         assertThat(commandBuilder.namedAggregate, nullValue())
         assertThat(commandBuilder.header, equalTo(DefaultHeader.empty()))
@@ -37,6 +38,7 @@ class MutableCommandBuilderTest {
             .requestIfIfAbsent("requestId")
             .aggregateId("aggregateId")
             .tenantIdIfAbsent("tenantId")
+            .ownerId("ownerId")
             .aggregateVersion(1)
             .namedAggregate(MOCK_AGGREGATE_METADATA)
             .header {
@@ -51,6 +53,7 @@ class MutableCommandBuilderTest {
         assertThat(commandBuilder.requestId, equalTo("requestId"))
         assertThat(commandBuilder.aggregateId, equalTo("aggregateId"))
         assertThat(commandBuilder.tenantId, equalTo("tenantId"))
+        assertThat(commandBuilder.ownerId, equalTo("ownerId"))
         assertThat(commandBuilder.aggregateVersion, equalTo(1))
         assertThat(commandBuilder.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
         assertThat(commandBuilder.header["key"], equalTo("value"))

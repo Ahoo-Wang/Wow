@@ -16,6 +16,7 @@ import io.r2dbc.spi.Connection
 import io.r2dbc.spi.Readable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -51,7 +52,6 @@ class R2dbcSnapshotRepository(
                 it.map { readable ->
                     mapSnapshot<S>(
                         aggregateId = aggregateId,
-                        expectedVersion = null,
                         readable = readable,
                     )
                 }
@@ -61,7 +61,6 @@ class R2dbcSnapshotRepository(
 
     private fun <S : Any> mapSnapshot(
         aggregateId: AggregateId,
-        expectedVersion: Int?,
         readable: Readable
     ): Snapshot<S> {
         val actualAggregateId = checkNotNull(readable.get("aggregate_id", String::class.java))
@@ -70,10 +69,8 @@ class R2dbcSnapshotRepository(
         require(tenantId == aggregateId.tenantId) {
             "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
         }
+        val ownerId = readable.get("owner_id", String::class.java).orDefaultOwnerId()
         val actualVersion = checkNotNull(readable.get("version", Int::class.java))
-        expectedVersion?.let {
-            check(actualVersion == expectedVersion)
-        }
         val eventId = readable.get("event_id", String::class.java).orEmpty()
         val firstOperator = readable.get("first_operator", String::class.java).orEmpty()
         val operator = readable.get("operator", String::class.java).orEmpty()
@@ -89,6 +86,7 @@ class R2dbcSnapshotRepository(
             delegate = metadata.toStateAggregate(
                 aggregateId = aggregateId,
                 state = stateRoot,
+                ownerId = ownerId,
                 version = actualVersion,
                 eventId = eventId,
                 firstOperator = firstOperator,
@@ -108,16 +106,17 @@ class R2dbcSnapshotRepository(
                 it.createStatement(snapshotSchema.save(snapshot.aggregateId))
                     .bind(0, snapshot.aggregateId.id)
                     .bind(1, snapshot.aggregateId.tenantId)
-                    .bind(2, snapshot.version)
-                    .bind(3, snapshot.state.javaClass.name)
-                    .bind(4, snapshot.state.toJsonString())
-                    .bind(5, snapshot.eventId)
-                    .bind(6, snapshot.firstOperator)
-                    .bind(7, snapshot.operator)
-                    .bind(8, snapshot.firstEventTime)
-                    .bind(9, snapshot.eventTime)
-                    .bind(10, snapshot.snapshotTime)
-                    .bind(11, snapshot.deleted)
+                    .bind(2, snapshot.ownerId)
+                    .bind(3, snapshot.version)
+                    .bind(4, snapshot.state.javaClass.name)
+                    .bind(5, snapshot.state.toJsonString())
+                    .bind(6, snapshot.eventId)
+                    .bind(7, snapshot.firstOperator)
+                    .bind(8, snapshot.operator)
+                    .bind(9, snapshot.firstEventTime)
+                    .bind(10, snapshot.eventTime)
+                    .bind(11, snapshot.snapshotTime)
+                    .bind(12, snapshot.deleted)
                     .execute()
             },
             Connection::close,
