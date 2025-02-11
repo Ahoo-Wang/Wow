@@ -34,4 +34,4 @@ data class MaterializedSnapshot<S : Any>(
     val state: S,
     val snapshotTime: Long,
     val deleted: Boolean
-) : NamedAggregate, TenantId,OwnerId, Version, Materialized
+) : NamedAggregate, TenantId, OwnerId, Version, Materialized
