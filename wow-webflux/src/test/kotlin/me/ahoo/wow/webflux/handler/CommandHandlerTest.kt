@@ -7,6 +7,7 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -50,7 +51,7 @@ class CommandHandlerTest {
         commandHandler.handle(
             request,
             MockCreateAggregate(generateGlobalId(), generateGlobalId()),
-            MOCK_AGGREGATE_METADATA
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
             .expectNextCount(1)
             .verifyComplete()
@@ -83,7 +84,7 @@ class CommandHandlerTest {
         commandHandler.handle(
             request,
             MockVoidCommand(generateGlobalId()),
-            MOCK_AGGREGATE_METADATA
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
             .expectNextCount(1)
             .verifyComplete()
@@ -115,7 +116,7 @@ class CommandHandlerTest {
         commandHandler.handle(
             request,
             MockCreateAggregate(generateGlobalId(), generateGlobalId()),
-            MOCK_AGGREGATE_METADATA
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
             .verifyTimeout(Duration.ofMillis(110))
     }

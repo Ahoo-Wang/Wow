@@ -24,6 +24,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -47,7 +48,7 @@ class CommandHandlerFunctionTest {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val commandRouteMetadata = commandRouteMetadata<MockCreateAggregate>()
         val handlerFunction = CommandHandlerFunction(
-            MOCK_AGGREGATE_METADATA,
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandRouteMetadata,
             commandGateway,
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),

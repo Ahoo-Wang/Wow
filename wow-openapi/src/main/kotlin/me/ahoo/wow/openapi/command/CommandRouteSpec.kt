@@ -21,6 +21,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
@@ -103,6 +104,9 @@ class CommandRouteSpec(
     override val appendIdPath: Boolean
         get() {
             if (commandRouteMetadata.ignoreAggregateNamePrefix) {
+                return false
+            }
+            if (aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID) {
                 return false
             }
             val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata

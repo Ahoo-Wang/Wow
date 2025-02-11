@@ -21,6 +21,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -55,7 +56,7 @@ class DefaultCommandMessageParserTest {
         val commandMessageParser =
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
         commandMessageParser.parse(
-            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandBody = MockCreateAggregate(
                 id = generateGlobalId(),
                 data = generateGlobalId(),
@@ -99,7 +100,7 @@ class DefaultCommandMessageParserTest {
                 )
             )
         commandMessageParser.parse(
-            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandBody = MockCreateAggregate(
                 id = generateGlobalId(),
                 data = generateGlobalId(),

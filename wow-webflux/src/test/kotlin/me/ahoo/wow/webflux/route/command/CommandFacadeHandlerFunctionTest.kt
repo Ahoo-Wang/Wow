@@ -9,14 +9,13 @@ import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
@@ -41,13 +40,14 @@ class CommandFacadeHandlerFunctionTest {
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),
             DefaultRequestExceptionHandler
         )
+
         val request = mockk<ServerRequest> {
             every { body(CommandFacadeBodyExtractor) } returns Tuples.of(
                 MockCreateAggregate(
                     id = generateGlobalId(),
                     data = generateGlobalId(),
                 ) as Any,
-                aggregateMetadata<MockCommandAggregate, MockStateAggregate>() as AggregateMetadata<Any, Any>
+                MockCommandAggregate::class.java.aggregateRouteMetadata() as AggregateRouteMetadata<Any>
             ).toMono()
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()

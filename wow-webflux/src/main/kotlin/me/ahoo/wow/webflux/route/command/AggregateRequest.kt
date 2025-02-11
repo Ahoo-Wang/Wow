@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command
 
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.infra.ifNotBlank
@@ -59,6 +60,13 @@ fun ServerRequest.getAggregateId(): String? {
         return it
     }
     return null
+}
+
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? {
+    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
+        return ownerId ?: getAggregateId()
+    }
+    return getAggregateId()
 }
 
 fun ServerRequest.getLocalFirst(): Boolean? {

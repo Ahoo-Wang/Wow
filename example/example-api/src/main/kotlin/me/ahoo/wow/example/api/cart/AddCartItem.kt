@@ -14,8 +14,6 @@ import me.ahoo.wow.api.annotation.Order
     description = "加入购物车"
 )
 data class AddCartItem(
-    @field:CommandRoute.PathVariable
-    val id: String,
     @field:NotBlank
     val productId: String,
     @field:Positive

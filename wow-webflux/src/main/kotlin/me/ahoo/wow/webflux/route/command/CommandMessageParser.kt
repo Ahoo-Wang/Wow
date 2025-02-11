@@ -19,16 +19,16 @@ import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.withLocalFirst
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.AGGREGATE_VERSION
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.REQUEST_ID
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
 interface CommandMessageParser {
     fun parse(
-        aggregateMetadata: AggregateMetadata<*, *>,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
         request: ServerRequest
     ): Mono<CommandMessage<Any>>
@@ -39,13 +39,14 @@ class DefaultCommandMessageParser(
     private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
 ) : CommandMessageParser {
     override fun parse(
-        aggregateMetadata: AggregateMetadata<*, *>,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
         request: ServerRequest
     ): Mono<CommandMessage<Any>> {
-        val aggregateId = request.getAggregateId()
+        val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         val tenantId = request.getTenantId(aggregateMetadata)
         val ownerId = request.getOwnerId()
+        val aggregateId = request.getAggregateId(aggregateRouteMetadata.owner, ownerId)
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
         val commandBuilder = commandBody.commandBuilder()

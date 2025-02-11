@@ -18,9 +18,9 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.toObject
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
@@ -30,11 +30,11 @@ import reactor.util.function.Tuple2
 import reactor.util.function.Tuples
 
 object CommandFacadeBodyExtractor :
-    BodyExtractor<Mono<Tuple2<Any, AggregateMetadata<Any, Any>>>, ReactiveHttpInputMessage> {
+    BodyExtractor<Mono<Tuple2<Any, AggregateRouteMetadata<Any>>>, ReactiveHttpInputMessage> {
     override fun extract(
         inputMessage: ReactiveHttpInputMessage,
         context: BodyExtractor.Context
-    ): Mono<Tuple2<Any, AggregateMetadata<Any, Any>>> {
+    ): Mono<Tuple2<Any, AggregateRouteMetadata<Any>>> {
         val commandType = requireNotNull(inputMessage.headers.getFirst(CommandRequestHeaders.COMMAND_TYPE)) {
             "${CommandRequestHeaders.COMMAND_TYPE} can not be empty."
         }.toType<Any>()
@@ -49,13 +49,13 @@ object CommandFacadeBodyExtractor :
         } else {
             commandType.requiredNamedAggregate()
         }
-        val aggregateMetadata = namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
+        val aggregateRouteMetadata = namedAggregate.requiredAggregateType<Any>().aggregateRouteMetadata()
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
             .switchEmptyObjectNodeIfEmpty()
             .map {
                 val commandBody = it.toObject(commandType)
-                Tuples.of(commandBody, aggregateMetadata)
+                Tuples.of(commandBody, aggregateRouteMetadata)
             }
     }
 }
