@@ -5,6 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.ListQuerySnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -24,7 +25,13 @@ class ListQuerySnapshotHandlerFunctionTest {
         val handlerFunction = ListQuerySnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultRequestExceptionHandler,
-        ).create(ListQuerySnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, false))
+        ).create(
+            ListQuerySnapshotRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                false
+            )
+        )
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(ListQuery::class.java) } returns ListQuery(Condition.ALL).toMono()

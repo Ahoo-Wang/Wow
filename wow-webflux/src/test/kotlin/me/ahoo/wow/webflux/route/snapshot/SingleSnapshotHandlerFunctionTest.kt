@@ -5,6 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -26,7 +27,13 @@ class SingleSnapshotHandlerFunctionTest {
         val handlerFunction = SingleSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultRequestExceptionHandler,
-        ).create(SingleSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
+        ).create(
+            SingleSnapshotRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                true
+            )
+        )
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")

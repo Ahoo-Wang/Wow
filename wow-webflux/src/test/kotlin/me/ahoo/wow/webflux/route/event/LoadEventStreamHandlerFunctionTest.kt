@@ -6,6 +6,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -24,7 +25,12 @@ class LoadEventStreamHandlerFunctionTest {
             eventStreamQueryHandler = MockQueryHandler.queryHandler,
             DefaultRequestExceptionHandler
         )
-            .create(LoadEventStreamRouteSpec(MOCK_AGGREGATE_METADATA, aggregateMetadata = MOCK_AGGREGATE_METADATA))
+            .create(
+                LoadEventStreamRouteSpec(
+                    MOCK_AGGREGATE_METADATA,
+                    aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+                )
+            )
         val request = mockk<ServerRequest> {
             every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
             every { pathVariable(RoutePaths.HEAD_VERSION_KEY) } returns "0"

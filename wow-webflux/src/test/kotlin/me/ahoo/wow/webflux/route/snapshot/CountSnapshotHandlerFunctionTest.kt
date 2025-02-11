@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -23,7 +24,13 @@ class CountSnapshotHandlerFunctionTest {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultRequestExceptionHandler,
-        ).create(CountSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
+        ).create(
+            CountSnapshotRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                true
+            )
+        )
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns null
             every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null

@@ -44,7 +44,7 @@ class CommandWaitRouteSpec(
 
 class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     companion object {
-        val ID = RouteIdSpec()
+        private val ID = RouteIdSpec()
             .prefix(Wow.WOW)
             .resourceName("command")
             .operation("wait")

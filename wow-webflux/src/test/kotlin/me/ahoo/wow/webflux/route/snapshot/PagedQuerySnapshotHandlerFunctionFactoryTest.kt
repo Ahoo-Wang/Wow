@@ -5,6 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -24,7 +25,13 @@ class PagedQuerySnapshotHandlerFunctionFactoryTest {
         val handlerFunction = PagedQuerySnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             exceptionHandler = DefaultRequestExceptionHandler,
-        ).create(PagedQuerySnapshotRouteSpec(MOCK_AGGREGATE_METADATA, MOCK_AGGREGATE_METADATA, true))
+        ).create(
+            PagedQuerySnapshotRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                true
+            )
+        )
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
             every { bodyToMono(PagedQuery::class.java) } returns PagedQuery(Condition.ALL).toMono()

@@ -27,6 +27,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpec
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -60,7 +61,7 @@ class EventCompensateHandlerFunctionTest {
         ).create(
             EventCompensateRouteSpec(
                 currentContext = MOCK_AGGREGATE_METADATA,
-                aggregateMetadata = MOCK_AGGREGATE_METADATA
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
             )
         )
         val request = mockk<ServerRequest> {
