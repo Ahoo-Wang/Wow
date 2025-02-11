@@ -12,6 +12,7 @@ class MaterializedSnapshotTest {
             contextName = "contextName",
             aggregateName = "aggregateName",
             tenantId = "tenantId",
+            ownerId = "ownerId",
             aggregateId = "aggregateId",
             version = 1,
             eventId = "eventId",
