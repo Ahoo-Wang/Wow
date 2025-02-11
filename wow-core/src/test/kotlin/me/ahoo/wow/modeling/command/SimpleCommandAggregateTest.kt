@@ -21,7 +21,7 @@ import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -29,6 +29,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggreg
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -38,8 +39,8 @@ internal class SimpleCommandAggregateTest {
     private val eventStore: EventStore = InMemoryEventStore()
 
     @Test
-    fun handle() {
-        val mockCommandAggregate = MockCommandAggregate(GlobalIdGenerator.generateAsString())
+    fun process() {
+        val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
             state = simpleStateAggregate,
@@ -48,7 +49,7 @@ internal class SimpleCommandAggregateTest {
             metadata = aggregateMetadata.command,
         )
         val create = Create(mockCommandAggregate.id(), "create")
-        val commandMessage = create.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val commandMessage = create.toCommandMessage(generateGlobalId())
         commandAggregate.process(
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
@@ -63,8 +64,8 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun handleGivenExpectedVersion() {
-        val mockCommandAggregate = MockCommandAggregate(GlobalIdGenerator.generateAsString())
+    fun processGivenExpectedVersion() {
+        val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
             state = simpleStateAggregate,
@@ -73,11 +74,11 @@ internal class SimpleCommandAggregateTest {
             metadata = aggregateMetadata.command,
         )
         val create = Create(mockCommandAggregate.id(), "create")
-        val createCommand = create.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val createCommand = create.toCommandMessage(generateGlobalId())
         commandAggregate.process(SimpleServerCommandExchange(createCommand)).block()
 
         val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
-        val commandMessage = changeState.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val commandMessage = changeState.toCommandMessage(generateGlobalId())
         commandAggregate.process(
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
@@ -91,7 +92,7 @@ internal class SimpleCommandAggregateTest {
 
     @Test
     fun handleGivenExpectedVersionExpectFail() {
-        val mockCommandAggregate = MockCommandAggregate(GlobalIdGenerator.generateAsString())
+        val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
             state = simpleStateAggregate,
@@ -100,7 +101,7 @@ internal class SimpleCommandAggregateTest {
             metadata = aggregateMetadata.command,
         )
         val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
-        val commandMessage = changeState.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val commandMessage = changeState.toCommandMessage(generateGlobalId())
 
         var thrown = false
         try {
@@ -127,9 +128,8 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun handleWithExternalService() {
-        serviceProvider.register(ExternalService())
-        val mockCommandAggregate = MockCommandAggregate(GlobalIdGenerator.generateAsString())
+    fun processGivenOwnerId() {
+        val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
             state = simpleStateAggregate,
@@ -138,11 +138,38 @@ internal class SimpleCommandAggregateTest {
             metadata = aggregateMetadata.command,
         )
         val create = Create(mockCommandAggregate.id(), "create")
-        val createCommand = create.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val createCommand = create.toCommandMessage(generateGlobalId(), ownerId = generateGlobalId())
+        commandAggregate.process(SimpleServerCommandExchange(createCommand)).block()
+        assertThat(mockCommandAggregate.state(), equalTo(create.state))
+        assertThat(simpleStateAggregate.version, equalTo(1))
+        assertThat(simpleStateAggregate.ownerId, equalTo(createCommand.ownerId))
+
+        val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
+        val commandMessage = changeState.toCommandMessage(generateGlobalId(), ownerId = generateGlobalId())
+        Assertions.assertThrows(IllegalAccessOwnerAggregateException::class.java) {
+            commandAggregate.process(
+                SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
+            ).block()
+        }
+    }
+
+    @Test
+    fun handleWithExternalService() {
+        serviceProvider.register(ExternalService())
+        val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
+        val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
+        val commandAggregate = SimpleCommandAggregate(
+            state = simpleStateAggregate,
+            commandRoot = mockCommandAggregate,
+            eventStore = eventStore,
+            metadata = aggregateMetadata.command,
+        )
+        val create = Create(mockCommandAggregate.id(), "create")
+        val createCommand = create.toCommandMessage(generateGlobalId())
         commandAggregate.process(SimpleServerCommandExchange(createCommand).setServiceProvider(serviceProvider)).block()
 
         val changeState = ChangeStateDependExternalService(mockCommandAggregate.id(), "change")
-        val commandMessage = changeState.toCommandMessage(GlobalIdGenerator.generateAsString())
+        val commandMessage = changeState.toCommandMessage(generateGlobalId())
         commandAggregate.process(
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
