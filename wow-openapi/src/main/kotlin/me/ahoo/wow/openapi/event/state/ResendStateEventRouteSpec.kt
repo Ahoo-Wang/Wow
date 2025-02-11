@@ -34,6 +34,8 @@ class ResendStateEventRouteSpec(
             .build()
     override val method: String
         get() = Https.Method.POST
+    override val appendOwnerPath: Boolean
+        get() = false
     override val summary: String
         get() = "Resend State Event"
     override val appendPathSuffix: String

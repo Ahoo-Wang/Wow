@@ -37,6 +37,8 @@ class BatchRegenerateSnapshotRouteSpec(
 
     override val method: String
         get() = Https.Method.PUT
+    override val appendOwnerPath: Boolean
+        get() = false
     override val appendPathSuffix: String
         get() = "snapshot/{$BATCH_AFTER_ID}/{$BATCH_LIMIT}"
 }
