@@ -17,12 +17,14 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendIdPathParameter
+import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendOwnerPathParameter
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
@@ -32,6 +34,8 @@ import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
 const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
+const val OWNER_PATH_VARIABLE = "{${MessageRecords.OWNER_ID}}"
+const val OWNER_PATH_PREFIX = "owner/$OWNER_PATH_VARIABLE"
 const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
 interface AggregateRouteSpec : RouteSpec {
@@ -50,6 +54,8 @@ interface AggregateRouteSpec : RouteSpec {
         }
     val appendTenantPath: Boolean
         get() = aggregateMetadata.staticTenantId.isNullOrBlank()
+    val appendOwnerPath: Boolean
+        get() = aggregateRouteMetadata.owner != AggregateRoute.Owner.NEVER
     val appendIdPath: Boolean
         get() = false
     val appendPathSuffix: String
@@ -64,6 +70,9 @@ interface AggregateRouteSpec : RouteSpec {
             if (appendTenantPath) {
                 pathBuilder.append(TENANT_PATH_PREFIX)
             }
+            if (appendOwnerPath) {
+                pathBuilder.append(OWNER_PATH_PREFIX)
+            }
             pathBuilder.append(namedAggregate.aggregateName)
             if (appendIdPath) {
                 pathBuilder.append(ID_PATH_VARIABLE)
@@ -77,6 +86,7 @@ interface AggregateRouteSpec : RouteSpec {
         get() {
             return mutableListOf<Parameter>()
                 .appendTenantPathParameter(appendTenantPath)
+                .appendOwnerPathParameter(appendOwnerPath)
                 .appendIdPathParameter(appendIdPath)
         }
 }
@@ -96,12 +106,67 @@ abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
             return this
         }
 
+        fun MutableList<Parameter>.appendOwnerPathParameter(appendOwnerPath: Boolean): MutableList<Parameter> {
+            if (appendOwnerPath.not()) {
+                return this
+            }
+            withParameter(MessageRecords.OWNER_ID, ParameterIn.PATH, StringSchema()) {
+                it.required(true)
+            }
+            return this
+        }
+
         fun MutableList<Parameter>.appendIdPathParameter(appendIdPath: Boolean): MutableList<Parameter> {
             if (appendIdPath.not()) {
                 return this
             }
             withParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema())
             return this
+        }
+    }
+}
+
+abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+
+    abstract fun createSpec(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        appendTenantPath: Boolean,
+        appendOwnerPath: Boolean
+    ): AggregateRouteSpec
+
+    override fun create(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
+    ): List<RouteSpec> {
+        val defaultRouteSpec = createSpec(
+            currentContext = currentContext,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            appendTenantPath = false,
+            appendOwnerPath = false
+        )
+        return buildList {
+            add(defaultRouteSpec)
+            val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
+            if (appendTenantPath) {
+                val tenantRouteSpec = createSpec(
+                    currentContext = currentContext,
+                    aggregateRouteMetadata = aggregateRouteMetadata,
+                    appendTenantPath = true,
+                    appendOwnerPath = false
+                )
+                add(tenantRouteSpec)
+            }
+            val appendOwnerPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.NEVER
+            if (appendOwnerPath) {
+                val ownerRouteSpec = createSpec(
+                    currentContext = currentContext,
+                    aggregateRouteMetadata = aggregateRouteMetadata,
+                    appendTenantPath = false,
+                    appendOwnerPath = true
+                )
+                add(ownerRouteSpec)
+            }
         }
     }
 }

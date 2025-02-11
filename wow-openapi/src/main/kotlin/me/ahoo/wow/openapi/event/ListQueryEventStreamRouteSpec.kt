@@ -17,25 +17,26 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class ListQueryEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    override val appendTenantPath: Boolean
+    override val appendTenantPath: Boolean,
+    override val appendOwnerPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendOwner(appendOwnerPath)
             .resourceName("event")
             .operation("list_query")
             .build()
@@ -53,18 +54,18 @@ class ListQueryEventStreamRouteSpec(
         get() = ApiResponses().with(DOMAIN_EVENT_STREAM_ARRAY_RESPONSE)
 }
 
-class ListQueryEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-
-    override fun create(
+class ListQueryEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+    override fun createSpec(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): List<RouteSpec> {
-        val defaultRouteSpec = ListQueryEventStreamRouteSpec(currentContext, aggregateRouteMetadata, false)
-        val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
-        if (appendTenantPath) {
-            val tenantRouteSpec = ListQueryEventStreamRouteSpec(currentContext, aggregateRouteMetadata, true)
-            return listOf(defaultRouteSpec, tenantRouteSpec)
-        }
-        return listOf(defaultRouteSpec)
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        appendTenantPath: Boolean,
+        appendOwnerPath: Boolean
+    ): AggregateRouteSpec {
+        return ListQueryEventStreamRouteSpec(
+            currentContext = currentContext,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            appendTenantPath = appendTenantPath,
+            appendOwnerPath = appendOwnerPath
+        )
     }
 }

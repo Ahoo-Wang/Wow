@@ -29,7 +29,8 @@ class CountSnapshotHandlerFunctionTest {
             CountSnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-                true
+                appendTenantPath = true,
+                appendOwnerPath = false
             )
         )
         val request = mockk<ServerRequest> {
