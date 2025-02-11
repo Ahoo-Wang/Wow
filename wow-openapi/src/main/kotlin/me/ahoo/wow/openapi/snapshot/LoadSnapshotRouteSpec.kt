@@ -16,7 +16,6 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -25,10 +24,11 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class LoadSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -62,9 +62,9 @@ class LoadSnapshotRouteSpec(
 class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        val routeSpec = LoadSnapshotRouteSpec(currentContext, aggregateMetadata)
+        val routeSpec = LoadSnapshotRouteSpec(currentContext, aggregateRouteMetadata)
         routeSpec.responseSchemaRef.schemas.mergeSchemas()
         return listOf(routeSpec)
     }

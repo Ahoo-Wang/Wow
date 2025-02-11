@@ -14,16 +14,16 @@
 package me.ahoo.wow.openapi.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class ResendStateEventRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : BatchRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -44,8 +44,8 @@ class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<ResendStateEventRouteSpec> {
-        return listOf(ResendStateEventRouteSpec(currentContext, aggregateMetadata))
+        return listOf(ResendStateEventRouteSpec(currentContext, aggregateRouteMetadata))
     }
 }

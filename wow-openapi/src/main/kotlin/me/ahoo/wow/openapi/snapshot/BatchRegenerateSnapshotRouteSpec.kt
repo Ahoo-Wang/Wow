@@ -14,17 +14,17 @@
 package me.ahoo.wow.openapi.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class BatchRegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : BatchRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -44,8 +44,8 @@ class BatchRegenerateSnapshotRouteSpec(
 class BatchRegenerateSnapshotRouteSpecFactory : BatchRouteSpecFactory() {
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<BatchRegenerateSnapshotRouteSpec> {
-        return listOf(BatchRegenerateSnapshotRouteSpec(currentContext, aggregateMetadata))
+        return listOf(BatchRegenerateSnapshotRouteSpec(currentContext, aggregateRouteMetadata))
     }
 }

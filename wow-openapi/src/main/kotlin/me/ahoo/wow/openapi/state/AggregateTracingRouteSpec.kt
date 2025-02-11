@@ -17,7 +17,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -25,10 +24,11 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class AggregateTracingRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -59,9 +59,9 @@ class AggregateTracingRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        val routeSpec = AggregateTracingRouteSpec(currentContext, aggregateMetadata)
+        val routeSpec = AggregateTracingRouteSpec(currentContext, aggregateRouteMetadata)
         routeSpec.responseSchemaRef.schemas.mergeSchemas()
         return listOf(routeSpec)
     }

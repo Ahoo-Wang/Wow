@@ -11,14 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.api.annotation
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
+import java.lang.annotation.Inherited
 
-interface AggregateRouteSpecFactory : RouteSpecFactory {
-    fun create(
-        currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): List<RouteSpec>
+@Target(AnnotationTarget.CLASS)
+@Inherited
+@MustBeDocumented
+annotation class AggregateRoute(
+    val owner: Owner = Owner.ALWAYS
+) {
+
+    enum class Owner {
+        NEVER,
+        ALWAYS,
+
+        /**
+         * owner id is aggregate Id
+         */
+        AGGREGATE_ID
+    }
 }

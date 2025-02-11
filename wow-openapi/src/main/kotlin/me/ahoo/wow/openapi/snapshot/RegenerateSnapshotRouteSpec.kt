@@ -16,16 +16,16 @@ package me.ahoo.wow.openapi.snapshot
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class RegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -52,8 +52,8 @@ class RegenerateSnapshotRouteSpec(
 class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        return listOf(RegenerateSnapshotRouteSpec(currentContext, aggregateMetadata))
+        return listOf(RegenerateSnapshotRouteSpec(currentContext, aggregateRouteMetadata))
     }
 }

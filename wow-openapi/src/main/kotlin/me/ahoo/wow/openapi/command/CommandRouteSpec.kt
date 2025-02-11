@@ -27,7 +27,6 @@ import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -59,6 +58,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEX
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
 import me.ahoo.wow.openapi.toJsonContent
@@ -66,7 +66,7 @@ import me.ahoo.wow.serialization.MessageRecords
 
 class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     val commandRouteMetadata: CommandRouteMetadata<*>,
 ) : AggregateRouteSpec {
 
@@ -298,7 +298,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     private fun Class<*>.toCommandRouteSpec(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): CommandRouteSpec? {
         val commandRouteMetadata = commandRouteMetadata()
         if (!commandRouteMetadata.enabled) {
@@ -306,33 +306,34 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         }
         return CommandRouteSpec(
             currentContext = currentContext,
-            aggregateMetadata = aggregateMetadata,
+            aggregateRouteMetadata = aggregateRouteMetadata,
             commandRouteMetadata = commandRouteMetadata
         )
     }
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
+        val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         aggregateMetadata.state.aggregateType.toSchemaRef().schemas.mergeSchemas()
         return buildList {
             aggregateMetadata.command.registeredCommands
                 .forEach { commandType ->
-                    commandType.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                    commandType.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
                         it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
 
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
-                DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }
             }
             if (!aggregateMetadata.command.registeredRecoverAggregate) {
-                DefaultRecoverAggregate::class.java.toCommandRouteSpec(currentContext, aggregateMetadata)?.let {
+                DefaultRecoverAggregate::class.java.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
                     it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }

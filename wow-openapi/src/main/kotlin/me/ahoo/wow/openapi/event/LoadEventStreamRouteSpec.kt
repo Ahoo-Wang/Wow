@@ -18,7 +18,6 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -30,10 +29,11 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class LoadEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
 
     override val id: String
@@ -67,9 +67,9 @@ class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        return listOf(LoadEventStreamRouteSpec(currentContext, aggregateMetadata))
+        return listOf(LoadEventStreamRouteSpec(currentContext, aggregateRouteMetadata))
     }
 
     companion object {

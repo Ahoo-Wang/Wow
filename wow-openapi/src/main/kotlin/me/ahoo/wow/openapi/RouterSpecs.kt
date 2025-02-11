@@ -19,8 +19,8 @@ import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -92,9 +92,9 @@ class RouterSpecs(
     private fun buildAggregateRouteSpec() {
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
-            val aggregateMetadata = aggregateType.aggregateMetadata<Any, Any>()
+            val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
             AggregateRouteSpecFactoryProvider.get().forEach { aggregateRouteSpecFactory ->
-                aggregateRouteSpecFactory.create(currentContext, aggregateMetadata).forEach { routeSpec ->
+                aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
                     add(routeSpec)
                 }
             }

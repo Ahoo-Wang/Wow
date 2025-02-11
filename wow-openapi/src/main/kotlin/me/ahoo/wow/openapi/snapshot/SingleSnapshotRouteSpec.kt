@@ -18,7 +18,6 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -28,10 +27,11 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class SingleSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
@@ -66,12 +66,12 @@ class SingleSnapshotRouteSpec(
 class SingleSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        val defaultRouteSpec = SingleSnapshotRouteSpec(currentContext, aggregateMetadata, false)
-        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        val defaultRouteSpec = SingleSnapshotRouteSpec(currentContext, aggregateRouteMetadata, false)
+        val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
         if (appendTenantPath) {
-            val tenantRouteSpec = SingleSnapshotRouteSpec(currentContext, aggregateMetadata, true)
+            val tenantRouteSpec = SingleSnapshotRouteSpec(currentContext, aggregateRouteMetadata, true)
             return listOf(defaultRouteSpec, tenantRouteSpec)
         }
         return listOf(defaultRouteSpec)

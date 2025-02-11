@@ -11,24 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.annotation
+package me.ahoo.wow.openapi.route
 
-import java.lang.annotation.Inherited
+import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 
-@Target(AnnotationTarget.CLASS)
-@Inherited
-@MustBeDocumented
-annotation class ResourceOwner(
-    val appendPath: AppendPath = AppendPath.ALWAYS
-) {
+data class AggregateRouteMetadata<C : Any>(
+    val aggregateMetadata: AggregateMetadata<C, *>,
+    val owner: AggregateRoute.Owner
+) : me.ahoo.wow.metadata.Metadata {
 
-    enum class AppendPath {
-        NEVER,
-        ALWAYS,
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-        /**
-         * owner id is aggregate Id
-         */
-        AGGREGATE_ID
+        other as AggregateRouteMetadata<*>
+
+        return aggregateMetadata == other.aggregateMetadata
+    }
+
+    override fun hashCode(): Int {
+        return aggregateMetadata.hashCode()
     }
 }

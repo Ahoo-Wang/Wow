@@ -19,7 +19,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -31,11 +30,12 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_REQUEST
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
 class EventCompensateRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
 
     override val id: String
@@ -70,8 +70,8 @@ class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        return listOf(EventCompensateRouteSpec(currentContext, aggregateMetadata))
+        return listOf(EventCompensateRouteSpec(currentContext, aggregateRouteMetadata))
     }
 }
