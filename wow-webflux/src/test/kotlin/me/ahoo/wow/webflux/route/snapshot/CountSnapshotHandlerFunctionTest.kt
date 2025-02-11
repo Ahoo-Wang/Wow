@@ -3,6 +3,7 @@ package me.ahoo.wow.webflux.route.snapshot
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
@@ -34,6 +35,7 @@ class CountSnapshotHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns null
             every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
             every { bodyToMono(Condition::class.java) } returns Condition.ALL.toMono()
         }
 

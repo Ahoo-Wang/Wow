@@ -15,6 +15,8 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
@@ -25,9 +27,18 @@ internal class RewriteRequestCondition(
 
     fun <Q : RewritableCondition<Q>> rewrite(rewritableCondition: Q): Q {
         val tenantId = request.getTenantId(aggregateMetadata)
-        if (tenantId.isNullOrBlank()) {
+        val ownerId = request.getOwnerId()
+        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank()) {
             return rewritableCondition
         }
-        return rewritableCondition.appendTenantId(tenantId)
+        val appendCondition = condition {
+            if (!tenantId.isNullOrBlank()) {
+                tenantId(tenantId)
+            }
+            if (!ownerId.isNullOrBlank()) {
+                ownerId(ownerId)
+            }
+        }
+        return rewritableCondition.appendCondition(appendCondition)
     }
 }
