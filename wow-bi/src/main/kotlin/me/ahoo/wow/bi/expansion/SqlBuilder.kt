@@ -35,6 +35,7 @@ class SqlBuilder(
             MetadataColumn.ID_COLUMN,
             MetadataColumn.AGGREGATE_ID_COLUMN,
             MetadataColumn.TENANT_ID_COLUMN,
+            MetadataColumn.OWNER_ID_COLUMN,
             MetadataColumn.COMMAND_ID_COLUMN,
             MetadataColumn.REQUEST_ID_COLUMN,
             MetadataColumn.VERSION_COLUMN,

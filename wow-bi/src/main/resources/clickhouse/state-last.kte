@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS bi_db."${localTableName}" ON CLUSTER '{cluster}'
     header           ${headerSqlType.sqlType},
     aggregate_id     String,
     tenant_id        String,
+    owner_id         String,
     command_id       String,
     request_id       String,
     version          UInt32,
