@@ -22,7 +22,6 @@ import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -37,10 +36,9 @@ class ListQueryHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
         return request.bodyToMono(ListQuery::class.java)
             .flatMap {
-                val query = if (tenantId == null) it else it.appendTenantId(tenantId)
+                val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
                 val result = queryHandler.dynamicList(aggregateMetadata, query)
                 rewriteResult(result)
                     .collectList()
