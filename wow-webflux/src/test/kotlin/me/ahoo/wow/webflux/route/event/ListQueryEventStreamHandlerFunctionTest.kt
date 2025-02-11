@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
@@ -37,6 +38,7 @@ class ListQueryEventStreamHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns null
             every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
             every { bodyToMono(ListQuery::class.java) } returns ListQuery(Condition.ALL).toMono()
         }
         handlerFunction.handle(request)
