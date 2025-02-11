@@ -13,51 +13,18 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.PagedQuerySnapshotStateRouteSpec
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocumentPagedList
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.toServerResponse
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.getTenantId
-import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Mono
-
-class PagedQuerySnapshotStateHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : HandlerFunction<ServerResponse> {
-
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(PagedQuery::class.java)
-            .flatMap {
-                val pagedQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
-                snapshotQueryHandler.dynamicPaged(aggregateMetadata, pagedQuery)
-                    .toStateDocumentPagedList()
-                    .writeRawRequest(request)
-            }.toServerResponse(request, exceptionHandler)
-    }
-}
+import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
 
 class PagedQuerySnapshotStateHandlerFunctionFactory(
-    private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<PagedQuerySnapshotStateRouteSpec> {
-    override val supportedSpec: Class<PagedQuerySnapshotStateRouteSpec>
-        get() = PagedQuerySnapshotStateRouteSpec::class.java
-
-    override fun create(spec: PagedQuerySnapshotStateRouteSpec): HandlerFunction<ServerResponse> {
-        return PagedQuerySnapshotStateHandlerFunction(
-            spec.aggregateMetadata,
-            snapshotQueryHandler,
-            exceptionHandler
-        )
-    }
-}
+    snapshotQueryHandler: SnapshotQueryHandler,
+    exceptionHandler: RequestExceptionHandler
+) : PagedQueryHandlerFunctionFactory<PagedQuerySnapshotStateRouteSpec>(
+    supportedSpec = PagedQuerySnapshotStateRouteSpec::class.java,
+    queryHandler = snapshotQueryHandler,
+    exceptionHandler = exceptionHandler,
+    rewriteResult = { it.toStateDocumentPagedList() }
+)

@@ -13,53 +13,18 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpec
-import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.toServerResponse
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.getTenantId
-import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Mono
-
-class SingleSnapshotStateHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : HandlerFunction<ServerResponse> {
-
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(SingleQuery::class.java)
-            .flatMap {
-                val singleQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
-                snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
-                    .toStateDocument()
-                    .writeRawRequest(request)
-                    .throwNotFoundIfEmpty()
-            }.toServerResponse(request, exceptionHandler)
-    }
-}
+import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 
 class SingleSnapshotStateHandlerFunctionFactory(
-    private val snapshotQueryHandler: SnapshotQueryHandler,
-    private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<SingleSnapshotStateRouteSpec> {
-    override val supportedSpec: Class<SingleSnapshotStateRouteSpec>
-        get() = SingleSnapshotStateRouteSpec::class.java
-
-    override fun create(spec: SingleSnapshotStateRouteSpec): HandlerFunction<ServerResponse> {
-        return SingleSnapshotStateHandlerFunction(
-            spec.aggregateMetadata,
-            snapshotQueryHandler,
-            exceptionHandler
-        )
-    }
-}
+    snapshotQueryHandler: SnapshotQueryHandler,
+    exceptionHandler: RequestExceptionHandler
+) : SingleQueryHandlerFunctionFactory<SingleSnapshotStateRouteSpec>(
+    supportedSpec = SingleSnapshotStateRouteSpec::class.java,
+    queryHandler = snapshotQueryHandler,
+    exceptionHandler = exceptionHandler,
+    rewriteResult = { it.toStateDocument() }
+)
