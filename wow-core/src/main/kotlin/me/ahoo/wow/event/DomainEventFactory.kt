@@ -18,6 +18,7 @@ import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -26,6 +27,7 @@ import me.ahoo.wow.modeling.aggregateId
 @Suppress("LongParameterList")
 fun <T : Any> T.toDomainEvent(
     aggregateId: AggregateId,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     commandId: String,
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
@@ -41,6 +43,7 @@ fun <T : Any> T.toDomainEvent(
         version = version,
         revision = metadata.revision,
         aggregateId = aggregateId,
+        ownerId = ownerId,
         commandId = commandId,
         name = metadata.name,
         sequence = sequence,
@@ -55,6 +58,7 @@ fun <T : Any> T.toDomainEvent(
 fun <T : Any> T.toDomainEvent(
     aggregateId: String,
     tenantId: String,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     commandId: String,
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
@@ -71,6 +75,7 @@ fun <T : Any> T.toDomainEvent(
         version = version,
         revision = metadata.revision,
         aggregateId = namedAggregate.aggregateId(id = aggregateId, tenantId = tenantId),
+        ownerId = ownerId,
         commandId = commandId,
         name = metadata.name,
         sequence = sequence,

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 
 /**
  * Command Message .
@@ -28,6 +29,7 @@ interface CommandMessage<C : Any> :
     NamedMessage<CommandMessage<C>, C>,
     AggregateIdCapable,
     NamedAggregate,
+    OwnerId,
     CommandId,
     RequestId,
     Copyable<CommandMessage<C>> {

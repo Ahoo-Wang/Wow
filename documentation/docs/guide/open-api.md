@@ -26,6 +26,10 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ![Swagger-UI](../public/images/compensation/open-api.png)
 
+## URL Spec
+
+`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+
 ## 全局路由规范
 
 ### GetWowMetadataRouteSpec

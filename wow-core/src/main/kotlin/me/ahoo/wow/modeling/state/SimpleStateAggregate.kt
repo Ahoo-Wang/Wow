@@ -17,6 +17,7 @@ import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
@@ -30,6 +31,7 @@ class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     val metadata: StateAggregateMetadata<S>,
     override val state: S,
+    override var ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override var eventId: String = "",
     override var firstOperator: String = "",
@@ -87,6 +89,7 @@ class SimpleStateAggregate<S : Any>(
         if (domainEvent.body is AggregateRecovered) {
             deleted = false
         }
+        ownerId = domainEvent.ownerId
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
             sourcingFunction.invoke(SimpleDomainEventExchange(domainEvent))

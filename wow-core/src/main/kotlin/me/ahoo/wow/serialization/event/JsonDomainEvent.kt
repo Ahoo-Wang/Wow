@@ -25,6 +25,7 @@ data class JsonDomainEvent(
     val bodyType: String,
     override val body: JsonNode,
     override val aggregateId: AggregateId,
+    override val ownerId: String,
     override val version: Int,
     override val sequence: Int,
     override val revision: String,

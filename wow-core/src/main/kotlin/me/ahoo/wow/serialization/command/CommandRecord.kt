@@ -20,6 +20,7 @@ import me.ahoo.wow.serialization.MessageBodyTypeRecord
 import me.ahoo.wow.serialization.MessageNameRecord
 import me.ahoo.wow.serialization.MessageRequestIdRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.OwnerIdRecord
 
 object CommandRecords {
     const val AGGREGATE_VERSION = "aggregateVersion"
@@ -34,6 +35,7 @@ interface CommandRecord :
     MessageRequestIdRecord,
     MessageAggregateNameRecord,
     MessageAggregateIdRecord,
+    OwnerIdRecord,
     MessageBodyTypeRecord {
     val aggregateVersion: Int?
         get() = actual.get(CommandRecords.AGGREGATE_VERSION)?.asInt()

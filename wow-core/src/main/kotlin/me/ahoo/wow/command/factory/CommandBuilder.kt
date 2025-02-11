@@ -26,6 +26,7 @@ interface CommandBuilder : Identifier {
     val requestId: String?
     val aggregateId: String?
     val tenantId: String?
+    val ownerId: String?
     val aggregateVersion: Int?
     val namedAggregate: NamedAggregate?
     val header: Header
@@ -76,6 +77,12 @@ interface CommandBuilder : Identifier {
      */
     fun tenantId(tenantId: String?): CommandBuilder
 
+    /**
+     * Owner Id
+     *
+     * @see me.ahoo.wow.api.modeling.AggregateId.ownerId
+     */
+    fun ownerId(ownerId: String?): CommandBuilder
     fun tenantIdIfAbsent(tenantId: String): CommandBuilder {
         if (this.tenantId == null) {
             tenantId(tenantId)
@@ -150,6 +157,8 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
         private set
     override var tenantId: String? = null
         private set
+    override var ownerId: String? = null
+        private set
     override var aggregateVersion: Int? = null
         private set
     override var namedAggregate: NamedAggregate? = null
@@ -183,6 +192,11 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
 
     override fun tenantId(tenantId: String?): CommandBuilder {
         this.tenantId = tenantId
+        return this
+    }
+
+    override fun ownerId(ownerId: String?): CommandBuilder {
+        this.ownerId = ownerId
         return this
     }
 

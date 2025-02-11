@@ -24,7 +24,8 @@ import me.ahoo.wow.api.messaging.NamedBoundedContextMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 
 /**
@@ -42,13 +43,14 @@ interface DomainEventStream :
     Version,
     Iterable<DomainEvent<*>>,
     AggregateIdCapable,
+    OwnerId,
     Copyable<DomainEventStream> {
     override val aggregateId: AggregateId
     val size: Int
 }
 
 data class SimpleDomainEventStream(
-    override val id: String = GlobalIdGenerator.generateAsString(),
+    override val id: String = generateGlobalId(),
     override val requestId: String,
     override val header: Header = DefaultHeader.empty(),
     override val body: List<DomainEvent<*>>
@@ -61,7 +63,7 @@ data class SimpleDomainEventStream(
         get() = aggregateId.contextName
     override val aggregateName: String
         get() = aggregateId.aggregateName
-
+    override val ownerId: String
     override val commandId: String
     override val version: Int
     override fun copy(): DomainEventStream {
@@ -75,6 +77,7 @@ data class SimpleDomainEventStream(
         require(body.isNotEmpty()) { "events can not be empty." }
         body.first().let {
             aggregateId = it.aggregateId
+            ownerId = it.ownerId
             commandId = it.commandId
             version = it.version
             createTime = it.createTime

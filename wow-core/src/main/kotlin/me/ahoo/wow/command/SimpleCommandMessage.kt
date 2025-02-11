@@ -17,15 +17,17 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.naming.annotation.toName
 
 data class SimpleCommandMessage<C : Any>(
-    override val id: String = GlobalIdGenerator.generateAsString(),
+    override val id: String = generateGlobalId(),
     override val header: Header = DefaultHeader.empty(),
     override val body: C,
     override val aggregateId: AggregateId,
+    override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     override val requestId: String = id,
     override val aggregateVersion: Int? = null,
     override val name: String = body.javaClass.toName(),

@@ -32,8 +32,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override val commandRoot: C,
     private val eventStore: EventStore,
     private val metadata: CommandAggregateMetadata<C>
-) : CommandAggregate<C, S>,
-    NamedTypedAggregate<C> by metadata {
+) : CommandAggregate<C, S>, NamedTypedAggregate<C> by metadata {
     private companion object {
         private val log: Logger = LoggerFactory.getLogger(SimpleCommandAggregate::class.java)
     }
@@ -60,9 +59,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             if (log.isDebugEnabled) {
                 log.debug("Process {}.", message)
             }
-            if (message.aggregateVersion != null &&
-                message.aggregateVersion != version
-            ) {
+            if (message.aggregateVersion != null && message.aggregateVersion != version) {
                 return@defer CommandExpectVersionConflictException(
                     command = message,
                     expectVersion = message.aggregateVersion!!,
@@ -71,6 +68,9 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             }
             if (!initialized && !message.isCreate && !message.allowCreate) {
                 return@defer NotFoundResourceException("$aggregateId is not initialized.").toMono()
+            }
+            if (initialized && message.ownerId.isNotBlank() && message.ownerId != state.ownerId) {
+                return@defer IllegalAccessOwnerAggregateException(aggregateId).toMono()
             }
             check(commandState == CommandState.STORED) {
                 "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not stored."
@@ -89,24 +89,19 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
             exchange.setFunction(commandFunction)
-            commandFunction
-                .invoke(exchange)
-                .doOnNext {
-                    exchange.setEventStream(it)
-                    /**
-                     * 将领域事件朔源到当前状态聚合根.
-                     */
-                    commandState = commandState.onSourcing(state, it)
-                }
-                .flatMap { eventStream ->
-                    /**
-                     * 持久化事件存储,完成持久化领域事件意味着命令已经完成.
-                     */
-                    commandState.onStore(eventStore, eventStream)
-                        .doOnNext { commandState = it }
-                        .doOnError { commandState = CommandState.EXPIRED }
-                        .thenReturn(eventStream)
-                }
+            commandFunction.invoke(exchange).doOnNext {
+                exchange.setEventStream(it)
+                /**
+                 * 将领域事件朔源到当前状态聚合根.
+                 */
+                commandState = commandState.onSourcing(state, it)
+            }.flatMap { eventStream ->
+                /**
+                 * 持久化事件存储,完成持久化领域事件意味着命令已经完成.
+                 */
+                commandState.onStore(eventStore, eventStream).doOnNext { commandState = it }
+                    .doOnError { commandState = CommandState.EXPIRED }.thenReturn(eventStream)
+            }
         }.errorResume(commandType, exchange)
     }
 
@@ -116,8 +111,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     ): Mono<DomainEventStream> {
         return onErrorResume {
             exchange.setError(it)
-            val errorFunction = errorFunctionRegistry[commandType]
-                ?: return@onErrorResume it.toMono<DomainEventStream>()
+            val errorFunction =
+                errorFunctionRegistry[commandType] ?: return@onErrorResume it.toMono<DomainEventStream>()
             errorFunction.invoke(exchange).then(
                 Mono.defer {
                     exchange.getError()?.toMono() ?: it.toMono<DomainEventStream>()

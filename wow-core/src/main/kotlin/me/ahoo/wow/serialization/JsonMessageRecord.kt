@@ -29,6 +29,7 @@ import me.ahoo.wow.serialization.MessageRecords.CREATE_TIME
 import me.ahoo.wow.serialization.MessageRecords.HEADER
 import me.ahoo.wow.serialization.MessageRecords.ID
 import me.ahoo.wow.serialization.MessageRecords.NAME
+import me.ahoo.wow.serialization.MessageRecords.OWNER_ID
 import me.ahoo.wow.serialization.MessageRecords.REQUEST_ID
 import me.ahoo.wow.serialization.MessageRecords.TENANT_ID
 import me.ahoo.wow.serialization.MessageRecords.VERSION
@@ -50,6 +51,7 @@ object MessageRecords {
     const val AGGREGATE_NAME = "aggregateName"
     const val AGGREGATE_ID = "aggregateId"
     const val TENANT_ID = "tenantId"
+    const val OWNER_ID = "ownerId"
     const val COMMAND_ID = "commandId"
     const val VERSION = "version"
 }
@@ -149,4 +151,9 @@ interface MessageCommandIdRecord : JsonRecord {
 interface MessageVersionRecord : JsonRecord {
     val version: Int
         get() = actual[VERSION].asInt()
+}
+
+interface OwnerIdRecord : JsonRecord {
+    val ownerId: String
+        get() = actual[OWNER_ID]?.asText().orEmpty()
 }

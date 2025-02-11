@@ -15,8 +15,9 @@ package me.ahoo.wow.modeling.state
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.api.modeling.OwnerId
 
-interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, Version {
+interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, OwnerId, Version {
     override val aggregateId: AggregateId
 
     val state: S

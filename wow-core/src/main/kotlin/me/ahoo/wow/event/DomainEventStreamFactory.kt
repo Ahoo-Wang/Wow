@@ -18,7 +18,6 @@ import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
@@ -36,15 +35,33 @@ fun Any.toDomainEventStream(
 
     val events = when (this) {
         is Iterable<*> -> {
-            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
+            toDomainEvents(
+                streamVersion = streamVersion,
+                aggregateId = aggregateId,
+                command = upstream,
+                eventStreamHeader = header,
+                createTime = createTime
+            )
         }
 
         is Array<*> -> {
-            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
+            toDomainEvents(
+                streamVersion = streamVersion,
+                aggregateId = aggregateId,
+                command = upstream,
+                eventStreamHeader = header,
+                createTime = createTime
+            )
         }
 
         else -> {
-            toDomainEvents(streamVersion, aggregateId, upstream, header, createTime)
+            toDomainEvents(
+                streamVersion = streamVersion,
+                aggregateId = aggregateId,
+                command = upstream,
+                eventStreamHeader = header,
+                createTime = createTime
+            )
         }
     }
 
@@ -64,9 +81,10 @@ private fun Any.toDomainEvents(
     createTime: Long
 ): List<DomainEvent<Any>> {
     val domainEvent = this.toDomainEvent(
-        id = GlobalIdGenerator.generateAsString(),
+        id = generateGlobalId(),
         version = streamVersion,
         aggregateId = aggregateId,
+        ownerId = command.ownerId,
         commandId = command.commandId,
         header = eventStreamHeader.copy(),
         createTime = createTime,
@@ -83,11 +101,12 @@ private fun Array<*>.toDomainEvents(
 ) = mapIndexed { index, event ->
     val sequence = (index + DEFAULT_EVENT_SEQUENCE)
     event!!.toDomainEvent(
-        id = GlobalIdGenerator.generateAsString(),
+        id = generateGlobalId(),
         version = streamVersion,
         sequence = sequence,
         isLast = sequence == this.size,
         aggregateId = aggregateId,
+        ownerId = command.ownerId,
         commandId = command.commandId,
         header = eventStreamHeader.copy(),
         createTime = createTime,
@@ -105,11 +124,12 @@ private fun Iterable<*>.toDomainEvents(
     return mapIndexed { index, event ->
         val sequence = (index + DEFAULT_EVENT_SEQUENCE)
         event!!.toDomainEvent(
-            id = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
             version = streamVersion,
             sequence = sequence,
             isLast = sequence == eventCount,
             aggregateId = aggregateId,
+            ownerId = command.ownerId,
             commandId = command.commandId,
             header = eventStreamHeader.copy(),
             createTime = createTime,

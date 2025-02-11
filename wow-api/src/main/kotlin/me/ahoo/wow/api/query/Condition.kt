@@ -71,8 +71,8 @@ data class Condition(
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
         const val ZONE_ID_OPTION_KEY = "zoneId"
         const val DATE_PATTERN_OPTION_KEY = "datePattern"
-        val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
-        val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
+        private val IGNORE_CASE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to true)
+        private val IGNORE_CASE_FALSE_OPTIONS = mapOf(IGNORE_CASE_OPTION_KEY to false)
         fun ignoreCaseOptions(value: Boolean) = if (value) IGNORE_CASE_OPTIONS else IGNORE_CASE_FALSE_OPTIONS
         fun datePatternOptions(value: Any?): Map<String, Any> {
             if (value == null) {
@@ -124,6 +124,7 @@ data class Condition(
 
         fun aggregateIds(vararg value: String) = aggregateIds(value.asList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
+        fun ownerId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.OWNER_ID, value = value)
         fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
         fun today(field: String, datePattern: Any? = null) =
             Condition(field = field, operator = Operator.TODAY, options = datePatternOptions(datePattern))
