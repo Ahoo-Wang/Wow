@@ -20,7 +20,6 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -32,12 +31,13 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpecFactory.Companion.VERSION_PARAMETER
 import me.ahoo.wow.serialization.MessageRecords
 
 class LoadVersionedAggregateRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -85,9 +85,9 @@ class LoadVersionedAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        aggregateMetadata.state.aggregateType.toSchemas().mergeSchemas()
-        return listOf(LoadVersionedAggregateRouteSpec(currentContext, aggregateMetadata))
+        aggregateRouteMetadata.aggregateMetadata.state.aggregateType.toSchemas().mergeSchemas()
+        return listOf(LoadVersionedAggregateRouteSpec(currentContext, aggregateRouteMetadata))
     }
 }

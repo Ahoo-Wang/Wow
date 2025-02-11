@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory.Companion.appendTen
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.Tags.toTags
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
@@ -35,7 +36,9 @@ const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
 interface AggregateRouteSpec : RouteSpec {
     val currentContext: NamedBoundedContext
+    val aggregateRouteMetadata: AggregateRouteMetadata<*>
     val aggregateMetadata: AggregateMetadata<*, *>
+        get() = aggregateRouteMetadata.aggregateMetadata
     override val tags: List<String>
         get() {
             val tags = mutableListOf<String>()

@@ -13,19 +13,20 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.NAMED_AGGREGATE_DELIMITER
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 
 class RouteIdSpec {
 
     private var prefix: String = ""
     private var appendTenant: Boolean = false
+    private var appendOwner: Boolean = false
     private var resourceName: String = ""
     private var operation: String = ""
 
-    fun aggregate(aggregateMetadata: AggregateMetadata<*, *>): RouteIdSpec {
-        return prefix(aggregateMetadata.toStringWithAlias())
+    fun aggregate(namedAggregate: NamedAggregate): RouteIdSpec {
+        return prefix(namedAggregate.toStringWithAlias())
     }
 
     fun prefix(prefix: String): RouteIdSpec {
@@ -56,6 +57,10 @@ class RouteIdSpec {
             if (appendTenant) {
                 append(NAMED_AGGREGATE_DELIMITER)
                 append("tenant")
+            }
+            if (appendOwner) {
+                append(NAMED_AGGREGATE_DELIMITER)
+                append("owner")
             }
             if (resourceName.isNotBlank()) {
                 append(NAMED_AGGREGATE_DELIMITER)

@@ -19,7 +19,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
@@ -28,10 +27,11 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class PagedQueryEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
-    override val aggregateMetadata: AggregateMetadata<*, *>,
+    override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
@@ -65,13 +65,13 @@ class PagedQueryEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory(
 
     override fun create(
         currentContext: NamedBoundedContext,
-        aggregateMetadata: AggregateMetadata<*, *>
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        val defaultRouteSpec = PagedQueryEventStreamRouteSpec(currentContext, aggregateMetadata, false)
+        val defaultRouteSpec = PagedQueryEventStreamRouteSpec(currentContext, aggregateRouteMetadata, false)
         defaultRouteSpec.responseSchemaRef.schemas.mergeSchemas()
-        val appendTenantPath = aggregateMetadata.staticTenantId.isNullOrBlank()
+        val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
         if (appendTenantPath) {
-            val tenantRouteSpec = PagedQueryEventStreamRouteSpec(currentContext, aggregateMetadata, true)
+            val tenantRouteSpec = PagedQueryEventStreamRouteSpec(currentContext, aggregateRouteMetadata, true)
             return listOf(defaultRouteSpec, tenantRouteSpec)
         }
         return listOf(defaultRouteSpec)
