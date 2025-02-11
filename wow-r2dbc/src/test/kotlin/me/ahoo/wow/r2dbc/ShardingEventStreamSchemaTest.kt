@@ -43,9 +43,9 @@ internal class ShardingEventStreamSchemaTest {
             eventStreamSchema.append(namedAggregate.aggregateId("0TEC7cEx0001002")),
             equalTo(
                 """
-        insert into test_event_stream_2 (id,aggregate_id,tenant_id,request_id,command_id,version,header,body,size,create_time) 
+        insert into test_event_stream_2 (id,aggregate_id,tenant_id,owner_id,request_id,command_id,version,header,body,size,create_time) 
         values
-        (?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,?,?,?,?,?,?,?)
     """.trim(),
             ),
         )

@@ -8,7 +8,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
@@ -44,21 +44,23 @@ class CommandFacadeHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { body(CommandFacadeBodyExtractor) } returns Tuples.of(
                 MockCreateAggregate(
-                    id = GlobalIdGenerator.generateAsString(),
-                    data = GlobalIdGenerator.generateAsString(),
+                    id = generateGlobalId(),
+                    data = generateGlobalId(),
                 ) as Any,
                 aggregateMetadata<MockCommandAggregate, MockStateAggregate>() as AggregateMetadata<Any, Any>
             ).toMono()
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns null
             every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns null
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
             every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns true.toString()
             every { headers().firstHeader(CommandRequestHeaders.COMMAND_TYPE) } returns MockCreateAggregate::class.java.name
             every { principal() } returns mockk<Principal> {
-                every { name } returns GlobalIdGenerator.generateAsString()
+                every { name } returns generateGlobalId()
             }.toMono()
             every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
             every { headers().asHttpHeaders() } returns HttpHeaders()

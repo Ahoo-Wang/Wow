@@ -45,11 +45,13 @@ class DefaultCommandMessageParser(
     ): Mono<CommandMessage<Any>> {
         val aggregateId = request.getAggregateId()
         val tenantId = request.getTenantId(aggregateMetadata)
+        val ownerId = request.getOwnerId()
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
         val commandBuilder = commandBody.commandBuilder()
             .aggregateId(aggregateId)
             .tenantId(tenantId)
+            .ownerId(ownerId)
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)

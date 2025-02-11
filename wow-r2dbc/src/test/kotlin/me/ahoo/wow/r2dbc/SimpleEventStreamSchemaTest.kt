@@ -15,8 +15,8 @@ package me.ahoo.wow.r2dbc
 
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleEventStreamSchemaTest {
@@ -37,9 +37,9 @@ internal class SimpleEventStreamSchemaTest {
             eventStreamSchema.append(namedAggregate.aggregateId("")),
             equalTo(
                 """
-        insert into test_event_stream (id,aggregate_id,tenant_id,request_id,command_id,version,header,body,size,create_time) 
+        insert into test_event_stream (id,aggregate_id,tenant_id,owner_id,request_id,command_id,version,header,body,size,create_time) 
         values
-        (?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,?,?,?,?,?,?,?)
     """.trim(),
             ),
         )

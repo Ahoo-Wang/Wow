@@ -18,7 +18,7 @@ import io.mockk.mockk
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.MessageRecords
@@ -40,10 +40,12 @@ class DefaultCommandMessageParserTest {
     fun parse() {
         val request = mockk<ServerRequest> {
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
             every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns 1.toString()
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
             every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
             every { principal() } returns Mono.empty()
@@ -55,8 +57,8 @@ class DefaultCommandMessageParserTest {
         commandMessageParser.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             commandBody = MockCreateAggregate(
-                id = GlobalIdGenerator.generateAsString(),
-                data = GlobalIdGenerator.generateAsString(),
+                id = generateGlobalId(),
+                data = generateGlobalId(),
             ),
             request
         ).test()
@@ -71,7 +73,8 @@ class DefaultCommandMessageParserTest {
         val value = "oms"
         val request = mockk<ServerRequest> {
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
             every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns 1.toString()
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
             every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
@@ -98,8 +101,8 @@ class DefaultCommandMessageParserTest {
         commandMessageParser.parse(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             commandBody = MockCreateAggregate(
-                id = GlobalIdGenerator.generateAsString(),
-                data = GlobalIdGenerator.generateAsString(),
+                id = generateGlobalId(),
+                data = generateGlobalId(),
             ),
             request
         ).test()

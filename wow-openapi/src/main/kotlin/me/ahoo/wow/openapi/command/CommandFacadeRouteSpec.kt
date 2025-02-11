@@ -32,6 +32,7 @@ import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_CONTEXT_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_NAME_PARAMETER
+import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_OWNER_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_TYPE_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
@@ -64,6 +65,7 @@ class CommandFacadeRouteSpec(
                 add(WAIT_PROCESSOR_PARAMETER.ref)
                 add(WAIT_TIME_OUT_PARAMETER.ref)
                 add(TENANT_ID_PARAMETER.ref)
+                add(COMMAND_OWNER_PARAMETER)
                 add(AGGREGATE_ID_PARAMETER.ref)
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)
@@ -106,6 +108,11 @@ class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory {
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema())
             .description("Command Aggregate Name")
+        val COMMAND_OWNER_PARAMETER: Parameter = Parameter()
+            .name(CommandRequestHeaders.OWNER_ID)
+            .`in`(ParameterIn.HEADER.toString())
+            .schema(StringSchema())
+            .description("Resource Owner Id")
         val ID = RouteIdSpec()
             .prefix(Wow.WOW)
             .resourceName("command")
