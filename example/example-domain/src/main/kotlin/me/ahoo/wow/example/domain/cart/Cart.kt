@@ -32,7 +32,7 @@ const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
 @AggregateRoot(commands = [MountedCommand::class, ViewCart::class])
-@AggregateRoute
+@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
 

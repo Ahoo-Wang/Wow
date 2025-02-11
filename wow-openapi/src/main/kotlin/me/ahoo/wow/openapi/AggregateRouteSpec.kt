@@ -120,7 +120,9 @@ abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory {
             if (appendIdPath.not()) {
                 return this
             }
-            withParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema())
+            withParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema()) {
+                it.required(true)
+            }
             return this
         }
     }

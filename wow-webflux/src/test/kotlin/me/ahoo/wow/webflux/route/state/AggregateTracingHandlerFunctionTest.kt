@@ -19,7 +19,6 @@ import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -32,7 +31,6 @@ class AggregateTracingHandlerFunctionTest {
     fun handle() {
         val eventStore = InMemoryEventStore()
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -57,13 +55,13 @@ class AggregateTracingHandlerFunctionTest {
             )
 
         val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.ID_KEY) } returns addCartItem.id
+            every { pathVariable(RoutePaths.ID_KEY) } returns generateGlobalId()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns TenantId.DEFAULT_TENANT_ID
         }
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.OK))
+                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
             }.verifyComplete()
     }
 }

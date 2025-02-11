@@ -14,8 +14,8 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRouteSpec
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
@@ -36,7 +36,7 @@ val DEFAULT_TIME_OUT: Duration = Duration.ofSeconds(30)
  * [org.springframework.web.reactive.function.server.support.RouterFunctionMapping]
  */
 class CommandHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
     private val commandMessageParser: CommandMessageParser,
@@ -56,7 +56,7 @@ class CommandHandlerFunction(
         }.switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
-            handler.handle(request, it, aggregateMetadata)
+            handler.handle(request, it, aggregateRouteMetadata)
         }.toServerResponse(request, exceptionHandler)
     }
 }
@@ -73,7 +73,7 @@ class CommandHandlerFunctionFactory(
     @Suppress("UNCHECKED_CAST")
     override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
         return CommandHandlerFunction(
-            aggregateMetadata = spec.aggregateMetadata,
+            aggregateRouteMetadata = spec.aggregateRouteMetadata,
             commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>,
             commandGateway = commandGateway,
             commandMessageParser = commandMessageParser,

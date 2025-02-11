@@ -18,7 +18,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -32,11 +32,11 @@ class CommandHandler(
     fun handle(
         request: ServerRequest,
         commandBody: Any,
-        aggregateMetadata: AggregateMetadata<*, *>,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
     ): Mono<CommandResult> {
         val commandWaitTimeout = request.getWaitTimeout(timeout)
         return commandMessageParser.parse(
-            aggregateMetadata = aggregateMetadata,
+            aggregateRouteMetadata = aggregateRouteMetadata,
             commandBody = commandBody,
             request = request
         ).flatMap {

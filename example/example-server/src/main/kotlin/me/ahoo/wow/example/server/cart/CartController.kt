@@ -57,10 +57,9 @@ class CartController(
     @PostExchange("/cart/{userId}/customize-send-cmd")
     fun customizeSendCmd(@PathVariable userId: String): Mono<CommandResult> {
         val addCartItem = AddCartItem(
-            id = userId,
             productId = "productId",
             quantity = 1
         )
-        return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage())
+        return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage(ownerId = userId))
     }
 }

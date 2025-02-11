@@ -33,14 +33,10 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CartTest {
-    companion object {
-        const val MOCK_CUSTOMER_ID = "customerId"
-    }
 
     @Test
     fun addCartItem() {
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -58,13 +54,12 @@ class CartTest {
     @Test
     fun testGivenState() {
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
 
         aggregateVerifier<Cart, CartState>()
-            .givenState(CartState(addCartItem.id), 1)
+            .givenState(CartState(generateGlobalId()), 1)
             .`when`(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
@@ -77,7 +72,6 @@ class CartTest {
     @Test
     fun addCartItemIfSameProduct() {
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -103,7 +97,6 @@ class CartTest {
     @Test
     fun addCartItemIfUnCreated() {
         val addCartItem = AddCartItem(
-            id = MOCK_CUSTOMER_ID,
             productId = "productId",
             quantity = 1,
         )
@@ -136,7 +129,6 @@ class CartTest {
             }
         }.toTypedArray()
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )
@@ -178,7 +170,6 @@ class CartTest {
     @Test
     fun changeQuantity() {
         val changeQuantity = ChangeQuantity(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 2,
         )
@@ -204,7 +195,6 @@ class CartTest {
     @Test
     fun onCreateThenDeleteThenRecover() {
         val addCartItem = AddCartItem(
-            id = generateGlobalId(),
             productId = "productId",
             quantity = 1,
         )

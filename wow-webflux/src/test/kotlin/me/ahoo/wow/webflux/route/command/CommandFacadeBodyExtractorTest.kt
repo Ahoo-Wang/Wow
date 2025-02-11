@@ -7,6 +7,7 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -58,7 +59,12 @@ class CommandFacadeBodyExtractorTest {
             .test()
             .consumeNextWith {
                 assertThat(it.t1, isA(MockCreateAggregate::class.java))
-                assertThat(it.t2, equalTo(aggregateMetadata<MockCommandAggregate, MockStateAggregate>()))
+                assertThat(
+                    it.t2,
+                    equalTo(
+                        aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
+                    )
+                )
             }
             .verifyComplete()
     }
@@ -90,7 +96,7 @@ class CommandFacadeBodyExtractorTest {
             .test()
             .consumeNextWith {
                 assertThat(it.t1, isA(DefaultDeleteAggregate::class.java))
-                assertThat(it.t2, equalTo(aggregateMetadata))
+                assertThat(it.t2, equalTo(aggregateMetadata.command.aggregateType.aggregateRouteMetadata()))
             }
             .verifyComplete()
     }
@@ -132,7 +138,12 @@ class CommandFacadeBodyExtractorTest {
             .test()
             .consumeNextWith {
                 assertThat(it.t1, isA(MockCreateAggregate::class.java))
-                assertThat(it.t2, equalTo(aggregateMetadata<MockCommandAggregate, MockStateAggregate>()))
+                assertThat(
+                    it.t2,
+                    equalTo(
+                        aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
+                    )
+                )
             }
             .verifyComplete()
     }
