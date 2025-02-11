@@ -36,6 +36,7 @@ data class MetadataColumn(
         val ID_COLUMN = MetadataColumn("id", STRING_JAVA_TYPE, "String")
         val AGGREGATE_ID_COLUMN = MetadataColumn("aggregate_id", STRING_JAVA_TYPE, "String")
         val TENANT_ID_COLUMN = MetadataColumn("tenant_id", STRING_JAVA_TYPE, "String")
+        val OWNER_ID_COLUMN = MetadataColumn("owner_id", STRING_JAVA_TYPE, "String")
         val COMMAND_ID_COLUMN = MetadataColumn("command_id", STRING_JAVA_TYPE, "String")
         val REQUEST_ID_COLUMN = MetadataColumn("request_id", STRING_JAVA_TYPE, "String")
         val VERSION_COLUMN = MetadataColumn("version", INT_JAVA_TYPE, "Int32")
