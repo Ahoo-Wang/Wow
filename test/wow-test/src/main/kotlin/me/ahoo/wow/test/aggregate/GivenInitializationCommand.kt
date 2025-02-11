@@ -17,15 +17,17 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 
 object GivenInitialization
 
 data class GivenInitializationCommand(
     override val aggregateId: AggregateId,
-    override val id: String = GlobalIdGenerator.generateAsString(),
-    override val requestId: String = GlobalIdGenerator.generateAsString(),
+    override val id: String = generateGlobalId(),
+    override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override val requestId: String = generateGlobalId(),
     override val isCreate: Boolean = true,
     override val allowCreate: Boolean = false,
     override val isVoid: Boolean = false,

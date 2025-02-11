@@ -27,10 +27,10 @@ import me.ahoo.wow.modeling.aggregateId
 @Suppress("LongParameterList")
 fun <T : Any> T.toDomainEvent(
     aggregateId: AggregateId,
-    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     commandId: String,
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
     header: Header = DefaultHeader.empty(),
@@ -58,8 +58,8 @@ fun <T : Any> T.toDomainEvent(
 fun <T : Any> T.toDomainEvent(
     aggregateId: String,
     tenantId: String,
-    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     commandId: String,
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,

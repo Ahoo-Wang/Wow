@@ -75,6 +75,12 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         }
     }
 
+    override fun ownerId(condition: Condition): Query {
+        return term {
+            it.field(MessageRecords.OWNER_ID)
+                .value(FieldValue.of(condition.value))
+        }
+    }
     override fun all(condition: Condition): Query {
         return matchAll { it }
     }

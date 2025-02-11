@@ -31,8 +31,9 @@ fun <S : Any> Snapshot<S>.materialize(): MaterializedSnapshot<S> {
     return MaterializedSnapshot(
         contextName = aggregateId.contextName,
         aggregateName = aggregateId.aggregateName,
-        tenantId = aggregateId.tenantId,
         aggregateId = aggregateId.id,
+        tenantId = aggregateId.tenantId,
+        ownerId = ownerId,
         version = version,
         eventId = eventId,
         firstOperator = firstOperator,
