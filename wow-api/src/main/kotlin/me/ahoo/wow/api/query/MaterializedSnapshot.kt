@@ -23,7 +23,7 @@ data class MaterializedSnapshot<S : Any>(
     override val contextName: String,
     override val aggregateName: String,
     override val tenantId: String,
-    override val ownerId: String,
+    override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     val aggregateId: String,
     override val version: Int,
     val eventId: String,
