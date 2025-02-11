@@ -15,8 +15,10 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE
+import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE
 import me.ahoo.wow.exception.WowException
 
 class CommandExpectVersionConflictException(
@@ -30,9 +32,20 @@ class CommandExpectVersionConflictException(
 )
 
 class IllegalAccessDeletedAggregateException(
-    val aggregateId: AggregateId,
+    override val aggregateId: AggregateId,
     errorMsg: String = "Illegal access to a deleted aggregate[${aggregateId.id}]."
-) : WowException(
+) : AggregateIdCapable, WowException(
     errorCode = ILLEGAL_ACCESS_DELETED_AGGREGATE,
+    errorMsg = errorMsg
+)
+
+/**
+ * 非法访问拥有者聚合根对象异常.
+ */
+class IllegalAccessOwnerAggregateException(
+    override val aggregateId: AggregateId,
+    errorMsg: String = "Illegal access to a owner aggregate[${aggregateId.id}]."
+) : AggregateIdCapable, WowException(
+    errorCode = ILLEGAL_ACCESS_OWNER_AGGREGATE,
     errorMsg = errorMsg
 )

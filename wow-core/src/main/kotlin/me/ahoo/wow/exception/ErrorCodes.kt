@@ -57,6 +57,7 @@ object ErrorCodes {
     const val COMMAND_EXPECT_VERSION_CONFLICT = "CommandExpectVersionConflict"
     const val SOURCING_VERSION_CONFLICT = "SourcingVersionConflict"
     const val ILLEGAL_ACCESS_DELETED_AGGREGATE = "IllegalAccessDeletedAggregate"
+    const val ILLEGAL_ACCESS_OWNER_AGGREGATE = "IllegalAccessOwnerAggregate"
     //endregion
 
     const val INTERNAL_SERVER_ERROR = "InternalServerError"

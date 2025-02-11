@@ -49,6 +49,7 @@ abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(s
         generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateId.aggregateName)
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
         generator.writeStringField(StateAggregateRecords.FIRST_OPERATOR, value.firstOperator)
@@ -75,6 +76,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val metadata = namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
+        val ownerId = stateRecord[MessageRecords.OWNER_ID]?.asText().orEmpty()
         val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
         val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asText().orEmpty()
         val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asText().orEmpty()
@@ -90,6 +92,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val stateAggregate =
             metadata.toStateAggregate(
                 aggregateId = aggregateId,
+                ownerId = ownerId,
                 state = stateRoot,
                 version = version,
                 eventId = eventId,

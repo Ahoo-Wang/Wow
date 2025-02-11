@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -60,6 +61,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         aggregateId: AggregateId,
         state: S,
         version: Int,
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -72,6 +74,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         }
         val stateAggregate = SimpleStateAggregate(
             aggregateId = aggregateId,
+            ownerId = ownerId,
             metadata = metadata,
             state = state,
             version = version,
@@ -102,6 +105,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         aggregateId: AggregateId,
         state: S,
         version: Int,
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -114,6 +118,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             aggregateId = aggregateId,
             state = state,
             version = version,
+            ownerId = ownerId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,
@@ -127,6 +132,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
     fun <S : Any> AggregateMetadata<*, S>.toStateAggregate(
         state: S,
         version: Int,
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -139,6 +145,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             aggregateId = aggregateId,
             state = state,
             version = version,
+            ownerId = ownerId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,
@@ -156,6 +163,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             aggregateId = aggregateId,
             state = state,
             version = version,
+            ownerId = ownerId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,

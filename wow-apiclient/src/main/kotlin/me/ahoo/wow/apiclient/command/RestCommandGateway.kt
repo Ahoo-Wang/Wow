@@ -44,6 +44,8 @@ interface RestCommandGateway<RW, RB> {
         waitTimeout: Long? = null,
         @RequestHeader(CommandRequestHeaders.TENANT_ID, required = false)
         tenantId: String? = null,
+        @RequestHeader(CommandRequestHeaders.OWNER_ID, required = false)
+        ownerId: String?,
         @RequestHeader(CommandRequestHeaders.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
         @RequestHeader(CommandRequestHeaders.AGGREGATE_VERSION, required = false)
@@ -74,6 +76,7 @@ interface RestCommandGateway<RW, RB> {
             waitProcessor = commandRequest.waitStrategy.waitProcessor,
             waitTimeout = commandRequest.waitStrategy.waitTimeout,
             tenantId = commandRequest.tenantId,
+            ownerId = commandRequest.ownerId,
             aggregateId = commandRequest.aggregateId,
             aggregateVersion = commandRequest.aggregateVersion,
             requestId = commandRequest.requestId,

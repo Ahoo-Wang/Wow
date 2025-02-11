@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OwnerId
 
 const val DEFAULT_EVENT_SEQUENCE = 1
 
@@ -37,6 +38,7 @@ const val DEFAULT_EVENT_SEQUENCE = 1
 interface DomainEvent<T : Any> :
     NamedMessage<DomainEvent<T>, T>,
     AggregateIdCapable,
+    OwnerId,
     CommandId,
     NamedAggregate,
     Version,

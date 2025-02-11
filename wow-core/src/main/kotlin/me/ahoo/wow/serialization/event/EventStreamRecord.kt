@@ -28,6 +28,7 @@ import me.ahoo.wow.serialization.MessageCommandIdRecord
 import me.ahoo.wow.serialization.MessageRequestIdRecord
 import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.OwnerIdRecord
 
 interface EventStreamRecord :
     NamedBoundedContextMessageRecord,
@@ -35,6 +36,7 @@ interface EventStreamRecord :
     MessageVersionRecord,
     MessageRequestIdRecord,
     MessageAggregateIdRecord,
+    OwnerIdRecord,
     MessageAggregateNameRecord {
     fun toAggregateId(): AggregateId {
         return MaterializedNamedAggregate(contextName, aggregateName)

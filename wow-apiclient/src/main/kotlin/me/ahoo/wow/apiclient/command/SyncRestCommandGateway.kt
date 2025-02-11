@@ -44,6 +44,8 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
         waitTimeout: Long?,
         @RequestHeader(CommandRequestHeaders.TENANT_ID, required = false)
         tenantId: String?,
+        @RequestHeader(CommandRequestHeaders.OWNER_ID, required = false)
+        ownerId: String?,
         @RequestHeader(CommandRequestHeaders.AGGREGATE_ID, required = false)
         aggregateId: String?,
         @RequestHeader(CommandRequestHeaders.AGGREGATE_VERSION, required = false)

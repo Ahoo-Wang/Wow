@@ -27,6 +27,7 @@ object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent
     override fun writeExtendedInfo(generator: JsonGenerator, value: DomainEvent<*>) {
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeNumberField(DomainEventRecords.SEQUENCE, value.sequence)

@@ -24,6 +24,7 @@ abstract class AbstractEventStreamJsonSerializer<M : DomainEventStream>(messageT
     override fun writeExtendedInfo(generator: JsonGenerator, value: M) {
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
         generator.writeStringField(MessageRecords.REQUEST_ID, value.requestId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)

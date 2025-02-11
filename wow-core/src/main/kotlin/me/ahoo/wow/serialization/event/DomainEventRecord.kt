@@ -30,6 +30,7 @@ import me.ahoo.wow.serialization.MessageIdRecord
 import me.ahoo.wow.serialization.MessageNameRecord
 import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
+import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.toObject
 
 object DomainEventRecords {
@@ -48,6 +49,7 @@ interface DomainEventRecord :
     NamedBoundedContextMessageRecord,
     MessageAggregateNameRecord,
     MessageAggregateIdRecord,
+    OwnerIdRecord,
     MessageCommandIdRecord,
     MessageVersionRecord {
     val sequence: Int
@@ -80,6 +82,7 @@ interface DomainEventRecord :
                 bodyType = bodyType,
                 body = body,
                 aggregateId = aggregateId,
+                ownerId = ownerId,
                 version = version,
                 sequence = sequence,
                 isLast = isLast,
@@ -94,6 +97,7 @@ interface DomainEventRecord :
             header = toMessageHeader(),
             body = body.toObject(bodyType),
             aggregateId = aggregateId,
+            ownerId = ownerId,
             version = version,
             sequence = sequence,
             isLast = isLast,
