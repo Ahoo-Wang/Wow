@@ -60,19 +60,11 @@ class CountEventStreamRouteSpec(
 class CountEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
     override fun createSpec(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): List<RouteSpec> {
-        val defaultRouteSpec = CountEventStreamRouteSpec(currentContext, aggregateRouteMetadata, false)
-        val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
-        if (appendTenantPath) {
-            val tenantRouteSpec = CountEventStreamRouteSpec(currentContext, aggregateRouteMetadata, true)
-            return listOf(defaultRouteSpec, tenantRouteSpec)
-        }
-        return listOf(defaultRouteSpec)
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
+        return CountEventStreamRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
