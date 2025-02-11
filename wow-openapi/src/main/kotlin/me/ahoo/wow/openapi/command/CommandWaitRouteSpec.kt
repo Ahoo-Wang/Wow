@@ -29,43 +29,30 @@ import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
+import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory.Companion.PATH
 
-class CommandWaitRouteSpec(
-    override val id: String,
-    override val path: String,
-    override val method: String,
-    override val summary: String,
-    override val description: String,
-    override val requestBody: RequestBody?,
-    override val responses: ApiResponses
-) : RouteSpec {
+object CommandWaitRouteSpec : RouteSpec {
+    override val id: String = RouteIdSpec()
+        .prefix(Wow.WOW)
+        .resourceName("command")
+        .operation("wait")
+        .build()
+    override val path: String
+        get() = PATH
+    override val method: String
+        get() = Https.Method.POST
+    override val summary: String = "command wait handler"
     override val parameters: List<Parameter> = listOf()
+    override val requestBody: RequestBody = WaitSignal::class.java.toRequestBody()
+    override val responses: ApiResponses = ApiResponses().addApiResponse(
+        Https.Code.OK,
+        ApiResponse().description(ErrorInfo.SUCCEEDED)
+    )
 }
 
 class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
     companion object {
-        private val ID = RouteIdSpec()
-            .prefix(Wow.WOW)
-            .resourceName("command")
-            .operation("wait")
-            .build()
-
         const val PATH = "/${Wow.WOW}/command/wait"
-        const val METHOD = Https.Method.POST
-        const val SUMMARY = "command wait handler"
-        const val DESCRIPTION = ""
-        val CommandWaitRouteSpec = CommandWaitRouteSpec(
-            ID,
-            PATH,
-            METHOD,
-            SUMMARY,
-            DESCRIPTION,
-            WaitSignal::class.java.toRequestBody(),
-            ApiResponses().addApiResponse(
-                Https.Code.OK,
-                ApiResponse().description(ErrorInfo.SUCCEEDED)
-            )
-        )
     }
 
     override val components: Components = createComponents()
