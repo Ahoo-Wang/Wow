@@ -14,8 +14,8 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
@@ -29,33 +29,34 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class PagedQueryHandlerFunction(
+class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>>
+    private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantId(aggregateMetadata)
-        return request.bodyToMono(PagedQuery::class.java)
+        return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val pagedQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
-                val result = queryHandler.dynamicPaged(aggregateMetadata, pagedQuery)
+                val singleQuery = if (tenantId == null) it else it.appendTenantId(tenantId)
+                val result = queryHandler.dynamicSingle(aggregateMetadata, singleQuery)
                 rewriteResult(result)
                     .writeRawRequest(request)
+                    .throwNotFoundIfEmpty()
             }.toServerResponse(request, exceptionHandler)
     }
 }
 
-open class PagedQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
+open class SingleQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
     private val queryHandler: QueryHandler<*>,
     private val exceptionHandler: RequestExceptionHandler,
-    private val rewriteResult: (Mono<PagedList<DynamicDocument>>) -> Mono<PagedList<DynamicDocument>> = { it }
+    private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
 ) : RouteHandlerFunctionFactory<SPEC> {
     override fun create(spec: SPEC): HandlerFunction<ServerResponse> {
-        return PagedQueryHandlerFunction(
+        return SingleQueryHandlerFunction(
             aggregateMetadata = spec.aggregateMetadata,
             queryHandler = queryHandler,
             exceptionHandler = exceptionHandler,
