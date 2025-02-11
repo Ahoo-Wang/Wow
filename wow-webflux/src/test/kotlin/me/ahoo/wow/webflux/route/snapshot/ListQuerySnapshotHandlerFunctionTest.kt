@@ -30,7 +30,8 @@ class ListQuerySnapshotHandlerFunctionTest {
             ListQuerySnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-                false
+                appendTenantPath = true,
+                appendOwnerPath = false
             )
         )
         val request = mockk<ServerRequest> {

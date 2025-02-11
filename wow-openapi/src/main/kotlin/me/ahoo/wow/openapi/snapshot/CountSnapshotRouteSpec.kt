@@ -30,12 +30,14 @@ import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 class CountSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    override val appendTenantPath: Boolean
+    override val appendTenantPath: Boolean,
+    override val appendOwnerPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendOwner(appendOwnerPath)
             .resourceName("snapshot")
             .operation("count")
             .build()
@@ -62,10 +64,20 @@ class CountSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        val defaultRouteSpec = CountSnapshotRouteSpec(currentContext, aggregateRouteMetadata, false)
+        val defaultRouteSpec = CountSnapshotRouteSpec(
+            currentContext = currentContext,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            appendTenantPath = false,
+            appendOwnerPath = false
+        )
         val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
         if (appendTenantPath) {
-            val tenantRouteSpec = CountSnapshotRouteSpec(currentContext, aggregateRouteMetadata, true)
+            val tenantRouteSpec = CountSnapshotRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                appendTenantPath = true,
+                appendOwnerPath = false
+            )
             return listOf(defaultRouteSpec, tenantRouteSpec)
         }
         return listOf(defaultRouteSpec)

@@ -34,8 +34,13 @@ class RouteIdSpec {
         return this
     }
 
-    fun appendTenant(appendTenantId: Boolean): RouteIdSpec {
-        this.appendTenant = appendTenantId
+    fun appendTenant(appendTenant: Boolean): RouteIdSpec {
+        this.appendTenant = appendTenant
+        return this
+    }
+
+    fun appendOwner(appendOwner: Boolean): RouteIdSpec {
+        this.appendOwner = appendOwner
         return this
     }
 

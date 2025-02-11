@@ -18,24 +18,25 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class CountEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    override val appendTenantPath: Boolean
+    override val appendTenantPath: Boolean,
+    override val appendOwnerPath: Boolean
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendOwner(appendOwnerPath)
             .resourceName("event")
             .operation("count")
             .build()
@@ -56,9 +57,8 @@ class CountEventStreamRouteSpec(
         }
 }
 
-class CountEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-
-    override fun create(
+class CountEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+    override fun createSpec(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
@@ -69,5 +69,14 @@ class CountEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             return listOf(defaultRouteSpec, tenantRouteSpec)
         }
         return listOf(defaultRouteSpec)
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        appendTenantPath: Boolean,
+        appendOwnerPath: Boolean
+    ): AggregateRouteSpec {
+            currentContext = currentContext,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            appendTenantPath = appendTenantPath,
+            appendOwnerPath = appendOwnerPath
+        )
     }
 }
