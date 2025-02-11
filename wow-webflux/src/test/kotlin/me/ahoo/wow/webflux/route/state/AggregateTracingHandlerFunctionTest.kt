@@ -12,6 +12,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.`when`
@@ -51,7 +52,7 @@ class AggregateTracingHandlerFunctionTest {
             .create(
                 AggregateTracingRouteSpec(
                     aggregateMetadata<Cart, CartState>(),
-                    aggregateMetadata<Cart, CartState>()
+                    aggregateMetadata<Cart, CartState>().command.aggregateType.aggregateRouteMetadata()
                 )
             )
 

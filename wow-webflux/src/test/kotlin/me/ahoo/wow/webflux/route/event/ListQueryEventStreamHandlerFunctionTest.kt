@@ -6,6 +6,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
+import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -29,7 +30,7 @@ class ListQueryEventStreamHandlerFunctionTest {
                 .create(
                     ListQueryEventStreamRouteSpec(
                         MOCK_AGGREGATE_METADATA,
-                        aggregateMetadata = MOCK_AGGREGATE_METADATA,
+                        aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
                         true
                     )
                 )
