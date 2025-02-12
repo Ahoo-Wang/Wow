@@ -59,6 +59,9 @@
         "tenantId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
         "version": {
           "type": "integer"
         }

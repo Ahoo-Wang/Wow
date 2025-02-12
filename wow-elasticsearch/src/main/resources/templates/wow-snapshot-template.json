@@ -27,6 +27,9 @@
         "eventId": {
           "type": "keyword"
         },
+        "ownerId": {
+          "type": "keyword"
+        },
         "firstOperator": {
           "type": "keyword"
         },
