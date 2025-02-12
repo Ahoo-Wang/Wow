@@ -38,6 +38,7 @@ object ErrorHttpStatusMapping {
         register(ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT, HttpStatus.CONFLICT)
         register(ErrorCodes.SOURCING_VERSION_CONFLICT, HttpStatus.CONFLICT)
         register(ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE, HttpStatus.GONE)
+        register(ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE, HttpStatus.FORBIDDEN)
         register(ErrorCodes.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
     }
 
