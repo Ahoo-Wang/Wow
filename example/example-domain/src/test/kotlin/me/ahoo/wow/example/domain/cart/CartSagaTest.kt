@@ -16,11 +16,12 @@ class CartSagaTest {
 
     @Test
     fun onOrderCreated() {
+        val ownerId = generateGlobalId()
         val orderItem = OrderItem(
-            generateGlobalId(),
-            generateGlobalId(),
-            BigDecimal.valueOf(10),
-            10,
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         sagaVerifier<CartSaga>()
             .whenEvent(
@@ -32,9 +33,10 @@ class CartSagaTest {
                         fromCart
                     } returns true
                 },
-                ownerId = generateGlobalId()
+                ownerId = ownerId
             )
             .expectCommand<RemoveCartItem> {
+                assertThat(it.aggregateId.id, equalTo(ownerId))
                 assertThat(it.body.productIds, hasSize(1))
                 assertThat(it.body.productIds.first(), equalTo(orderItem.productId))
             }
@@ -44,10 +46,10 @@ class CartSagaTest {
     @Test
     fun onOrderCreatedWhenNotFromCart() {
         val orderItem = OrderItem(
-            generateGlobalId(),
-            generateGlobalId(),
-            BigDecimal.valueOf(10),
-            10,
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         sagaVerifier<CartSaga>()
             .whenEvent(

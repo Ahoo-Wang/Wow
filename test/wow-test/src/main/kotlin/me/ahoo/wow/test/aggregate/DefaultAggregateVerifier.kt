@@ -14,6 +14,7 @@ package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventStream
@@ -45,19 +46,26 @@ internal class DefaultGivenStage<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider
 ) : GivenStage<S> {
+    private var ownerId: String = OwnerId.DEFAULT_OWNER_ID
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S> {
         serviceProvider.register(serviceName, service)
         return this
     }
 
+    override fun givenOwnerId(ownerId: String): GivenStage<S> {
+        this.ownerId = ownerId
+        return this
+    }
+
     override fun givenEvent(vararg events: Any): WhenStage<S> {
         return DefaultWhenStage(
-            aggregateId,
-            events,
-            metadata,
-            stateAggregateFactory,
-            commandAggregateFactory,
-            serviceProvider,
+            aggregateId = aggregateId,
+            ownerId = ownerId,
+            events = events,
+            metadata = metadata,
+            stateAggregateFactory = stateAggregateFactory,
+            commandAggregateFactory = commandAggregateFactory,
+            serviceProvider = serviceProvider,
         )
     }
 
@@ -65,6 +73,7 @@ internal class DefaultGivenStage<C : Any, S : Any>(
         val stateAggregate = metadata.toStateAggregate(
             state = state,
             version = version,
+            ownerId = ownerId
         )
         return givenState(stateAggregate)
     }
@@ -81,6 +90,7 @@ internal class DefaultGivenStage<C : Any, S : Any>(
 
 internal class DefaultWhenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
+    private val ownerId: String,
     private val events: Array<out Any>,
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
@@ -88,11 +98,12 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     private val serviceProvider: ServiceProvider
 ) : WhenStage<S> {
     @Suppress("UseRequire", "LongMethod")
-    override fun `when`(command: Any, header: Header): ExpectStage<S> {
+    override fun whenCommand(command: Any, header: Header, ownerId: String): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = aggregateId.id,
             namedAggregate = aggregateId.namedAggregate,
             tenantId = aggregateId.tenantId,
+            ownerId = ownerId.ifBlank { this.ownerId },
             header = header,
         )
 
@@ -134,6 +145,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             val initializationCommand =
                 GivenInitializationCommand(
                     aggregateId = commandAggregateId,
+                    ownerId = this.ownerId
                 )
 
             val domainEventStream = events.toDomainEventStream(
@@ -178,14 +190,16 @@ internal class GivenStateWhenStage<C : Any, S : Any>(
     private val serviceProvider: ServiceProvider
 ) : WhenStage<S> {
 
-    override fun `when`(
+    override fun whenCommand(
         command: Any,
-        header: Header
+        header: Header,
+        ownerId: String
     ): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = stateAggregate.aggregateId.id,
             namedAggregate = stateAggregate.aggregateId.namedAggregate,
             tenantId = stateAggregate.aggregateId.tenantId,
+            ownerId = ownerId,
             header = header,
         )
         val commandAggregate = commandAggregateFactory.create(metadata, stateAggregate)
@@ -223,14 +237,21 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider
 ) : VerifiedStage<S>, GivenStage<S> {
+    private var ownerId: String = verifiedResult.stateAggregate.ownerId
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S> {
         serviceProvider.register(serviceName, service)
+        return this
+    }
+
+    override fun givenOwnerId(ownerId: String): GivenStage<S> {
+        this.ownerId = ownerId
         return this
     }
 
     override fun givenEvent(vararg events: Any): WhenStage<S> {
         return DefaultWhenStage(
             aggregateId = verifiedResult.stateAggregate.aggregateId,
+            ownerId = ownerId,
             events = events,
             metadata = metadata,
             stateAggregateFactory = object : StateAggregateFactory {
@@ -251,6 +272,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         val stateAggregate = metadata.toStateAggregate(
             state = state,
             version = version,
+            ownerId = ownerId
         )
         return givenState(stateAggregate)
     }

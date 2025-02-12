@@ -22,7 +22,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleStateDomainEventExchange
 import me.ahoo.wow.event.toDomainEvent
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.accessor.constructor.InjectableObjectFactory
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -54,7 +54,7 @@ internal class DefaultWhenStage<T : Any>(
             return event
         }
         return event.toDomainEvent(
-            aggregateId = GlobalIdGenerator.generateAsString(),
+            aggregateId = generateGlobalId(),
             tenantId = TenantId.DEFAULT_TENANT_ID,
             commandId = STATELESS_SAGA_COMMAND_ID,
             ownerId = ownerId
