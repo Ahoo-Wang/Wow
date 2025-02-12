@@ -22,13 +22,13 @@ annotation class AggregateRoute(
     val owner: Owner = Owner.ALWAYS
 ) {
 
-    enum class Owner {
-        NEVER,
-        ALWAYS,
+    enum class Owner(val owned: Boolean) {
+        NEVER(false),
+        ALWAYS(true),
 
         /**
          * owner id is aggregate Id
          */
-        AGGREGATE_ID
+        AGGREGATE_ID(true)
     }
 }

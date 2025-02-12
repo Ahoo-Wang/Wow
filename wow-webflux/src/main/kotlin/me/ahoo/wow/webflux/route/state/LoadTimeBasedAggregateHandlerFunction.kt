@@ -36,6 +36,7 @@ class LoadTimeBasedAggregateHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
+
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
@@ -48,6 +49,7 @@ class LoadTimeBasedAggregateHandlerFunction(
             }
             .map {
                 it.state.tryMask()
+                OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)

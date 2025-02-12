@@ -36,6 +36,7 @@ class LoadSnapshotHandlerFunctionTest {
             every { uri() } returns URI.create("http://localhost")
             every { pathVariables()[RoutePaths.ID_KEY] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
         }
         handlerFunction.handle(request)
             .test()
