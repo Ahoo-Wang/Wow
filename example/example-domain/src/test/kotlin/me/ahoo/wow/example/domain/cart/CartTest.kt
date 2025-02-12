@@ -36,17 +36,21 @@ class CartTest {
 
     @Test
     fun addCartItem() {
+        val ownerId = generateGlobalId()
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,
         )
 
-        aggregateVerifier<Cart, CartState>()
-            .`when`(addCartItem)
+        aggregateVerifier<Cart, CartState>(ownerId)
+            .givenOwnerId(ownerId)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
                 assertThat(it.items, hasSize(1))
+            }.expectStateAggregate {
+                assertThat(it.ownerId, equalTo(ownerId))
             }
             .verify()
     }

@@ -15,6 +15,7 @@ package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -36,6 +37,8 @@ interface GivenStage<S : Any> {
         return inject(service = service, serviceName = service.javaClass.toName())
     }
 
+    fun givenOwnerId(ownerId: String): GivenStage<S>
+
     /**
      * 1. 给定领域事件，朔源聚合.
      */
@@ -54,15 +57,19 @@ interface WhenStage<S : Any> {
     /**
      * 2. 接收并执行命令.
      */
-    fun `when`(command: Any, header: Header): ExpectStage<S>
+    fun `when`(command: Any, header: Header): ExpectStage<S> {
+        return this.whenCommand(command = command, header = header)
+    }
 
     fun `when`(command: Any): ExpectStage<S> {
-        return this.`when`(command = command, header = DefaultHeader.empty())
+        return this.whenCommand(command = command, header = DefaultHeader.empty())
     }
 
-    fun whenCommand(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
-        return this.`when`(command = command, header = header)
-    }
+    fun whenCommand(
+        command: Any,
+        header: Header = DefaultHeader.empty(),
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID
+    ): ExpectStage<S>
 }
 
 interface ExpectStage<S : Any> {
@@ -235,10 +242,18 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     }
 }
 
-fun <S : Any> GivenStage<S>.`when`(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
-    return this.givenEvent().`when`(command, header)
+fun <S : Any> GivenStage<S>.whenCommand(
+    command: Any,
+    header: Header = DefaultHeader.empty(),
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID
+): ExpectStage<S> {
+    return this.givenEvent().whenCommand(command, header, ownerId)
 }
 
-fun <S : Any> GivenStage<S>.whenCommand(command: Any, header: Header = DefaultHeader.empty()): ExpectStage<S> {
-    return this.`when`(command, header)
+fun <S : Any> GivenStage<S>.`when`(
+    command: Any,
+    header: Header = DefaultHeader.empty(),
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID
+): ExpectStage<S> {
+    return this.whenCommand(command, header, ownerId)
 }
