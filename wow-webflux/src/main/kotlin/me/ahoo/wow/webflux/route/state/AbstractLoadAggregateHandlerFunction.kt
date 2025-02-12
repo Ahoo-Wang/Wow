@@ -49,8 +49,8 @@ abstract class AbstractLoadAggregateHandlerFunction(
             }
             .map {
                 checkVersion(version, it)
-                it.state.tryMask()
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
+                it.state.tryMask()
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)

@@ -48,8 +48,8 @@ class LoadTimeBasedAggregateHandlerFunction(
                 it.initialized && !it.deleted
             }
             .map {
-                it.state.tryMask()
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
+                it.state.tryMask()
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
