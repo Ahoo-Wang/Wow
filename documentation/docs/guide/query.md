@@ -16,6 +16,7 @@
 | AGGREGATE_ID  | 匹配聚合根ID等于指定值的文档                                                                                                                              |
 | AGGREGATE_IDS | 匹配聚合根ID等于指定值列表中的任何值的所有文档                                                                                                                     |
 | TENANT_ID     | 匹配`tenantId`字段值等于指定值的所有文档                                                                                                                    |
+| OWNER_ID      | 匹配`ownerId`字段值等于指定值的所有文档                                                                                                                     |
 | DELETED       | 匹配`deleted`字段值等于指定值的所有文档                                                                                                                     |
 | ALL           | 匹配所有文档                                                                                                                                       |
 | EQ            | 匹配字段名称值等于指定值的所有文档                                                                                                                            |
