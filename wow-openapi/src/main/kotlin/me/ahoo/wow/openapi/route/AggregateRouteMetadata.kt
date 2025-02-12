@@ -18,6 +18,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 
 data class AggregateRouteMetadata<C : Any>(
     val aggregateMetadata: AggregateMetadata<C, *>,
+    val resourceName: String,
     val owner: AggregateRoute.Owner
 ) : me.ahoo.wow.metadata.Metadata {
 

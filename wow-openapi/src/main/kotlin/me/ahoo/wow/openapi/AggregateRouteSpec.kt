@@ -73,7 +73,7 @@ interface AggregateRouteSpec : RouteSpec {
             if (appendOwnerPath) {
                 pathBuilder.append(OWNER_PATH_PREFIX)
             }
-            pathBuilder.append(namedAggregate.aggregateName)
+            pathBuilder.append(aggregateRouteMetadata.resourceName)
             if (appendIdPath) {
                 pathBuilder.append(ID_PATH_VARIABLE)
             }

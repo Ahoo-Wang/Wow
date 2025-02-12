@@ -35,10 +35,16 @@ internal class AggregateRouteMetadataVisitor<C : Any>(private val aggregateType:
 
     fun toMetadata(): AggregateRouteMetadata<C> {
         val aggregateMetadata = aggregateType.aggregateMetadata<C, Any>()
-        val ownerRoute = aggregateType.kotlin.scanAnnotation<AggregateRoute>()?.owner ?: AggregateRoute.Owner.NEVER
+        val aggregateRoute = aggregateType.kotlin.scanAnnotation<AggregateRoute>() ?: return AggregateRouteMetadata(
+            aggregateMetadata = aggregateMetadata,
+            resourceName = aggregateMetadata.aggregateName,
+            owner = AggregateRoute.Owner.NEVER
+        )
+
         return AggregateRouteMetadata(
             aggregateMetadata = aggregateMetadata,
-            owner = ownerRoute
+            resourceName = aggregateRoute.resourceName.ifBlank { aggregateMetadata.aggregateName },
+            owner = aggregateRoute.owner
         )
     }
 }

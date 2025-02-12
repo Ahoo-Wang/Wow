@@ -52,7 +52,7 @@ import reactor.kotlin.core.publisher.toMono
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order", owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState) {
     companion object {
         private val log = LoggerFactory.getLogger(Order::class.java)
