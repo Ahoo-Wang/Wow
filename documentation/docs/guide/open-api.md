@@ -26,9 +26,32 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ![Swagger-UI](../public/images/compensation/open-api.png)
 
-## URL Spec
+## RESTful URL PATH Spec
 
 `[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+
+### 租户资源
+
+当聚合根为租户资源时（未标记静态租户ID），自动生成的 RESTful API 会添加 `tenant/{tenantId}` 路径前缀。
+
+### 拥有者资源
+
+当聚合根被标记为拥有者资源时，自动生成的 RESTful API 会添加 `owner/{ownerId}` 路径前缀。
+
+```kotlin
+@AggregateRoot
+@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+class Order(private val state: OrderState)
+```
+
+当聚合根 ID 与拥有者 ID 相同时，自动生成的 RESTful API 会将 `{resourceId}` 路径参数移除。比如用户购物车ID即是用户ID时：
+
+```kotlin
+@StaticTenantId
+@AggregateRoot
+@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
+class Cart(private val state: CartState)
+```
 
 ## 全局路由规范
 
