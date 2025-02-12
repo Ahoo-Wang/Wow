@@ -18,6 +18,10 @@ import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
@@ -25,9 +29,11 @@ import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -39,29 +45,46 @@ class LoadAggregateHandlerFunctionTest {
 
     @Test
     fun handle() {
+        val eventStore = InMemoryEventStore()
+        val customerId = generateGlobalId()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+        aggregateVerifier<Cart, CartState>(customerId, eventStore = eventStore)
+            .givenOwnerId(customerId)
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                assertThat(it.items, hasSize(1))
+            }
+            .verify()
+
         val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotRepository = NoOpSnapshotRepository,
-                eventStore = InMemoryEventStore(),
+                eventStore = eventStore,
             ),
             exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             LoadAggregateRouteSpec(
                 MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+                aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata()
             )
         )
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")
-            every { pathVariables()[RoutePaths.ID_KEY] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
+            every { pathVariables()[RoutePaths.ID_KEY] } returns null
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns null
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns customerId
         }
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                MatcherAssert.assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.NOT_FOUND))
+                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
             }.verifyComplete()
     }
 }
