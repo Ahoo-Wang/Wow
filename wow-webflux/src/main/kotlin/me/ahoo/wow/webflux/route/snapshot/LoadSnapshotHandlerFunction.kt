@@ -22,6 +22,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getAggregateId
+import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -37,10 +38,14 @@ class LoadSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
+        val ownerId = request.getOwnerId()
         val singleQuery = singleQuery {
             condition {
                 tenantId(tenantId)
                 id(id)
+                if (!ownerId.isNullOrBlank()) {
+                    ownerId(ownerId)
+                }
             }
         }
         return snapshotQueryHandler.dynamicSingle(aggregateMetadata, singleQuery)
