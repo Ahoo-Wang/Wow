@@ -19,7 +19,7 @@ import java.lang.annotation.Inherited
 @Inherited
 @MustBeDocumented
 annotation class AggregateRoute(
-    val owner: Owner = Owner.ALWAYS
+    val owner: Owner = Owner.NEVER
 ) {
 
     enum class Owner(val owned: Boolean) {
