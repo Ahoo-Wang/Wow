@@ -15,19 +15,25 @@ package me.ahoo.wow.webflux.route.state
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadTimeBasedAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -38,34 +44,47 @@ import java.net.URI
 class LoadTimeBasedAggregateHandlerFunctionTest {
     @Test
     fun handle() {
+        val eventStore = InMemoryEventStore()
+        val customerId = generateGlobalId()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+        aggregateVerifier<Cart, CartState>(customerId, eventStore = eventStore)
+            .givenOwnerId(customerId)
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                assertThat(it.items, hasSize(1))
+            }
+            .verify()
+
         val handlerFunction = LoadTimeBasedAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotRepository = NoOpSnapshotRepository,
-                eventStore = InMemoryEventStore(),
+                eventStore = eventStore
             ),
             exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             LoadTimeBasedAggregateRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+                Cart::class.java.requiredNamedBoundedContext(),
+                aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata()
             )
         )
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[RoutePaths.ID_KEY] } returns null
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns null
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns customerId
             every { pathVariable(MessageRecords.CREATE_TIME) } returns System.currentTimeMillis().toString()
-            every { pathVariables() } returns mapOf(
-                RoutePaths.ID_KEY to GlobalIdGenerator.generateAsString(),
-                MessageRecords.TENANT_ID to GlobalIdGenerator.generateAsString(),
-                MessageRecords.CREATE_TIME to System.currentTimeMillis().toString(),
-            )
         }
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                MatcherAssert.assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.NOT_FOUND))
+                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
             }.verifyComplete()
     }
 }

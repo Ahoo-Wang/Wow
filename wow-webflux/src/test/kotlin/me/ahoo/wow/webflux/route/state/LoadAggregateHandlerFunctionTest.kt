@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.state
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
@@ -28,7 +29,6 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -70,7 +70,7 @@ class LoadAggregateHandlerFunctionTest {
             exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             LoadAggregateRouteSpec(
-                MOCK_AGGREGATE_METADATA,
+                Cart::class.java.requiredNamedBoundedContext(),
                 aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata()
             )
         )
