@@ -22,7 +22,7 @@ class AggregateRouteMetadataTest {
     @Test
     fun equalToOther() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        val other = commandRouteMetadata<Order>()
+        val other = aggregateRouteMetadata<Order>()
         assertThat(aggregateRouteMetadata, not(other))
     }
 }
