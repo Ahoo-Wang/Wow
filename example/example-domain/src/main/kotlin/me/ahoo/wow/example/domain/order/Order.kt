@@ -15,6 +15,7 @@
 package me.ahoo.wow.example.domain.order
 
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.CommandResultAccessor
@@ -51,6 +52,7 @@ import reactor.kotlin.core.publisher.toMono
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
 @AggregateRoot
+@AggregateRoute
 class Order(private val state: OrderState) {
     companion object {
         private val log = LoggerFactory.getLogger(Order::class.java)
@@ -80,7 +82,6 @@ class Order(private val state: OrderState) {
             .then(
                 OrderCreated(
                     orderId = command.aggregateId.id,
-                    customerId = createOrder.customerId,
                     items = createOrder.items.map {
                         OrderItem(
                             id = GlobalIdGenerator.generateAsString(),

@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -46,15 +47,15 @@ interface WhenStage<T : Any> {
     /**
      * 1. 当订阅到领域事件时，生成聚合命令.
      */
-    fun `when`(event: Any, state: Any?): ExpectStage<T>
+    fun `when`(event: Any, state: Any?, ownerId: String = OwnerId.DEFAULT_OWNER_ID): ExpectStage<T> {
+        return whenEvent(event = event, state = state, ownerId = ownerId)
+    }
 
     fun `when`(event: Any): ExpectStage<T> {
-        return `when`(event = event, state = null)
+        return whenEvent(event = event, state = null)
     }
 
-    fun whenEvent(event: Any, state: Any? = null): ExpectStage<T> {
-        return `when`(event = event, state = state)
-    }
+    fun whenEvent(event: Any, state: Any? = null, ownerId: String = OwnerId.DEFAULT_OWNER_ID): ExpectStage<T>
 }
 
 interface ExpectStage<T : Any> {

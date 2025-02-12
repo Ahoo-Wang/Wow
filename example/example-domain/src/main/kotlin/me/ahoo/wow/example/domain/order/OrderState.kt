@@ -38,9 +38,6 @@ class OrderState(
     val id: String
 ) {
 
-    lateinit var customerId: String
-        private set
-
     /**
      * unmodifiable.
      */
@@ -77,7 +74,6 @@ class OrderState(
      *
      */
     fun onSourcing(orderCreated: OrderCreated) {
-        customerId = orderCreated.customerId
         address = orderCreated.address
         items = orderCreated.items
         totalAmount = orderCreated

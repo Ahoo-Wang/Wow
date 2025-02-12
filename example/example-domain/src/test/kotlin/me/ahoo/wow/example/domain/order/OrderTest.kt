@@ -36,7 +36,7 @@ import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec.PriceInconsistenc
 import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregateVerifier
@@ -50,11 +50,10 @@ import java.math.BigDecimal
 internal class OrderTest {
 
     private fun mockCreateOrder(): VerifiedStage<OrderState> {
-        val tenantId = GlobalIdGenerator.generateAsString()
-        val customerId = GlobalIdGenerator.generateAsString()
+        val tenantId = generateGlobalId()
 
         val orderItem = CreateOrder.Item(
-            productId = GlobalIdGenerator.generateAsString(),
+            productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
@@ -72,7 +71,7 @@ internal class OrderTest {
         return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
+            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventCount(1)
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
@@ -80,7 +79,6 @@ internal class OrderTest {
             }
             .expectState {
                 assertThat(it.id, notNullValue())
-                assertThat(it.customerId, equalTo(customerId))
                 assertThat(it.address, equalTo(SHIPPING_ADDRESS))
                 verifyItems(it.items, orderItems)
                 assertThat(it.status, equalTo(OrderStatus.CREATED))
@@ -115,9 +113,8 @@ internal class OrderTest {
      */
     @Test
     fun createOrderGivenNonChinaAddress() {
-        val customerId = GlobalIdGenerator.generateAsString()
         val orderItem = CreateOrder.Item(
-            productId = GlobalIdGenerator.generateAsString(),
+            productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
@@ -135,7 +132,7 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
+            .`when`(CreateOrder(orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
             .expectErrorType(IllegalArgumentException::class.java)
             .expectStateAggregate {
                 assertThat(it.initialized, equalTo(false))
@@ -147,11 +144,10 @@ internal class OrderTest {
      */
     @Test
     fun createOrderGivenEmptyItems() {
-        val customerId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Order, OrderState>()
             .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
             .given()
-            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
+            .`when`(CreateOrder(listOf(), SHIPPING_ADDRESS, false))
             .expectErrorType(CommandValidationException::class.java)
             .expectStateAggregate {
                 /*
@@ -166,9 +162,8 @@ internal class OrderTest {
      */
     @Test
     fun createOrderWhenInventoryShortage() {
-        val customerId = GlobalIdGenerator.generateAsString()
         val orderItem = CreateOrder.Item(
-            productId = GlobalIdGenerator.generateAsString(),
+            productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
@@ -191,7 +186,7 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
+            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：库存不足异常.
              */
@@ -209,9 +204,8 @@ internal class OrderTest {
      */
     @Test
     fun createOrderWhenPriceInconsistency() {
-        val customerId = GlobalIdGenerator.generateAsString()
         val orderItem = CreateOrder.Item(
-            productId = GlobalIdGenerator.generateAsString(),
+            productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
@@ -233,7 +227,7 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
+            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：价格不一致异常.
              */
@@ -245,7 +239,6 @@ internal class OrderTest {
         val previousState = verifiedStage.stateRoot
         val payOrder = PayOrder(
             previousState.id,
-            GlobalIdGenerator.generateAsString(),
             previousState.totalAmount,
         )
 
@@ -301,7 +294,6 @@ internal class OrderTest {
         val previousState = verifiedStage.stateRoot
         val payOrder = PayOrder(
             previousState.id,
-            GlobalIdGenerator.generateAsString(),
             previousState.totalAmount,
         )
         verifiedStage
@@ -325,7 +317,6 @@ internal class OrderTest {
         val previousState = verifiedStage.stateRoot
         val payOrder = PayOrder(
             previousState.id,
-            GlobalIdGenerator.generateAsString(),
             previousState.totalAmount.plus(
                 BigDecimal.valueOf(1),
             ),
@@ -391,7 +382,7 @@ internal class OrderTest {
     fun receiptOrder() {
         val verifiedStage = mockShip()
         verifiedStage.then().given()
-            .`when`(ReceiptOrder(id = verifiedStage.stateRoot.id, customerId = verifiedStage.stateRoot.customerId))
+            .`when`(ReceiptOrder(id = verifiedStage.stateRoot.id))
             .expectNoError()
             .expectEventType(OrderReceived::class.java)
             .expectState {
@@ -421,7 +412,6 @@ internal class OrderTest {
     fun changeAddress() {
         val verifiedStage = mockCreateOrder()
         val changeAddress = ChangeAddress(
-            id = verifiedStage.stateRoot.id,
             shippingAddress = ShippingAddress("上海市", "上海市", "浦东新区", "张江高科", ""),
         )
         verifiedStage.then().given()

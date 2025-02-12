@@ -50,7 +50,7 @@ internal class DefaultGivenStage<C : Any, S : Any>(
         return this
     }
 
-    override fun given(vararg events: Any): WhenStage<S> {
+    override fun givenEvent(vararg events: Any): WhenStage<S> {
         return DefaultWhenStage(
             aggregateId,
             events,
@@ -228,7 +228,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         return this
     }
 
-    override fun given(vararg events: Any): WhenStage<S> {
+    override fun givenEvent(vararg events: Any): WhenStage<S> {
         return DefaultWhenStage(
             aggregateId = verifiedResult.stateAggregate.aggregateId,
             events = events,

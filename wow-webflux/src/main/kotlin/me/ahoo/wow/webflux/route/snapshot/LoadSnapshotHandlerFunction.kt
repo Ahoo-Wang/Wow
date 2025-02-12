@@ -14,14 +14,14 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -29,14 +29,14 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 class LoadSnapshotHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
-
+    private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
+        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val singleQuery = singleQuery {
             condition {
                 tenantId(tenantId)
@@ -57,6 +57,6 @@ class LoadSnapshotHandlerFunctionFactory(
         get() = LoadSnapshotRouteSpec::class.java
 
     override fun create(spec: LoadSnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(spec.aggregateMetadata, snapshotQueryHandler, exceptionHandler)
+        return LoadSnapshotHandlerFunction(spec.aggregateRouteMetadata, snapshotQueryHandler, exceptionHandler)
     }
 }

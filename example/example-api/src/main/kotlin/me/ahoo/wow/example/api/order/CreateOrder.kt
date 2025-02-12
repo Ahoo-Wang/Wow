@@ -13,14 +13,12 @@
 package me.ahoo.wow.example.api.order
 
 import jakarta.validation.Valid
-import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.validation.CommandValidator
-import me.ahoo.wow.example.api.ExampleService
 import java.math.BigDecimal
 
 /**
@@ -30,14 +28,10 @@ import java.math.BigDecimal
  */
 @Summary("下单")
 @CommandRoute(
-    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = ""
 )
 @CreateAggregate
 data class CreateOrder(
-    @field:NotBlank
-    @CommandRoute.PathVariable
-    val customerId: String,
     @field:Size(min = 1)
     val items: List<Item>,
     @field:NotNull
@@ -60,7 +54,6 @@ data class CreateOrder(
 
 data class OrderCreated(
     val orderId: String,
-    val customerId: String,
     val items: List<OrderItem>,
     val address: ShippingAddress,
     val fromCart: Boolean

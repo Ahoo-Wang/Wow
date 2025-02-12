@@ -69,6 +69,13 @@ fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?):
     return getAggregateId()
 }
 
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? {
+    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
+        return getOwnerId() ?: getAggregateId()
+    }
+    return getAggregateId()
+}
+
 fun ServerRequest.getLocalFirst(): Boolean? {
     headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST).ifNotBlank<String> {
         return it.toBoolean()

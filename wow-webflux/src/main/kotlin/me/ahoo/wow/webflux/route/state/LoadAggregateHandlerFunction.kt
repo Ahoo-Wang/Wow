@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -24,10 +24,10 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class LoadAggregateHandlerFunction(
-    aggregateMetadata: AggregateMetadata<*, *>,
+    aggregateRouteMetadata: AggregateRouteMetadata<*>,
     stateAggregateRepository: StateAggregateRepository,
     exceptionHandler: RequestExceptionHandler
-) : AbstractLoadAggregateHandlerFunction(aggregateMetadata, stateAggregateRepository, exceptionHandler) {
+) : AbstractLoadAggregateHandlerFunction(aggregateRouteMetadata, stateAggregateRepository, exceptionHandler) {
     override fun getVersion(request: ServerRequest): Int {
         return Int.MAX_VALUE
     }
@@ -43,6 +43,6 @@ class LoadAggregateHandlerFunctionFactory(
         get() = LoadAggregateRouteSpec::class.java
 
     override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
+        return LoadAggregateHandlerFunction(spec.aggregateRouteMetadata, stateAggregateRepository, exceptionHandler)
     }
 }

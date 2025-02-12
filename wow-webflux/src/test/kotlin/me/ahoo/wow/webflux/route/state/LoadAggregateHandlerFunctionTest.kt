@@ -18,7 +18,7 @@ import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
@@ -55,8 +55,8 @@ class LoadAggregateHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
+            every { pathVariables()[RoutePaths.ID_KEY] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
         }
         handlerFunction.handle(request)
             .test()

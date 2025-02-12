@@ -39,10 +39,11 @@ interface GivenStage<S : Any> {
     /**
      * 1. 给定领域事件，朔源聚合.
      */
-    fun given(vararg events: Any): WhenStage<S>
-    fun givenEvent(vararg events: Any): WhenStage<S> {
-        return given(*events)
+    fun given(vararg events: Any): WhenStage<S> {
+        return givenEvent(*events)
     }
+
+    fun givenEvent(vararg events: Any): WhenStage<S>
 
     fun givenState(state: S, version: Int): WhenStage<S>
 
