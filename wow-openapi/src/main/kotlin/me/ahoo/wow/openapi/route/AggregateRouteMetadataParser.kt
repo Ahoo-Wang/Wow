@@ -47,6 +47,6 @@ fun <C : Any> Class<out C>.aggregateRouteMetadata(): AggregateRouteMetadata<C> {
     return AggregateRouteMetadataParser.parse(this)
 }
 
-inline fun <reified C> aggregateRouteMetadata(): CommandRouteMetadata<C> {
-    return C::class.java.commandRouteMetadata()
+inline fun <reified C : Any> aggregateRouteMetadata(): AggregateRouteMetadata<C> {
+    return C::class.java.aggregateRouteMetadata()
 }

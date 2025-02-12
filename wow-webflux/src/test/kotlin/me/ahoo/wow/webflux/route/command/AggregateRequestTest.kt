@@ -15,8 +15,10 @@ package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import org.hamcrest.MatcherAssert.*
@@ -42,6 +44,32 @@ class AggregateRequestTest {
             every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns ownerId
         }
         assertThat(request.getOwnerId(), equalTo(ownerId))
+    }
+
+    @Test
+    fun getAggregateIdWithOwnerIdFromPathVariable() {
+        val ownerId = generateGlobalId()
+        val request = mockk<ServerRequest>()
+        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId), equalTo(ownerId))
+    }
+
+    @Test
+    fun getAggregateIdWithOwnerIdIsNullFromPathVariable() {
+        val aggregateId = generateGlobalId()
+        val request = mockk<ServerRequest> {
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns null
+            every { pathVariables()[RoutePaths.ID_KEY] } returns aggregateId
+        }
+        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, null), equalTo(aggregateId))
+    }
+
+    @Test
+    fun getAggregateIdWithOwner() {
+        val ownerId = generateGlobalId()
+        val request = mockk<ServerRequest> {
+            every { pathVariables()[MessageRecords.OWNER_ID] } returns ownerId
+        }
+        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID), equalTo(ownerId))
     }
 
     @Test
