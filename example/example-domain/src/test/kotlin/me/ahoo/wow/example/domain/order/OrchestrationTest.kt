@@ -41,7 +41,6 @@ class OrchestrationTest {
     @Test
     fun main() {
         val tenantId = GlobalIdGenerator.generateAsString()
-        val customerId = GlobalIdGenerator.generateAsString()
 
         val orderItem = CreateOrder.Item(
             productId = GlobalIdGenerator.generateAsString(),
@@ -61,14 +60,13 @@ class OrchestrationTest {
         }
         aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .whenCommand(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
+            .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
                 assertThat(it.aggregateId.tenantId, equalTo(tenantId))
             }
             .expectState {
                 assertThat(it.id, notNullValue())
-                assertThat(it.customerId, equalTo(customerId))
                 assertThat(it.address, equalTo(SHIPPING_ADDRESS))
                 assertThat(it.items, hasSize(1))
                 val item = it.items.first()
@@ -92,7 +90,6 @@ class OrchestrationTest {
     private fun GivenStage<OrderState>.payOrder(it: ExpectedResult<OrderState>) {
         val payOrder = PayOrder(
             it.stateAggregate.aggregateId.id,
-            GlobalIdGenerator.generateAsString(),
             it.stateAggregate.state.payable
         )
         whenCommand(payOrder)
@@ -106,7 +103,6 @@ class OrchestrationTest {
 
     private fun GivenStage<OrderState>.changeAddress(it: ExpectedResult<OrderState>) {
         val changeAddress = ChangeAddress(
-            it.stateAggregate.aggregateId.id,
             ShippingAddress(
                 country = "China",
                 province = "ShangHai",

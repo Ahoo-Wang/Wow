@@ -15,13 +15,13 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
+import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -29,17 +29,17 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 abstract class AbstractLoadAggregateHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
-
+    protected val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     abstract fun getVersion(request: ServerRequest): Int
     abstract fun checkVersion(targetVersion: Int, stateAggregate: StateAggregate<*>)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
+        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         val version = getVersion(request)
         return stateAggregateRepository

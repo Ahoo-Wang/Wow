@@ -15,15 +15,15 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadTimeBasedAggregateRouteSpec
 import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.toServerResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -31,13 +31,14 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 class LoadTimeBasedAggregateHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
+    private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
+        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         val tailEventTime = request.pathVariable(MessageRecords.CREATE_TIME).toLong()
         return stateAggregateRepository
@@ -61,6 +62,10 @@ class LoadTimeBasedAggregateHandlerFunctionFactory(
         get() = LoadTimeBasedAggregateRouteSpec::class.java
 
     override fun create(spec: LoadTimeBasedAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadTimeBasedAggregateHandlerFunction(spec.aggregateMetadata, stateAggregateRepository, exceptionHandler)
+        return LoadTimeBasedAggregateHandlerFunction(
+            spec.aggregateRouteMetadata,
+            stateAggregateRepository,
+            exceptionHandler
+        )
     }
 }

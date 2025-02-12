@@ -15,6 +15,7 @@ package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.example.api.cart.RemoveCartItem
@@ -29,13 +30,14 @@ class CartSaga {
      */
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
     @OnEvent
-    fun onOrderCreated(orderCreated: OrderCreated): CommandBuilder? {
+    fun onOrderCreated(event: DomainEvent<OrderCreated>): CommandBuilder? {
+        val orderCreated = event.body
         if (!orderCreated.fromCart) {
             return null
         }
         return RemoveCartItem(
             productIds = orderCreated.items.map { it.productId }.toSet(),
         ).commandBuilder()
-            .aggregateId(orderCreated.customerId)
+            .aggregateId(event.ownerId)
     }
 }

@@ -14,7 +14,6 @@ package me.ahoo.wow.example.api.order
 
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.example.api.ExampleService
 
 /**
  * ChangeAddress .
@@ -23,14 +22,11 @@ import me.ahoo.wow.example.api.ExampleService
  */
 @Summary("修改收货地址")
 @CommandRoute(
-    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = "address",
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS
 )
 data class ChangeAddress(
-    @CommandRoute.PathVariable
-    val id: String,
     val shippingAddress: ShippingAddress
 )
 

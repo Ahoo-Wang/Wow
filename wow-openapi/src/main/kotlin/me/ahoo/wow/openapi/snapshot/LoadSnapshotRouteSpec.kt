@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.snapshot
 
 import io.swagger.v3.oas.models.responses.ApiResponses
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
@@ -41,11 +42,8 @@ class LoadSnapshotRouteSpec(
 
     override val method: String
         get() = Https.Method.GET
-    override val appendOwnerPath: Boolean
-        get() = false
     override val appendIdPath: Boolean
-        get() = true
-
+        get() = aggregateRouteMetadata.owner != AggregateRoute.Owner.AGGREGATE_ID
     override val appendPathSuffix: String
         get() = "snapshot"
 

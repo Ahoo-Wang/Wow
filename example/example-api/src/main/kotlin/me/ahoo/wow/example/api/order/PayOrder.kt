@@ -25,8 +25,6 @@ import java.math.BigDecimal
  */
 @CommandRoute("pay", method = CommandRoute.Method.POST, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class PayOrder(
-    @CommandRoute.PathVariable
-    val id: String,
     @field:NotBlank
     val paymentId: String,
     @field:Positive

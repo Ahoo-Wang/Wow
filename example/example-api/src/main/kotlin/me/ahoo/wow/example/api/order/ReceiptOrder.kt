@@ -12,11 +12,9 @@
  */
 package me.ahoo.wow.example.api.order
 
-import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.example.api.ExampleService
 
 /**
  * ReceiptOrder .
@@ -25,7 +23,6 @@ import me.ahoo.wow.example.api.ExampleService
  */
 @Summary("收货")
 @CommandRoute(
-    prefix = ExampleService.CUSTOMER_ORDER_PREFIX,
     path = "package",
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     method = CommandRoute.Method.PATCH
@@ -34,9 +31,6 @@ data class ReceiptOrder(
     @CommandRoute.PathVariable
     @AggregateId
     val id: String,
-    @field:NotBlank
-    @CommandRoute.PathVariable
-    val customerId: String
 )
 
 object OrderReceived

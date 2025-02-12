@@ -45,7 +45,6 @@ class AggregateTracingHandlerFunction(
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = request.pathVariable(RoutePaths.ID_KEY)
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-
         return eventStore
             .load(
                 aggregateId = aggregateId,

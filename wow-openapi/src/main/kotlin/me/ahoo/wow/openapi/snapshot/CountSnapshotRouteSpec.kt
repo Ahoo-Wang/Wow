@@ -18,13 +18,12 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 
 class CountSnapshotRouteSpec(
@@ -58,28 +57,18 @@ class CountSnapshotRouteSpec(
         }
 }
 
-class CountSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-
-    override fun create(
+class CountSnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+    override fun createSpec(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): List<RouteSpec> {
-        val defaultRouteSpec = CountSnapshotRouteSpec(
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        appendTenantPath: Boolean,
+        appendOwnerPath: Boolean
+    ): AggregateRouteSpec {
+        return CountSnapshotRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            appendTenantPath = false,
-            appendOwnerPath = false
+            appendTenantPath = appendTenantPath,
+            appendOwnerPath = appendOwnerPath
         )
-        val appendTenantPath = aggregateRouteMetadata.aggregateMetadata.staticTenantId.isNullOrBlank()
-        if (appendTenantPath) {
-            val tenantRouteSpec = CountSnapshotRouteSpec(
-                currentContext = currentContext,
-                aggregateRouteMetadata = aggregateRouteMetadata,
-                appendTenantPath = true,
-                appendOwnerPath = false
-            )
-            return listOf(defaultRouteSpec, tenantRouteSpec)
-        }
-        return listOf(defaultRouteSpec)
     }
 }

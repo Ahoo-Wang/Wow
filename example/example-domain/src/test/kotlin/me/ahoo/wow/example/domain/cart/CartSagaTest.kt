@@ -5,7 +5,7 @@ import io.mockk.mockk
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -17,17 +17,14 @@ class CartSagaTest {
     @Test
     fun onOrderCreated() {
         val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
+            generateGlobalId(),
+            generateGlobalId(),
             BigDecimal.valueOf(10),
             10,
         )
         sagaVerifier<CartSaga>()
-            .`when`(
-                mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
+            .whenEvent(
+                event = mockk<OrderCreated> {
                     every {
                         items
                     } returns listOf(orderItem)
@@ -35,9 +32,9 @@ class CartSagaTest {
                         fromCart
                     } returns true
                 },
+                ownerId = generateGlobalId()
             )
             .expectCommand<RemoveCartItem> {
-                assertThat(it.aggregateId.id, equalTo("customerId"))
                 assertThat(it.body.productIds, hasSize(1))
                 assertThat(it.body.productIds.first(), equalTo(orderItem.productId))
             }
@@ -47,17 +44,14 @@ class CartSagaTest {
     @Test
     fun onOrderCreatedWhenNotFromCart() {
         val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
+            generateGlobalId(),
+            generateGlobalId(),
             BigDecimal.valueOf(10),
             10,
         )
         sagaVerifier<CartSaga>()
-            .`when`(
-                mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
+            .whenEvent(
+                event = mockk<OrderCreated> {
                     every {
                         items
                     } returns listOf(orderItem)
@@ -65,6 +59,7 @@ class CartSagaTest {
                         fromCart
                     } returns false
                 },
+                ownerId = generateGlobalId()
             )
             .expectNoCommand()
             .verify()

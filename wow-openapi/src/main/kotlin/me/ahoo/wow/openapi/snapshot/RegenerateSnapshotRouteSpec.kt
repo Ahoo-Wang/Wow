@@ -37,14 +37,12 @@ class RegenerateSnapshotRouteSpec(
 
     override val method: String
         get() = Https.Method.PUT
-    override val appendOwnerPath: Boolean
-        get() = false
     override val summary: String
         get() = "Regenerate aggregate snapshot"
-
+    override val appendOwnerPath: Boolean
+        get() = false
     override val appendIdPath: Boolean
         get() = true
-
     override val appendPathSuffix: String
         get() = "snapshot"
     override val responses: ApiResponses

@@ -20,11 +20,8 @@ class OrderSagaTest {
     @Test
     fun onOrderCreated() {
         SagaVerifier.sagaVerifier<OrderSaga>()
-            .`when`(
+            .whenEvent(
                 mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
                     every {
                         items
                     } returns listOf(orderItem)
@@ -40,11 +37,8 @@ class OrderSagaTest {
     @Test
     fun onOrderCreatedWithOrderState() {
         SagaVerifier.sagaVerifier<OrderSaga>()
-            .`when`(
+            .whenEvent(
                 event = mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
                     every {
                         items
                     } returns listOf(orderItem)

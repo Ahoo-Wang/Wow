@@ -49,7 +49,7 @@ internal class DefaultWhenStage<T : Any>(
 
     private var functionFilter: (MessageFunction<*, *, *>) -> Boolean = { true }
 
-    private fun toDomainEvent(event: Any): DomainEvent<*> {
+    private fun toDomainEvent(event: Any, ownerId: String): DomainEvent<*> {
         if (event is DomainEvent<*>) {
             return event
         }
@@ -57,6 +57,7 @@ internal class DefaultWhenStage<T : Any>(
             aggregateId = GlobalIdGenerator.generateAsString(),
             tenantId = TenantId.DEFAULT_TENANT_ID,
             commandId = STATELESS_SAGA_COMMAND_ID,
+            ownerId = ownerId
         )
     }
 
@@ -71,12 +72,12 @@ internal class DefaultWhenStage<T : Any>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun `when`(event: Any, state: Any?): ExpectStage<T> {
+    override fun whenEvent(event: Any, state: Any?, ownerId: String): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
         val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway, commandMessageFactory)
         handlerRegistrar.registerProcessor(processor)
-        val eventExchange = toEventExchange(event, state)
+        val eventExchange = toEventExchange(event, state, ownerId)
         val expectedResultMono = handlerRegistrar.supportedFunctions(eventExchange.message)
             .filter {
                 if (state != null) {
@@ -121,8 +122,8 @@ internal class DefaultWhenStage<T : Any>(
         return DefaultExpectStage(expectedResultMono)
     }
 
-    private fun toEventExchange(event: Any, state: Any?): DomainEventExchange<out Any> {
-        val domainEvent = toDomainEvent(event)
+    private fun toEventExchange(event: Any, state: Any?, ownerId: String): DomainEventExchange<out Any> {
+        val domainEvent = toDomainEvent(event, ownerId)
         return if (state == null) {
             SimpleDomainEventExchange(message = domainEvent)
         } else {
