@@ -15,18 +15,22 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
-const val DEFAULT_COMMAND_PATH = "__{command_name}__"
+const val DEFAULT_COMMAND_ACTION = "__{command_name}__"
 
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class CommandRoute(
-    val path: String = DEFAULT_COMMAND_PATH,
+    /**
+     * action name or sub resource name
+     */
+    val path: String = DEFAULT_COMMAND_ACTION,
     val enabled: Boolean = true,
     val method: Method = Method.DEFAULT,
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
+    @Deprecated("Will be removed in version 5.3")
     val ignoreAggregateNamePrefix: Boolean = false,
     val summary: String = "",
     val description: String = "",

@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.route
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
+import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_ACTION
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
@@ -135,7 +135,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         commandRoute: CommandRoute,
         commandMetadata: CommandMetadata<C>
     ): String {
-        if (commandRoute.path == DEFAULT_COMMAND_PATH) {
+        if (commandRoute.path == DEFAULT_COMMAND_ACTION) {
             return commandMetadata.name
         }
         if (commandRoute.path.isBlank()) {
