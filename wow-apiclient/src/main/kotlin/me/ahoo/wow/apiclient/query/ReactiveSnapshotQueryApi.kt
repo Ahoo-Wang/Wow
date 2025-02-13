@@ -38,7 +38,7 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
     fun singleState(@RequestBody singleQuery: ISingleQuery): Mono<S>
 
     fun getById(id: String): Mono<MaterializedSnapshot<S>> {
-        return singleQuery {
+        singleQuery {
             condition {
                 id(id)
             }
