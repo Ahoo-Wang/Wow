@@ -23,7 +23,11 @@ import java.math.BigDecimal
  *
  * @author ahoo wang
  */
-@CommandRoute("pay", method = CommandRoute.Method.POST, appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@CommandRoute(
+    "pay",
+    method = CommandRoute.Method.POST,
+    appendOwnerPath = CommandRoute.AppendPath.NEVER
+)
 data class PayOrder(
     @field:NotBlank
     val paymentId: String,

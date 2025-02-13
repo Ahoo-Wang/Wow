@@ -26,6 +26,7 @@ data class CommandRouteMetadata<C>(
     val prefix: String = "",
     val appendIdPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val appendTenantPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
+    val appendOwnerPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val commandMetadata: CommandMetadata<C>,
     val summary: String = "",
     val description: String = "",

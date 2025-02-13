@@ -112,15 +112,16 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             summary = summary
         )
 
-        val path = parsePath(commandRoute, commandMetadata)
+        val action = parseAction(commandRoute, commandMetadata)
 
         return CommandRouteMetadata(
             enabled = commandRoute.enabled,
-            action = path,
+            action = action,
             method = commandMetadata.toMethod(commandRoute.method),
             prefix = commandRoute.prefix,
             appendIdPath = commandRoute.appendIdPath,
             appendTenantPath = commandRoute.appendTenantPath,
+            appendOwnerPath = commandRoute.appendOwnerPath,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
@@ -129,7 +130,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         )
     }
 
-    private fun parsePath(
+    private fun parseAction(
         commandRoute: CommandRoute,
         commandMetadata: CommandMetadata<C>
     ): String {
