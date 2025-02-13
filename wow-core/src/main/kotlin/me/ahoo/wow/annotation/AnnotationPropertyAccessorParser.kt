@@ -16,6 +16,7 @@ package me.ahoo.wow.annotation
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateName
 import me.ahoo.wow.api.annotation.AggregateVersion
+import me.ahoo.wow.api.annotation.OwnerId
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
@@ -65,6 +66,12 @@ object AnnotationPropertyAccessorParser {
 
     fun <T> KProperty1<T, *>.toTenantIdGetterIfAnnotated(): PropertyGetter<T, String>? {
         return this.scanAnnotation<TenantId>()?.let {
+            return toStringGetter()
+        }
+    }
+
+    fun <T> KProperty1<T, *>.toOwnerIdGetterIfAnnotated(): PropertyGetter<T, String>? {
+        return this.scanAnnotation<OwnerId>()?.let {
             return toStringGetter()
         }
     }

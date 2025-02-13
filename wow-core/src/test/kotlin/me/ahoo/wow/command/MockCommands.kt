@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.annotation.OwnerId
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
@@ -56,6 +57,8 @@ data class MockCommandWithDefaultNamedId(val id: String)
 data class MockCommandWithoutTargetAggregateId(val withoutId: String)
 
 data class MockTenantIdCommand(@AggregateId val id: String, @TenantId val tenantId: String)
+
+data class MockOwnerIdCommand(@AggregateId val id: String, @OwnerId val ownerId: String)
 
 @StaticAggregateId("staticAggregateId")
 @StaticTenantId
