@@ -211,6 +211,13 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .schema(StringSchema()).let {
                 ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
             }
+        val OWNER_ID_PARAMETER = Parameter()
+            .name(CommandRequestHeaders.OWNER_ID)
+            .`in`(ParameterIn.HEADER.toString())
+            .description("Resource Owner Id")
+            .schema(StringSchema()).let {
+                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
+            }
         val AGGREGATE_ID_PARAMETER = Parameter()
             .name(CommandRequestHeaders.AGGREGATE_ID)
             .`in`(ParameterIn.HEADER.toString())
@@ -283,6 +290,7 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
             .with(WAIT_PROCESSOR_PARAMETER)
             .with(WAIT_TIME_OUT_PARAMETER)
             .with(TENANT_ID_PARAMETER)
+            .with(OWNER_ID_PARAMETER)
             .with(AGGREGATE_ID_PARAMETER)
             .with(AGGREGATE_VERSION_PARAMETER)
             .with(REQUEST_ID_PARAMETER)
