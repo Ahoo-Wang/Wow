@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.HeaderRef.Companion.with
@@ -34,6 +35,27 @@ import me.ahoo.wow.openapi.RoutePaths.HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.TAIL_VERSION
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_VERSION_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_AGGREGATE_CONTEXT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_AGGREGATE_NAME_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_STAGE_SCHEMA
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_TYPE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.LOCAL_FIRST_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.OWNER_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.REQUEST_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.TENANT_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_CONTEXT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_PROCESSOR_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_STAGE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandResponses.BAD_REQUEST_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.COMMAND_RESULT_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.NOT_FOUND_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.REQUEST_TIMEOUT_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.TOO_MANY_REQUESTS_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_SCHEMA
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
 
@@ -65,6 +87,39 @@ class DefaultGlobalRouteSpecFactory : GlobalRouteSpecFactory {
             .withTooManyRequests()
             .with(BatchRouteSpecFactory.BATCH_RESULT_RESPONSE)
             .with(DOMAIN_EVENT_STREAM_ARRAY_RESPONSE)
+
+        initCommandParams()
+        initCommandResponses()
+    }
+
+    private fun initCommandParams() {
+        COMMAND_STAGE_SCHEMA.schemas.mergeSchemas()
+        CommandResult::class.java.toSchemas().mergeSchemas()
+        components.parameters
+            .with(WAIT_STAGE_PARAMETER)
+            .with(WAIT_CONTEXT_PARAMETER)
+            .with(WAIT_PROCESSOR_PARAMETER)
+            .with(WAIT_TIME_OUT_PARAMETER)
+            .with(TENANT_ID_PARAMETER)
+            .with(OWNER_ID_PARAMETER)
+            .with(AGGREGATE_ID_PARAMETER)
+            .with(AGGREGATE_VERSION_PARAMETER)
+            .with(REQUEST_ID_PARAMETER)
+            .with(LOCAL_FIRST_PARAMETER)
+            .with(COMMAND_TYPE_PARAMETER)
+            .with(COMMAND_AGGREGATE_CONTEXT_PARAMETER)
+            .with(COMMAND_AGGREGATE_NAME_PARAMETER)
+    }
+
+    private fun initCommandResponses() {
+        components.responses
+            .with(COMMAND_RESULT_RESPONSE)
+            .with(BAD_REQUEST_RESPONSE)
+            .with(NOT_FOUND_RESPONSE)
+            .with(REQUEST_TIMEOUT_RESPONSE)
+            .with(TOO_MANY_REQUESTS_RESPONSE)
+            .with(VERSION_CONFLICT_RESPONSE)
+            .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
     }
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
