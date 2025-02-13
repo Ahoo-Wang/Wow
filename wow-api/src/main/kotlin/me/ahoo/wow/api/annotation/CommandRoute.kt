@@ -30,6 +30,7 @@ annotation class CommandRoute(
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
+    val appendOwnerPath: AppendPath = AppendPath.DEFAULT,
     val summary: String = "",
     val description: String = "",
 ) {

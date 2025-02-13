@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.Summary
 @Summary("发货")
 @CommandRoute(
     action = "package",
-    appendIdPath = CommandRoute.AppendPath.ALWAYS,
+    appendOwnerPath = CommandRoute.AppendPath.NEVER,
     method = CommandRoute.Method.POST
 )
 data class ShipOrder(
