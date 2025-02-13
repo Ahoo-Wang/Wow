@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.Summary
  */
 @Summary("收货")
 @CommandRoute(
-    path = "package",
+    action = "package",
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     method = CommandRoute.Method.PATCH
 )

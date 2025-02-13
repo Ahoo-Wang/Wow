@@ -29,11 +29,10 @@ class CommandRouteMetadataParserTest {
     fun asCommandRouteMetadata() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         assertThat(commandRouteMetadata.enabled, equalTo(true))
-        assertThat(commandRouteMetadata.path, equalTo("{id}/{name}"))
+        assertThat(commandRouteMetadata.action, equalTo("{id}/{name}"))
         assertThat(commandRouteMetadata.method, equalTo(Https.Method.PATCH))
         assertThat(commandRouteMetadata.prefix, equalTo(""))
         assertThat(commandRouteMetadata.appendIdPath, equalTo(CommandRoute.AppendPath.DEFAULT))
-        assertThat(commandRouteMetadata.ignoreAggregateNamePrefix, equalTo(false))
         val idPathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "id" }
         assertThat(idPathVariable.fieldName, equalTo("id"))
         assertThat(idPathVariable.variableName, equalTo("id"))
@@ -96,7 +95,7 @@ class CommandRouteMetadataParserTest {
     @Test
     fun decodeNested() {
         val commandRouteMetadata = commandRouteMetadata<NestedMockCommandRoute>()
-        assertThat(commandRouteMetadata.path, equalTo("{customerId}/{id}/{name}"))
+        assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
         assertThat(customerIdPathVariable.fieldName, equalTo("id"))
@@ -123,7 +122,7 @@ class CommandRouteMetadataParserTest {
     @Test
     fun decodeFieldNested() {
         val commandRouteMetadata = commandRouteMetadata<NestedFieldMockCommandRoute>()
-        assertThat(commandRouteMetadata.path, equalTo("{customerId}/{id}/{name}"))
+        assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
         assertThat(customerIdPathVariable.fieldName, equalTo("id"))

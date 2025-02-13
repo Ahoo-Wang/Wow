@@ -21,7 +21,7 @@ import me.ahoo.wow.models.tree.TreeCoded
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "",
+    action = "",
     summary = "Update tree node"
 )
 interface Update<E : Updated> : TreeCoded {

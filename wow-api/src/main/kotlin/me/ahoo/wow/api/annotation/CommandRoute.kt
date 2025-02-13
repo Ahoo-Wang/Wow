@@ -24,14 +24,12 @@ annotation class CommandRoute(
     /**
      * action name or sub resource name
      */
-    val path: String = DEFAULT_COMMAND_ACTION,
+    val action: String = DEFAULT_COMMAND_ACTION,
     val enabled: Boolean = true,
     val method: Method = Method.DEFAULT,
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
-    @Deprecated("Will be removed in version 5.3")
-    val ignoreAggregateNamePrefix: Boolean = false,
     val summary: String = "",
     val description: String = "",
 ) {

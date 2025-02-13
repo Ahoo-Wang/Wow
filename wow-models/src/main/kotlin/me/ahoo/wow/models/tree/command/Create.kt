@@ -22,7 +22,7 @@ import me.ahoo.wow.models.tree.Flat
 @CommandRoute(
     method = CommandRoute.Method.POST,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "",
+    action = "",
     summary = "Create tree node",
     description = "Id is the tenant ID."
 )

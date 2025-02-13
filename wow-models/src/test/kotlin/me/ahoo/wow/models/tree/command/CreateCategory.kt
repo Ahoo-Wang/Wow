@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
 @CommandRoute(
     method = CommandRoute.Method.POST,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "",
+    action = "",
     summary = "添加树节点",
     description = "Id 为租户ID."
 )
