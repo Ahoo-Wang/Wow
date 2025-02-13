@@ -16,6 +16,7 @@ package me.ahoo.wow.command.annotation
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateVersionGetterIfAnnotated
+import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toOwnerIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStaticAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStaticTenantIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStringGetter
@@ -70,6 +71,7 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     private var aggregateIdGetter: PropertyGetter<C, String>? = null
     private var namedIdProperty: KProperty1<C, String>? = null
     private var tenantIdGetter: PropertyGetter<C, String>? = null
+    private var ownerIdGetter: PropertyGetter<C, String>? = null
     private var aggregateVersionGetter: PropertyGetter<C, Int?>? = null
 
     init {
@@ -103,6 +105,9 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
         }
         if (tenantIdGetter == null) {
             tenantIdGetter = property.toTenantIdGetterIfAnnotated()
+        }
+        if (ownerIdGetter == null) {
+            ownerIdGetter = property.toOwnerIdGetterIfAnnotated()
         }
         if (aggregateVersionGetter == null) {
             aggregateVersionGetter = property.toAggregateVersionGetterIfAnnotated() as PropertyGetter<C, Int?>?
@@ -145,7 +150,8 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
             isVoid = isVoid,
             aggregateIdGetter = aggregateIdGetter,
             aggregateVersionGetter = aggregateVersionGetter,
-            tenantIdGetter = tenantIdGetter
+            tenantIdGetter = tenantIdGetter,
+            ownerIdGetter = ownerIdGetter
         )
     }
 }

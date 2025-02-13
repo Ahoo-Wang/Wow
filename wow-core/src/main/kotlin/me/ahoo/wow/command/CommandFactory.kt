@@ -18,7 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
@@ -52,6 +52,7 @@ fun <C : Any> C.toCommandMessage(
     }
     val commandAggregateId = metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
     val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId ?: TenantId.DEFAULT_TENANT_ID
+    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId ?: OwnerId.DEFAULT_OWNER_ID
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
     val expectedAggregateVersion = if (metadata.isCreate) {
         Version.UNINITIALIZED_VERSION
@@ -66,7 +67,7 @@ fun <C : Any> C.toCommandMessage(
         body = this,
         createTime = createTime,
         aggregateId = targetAggregateId,
-        ownerId = ownerId.orDefaultOwnerId(),
+        ownerId = commandOwnerId,
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = metadata.isCreate,
