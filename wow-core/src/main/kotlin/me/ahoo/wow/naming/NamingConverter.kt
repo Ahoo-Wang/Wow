@@ -19,7 +19,7 @@ import me.ahoo.wow.infra.Decorator
  *
  * @author ahoo wang
  */
-interface NamingConverter {
+fun interface NamingConverter {
     fun convert(phrase: String): String
 
     companion object {

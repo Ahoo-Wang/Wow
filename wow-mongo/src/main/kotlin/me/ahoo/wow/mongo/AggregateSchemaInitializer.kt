@@ -32,17 +32,12 @@ object AggregateSchemaInitializer {
     private val uniqueIndexOptions = IndexOptions().unique(true)
     private const val EVENT_STREAM_COLLECTION_SUFFIX = "_event_stream"
     private const val SNAPSHOT_COLLECTION_SUFFIX = "_snapshot"
-    private const val AGGREGATE_ID_COLLECTION_SUFFIX = "_aggregate_id"
     fun NamedAggregate.toEventStreamCollectionName(): String {
         return "${this.aggregateName}$EVENT_STREAM_COLLECTION_SUFFIX"
     }
 
     fun NamedAggregate.toSnapshotCollectionName(): String {
         return "${this.aggregateName}$SNAPSHOT_COLLECTION_SUFFIX"
-    }
-
-    fun NamedAggregate.toAggregateIdCollectionName(): String {
-        return "${this.aggregateName}$AGGREGATE_ID_COLLECTION_SUFFIX"
     }
 
     fun MongoDatabase.ensureCollection(collectionName: String): Boolean {
@@ -86,6 +81,10 @@ object AggregateSchemaInitializer {
 
     fun MongoCollection<Document>.createTenantIdIndex() {
         createIndex(Indexes.hashed(MessageRecords.TENANT_ID))
+            .toMono().toBlockable().block()
+    }
+    fun MongoCollection<Document>.createOwnerIdIndex() {
+        createIndex(Indexes.hashed(MessageRecords.OWNER_ID))
             .toMono().toBlockable().block()
     }
 }

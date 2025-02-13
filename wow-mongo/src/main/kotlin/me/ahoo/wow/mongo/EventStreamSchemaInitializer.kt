@@ -19,6 +19,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndRequestIdUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdAndVersionUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createAggregateIdIndex
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.createOwnerIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createRequestIdUniqueIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
@@ -69,5 +70,6 @@ class EventStreamSchemaInitializer(
             eventStreamCollection.createAggregateIdAndRequestIdUniqueIndex()
         }
         eventStreamCollection.createTenantIdIndex()
+        eventStreamCollection.createOwnerIdIndex()
     }
 }
