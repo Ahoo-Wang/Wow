@@ -32,7 +32,6 @@ import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_CONTEXT_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_NAME_PARAMETER
-import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_OWNER_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_TYPE_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.PATH
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
@@ -42,6 +41,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RES
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.LOCAL_FIRST_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
+import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.OWNER_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.TENANT_ID_PARAMETER
 import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
@@ -71,7 +71,7 @@ object CommandFacadeRouteSpec : RouteSpec {
                 add(WAIT_PROCESSOR_PARAMETER.ref)
                 add(WAIT_TIME_OUT_PARAMETER.ref)
                 add(TENANT_ID_PARAMETER.ref)
-                add(COMMAND_OWNER_PARAMETER)
+                add(OWNER_ID_PARAMETER.ref)
                 add(AGGREGATE_ID_PARAMETER.ref)
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)
@@ -114,11 +114,6 @@ class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory {
             .`in`(ParameterIn.HEADER.toString())
             .schema(StringSchema())
             .description("Command Aggregate Name")
-        val COMMAND_OWNER_PARAMETER: Parameter = Parameter()
-            .name(CommandRequestHeaders.OWNER_ID)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema())
-            .description("Resource Owner Id")
         const val PATH = "/${Wow.WOW}/command/send"
     }
 
