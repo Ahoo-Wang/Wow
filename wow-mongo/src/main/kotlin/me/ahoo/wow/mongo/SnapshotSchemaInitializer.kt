@@ -18,6 +18,7 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
+import me.ahoo.wow.mongo.AggregateSchemaInitializer.createOwnerIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
@@ -51,6 +52,7 @@ class SnapshotSchemaInitializer(private val database: MongoDatabase) {
         }
         val snapshotCollection = database.getCollection(collectionName)
         snapshotCollection.createTenantIdIndex()
+        snapshotCollection.createOwnerIdIndex()
         snapshotCollection.createIndex(Indexes.hashed(Documents.ID_FIELD))
             .toMono().toBlockable().block()
         snapshotCollection.createIndex(Indexes.hashed(StateAggregateRecords.DELETED))
