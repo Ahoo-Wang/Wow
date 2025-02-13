@@ -21,12 +21,11 @@ import me.ahoo.wow.serialization.toObject
 
 data class CommandRouteMetadata<C>(
     val enabled: Boolean,
-    val path: String,
+    val action: String,
     val method: String,
     val prefix: String = "",
     val appendIdPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val appendTenantPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
-    val ignoreAggregateNamePrefix: Boolean = false,
     val commandMetadata: CommandMetadata<C>,
     val summary: String = "",
     val description: String = "",

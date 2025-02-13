@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "sort",
+    action = "sort",
     summary = "Move tree node order",
     description = "Only sibling moves are allowed."
 )

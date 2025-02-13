@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.route
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_PATH
+import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_ACTION
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
@@ -102,11 +102,10 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         val summary = commandType.kotlin.scanAnnotation<Summary>()?.value ?: ""
         val commandRoute = commandType.kotlin.scanAnnotation<CommandRoute>() ?: return CommandRouteMetadata(
             enabled = true,
-            path = commandMetadata.name,
+            action = commandMetadata.name,
             method = commandMetadata.toMethod(),
             appendIdPath = CommandRoute.AppendPath.DEFAULT,
             appendTenantPath = CommandRoute.AppendPath.DEFAULT,
-            ignoreAggregateNamePrefix = false,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
@@ -117,12 +116,11 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
 
         return CommandRouteMetadata(
             enabled = commandRoute.enabled,
-            path = path,
+            action = path,
             method = commandMetadata.toMethod(commandRoute.method),
             prefix = commandRoute.prefix,
             appendIdPath = commandRoute.appendIdPath,
             appendTenantPath = commandRoute.appendTenantPath,
-            ignoreAggregateNamePrefix = commandRoute.ignoreAggregateNamePrefix,
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
@@ -135,13 +133,13 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         commandRoute: CommandRoute,
         commandMetadata: CommandMetadata<C>
     ): String {
-        if (commandRoute.path == DEFAULT_COMMAND_PATH) {
+        if (commandRoute.action == DEFAULT_COMMAND_ACTION) {
             return commandMetadata.name
         }
-        if (commandRoute.path.isBlank()) {
-            return commandRoute.path
+        if (commandRoute.action.isBlank()) {
+            return commandRoute.action
         }
-        val fullPath = PathBuilder().append(commandRoute.prefix).append(commandRoute.path).build()
+        val fullPath = PathBuilder().append(commandRoute.prefix).append(commandRoute.action).build()
         val uriPathVariables = UriTemplate(fullPath).variableNames.toSet()
         val pathVariableNames = pathVariables.map { it.variableName }.toSet()
         val missedVariableNames = uriPathVariables - pathVariableNames
@@ -164,7 +162,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             }
         }
 
-        return commandRoute.path
+        return commandRoute.action
     }
 }
 

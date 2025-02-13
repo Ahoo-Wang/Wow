@@ -22,7 +22,7 @@ import me.ahoo.wow.api.annotation.Summary
  */
 @Summary("修改收货地址")
 @CommandRoute(
-    path = "address",
+    action = "address",
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS
 )

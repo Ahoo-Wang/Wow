@@ -20,7 +20,7 @@ import me.ahoo.wow.models.tree.Flat
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "",
+    action = "",
     summary = "更新分类名称",
     description = "Id 为租户ID."
 )

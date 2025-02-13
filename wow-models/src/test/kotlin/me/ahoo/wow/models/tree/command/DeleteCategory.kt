@@ -20,7 +20,7 @@ import me.ahoo.wow.models.tree.Flat
 @CommandRoute(
     method = CommandRoute.Method.DELETE,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "{code}",
+    action = "{code}",
     summary = "删除树节点",
     description = "Id 为租户ID."
 )

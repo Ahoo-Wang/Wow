@@ -21,7 +21,7 @@ import me.ahoo.wow.models.tree.TreeCoded
 @CommandRoute(
     method = CommandRoute.Method.DELETE,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "{code}",
+    action = "{code}",
     summary = "Delete tree node",
     description = "Id is the tenant ID."
 )

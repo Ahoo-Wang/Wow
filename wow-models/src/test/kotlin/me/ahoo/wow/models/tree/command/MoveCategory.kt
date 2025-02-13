@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.CommandRoute
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    path = "sort",
+    action = "sort",
     summary = "移动分类节点",
     description = "只允许同级移动."
 )

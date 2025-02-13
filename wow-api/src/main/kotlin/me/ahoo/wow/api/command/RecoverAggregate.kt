@@ -23,5 +23,5 @@ import me.ahoo.wow.api.annotation.Summary
 interface RecoverAggregate
 
 @Summary("Recover deleted aggregate")
-@CommandRoute(path = "recover", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@CommandRoute(action = "recover", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 object DefaultRecoverAggregate : RecoverAggregate

@@ -28,7 +28,7 @@ import java.math.BigDecimal
  */
 @Summary("下单")
 @CommandRoute(
-    path = ""
+    action = ""
 )
 @CreateAggregate
 data class CreateOrder(
