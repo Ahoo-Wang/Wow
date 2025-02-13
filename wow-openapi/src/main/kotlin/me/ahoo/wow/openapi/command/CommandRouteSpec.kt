@@ -14,30 +14,20 @@
 package me.ahoo.wow.openapi.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.media.BooleanSchema
-import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
-import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ParameterRef
-import me.ahoo.wow.openapi.ParameterRef.Companion.with
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
@@ -46,23 +36,22 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RESULT_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.LOCAL_FIRST_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEXT_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_VERSION_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.LOCAL_FIRST_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.REQUEST_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_CONTEXT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_PROCESSOR_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_STAGE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandResponses.BAD_REQUEST_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.COMMAND_RESULT_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.NOT_FOUND_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
-import me.ahoo.wow.openapi.toJsonContent
 import me.ahoo.wow.serialization.MessageRecords
 
 class CommandRouteSpec(
@@ -178,133 +167,6 @@ class CommandRouteSpec(
 }
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    companion object {
-        val COMMAND_STAGE_SCHEMA = CommandStage::class.java.toSchemaRef(CommandStage.PROCESSED.name)
-        val WAIT_STAGE_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.WAIT_STAGE)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(COMMAND_STAGE_SCHEMA.ref).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val WAIT_CONTEXT_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.WAIT_CONTEXT)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val WAIT_PROCESSOR_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.WAIT_PROCESSOR)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val WAIT_TIME_OUT_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.WAIT_TIME_OUT)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(IntegerSchema())
-            .description("Unit: millisecond").let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val TENANT_ID_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.TENANT_ID)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val OWNER_ID_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.OWNER_ID)
-            .`in`(ParameterIn.HEADER.toString())
-            .description("Resource Owner Id")
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val AGGREGATE_ID_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.AGGREGATE_ID)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val AGGREGATE_VERSION_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.AGGREGATE_VERSION)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(IntegerSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val REQUEST_ID_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.REQUEST_ID)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val LOCAL_FIRST_PARAMETER = Parameter()
-            .name(CommandRequestHeaders.LOCAL_FIRST)
-            .`in`(ParameterIn.HEADER.toString())
-            .required(false)
-            .schema(BooleanSchema()).let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
-        val COMMAND_RESULT_CONTENT = CommandResult::class.java.toSchemaRef().ref.toJsonContent()
-        val COMMAND_RESULT_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}CommandResult",
-            component = COMMAND_RESULT_CONTENT.toResponse(),
-            code = Https.Code.OK
-        )
-        val BAD_REQUEST_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}CommandBadRequest",
-            component = COMMAND_RESULT_CONTENT.toResponse(description = "Bad Request"),
-            code = Https.Code.BAD_REQUEST
-        )
-        val NOT_FOUND_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}CommandNotFound",
-            component = COMMAND_RESULT_CONTENT.toResponse("Not Found"),
-            code = Https.Code.NOT_FOUND
-        )
-        val REQUEST_TIMEOUT_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}CommandRequestTimeout",
-            component = COMMAND_RESULT_CONTENT.toResponse("Request Timeout"),
-            code = Https.Code.REQUEST_TIMEOUT
-        )
-        val TOO_MANY_REQUESTS_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}CommandTooManyRequests",
-            component = COMMAND_RESULT_CONTENT.toResponse("Too Many Requests"),
-            code = Https.Code.TOO_MANY_REQUESTS
-        )
-        val VERSION_CONFLICT_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}VersionConflict",
-            component = COMMAND_RESULT_CONTENT.toResponse(description = "Version Conflict"),
-            code = Https.Code.CONFLICT
-        )
-        val ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE = ResponseRef(
-            name = "${Wow.WOW_PREFIX}IllegalAccessDeletedAggregate",
-            component = COMMAND_RESULT_CONTENT.toResponse(description = "Illegal Access Deleted Aggregate"),
-            code = Https.Code.GONE
-        )
-    }
-
-    init {
-        COMMAND_STAGE_SCHEMA.schemas.mergeSchemas()
-        CommandResult::class.java.toSchemas().mergeSchemas()
-        components.parameters
-            .with(WAIT_STAGE_PARAMETER)
-            .with(WAIT_CONTEXT_PARAMETER)
-            .with(WAIT_PROCESSOR_PARAMETER)
-            .with(WAIT_TIME_OUT_PARAMETER)
-            .with(TENANT_ID_PARAMETER)
-            .with(OWNER_ID_PARAMETER)
-            .with(AGGREGATE_ID_PARAMETER)
-            .with(AGGREGATE_VERSION_PARAMETER)
-            .with(REQUEST_ID_PARAMETER)
-            .with(LOCAL_FIRST_PARAMETER)
-
-        components.responses
-            .with(COMMAND_RESULT_RESPONSE)
-            .with(BAD_REQUEST_RESPONSE)
-            .with(NOT_FOUND_RESPONSE)
-            .with(REQUEST_TIMEOUT_RESPONSE)
-            .with(TOO_MANY_REQUESTS_RESPONSE)
-            .with(VERSION_CONFLICT_RESPONSE)
-            .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
-    }
 
     private fun Class<*>.toCommandRouteSpec(
         currentContext: NamedBoundedContext,

@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.openapi.command
 
-import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.ObjectSchema
-import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
@@ -30,25 +28,25 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
 import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_CONTEXT_PARAMETER
-import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_AGGREGATE_NAME_PARAMETER
-import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.COMMAND_TYPE_PARAMETER
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory.Companion.PATH
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.AGGREGATE_VERSION_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.BAD_REQUEST_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.COMMAND_RESULT_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.LOCAL_FIRST_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.NOT_FOUND_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.OWNER_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.REQUEST_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.TENANT_ID_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.VERSION_CONFLICT_RESPONSE
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_CONTEXT_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_PROCESSOR_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_STAGE_PARAMETER
-import me.ahoo.wow.openapi.command.CommandRouteSpecFactory.Companion.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_VERSION_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_AGGREGATE_CONTEXT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_AGGREGATE_NAME_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.COMMAND_TYPE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.LOCAL_FIRST_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.OWNER_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.REQUEST_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.TENANT_ID_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_CONTEXT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_PROCESSOR_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_STAGE_PARAMETER
+import me.ahoo.wow.openapi.command.CommandRequestParameters.WAIT_TIME_OUT_PARAMETER
+import me.ahoo.wow.openapi.command.CommandResponses.BAD_REQUEST_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.COMMAND_RESULT_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.NOT_FOUND_RESPONSE
+import me.ahoo.wow.openapi.command.CommandResponses.VERSION_CONFLICT_RESPONSE
 import me.ahoo.wow.openapi.toJsonContent
 
 object CommandFacadeRouteSpec : RouteSpec {
@@ -65,7 +63,7 @@ object CommandFacadeRouteSpec : RouteSpec {
     override val parameters: List<Parameter>
         get() {
             return buildList {
-                add(COMMAND_TYPE_PARAMETER)
+                add(COMMAND_TYPE_PARAMETER.ref)
                 add(WAIT_STAGE_PARAMETER.component)
                 add(WAIT_CONTEXT_PARAMETER.ref)
                 add(WAIT_PROCESSOR_PARAMETER.ref)
@@ -76,8 +74,8 @@ object CommandFacadeRouteSpec : RouteSpec {
                 add(AGGREGATE_VERSION_PARAMETER.ref)
                 add(REQUEST_ID_PARAMETER.ref)
                 add(LOCAL_FIRST_PARAMETER.ref)
-                add(COMMAND_AGGREGATE_CONTEXT_PARAMETER)
-                add(COMMAND_AGGREGATE_NAME_PARAMETER)
+                add(COMMAND_AGGREGATE_CONTEXT_PARAMETER.ref)
+                add(COMMAND_AGGREGATE_NAME_PARAMETER.ref)
             }
         }
     override val requestBody: RequestBody = RequestBody()
@@ -98,22 +96,6 @@ object CommandFacadeRouteSpec : RouteSpec {
 
 class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory {
     companion object {
-        val COMMAND_TYPE_PARAMETER: Parameter = Parameter()
-            .name(CommandRequestHeaders.COMMAND_TYPE)
-            .required(true)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema())
-            .description("Command Body Class fully qualified name")
-        val COMMAND_AGGREGATE_CONTEXT_PARAMETER: Parameter = Parameter()
-            .name(CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema())
-            .description("Command Aggregate Context")
-        val COMMAND_AGGREGATE_NAME_PARAMETER: Parameter = Parameter()
-            .name(CommandRequestHeaders.COMMAND_AGGREGATE_NAME)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(StringSchema())
-            .description("Command Aggregate Name")
         const val PATH = "/${Wow.WOW}/command/send"
     }
 
