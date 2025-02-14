@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/list-query.schema.json",
+  "title": "List Query Model Schema",
+  "type": "object",
+  "properties": {
+    "condition": {
+      "$ref": "definitions.schema.json#/definitions/condition",
+      "default": {
+        "operator": "ALL"
+      }
+    },
+    "projection": {
+      "$ref": "definitions.schema.json#/definitions/projection",
+      "default": {
+        "include": [],
+        "exclude": []
+      }
+    },
+    "sort": {
+      "type": "array",
+      "items": {
+        "$ref": "definitions.schema.json#/definitions/sort"
+      },
+      "default": []
+    },
+    "limit": {
+      "type": "integer",
+      "default": 10
+    }
+  },
+  "required": [
+    "condition"
+  ]
+}
