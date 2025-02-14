@@ -1,34 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema",
-  "$id": "https://view.linyikj.com/filter.schema.json",
-  "title": "Query Model Schema",
+  "$id": "https://github.com/Ahoo-Wang/Wow/blob/main/schema/query/definitions.schema.json",
+  "title": "Common Query Model Schema",
   "type": "object",
-  "properties": {
-    "condition": {
-      "$ref": "#/definitions/condition",
-      "default": {
-        "field": "",
-        "value": "",
-        "operator": "ALL",
-        "children": [],
-        "not": false
-      }
-    },
-    "sort": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/sort"
-      },
-      "default": []
-    },
-    "limit": {
-      "type": "integer",
-      "default": 10
-    }
-  },
-  "required": [
-    "condition"
-  ],
   "definitions": {
     "operator": {
       "title": "算子/操作符",
@@ -37,6 +11,11 @@
         "OR",
         "ID",
         "IDS",
+        "AGGREGATE_ID",
+        "AGGREGATE_IDS",
+        "TENANT_ID",
+        "OWNER_ID",
+        "DELETED",
         "ALL",
         "EQ",
         "NE",
@@ -57,6 +36,7 @@
         "TRUE",
         "FALSE",
         "TODAY",
+        "BEFORE_TODAY",
         "TOMORROW",
         "THIS_WEEK",
         "NEXT_WEEK",
@@ -104,14 +84,55 @@
           },
           "default": []
         },
-        "not": {
-          "type": "boolean",
-          "default": false
+        "options": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "operator"
+      ]
+    },
+    "projection": {
+      "title": "投影",
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "default": {
+        "include": [],
+        "exclude": []
+      }
+    },
+    "sort": {
+      "title": "排序",
+      "type": "object",
+      "properties": {
+        "field": {
+          "title": "字段 id",
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
         }
       },
       "required": [
         "field",
-        "operator"
+        "direction"
       ]
     },
     "pagination": {
@@ -132,26 +153,6 @@
       "required": [
         "index",
         "size"
-      ]
-    },
-    "sort": {
-      "title": "排序",
-      "type": "object",
-      "properties": {
-        "field": {
-          "title": "字段 id",
-          "type": "string"
-        },
-        "direction": {
-          "enum": [
-            "asc",
-            "desc"
-          ]
-        }
-      },
-      "required": [
-        "field",
-        "direction"
       ]
     }
   }

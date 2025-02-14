@@ -48,7 +48,7 @@
             <SchemaInfo>
               <option name="generatedName" value="New Schema" />
               <option name="name" value="wow-pagination.schema" />
-              <option name="relativePathToSchema" value="schema/wow-paged-query.schema.json" />
+              <option name="relativePathToSchema" value="schema/query/paged-query.schema.json" />
               <option name="patterns">
                 <list>
                   <Item>
@@ -69,7 +69,7 @@
             <SchemaInfo>
               <option name="generatedName" value="New Schema" />
               <option name="name" value="wow-query.schema" />
-              <option name="relativePathToSchema" value="schema/wow-query.schema.json" />
+              <option name="relativePathToSchema" value="schema/query/list-query.schema.json" />
               <option name="patterns">
                 <list>
                   <Item>
