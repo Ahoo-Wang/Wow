@@ -313,6 +313,26 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
+    fun `exists condition to Query`() {
+        val query = condition {
+            "field".exists()
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertThat(query._kind(), equalTo(Query.Kind.Exists))
+    }
+
+    @Test
+    fun `not exists condition to Query`() {
+        val query = condition {
+            "field".exists(false)
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+    }
+
+    @Test
     fun `deleted condition to Query`() {
         val query = condition {
             deleted(true)

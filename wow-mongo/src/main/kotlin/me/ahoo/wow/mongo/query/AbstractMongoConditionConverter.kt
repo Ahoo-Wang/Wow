@@ -177,6 +177,10 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
         return Filters.eq(condition.field, false)
     }
 
+    override fun exists(condition: Condition): Bson {
+        return Filters.exists(condition.field, condition.valueAs())
+    }
+
     override fun deleted(condition: Condition): Bson {
         return Filters.eq(StateAggregateRecords.DELETED, condition.value)
     }

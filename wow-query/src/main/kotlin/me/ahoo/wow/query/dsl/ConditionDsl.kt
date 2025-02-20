@@ -308,6 +308,14 @@ class ConditionDsl : NestedFieldDsl() {
         name.isFalse()
     }
 
+    fun String.exists(exists: Boolean = true) {
+        condition(Condition.exists(this.withNestedField(), exists))
+    }
+
+    fun KCallable<*>.exists(exists: Boolean = true) {
+        name.exists(exists)
+    }
+
     fun String.today(datePattern: Any? = null) {
         condition(Condition.today(this.withNestedField(), datePattern))
     }

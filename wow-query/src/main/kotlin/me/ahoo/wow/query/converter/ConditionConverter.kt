@@ -48,6 +48,7 @@ interface ConditionConverter<T> {
             Operator.NOT_NULL -> notNull(condition)
             Operator.TRUE -> isTrue(condition)
             Operator.FALSE -> isFalse(condition)
+            Operator.EXISTS -> exists(condition)
             Operator.DELETED -> deleted(condition)
             Operator.TODAY -> today(condition)
             Operator.BEFORE_TODAY -> beforeToday(condition)
@@ -90,6 +91,7 @@ interface ConditionConverter<T> {
     fun notNull(condition: Condition): T
     fun isTrue(condition: Condition): T
     fun isFalse(condition: Condition): T
+    fun exists(condition: Condition): T
     fun deleted(condition: Condition): T
     fun today(condition: Condition): T
     fun beforeToday(condition: Condition): T

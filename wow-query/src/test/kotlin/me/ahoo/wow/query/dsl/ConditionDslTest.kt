@@ -431,6 +431,22 @@ class ConditionDslTest {
     }
 
     @Test
+    fun exists() {
+        val condition = condition {
+            QueryModel::id.exists()
+        }
+        assertThat(condition, equalTo(Condition.exists("id")))
+    }
+
+    @Test
+    fun notExists() {
+        val condition = condition {
+            QueryModel::id.exists(false)
+        }
+        assertThat(condition, equalTo(Condition.exists("id", false)))
+    }
+
+    @Test
     fun tenantId() {
         val condition = condition {
             tenantId("tenantId")
