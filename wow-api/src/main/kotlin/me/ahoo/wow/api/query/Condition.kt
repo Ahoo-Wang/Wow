@@ -115,6 +115,7 @@ data class Condition(
         fun notNull(field: String) = Condition(field, Operator.NOT_NULL)
         fun isTrue(field: String) = Condition(field, Operator.TRUE)
         fun isFalse(field: String) = Condition(field, Operator.FALSE)
+        fun exists(field: String, exists: Boolean = true) = Condition(field, Operator.EXISTS, exists)
         fun id(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.ID, value = value)
         fun ids(value: List<String>) = Condition(field = EMPTY_VALUE, operator = Operator.IDS, value = value)
         fun ids(vararg value: String) = ids(value.asList())

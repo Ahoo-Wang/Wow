@@ -427,6 +427,10 @@ class MongoConverterTest {
                     Filters.or(Filters.eq("id", false))
                 ),
                 Arguments.of(
+                    Condition.or(listOf(Condition.exists("id"))),
+                    Filters.or(Filters.exists("id", true))
+                ),
+                Arguments.of(
                     Condition.or(listOf(Condition.raw(Filters.eq("id", false)))),
                     Filters.or(Filters.eq("id", false))
                 ),

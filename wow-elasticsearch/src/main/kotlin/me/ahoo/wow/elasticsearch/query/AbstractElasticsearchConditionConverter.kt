@@ -18,6 +18,7 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
@@ -81,6 +82,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 .value(FieldValue.of(condition.value))
         }
     }
+
     override fun all(condition: Condition): Query {
         return matchAll { it }
     }
@@ -236,6 +238,19 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         return term {
             it.field(condition.field)
                 .value(FieldValue.FALSE)
+        }
+    }
+
+    override fun exists(condition: Condition): Query {
+        val exists = condition.valueAs<Boolean>()
+        val existsQuery = exists {
+            it.field(condition.field)
+        }
+        if (exists) {
+            return existsQuery
+        }
+        return bool { builder ->
+            builder.mustNot(existsQuery)
         }
     }
 
