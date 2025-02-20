@@ -59,6 +59,7 @@ interface ConditionConverter<T> {
             Operator.THIS_MONTH -> thisMonth(condition)
             Operator.LAST_MONTH -> lastMonth(condition)
             Operator.RECENT_DAYS -> recentDays(condition)
+            Operator.EARLIER_DAYS -> earlierDays(condition)
             Operator.RAW -> raw(condition)
         }
     }
@@ -102,5 +103,6 @@ interface ConditionConverter<T> {
     fun thisMonth(condition: Condition): T
     fun lastMonth(condition: Condition): T
     fun recentDays(condition: Condition): T
+    fun earlierDays(condition: Condition): T
     fun raw(condition: Condition): T
 }

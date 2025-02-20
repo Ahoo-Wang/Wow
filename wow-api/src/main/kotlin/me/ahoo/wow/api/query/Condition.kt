@@ -164,6 +164,14 @@ data class Condition(
                 options = datePatternOptions(datePattern)
             )
 
+        fun earlierDays(field: String, days: Int, datePattern: Any? = null) =
+            Condition(
+                field = field,
+                operator = Operator.EARLIER_DAYS,
+                value = days,
+                options = datePatternOptions(datePattern)
+            )
+
         fun raw(value: Any) = Condition(field = EMPTY_VALUE, operator = Operator.RAW, value = value)
     }
 }
