@@ -526,6 +526,14 @@ class ConditionDslTest {
         assertThat(condition, equalTo(Condition.recentDays("id", 1)))
     }
 
+    @Test
+    fun earlierDays() {
+        val condition = condition {
+            QueryModel::id.name.earlierDays(1)
+        }
+        assertThat(condition, equalTo(Condition.earlierDays("id", 1)))
+    }
+
     @ParameterizedTest
     @MethodSource("buildParameters")
     fun build(condition: Condition, expected: Condition) {

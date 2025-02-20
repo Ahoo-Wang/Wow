@@ -388,6 +388,10 @@ class ConditionDsl : NestedFieldDsl() {
         name.recentDays(days, null)
     }
 
+    fun String.earlierDays(days: Int, datePattern: Any? = null) {
+        condition(Condition.earlierDays(this.withNestedField(), days, datePattern))
+    }
+
     fun raw(value: Any) {
         condition(Condition.raw(value))
     }

@@ -49,8 +49,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     }
 
     override fun beforeToday(condition: Condition): T {
-        val conditionValue = condition.value
-        val time = when (conditionValue) {
+        val time = when (val conditionValue = condition.value) {
             is Number -> LocalTime.ofSecondOfDay(conditionValue.toLong())
             is String -> LocalTime.parse(conditionValue)
             is LocalTime -> conditionValue
@@ -150,6 +149,15 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             to = endOfRecentDays,
             datePattern = condition.datePattern()
         )
+    }
+
+    override fun earlierDays(condition: Condition): T {
+        val now = now(condition)
+        val days = condition.value as Number
+        val endOfEarlierDays = now.minusDays(days.toLong() - 1).with(LocalTime.MIN)
+        val toDate: Any = toDate(endOfEarlierDays, condition.datePattern())
+        val ltCondition = Condition.lt(condition.field, toDate)
+        return lt(ltCondition)
     }
 
     fun timeRange(field: String, from: OffsetDateTime, to: OffsetDateTime, datePattern: DateTimeFormatter? = null): T {

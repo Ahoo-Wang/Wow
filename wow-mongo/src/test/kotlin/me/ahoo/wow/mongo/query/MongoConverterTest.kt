@@ -309,6 +309,18 @@ class MongoConverterTest {
     }
 
     @Test
+    fun earlierDays() {
+        val actual = Condition.earlierDays("field", 2).let {
+            SnapshotConditionConverter.convert(it)
+        }
+        val expected = Filters.lt(
+            "field",
+            OffsetDateTime.now().minusDays(1).with(LocalTime.MIN).toInstant().toEpochMilli()
+        )
+        assertThat(actual, equalTo(expected))
+    }
+
+    @Test
     fun rawBson() {
         val expected = Filters.eq("id", "id")
         val actual = Condition.raw(expected).let {
