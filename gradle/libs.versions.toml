@@ -17,7 +17,7 @@ springdoc = "2.8.5"
 jte = "3.1.16"
 # plugins
 test-retry = "1.6.2"
-detekt = "1.23.7"
+detekt = "1.23.8"
 dokka = "2.0.0"
 kotlin = "2.0.21"
 publish-plugin = "2.0.0"
