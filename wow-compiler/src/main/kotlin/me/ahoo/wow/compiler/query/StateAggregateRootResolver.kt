@@ -32,13 +32,14 @@ import javax.annotation.processing.Generated
 
 object StateAggregateRootResolver {
 
+    @Suppress("TooGenericExceptionCaught", "TooGenericExceptionThrown")
     fun KSClassDeclaration.resolveStateAggregateRoot(): StateAggregateRootPropertyNavigationFile {
         val aggregateRootMetadata = this.resolveAggregateRootMetadata()
+        val stateAggregateDeclaration = aggregateRootMetadata.state
         val dependencies =
             Dependencies(aggregating = true, sources = aggregateRootMetadata.resolveDependencies().toTypedArray())
-        val packageName = aggregateRootMetadata.state.packageName.asString()
-        val fileName = aggregateRootMetadata.state.simpleName.asString() + FILE_SUFFIX
-
+        val packageName = stateAggregateDeclaration.packageName.asString()
+        val fileName = stateAggregateDeclaration.simpleName.asString() + FILE_SUFFIX
         val codeGenerator = StringBuilder()
         codeGenerator.appendLine("package $packageName")
         codeGenerator.appendLine()
@@ -48,7 +49,7 @@ object StateAggregateRootResolver {
         codeGenerator.appendLine("@Generated(\"$GENERATOR_NAME\", date = \"$generatedDate\")")
         codeGenerator.appendLine("object $fileName {")
         val added = mutableSetOf<PropertyNav>()
-        aggregateRootMetadata.state.getAllProperties().forEach {
+        stateAggregateDeclaration.getAllProperties().forEach {
             it.resolvePropertyNavigationCode(codeGenerator, added)
         }
         codeGenerator.appendLine("}")
@@ -86,7 +87,9 @@ object StateAggregateRootResolver {
         }
         codeGenerator.appendLine(currentNav.toCode())
         val currentPropertyReturnTypeDeclaration = this.getter?.returnType?.resolve()?.declaration
-        if (currentPropertyReturnTypeDeclaration is KSClassDeclaration && currentPropertyReturnTypeDeclaration.shouldResolve()) {
+        if (currentPropertyReturnTypeDeclaration is KSClassDeclaration &&
+            currentPropertyReturnTypeDeclaration.shouldResolve(this)
+        ) {
             currentPropertyReturnTypeDeclaration.getAllProperties().forEach {
                 it.resolvePropertyNavigationCode(codeGenerator, added, currentNav)
             }
@@ -94,11 +97,13 @@ object StateAggregateRootResolver {
     }
 
     private val SIMPLE_TYPE_MAPPING = setOf<String>()
-    private fun KSClassDeclaration.shouldResolve(): Boolean {
+    private fun KSClassDeclaration.shouldResolve(propertyDef: KSPropertyDeclaration): Boolean {
         if (this.classKind != ClassKind.CLASS) {
             return false
         }
-        val typeName = checkNotNull(this.qualifiedName).asString()
+        val typeName = checkNotNull(this.qualifiedName) {
+            "[${propertyDef.parentDeclaration!!.qualifiedName!!.asString()}.$propertyDef] Unable to resolve qualifiedName for $this"
+        }.asString()
         if (typeName.startsWith("kotlin.") || typeName.startsWith("java.")) {
             return false
         }
