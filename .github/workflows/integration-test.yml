@@ -86,7 +86,7 @@ jobs:
         run: ./gradlew wow-openapi:clean wow-openapi:check --stacktrace
 
   wow-openapi-joda-money-test:
-    name: Wow OpenAPI Test
+    name: Wow OpenAPI Joda Money Test
     runs-on: ubuntu-latest
     needs: [ wow-api-test ]
     steps:
