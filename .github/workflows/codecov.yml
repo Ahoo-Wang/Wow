@@ -58,6 +58,7 @@ jobs:
           files: |
             wow-core/build/test-results/**/*.xml
             wow-openapi/build/test-results/**/*.xml
+            wow-openapi-joda-money/build/test-results/**/*.xml
             wow-compiler/build/test-results/**/*.xml
             wow-kafka/build/test-results/**/*.xml
             wow-mongo/build/test-results/**/*.xml
