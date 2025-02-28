@@ -31,6 +31,7 @@ class MoneyConverter : TargetTypeModifyConverter() {
 
     override fun modify(resolvedSchema: Schema<*>): Schema<*> {
         return resolvedSchema.apply {
+            type = "object"
             properties = mapOf(
                 AMOUNT_FIELD to NumberSchema().apply {
                     description = AMOUNT_FIELD
