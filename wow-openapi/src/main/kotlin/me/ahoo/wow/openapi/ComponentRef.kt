@@ -85,7 +85,7 @@ class SchemaRef(
         }
 
         fun Class<*>.toSchemas(): Map<String, Schema<*>> {
-            return ModelConverters.getInstance().readAll(this)
+            return ModelConverters.getInstance(true).readAll(this)
         }
 
         fun String.toRefSchema(): Schema<*> {
