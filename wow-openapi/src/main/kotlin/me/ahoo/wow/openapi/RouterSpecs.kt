@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
+import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
@@ -29,6 +30,7 @@ class RouterSpecs(
     @Volatile
     private var built: Boolean = false
     private val openAPI = OpenAPI().apply {
+        specVersion(SpecVersion.V31)
         info = Info()
             .title(currentContext.getContextAlias())
             .description(currentContext.contextName)
