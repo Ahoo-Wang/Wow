@@ -4,6 +4,7 @@ spring-boot = "3.4.3"
 cosid = "2.11.0"
 simba = "2.6.2"
 coapi = "1.9.6"
+cocache = "3.0.6"
 testcontainers = "1.20.5"
 opentelemetry = "1.47.0"
 opentelemetry-instrumentation = "2.13.3"
@@ -28,6 +29,7 @@ spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-depe
 cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 simba-bom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
 coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
+cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-instrumentation-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry-instrumentation" }
 opentelemetry-semconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }

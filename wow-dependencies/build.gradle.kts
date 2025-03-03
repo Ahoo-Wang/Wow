@@ -16,6 +16,7 @@ dependencies {
     api(platform(libs.cosid.bom))
     api(platform(libs.simba.bom))
     api(platform(libs.coapi.bom))
+    api(platform(libs.cocache.bom))
     api(platform(libs.opentelemetry.bom))
     api(platform(libs.opentelemetry.instrumentation.bom))
     api(platform(libs.testcontainers.bom))

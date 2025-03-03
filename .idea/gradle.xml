@@ -27,6 +27,7 @@
             <option value="$PROJECT_DIR$/wow-apiclient" />
             <option value="$PROJECT_DIR$/wow-bi" />
             <option value="$PROJECT_DIR$/wow-bom" />
+            <option value="$PROJECT_DIR$/wow-cocache" />
             <option value="$PROJECT_DIR$/wow-compiler" />
             <option value="$PROJECT_DIR$/wow-core" />
             <option value="$PROJECT_DIR$/wow-dependencies" />
