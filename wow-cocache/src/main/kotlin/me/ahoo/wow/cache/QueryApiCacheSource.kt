@@ -14,9 +14,14 @@
 package me.ahoo.wow.cache
 
 import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
+import reactor.core.publisher.Mono
 import java.util.function.Function
 
 interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
     override val stateToCacheDataConverter: Function<S, S>
         get() = Function.identity()
+
+    override fun loadState(key: String): Mono<S> {
+        return getStateById(key)
+    }
 }
