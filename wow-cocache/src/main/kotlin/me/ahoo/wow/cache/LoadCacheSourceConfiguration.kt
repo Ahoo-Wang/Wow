@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.cache
 
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import java.util.function.Function
+import java.time.Duration
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
-    override val stateToCacheDataConverter: Function<S, S>
-        get() = Function.identity()
+data class LoadCacheSourceConfiguration(
+    val timeout: Duration = Duration.ofSeconds(10),
+    val ttl: Long? = null,
+    val amplitude: Long = 0
+) {
+    companion object {
+        val DEFAULT = LoadCacheSourceConfiguration()
+    }
 }

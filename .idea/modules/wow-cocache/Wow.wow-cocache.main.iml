@@ -5,4 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../../../wow-cocache/src/main/kotlin" isTestSource="false" />
     </content>
   </component>
+  <component name="CheckStyle-IDEA-Module" serialisationVersion="2">
+    <option name="activeLocationsIds" />
+  </component>
 </module>
