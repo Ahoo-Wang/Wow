@@ -21,7 +21,7 @@ class StateToCacheDataConverterTest {
     @Test
     fun stateToCacheData() {
         val state = Any()
-        val data = StateToCacheDataConverter.identity<Any, Any>().stateToCacheData(state)
+        val data = StateToCacheDataConverter.identity<Any>().stateToCacheData(state)
         assertThat(state, sameInstance(data))
     }
 }
