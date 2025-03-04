@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cache
 
-interface CacheValueTtlConfiguration {
+interface CacheValueConfiguration {
     /**
      * 缓存过期时间，单位：秒
      *
@@ -22,4 +22,11 @@ interface CacheValueTtlConfiguration {
      * @see me.ahoo.cache.api.TtlAt
      */
     val ttl: Long?
+
+    /**
+     * Jitter ttl (randomly) to prevent cache avalanche
+     *
+     * @see me.ahoo.cache.ComputedTtlAt.jitter
+     */
+    val amplitude: Long
 }

@@ -14,6 +14,6 @@
 package me.ahoo.wow.cache
 
 enum class RefreshMode {
-    AUTO,
-    EVICT
+    EVICT,
+    SET
 }

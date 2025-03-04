@@ -32,9 +32,10 @@ open class StateCacheRefresher<S : Any, D>(
     private val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
     private val cache: Cache<String, D>,
     override val ttl: Long? = null,
-    private val mode: RefreshMode = RefreshMode.AUTO
+    override val amplitude: Long = 0,
+    private val mode: RefreshMode = RefreshMode.EVICT
 ) : NamedAggregateDecorator,
-    CacheValueTtlConfiguration,
+    CacheValueConfiguration,
     MessageFunction<StateCacheRefresher<S, D>, StateDomainEventExchange<S, Any>, Mono<Void>> {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(StateCacheRefresher::class.java)
@@ -56,8 +57,8 @@ open class StateCacheRefresher<S : Any, D>(
                 log.debug("[$mode]Refresh {} Cache.", exchange.state.aggregateId)
             }
             when (mode) {
-                RefreshMode.AUTO -> autoRefresh(exchange)
                 RefreshMode.EVICT -> evictRefresh(exchange)
+                RefreshMode.SET -> setRefresh(exchange)
             }
         }
     }
@@ -66,9 +67,9 @@ open class StateCacheRefresher<S : Any, D>(
         cache.evict(exchange.state.aggregateId.id)
     }
 
-    private fun autoRefresh(exchange: StateDomainEventExchange<S, Any>) {
+    private fun setRefresh(exchange: StateDomainEventExchange<S, Any>) {
         if (exchange.state.deleted) {
-            cache.evict(exchange.state.aggregateId.id)
+            evictRefresh(exchange)
             return
         }
         val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state.state)
@@ -76,7 +77,7 @@ open class StateCacheRefresher<S : Any, D>(
         val cacheValue = if (ttl == null) {
             DefaultCacheValue.forever(cacheData)
         } else {
-            DefaultCacheValue.ttlAt(cacheData, ttl)
+            DefaultCacheValue.ttlAt(cacheData, ttl, amplitude)
         }
         cache.setCache(exchange.state.aggregateId.id, cacheValue)
     }
