@@ -54,7 +54,7 @@ open class StateCacheRefresher<S : Any, D>(
     override fun invoke(exchange: StateDomainEventExchange<S, Any>): Mono<Void> {
         return Mono.fromRunnable {
             if (log.isDebugEnabled) {
-                log.debug("[$mode]Refresh {} Cache.", exchange.state.aggregateId)
+                log.debug("[$mode] Refresh {} Cache.", exchange.state.aggregateId)
             }
             when (mode) {
                 RefreshMode.EVICT -> evictRefresh(exchange)
