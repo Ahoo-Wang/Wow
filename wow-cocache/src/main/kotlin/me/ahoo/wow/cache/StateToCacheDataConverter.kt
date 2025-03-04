@@ -19,9 +19,9 @@ fun interface StateToCacheDataConverter<S, D> {
     companion object {
         private val IDENTITY = StateToCacheDataConverter<Any, Any> { state -> state }
 
-        fun <S, D> identity(): StateToCacheDataConverter<S, D> {
+        fun <D> identity(): StateToCacheDataConverter<D, D> {
             @Suppress("UNCHECKED_CAST")
-            return IDENTITY as StateToCacheDataConverter<S, D>
+            return IDENTITY as StateToCacheDataConverter<D, D>
         }
     }
 }
