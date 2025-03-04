@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.cache
 
-import java.time.Duration
-
-data class LoadCacheSourceConfiguration(
-    val timeout: Duration = Duration.ofSeconds(10),
-    override val ttl: Long? = null,
-    val amplitude: Long = 0
-) : CacheValueTtlConfiguration {
-    companion object {
-        val DEFAULT = LoadCacheSourceConfiguration()
-    }
+interface CacheValueTtlConfiguration {
+    /**
+     * 缓存过期时间，单位：秒
+     *
+     * 当为 `null` 时，表示不设置过期时间。
+     *
+     * @see me.ahoo.cache.api.TtlAt
+     */
+    val ttl: Long?
 }
