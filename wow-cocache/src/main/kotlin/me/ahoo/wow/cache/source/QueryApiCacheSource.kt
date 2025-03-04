@@ -11,9 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cache
+package me.ahoo.wow.cache.source
 
-enum class RefreshMode {
-    EVICT,
-    SET
+import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
+import me.ahoo.wow.cache.StateToCacheDataConverter
+import reactor.core.publisher.Mono
+
+interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
+    override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
+        get() = StateToCacheDataConverter.identity()
+
+    override fun loadState(key: String): Mono<S> {
+        return getStateById(key)
+    }
 }

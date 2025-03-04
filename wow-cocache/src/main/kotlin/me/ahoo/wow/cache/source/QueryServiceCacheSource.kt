@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cache
+package me.ahoo.wow.cache.source
 
+import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.query

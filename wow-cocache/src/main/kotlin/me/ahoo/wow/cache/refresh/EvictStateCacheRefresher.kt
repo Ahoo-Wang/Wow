@@ -11,16 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cache
+package me.ahoo.wow.cache.refresh
 
-import java.time.Duration
+import me.ahoo.cache.api.Cache
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.event.StateDomainEventExchange
 
-data class LoadCacheSourceConfiguration(
-    val timeout: Duration = Duration.ofSeconds(10),
-    override val ttl: Long? = null,
-    override val amplitude: Long = 0
-) : CacheValueConfiguration {
-    companion object {
-        val DEFAULT = LoadCacheSourceConfiguration()
+/**
+ * 主动逐出缓存.
+ */
+open class EvictStateCacheRefresher<S : Any, D>(
+    namedAggregate: NamedAggregate,
+    override val cache: Cache<String, D>
+) : StateCacheRefresher<S, D> (namedAggregate) {
+
+    override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
+        cache.evict(exchange.state.aggregateId.id)
     }
 }
