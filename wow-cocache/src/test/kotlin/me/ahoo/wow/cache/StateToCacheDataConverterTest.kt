@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.cache
 
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import reactor.core.publisher.Mono
+import org.hamcrest.CoreMatchers.sameInstance
+import org.hamcrest.MatcherAssert.*
+import org.junit.jupiter.api.Test
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
-    override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
-        get() = StateToCacheDataConverter.identity()
-
-    override fun loadState(key: String): Mono<S> {
-        return getStateById(key)
+class StateToCacheDataConverterTest {
+    @Test
+    fun stateToCacheData() {
+        val state = Any()
+        val data = StateToCacheDataConverter.identity<Any, Any>().stateToCacheData(state)
+        assertThat(state, sameInstance(data))
     }
 }
