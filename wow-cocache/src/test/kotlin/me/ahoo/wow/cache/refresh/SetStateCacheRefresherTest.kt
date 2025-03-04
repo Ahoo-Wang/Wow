@@ -109,4 +109,22 @@ class SetStateCacheRefresherTest {
 
         stateCacheRefresher.invoke(exchange).test().verifyComplete()
     }
+
+    @Test
+    fun invokeIfWithTtl() {
+        val stateCacheRefresher = SetStateCacheRefresher<MockStateAggregate, MockStateAggregate>(
+            namedAggregate = MOCK_AGGREGATE_METADATA,
+            stateToCacheDataConverter = StateToCacheDataConverter.identity(),
+            cache = MapClientSideCache(),
+            ttl = 600
+        )
+
+        val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
+            every { state.state } returns MockStateAggregate(generateGlobalId())
+            every { state.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
+            every { state.deleted } returns false
+        }
+
+        stateCacheRefresher.invoke(exchange).test().verifyComplete()
+    }
 }
