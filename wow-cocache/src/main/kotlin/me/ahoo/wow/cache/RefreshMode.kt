@@ -13,14 +13,7 @@
 
 package me.ahoo.wow.cache
 
-import java.time.Duration
-
-data class LoadCacheSourceConfiguration(
-    val timeout: Duration = Duration.ofSeconds(10),
-    override val ttl: Long? = null,
-    val amplitude: Long = 0
-) : CacheValueTtlConfiguration {
-    companion object {
-        val DEFAULT = LoadCacheSourceConfiguration()
-    }
+enum class RefreshMode {
+    AUTO,
+    EVICT
 }
