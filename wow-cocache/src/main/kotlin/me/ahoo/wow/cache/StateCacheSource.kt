@@ -18,17 +18,16 @@ import me.ahoo.cache.api.CacheValue
 import me.ahoo.cache.api.source.CacheSource
 import reactor.core.publisher.Mono
 import java.util.concurrent.TimeUnit
-import java.util.function.Function
 
 interface StateCacheSource<S : Any, D : Any> : CacheSource<String, D> {
     val loadCacheSourceConfiguration: LoadCacheSourceConfiguration
         get() = LoadCacheSourceConfiguration.DEFAULT
-    val stateToCacheDataConverter: Function<S, D>
+    val stateToCacheDataConverter: StateToCacheDataConverter<S, D>
     fun loadState(key: String): Mono<S>
 
-    override fun load(key: String): CacheValue<D>? {
+    override fun loadCacheValue(key: String): CacheValue<D>? {
         val state = loadState(key).map {
-            stateToCacheDataConverter.apply(it)
+            stateToCacheDataConverter.stateToCacheData(it)
         }.toFuture()
             .get(loadCacheSourceConfiguration.timeout.toMillis(), TimeUnit.MILLISECONDS)
             ?: return null

@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.cache
 
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import reactor.core.publisher.Mono
+fun interface StateToCacheDataConverter<S, D> {
+    fun stateToCacheData(state: S): D
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
-    override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
-        get() = StateToCacheDataConverter.identity()
+    companion object {
+        private val IDENTITY = StateToCacheDataConverter<Any, Any> { state -> state }
 
-    override fun loadState(key: String): Mono<S> {
-        return getStateById(key)
+        fun <S, D> identity(): StateToCacheDataConverter<S, D> {
+            @Suppress("UNCHECKED_CAST")
+            return IDENTITY as StateToCacheDataConverter<S, D>
+        }
     }
 }

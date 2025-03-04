@@ -30,7 +30,7 @@ class QueryApiCacheSourceTest {
             every { getStateById(any()) } returns "test".toMono()
         }
         assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration.DEFAULT))
-        val cacheValue = queryApiCacheSource.load("test")
+        val cacheValue = queryApiCacheSource.loadCacheValue("test")
         assertThat(cacheValue, equalTo(DefaultCacheValue.forever("test")))
     }
 
@@ -43,7 +43,7 @@ class QueryApiCacheSourceTest {
             every { getStateById(any()) } returns "test".toMono()
         }
         assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration(ttl = 1000)))
-        val cacheValue = queryApiCacheSource.load("test")
+        val cacheValue = queryApiCacheSource.loadCacheValue("test")
         assertThat(cacheValue, equalTo(DefaultCacheValue.ttlAt("test", 1000)))
     }
 
@@ -53,7 +53,7 @@ class QueryApiCacheSourceTest {
             every { getStateById(any()) } returns Mono.empty()
         }
 
-        val cacheValue = queryApiCacheSource.load("test")
+        val cacheValue = queryApiCacheSource.loadCacheValue("test")
         assertThat(cacheValue, nullValue())
     }
 }

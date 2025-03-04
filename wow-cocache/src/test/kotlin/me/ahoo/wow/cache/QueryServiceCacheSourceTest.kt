@@ -26,7 +26,7 @@ class QueryServiceCacheSourceTest {
             LoadCacheSourceConfiguration.DEFAULT
         )
 
-        val cacheValue = queryServiceCacheSource.load("test")
+        val cacheValue = queryServiceCacheSource.loadCacheValue("test")
         assertThat(cacheValue, equalTo(DefaultCacheValue.forever("test")))
     }
 }
