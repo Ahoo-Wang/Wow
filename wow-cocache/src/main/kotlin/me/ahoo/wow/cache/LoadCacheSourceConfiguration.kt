@@ -18,8 +18,8 @@ import java.time.Duration
 data class LoadCacheSourceConfiguration(
     val timeout: Duration = Duration.ofSeconds(10),
     override val ttl: Long? = null,
-    val amplitude: Long = 0
-) : CacheValueTtlConfiguration {
+    override val amplitude: Long = 0
+) : CacheValueConfiguration {
     companion object {
         val DEFAULT = LoadCacheSourceConfiguration()
     }

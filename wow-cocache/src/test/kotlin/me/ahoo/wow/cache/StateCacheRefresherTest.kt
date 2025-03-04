@@ -21,7 +21,8 @@ class StateCacheRefresherTest {
     private val stateCacheRefresher = StateCacheRefresher<MockStateAggregate, MockStateAggregate>(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         stateToCacheDataConverter = StateToCacheDataConverter.identity(),
-        cache = MapClientSideCache()
+        cache = MapClientSideCache(),
+        mode = RefreshMode.SET
     )
 
     @Test
