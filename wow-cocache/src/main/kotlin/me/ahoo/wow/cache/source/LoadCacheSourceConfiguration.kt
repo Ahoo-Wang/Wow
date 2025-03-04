@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cache
+package me.ahoo.wow.cache.source
 
-import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
-import reactor.core.publisher.Mono
+import me.ahoo.wow.cache.CacheValueConfiguration
+import java.time.Duration
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
-    override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
-        get() = StateToCacheDataConverter.identity()
-
-    override fun loadState(key: String): Mono<S> {
-        return getStateById(key)
+data class LoadCacheSourceConfiguration(
+    val timeout: Duration = Duration.ofSeconds(10),
+    override val ttl: Long? = null,
+    override val amplitude: Long = 0
+) : CacheValueConfiguration {
+    companion object {
+        val DEFAULT = LoadCacheSourceConfiguration()
     }
 }

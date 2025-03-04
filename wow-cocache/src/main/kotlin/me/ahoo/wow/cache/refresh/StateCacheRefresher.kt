@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cache
+package me.ahoo.wow.cache.refresh
 
-import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.cache.api.Cache
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -27,24 +26,19 @@ import reactor.core.publisher.Mono
  * 主动刷新缓存.
  */
 @JvmDefaultWithoutCompatibility
-open class StateCacheRefresher<S : Any, D>(
-    override val namedAggregate: NamedAggregate,
-    private val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
-    private val cache: Cache<String, D>,
-    override val ttl: Long? = null,
-    override val amplitude: Long = 0,
-    private val mode: RefreshMode = RefreshMode.EVICT
-) : NamedAggregateDecorator,
-    CacheValueConfiguration,
+abstract class StateCacheRefresher<S : Any, D>(final override val namedAggregate: NamedAggregate) :
+    NamedAggregateDecorator,
     MessageFunction<StateCacheRefresher<S, D>, StateDomainEventExchange<S, Any>, Mono<Void>> {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(StateCacheRefresher::class.java)
     }
 
+    abstract val cache: Cache<String, D>
     override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
     override val name: String = StateCacheRefresher<*, *>::invoke.name
-    override val processor: StateCacheRefresher<S, D> = this
-    override val supportedTopics: Set<NamedAggregate> = setOf(namedAggregate.materialize())
+    override val processor: StateCacheRefresher<S, D>
+        get() = this
+    final override val supportedTopics: Set<NamedAggregate> = setOf(namedAggregate.materialize())
     override val supportedType: Class<*> = Any::class.java
 
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
@@ -54,31 +48,11 @@ open class StateCacheRefresher<S : Any, D>(
     override fun invoke(exchange: StateDomainEventExchange<S, Any>): Mono<Void> {
         return Mono.fromRunnable {
             if (log.isDebugEnabled) {
-                log.debug("[$mode] Refresh {} Cache.", exchange.state.aggregateId)
+                log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.state.aggregateId)
             }
-            when (mode) {
-                RefreshMode.EVICT -> evictRefresh(exchange)
-                RefreshMode.SET -> setRefresh(exchange)
-            }
+            refresh(exchange)
         }
     }
 
-    private fun evictRefresh(exchange: StateDomainEventExchange<S, Any>) {
-        cache.evict(exchange.state.aggregateId.id)
-    }
-
-    private fun setRefresh(exchange: StateDomainEventExchange<S, Any>) {
-        if (exchange.state.deleted) {
-            evictRefresh(exchange)
-            return
-        }
-        val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state.state)
-        val ttl = ttl
-        val cacheValue = if (ttl == null) {
-            DefaultCacheValue.forever(cacheData)
-        } else {
-            DefaultCacheValue.ttlAt(cacheData, ttl, amplitude)
-        }
-        cache.setCache(exchange.state.aggregateId.id, cacheValue)
-    }
+    abstract fun refresh(exchange: StateDomainEventExchange<S, Any>)
 }
