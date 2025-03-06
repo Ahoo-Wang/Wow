@@ -40,6 +40,7 @@ class SimpleClientCommandExchange<C : Any>(
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
 ) : ClientCommandExchange<C>
 
+const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
 const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
 
@@ -51,6 +52,14 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
 
     fun getAggregateProcessor(): AggregateProcessor<C>? {
         return getAttribute(AGGREGATE_PROCESSOR_KEY)
+    }
+
+    fun setCommandInvokeResult(result: Any): ServerCommandExchange<C> {
+        return setAttribute(COMMAND_INVOKE_RESULT_KEY, result)
+    }
+
+    fun <R> getCommandInvokeResult(): R? {
+        return getAttribute(COMMAND_INVOKE_RESULT_KEY)
     }
 
     fun setEventStream(eventStream: DomainEventStream): ServerCommandExchange<C> {
