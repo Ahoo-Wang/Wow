@@ -24,12 +24,13 @@ const val DEFAULT_AFTER_COMMAND_NAME = "afterCommand"
  *
  * - 当返回值不为空时将作为领域事件追加到事件流中。
  *
- * @param commands 需要监听的命令类型。
+ * @param include 需要监听的命令类型。
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 @OnMessage(FunctionKind.COMMAND, defaultFunctionName = DEFAULT_AFTER_COMMAND_NAME)
 annotation class AfterCommand(
-    val commands: Array<KClass<*>> = []
+    val include: Array<KClass<*>> = [],
+    val exclude: Array<KClass<*>> = []
 )
