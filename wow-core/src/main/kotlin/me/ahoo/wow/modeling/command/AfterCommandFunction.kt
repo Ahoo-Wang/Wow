@@ -43,30 +43,32 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
         }
         return commandMono().flatMap { commandEvent ->
             delegate.invoke(exchange).map { afterEvent ->
-                mergeEvents(commandEvent, afterEvent)
+                mergeEvents(commandEvent, afterEvent) as Any
             }.switchIfEmpty(commandEvent.toMono())
         }
     }
 
-    fun mergeEvents(commandEvent: Any, afterEvent: Any): Any {
-        val commandEvents: List<Any> = unfoldEvent(commandEvent)
-        val afterEvents: List<Any> = unfoldEvent(afterEvent)
-        return commandEvents + afterEvents
-    }
+    companion object {
+        fun mergeEvents(commandEvent: Any, afterEvent: Any): List<Any> {
+            val commandEvents: List<Any> = unfoldEvent(commandEvent)
+            val afterEvents: List<Any> = unfoldEvent(afterEvent)
+            return commandEvents + afterEvents
+        }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun unfoldEvent(event: Any): List<Any> {
-        return when (event) {
-            is Iterable<*> -> {
-                event.toList() as List<Any>
-            }
+        @Suppress("UNCHECKED_CAST")
+        private fun unfoldEvent(event: Any): List<Any> {
+            return when (event) {
+                is Iterable<*> -> {
+                    event.toList() as List<Any>
+                }
 
-            is Array<*> -> {
-                event.toList() as List<Any>
-            }
+                is Array<*> -> {
+                    event.toList() as List<Any>
+                }
 
-            else -> {
-                listOf(event)
+                else -> {
+                    listOf(event)
+                }
             }
         }
     }
