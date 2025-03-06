@@ -45,20 +45,13 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
             return commandMono()
         }
         return commandMono().flatMap { commandEvent ->
-            afterCommand(exchange, commandEvent)
+            delegate.invoke(exchange).map { afterEvent ->
+                mergeEvents(commandEvent, afterEvent)
+            }.switchIfEmpty(commandEvent.toMono())
         }
     }
 
-    fun afterCommand(exchange: ServerCommandExchange<*>, commandEvent: Any): Mono<*> {
-        if (delegate == null || !matchCommand(exchange.message.body.javaClass)) {
-            return commandEvent.toMono()
-        }
-        return delegate.invoke(exchange).map { afterEvent ->
-            mergeEvents(commandEvent, afterEvent)
-        }.switchIfEmpty(commandEvent.toMono())
-    }
-
-    private fun mergeEvents(commandEvent: Any, afterEvent: Any): Any {
+    fun mergeEvents(commandEvent: Any, afterEvent: Any): Any {
         val commandEvents: List<Any> = unfoldEvent(commandEvent)
         val afterEvents: List<Any> = unfoldEvent(afterEvent)
         return commandEvents + afterEvents
