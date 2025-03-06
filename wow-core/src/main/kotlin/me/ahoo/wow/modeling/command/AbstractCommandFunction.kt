@@ -27,12 +27,18 @@ abstract class AbstractCommandFunction<C : Any>(
 
     abstract fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*>
 
+    private fun invokeCommandThenSetCommandInvokeResult(exchange: ServerCommandExchange<*>): Mono<*> {
+        return invokeCommand(exchange).doOnNext {
+            exchange.setCommandInvokeResult(it)
+        }
+    }
+
     private fun invokeWithAfter(exchange: ServerCommandExchange<*>): Mono<*> {
         if (afterCommandFunction == null) {
-            return invokeCommand(exchange)
+            return invokeCommandThenSetCommandInvokeResult(exchange)
         }
         return afterCommandFunction.afterCommand(exchange) {
-            invokeCommand(exchange)
+            invokeCommandThenSetCommandInvokeResult(exchange)
         }
     }
 
