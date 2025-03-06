@@ -22,15 +22,22 @@ import reactor.core.publisher.Mono
 @JvmDefaultWithoutCompatibility
 abstract class AbstractCommandFunction<C : Any>(
     val commandAggregate: CommandAggregate<C, *>,
-    private val afterCommandFunction: AfterCommandFunction<C>
+    private val afterCommandFunction: AfterCommandFunction<C>?
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
 
     abstract fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*>
 
-    override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+    private fun invokeWithAfter(exchange: ServerCommandExchange<*>): Mono<*> {
+        if (afterCommandFunction == null) {
+            return invokeCommand(exchange)
+        }
         return afterCommandFunction.afterCommand(exchange) {
             invokeCommand(exchange)
-        }.map {
+        }
+    }
+
+    override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+        return invokeWithAfter(exchange).map {
             it.toDomainEventStream(
                 upstream = exchange.message,
                 aggregateVersion = commandAggregate.version,

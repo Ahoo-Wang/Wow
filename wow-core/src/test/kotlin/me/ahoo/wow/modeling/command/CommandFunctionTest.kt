@@ -28,7 +28,7 @@ class CommandFunctionTest {
             every { aggregateName } returns "aggregate"
         }
         assertThat(
-            CommandFunction(delegate, commandAggregate, AfterCommandFunction.NOP).getAnnotation(Retry::class.java),
+            CommandFunction(delegate, commandAggregate, null).getAnnotation(Retry::class.java),
             nullValue()
         )
     }

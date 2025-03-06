@@ -58,9 +58,10 @@ data class CommandAggregateMetadata<C : Any>(
     }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val afterCommandFunction = AfterCommandFunction(
-            afterCommandFunction?.toMessageFunction(commandAggregate.commandRoot)
-        )
+        val afterCommandFunction = afterCommandFunction?.toMessageFunction(commandAggregate.commandRoot)?.let {
+            AfterCommandFunction(it)
+        }
+
         return buildMap {
             commandFunctionRegistry
                 .map {

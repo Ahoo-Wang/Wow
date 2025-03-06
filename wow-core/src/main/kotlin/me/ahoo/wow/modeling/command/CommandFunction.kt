@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunction: AfterCommandFunction<C>
+    afterCommandFunction: AfterCommandFunction<C>?
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunction),
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName

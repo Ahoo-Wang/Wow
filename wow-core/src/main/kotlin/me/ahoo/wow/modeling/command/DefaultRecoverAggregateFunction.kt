@@ -24,7 +24,7 @@ import reactor.kotlin.core.publisher.toMono
 
 class DefaultRecoverAggregateFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunction: AfterCommandFunction<C>
+    afterCommandFunction: AfterCommandFunction<C>?
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunction) {
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultRecoverAggregate::class.java

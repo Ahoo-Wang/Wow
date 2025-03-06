@@ -19,12 +19,9 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>?) {
-    companion object {
-        val NOP = AfterCommandFunction<Any>(null)
-    }
+class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>) {
 
-    private val commands: Set<Class<*>> = delegate?.getAnnotation(AfterCommand::class.java)
+    private val commands: Set<Class<*>> = delegate.getAnnotation(AfterCommand::class.java)
         ?.commands
         ?.map { it.java }
         ?.toSet()
@@ -41,7 +38,7 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
         exchange: ServerCommandExchange<*>,
         commandMono: () -> Mono<*>
     ): Mono<*> {
-        if (delegate == null || !matchCommand(exchange.message.body.javaClass)) {
+        if (!matchCommand(exchange.message.body.javaClass)) {
             return commandMono()
         }
         return commandMono().flatMap { commandEvent ->
