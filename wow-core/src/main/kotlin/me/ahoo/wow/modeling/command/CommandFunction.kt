@@ -25,7 +25,8 @@ import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
-    private val commandAggregate: CommandAggregate<C, *>
+    private val commandAggregate: CommandAggregate<C, *>,
+    private val afterCommandFunction: AfterCommandFunction<C>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>,
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
@@ -39,18 +40,19 @@ class CommandFunction<C : Any>(
     }
 
     override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        return delegate
-            .invoke(exchange)
-            .checkpoint(
-                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
-            )
-            .map {
-                it.toDomainEventStream(
-                    upstream = exchange.message,
-                    aggregateVersion = commandAggregate.version,
-                    stateOwnerId = commandAggregate.state.ownerId
+        return afterCommandFunction.afterCommand(exchange) {
+            delegate
+                .invoke(exchange)
+                .checkpoint(
+                    "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
                 )
-            }
+        }.map {
+            it.toDomainEventStream(
+                upstream = exchange.message,
+                aggregateVersion = commandAggregate.version,
+                stateOwnerId = commandAggregate.state.ownerId
+            )
+        }
     }
 
     override fun toString(): String {

@@ -23,10 +23,10 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 class DefaultRecoverAggregateFunction<C : Any>(
-    private val commandAggregate: CommandAggregate<C, *>
+    private val commandAggregate: CommandAggregate<C, *>,
+    private val afterCommandFunction: AfterCommandFunction<C>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultRecoverAggregate::class.java
@@ -39,8 +39,13 @@ class DefaultRecoverAggregateFunction<C : Any>(
     }
 
     override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        return DefaultAggregateRecovered
-            .toDomainEventStream(exchange.message, commandAggregate.version)
-            .toMono()
+        return afterCommandFunction.afterCommand(exchange, DefaultAggregateRecovered)
+            .map {
+                it.toDomainEventStream(
+                    upstream = exchange.message,
+                    aggregateVersion = commandAggregate.version,
+                    stateOwnerId = commandAggregate.state.ownerId
+                )
+            }
     }
 }

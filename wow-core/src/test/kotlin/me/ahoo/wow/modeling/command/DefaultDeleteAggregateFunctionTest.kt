@@ -16,6 +16,12 @@ class DefaultDeleteAggregateFunctionTest {
             every { aggregateName } returns "aggregate"
             every { commandRoot } returns "root"
         }
-        assertThat(DefaultDeleteAggregateFunction(commandAggregate).getAnnotation(Retry::class.java), nullValue())
+        assertThat(
+            DefaultDeleteAggregateFunction(
+                commandAggregate,
+                AfterCommandFunction(null)
+            ).getAnnotation(Retry::class.java),
+            nullValue()
+        )
     }
 }

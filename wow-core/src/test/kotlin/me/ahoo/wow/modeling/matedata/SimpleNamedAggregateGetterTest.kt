@@ -11,7 +11,7 @@ class SimpleNamedAggregateGetterTest {
     @Test
     fun getNamedAggregate() {
         val aggregateNameGetter = StaticPropertyGetter<Any, String>("test")
-        val getter = SimpleNamedAggregateGetter<Any>("test", aggregateNameGetter)
+        val getter = SimpleNamedAggregateGetter("test", aggregateNameGetter)
         val namedAggregate = getter.getNamedAggregate(Any())
         assertThat(namedAggregate.contextName, equalTo("test"))
         assertThat(namedAggregate.aggregateName, equalTo("test"))

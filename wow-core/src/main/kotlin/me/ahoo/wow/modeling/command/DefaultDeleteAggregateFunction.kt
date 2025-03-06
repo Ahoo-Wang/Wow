@@ -23,10 +23,10 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 class DefaultDeleteAggregateFunction<C : Any>(
-    private val commandAggregate: CommandAggregate<C, *>
+    private val commandAggregate: CommandAggregate<C, *>,
+    private val afterCommandFunction: AfterCommandFunction<C>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultDeleteAggregate::class.java
@@ -41,8 +41,13 @@ class DefaultDeleteAggregateFunction<C : Any>(
     override fun invoke(
         exchange: ServerCommandExchange<*>
     ): Mono<DomainEventStream> {
-        return DefaultAggregateDeleted
-            .toDomainEventStream(exchange.message, commandAggregate.version)
-            .toMono()
+        return afterCommandFunction.afterCommand(exchange, DefaultAggregateDeleted)
+            .map {
+                it.toDomainEventStream(
+                    upstream = exchange.message,
+                    aggregateVersion = commandAggregate.version,
+                    stateOwnerId = commandAggregate.state.ownerId
+                )
+            }
     }
 }
