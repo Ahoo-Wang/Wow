@@ -25,6 +25,7 @@ const val DEFAULT_AFTER_COMMAND_NAME = "afterCommand"
  * - 当返回值不为空时将作为领域事件追加到事件流中。
  *
  * @param include 需要监听的命令类型。
+ * @param exclude 排除监听的命令类型。
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
