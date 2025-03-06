@@ -28,6 +28,7 @@ import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
+import me.ahoo.wow.modeling.command.AfterCommandFunction
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
@@ -40,7 +41,8 @@ data class CommandAggregateMetadata<C : Any>(
     val constructorAccessor: ConstructorAccessor<C>,
     val mountedCommands: Set<Class<*>>,
     val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
-    val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>
+    val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
+    val afterCommandFunction: FunctionAccessorMetadata<C, Mono<*>>? = null
 ) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
     override val processorName: String = aggregateType.simpleName
     val registeredDeleteAggregate: Boolean =
@@ -56,21 +58,30 @@ data class CommandAggregateMetadata<C : Any>(
     }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
+        val afterCommandFunction = AfterCommandFunction(
+            afterCommandFunction?.toMessageFunction(commandAggregate.commandRoot)
+        )
         return buildMap {
             commandFunctionRegistry
                 .map {
                     val actualMessageFunction = it.value
                         .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                    it.key to CommandFunction(actualMessageFunction, commandAggregate)
+                    it.key to CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunction)
                 }.also {
                     putAll(it)
                 }
 
             if (!registeredRecoverAggregate) {
-                put(DefaultRecoverAggregate::class.java, DefaultRecoverAggregateFunction(commandAggregate))
+                put(
+                    DefaultRecoverAggregate::class.java,
+                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunction)
+                )
             }
             if (!registeredDeleteAggregate) {
-                put(DefaultDeleteAggregate::class.java, DefaultDeleteAggregateFunction(commandAggregate))
+                put(
+                    DefaultDeleteAggregate::class.java,
+                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunction)
+                )
             }
         }
     }

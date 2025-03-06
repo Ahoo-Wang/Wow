@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
@@ -64,6 +65,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
         private var constructor: Constructor<C>
         private var commandFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
         private var errorFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
+        private var afterCommandFunction: FunctionAccessorMetadata<C, Mono<*>>? = null
 
         init {
             try {
@@ -101,6 +103,13 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 val functionMetadata = function.toMonoFunctionMetadata<C, Void>()
                 errorFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
+
+            if (function.hasAnnotation<AfterCommand>()) {
+                check(afterCommandFunction == null) {
+                    "Failed to parse CommandAggregate[$commandAggregateType] metadata: Only one AfterCommand function is allowed."
+                }
+                afterCommandFunction = function.toMonoFunctionMetadata<C, Any>()
+            }
         }
 
         private fun KFunction<*>.isOnCommandFunction() = DEFAULT_ON_COMMAND_NAME == name &&
@@ -130,6 +139,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 mountedCommands = mountedCommands.toSet(),
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
+                afterCommandFunction = afterCommandFunction
             )
 
             val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId

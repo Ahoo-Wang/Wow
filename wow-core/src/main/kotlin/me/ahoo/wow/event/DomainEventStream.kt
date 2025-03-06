@@ -54,8 +54,7 @@ data class SimpleDomainEventStream(
     override val requestId: String,
     override val header: Header = DefaultHeader.empty(),
     override val body: List<DomainEvent<*>>
-) :
-    DomainEventStream,
+) : DomainEventStream,
     Iterable<DomainEvent<*>> by body {
     override val aggregateId: AggregateId
 
