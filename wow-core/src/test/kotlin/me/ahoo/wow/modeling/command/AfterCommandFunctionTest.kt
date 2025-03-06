@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 
 class AfterCommandFunctionTest {
     private val funMetadata =
-        MockAfterCommandAggregate::afterCommand.toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
+        MockAfterCommandAggregate::onAfterCommand.toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
     private val messageFunction = funMetadata.toMessageFunction(MockAfterCommandAggregate(generateGlobalId()))
     private val afterCommandFunction = AfterCommandFunction(messageFunction)
 

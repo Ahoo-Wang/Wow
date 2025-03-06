@@ -88,4 +88,10 @@ internal class AggregateMetadataParserTest {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
         assertThat(aggregateMetadata.command.afterCommandFunction, notNullValue())
     }
+
+    @Test
+    fun parseDefaultAfterCommandAggregate() {
+        val aggregateMetadata = aggregateMetadata<MockDefaultAfterCommandAggregate, MockDefaultAfterCommandAggregate>()
+        assertThat(aggregateMetadata.command.afterCommandFunction, notNullValue())
+    }
 }

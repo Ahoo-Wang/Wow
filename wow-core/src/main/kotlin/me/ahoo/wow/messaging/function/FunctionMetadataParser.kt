@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.DEFAULT_AFTER_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_EVENT_NAME
@@ -91,7 +92,7 @@ object FunctionMetadataParser {
             return it.functionKind
         }
         when (name) {
-            DEFAULT_ON_COMMAND_NAME -> {
+            DEFAULT_ON_COMMAND_NAME, DEFAULT_AFTER_COMMAND_NAME -> {
                 return FunctionKind.COMMAND
             }
 

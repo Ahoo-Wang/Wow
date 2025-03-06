@@ -51,6 +51,9 @@
         },
         "modeling_annotation_mock_after_command_aggregate": {
           "type": "me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate"
+        },
+        "modeling_annotation_mock_default_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockDefaultAfterCommandAggregate"
         }
       }
     }
