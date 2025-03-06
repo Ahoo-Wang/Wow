@@ -72,3 +72,16 @@ class MockDefaultAfterCommandAggregate(val id: String) {
         return CmdAfter
     }
 }
+
+@Suppress("UNUSED_PARAMETER")
+class MockMultipleAfterCommandAggregate(val id: String) {
+
+    @AfterCommand
+    fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+        return CmdAfter
+    }
+
+    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+        return CmdAfter
+    }
+}
