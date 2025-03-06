@@ -81,4 +81,3 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
         }
     }
 }
-

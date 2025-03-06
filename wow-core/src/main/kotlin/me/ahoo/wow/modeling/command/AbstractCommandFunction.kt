@@ -38,5 +38,4 @@ abstract class AbstractCommandFunction<C : Any>(
             )
         }
     }
-
 }
