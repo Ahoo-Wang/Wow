@@ -18,16 +18,14 @@ import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 
 class DefaultDeleteAggregateFunction<C : Any>(
-    private val commandAggregate: CommandAggregate<C, *>,
-    private val afterCommandFunction: AfterCommandFunction<C>
-) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
+    commandAggregate: CommandAggregate<C, *>,
+    afterCommandFunction: AfterCommandFunction<C>
+) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunction) {
     override val contextName: String = commandAggregate.contextName
     override val supportedType: Class<*> = DefaultDeleteAggregate::class.java
     override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
@@ -38,16 +36,7 @@ class DefaultDeleteAggregateFunction<C : Any>(
         return null
     }
 
-    override fun invoke(
-        exchange: ServerCommandExchange<*>
-    ): Mono<DomainEventStream> {
-        return afterCommandFunction.afterCommand(exchange, DefaultAggregateDeleted)
-            .map {
-                it.toDomainEventStream(
-                    upstream = exchange.message,
-                    aggregateVersion = commandAggregate.version,
-                    stateOwnerId = commandAggregate.state.ownerId
-                )
-            }
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
+        return DefaultAggregateDeleted.toMono()
     }
 }

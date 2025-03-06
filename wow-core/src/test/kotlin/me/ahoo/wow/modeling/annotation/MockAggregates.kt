@@ -12,8 +12,11 @@
  */
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.command.ServerCommandExchange
+import reactor.core.publisher.Mono
 
 class MockAggregate(val id: String)
 
@@ -31,4 +34,13 @@ class MockCommandAggregate(state: MockStateAggregate) : MockAbstractCommandAggre
 @AggregateRoot(commands = [MockMountCommand::class])
 class MockMountAggregate(val id: String)
 
+@AggregateRoot
 data class MockMountCommand(val id: String)
+
+class MockAfterCommandAggregate(val id: String) {
+    @Suppress("UNUSED_PARAMETER")
+    @AfterCommand
+    fun afterCommand(exchange: ServerCommandExchange<Any>): Mono<Void> {
+        return Mono.empty()
+    }
+}
