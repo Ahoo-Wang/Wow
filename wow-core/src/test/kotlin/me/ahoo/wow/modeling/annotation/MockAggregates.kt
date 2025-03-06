@@ -15,8 +15,9 @@ package me.ahoo.wow.modeling.annotation
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.command.ServerCommandExchange
-import reactor.core.publisher.Mono
 
 class MockAggregate(val id: String)
 
@@ -37,10 +38,28 @@ class MockMountAggregate(val id: String)
 @AggregateRoot
 data class MockMountCommand(val id: String)
 
+@Suppress("UNUSED_PARAMETER")
 class MockAfterCommandAggregate(val id: String) {
-    @Suppress("UNUSED_PARAMETER")
-    @AfterCommand
-    fun afterCommand(exchange: ServerCommandExchange<Any>): Mono<Void> {
-        return Mono.empty()
+
+    @OnCommand
+    fun onCommand(command: CreateCmd): CmdCreated {
+        return CmdCreated
+    }
+
+    @OnCommand
+    fun onCommand(command: UpdateCmd): CmdUpdated {
+        return CmdUpdated
+    }
+
+    @AfterCommand(commands = [CreateCmd::class])
+    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+        return CmdAfter
     }
 }
+
+@CreateAggregate
+object CreateCmd
+object CmdCreated
+object UpdateCmd
+object CmdUpdated
+object CmdAfter

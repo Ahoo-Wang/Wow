@@ -24,8 +24,16 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
+import me.ahoo.wow.modeling.annotation.CmdAfter
+import me.ahoo.wow.modeling.annotation.CmdCreated
+import me.ahoo.wow.modeling.annotation.CmdUpdated
+import me.ahoo.wow.modeling.annotation.CreateCmd
+import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
+import me.ahoo.wow.modeling.annotation.UpdateCmd
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.test.aggregate.whenCommand
+import me.ahoo.wow.test.aggregateVerifier
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -180,6 +188,18 @@ internal class SimpleCommandAggregateTest {
             .test()
             .expectNextCount(2)
             .verifyComplete()
+    }
+
+    @Test
+    fun handleWithAfterCommand() {
+        aggregateVerifier<MockAfterCommandAggregate, MockAfterCommandAggregate>()
+            .whenCommand(CreateCmd)
+            .expectEventType(CmdCreated::class.java, CmdAfter::class.java)
+            .verify()
+            .then()
+            .whenCommand(UpdateCmd)
+            .expectEventType(CmdUpdated::class.java)
+            .verify()
     }
 }
 
