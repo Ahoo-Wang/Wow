@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.annotation
 
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.DEFAULT_AFTER_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.OnCommand
@@ -104,7 +105,9 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 errorFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
             }
 
-            if (function.hasAnnotation<AfterCommand>()) {
+            if (function.hasAnnotation<AfterCommand>() ||
+                function.isAfterCommandFunction()
+            ) {
                 check(afterCommandFunction == null) {
                     "Failed to parse CommandAggregate[$commandAggregateType] metadata: Only one AfterCommand function is allowed."
                 }
@@ -117,6 +120,9 @@ object AggregateMetadataParser : CacheableMetadataParser() {
             returnType.javaType != Void.TYPE
 
         private fun KFunction<*>.isOnErrorFunction() = DEFAULT_ON_ERROR_NAME == name &&
+            valueParameters.isNotEmpty()
+
+        private fun KFunction<*>.isAfterCommandFunction() = DEFAULT_AFTER_COMMAND_NAME == name &&
             valueParameters.isNotEmpty()
 
         fun toMetadata(): AggregateMetadata<C, S> {

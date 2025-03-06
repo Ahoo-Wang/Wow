@@ -52,7 +52,7 @@ class MockAfterCommandAggregate(val id: String) {
     }
 
     @AfterCommand(commands = [CreateCmd::class])
-    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+    fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
         return CmdAfter
     }
 }
@@ -63,3 +63,11 @@ object CmdCreated
 object UpdateCmd
 object CmdUpdated
 object CmdAfter
+
+@Suppress("UNUSED_PARAMETER")
+class MockDefaultAfterCommandAggregate(val id: String) {
+
+    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+        return CmdAfter
+    }
+}
