@@ -45,11 +45,13 @@ class CommandFunction<C : Any>(
                 "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
             )
             .map {
-                it.toDomainEventStream(
+                val eventStream = it.toDomainEventStream(
                     upstream = exchange.message,
                     aggregateVersion = commandAggregate.version,
                     stateOwnerId = commandAggregate.state.ownerId
                 )
+                exchange.setEventStream(eventStream)
+                eventStream
             }
     }
 

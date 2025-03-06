@@ -90,7 +90,6 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             }
             exchange.setFunction(commandFunction)
             commandFunction.invoke(exchange).doOnNext {
-                exchange.setEventStream(it)
                 /**
                  * 将领域事件朔源到当前状态聚合根.
                  */
