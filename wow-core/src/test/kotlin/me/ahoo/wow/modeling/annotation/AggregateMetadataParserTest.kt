@@ -94,4 +94,11 @@ internal class AggregateMetadataParserTest {
         val aggregateMetadata = aggregateMetadata<MockDefaultAfterCommandAggregate, MockDefaultAfterCommandAggregate>()
         assertThat(aggregateMetadata.command.afterCommandFunction, notNullValue())
     }
+
+    @Test
+    fun parseMockMultipleAfterCommandAggregate() {
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            aggregateMetadata<MockMultipleAfterCommandAggregate, MockMultipleAfterCommandAggregate>()
+        }
+    }
 }
