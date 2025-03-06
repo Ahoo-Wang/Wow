@@ -48,6 +48,9 @@
         },
         "modeling_annotation_mock_mount_aggregate": {
           "type": "me.ahoo.wow.modeling.annotation.MockMountAggregate"
+        },
+        "modeling_annotation_mock_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate"
         }
       }
     }

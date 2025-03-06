@@ -16,8 +16,6 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
@@ -25,9 +23,9 @@ import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
-    private val commandAggregate: CommandAggregate<C, *>,
-    private val afterCommandFunction: AfterCommandFunction<C>
-) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>,
+    commandAggregate: CommandAggregate<C, *>,
+    afterCommandFunction: AfterCommandFunction<C>
+) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunction),
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
     override val name: String = delegate.name
@@ -39,20 +37,12 @@ class CommandFunction<C : Any>(
         return delegate.getAnnotation(annotationClass)
     }
 
-    override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        return afterCommandFunction.afterCommand(exchange) {
-            delegate
-                .invoke(exchange)
-                .checkpoint(
-                    "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
-                )
-        }.map {
-            it.toDomainEventStream(
-                upstream = exchange.message,
-                aggregateVersion = commandAggregate.version,
-                stateOwnerId = commandAggregate.state.ownerId
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
+        return delegate
+            .invoke(exchange)
+            .checkpoint(
+                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
             )
-        }
     }
 
     override fun toString(): String {

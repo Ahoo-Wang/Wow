@@ -27,7 +27,7 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
     private val commands: Set<Class<*>> = delegate?.getAnnotation(AfterCommand::class.java)
         ?.commands
         ?.map { it.java }
-        ?.toHashSet()
+        ?.toSet()
         ?: emptySet()
 
     fun matchCommand(commandType: Class<*>): Boolean {
@@ -57,27 +57,28 @@ class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerComma
             mergeEvents(commandEvent, afterEvent)
         }.switchIfEmpty(commandEvent.toMono())
     }
-}
 
-private fun mergeEvents(commandEvent: Any, afterEvent: Any): Any {
-    val commandEvents: List<Any> = unfoldEvent(commandEvent)
-    val afterEvents: List<Any> = unfoldEvent(afterEvent)
-    return commandEvents + afterEvents
-}
+    private fun mergeEvents(commandEvent: Any, afterEvent: Any): Any {
+        val commandEvents: List<Any> = unfoldEvent(commandEvent)
+        val afterEvents: List<Any> = unfoldEvent(afterEvent)
+        return commandEvents + afterEvents
+    }
 
-@Suppress("UNCHECKED_CAST")
-private fun unfoldEvent(event: Any): List<Any> {
-    return when (event) {
-        is Iterable<*> -> {
-            event.toList() as List<Any>
-        }
+    @Suppress("UNCHECKED_CAST")
+    private fun unfoldEvent(event: Any): List<Any> {
+        return when (event) {
+            is Iterable<*> -> {
+                event.toList() as List<Any>
+            }
 
-        is Array<*> -> {
-            event.toList() as List<Any>
-        }
+            is Array<*> -> {
+                event.toList() as List<Any>
+            }
 
-        else -> {
-            listOf(event)
+            else -> {
+                listOf(event)
+            }
         }
     }
 }
+
