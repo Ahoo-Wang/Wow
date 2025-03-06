@@ -21,17 +21,29 @@ import reactor.kotlin.core.publisher.toMono
 
 class AfterCommandFunction<C : Any>(val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>) {
 
-    private val commands: Set<Class<*>> = delegate.getAnnotation(AfterCommand::class.java)
-        ?.commands
-        ?.map { it.java }
-        ?.toSet()
-        ?: emptySet()
+    private val include: Set<Class<*>>
+    private val exclude: Set<Class<*>>
+
+    init {
+        val afterCommandAnnotation = delegate.getAnnotation(AfterCommand::class.java)
+        if (afterCommandAnnotation == null) {
+            include = emptySet()
+            exclude = emptySet()
+        } else {
+            include = afterCommandAnnotation.include.map { it.java }.toSet()
+            exclude = afterCommandAnnotation.exclude.map { it.java }.toSet()
+        }
+    }
 
     fun matchCommand(commandType: Class<*>): Boolean {
-        if (commands.isEmpty()) {
+        if (exclude.contains(commandType)) {
+            return false
+        }
+
+        if (include.isEmpty()) {
             return true
         }
-        return commands.contains(commandType)
+        return include.contains(commandType)
     }
 
     inline fun afterCommand(

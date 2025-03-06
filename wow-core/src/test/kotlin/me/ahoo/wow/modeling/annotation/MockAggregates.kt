@@ -51,7 +51,7 @@ class MockAfterCommandAggregate(val id: String) {
         return CmdUpdated
     }
 
-    @AfterCommand(commands = [CreateCmd::class])
+    @AfterCommand(include = [CreateCmd::class], exclude = [UpdateCmd::class])
     fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
         require(exchange.getCommandInvokeResult<CmdCreated>() == CmdCreated)
         return CmdAfter
