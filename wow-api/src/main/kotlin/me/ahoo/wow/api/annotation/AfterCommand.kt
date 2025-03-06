@@ -19,6 +19,13 @@ import kotlin.reflect.KClass
 
 const val DEFAULT_AFTER_COMMAND_NAME = "afterCommand"
 
+/**
+ * 在命令函数完成执行后执行的函数。
+ *
+ * - 当返回值不为空时将作为领域事件追加到事件流中。
+ *
+ * @param commands 需要监听的命令类型。
+ */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
