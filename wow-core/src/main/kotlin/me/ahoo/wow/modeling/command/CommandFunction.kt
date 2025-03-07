@@ -18,14 +18,15 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunction: AfterCommandFunction<C>?
-) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunction),
+    afterCommandFunctions: List<AfterCommandFunction<C>>
+) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions),
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
     override val name: String = delegate.name
