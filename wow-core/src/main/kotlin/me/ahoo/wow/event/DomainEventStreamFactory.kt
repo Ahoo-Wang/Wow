@@ -44,7 +44,8 @@ fun Any.toDomainEventStream(
     upstream: CommandMessage<*>,
     aggregateVersion: Int,
     stateOwnerId: String = OwnerId.DEFAULT_OWNER_ID,
-    header: Header = DefaultHeader.empty()
+    header: Header = DefaultHeader.empty(),
+    createTime: Long = System.currentTimeMillis()
 ): DomainEventStream {
     header.inject(upstream)
     val eventStreamId = generateGlobalId()
@@ -53,7 +54,6 @@ fun Any.toDomainEventStream(
     val streamOwnerId = upstream.ownerId.ifBlank {
         stateOwnerId
     }
-    val createTime = System.currentTimeMillis()
     val events = flatEvent().toDomainEvents(
         streamVersion = streamVersion,
         aggregateId = aggregateId,
