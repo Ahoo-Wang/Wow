@@ -61,7 +61,7 @@ data class CommandAggregateMetadata<C : Any>(
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
         val allAfterCommandFunction = afterCommandFunctionRegistry.map {
             it.toAfterCommandFunction(commandAggregate.commandRoot)
-        }.sortedByOrder()
+        }
 
         return buildMap {
             commandFunctionRegistry

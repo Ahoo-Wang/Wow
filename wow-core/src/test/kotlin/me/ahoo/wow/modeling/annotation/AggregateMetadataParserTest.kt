@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.wow.api.annotation.ORDER_FIRST
+import me.ahoo.wow.api.annotation.ORDER_LAST
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
@@ -86,7 +88,10 @@ internal class AggregateMetadataParserTest {
     @Test
     fun parseAfterCommandAggregate() {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(1))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(3))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[0].order.value, equalTo(ORDER_FIRST))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[1].order, equalTo(0))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[2].order, equalTo(ORDER_LAST))
     }
 
     @Test

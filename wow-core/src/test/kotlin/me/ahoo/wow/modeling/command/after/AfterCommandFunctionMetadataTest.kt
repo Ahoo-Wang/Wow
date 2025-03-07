@@ -1,5 +1,6 @@
 package me.ahoo.wow.modeling.command.after
 
+import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.modeling.annotation.CreateCmd
@@ -43,5 +44,18 @@ class AfterCommandFunctionMetadataTest {
     @Test
     fun getFunction() {
         assertThat(afterCommandFunctionMetadata.function.functionKind, equalTo(FunctionKind.COMMAND))
+    }
+
+    @Test
+    fun getOrder() {
+        assertThat(afterCommandFunctionMetadata.order.value, equalTo(0))
+    }
+
+    @Test
+    fun fistOrder() {
+        val funMetadata = MockAfterCommandAggregate::firstAfterCommand
+            .toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
+            .toAfterCommandFunctionMetadata()
+        assertThat(funMetadata.order.value, equalTo(ORDER_FIRST))
     }
 }

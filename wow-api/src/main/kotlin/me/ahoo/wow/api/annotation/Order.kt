@@ -21,7 +21,7 @@ const val ORDER_DEFAULT = 0
 const val ORDER_DEFAULT_STEP = 100
 const val ORDER_LAST = Int.MAX_VALUE
 
-@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS,AnnotationTarget.FUNCTION)
 @Inherited
 @MustBeDocumented
 annotation class Order(
