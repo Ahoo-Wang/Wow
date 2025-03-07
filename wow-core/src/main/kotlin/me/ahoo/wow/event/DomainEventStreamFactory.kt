@@ -23,6 +23,23 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
 
+@Suppress("UNCHECKED_CAST")
+fun Any.flatEvent(): Iterable<Any> {
+    return when (this) {
+        is Iterable<*> -> {
+            this as Iterable<Any>
+        }
+
+        is Array<*> -> {
+            this.asIterable() as Iterable<Any>
+        }
+
+        else -> {
+            listOf(this)
+        }
+    }
+}
+
 fun Any.toDomainEventStream(
     upstream: CommandMessage<*>,
     aggregateVersion: Int,
@@ -37,41 +54,14 @@ fun Any.toDomainEventStream(
         stateOwnerId
     }
     val createTime = System.currentTimeMillis()
-
-    val events = when (this) {
-        is Iterable<*> -> {
-            toDomainEvents(
-                streamVersion = streamVersion,
-                aggregateId = aggregateId,
-                command = upstream,
-                ownerId = streamOwnerId,
-                eventStreamHeader = header,
-                createTime = createTime
-            )
-        }
-
-        is Array<*> -> {
-            toDomainEvents(
-                streamVersion = streamVersion,
-                aggregateId = aggregateId,
-                command = upstream,
-                ownerId = streamOwnerId,
-                eventStreamHeader = header,
-                createTime = createTime
-            )
-        }
-
-        else -> {
-            toDomainEvents(
-                streamVersion = streamVersion,
-                aggregateId = aggregateId,
-                command = upstream,
-                ownerId = streamOwnerId,
-                eventStreamHeader = header,
-                createTime = createTime
-            )
-        }
-    }
+    val events = flatEvent().toDomainEvents(
+        streamVersion = streamVersion,
+        aggregateId = aggregateId,
+        command = upstream,
+        ownerId = streamOwnerId,
+        eventStreamHeader = header,
+        createTime = createTime
+    )
 
     return SimpleDomainEventStream(
         id = eventStreamId,
@@ -80,48 +70,6 @@ fun Any.toDomainEventStream(
         body = events,
     )
 }
-
-private fun Any.toDomainEvents(
-    streamVersion: Int,
-    aggregateId: AggregateId,
-    command: CommandMessage<*>,
-    ownerId: String,
-    eventStreamHeader: Header,
-    createTime: Long
-): List<DomainEvent<Any>> {
-    val domainEvent = this.toDomainEvent(
-        id = generateGlobalId(),
-        version = streamVersion,
-        aggregateId = aggregateId,
-        ownerId = ownerId,
-        commandId = command.commandId,
-        header = eventStreamHeader.copy(),
-        createTime = createTime,
-    )
-    return listOf(domainEvent)
-}
-
-private fun Array<*>.toDomainEvents(
-    streamVersion: Int,
-    aggregateId: AggregateId,
-    command: CommandMessage<*>,
-    ownerId: String,
-    eventStreamHeader: Header,
-    createTime: Long
-) = mapIndexed { index, event ->
-    val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-    event!!.toDomainEvent(
-        id = generateGlobalId(),
-        version = streamVersion,
-        sequence = sequence,
-        isLast = sequence == this.size,
-        aggregateId = aggregateId,
-        ownerId = ownerId,
-        commandId = command.commandId,
-        header = eventStreamHeader.copy(),
-        createTime = createTime,
-    )
-}.toList()
 
 private fun Iterable<*>.toDomainEvents(
     streamVersion: Int,

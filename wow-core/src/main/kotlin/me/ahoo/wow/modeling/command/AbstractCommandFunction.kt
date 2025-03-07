@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.flatEvent
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
@@ -44,11 +45,13 @@ abstract class AbstractCommandFunction<C : Any>(
             .flatMap {
                 it.invoke(exchange)
             }.flatMapIterable { event ->
-                event.unfoldEvent()
+                event.flatEvent()
             }
 
         return invokeCommandThenSetCommandInvokeResult(exchange)
-            .flatMapIterable { it.unfoldEvent() }
+            .flatMapIterable {
+                it.flatEvent()
+            }
             .concatWith(afterFunctionResult).collectList()
     }
 
@@ -59,26 +62,6 @@ abstract class AbstractCommandFunction<C : Any>(
                 aggregateVersion = commandAggregate.version,
                 stateOwnerId = commandAggregate.state.ownerId
             )
-        }
-    }
-
-    companion object {
-
-        @Suppress("UNCHECKED_CAST")
-        fun Any.unfoldEvent(): List<Any> {
-            return when (this) {
-                is Iterable<*> -> {
-                    this.toList() as List<Any>
-                }
-
-                is Array<*> -> {
-                    this.toList() as List<Any>
-                }
-
-                else -> {
-                    listOf(this)
-                }
-            }
         }
     }
 }
