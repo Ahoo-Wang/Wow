@@ -15,6 +15,7 @@ package me.ahoo.wow.annotation
 
 import me.ahoo.wow.api.Ordered
 import me.ahoo.wow.api.annotation.Order
+import java.lang.reflect.AnnotatedElement
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
@@ -35,27 +36,17 @@ private fun <T : Any> T.getKClass(): KClass<*> {
     }
 }
 
-private fun <T : Any> T.getAnnotatedElement(): KAnnotatedElement {
-    return when (this) {
-        is KAnnotatedElement -> {
-            this
-        }
-
-        is Class<*> -> {
-            this.kotlin
-        }
-
-        else -> {
-            this.javaClass.kotlin
-        }
-    }
-}
-
 private fun <T : Any> T.getOrder(): Order {
     if (this is Ordered) {
         return order
     }
-    return getAnnotatedElement().findAnnotation<Order>() ?: Order()
+    if (this is KAnnotatedElement) {
+        return findAnnotation<Order>() ?: Order.DEFAULT
+    }
+    if (this is AnnotatedElement) {
+        return this.getAnnotation(Order::class.java) ?: Order.DEFAULT
+    }
+    return this.javaClass.getAnnotation(Order::class.java) ?: Order.DEFAULT
 }
 
 fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {

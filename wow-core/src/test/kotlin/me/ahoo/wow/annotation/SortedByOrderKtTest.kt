@@ -6,6 +6,7 @@ import me.ahoo.wow.api.annotation.Order
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
+import kotlin.reflect.jvm.javaMethod
 
 class SortedByOrderKtTest {
 
@@ -86,6 +87,23 @@ class SortedByOrderKtTest {
             )
         )
     }
+
+    @Test
+    fun sortMethod() {
+        val sortedList = listOf(
+            OrderMethods::orderDefault.javaMethod!!,
+            OrderMethods::orderFirst.javaMethod!!,
+            OrderMethods::orderLast.javaMethod!!
+        ).sortedByOrder()
+        assertThat(
+            sortedList,
+            contains(
+                OrderMethods::orderFirst.javaMethod,
+                OrderMethods::orderDefault.javaMethod,
+                OrderMethods::orderLast.javaMethod
+            )
+        )
+    }
 }
 
 @Order(before = [Undefined::class, OrderFirst::class])
@@ -100,3 +118,20 @@ object OrderFirst
 
 @Order(ORDER_LAST, before = [Undefined::class, After::class])
 object OrderLast
+
+@Suppress("FunctionOnlyReturningConstant")
+object OrderMethods {
+    @Order(ORDER_FIRST)
+    fun orderFirst(): String {
+        return "orderFirst"
+    }
+
+    fun orderDefault(): String {
+        return "orderFirst"
+    }
+
+    @Order(ORDER_LAST)
+    fun orderLast(): String {
+        return "orderLast"
+    }
+}
