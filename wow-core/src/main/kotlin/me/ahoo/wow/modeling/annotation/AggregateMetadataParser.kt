@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.DEFAULT_AFTER_COMMAND_NAME
@@ -146,7 +147,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 mountedCommands = mountedCommands.toSet(),
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
-                afterCommandFunctionRegistry = afterCommandFunctionRegistry
+                afterCommandFunctionRegistry = afterCommandFunctionRegistry.sortedByOrder()
             )
 
             val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId

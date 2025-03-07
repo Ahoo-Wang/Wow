@@ -194,11 +194,11 @@ internal class SimpleCommandAggregateTest {
     fun handleWithAfterCommand() {
         aggregateVerifier<MockAfterCommandAggregate, MockAfterCommandAggregate>()
             .whenCommand(CreateCmd)
-            .expectEventType(CmdCreated::class.java, CmdAfter::class.java)
+            .expectEventType(CmdCreated::class.java, CmdAfter::class.java, CmdAfter::class.java, CmdAfter::class.java)
             .verify()
             .then()
             .whenCommand(UpdateCmd)
-            .expectEventType(CmdUpdated::class.java)
+            .expectEventType(CmdUpdated::class.java, CmdAfter::class.java, CmdAfter::class.java)
             .verify()
     }
 }

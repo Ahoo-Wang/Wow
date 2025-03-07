@@ -16,7 +16,10 @@ import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.ORDER_FIRST
+import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 
 class MockAggregate(val id: String)
@@ -51,9 +54,21 @@ class MockAfterCommandAggregate(val id: String) {
         return CmdUpdated
     }
 
+    @Order(ORDER_FIRST)
+    @AfterCommand
+    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
+        return CmdAfter
+    }
+
     @AfterCommand(include = [CreateCmd::class], exclude = [UpdateCmd::class])
     fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
         require(exchange.getCommandInvokeResult<CmdCreated>() == CmdCreated)
+        return CmdAfter
+    }
+
+    @Order(ORDER_LAST)
+    @AfterCommand
+    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
         return CmdAfter
     }
 }
