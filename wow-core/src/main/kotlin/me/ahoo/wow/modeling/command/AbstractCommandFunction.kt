@@ -30,6 +30,7 @@ abstract class AbstractCommandFunction<C : Any>(
     abstract fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*>
 
     private fun invokeCommandThenSetCommandInvokeResult(exchange: ServerCommandExchange<*>): Mono<Any> {
+        @Suppress("UNCHECKED_CAST")
         return invokeCommand(exchange).doOnNext {
             exchange.setCommandInvokeResult(it)
         } as Mono<Any>
