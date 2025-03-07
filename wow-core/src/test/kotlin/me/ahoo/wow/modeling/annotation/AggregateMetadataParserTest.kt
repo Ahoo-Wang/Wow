@@ -90,8 +90,8 @@ internal class AggregateMetadataParserTest {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
         assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(3))
         assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[0].order.value, equalTo(ORDER_FIRST))
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[1].order, equalTo(0))
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[2].order, equalTo(ORDER_LAST))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[1].order.value, equalTo(0))
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[2].order.value, equalTo(ORDER_LAST))
     }
 
     @Test

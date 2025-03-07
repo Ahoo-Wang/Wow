@@ -28,4 +28,8 @@ annotation class Order(
     val value: Int = ORDER_DEFAULT,
     val before: Array<KClass<*>> = [],
     val after: Array<KClass<*>> = []
-)
+) {
+    companion object {
+        val DEFAULT = Order()
+    }
+}
