@@ -28,11 +28,12 @@ import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
-import me.ahoo.wow.modeling.command.AfterCommandFunction
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
+import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
+import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
 import reactor.core.publisher.Mono
 
 data class CommandAggregateMetadata<C : Any>(
@@ -42,7 +43,7 @@ data class CommandAggregateMetadata<C : Any>(
     val mountedCommands: Set<Class<*>>,
     val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
     val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
-    val afterCommandFunction: FunctionAccessorMetadata<C, Mono<*>>? = null
+    val afterCommandFunctionRegistry: List<AfterCommandFunctionMetadata<C>> = emptyList()
 ) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
     override val processorName: String = aggregateType.simpleName
     val registeredDeleteAggregate: Boolean =
@@ -58,8 +59,8 @@ data class CommandAggregateMetadata<C : Any>(
     }
 
     fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val afterCommandFunction = afterCommandFunction?.toMessageFunction(commandAggregate.commandRoot)?.let {
-            AfterCommandFunction(it)
+        val allAfterCommandFunction = afterCommandFunctionRegistry.map {
+            it.toAfterCommandFunction(commandAggregate.commandRoot)
         }
 
         return buildMap {
@@ -67,21 +68,27 @@ data class CommandAggregateMetadata<C : Any>(
                 .map {
                     val actualMessageFunction = it.value
                         .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                    it.key to CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunction)
+                    val afterCommandFunctions = allAfterCommandFunction
+                        .filter { function -> function.metadata.supportCommand(it.key) }
+                    it.key to CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunctions)
                 }.also {
                     putAll(it)
                 }
 
             if (!registeredRecoverAggregate) {
+                val afterCommandFunctions = allAfterCommandFunction
+                    .filter { function -> function.metadata.supportCommand(DefaultRecoverAggregate::class.java) }
                 put(
                     DefaultRecoverAggregate::class.java,
-                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunction)
+                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions)
                 )
             }
             if (!registeredDeleteAggregate) {
+                val afterCommandFunctions = allAfterCommandFunction
+                    .filter { function -> function.metadata.supportCommand(DefaultDeleteAggregate::class.java) }
                 put(
                     DefaultDeleteAggregate::class.java,
-                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunction)
+                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions)
                 )
             }
         }

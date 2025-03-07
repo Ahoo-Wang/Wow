@@ -86,19 +86,19 @@ internal class AggregateMetadataParserTest {
     @Test
     fun parseAfterCommandAggregate() {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunction, notNullValue())
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(1))
     }
 
     @Test
     fun parseDefaultAfterCommandAggregate() {
         val aggregateMetadata = aggregateMetadata<MockDefaultAfterCommandAggregate, MockDefaultAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunction, notNullValue())
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(1))
     }
 
     @Test
     fun parseMockMultipleAfterCommandAggregate() {
-        Assertions.assertThrows(IllegalStateException::class.java) {
+        val aggregateMetadata =
             aggregateMetadata<MockMultipleAfterCommandAggregate, MockMultipleAfterCommandAggregate>()
-        }
+        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(2))
     }
 }

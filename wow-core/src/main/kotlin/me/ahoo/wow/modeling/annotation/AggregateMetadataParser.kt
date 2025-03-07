@@ -31,6 +31,8 @@ import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
+import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
+import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -63,10 +65,10 @@ object AggregateMetadataParser : CacheableMetadataParser() {
         private val commandAggregateType: Class<C>
         private val stateAggregateType: Class<S>
         private val stateAggregateMetadata: StateAggregateMetadata<S>
-        private var constructor: Constructor<C>
-        private var commandFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
-        private var errorFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
-        private var afterCommandFunction: FunctionAccessorMetadata<C, Mono<*>>? = null
+        private val constructor: Constructor<C>
+        private val commandFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
+        private val errorFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<C, Mono<*>>> = HashMap()
+        private val afterCommandFunctionRegistry: MutableList<AfterCommandFunctionMetadata<C>> = mutableListOf()
 
         init {
             try {
@@ -108,10 +110,9 @@ object AggregateMetadataParser : CacheableMetadataParser() {
             if (function.hasAnnotation<AfterCommand>() ||
                 function.isAfterCommandFunction()
             ) {
-                check(afterCommandFunction == null) {
-                    "Failed to parse CommandAggregate[$commandAggregateType] metadata: Only one AfterCommand function is allowed."
-                }
-                afterCommandFunction = function.toMonoFunctionMetadata<C, Any>()
+                val afterCommandFunctionMetadata =
+                    function.toMonoFunctionMetadata<C, Any>().toAfterCommandFunctionMetadata()
+                afterCommandFunctionRegistry.add(afterCommandFunctionMetadata)
             }
         }
 
@@ -145,7 +146,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 mountedCommands = mountedCommands.toSet(),
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
-                afterCommandFunction = afterCommandFunction
+                afterCommandFunctionRegistry = afterCommandFunctionRegistry
             )
 
             val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId

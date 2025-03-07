@@ -18,8 +18,8 @@ class DefaultDeleteAggregateFunctionTest {
         }
         assertThat(
             DefaultDeleteAggregateFunction(
-                commandAggregate,
-                null
+                commandAggregate = commandAggregate,
+                afterCommandFunctions = emptyList()
             ).getAnnotation(Retry::class.java),
             nullValue()
         )
