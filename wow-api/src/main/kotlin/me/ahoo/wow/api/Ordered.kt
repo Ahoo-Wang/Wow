@@ -11,17 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.modeling.command.after
+package me.ahoo.wow.api
 
-import me.ahoo.wow.api.Ordered
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.messaging.function.MessageFunction
-import reactor.core.publisher.Mono
+import me.ahoo.wow.api.annotation.Order
 
-class AfterCommandFunction<C : Any>(
-    val metadata: AfterCommandFunctionMetadata<C>,
-    override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>
-) : MessageFunction<C, ServerCommandExchange<*>, Mono<*>> by delegate,
-    Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>>,
-    Ordered by metadata
+interface Ordered {
+    val order: Order
+}

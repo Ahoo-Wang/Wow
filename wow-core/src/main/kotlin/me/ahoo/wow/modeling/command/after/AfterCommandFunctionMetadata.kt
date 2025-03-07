@@ -13,14 +13,17 @@
 
 package me.ahoo.wow.modeling.command.after
 
+import me.ahoo.wow.api.Ordered
 import me.ahoo.wow.api.annotation.AfterCommand
+import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
 import reactor.core.publisher.Mono
 
-data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorMetadata<C, Mono<*>>) {
+data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorMetadata<C, Mono<*>>) : Ordered {
     val include: Set<Class<*>>
     val exclude: Set<Class<*>>
+    override val order: Order
 
     init {
         val afterCommandAnnotation = function.accessor.method.getAnnotation(AfterCommand::class.java)
@@ -31,6 +34,7 @@ data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorM
             include = afterCommandAnnotation.include.map { it.java }.toSet()
             exclude = afterCommandAnnotation.exclude.map { it.java }.toSet()
         }
+        order = function.accessor.method.getAnnotation(Order::class.java) ?: Order()
     }
 
     fun supportCommand(commandType: Class<*>): Boolean {
