@@ -46,7 +46,7 @@ class SetStateCacheRefresherTest {
 
     @Test
     fun getName() {
-        assertThat(stateCacheRefresher.name, equalTo(StateCacheRefresher<*, *>::invoke.name))
+        assertThat(stateCacheRefresher.name, equalTo(StateCacheRefresher<*, *, *>::invoke.name))
     }
 
     @Test
@@ -93,7 +93,7 @@ class SetStateCacheRefresherTest {
     fun invoke() {
         val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
             every { state.state } returns MockStateAggregate(generateGlobalId())
-            every { state.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
+            every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
             every { state.deleted } returns false
         }
 
@@ -103,7 +103,7 @@ class SetStateCacheRefresherTest {
     @Test
     fun invokeIfDeleted() {
         val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
-            every { state.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
+            every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
             every { state.deleted } returns true
         }
 
@@ -121,7 +121,7 @@ class SetStateCacheRefresherTest {
 
         val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
             every { state.state } returns MockStateAggregate(generateGlobalId())
-            every { state.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
+            every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
             every { state.deleted } returns false
         }
 
