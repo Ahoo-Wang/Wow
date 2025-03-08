@@ -14,8 +14,9 @@
 package me.ahoo.wow.cache.refresh
 
 import me.ahoo.cache.api.Cache
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.event.StateDomainEventExchange
+import me.ahoo.wow.event.DomainEventExchange
 
 /**
  * 主动逐出缓存.
@@ -23,9 +24,10 @@ import me.ahoo.wow.event.StateDomainEventExchange
 open class EvictStateCacheRefresher<S : Any, D>(
     namedAggregate: NamedAggregate,
     override val cache: Cache<String, D>
-) : StateCacheRefresher<S, D> (namedAggregate) {
+) : StateCacheRefresher<S, D, DomainEventExchange<Any>>(namedAggregate) {
 
-    override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
-        cache.evict(exchange.state.aggregateId.id)
+    override val functionKind: FunctionKind = FunctionKind.EVENT
+    override fun refresh(exchange: DomainEventExchange<Any>) {
+        cache.evict(exchange.message.aggregateId.id)
     }
 }

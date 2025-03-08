@@ -15,6 +15,7 @@ package me.ahoo.wow.cache.refresh
 
 import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.cache.api.Cache
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.cache.CacheValueConfiguration
 import me.ahoo.wow.cache.StateToCacheDataConverter
@@ -30,11 +31,12 @@ open class SetStateCacheRefresher<S : Any, D>(
     override val cache: Cache<String, D>,
     override val ttl: Long? = null,
     override val amplitude: Long = 0
-) : CacheValueConfiguration, StateCacheRefresher<S, D>(namedAggregate) {
+) : CacheValueConfiguration, StateCacheRefresher<S, D, StateDomainEventExchange<S, Any>>(namedAggregate) {
 
+    override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
     override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
         if (exchange.state.deleted) {
-            cache.evict(exchange.state.aggregateId.id)
+            cache.evict(exchange.message.aggregateId.id)
             return
         }
         val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state.state)
@@ -44,6 +46,6 @@ open class SetStateCacheRefresher<S : Any, D>(
         } else {
             DefaultCacheValue.ttlAt(cacheData, ttl, amplitude)
         }
-        cache.setCache(exchange.state.aggregateId.id, cacheValue)
+        cache.setCache(exchange.message.aggregateId.id, cacheValue)
     }
 }

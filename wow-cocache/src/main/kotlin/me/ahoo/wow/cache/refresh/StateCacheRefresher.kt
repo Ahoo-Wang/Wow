@@ -14,10 +14,9 @@
 package me.ahoo.wow.cache.refresh
 
 import me.ahoo.cache.api.Cache
-import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
-import me.ahoo.wow.event.StateDomainEventExchange
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
@@ -26,17 +25,18 @@ import reactor.core.publisher.Mono
  * 主动刷新缓存.
  */
 @JvmDefaultWithoutCompatibility
-abstract class StateCacheRefresher<S : Any, D>(final override val namedAggregate: NamedAggregate) :
+abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
+    final override val namedAggregate: NamedAggregate
+) :
     NamedAggregateDecorator,
-    MessageFunction<StateCacheRefresher<S, D>, StateDomainEventExchange<S, Any>, Mono<Void>> {
+    MessageFunction<StateCacheRefresher<S, D, M>, M, Mono<Void>> {
     companion object {
         private val log = org.slf4j.LoggerFactory.getLogger(StateCacheRefresher::class.java)
     }
 
     abstract val cache: Cache<String, D>
-    override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
-    override val name: String = StateCacheRefresher<*, *>::invoke.name
-    override val processor: StateCacheRefresher<S, D>
+    override val name: String = StateCacheRefresher<*, *, *>::invoke.name
+    override val processor: StateCacheRefresher<S, D, M>
         get() = this
     final override val supportedTopics: Set<NamedAggregate> = setOf(namedAggregate.materialize())
     override val supportedType: Class<*> = Any::class.java
@@ -45,14 +45,14 @@ abstract class StateCacheRefresher<S : Any, D>(final override val namedAggregate
         return null
     }
 
-    override fun invoke(exchange: StateDomainEventExchange<S, Any>): Mono<Void> {
+    override fun invoke(exchange: M): Mono<Void> {
         return Mono.fromRunnable {
             if (log.isDebugEnabled) {
-                log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.state.aggregateId)
+                log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.message.aggregateId)
             }
             refresh(exchange)
         }
     }
 
-    abstract fun refresh(exchange: StateDomainEventExchange<S, Any>)
+    abstract fun refresh(exchange: M)
 }
