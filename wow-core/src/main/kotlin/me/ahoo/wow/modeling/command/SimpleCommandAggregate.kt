@@ -88,9 +88,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             requireNotNull(commandFunction) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
-            exchange.setFunction(commandFunction)
             commandFunction.invoke(exchange).doOnNext {
-                exchange.setEventStream(it)
                 /**
                  * 将领域事件朔源到当前状态聚合根.
                  */

@@ -56,12 +56,15 @@ abstract class AbstractCommandFunction<C : Any>(
     }
 
     override fun invoke(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+        exchange.setFunction(this)
         return invokeWithAfter(exchange).map {
             it.toDomainEventStream(
                 upstream = exchange.message,
                 aggregateVersion = commandAggregate.version,
                 stateOwnerId = commandAggregate.state.ownerId
-            )
+            ).also { eventStream ->
+                exchange.setEventStream(eventStream)
+            }
         }
     }
 }
