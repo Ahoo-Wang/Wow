@@ -15,13 +15,4 @@ package me.ahoo.wow.cache
 
 fun interface StateToCacheDataConverter<S, D> {
     fun stateToCacheData(state: S): D
-
-    companion object {
-        private val IDENTITY = StateToCacheDataConverter<Any, Any> { state -> state }
-
-        fun <D> identity(): StateToCacheDataConverter<D, D> {
-            @Suppress("UNCHECKED_CAST")
-            return IDENTITY as StateToCacheDataConverter<D, D>
-        }
-    }
 }

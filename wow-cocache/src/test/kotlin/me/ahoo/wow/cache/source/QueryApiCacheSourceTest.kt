@@ -14,8 +14,10 @@
 package me.ahoo.wow.cache.source
 
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.spyk
 import me.ahoo.cache.DefaultCacheValue
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.nullValue
 import org.hamcrest.MatcherAssert.*
@@ -27,7 +29,9 @@ class QueryApiCacheSourceTest {
     @Test
     fun load() {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
-            every { getStateById(any()) } returns "test".toMono()
+            every { getById(any()) } returns mockk<MaterializedSnapshot<String>> {
+                every { state } returns "test"
+            }.toMono()
         }
         assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration.DEFAULT))
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
@@ -40,7 +44,9 @@ class QueryApiCacheSourceTest {
             every {
                 loadCacheSourceConfiguration
             } returns LoadCacheSourceConfiguration(ttl = 1000)
-            every { getStateById(any()) } returns "test".toMono()
+            every { getById(any()) } returns mockk<MaterializedSnapshot<String>> {
+                every { state } returns "test"
+            }.toMono()
         }
         assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration(ttl = 1000)))
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
@@ -50,7 +56,7 @@ class QueryApiCacheSourceTest {
     @Test
     fun loadWithNull() {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
-            every { getStateById(any()) } returns Mono.empty()
+            every { getById(any()) } returns Mono.empty()
         }
 
         val cacheValue = queryApiCacheSource.loadCacheValue("test")

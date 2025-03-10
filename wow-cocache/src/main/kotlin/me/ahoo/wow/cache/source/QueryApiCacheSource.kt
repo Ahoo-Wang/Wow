@@ -13,15 +13,22 @@
 
 package me.ahoo.wow.cache.source
 
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import reactor.core.publisher.Mono
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<String, S, S> {
-    override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
-        get() = StateToCacheDataConverter.identity()
+interface QueryApiCacheSource<S : Any> :
+    ReactiveSnapshotQueryApi<S>,
+    StateCacheSource<String, MaterializedSnapshot<S>, S> {
+    override val stateToCacheDataConverter: StateToCacheDataConverter<MaterializedSnapshot<S>, S>
+        get() {
+            return StateToCacheDataConverter {
+                it.state
+            }
+        }
 
-    override fun loadState(key: String): Mono<S> {
-        return getStateById(key)
+    override fun loadState(key: String): Mono<MaterializedSnapshot<S>> {
+        return getById(key)
     }
 }
