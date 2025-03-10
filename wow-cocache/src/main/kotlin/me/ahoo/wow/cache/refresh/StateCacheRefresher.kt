@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.cache.refresh
 
-import me.ahoo.cache.api.Cache
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.event.DomainEventExchange
@@ -34,7 +33,6 @@ abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
         private val log = org.slf4j.LoggerFactory.getLogger(StateCacheRefresher::class.java)
     }
 
-    abstract val cache: Cache<String, D>
     override val name: String = StateCacheRefresher<*, *, *>::invoke.name
     override val processor: StateCacheRefresher<S, D, M>
         get() = this

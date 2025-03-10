@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 class EvictStateCacheRefresherTest {
-    private val stateCacheRefresher = EvictStateCacheRefresher<MockStateAggregate, MockStateAggregate>(
+    private val stateCacheRefresher = EvictStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         cache = MapClientSideCache()
     )

@@ -20,13 +20,13 @@ import me.ahoo.wow.cache.StateToCacheDataConverter
 import reactor.core.publisher.Mono
 import java.util.concurrent.TimeUnit
 
-interface StateCacheSource<S : Any, D : Any> : CacheSource<String, D> {
+interface StateCacheSource<K, S : Any, D : Any> : CacheSource<K, D> {
     val loadCacheSourceConfiguration: LoadCacheSourceConfiguration
         get() = LoadCacheSourceConfiguration.DEFAULT
     val stateToCacheDataConverter: StateToCacheDataConverter<S, D>
-    fun loadState(key: String): Mono<S>
+    fun loadState(key: K): Mono<S>
 
-    override fun loadCacheValue(key: String): CacheValue<D>? {
+    override fun loadCacheValue(key: K): CacheValue<D>? {
         val state = loadState(key).map {
             stateToCacheDataConverter.stateToCacheData(it)
         }.toFuture()

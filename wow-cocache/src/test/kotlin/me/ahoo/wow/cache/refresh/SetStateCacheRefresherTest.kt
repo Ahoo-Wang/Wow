@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 class SetStateCacheRefresherTest {
-    private val stateCacheRefresher = SetStateCacheRefresher<MockStateAggregate, MockStateAggregate>(
+    private val stateCacheRefresher = SetStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
         namedAggregate = MOCK_AGGREGATE_METADATA,
         stateToCacheDataConverter = StateToCacheDataConverter.identity(),
         cache = MapClientSideCache()
@@ -112,7 +112,7 @@ class SetStateCacheRefresherTest {
 
     @Test
     fun invokeIfWithTtl() {
-        val stateCacheRefresher = SetStateCacheRefresher<MockStateAggregate, MockStateAggregate>(
+        val stateCacheRefresher = SetStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             stateToCacheDataConverter = StateToCacheDataConverter.identity(),
             cache = MapClientSideCache(),

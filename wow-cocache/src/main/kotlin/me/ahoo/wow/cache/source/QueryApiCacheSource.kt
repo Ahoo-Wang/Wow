@@ -17,7 +17,7 @@ import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import reactor.core.publisher.Mono
 
-interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<S, S> {
+interface QueryApiCacheSource<S : Any> : ReactiveSnapshotQueryApi<S>, StateCacheSource<String, S, S> {
     override val stateToCacheDataConverter: StateToCacheDataConverter<S, S>
         get() = StateToCacheDataConverter.identity()
 

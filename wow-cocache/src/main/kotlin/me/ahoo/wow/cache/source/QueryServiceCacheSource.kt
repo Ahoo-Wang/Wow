@@ -20,11 +20,12 @@ import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.toState
 import reactor.core.publisher.Mono
 
+@JvmDefaultWithoutCompatibility
 open class QueryServiceCacheSource<S : Any, D : Any>(
     private val queryService: SnapshotQueryService<S>,
     override val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
     override val loadCacheSourceConfiguration: LoadCacheSourceConfiguration = LoadCacheSourceConfiguration.DEFAULT
-) : StateCacheSource<S, D> {
+) : StateCacheSource<String, S, D> {
 
     override fun loadState(key: String): Mono<S> {
         return singleQuery {

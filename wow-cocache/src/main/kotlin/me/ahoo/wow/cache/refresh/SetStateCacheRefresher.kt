@@ -25,18 +25,23 @@ import me.ahoo.wow.event.StateDomainEventExchange
  * 主动刷新缓存.
  */
 @JvmDefaultWithoutCompatibility
-open class SetStateCacheRefresher<S : Any, D>(
+open class SetStateCacheRefresher<K, S : Any, D>(
     namedAggregate: NamedAggregate,
     private val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
-    override val cache: Cache<String, D>,
     override val ttl: Long? = null,
-    override val amplitude: Long = 0
+    override val amplitude: Long = 0,
+    val cache: Cache<K, D>,
+    val keyConvert: (StateDomainEventExchange<S, Any>) -> K = { exchange ->
+        @Suppress("UNCHECKED_CAST")
+        exchange.message.aggregateId.id as K
+    }
 ) : CacheValueConfiguration, StateCacheRefresher<S, D, StateDomainEventExchange<S, Any>>(namedAggregate) {
 
     override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
     override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
+        val key = keyConvert(exchange)
         if (exchange.state.deleted) {
-            cache.evict(exchange.message.aggregateId.id)
+            cache.evict(key)
             return
         }
         val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state.state)
@@ -46,6 +51,6 @@ open class SetStateCacheRefresher<S : Any, D>(
         } else {
             DefaultCacheValue.ttlAt(cacheData, ttl, amplitude)
         }
-        cache.setCache(exchange.message.aggregateId.id, cacheValue)
+        cache.setCache(key, cacheValue)
     }
 }
