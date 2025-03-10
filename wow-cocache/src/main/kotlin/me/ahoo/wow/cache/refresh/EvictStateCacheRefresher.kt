@@ -21,13 +21,18 @@ import me.ahoo.wow.event.DomainEventExchange
 /**
  * 主动逐出缓存.
  */
-open class EvictStateCacheRefresher<S : Any, D>(
+open class EvictStateCacheRefresher<K, S : Any, D>(
     namedAggregate: NamedAggregate,
-    override val cache: Cache<String, D>
+    val cache: Cache<K, D>,
+    val keyConvert: (DomainEventExchange<Any>) -> K = { exchange ->
+        @Suppress("UNCHECKED_CAST")
+        exchange.message.aggregateId.id as K
+    }
 ) : StateCacheRefresher<S, D, DomainEventExchange<Any>>(namedAggregate) {
 
     override val functionKind: FunctionKind = FunctionKind.EVENT
     override fun refresh(exchange: DomainEventExchange<Any>) {
-        cache.evict(exchange.message.aggregateId.id)
+        val key = keyConvert(exchange)
+        cache.evict(key)
     }
 }
