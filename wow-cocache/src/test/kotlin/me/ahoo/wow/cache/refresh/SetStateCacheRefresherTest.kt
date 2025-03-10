@@ -18,7 +18,6 @@ import io.mockk.spyk
 import me.ahoo.cache.client.MapClientSideCache
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.event.StateDomainEventExchange
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -35,7 +34,9 @@ import reactor.kotlin.test.test
 class SetStateCacheRefresherTest {
     private val stateCacheRefresher = SetStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        stateToCacheDataConverter = StateToCacheDataConverter.identity(),
+        stateToCacheDataConverter = {
+            it.state
+        },
         cache = MapClientSideCache()
     )
 
@@ -114,7 +115,9 @@ class SetStateCacheRefresherTest {
     fun invokeIfWithTtl() {
         val stateCacheRefresher = SetStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
-            stateToCacheDataConverter = StateToCacheDataConverter.identity(),
+            stateToCacheDataConverter = {
+                it.state
+            },
             cache = MapClientSideCache(),
             ttl = 600
         )

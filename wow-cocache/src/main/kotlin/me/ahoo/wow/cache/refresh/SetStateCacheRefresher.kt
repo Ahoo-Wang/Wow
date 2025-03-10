@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.cache.CacheValueConfiguration
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.event.StateDomainEventExchange
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
 /**
  * 主动刷新缓存.
@@ -27,7 +28,7 @@ import me.ahoo.wow.event.StateDomainEventExchange
 @JvmDefaultWithoutCompatibility
 open class SetStateCacheRefresher<K, S : Any, D>(
     namedAggregate: NamedAggregate,
-    private val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
+    private val stateToCacheDataConverter: StateToCacheDataConverter<ReadOnlyStateAggregate<S>, D>,
     override val ttl: Long? = null,
     override val amplitude: Long = 0,
     val cache: Cache<K, D>,
@@ -44,7 +45,7 @@ open class SetStateCacheRefresher<K, S : Any, D>(
             cache.evict(key)
             return
         }
-        val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state.state)
+        val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state)
         val ttl = ttl
         val cacheValue = if (ttl == null) {
             DefaultCacheValue.forever(cacheData)

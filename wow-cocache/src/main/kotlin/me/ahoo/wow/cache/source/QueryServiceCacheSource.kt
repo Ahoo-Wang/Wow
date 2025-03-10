@@ -13,25 +13,25 @@
 
 package me.ahoo.wow.cache.source
 
+import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.query
-import me.ahoo.wow.query.snapshot.toState
 import reactor.core.publisher.Mono
 
 @JvmDefaultWithoutCompatibility
 open class QueryServiceCacheSource<S : Any, D : Any>(
     private val queryService: SnapshotQueryService<S>,
-    override val stateToCacheDataConverter: StateToCacheDataConverter<S, D>,
+    override val stateToCacheDataConverter: StateToCacheDataConverter<MaterializedSnapshot<S>, D>,
     override val loadCacheSourceConfiguration: LoadCacheSourceConfiguration = LoadCacheSourceConfiguration.DEFAULT
-) : StateCacheSource<String, S, D> {
+) : StateCacheSource<String, MaterializedSnapshot<S>, D> {
 
-    override fun loadState(key: String): Mono<S> {
+    override fun loadState(key: String): Mono<MaterializedSnapshot<S>> {
         return singleQuery {
             condition {
                 aggregateId(key)
             }
-        }.query(queryService).toState()
+        }.query(queryService)
     }
 }

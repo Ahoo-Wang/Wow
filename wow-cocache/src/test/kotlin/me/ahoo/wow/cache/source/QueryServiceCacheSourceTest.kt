@@ -35,7 +35,7 @@ class QueryServiceCacheSourceTest {
         }
         val queryServiceCacheSource = QueryServiceCacheSource(
             queryApiCacheSource,
-            { it },
+            { it.state },
             LoadCacheSourceConfiguration.DEFAULT
         )
 
