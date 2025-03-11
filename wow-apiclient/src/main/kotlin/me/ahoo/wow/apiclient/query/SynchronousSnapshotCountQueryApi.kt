@@ -13,17 +13,10 @@
 
 package me.ahoo.wow.apiclient.query
 
-import org.springframework.web.reactive.function.client.WebClientResponseException
-import reactor.core.publisher.Mono
+import me.ahoo.wow.api.query.Condition
 
-interface ReactiveSnapshotQueryApi<S : Any> :
-    ReactiveSnapshotSingleQueryApi<S>,
-    ReactiveSnapshotListQueryApi<S>,
-    ReactiveSnapshotPagedQueryApi<S>,
-    ReactiveSnapshotCountQueryApi
+interface SynchronousSnapshotCountQueryApi : SnapshotCountQueryApi<Long>
 
-fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
-    return onErrorResume(WebClientResponseException.NotFound::class.java) {
-        Mono.empty()
-    }
+fun Condition.count(snapshotQueryApi: SynchronousSnapshotCountQueryApi): Long {
+    return snapshotQueryApi.count(this)
 }
