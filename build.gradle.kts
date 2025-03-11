@@ -91,7 +91,11 @@ configure(libraryProjects) {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict", "-Xjvm-default=all-compatibility")
+            javaParameters = true
         }
+    }
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.addAll(listOf("-parameters"))
     }
     apply<TestRetryPlugin>()
     tasks.withType<Test> {
@@ -108,9 +112,6 @@ configure(libraryProjects) {
             }
             failOnPassedAfterRetry = true
         }
-    }
-    tasks.withType<JavaCompile> {
-        options.compilerArgs.addAll(listOf("-parameters"))
     }
     dependencies {
         api(platform(dependenciesProject))
