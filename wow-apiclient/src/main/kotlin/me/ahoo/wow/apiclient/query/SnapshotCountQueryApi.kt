@@ -13,6 +13,13 @@
 
 package me.ahoo.wow.apiclient.query
 
-const val SNAPSHOT_RESOURCE_NAME = "snapshot"
+import me.ahoo.wow.api.query.Condition
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 
-interface SnapshotQueryApi
+const val SNAPSHOT_COUNT_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/count"
+
+interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
+    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
+    fun count(@RequestBody condition: Condition): R
+}

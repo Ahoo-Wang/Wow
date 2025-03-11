@@ -20,23 +20,16 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.dsl.singleQuery
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.reactive.function.client.WebClientResponseException
-import org.springframework.web.service.annotation.PostExchange
 
-interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
+interface SyncSnapshotQueryApi<S : Any> :
+    SnapshotSingleQueryApi<MaterializedSnapshot<S>?, Map<String, Any>?, S?>,
+    SnapshotListQueryApi<List<MaterializedSnapshot<S>>, List<Map<String, Any>>, List<S>>,
+    SnapshotPagedQueryApi<PagedList<MaterializedSnapshot<S>>, PagedList<Map<String, Any>>, PagedList<S>>,
+    SnapshotCountQueryApi<Long> {
 
-    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody singleQuery: ISingleQuery): MaterializedSnapshot<S>?
-
-    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Map<String, Any>?
-
-    @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
-    fun singleState(@RequestBody singleQuery: ISingleQuery): S?
-
-    fun getById(id: String): MaterializedSnapshot<S>? {
+    override fun getById(id: String): MaterializedSnapshot<S>? {
         singleQuery {
             condition {
                 id(id)
@@ -46,7 +39,7 @@ interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
         }
     }
 
-    fun getStateById(id: String): S? {
+    override fun getStateById(id: String): S? {
         singleQuery {
             condition {
                 id(id)
@@ -55,27 +48,6 @@ interface SyncSnapshotQueryApi<S : Any> : SnapshotQueryApi {
             return switchNotFoundToNull { singleState(it) }
         }
     }
-
-    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun list(@RequestBody query: IListQuery): List<MaterializedSnapshot<S>>
-
-    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun dynamicList(@RequestBody query: IListQuery): List<Map<String, Any>>
-
-    @PostExchange(SNAPSHOT_LIST_STATE_RESOURCE_NAME)
-    fun listState(@RequestBody query: IListQuery): List<S>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun paged(@RequestBody pagedQuery: IPagedQuery): PagedList<MaterializedSnapshot<S>>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun dynamicPaged(@RequestBody pagedQuery: IPagedQuery): PagedList<Map<String, Any>>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
-    fun pagedState(@RequestBody pagedQuery: IPagedQuery): PagedList<S>
-
-    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
-    fun count(@RequestBody condition: Condition): Long
 }
 
 fun <T> switchNotFoundToNull(query: () -> T): T? {

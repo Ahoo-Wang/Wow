@@ -20,24 +20,17 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.dsl.singleQuery
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.reactive.function.client.WebClientResponseException
-import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
+interface ReactiveSnapshotQueryApi<S : Any> :
+    SnapshotSingleQueryApi<Mono<MaterializedSnapshot<S>>, Mono<Map<String, Any>>, Mono<S>>,
+    SnapshotListQueryApi<Flux<MaterializedSnapshot<S>>, Flux<Map<String, Any>>, Flux<S>>,
+    SnapshotPagedQueryApi<Mono<PagedList<MaterializedSnapshot<S>>>, Mono<PagedList<Map<String, Any>>>, Mono<PagedList<S>>>,
+    SnapshotCountQueryApi<Mono<Long>> {
 
-    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun single(@RequestBody singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>>
-
-    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
-    fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Mono<Map<String, Any>>
-
-    @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
-    fun singleState(@RequestBody singleQuery: ISingleQuery): Mono<S>
-
-    fun getById(id: String): Mono<MaterializedSnapshot<S>> {
+    override fun getById(id: String): Mono<MaterializedSnapshot<S>> {
         singleQuery {
             condition {
                 id(id)
@@ -47,7 +40,7 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
         }
     }
 
-    fun getStateById(id: String): Mono<S> {
+    override fun getStateById(id: String): Mono<S> {
         singleQuery {
             condition {
                 id(id)
@@ -56,27 +49,6 @@ interface ReactiveSnapshotQueryApi<S : Any> : SnapshotQueryApi {
             return singleState(it).switchNotFoundToEmpty()
         }
     }
-
-    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun list(@RequestBody query: IListQuery): Flux<MaterializedSnapshot<S>>
-
-    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
-    fun dynamicList(@RequestBody query: IListQuery): Flux<Map<String, Any>>
-
-    @PostExchange(SNAPSHOT_LIST_STATE_RESOURCE_NAME)
-    fun listState(@RequestBody query: IListQuery): Flux<S>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun paged(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<MaterializedSnapshot<S>>>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
-    fun dynamicPaged(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<Map<String, Any>>>
-
-    @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
-    fun pagedState(@RequestBody pagedQuery: IPagedQuery): Mono<PagedList<S>>
-
-    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
-    fun count(@RequestBody condition: Condition): Mono<Long>
 }
 
 fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
