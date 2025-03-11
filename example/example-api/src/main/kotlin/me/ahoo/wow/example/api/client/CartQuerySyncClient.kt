@@ -20,7 +20,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.apiclient.query.SyncSnapshotQueryApi
+import me.ahoo.wow.apiclient.query.SynchronousSnapshotQueryApi
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.cart.CartData
 import org.springframework.web.bind.annotation.RequestBody
@@ -28,7 +28,7 @@ import org.springframework.web.service.annotation.HttpExchange
 
 @CoApi(baseUrl = "http://localhost:8080")
 @HttpExchange(ExampleService.CART_AGGREGATE_NAME)
-interface CartQuerySyncClient : SyncSnapshotQueryApi<CartData> {
+interface CartQuerySyncClient : SynchronousSnapshotQueryApi<CartData> {
     override fun single(@RequestBody singleQuery: ISingleQuery): MaterializedSnapshot<CartData>?
 
     override fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Map<String, Any>?

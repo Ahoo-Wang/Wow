@@ -13,17 +13,21 @@
 
 package me.ahoo.wow.apiclient.query
 
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.reactive.function.client.WebClientResponseException
-import reactor.core.publisher.Mono
 
-interface ReactiveSnapshotQueryApi<S : Any> :
-    ReactiveSnapshotSingleQueryApi<S>,
-    ReactiveSnapshotListQueryApi<S>,
-    ReactiveSnapshotPagedQueryApi<S>,
-    ReactiveSnapshotCountQueryApi
+interface SynchronousSnapshotQueryApi<S : Any> :
+    SynchronousSnapshotSingleQueryApi<S>,
+    SynchronousSnapshotListQueryApi<S>,
+    SynchronousSnapshotPagedQueryApi<S>,
+    SynchronousSnapshotCountQueryApi
 
-fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
-    return onErrorResume(WebClientResponseException.NotFound::class.java) {
-        Mono.empty()
+fun <T> switchNotFoundToNull(query: () -> T): T? {
+    return try {
+        query()
+    } catch (ignore: WebClientResponseException.NotFound) {
+        null
+    } catch (ignore: HttpClientErrorException.NotFound) {
+        null
     }
 }
