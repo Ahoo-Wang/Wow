@@ -39,12 +39,18 @@ open class SetStateCacheRefresher<K, S : Any, D>(
 ) : CacheValueConfiguration, StateCacheRefresher<S, D, StateDomainEventExchange<S, Any>>(namedAggregate) {
 
     override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
-    override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
+
+    open fun evict(exchange: StateDomainEventExchange<S, Any>) {
         val key = keyConvert(exchange)
+        cache.evict(key)
+    }
+
+    override fun refresh(exchange: StateDomainEventExchange<S, Any>) {
         if (exchange.state.deleted) {
-            cache.evict(key)
+            evict(exchange)
             return
         }
+        val key = keyConvert(exchange)
         val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state)
         val ttl = ttl
         val cacheValue = if (ttl == null) {
