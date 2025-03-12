@@ -33,7 +33,9 @@ internal class ShardingEventStreamSchemaTest {
     fun load() {
         assertThat(
             eventStreamSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")),
-            equalTo("select * from test_event_stream_1 where aggregate_id=? and version between ? and ?"),
+            equalTo(
+                "select * from test_event_stream_1 where aggregate_id=? and version between ? and ? order by version"
+            ),
         )
     }
 

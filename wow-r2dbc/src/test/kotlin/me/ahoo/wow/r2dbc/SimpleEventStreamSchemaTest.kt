@@ -27,7 +27,9 @@ internal class SimpleEventStreamSchemaTest {
     fun loadEventStream() {
         assertThat(
             eventStreamSchema.load(namedAggregate.aggregateId("")),
-            equalTo("select * from test_event_stream where aggregate_id=? and version between ? and ?"),
+            equalTo(
+                "select * from test_event_stream where aggregate_id=? and version between ? and ? order by version"
+            ),
         )
     }
 

@@ -36,11 +36,11 @@ object EventStreamStatementGenerator {
     }
 
     private fun loadByVersionSql(tableName: String): String {
-        return "select * from $tableName where aggregate_id=? and version between ? and ?"
+        return "select * from $tableName where aggregate_id=? and version between ? and ? order by version"
     }
 
     private fun loadByEventTimeSql(tableName: String): String {
-        return "select * from $tableName where aggregate_id=? and create_time between ? and ?"
+        return "select * from $tableName where aggregate_id=? and create_time between ? and ? order by version"
     }
 
     private fun appendSql(tableName: String): String {
