@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.ErrorCategory
 import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.DuplicateRequestIdException
@@ -79,6 +80,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
             .find(filter)
+            .sort(Sorts.ascending(MessageRecords.VERSION))
             .toFlux()
             .map {
                 val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
