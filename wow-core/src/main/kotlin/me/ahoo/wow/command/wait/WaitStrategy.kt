@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -21,7 +22,12 @@ import reactor.core.publisher.Mono
  * @see WaitingFor
  */
 interface WaitStrategy : ProcessorInfo {
-    fun waiting(): Mono<WaitSignal>
+    val cancelled: Boolean
+    val terminated: Boolean
+    fun waiting(): Flux<WaitSignal>
+    fun waitingLast(): Mono<WaitSignal> {
+        return waiting().last()
+    }
 
     fun error(throwable: Throwable)
 
@@ -29,4 +35,6 @@ interface WaitStrategy : ProcessorInfo {
      * 由下游(CommandBus or Aggregate or Projector)发送处理结果信号.
      */
     fun next(signal: WaitSignal)
+
+    fun complete()
 }

@@ -41,6 +41,9 @@ interface WaitStrategyRegistrar {
     fun next(signal: WaitSignal): Boolean {
         val waitStrategy = get(signal.commandId) ?: return false
         waitStrategy.next(signal)
+        if (waitStrategy.cancelled || waitStrategy.terminated) {
+            unregister(signal.commandId)
+        }
         return true
     }
 }
@@ -53,19 +56,7 @@ object SimpleWaitStrategyRegistrar : WaitStrategyRegistrar {
         if (log.isDebugEnabled) {
             log.debug("Register - command[{}] WaitStrategy.", commandId)
         }
-        val current = waitStrategies.putIfAbsent(commandId, waitStrategy)
-        if (current == null) {
-            waitStrategy
-                .waiting()
-                .doFinally {
-                    if (log.isDebugEnabled) {
-                        log.debug("Remove command[{}] on [{}] WaitStrategy.", commandId, it)
-                    }
-                    waitStrategies.remove(commandId)
-                }
-                .subscribe()
-        }
-        return current
+        return waitStrategies.putIfAbsent(commandId, waitStrategy)
     }
 
     override fun unregister(commandId: String): WaitStrategy? {

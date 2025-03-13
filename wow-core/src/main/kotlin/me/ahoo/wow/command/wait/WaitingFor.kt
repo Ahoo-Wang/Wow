@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.command.wait
 
-import reactor.core.publisher.Mono
+import reactor.core.Scannable
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import java.util.*
 
@@ -66,13 +67,26 @@ interface WaitingFor : WaitStrategy {
 
 abstract class AbstractWaitingFor : WaitingFor {
 
-    protected val sink: Sinks.One<WaitSignal> = Sinks.one()
+    private val sink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    override val cancelled: Boolean
+        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
-    override fun waiting(): Mono<WaitSignal> {
-        return sink.asMono()
+    override val terminated: Boolean
+        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.TERMINATED, false)
+
+    override fun waiting(): Flux<WaitSignal> {
+        return sink.asFlux()
+    }
+
+    override fun next(signal: WaitSignal) {
+        sink.tryEmitNext(signal).orThrow()
     }
 
     override fun error(throwable: Throwable) {
-        sink.tryEmitError(throwable)
+        sink.tryEmitError(throwable).orThrow()
+    }
+
+    override fun complete() {
+        sink.tryEmitComplete().orThrow()
     }
 }

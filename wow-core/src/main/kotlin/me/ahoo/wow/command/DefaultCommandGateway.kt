@@ -61,7 +61,7 @@ class DefaultCommandGateway(
     private fun <C : Any> check(command: CommandMessage<C>): Mono<Void> {
         return idempotencyCheck(command)
             .then(
-                Mono.fromRunnable<Void> {
+                Mono.fromRunnable {
                     validate(command.body)
                 }
             )
@@ -69,6 +69,26 @@ class DefaultCommandGateway(
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return check(message).then(commandBus.send(message))
+    }
+
+    override fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult> {
+        return send(command, waitStrategy)
+            .onErrorMap {
+                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
+            }
+            .flatMap {
+                waitStrategy.waitingLast()
+                    .map { waitSignal ->
+                        waitSignal.toResult(it.message)
+                            .apply {
+                                if (!succeeded) {
+                                    throw CommandResultException(this)
+                                }
+                            }
+                    }.doFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
+                    }
+            }
     }
 
     override fun <C : Any> send(
