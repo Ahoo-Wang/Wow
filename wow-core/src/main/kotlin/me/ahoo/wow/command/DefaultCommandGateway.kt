@@ -84,7 +84,6 @@ class DefaultCommandGateway(
         waitStrategy: WaitStrategy
     ): Flux<CommandResult> {
         return send(command, waitStrategy)
-            .errorMapToCommandResultException(command)
             .flatMapMany {
                 waitStrategy.waiting()
                     .map { waitSignal ->
@@ -97,7 +96,6 @@ class DefaultCommandGateway(
 
     override fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult> {
         return send(command, waitStrategy)
-            .errorMapToCommandResultException(command)
             .flatMap {
                 waitStrategy.waitingLast()
                     .map { waitSignal ->
@@ -135,7 +133,7 @@ class DefaultCommandGateway(
                     .thenEmitSentSignal(command, waitStrategy)
                     .thenReturn(commandExchange)
             }
-        )
+        ).errorMapToCommandResultException(command)
     }
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
