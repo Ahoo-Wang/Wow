@@ -46,9 +46,6 @@ class CommandHandler(
 
     private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Mono<CommandResult> {
         val stage: CommandStage = request.getCommandStage()
-        if (commandMessage.isVoid || CommandStage.SENT == stage) {
-            return commandGateway.sendAndWaitForSent(commandMessage)
-        }
         val waitContext = request.getWaitContext().ifBlank {
             commandMessage.contextName
         }

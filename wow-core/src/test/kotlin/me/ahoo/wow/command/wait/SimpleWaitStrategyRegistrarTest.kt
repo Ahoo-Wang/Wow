@@ -71,6 +71,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(true))
+        registrar.unregister(commandId)
         val containsResult = registrar.contains(commandId)
         assertThat(containsResult, equalTo(false))
     }
