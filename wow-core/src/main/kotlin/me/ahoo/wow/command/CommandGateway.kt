@@ -17,7 +17,6 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import reactor.core.publisher.Mono
@@ -54,23 +53,7 @@ interface CommandGateway : CommandBus {
 
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>
-    ): Mono<CommandResult> {
-        return send(command)
-            .onErrorMap {
-                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
-            }
-            .thenReturn(
-                CommandResult(
-                    stage = CommandStage.SENT,
-                    aggregateId = command.aggregateId.id,
-                    contextName = command.contextName,
-                    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
-                    tenantId = command.aggregateId.tenantId,
-                    requestId = command.requestId,
-                    commandId = command.commandId,
-                ),
-            )
-    }
+    ): Mono<CommandResult>
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>

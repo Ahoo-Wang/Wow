@@ -71,11 +71,33 @@ class DefaultCommandGateway(
         return check(message).then(commandBus.send(message))
     }
 
+    private fun <T> Mono<T>.errorMapToCommandResultException(command: CommandMessage<*>): Mono<T> {
+        return onErrorMap {
+            CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
+        }
+    }
+
+    override fun <C : Any> sendAndWaitForSent(
+        command: CommandMessage<C>
+    ): Mono<CommandResult> {
+        return send(command)
+            .errorMapToCommandResultException(command)
+            .thenReturn(
+                CommandResult(
+                    stage = CommandStage.SENT,
+                    aggregateId = command.aggregateId.id,
+                    contextName = command.contextName,
+                    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
+                    tenantId = command.aggregateId.tenantId,
+                    requestId = command.requestId,
+                    commandId = command.commandId,
+                ),
+            )
+    }
+
     override fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult> {
         return send(command, waitStrategy)
-            .onErrorMap {
-                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
-            }
+            .errorMapToCommandResultException(command)
             .flatMap {
                 waitStrategy.waitingLast()
                     .map { waitSignal ->
