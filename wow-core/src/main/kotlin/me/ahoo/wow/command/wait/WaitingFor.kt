@@ -22,7 +22,7 @@ interface WaitingFor : WaitStrategy {
     val stage: CommandStage
 
     companion object {
-
+        fun sent(): WaitingFor = WaitingForSent()
         fun processed(): WaitingFor = WaitingForProcessed()
 
         fun snapshot(): WaitingFor = WaitingForSnapshot()
@@ -47,6 +47,7 @@ interface WaitingFor : WaitStrategy {
 
         fun stage(stage: CommandStage, contextName: String, processorName: String = ""): WaitingFor {
             return when (stage) {
+                CommandStage.SENT -> sent()
                 CommandStage.PROCESSED -> processed()
                 CommandStage.SNAPSHOT -> snapshot()
                 CommandStage.PROJECTED -> projected(contextName, processorName)
