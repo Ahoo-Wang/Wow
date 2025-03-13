@@ -28,7 +28,6 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.toResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
@@ -44,8 +43,9 @@ import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
 import me.ahoo.wow.test.validation.TestValidator
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.instanceOf
 import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
@@ -93,6 +93,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -108,11 +109,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             sendAndWait(message, waitStrategy)
                 .test()
                 .consumeSubscriptionWith {
-                    waitStrategy.next(processedSignal)
+                    Schedulers.boundedElastic().schedule({
+                        waitStrategy.next(processedSignal)
+                    }, 100, TimeUnit.MILLISECONDS)
                 }
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -134,6 +138,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -154,12 +159,15 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             sendAndWait(message, waitStrategy)
                 .test()
                 .consumeSubscriptionWith {
-                    waitStrategy.next(processedSignal)
-                    waitStrategy.next(waitSignal)
+                    Schedulers.boundedElastic().schedule({
+                        waitStrategy.next(processedSignal)
+                        waitStrategy.next(waitSignal)
+                    }, 100, TimeUnit.MILLISECONDS)
                 }
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -176,7 +184,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             function = COMMAND_GATEWAY_FUNCTION,
         )
         verify {
-            sendAndWaitForProcessed(message)
+            sendAndWaitForSnapshot(message)
                 .test()
                 .consumeSubscriptionWith {
                     Schedulers.boundedElastic().schedule({
@@ -187,6 +195,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -207,49 +216,31 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verify()
         }
-    }
-
-    @Test
-    fun sendThenWaitingForProcessed() {
-        val message = createMessage()
-        verify {
-            val waitStrategy = WaitingFor.processed()
-            sendAndWait(message, waitStrategy)
-                .test()
-                .consumeSubscriptionWith {
-                    waitStrategy.next(
-                        SimpleWaitSignal(
-                            message.commandId,
-                            CommandStage.PROCESSED,
-                            FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", "")
-                        ),
-                    )
-                }
-                .expectNextCount(1)
-                .verifyComplete()
-        }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
     fun sendThenWaitingForProcessedWhenError() {
         val message = createMessage()
+        val errorSignal = SimpleWaitSignal(
+            commandId = message.commandId,
+            stage = CommandStage.PROCESSED,
+            function = FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", ""),
+            errorCode = "ERROR"
+        )
         verify {
             val waitStrategy = WaitingFor.processed()
             sendAndWait(message, waitStrategy)
                 .test()
                 .consumeSubscriptionWith {
-                    waitStrategy.next(
-                        SimpleWaitSignal(
-                            commandId = message.commandId,
-                            stage = CommandStage.PROCESSED,
-                            function = FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", ""),
-                            errorCode = "ERROR"
-                        ),
-                    )
+                    Schedulers.boundedElastic().schedule({
+                        waitStrategyRegistrar.next(errorSignal)
+                    }, 100, TimeUnit.MILLISECONDS)
                 }
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -262,6 +253,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -282,13 +274,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .consumeSubscriptionWith {
-                    waitStrategy.next(processedSignal)
-                    waitStrategy.next(waitSignal)
+                    Schedulers.boundedElastic().schedule({
+                        waitStrategyRegistrar.next(processedSignal)
+                        waitStrategyRegistrar.next(waitSignal)
+                    }, 100, TimeUnit.MILLISECONDS)
                 }
-                .expectNext(processedSignal.toResult(message))
-                .expectNext(waitSignal.toResult(message))
+                .expectNextCount(3)
                 .verifyComplete()
         }
-
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 }

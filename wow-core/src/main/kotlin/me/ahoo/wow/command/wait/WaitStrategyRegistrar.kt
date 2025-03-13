@@ -41,9 +41,6 @@ interface WaitStrategyRegistrar {
     fun next(signal: WaitSignal): Boolean {
         val waitStrategy = get(signal.commandId) ?: return false
         waitStrategy.next(signal)
-        if (waitStrategy.cancelled || waitStrategy.terminated) {
-            unregister(signal.commandId)
-        }
         return true
     }
 }

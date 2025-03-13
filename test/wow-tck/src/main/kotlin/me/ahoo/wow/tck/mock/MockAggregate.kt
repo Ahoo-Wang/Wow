@@ -33,7 +33,6 @@ object WrongCommandMessage : CommandValidator {
     override fun validate() {
         throw RuntimeException("wrong command message")
     }
-
 }
 
 data class MockChangeAggregate(val id: String, val data: String)

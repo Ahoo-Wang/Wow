@@ -22,11 +22,13 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import reactor.util.function.Tuples
+import java.net.URI
 import java.security.Principal
 
 class CommandFacadeHandlerFunctionTest {
@@ -49,6 +51,8 @@ class CommandFacadeHandlerFunctionTest {
                 ) as Any,
                 MockCommandAggregate::class.java.aggregateRouteMetadata() as AggregateRouteMetadata<Any>
             ).toMono()
+            every { method() } returns HttpMethod.POST
+            every { uri() } returns URI.create("http://localhost:8080")
             every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.OWNER_ID] } returns null
@@ -58,6 +62,8 @@ class CommandFacadeHandlerFunctionTest {
             every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
             every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns true.toString()
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns null
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns null
             every { headers().firstHeader(CommandRequestHeaders.COMMAND_TYPE) } returns MockCreateAggregate::class.java.name
             every { principal() } returns mockk<Principal> {
                 every { name } returns generateGlobalId()
@@ -72,7 +78,7 @@ class CommandFacadeHandlerFunctionTest {
             }.verifyComplete()
 
         verify {
-            commandGateway.sendAndWaitForSent<Any>(any())
+            commandGateway.sendAndWait<Any>(any(), any())
         }
     }
 }

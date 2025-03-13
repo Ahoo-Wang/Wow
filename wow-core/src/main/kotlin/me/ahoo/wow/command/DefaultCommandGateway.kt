@@ -89,9 +89,9 @@ class DefaultCommandGateway(
                 waitStrategy.waiting()
                     .map { waitSignal ->
                         waitSignal.toResult(it.message)
-                    }.doFinally {
-                        waitStrategyRegistrar.unregister(command.commandId)
                     }
+            }.doFinally {
+                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
@@ -107,9 +107,9 @@ class DefaultCommandGateway(
                                     throw CommandResultException(this)
                                 }
                             }
-                    }.doFinally {
-                        waitStrategyRegistrar.unregister(command.commandId)
                     }
+            }.doFinally {
+                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
@@ -118,6 +118,9 @@ class DefaultCommandGateway(
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
         require(waitStrategy is WaitingFor) { "waitStrategy must be WaitingFor." }
+        if (command.isVoid) {
+            require(waitStrategy.stage == CommandStage.SENT) { "The wait strategy for the void command must be SENT." }
+        }
         return check(command).then(
             Mono.defer {
                 command.header.injectWaitStrategy(
@@ -130,22 +133,20 @@ class DefaultCommandGateway(
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
                 commandBus.send(command)
                     .thenEmitSentSignal(command, waitStrategy)
-                    .doOnError {
-                        waitStrategyRegistrar.unregister(command.commandId)
-                    }
                     .thenReturn(commandExchange)
             }
         )
     }
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
-        return this.then(Mono.defer {
-            val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-                commandId = command.commandId,
-                stage = CommandStage.SENT,
-            )
-            waitStrategy.next(waitSignal)
-            Mono.empty()
-        })
+        return then(
+            Mono.fromRunnable {
+                val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+                    commandId = command.commandId,
+                    stage = CommandStage.SENT,
+                )
+                waitStrategy.next(waitSignal)
+            }
+        )
     }
 }
