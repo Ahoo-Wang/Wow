@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.service.annotation.GetExchange
 import org.springframework.web.service.annotation.PostExchange
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
@@ -61,5 +62,10 @@ class CartController(
             quantity = 1
         )
         return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage(ownerId = userId))
+    }
+
+    @PostExchange("eventStream", accept = ["text/event-stream"])
+    fun eventStream(): Flux<Int> {
+        return Flux.range(1, 10)
     }
 }

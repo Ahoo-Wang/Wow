@@ -18,7 +18,7 @@ import me.ahoo.wow.openapi.command.CommandRouteSpec
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
 import me.ahoo.wow.openapi.route.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.toServerResponse
+import me.ahoo.wow.webflux.exception.toCommandResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
@@ -57,7 +57,7 @@ class CommandHandlerFunction(
             Mono.error(IllegalArgumentException("Command can not be empty."))
         }.flatMap {
             handler.handle(request, it, aggregateRouteMetadata)
-        }.toServerResponse(request, exceptionHandler)
+        }.toCommandResponse(request, exceptionHandler)
     }
 }
 

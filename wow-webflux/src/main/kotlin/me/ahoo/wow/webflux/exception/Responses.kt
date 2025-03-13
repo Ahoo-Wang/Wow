@@ -14,14 +14,18 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
+import org.reactivestreams.Publisher
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
@@ -56,4 +60,27 @@ fun Mono<*>.toServerResponse(
     }.onErrorResume {
         exceptionHandler.handle(request, it)
     }
+}
+
+
+fun Publisher<CommandResult>.toCommandResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+): Mono<ServerResponse> {
+    if (this is Mono<*>) {
+        val monoThis = this as Mono<CommandResult>
+        return monoThis.toServerResponse(request, exceptionHandler)
+    }
+
+    val fluxThis = this as Flux<CommandResult>
+    val serverSentEventStream = fluxThis.map {
+        ServerSentEvent.builder<CommandResult>()
+            .data(it)
+            .build()
+    }
+
+    return ServerResponse.ok()
+        .contentType(MediaType.TEXT_EVENT_STREAM)
+        .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
+        .body(serverSentEventStream, ServerSentEvent::class.java)
 }
