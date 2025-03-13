@@ -18,6 +18,7 @@ import me.ahoo.wow.apiclient.query.queryState
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartData
 import me.ahoo.wow.example.api.client.CartQueryClient
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.service.annotation.GetExchange
 import org.springframework.web.service.annotation.PostExchange
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
@@ -61,5 +63,14 @@ class CartController(
             quantity = 1
         )
         return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage(ownerId = userId))
+    }
+
+    @PostExchange("/cart/{userId}/add-cart-item", accept = ["text/event-stream"])
+    fun addCartItem(@PathVariable userId: String): Flux<CommandResult> {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1
+        )
+        return commandGateway.sendAndWaitStream(addCartItem.toCommandMessage(ownerId = userId), waitStrategy = WaitingFor.processed())
     }
 }

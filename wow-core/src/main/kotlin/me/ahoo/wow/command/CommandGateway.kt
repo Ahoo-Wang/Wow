@@ -59,7 +59,8 @@ interface CommandGateway : CommandBus {
 
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>
-    ): Mono<CommandResult>
+    ): Mono<CommandResult> =
+        sendAndWait(command, WaitingFor.sent())
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
