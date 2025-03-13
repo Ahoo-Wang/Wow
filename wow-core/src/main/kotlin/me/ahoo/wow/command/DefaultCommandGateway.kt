@@ -19,6 +19,7 @@ import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.CommandValidationException.Companion.toCommandValidationException
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
+import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitingFor
@@ -78,24 +79,6 @@ class DefaultCommandGateway(
         }
     }
 
-    override fun <C : Any> sendAndWaitForSent(
-        command: CommandMessage<C>
-    ): Mono<CommandResult> {
-        return send(command)
-            .errorMapToCommandResultException(command)
-            .thenReturn(
-                CommandResult(
-                    stage = CommandStage.SENT,
-                    aggregateId = command.aggregateId.id,
-                    contextName = command.contextName,
-                    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
-                    tenantId = command.aggregateId.tenantId,
-                    requestId = command.requestId,
-                    commandId = command.commandId,
-                ),
-            )
-    }
-
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
@@ -135,12 +118,6 @@ class DefaultCommandGateway(
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
         require(waitStrategy is WaitingFor) { "waitStrategy must be WaitingFor." }
-        require(waitStrategy.stage != CommandStage.SENT) {
-            "waitStrategy.stage must not be CommandStage.SENT. Use sendAndWaitForSent instead."
-        }
-        require(!command.isVoid) {
-            "The wait strategy for the void command must be SENT."
-        }
         return check(command).then(
             Mono.defer {
                 command.header.injectWaitStrategy(
@@ -152,11 +129,23 @@ class DefaultCommandGateway(
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
                 commandBus.send(command)
+                    .thenEmitSentSignal(command, waitStrategy)
                     .doOnError {
                         waitStrategyRegistrar.unregister(command.commandId)
                     }
                     .thenReturn(commandExchange)
             }
         )
+    }
+
+    private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
+        return this.then(Mono.defer {
+            val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+                commandId = command.commandId,
+                stage = CommandStage.SENT,
+            )
+            waitStrategy.next(waitSignal)
+            Mono.empty()
+        })
     }
 }
