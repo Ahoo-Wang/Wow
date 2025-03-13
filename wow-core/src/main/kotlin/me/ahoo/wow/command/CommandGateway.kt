@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
@@ -44,6 +45,11 @@ interface CommandGateway : CommandBus {
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>>
+
+    fun <C : Any> sendAndWaitStream(
+        command: CommandMessage<C>,
+        waitStrategy: WaitStrategy
+    ): Flux<CommandResult>
 
     @Throws(CommandResultException::class)
     fun <C : Any> sendAndWait(

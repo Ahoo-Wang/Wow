@@ -25,6 +25,7 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class DefaultCommandGateway(
@@ -93,6 +94,22 @@ class DefaultCommandGateway(
                     commandId = command.commandId,
                 ),
             )
+    }
+
+    override fun <C : Any> sendAndWaitStream(
+        command: CommandMessage<C>,
+        waitStrategy: WaitStrategy
+    ): Flux<CommandResult> {
+        return send(command, waitStrategy)
+            .errorMapToCommandResultException(command)
+            .flatMapMany {
+                waitStrategy.waiting()
+                    .map { waitSignal ->
+                        waitSignal.toResult(it.message)
+                    }.doFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
+                    }
+            }
     }
 
     override fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult> {

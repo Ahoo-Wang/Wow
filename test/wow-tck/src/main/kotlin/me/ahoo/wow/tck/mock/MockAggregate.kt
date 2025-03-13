@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.VoidCommand
+import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregateAware
@@ -26,6 +27,14 @@ val MOCK_AGGREGATE_METADATA = aggregateMetadata<MockCommandAggregate, MockStateA
 
 @CreateAggregate
 data class MockCreateAggregate(val id: String, val data: String)
+
+object WrongCommandMessage : CommandValidator {
+    @Suppress("TooGenericExceptionThrown")
+    override fun validate() {
+        throw RuntimeException("wrong command message")
+    }
+
+}
 
 data class MockChangeAggregate(val id: String, val data: String)
 
