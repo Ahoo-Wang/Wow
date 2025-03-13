@@ -28,15 +28,18 @@ internal class WaitingForTest {
     @Test
     fun processed() {
         val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
+        assertThat(waitStrategy.cancelled, equalTo(false))
+        assertThat(waitStrategy.terminated, equalTo(false))
         val waitSignal = SimpleWaitSignal(
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
+                assertThat(waitStrategy.terminated, equalTo(true))
             }
             .expectNext(waitSignal)
             .verifyComplete()
@@ -50,12 +53,14 @@ internal class WaitingForTest {
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
             }
             .verifyTimeout(Duration.ofMillis(100))
+        assertThat(waitStrategy.terminated, equalTo(false))
+        assertThat(waitStrategy.cancelled, equalTo(true))
     }
 
     @Test
@@ -71,7 +76,7 @@ internal class WaitingForTest {
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -92,7 +97,7 @@ internal class WaitingForTest {
             function = COMMAND_GATEWAY_FUNCTION,
             errorCode = "ERROR_CODE"
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
@@ -115,7 +120,7 @@ internal class WaitingForTest {
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = true
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -139,7 +144,7 @@ internal class WaitingForTest {
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "processor"),
             isLastProjection = true
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -163,7 +168,7 @@ internal class WaitingForTest {
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = false
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -188,7 +193,7 @@ internal class WaitingForTest {
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
             isLastProjection = false
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -211,7 +216,7 @@ internal class WaitingForTest {
             stage = CommandStage.SAGA_HANDLED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName)
         )
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(processedSignal)
@@ -224,7 +229,7 @@ internal class WaitingForTest {
     @Test
     fun waitingWhenNoMatchedContext() {
         val waitStrategy = WaitingFor.projected(contextName)
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(
@@ -244,7 +249,7 @@ internal class WaitingForTest {
     fun waitingWhenError() {
         val waitStrategy = WaitingFor.projected(contextName)
         waitStrategy.error(IllegalArgumentException())
-        waitStrategy.waiting()
+        waitStrategy.waitingLast()
             .test()
             .expectError(IllegalArgumentException::class.java)
             .verify()

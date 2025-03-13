@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -60,12 +61,13 @@ internal class SimpleWaitStrategyRegistrarTest {
     @Test
     fun next() {
         val registrar = SimpleWaitStrategyRegistrar
-        val commandId = GlobalIdGenerator.generateAsString()
+        val commandId = generateGlobalId()
 
         val waitSignal = SimpleWaitSignal(commandId, CommandStage.PROCESSED, COMMAND_GATEWAY_FUNCTION)
         var nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(false))
         val waitStrategy = WaitingFor.processed()
+        waitStrategy.waiting().subscribe()
         registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)
         assertThat(nextResult, equalTo(true))

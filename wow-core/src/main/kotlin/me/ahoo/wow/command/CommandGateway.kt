@@ -50,23 +50,7 @@ interface CommandGateway : CommandBus {
     fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
-    ): Mono<CommandResult> {
-        return send(command, waitStrategy)
-            .onErrorMap {
-                CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
-            }
-            .flatMap {
-                waitStrategy.waiting()
-                    .map { waitSignal ->
-                        waitSignal.toResult(it.message)
-                            .apply {
-                                if (!succeeded) {
-                                    throw CommandResultException(this)
-                                }
-                            }
-                    }
-            }
-    }
+    ): Mono<CommandResult>
 
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>

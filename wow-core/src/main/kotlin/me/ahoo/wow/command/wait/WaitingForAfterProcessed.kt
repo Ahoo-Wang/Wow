@@ -13,20 +13,20 @@
 
 package me.ahoo.wow.command.wait
 
+import reactor.core.publisher.Mono
+
 abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
     @Volatile
     private var waitingForSignal: WaitSignal? = null
-    private val result: MutableMap<String, Any> = mutableMapOf()
-    protected fun nextSignal() {
+    private fun tryComplete() {
         val waitingForSignal = waitingForSignal
         if (processedSignal == null || waitingForSignal == null) {
             return
         }
-        val mergedSignal = waitingForSignal.copyResult(result)
-        sink.tryEmitValue(mergedSignal)
+        super.complete()
     }
 
     open fun isWaitingForSignal(signal: WaitSignal): Boolean {
@@ -39,18 +39,28 @@ abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
         return signal.function.processorName == processorName
     }
 
+    override fun waitingLast(): Mono<WaitSignal> {
+        return waiting().collectList().map { signals ->
+            val result: MutableMap<String, Any> = mutableMapOf()
+            signals.forEach { signal ->
+                result.putAll(signal.result)
+            }
+            signals.last().copyResult(result)
+        }
+    }
+
     override fun next(signal: WaitSignal) {
-        result.putAll(signal.result)
+        super.next(signal)
         if (signal.stage == CommandStage.PROCESSED) {
             processedSignal = signal
             if (!signal.succeeded) {
-                sink.tryEmitValue(signal)
+                super.complete()
                 return
             }
         }
         if (isWaitingForSignal(signal)) {
             waitingForSignal = signal
         }
-        nextSignal()
+        tryComplete()
     }
 }

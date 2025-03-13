@@ -19,9 +19,9 @@ class WaitingForProcessed : AbstractWaitingFor() {
     override val contextName: String = ""
     override val processorName: String = ""
     override fun next(signal: WaitSignal) {
-        if (signal.stage != CommandStage.PROCESSED) {
-            return
+        super.next(signal)
+        if (signal.stage == CommandStage.PROCESSED) {
+            complete()
         }
-        sink.tryEmitValue(signal)
     }
 }
