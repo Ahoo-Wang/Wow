@@ -16,8 +16,8 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.toCommandResponse
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.toCommandResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse

@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.webflux.route.toServerResponse
 import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -26,7 +27,7 @@ interface RequestExceptionHandler {
 
 object DefaultRequestExceptionHandler : RequestExceptionHandler {
     private val log = LoggerFactory.getLogger(DefaultRequestExceptionHandler::class.java)
-    fun ServerRequest.formatRequest(): String {
+    private fun ServerRequest.formatRequest(): String {
         return "HTTP ${method()} ${uri()}"
     }
 
