@@ -80,11 +80,9 @@ abstract class AbstractWaitingFor : WaitingFor {
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
-    private var onFinally: Consumer<SignalType> = EmptyOnFinally
+    private var doFinally: (Consumer<SignalType>) = EmptyOnFinally
     override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux().doFinally {
-            onFinally.accept(it)
-        }
+        return waitSignalSink.asFlux().doFinally(doFinally)
     }
 
     private fun busyLooping(): Sinks.EmitFailureHandler {
@@ -103,8 +101,8 @@ abstract class AbstractWaitingFor : WaitingFor {
         waitSignalSink.emitComplete(busyLooping())
     }
 
-    override fun onFinally(onFinally: Consumer<SignalType>) {
-        this.onFinally = onFinally
+    override fun doFinally(doFinally: Consumer<SignalType>) {
+        this.doFinally = doFinally
     }
 
     object EmptyOnFinally : Consumer<SignalType> {

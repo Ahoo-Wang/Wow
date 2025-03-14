@@ -124,7 +124,7 @@ class DefaultCommandGateway(
                     processor = waitStrategy.processorName
                 )
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)
-                waitStrategy.onFinally {
+                waitStrategy.doFinally {
                     waitStrategyRegistrar.unregister(command.commandId)
                 }
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
