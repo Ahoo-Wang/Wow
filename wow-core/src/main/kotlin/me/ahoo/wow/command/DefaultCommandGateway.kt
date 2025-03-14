@@ -138,12 +138,14 @@ class DefaultCommandGateway(
     }
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
-        return then(Mono.fromRunnable {
-            val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-                commandId = command.commandId,
-                stage = CommandStage.SENT,
-            )
-            waitStrategy.next(waitSignal)
-        })
+        return then(
+            Mono.fromRunnable {
+                val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+                    commandId = command.commandId,
+                    stage = CommandStage.SENT,
+                )
+                waitStrategy.next(waitSignal)
+            }
+        )
     }
 }
