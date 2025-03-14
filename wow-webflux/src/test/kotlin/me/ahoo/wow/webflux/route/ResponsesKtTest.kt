@@ -29,10 +29,14 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.codec.ServerSentEventHttpMessageWriter
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.concurrent.TimeoutException
 
 class ResponsesKtTest {
 
@@ -70,7 +74,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
-            .toServerResponse(mockk(), DefaultRequestExceptionHandler)
+            .toServerResponse(MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
                 assertThat(it.statusCode(), equalTo(HttpStatus.OK))
@@ -82,9 +86,7 @@ class ResponsesKtTest {
 
     @Test
     fun toCommandResponse() {
-        val serverRequest = mockk<ServerRequest> {
-            every { headers().accept().contains(MediaType.TEXT_EVENT_STREAM) } returns false
-        }
+        val serverRequest = MockServerRequest.builder().build()
         CommandResult(
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
@@ -106,8 +108,15 @@ class ResponsesKtTest {
 
     @Test
     fun toStreamCommandResponse() {
-        val serverRequest = mockk<ServerRequest> {
-            every { headers().accept().contains(MediaType.TEXT_EVENT_STREAM) } returns true
+        val serverRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
         }
         CommandResult(
             stage = CommandStage.SENT,
@@ -119,12 +128,42 @@ class ResponsesKtTest {
             processorName = "processorName",
         ).toMono()
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
-            .test()
-            .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
-                assertThat(it.headers().contentType, equalTo(MediaType.TEXT_EVENT_STREAM))
-                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.SUCCEEDED))
+            .flatMap {
+                it.writeTo(serverWebExchange, responseContext)
             }
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun toStreamCommandResponseTimeout() {
+        val serverRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
+        CommandResult(
+            stage = CommandStage.SENT,
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            requestId = generateGlobalId(),
+            commandId = generateGlobalId(),
+            contextName = "contextName",
+            processorName = "processorName",
+        ).toMono()
+            .doOnNext {
+                throw TimeoutException()
+            }
+            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .flatMap {
+                it.writeTo(serverWebExchange, responseContext)
+            }
+            .test()
             .verifyComplete()
     }
 
@@ -145,9 +184,10 @@ class ResponsesKtTest {
         ).toMono()
             .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
-            .expectNextMatches { response ->
-                response.headers().contentType == MediaType.TEXT_EVENT_STREAM &&
-                    response.headers().getFirst(WOW_ERROR_CODE) == ErrorInfo.SUCCEEDED
+            .consumeNextWith {
+                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
+                assertThat(it.headers().contentType, equalTo(MediaType.TEXT_EVENT_STREAM))
+                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorInfo.SUCCEEDED))
             }
             .verifyComplete()
     }
