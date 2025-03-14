@@ -18,6 +18,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
+import reactor.core.publisher.Sinks.EmitResult
 import java.util.*
 
 interface WaitingFor : WaitStrategy {
@@ -68,8 +69,9 @@ interface WaitingFor : WaitStrategy {
     }
 }
 
-abstract class AbstractWaitingFor : WaitingFor {
+private val LOG = org.slf4j.LoggerFactory.getLogger(WaitingFor::class.java)
 
+abstract class AbstractWaitingFor : WaitingFor {
     private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
     private val endSignalSink: Sinks.One<SignalType> = Sinks.one()
     override val cancelled: Boolean
@@ -89,14 +91,26 @@ abstract class AbstractWaitingFor : WaitingFor {
     }
 
     override fun next(signal: WaitSignal) {
-        waitSignalSink.tryEmitNext(signal).orThrow()
+        waitSignalSink.tryEmitNext(signal).withLog()
     }
 
     override fun error(throwable: Throwable) {
-        waitSignalSink.tryEmitError(throwable).orThrow()
+        waitSignalSink.tryEmitError(throwable).withLog()
     }
 
     override fun complete() {
-        waitSignalSink.tryEmitComplete().orThrow()
+        waitSignalSink.tryEmitComplete().withLog()
+    }
+
+    private fun EmitResult.withLog() {
+        if (this.isSuccess) {
+            if (LOG.isDebugEnabled) {
+                LOG.debug("WaitingFor emit success.")
+            }
+            return
+        }
+        if (LOG.isWarnEnabled) {
+            LOG.warn("WaitingFor emit failed: $this.")
+        }
     }
 }
