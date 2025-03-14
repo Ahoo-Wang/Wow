@@ -21,6 +21,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SignalTimeCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
@@ -36,8 +37,9 @@ data class CommandResult(
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
     override val bindingErrors: List<BindingError> = emptyList(),
-    override val result: Map<String, Any> = emptyMap()
-) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable
+    override val result: Map<String, Any> = emptyMap(),
+    override val signalTime: Long = System.currentTimeMillis()
+) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable, SignalTimeCapable
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
@@ -51,7 +53,8 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
         bindingErrors = bindingErrors,
-        result = result
+        result = result,
+        signalTime = signalTime
     )
 }
 
@@ -60,7 +63,8 @@ fun Throwable.toResult(
     contextName: String = commandMessage.contextName,
     processorName: String,
     stage: CommandStage = CommandStage.SENT,
-    result: Map<String, Any> = emptyMap()
+    result: Map<String, Any> = emptyMap(),
+    signalTime: Long = System.currentTimeMillis()
 ): CommandResult {
     val errorInfo = toErrorInfo()
     return CommandResult(
@@ -74,6 +78,7 @@ fun Throwable.toResult(
         errorCode = errorInfo.errorCode,
         errorMsg = errorInfo.errorMsg,
         bindingErrors = errorInfo.bindingErrors,
-        result = result
+        result = result,
+        signalTime = signalTime
     )
 }

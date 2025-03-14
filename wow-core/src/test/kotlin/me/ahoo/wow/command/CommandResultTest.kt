@@ -22,5 +22,8 @@ class CommandResultTest {
         assertThat(actual.commandId, equalTo(command.commandId))
         assertThat(actual.errorCode, equalTo(ErrorCodes.ILLEGAL_STATE))
         assertThat(actual.errorMsg, equalTo("test"))
+        assertThat(actual.bindingErrors, empty())
+        assertThat(actual.result, anEmptyMap())
+        assertThat(actual.signalTime, greaterThan(0L))
     }
 }
