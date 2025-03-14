@@ -38,6 +38,7 @@ class LoadSnapshotHandlerFunctionTest {
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
         }
+
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

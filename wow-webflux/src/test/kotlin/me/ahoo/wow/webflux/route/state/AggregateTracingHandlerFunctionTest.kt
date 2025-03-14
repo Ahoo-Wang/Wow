@@ -1,7 +1,5 @@
 package me.ahoo.wow.webflux.route.state
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.example.api.cart.AddCartItem
@@ -15,14 +13,14 @@ import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
 class AggregateTracingHandlerFunctionTest {
@@ -35,7 +33,7 @@ class AggregateTracingHandlerFunctionTest {
             quantity = 1,
         )
         aggregateVerifier<Cart, CartState>(eventStore = eventStore)
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
@@ -54,10 +52,10 @@ class AggregateTracingHandlerFunctionTest {
                 )
             )
 
-        val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.ID_KEY) } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns TenantId.DEFAULT_TENANT_ID
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+            .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

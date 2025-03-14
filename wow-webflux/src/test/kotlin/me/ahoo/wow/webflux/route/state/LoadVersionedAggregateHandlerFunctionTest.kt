@@ -13,12 +13,10 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
@@ -31,7 +29,7 @@ import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 import java.net.URI
 
@@ -52,17 +50,14 @@ class LoadVersionedAggregateHandlerFunctionTest {
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
             )
         )
-        val request = mockk<ServerRequest> {
-            every { method() } returns HttpMethod.GET
-            every { uri() } returns URI.create("http://localhost")
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariable(MessageRecords.VERSION) } returns "1"
-            every { pathVariables() } returns mapOf(
-                RoutePaths.ID_KEY to GlobalIdGenerator.generateAsString(),
-                MessageRecords.TENANT_ID to GlobalIdGenerator.generateAsString(),
-                MessageRecords.VERSION to "1",
-            )
-        }
+
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("http://localhost"))
+            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.VERSION, "1")
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

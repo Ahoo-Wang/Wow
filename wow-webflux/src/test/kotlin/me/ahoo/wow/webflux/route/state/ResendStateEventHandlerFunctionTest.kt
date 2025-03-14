@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -29,7 +27,7 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
 class ResendStateEventHandlerFunctionTest {
@@ -47,10 +45,11 @@ class ResendStateEventHandlerFunctionTest {
             ),
             exceptionHandler = DefaultRequestExceptionHandler,
         )
-        val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.BATCH_AFTER_ID) } returns FIRST_ID
-            every { pathVariable(RoutePaths.BATCH_LIMIT) } returns Int.MAX_VALUE.toString()
-        }
+
+        val request = MockServerRequest.builder()
+            .pathVariable(RoutePaths.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(RoutePaths.BATCH_LIMIT, Int.MAX_VALUE.toString())
+            .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

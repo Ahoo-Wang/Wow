@@ -11,6 +11,7 @@ import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.web.reactive.function.server.ServerRequest
 
 class OwnerAggregatePreconditionTest {
@@ -25,9 +26,9 @@ class OwnerAggregatePreconditionTest {
     @Test
     fun check() {
         val customerId = generateGlobalId()
-        val request = mockk<ServerRequest> {
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns customerId
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.OWNER_ID, customerId)
+            .build()
 
         val stateAggregate = mockk<StateAggregate<Any>> {
             every { ownerId } returns customerId
@@ -38,9 +39,9 @@ class OwnerAggregatePreconditionTest {
 
     @Test
     fun checkFailed() {
-        val request = mockk<ServerRequest> {
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .build()
 
         val stateAggregate = mockk<StateAggregate<Any>> {
             every { ownerId } returns generateGlobalId()

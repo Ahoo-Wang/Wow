@@ -1,7 +1,5 @@
 package me.ahoo.wow.webflux.route.snapshot
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -15,7 +13,7 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -34,11 +32,10 @@ class ListQuerySnapshotHandlerFunctionTest {
                 appendOwnerPath = false
             )
         )
-        val request = mockk<ServerRequest> {
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { bodyToMono(ListQuery::class.java) } returns ListQuery(Condition.ALL).toMono()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, GlobalIdGenerator.generateAsString())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .body(ListQuery(Condition.ALL).toMono())
 
         handlerFunction.handle(request)
             .test()

@@ -1,11 +1,7 @@
 package me.ahoo.wow.webflux.route.event
 
-import io.mockk.every
-import io.mockk.mockk
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
@@ -15,7 +11,7 @@ import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
 class LoadEventStreamHandlerFunctionTest {
@@ -32,14 +28,13 @@ class LoadEventStreamHandlerFunctionTest {
                     aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
                 )
             )
-        val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariable(RoutePaths.HEAD_VERSION_KEY) } returns "0"
-            every { pathVariable(RoutePaths.TAIL_VERSION_KEY) } returns Int.MAX_VALUE.toString()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns null
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
-        }
+
+        val request = MockServerRequest.builder()
+            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(RoutePaths.HEAD_VERSION_KEY, "0")
+            .pathVariable(RoutePaths.TAIL_VERSION_KEY, Int.MAX_VALUE.toString())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
