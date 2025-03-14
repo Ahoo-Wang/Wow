@@ -99,7 +99,7 @@ class CommandHandlerTest {
             every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns "PROCESSED"
             every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns "test"
             every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns "test"
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns 10.toString()
+            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns 1000.toString()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
             every { pathVariables()[RoutePaths.ID_KEY] } returns null
