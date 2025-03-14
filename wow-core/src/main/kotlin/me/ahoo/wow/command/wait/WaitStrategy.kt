@@ -16,7 +16,6 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.SignalType
 
 /**
  * Command Wait Strategy
@@ -29,8 +28,6 @@ interface WaitStrategy : ProcessorInfo {
     fun waitingLast(): Mono<WaitSignal> {
         return waiting().last()
     }
-
-    fun ending(): Mono<SignalType>
 
     fun error(throwable: Throwable)
 

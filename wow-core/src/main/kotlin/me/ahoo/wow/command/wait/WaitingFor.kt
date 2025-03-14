@@ -15,10 +15,7 @@ package me.ahoo.wow.command.wait
 
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
-import reactor.core.publisher.Sinks.EmitResult
 import java.util.*
 
 interface WaitingFor : WaitStrategy {
@@ -56,7 +53,6 @@ interface WaitingFor : WaitStrategy {
                 CommandStage.PROJECTED -> projected(contextName, processorName)
                 CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName)
                 CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName)
-                CommandStage.SENT -> throw IllegalArgumentException("Unsupported stage: $stage")
             }
         }
 
@@ -69,11 +65,8 @@ interface WaitingFor : WaitStrategy {
     }
 }
 
-private val LOG = org.slf4j.LoggerFactory.getLogger(WaitingFor::class.java)
-
 abstract class AbstractWaitingFor : WaitingFor {
     private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
-    private val endSignalSink: Sinks.One<SignalType> = Sinks.one()
     override val cancelled: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
@@ -81,36 +74,18 @@ abstract class AbstractWaitingFor : WaitingFor {
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
     override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux().doFinally {
-            endSignalSink.tryEmitValue(it)
-        }
-    }
-
-    override fun ending(): Mono<SignalType> {
-        return endSignalSink.asMono()
+        return waitSignalSink.asFlux()
     }
 
     override fun next(signal: WaitSignal) {
-        waitSignalSink.tryEmitNext(signal).withLog()
+        waitSignalSink.tryEmitNext(signal).orThrow()
     }
 
     override fun error(throwable: Throwable) {
-        waitSignalSink.tryEmitError(throwable).withLog()
+        waitSignalSink.tryEmitError(throwable).orThrow()
     }
 
     override fun complete() {
-        waitSignalSink.tryEmitComplete().withLog()
-    }
-
-    private fun EmitResult.withLog() {
-        if (this.isSuccess) {
-            if (LOG.isDebugEnabled) {
-                LOG.debug("WaitingFor emit success.")
-            }
-            return
-        }
-        if (LOG.isWarnEnabled) {
-            LOG.warn("WaitingFor emit failed: $this.")
-        }
+        waitSignalSink.tryEmitComplete().orThrow()
     }
 }

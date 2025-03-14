@@ -53,19 +53,7 @@ object SimpleWaitStrategyRegistrar : WaitStrategyRegistrar {
         if (log.isDebugEnabled) {
             log.debug("Register - command[{}] WaitStrategy.", commandId)
         }
-        val current = waitStrategies.putIfAbsent(commandId, waitStrategy)
-        if (current == null) {
-            waitStrategy
-                .ending()
-                .doOnNext {
-                    if (log.isDebugEnabled) {
-                        log.debug("Remove command[{}] WaitStrategy on [{}].", commandId, it)
-                    }
-                    waitStrategies.remove(commandId)
-                }
-                .subscribe()
-        }
-        return current
+        return waitStrategies.putIfAbsent(commandId, waitStrategy)
     }
 
     override fun unregister(commandId: String): WaitStrategy? {
