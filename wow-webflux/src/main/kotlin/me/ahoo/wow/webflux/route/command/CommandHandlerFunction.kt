@@ -55,7 +55,7 @@ class CommandHandlerFunction(
             )
         }.switchIfEmpty {
             Mono.error(IllegalArgumentException("Command can not be empty."))
-        }.flatMap {
+        }.flatMapMany {
             handler.handle(request, it, aggregateRouteMetadata)
         }.toCommandResponse(request, exceptionHandler)
     }

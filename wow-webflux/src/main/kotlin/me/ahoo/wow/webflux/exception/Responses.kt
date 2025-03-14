@@ -19,14 +19,16 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
+import me.ahoo.wow.webflux.route.command.isEventStream
 import org.reactivestreams.Publisher
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toFlux
+import reactor.kotlin.core.publisher.toMono
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
@@ -62,18 +64,15 @@ fun Mono<*>.toServerResponse(
     }
 }
 
-
 fun Publisher<CommandResult>.toCommandResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
 ): Mono<ServerResponse> {
-    if (this is Mono<*>) {
-        val monoThis = this as Mono<CommandResult>
-        return monoThis.toServerResponse(request, exceptionHandler)
+    if (!request.isEventStream()) {
+        return this.toMono().toServerResponse(request, exceptionHandler)
     }
 
-    val fluxThis = this as Flux<CommandResult>
-    val serverSentEventStream = fluxThis.map {
+    val serverSentEventStream = this.toFlux().map {
         ServerSentEvent.builder<CommandResult>()
             .data(it)
             .build()

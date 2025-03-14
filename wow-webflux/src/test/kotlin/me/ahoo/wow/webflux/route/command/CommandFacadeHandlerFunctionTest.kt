@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -64,6 +65,7 @@ class CommandFacadeHandlerFunctionTest {
             every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns true.toString()
             every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns null
             every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns null
+            every { headers().accept().contains(MediaType.TEXT_EVENT_STREAM) } returns false
             every { headers().firstHeader(CommandRequestHeaders.COMMAND_TYPE) } returns MockCreateAggregate::class.java.name
             every { principal() } returns mockk<Principal> {
                 every { name } returns generateGlobalId()

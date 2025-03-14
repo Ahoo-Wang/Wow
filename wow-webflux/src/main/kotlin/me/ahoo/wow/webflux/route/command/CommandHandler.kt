@@ -19,8 +19,9 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.openapi.route.AggregateRouteMetadata
+import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
-import reactor.core.publisher.Mono
+import reactor.core.publisher.Flux
 import java.time.Duration
 
 class CommandHandler(
@@ -33,29 +34,36 @@ class CommandHandler(
         request: ServerRequest,
         commandBody: Any,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    ): Mono<CommandResult> {
-        val commandWaitTimeout = request.getWaitTimeout(timeout)
+    ): Flux<CommandResult> {
         return commandMessageParser.parse(
             aggregateRouteMetadata = aggregateRouteMetadata,
             commandBody = commandBody,
             request = request
-        ).flatMap {
-            sendCommand(it, request).timeout(commandWaitTimeout)
+        ).flatMapMany {
+            sendCommand(it, request)
         }
     }
 
-    private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Mono<CommandResult> {
+    private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Publisher<CommandResult> {
         val stage: CommandStage = request.getCommandStage()
         val waitContext = request.getWaitContext().ifBlank {
             commandMessage.contextName
         }
+        val commandWaitTimeout = request.getWaitTimeout(timeout)
+        val waitStrategy = WaitingFor.stage(
+            stage = stage,
+            contextName = waitContext,
+            processorName = request.getWaitProcessor()
+        )
+        if (request.isEventStream()) {
+            return commandGateway.sendAndWaitStream(
+                command = commandMessage,
+                waitStrategy = waitStrategy
+            ).timeout(commandWaitTimeout)
+        }
         return commandGateway.sendAndWait(
             command = commandMessage,
-            waitStrategy = WaitingFor.stage(
-                stage = stage,
-                contextName = waitContext,
-                processorName = request.getWaitProcessor()
-            )
-        )
+            waitStrategy = waitStrategy
+        ).timeout(commandWaitTimeout)
     }
 }

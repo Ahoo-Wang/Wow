@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -73,6 +74,7 @@ class CommandHandlerFunctionTest {
             every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns null
             every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns null
             every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns null
+            every { headers().accept().contains(MediaType.TEXT_EVENT_STREAM) } returns false
             every { principal() } returns mockk<Principal> {
                 every { name } returns generateGlobalId()
             }.toMono()

@@ -106,10 +106,10 @@ class CommandRouteSpec(
             val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata
                 .any { it.variableName == MessageRecords.ID }
             val default = hasIdPathVariable ||
-                    (
-                            commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
-                                    !commandRouteMetadata.commandMetadata.isCreate
-                            )
+                (
+                    commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&
+                        !commandRouteMetadata.commandMetadata.isCreate
+                    )
             return commandRouteMetadata.appendIdPath.resolve(default)
         }
 
