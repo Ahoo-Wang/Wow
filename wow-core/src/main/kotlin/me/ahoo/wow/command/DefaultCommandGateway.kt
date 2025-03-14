@@ -134,7 +134,6 @@ class DefaultCommandGateway(
                     .thenReturn(commandExchange)
             }
         ).onErrorMap {
-            waitStrategyRegistrar.unregister(command.commandId)
             it.toCommandResultException(command)
         }
     }
@@ -147,6 +146,8 @@ class DefaultCommandGateway(
         return doOnSuccess {
             safeEmitSentSignal(command, waitStrategy)
         }.doOnCancel {
+            waitStrategyRegistrar.unregister(command.commandId)
+        }.doOnError {
             waitStrategyRegistrar.unregister(command.commandId)
         }
     }
