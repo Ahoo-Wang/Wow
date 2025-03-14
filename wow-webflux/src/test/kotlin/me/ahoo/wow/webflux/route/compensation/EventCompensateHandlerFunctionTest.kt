@@ -13,15 +13,13 @@
 
 package me.ahoo.wow.webflux.route.compensation
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_FUNCTION
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -36,7 +34,7 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -64,14 +62,16 @@ class EventCompensateHandlerFunctionTest {
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
             )
         )
-        val request = mockk<ServerRequest> {
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariable(MessageRecords.VERSION) } returns "1"
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
-            every { bodyToMono(CompensationTarget::class.java) } returns CompensationTarget(
-                function = SNAPSHOT_FUNCTION
-            ).toMono()
-        }
+
+        val request = MockServerRequest.builder()
+            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.VERSION, "1")
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .body(
+                CompensationTarget(
+                    function = SNAPSHOT_FUNCTION
+                ).toMono()
+            )
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

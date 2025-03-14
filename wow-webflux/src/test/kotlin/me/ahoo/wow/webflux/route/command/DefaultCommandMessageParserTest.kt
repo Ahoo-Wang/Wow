@@ -13,13 +13,10 @@
 
 package me.ahoo.wow.webflux.route.command
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
@@ -29,30 +26,20 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppe
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpHeaders
-import org.springframework.util.MultiValueMap
-import org.springframework.web.reactive.function.server.ServerRequest
-import reactor.core.publisher.Mono
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
 class DefaultCommandMessageParserTest {
 
     @Test
     fun parse() {
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns 1.toString()
-            every { pathVariables()[RoutePaths.ID_KEY] } returns null
-            every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.OWNER_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
-            every { principal() } returns Mono.empty()
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
-            every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns false.toString()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .pathVariable(CommandRequestHeaders.AGGREGATE_VERSION, 1.toString())
+            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandRequestHeaders.LOCAL_FIRST, false.toString())
+            .build()
         val commandMessageParser =
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
         commandMessageParser.parse(
@@ -72,26 +59,15 @@ class DefaultCommandMessageParserTest {
         val headerKey = "app"
         val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns 1.toString()
-            every { pathVariables()[RoutePaths.ID_KEY] } returns null
-            every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
-            every { principal() } returns Mono.empty()
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
-            every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns false.toString()
-            every { headers().asHttpHeaders() } returns HttpHeaders(
-                MultiValueMap.fromSingleValue<String, String>(
-                    mapOf(
-                        key to value
-                    )
-                )
-            )
-        }
+
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .pathVariable(CommandRequestHeaders.AGGREGATE_VERSION, 1.toString())
+            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandRequestHeaders.LOCAL_FIRST, false.toString())
+            .header(key, value)
+            .build()
         val commandMessageParser =
             DefaultCommandMessageParser(
                 SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),

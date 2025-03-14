@@ -13,27 +13,24 @@
 
 package me.ahoo.wow.webflux.route.command.appender
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender.X_FORWARDED_FOR
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import java.net.InetSocketAddress
-import java.util.*
 
 class CommandRequestRemoteIpHeaderAppenderTest {
 
     @Test
     fun append() {
         val hostName = "test"
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(X_FORWARDED_FOR) } returns ""
-            every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
-        }
+        val request = MockServerRequest.builder()
+            .remoteAddress(InetSocketAddress(hostName, 8080))
+            .build()
+
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
@@ -43,9 +40,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     @Test
     fun appendForwardedFor() {
         val hostName = "test"
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(X_FORWARDED_FOR) } returns hostName
-        }
+        val request = MockServerRequest.builder().header(X_FORWARDED_FOR, hostName).build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
@@ -55,10 +50,10 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     @Test
     fun appendEmptyForwardedFor() {
         val hostName = "test"
-        val request = mockk<ServerRequest> {
-            every { headers().firstHeader(X_FORWARDED_FOR) } returns ","
-            every { remoteAddress() } returns Optional.of(InetSocketAddress(hostName, 8080))
-        }
+        val request = MockServerRequest.builder()
+            .header(X_FORWARDED_FOR, ",")
+            .remoteAddress(InetSocketAddress(hostName, 8080))
+            .build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
