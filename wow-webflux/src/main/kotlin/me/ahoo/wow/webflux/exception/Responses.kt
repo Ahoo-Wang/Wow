@@ -20,7 +20,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
-import me.ahoo.wow.webflux.route.command.isEventStream
+import me.ahoo.wow.webflux.route.command.isSse
 import org.reactivestreams.Publisher
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -69,7 +69,7 @@ fun Publisher<CommandResult>.toCommandResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
 ): Mono<ServerResponse> {
-    if (!request.isEventStream()) {
+    if (!request.isSse()) {
         return this.toMono().toServerResponse(request, exceptionHandler)
     }
 
