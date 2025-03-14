@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.time.Duration
 
 internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     override fun createCommandBus(): CommandBus {
@@ -52,6 +53,19 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             sendAndWaitForSent(message)
                 .test()
                 .expectError(CommandResultException::class.java)
+                .verify()
+        }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+    }
+
+    @Test
+    fun validateCancel() {
+        val message = createMessage()
+        verify {
+            sendAndWaitForSent(message)
+                .test()
+                .thenAwait(Duration.ofMillis(1))
+                .thenCancel()
                 .verify()
         }
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
