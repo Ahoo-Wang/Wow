@@ -15,9 +15,11 @@ package me.ahoo.wow.command.wait
 
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
+import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.time.Duration
 import java.util.*
+import java.util.function.Consumer
 
 interface WaitingFor : WaitStrategy {
     val stage: CommandStage
@@ -78,8 +80,9 @@ abstract class AbstractWaitingFor : WaitingFor {
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
+    private var doFinally: (Consumer<SignalType>) = EmptyOnFinally
     override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux()
+        return waitSignalSink.asFlux().doFinally(doFinally)
     }
 
     private fun busyLooping(): Sinks.EmitFailureHandler {
@@ -96,5 +99,13 @@ abstract class AbstractWaitingFor : WaitingFor {
 
     override fun complete() {
         waitSignalSink.emitComplete(busyLooping())
+    }
+
+    override fun doFinally(doFinally: Consumer<SignalType>) {
+        this.doFinally = doFinally
+    }
+
+    object EmptyOnFinally : Consumer<SignalType> {
+        override fun accept(t: SignalType) = Unit
     }
 }
