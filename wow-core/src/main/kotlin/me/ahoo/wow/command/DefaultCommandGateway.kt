@@ -124,7 +124,7 @@ class DefaultCommandGateway(
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
                 commandBus.send(command)
-                    .thenEmitSentSignal(command, waitStrategy)
+                    .thenEmitSentSignal(command)
                     .thenReturn(commandExchange)
             }
         ).onErrorMap {
@@ -137,14 +137,14 @@ class DefaultCommandGateway(
         return CommandResultException(this.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), this)
     }
 
-    private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
+    private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>): Mono<Void> {
         return then(
             Mono.fromRunnable {
                 val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
                     commandId = command.commandId,
                     stage = CommandStage.SENT,
                 )
-                waitStrategy.next(waitSignal)
+                waitStrategyRegistrar.next(waitSignal)
             }
         )
     }
