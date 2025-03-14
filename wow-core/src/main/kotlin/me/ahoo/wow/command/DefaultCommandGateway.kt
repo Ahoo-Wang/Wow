@@ -131,6 +131,7 @@ class DefaultCommandGateway(
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
                 commandBus.send(command)
                     .thenEmitSentSignal(command, waitStrategy)
+                    .ensureUnregister(command)
                     .thenReturn(commandExchange)
             }
         ).onErrorMap {
@@ -145,7 +146,11 @@ class DefaultCommandGateway(
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
         return doOnSuccess {
             safeEmitSentSignal(command, waitStrategy)
-        }.doOnCancel {
+        }
+    }
+
+    private fun Mono<Void>.ensureUnregister(command: CommandMessage<*>): Mono<Void> {
+        return doOnCancel {
             waitStrategyRegistrar.unregister(command.commandId)
         }.doOnError {
             waitStrategyRegistrar.unregister(command.commandId)
