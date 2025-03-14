@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
@@ -27,6 +28,7 @@ import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
@@ -57,7 +59,9 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
 
     @Test
     fun validateCommandBodyWhenValidateError() {
-        val commandBus = mockk<CommandBus>()
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } returns IllegalArgumentException().toMono()
+        }
         val commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,

@@ -15,6 +15,8 @@ package me.ahoo.wow.command.wait
 
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.util.*
 
@@ -68,26 +70,33 @@ interface WaitingFor : WaitStrategy {
 
 abstract class AbstractWaitingFor : WaitingFor {
 
-    private val sink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    private val endSignalSink: Sinks.One<SignalType> = Sinks.one()
     override val cancelled: Boolean
-        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.CANCELLED, false)
+        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
     override val terminated: Boolean
-        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.TERMINATED, false)
+        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
     override fun waiting(): Flux<WaitSignal> {
-        return sink.asFlux()
+        return waitSignalSink.asFlux().doFinally {
+            endSignalSink.tryEmitValue(it)
+        }
+    }
+
+    override fun ending(): Mono<SignalType> {
+        return endSignalSink.asMono()
     }
 
     override fun next(signal: WaitSignal) {
-        sink.tryEmitNext(signal).orThrow()
+        waitSignalSink.tryEmitNext(signal).orThrow()
     }
 
     override fun error(throwable: Throwable) {
-        sink.tryEmitError(throwable).orThrow()
+        waitSignalSink.tryEmitError(throwable).orThrow()
     }
 
     override fun complete() {
-        sink.tryEmitComplete().orThrow()
+        waitSignalSink.tryEmitComplete().orThrow()
     }
 }
