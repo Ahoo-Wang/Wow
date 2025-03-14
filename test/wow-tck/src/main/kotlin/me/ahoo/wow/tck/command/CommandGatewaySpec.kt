@@ -47,10 +47,8 @@ import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.instanceOf
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
-import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 
 abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
     override val topicKind: TopicKind
@@ -69,7 +67,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
     ) {
-        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 1000000)
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 2000000)
     }
 
     protected abstract fun createCommandBus(): CommandBus
@@ -106,12 +104,11 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
         verify {
             val waitStrategy = WaitingFor.processed()
-            sendAndWait(message, waitStrategy)
+            sendAndWaitStream(message, waitStrategy)
                 .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategy.next(processedSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
+                .expectNextCount(1)
+                .then {
+                    waitStrategy.next(processedSignal)
                 }
                 .expectNextCount(1)
                 .verifyComplete()
@@ -130,10 +127,9 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         verify {
             sendAndWaitForProcessed(message)
                 .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategyRegistrar.next(processedSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
+                .thenAwait(Duration.ofMillis(10))
+                .then {
+                    waitStrategyRegistrar.next(processedSignal)
                 }
                 .expectNextCount(1)
                 .verifyComplete()
@@ -156,15 +152,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
         verify {
             val waitStrategy = WaitingFor.snapshot()
-            sendAndWait(message, waitStrategy)
+            sendAndWaitStream(message, waitStrategy)
                 .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategy.next(processedSignal)
-                        waitStrategy.next(waitSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
-                }
                 .expectNextCount(1)
+                .then {
+                    waitStrategy.next(processedSignal)
+                    waitStrategy.next(waitSignal)
+                }
+                .expectNextCount(2)
                 .verifyComplete()
         }
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
@@ -173,24 +168,18 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     @Test
     fun sendAndWaitForSnapshotDefault() {
         val message = createMessage()
-        val processedSignal = SimpleWaitSignal(
-            commandId = message.commandId,
-            stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
-        )
-        val waitSignal = SimpleWaitSignal(
-            commandId = message.commandId,
-            stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
-        )
         verify {
             sendAndWaitForSnapshot(message)
                 .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategyRegistrar.next(processedSignal)
-                        waitStrategyRegistrar.next(waitSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
+                .thenAwait(Duration.ofMillis(10))
+                .then {
+                    waitStrategyRegistrar.next(
+                        SimpleWaitSignal(
+                            commandId = message.commandId,
+                            stage = CommandStage.PROCESSED,
+                            function = COMMAND_GATEWAY_FUNCTION,
+                        )
+                    )
                 }
                 .expectNextCount(1)
                 .verifyComplete()
@@ -230,15 +219,16 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
         verify {
             val waitStrategy = WaitingFor.processed()
-            sendAndWait(message, waitStrategy)
+            sendAndWaitStream(message, waitStrategy)
                 .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategyRegistrar.next(errorSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
+                .expectNextCount(1)
+                .then {
+                    waitStrategyRegistrar.next(errorSignal)
                 }
-                .expectError(CommandResultException::class.java)
-                .verify()
+                .consumeNextWith {
+                    assertThat(it.errorCode, equalTo(errorSignal.errorCode))
+                }
+                .verifyComplete()
         }
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
@@ -256,32 +246,4 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
-    @Test
-    fun sendAndWaitForSnapshotStream() {
-        val message = createMessage()
-        val processedSignal = SimpleWaitSignal(
-            commandId = message.commandId,
-            stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
-        )
-        val waitSignal = SimpleWaitSignal(
-            commandId = message.commandId,
-            stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
-        )
-        verify {
-            val waitStrategy = WaitingFor.snapshot()
-            sendAndWaitStream(message, waitStrategy)
-                .test()
-                .consumeSubscriptionWith {
-                    Schedulers.boundedElastic().schedule({
-                        waitStrategyRegistrar.next(processedSignal)
-                        waitStrategyRegistrar.next(waitSignal)
-                    }, 100, TimeUnit.MILLISECONDS)
-                }
-                .expectNextCount(3)
-                .verifyComplete()
-        }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
-    }
 }

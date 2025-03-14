@@ -73,12 +73,6 @@ class DefaultCommandGateway(
         return check(message).then(commandBus.send(message))
     }
 
-    private fun <T> Mono<T>.errorMapToCommandResultException(command: CommandMessage<*>): Mono<T> {
-        return onErrorMap {
-            CommandResultException(it.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), it)
-        }
-    }
-
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
@@ -89,8 +83,6 @@ class DefaultCommandGateway(
                     .map { waitSignal ->
                         waitSignal.toResult(it.message)
                     }
-            }.doFinally {
-                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
@@ -106,8 +98,6 @@ class DefaultCommandGateway(
                                 }
                             }
                     }
-            }.doFinally {
-                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
@@ -133,7 +123,16 @@ class DefaultCommandGateway(
                     .thenEmitSentSignal(command, waitStrategy)
                     .thenReturn(commandExchange)
             }
-        ).errorMapToCommandResultException(command)
+        ).onErrorMap {
+            val error = it.toCommandResultException(command)
+            waitStrategy.error(error)
+            waitStrategyRegistrar.unregister(command.commandId)
+            error
+        }
+    }
+
+    private fun Throwable.toCommandResultException(command: CommandMessage<*>): CommandResultException {
+        return CommandResultException(this.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), this)
     }
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
