@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.exception
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
@@ -74,6 +75,8 @@ fun Publisher<CommandResult>.toCommandResponse(
 
     val serverSentEventStream = this.toFlux().map {
         ServerSentEvent.builder<CommandResult>()
+            .id(generateGlobalId())
+            .event(it.stage.name)
             .data(it)
             .build()
     }
