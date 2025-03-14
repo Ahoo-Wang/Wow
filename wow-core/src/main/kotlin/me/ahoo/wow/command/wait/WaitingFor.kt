@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
+import java.time.Duration
 import java.util.*
 
 interface WaitingFor : WaitStrategy {
@@ -66,6 +67,10 @@ interface WaitingFor : WaitStrategy {
 }
 
 abstract class AbstractWaitingFor : WaitingFor {
+    companion object {
+        val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
+    }
+
     private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
     override val cancelled: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
@@ -77,15 +82,19 @@ abstract class AbstractWaitingFor : WaitingFor {
         return waitSignalSink.asFlux()
     }
 
+    private fun busyLooping(): Sinks.EmitFailureHandler {
+        return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
+    }
+
     override fun next(signal: WaitSignal) {
-        waitSignalSink.tryEmitNext(signal).orThrow()
+        waitSignalSink.emitNext(signal, busyLooping())
     }
 
     override fun error(throwable: Throwable) {
-        waitSignalSink.tryEmitError(throwable).orThrow()
+        waitSignalSink.emitError(throwable, busyLooping())
     }
 
     override fun complete() {
-        waitSignalSink.tryEmitComplete().orThrow()
+        waitSignalSink.emitComplete(busyLooping())
     }
 }
