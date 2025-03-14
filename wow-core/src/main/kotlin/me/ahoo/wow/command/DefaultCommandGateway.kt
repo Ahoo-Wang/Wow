@@ -26,6 +26,7 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -36,6 +37,10 @@ class DefaultCommandGateway(
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
     private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
+
+    companion object {
+        private val log = LoggerFactory.getLogger(DefaultCommandGateway::class.java)
+    }
 
     private fun <C : Any> validate(commandBody: C) {
         if (commandBody is CommandValidator) {
@@ -140,6 +145,11 @@ class DefaultCommandGateway(
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
         return doOnSuccess {
             if (waitStrategy.cancelled || waitStrategy.terminated) {
+                if (log.isWarnEnabled) {
+                    log.warn(
+                        "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent."
+                    )
+                }
                 return@doOnSuccess
             }
             val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
