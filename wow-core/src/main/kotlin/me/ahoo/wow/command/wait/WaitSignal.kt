@@ -23,9 +23,19 @@ import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandResultCapable
 import me.ahoo.wow.exception.ErrorCodes
 
-interface WaitSignal : CommandId, ErrorInfo, CommandResultCapable, FunctionInfoCapable<FunctionInfoData> {
+interface SignalTimeCapable {
+    val signalTime: Long
+}
+
+interface WaitSignal :
+    CommandId,
+    ErrorInfo,
+    SignalTimeCapable,
+    CommandResultCapable,
+    FunctionInfoCapable<FunctionInfoData> {
     val stage: CommandStage
     val isLastProjection: Boolean
+
     fun copyResult(result: Map<String, Any>): WaitSignal
 }
 
@@ -37,7 +47,8 @@ data class SimpleWaitSignal(
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
     override val bindingErrors: List<BindingError> = emptyList(),
-    override val result: Map<String, Any> = emptyMap()
+    override val result: Map<String, Any> = emptyMap(),
+    override val signalTime: Long = System.currentTimeMillis()
 ) : WaitSignal {
     companion object {
         fun FunctionInfo.toWaitSignal(
@@ -47,7 +58,8 @@ data class SimpleWaitSignal(
             errorCode: String = ErrorCodes.SUCCEEDED,
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
             bindingErrors: List<BindingError> = emptyList(),
-            result: Map<String, Any> = emptyMap()
+            result: Map<String, Any> = emptyMap(),
+            signalTime: Long = System.currentTimeMillis()
         ): WaitSignal {
             return SimpleWaitSignal(
                 commandId = commandId,
@@ -57,7 +69,8 @@ data class SimpleWaitSignal(
                 errorCode = errorCode,
                 errorMsg = errorMsg,
                 bindingErrors = bindingErrors,
-                result = result
+                result = result,
+                signalTime = signalTime
             )
         }
     }
