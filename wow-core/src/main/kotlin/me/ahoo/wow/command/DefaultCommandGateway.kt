@@ -82,9 +82,9 @@ class DefaultCommandGateway(
                 waitStrategy.waiting()
                     .map { waitSignal ->
                         waitSignal.toResult(it.message)
+                    }.doFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
                     }
-            }.doFinally {
-                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
@@ -99,9 +99,9 @@ class DefaultCommandGateway(
                                     throw CommandResultException(this)
                                 }
                             }
+                    }.doFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
                     }
-            }.doFinally {
-                waitStrategyRegistrar.unregister(command.commandId)
             }
     }
 
