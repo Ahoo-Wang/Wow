@@ -55,7 +55,7 @@ class CommandHandler(
             contextName = waitContext,
             processorName = request.getWaitProcessor()
         )
-        if (request.isEventStream()) {
+        if (request.isSse()) {
             return commandGateway.sendAndWaitStream(
                 command = commandMessage,
                 waitStrategy = waitStrategy
