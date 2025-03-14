@@ -39,5 +39,6 @@ object Https {
         const val APPLICATION_JSON = "application/json"
         const val APPLICATION_SQL = "application/sql"
         const val TEXT_PLAIN = "text/plain"
+        const val TEXT_EVENT_STREAM: String = "text/event-stream"
     }
 }

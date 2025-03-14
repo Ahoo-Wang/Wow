@@ -71,6 +71,6 @@ class CartController(
             productId = "productId",
             quantity = 1
         )
-        return commandGateway.sendAndWaitStream(addCartItem.toCommandMessage(ownerId = userId), waitStrategy = WaitingFor.processed())
+        return commandGateway.sendAndWaitStream(addCartItem.toCommandMessage(ownerId = userId), waitStrategy = WaitingFor.snapshot())
     }
 }

@@ -21,6 +21,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.MessageRecords
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.time.Duration
 import java.util.*
@@ -101,4 +102,8 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
     return headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT)?.toLongOrNull()?.let {
         Duration.ofMillis(it)
     } ?: default
+}
+
+fun ServerRequest.isEventStream(): Boolean {
+    return headers().accept().contains(MediaType.TEXT_EVENT_STREAM)
 }

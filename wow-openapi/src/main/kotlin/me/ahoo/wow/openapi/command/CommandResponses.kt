@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.openapi.command
 
+import io.swagger.v3.oas.models.media.ArraySchema
+import io.swagger.v3.oas.models.media.MediaType
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.openapi.Https
@@ -23,7 +25,13 @@ import me.ahoo.wow.openapi.toJsonContent
 
 object CommandResponses {
 
-    val COMMAND_RESULT_CONTENT = CommandResult::class.java.toSchemaRef().ref.toJsonContent()
+    val COMMAND_RESULT_SCHEMA = CommandResult::class.java.toSchemaRef()
+    val COMMAND_RESULT_CONTENT = COMMAND_RESULT_SCHEMA.ref.toJsonContent {
+        it.addMediaType(
+            Https.MediaType.TEXT_EVENT_STREAM,
+            MediaType().schema(ArraySchema().items(COMMAND_RESULT_SCHEMA.ref))
+        )
+    }
     val COMMAND_RESULT_RESPONSE = ResponseRef(
         name = "${Wow.WOW_PREFIX}CommandResult",
         component = COMMAND_RESULT_CONTENT.toResponse(),

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.AggregateRouteSpec
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
@@ -70,6 +71,9 @@ class CommandRouteSpec(
         get() {
             return commandRouteMetadata.method
         }
+
+    override val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
 
     private fun CommandRoute.AppendPath.resolve(default: Boolean): Boolean {
         return when (this) {

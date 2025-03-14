@@ -264,5 +264,4 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         }
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
-
 }

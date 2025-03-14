@@ -29,6 +29,7 @@ import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
@@ -133,7 +134,6 @@ class DefaultCommandGateway(
                     .thenReturn(commandExchange)
             }
         ).onErrorMap {
-            waitStrategyRegistrar.unregister(command.commandId)
             it.toCommandResultException(command)
         }
     }
@@ -144,19 +144,29 @@ class DefaultCommandGateway(
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
         return doOnSuccess {
-            if (waitStrategy.cancelled || waitStrategy.terminated) {
-                if (log.isWarnEnabled) {
-                    log.warn(
-                        "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent."
-                    )
-                }
-                return@doOnSuccess
-            }
-            val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-                commandId = command.commandId,
-                stage = CommandStage.SENT,
-            )
+            safeEmitSentSignal(command, waitStrategy)
+        }.doOnCancel {
+            waitStrategyRegistrar.unregister(command.commandId)
+        }.doOnError {
+            waitStrategyRegistrar.unregister(command.commandId)
+        }
+    }
+
+    private fun safeEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy) {
+        val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+            commandId = command.commandId,
+            stage = CommandStage.SENT,
+        )
+        try {
+            // 防止基于内存的消息总线聚合处理信号早于命令发送完成而抛出异常。
             waitStrategy.next(waitSignal)
+        } catch (emissionError: Sinks.EmissionException) {
+            if (log.isWarnEnabled) {
+                log.warn(
+                    "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent.",
+                    emissionError
+                )
+            }
         }
     }
 }
