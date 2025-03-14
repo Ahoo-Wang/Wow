@@ -140,7 +140,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         verify {
             sendAndWaitForProcessed(message)
                 .test()
-                .thenAwait(Duration.ofMillis(1))
+                .thenAwait(Duration.ofMillis(10))
                 .then {
                     waitStrategyRegistrar.next(processedSignal)
                 }
@@ -195,7 +195,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             sendAndWaitForSnapshot(message)
                 .test()
                 .expectSubscription()
-                .thenAwait(Duration.ofMillis(1))
+                .thenAwait(Duration.ofMillis(10))
                 .then {
                     waitStrategyRegistrar.next(processedSignal)
                     waitStrategyRegistrar.next(waitSignal)
