@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command
 
-import io.mockk.every
-import io.mockk.mockk
+import com.sun.security.auth.UserPrincipal
 import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
@@ -22,7 +21,6 @@ import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.route.commandRouteMetadata
@@ -34,15 +32,11 @@ import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
-import java.net.URI
-import java.security.Principal
 
 class CommandHandlerFunctionTest {
 
@@ -57,30 +51,19 @@ class CommandHandlerFunctionTest {
             DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),
             DefaultRequestExceptionHandler,
         )
-        val request = mockk<ServerRequest> {
-            every { bodyToMono(commandRouteMetadata.commandMetadata.commandType) } returns MockCreateAggregate(
-                id = generateGlobalId(),
-                data = generateGlobalId(),
-            ).toMono()
-            every { method() } returns HttpMethod.POST
-            every { uri() } returns URI.create("http://localhost:8080")
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT) } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_VERSION) } returns null
-            every { pathVariables()[RoutePaths.ID_KEY] } returns null
-            every { headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.REQUEST_ID) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT) } returns null
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR) } returns null
-            every { headers().accept().contains(MediaType.TEXT_EVENT_STREAM) } returns false
-            every { principal() } returns mockk<Principal> {
-                every { name } returns generateGlobalId()
-            }.toMono()
-            every { headers().firstHeader(CommandRequestHeaders.WAIT_STAGE) } returns CommandStage.SENT.toString()
-            every { headers().asHttpHeaders() } returns HttpHeaders()
-        }
+
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .principal(UserPrincipal(generateGlobalId()))
+            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .body(
+                MockCreateAggregate(
+                    id = generateGlobalId(),
+                    data = generateGlobalId(),
+                ).toMono()
+            )
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

@@ -13,16 +13,12 @@
 
 package me.ahoo.wow.webflux.route.command.appender
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpHeaders
-import org.springframework.util.MultiValueMap
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class CommandRequestExtendHeaderAppenderTest {
     @Test
@@ -30,15 +26,10 @@ class CommandRequestExtendHeaderAppenderTest {
         val headerKey = "app"
         val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
-        val request = mockk<ServerRequest> {
-            every { headers().asHttpHeaders() } returns HttpHeaders(
-                MultiValueMap.fromSingleValue<String, String>(
-                    mapOf(
-                        key to value
-                    )
-                )
-            )
-        }
+
+        val request = MockServerRequest.builder()
+            .header(key, value)
+            .build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestExtendHeaderAppender.append(request, commandHeader)
         assertThat(commandHeader[headerKey], equalTo(value))
@@ -46,9 +37,8 @@ class CommandRequestExtendHeaderAppenderTest {
 
     @Test
     fun appendEmpty() {
-        val request = mockk<ServerRequest> {
-            every { headers().asHttpHeaders() } returns HttpHeaders()
-        }
+        val request = MockServerRequest.builder()
+            .build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestExtendHeaderAppender.append(request, commandHeader)
         assertThat(commandHeader.isEmpty(), equalTo(true))
