@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -25,11 +23,10 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.state.LoadTimeBasedAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
@@ -37,7 +34,7 @@ import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 import java.net.URI
 
@@ -52,7 +49,7 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
         )
         aggregateVerifier<Cart, CartState>(customerId, eventStore = eventStore)
             .givenOwnerId(customerId)
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
@@ -73,14 +70,13 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
                 aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata()
             )
         )
-        val request = mockk<ServerRequest> {
-            every { method() } returns HttpMethod.GET
-            every { uri() } returns URI.create("http://localhost")
-            every { pathVariables()[RoutePaths.ID_KEY] } returns null
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns null
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns customerId
-            every { pathVariable(MessageRecords.CREATE_TIME) } returns System.currentTimeMillis().toString()
-        }
+
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("http://localhost"))
+            .pathVariable(MessageRecords.OWNER_ID, customerId)
+            .pathVariable(MessageRecords.CREATE_TIME, System.currentTimeMillis().toString())
+            .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

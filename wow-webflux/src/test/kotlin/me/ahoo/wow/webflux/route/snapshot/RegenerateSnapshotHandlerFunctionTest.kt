@@ -13,11 +13,9 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.serialization.MessageRecords
@@ -26,11 +24,9 @@ import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
-import java.net.URI
 
 class RegenerateSnapshotHandlerFunctionTest {
 
@@ -43,12 +39,11 @@ class RegenerateSnapshotHandlerFunctionTest {
             NoOpSnapshotRepository,
             DefaultRequestExceptionHandler,
         )
-        val request = mockk<ServerRequest> {
-            every { method() } returns HttpMethod.GET
-            every { uri() } returns URI.create("http://localhost")
-            every { pathVariable(RoutePaths.ID_KEY) } returns GlobalIdGenerator.generateAsString()
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns GlobalIdGenerator.generateAsString()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+            .build()
+
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {

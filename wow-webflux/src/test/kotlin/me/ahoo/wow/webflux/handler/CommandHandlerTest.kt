@@ -74,7 +74,7 @@ class CommandHandlerTest {
             MockCreateAggregate(generateGlobalId(), generateGlobalId()),
             MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
-            .verifyTimeout(Duration.ofMillis(110))
+            .verifyTimeout(Duration.ofMillis(200))
     }
 
     @Test
@@ -83,7 +83,7 @@ class CommandHandlerTest {
             .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.PROCESSED.name)
             .header(CommandRequestHeaders.WAIT_CONTEXT, "test")
             .header(CommandRequestHeaders.WAIT_PROCESSOR, "test")
-            .header(CommandRequestHeaders.WAIT_TIME_OUT, "1000")
+            .header(CommandRequestHeaders.WAIT_TIME_OUT, "2000")
             .header(CommandRequestHeaders.TENANT_ID, generateGlobalId())
             .header(CommandRequestHeaders.OWNER_ID, generateGlobalId())
             .header(CommandRequestHeaders.LOCAL_FIRST, true.toString())
@@ -104,6 +104,6 @@ class CommandHandlerTest {
             .consumeNextWith {
                 assertThat(it.stage, equalTo(CommandStage.SENT))
             }
-            .verifyTimeout(Duration.ofMillis(110))
+            .verifyTimeout(Duration.ofMillis(200))
     }
 }

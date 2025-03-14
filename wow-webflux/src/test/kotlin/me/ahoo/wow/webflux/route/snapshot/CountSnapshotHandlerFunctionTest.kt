@@ -1,10 +1,7 @@
 package me.ahoo.wow.webflux.route.snapshot
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
 import me.ahoo.wow.openapi.snapshot.CountSnapshotRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
@@ -14,7 +11,7 @@ import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -33,12 +30,9 @@ class CountSnapshotHandlerFunctionTest {
                 appendOwnerPath = false
             )
         )
-        val request = mockk<ServerRequest> {
-            every { pathVariables()[MessageRecords.TENANT_ID] } returns null
-            every { headers().firstHeader(CommandRequestHeaders.TENANT_ID) } returns null
-            every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
-            every { bodyToMono(Condition::class.java) } returns Condition.ALL.toMono()
-        }
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+            .body(Condition.ALL.toMono())
 
         handlerFunction.handle(request)
             .test()
