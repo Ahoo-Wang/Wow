@@ -86,6 +86,19 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForSent() {
         val message = createMessage()
         verify {
+            val waitStrategy = WaitingFor.sent()
+            sendAndWaitStream(message, waitStrategy)
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
+        }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+    }
+
+    @Test
+    fun sendAndWaitForSentDefault() {
+        val message = createMessage()
+        verify {
             sendAndWaitForSent(message)
                 .test()
                 .expectNextCount(1)
@@ -127,7 +140,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         verify {
             sendAndWaitForProcessed(message)
                 .test()
-                .thenAwait(Duration.ofMillis(10))
+                .thenAwait(Duration.ofMillis(1))
                 .then {
                     waitStrategyRegistrar.next(processedSignal)
                 }
@@ -168,18 +181,24 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     @Test
     fun sendAndWaitForSnapshotDefault() {
         val message = createMessage()
+        val processedSignal = SimpleWaitSignal(
+            commandId = message.commandId,
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
+        val waitSignal = SimpleWaitSignal(
+            commandId = message.commandId,
+            stage = CommandStage.SNAPSHOT,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
         verify {
             sendAndWaitForSnapshot(message)
                 .test()
-                .thenAwait(Duration.ofMillis(10))
+                .expectSubscription()
+                .thenAwait(Duration.ofMillis(1))
                 .then {
-                    waitStrategyRegistrar.next(
-                        SimpleWaitSignal(
-                            commandId = message.commandId,
-                            stage = CommandStage.PROCESSED,
-                            function = COMMAND_GATEWAY_FUNCTION,
-                        )
-                    )
+                    waitStrategyRegistrar.next(processedSignal)
+                    waitStrategyRegistrar.next(waitSignal)
                 }
                 .expectNextCount(1)
                 .verifyComplete()
