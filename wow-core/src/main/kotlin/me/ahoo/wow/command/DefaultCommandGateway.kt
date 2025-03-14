@@ -146,6 +146,8 @@ class DefaultCommandGateway(
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
         return doOnSuccess {
             safeEmitSentSignal(command, waitStrategy)
+        }.doOnCancel {
+            waitStrategyRegistrar.unregister(command.commandId)
         }
     }
 
