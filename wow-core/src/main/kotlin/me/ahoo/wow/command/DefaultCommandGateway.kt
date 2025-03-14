@@ -88,8 +88,6 @@ class DefaultCommandGateway(
                 waitStrategy.waiting()
                     .map { waitSignal ->
                         waitSignal.toResult(it.message)
-                    }.doFinally {
-                        waitStrategyRegistrar.unregister(command.commandId)
                     }
             }
     }
@@ -105,8 +103,6 @@ class DefaultCommandGateway(
                                     throw CommandResultException(this)
                                 }
                             }
-                    }.doFinally {
-                        waitStrategyRegistrar.unregister(command.commandId)
                     }
             }
     }
@@ -128,6 +124,9 @@ class DefaultCommandGateway(
                     processor = waitStrategy.processorName
                 )
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)
+                waitStrategy.onFinally {
+                    waitStrategyRegistrar.unregister(command.commandId)
+                }
                 val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
                 commandBus.send(command)
                     .thenEmitSentSignal(command, waitStrategy)
