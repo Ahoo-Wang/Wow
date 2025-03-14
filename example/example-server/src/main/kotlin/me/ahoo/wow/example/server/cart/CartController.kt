@@ -18,6 +18,7 @@ import me.ahoo.wow.apiclient.query.queryState
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartData
 import me.ahoo.wow.example.api.client.CartQueryClient
@@ -64,8 +65,12 @@ class CartController(
         return commandGateway.sendAndWaitForSnapshot(addCartItem.toCommandMessage(ownerId = userId))
     }
 
-    @PostExchange("eventStream", accept = ["text/event-stream"])
-    fun eventStream(): Flux<Int> {
-        return Flux.range(1, 10)
+    @PostExchange("/cart/{userId}/add-cart-item", accept = ["text/event-stream"])
+    fun addCartItem(@PathVariable userId: String): Flux<CommandResult> {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1
+        )
+        return commandGateway.sendAndWaitStream(addCartItem.toCommandMessage(ownerId = userId), waitStrategy = WaitingFor.processed())
     }
 }

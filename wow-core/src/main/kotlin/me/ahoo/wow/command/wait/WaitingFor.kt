@@ -22,7 +22,7 @@ interface WaitingFor : WaitStrategy {
     val stage: CommandStage
 
     companion object {
-
+        fun sent(): WaitingFor = WaitingForSent()
         fun processed(): WaitingFor = WaitingForProcessed()
 
         fun snapshot(): WaitingFor = WaitingForSnapshot()
@@ -47,12 +47,12 @@ interface WaitingFor : WaitStrategy {
 
         fun stage(stage: CommandStage, contextName: String, processorName: String = ""): WaitingFor {
             return when (stage) {
+                CommandStage.SENT -> sent()
                 CommandStage.PROCESSED -> processed()
                 CommandStage.SNAPSHOT -> snapshot()
                 CommandStage.PROJECTED -> projected(contextName, processorName)
                 CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName)
                 CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName)
-                CommandStage.SENT -> throw IllegalArgumentException("Unsupported stage: $stage")
             }
         }
 
@@ -66,27 +66,26 @@ interface WaitingFor : WaitStrategy {
 }
 
 abstract class AbstractWaitingFor : WaitingFor {
-
-    private val sink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
     override val cancelled: Boolean
-        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.CANCELLED, false)
+        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
     override val terminated: Boolean
-        get() = Scannable.from(sink).scanOrDefault(Scannable.Attr.TERMINATED, false)
+        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
     override fun waiting(): Flux<WaitSignal> {
-        return sink.asFlux()
+        return waitSignalSink.asFlux()
     }
 
     override fun next(signal: WaitSignal) {
-        sink.tryEmitNext(signal).orThrow()
+        waitSignalSink.tryEmitNext(signal).orThrow()
     }
 
     override fun error(throwable: Throwable) {
-        sink.tryEmitError(throwable).orThrow()
+        waitSignalSink.tryEmitError(throwable).orThrow()
     }
 
     override fun complete() {
-        sink.tryEmitComplete().orThrow()
+        waitSignalSink.tryEmitComplete().orThrow()
     }
 }

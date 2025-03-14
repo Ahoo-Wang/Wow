@@ -15,15 +15,21 @@ package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.tck.command.CommandGatewaySpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
+import me.ahoo.wow.test.validation.TestValidator
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.test.test
 
 internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     override fun createCommandBus(): CommandBus {
@@ -31,32 +37,44 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun sendWithSent() {
-        val messageGateway = createMessageBus()
-        val commandMessage: CommandMessage<Any> = mockk()
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
-            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
-        }
-    }
-
-    @Test
     fun sendVoidCommand() {
         val messageGateway = createMessageBus()
-        val commandMessage = MockVoidCommand(generateGlobalId()).toCommandMessage()
+        val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
-            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.PROCESSED, "", ""))
+            messageGateway.send(message, WaitingFor.stage(CommandStage.PROCESSED, "", ""))
         }
     }
 
     @Test
     fun validateCommandBody() {
-        val messageGateway = createMessageBus()
-        val commandMessage: CommandMessage<CommandValidator> = mockk {
-            every { body } returns MockCommandBody()
+        val message = MockCommandBody().toCommandMessage()
+        verify {
+            sendAndWaitForSent(message)
+                .test()
+                .expectError(CommandResultException::class.java)
+                .verify()
         }
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
-            messageGateway.send(commandMessage, WaitingFor.stage(CommandStage.SENT, "", ""))
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+    }
+
+    @Test
+    fun validateCommandBodyWhenValidateError() {
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } returns IllegalArgumentException().toMono()
         }
+        val commandGateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = commandBus,
+            validator = TestValidator,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            waitStrategyRegistrar = waitStrategyRegistrar,
+        )
+        val message = createMessage()
+        commandGateway.sendAndWaitForProcessed(message)
+            .test()
+            .expectError(CommandResultException::class.java)
+            .verify()
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     class MockCommandBody : CommandValidator {
