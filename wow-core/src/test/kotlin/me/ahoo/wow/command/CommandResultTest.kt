@@ -15,6 +15,7 @@ class CommandResultTest {
             command,
             processorName = "processorName"
         )
+        assertThat(actual.id, not(""))
         assertThat(actual.stage, equalTo(CommandStage.SENT))
         assertThat(actual.aggregateId, equalTo(command.aggregateId.id))
         assertThat(actual.tenantId, equalTo(command.aggregateId.tenantId))

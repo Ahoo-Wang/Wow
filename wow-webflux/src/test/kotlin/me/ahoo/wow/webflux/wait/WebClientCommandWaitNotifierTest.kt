@@ -7,6 +7,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -20,6 +21,7 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
+            id= generateGlobalId(),
             commandId = GlobalIdGenerator.generateAsString(),
             stage = CommandStage.SENT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -46,6 +48,7 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
 
         val waitSignal = SimpleWaitSignal(
+            id= generateGlobalId(),
             commandId = "0ToC0Bez003X00Z",
             stage = CommandStage.SENT,
             function = COMMAND_GATEWAY_FUNCTION,

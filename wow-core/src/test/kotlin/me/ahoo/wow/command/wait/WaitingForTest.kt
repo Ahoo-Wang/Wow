@@ -30,6 +30,7 @@ internal class WaitingForTest {
         assertThat(waitStrategy.cancelled, equalTo(false))
         assertThat(waitStrategy.terminated, equalTo(false))
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -48,6 +49,7 @@ internal class WaitingForTest {
     fun processedIfSnapshot() {
         val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = "commandId",
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -66,11 +68,13 @@ internal class WaitingForTest {
     fun snapshot() {
         val waitStrategy = WaitingFor.stage("SNAPSHOT", contextName)
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -91,6 +95,7 @@ internal class WaitingForTest {
     fun snapshotFailFast() {
         val waitStrategy = WaitingFor.snapshot()
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -109,11 +114,13 @@ internal class WaitingForTest {
     fun projected() {
         val waitStrategy = WaitingFor.stage("PROJECTED", contextName)
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
@@ -133,11 +140,13 @@ internal class WaitingForTest {
     fun waitingForProjectedProcessor() {
         val waitStrategy = WaitingFor.projected(contextName, "processor")
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "processor"),
@@ -157,11 +166,13 @@ internal class WaitingForTest {
     fun waitingForProjectedWhenNotLast() {
         val waitStrategy = WaitingFor.projected(contextName)
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
@@ -182,11 +193,13 @@ internal class WaitingForTest {
     fun waitingForEventHandled() {
         val waitStrategy = WaitingFor.stage("EVENT_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.EVENT_HANDLED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
@@ -206,11 +219,13 @@ internal class WaitingForTest {
     fun waitingForSagaHandled() {
         val waitStrategy = WaitingFor.stage("SAGA_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.SAGA_HANDLED,
             function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName)
@@ -233,8 +248,9 @@ internal class WaitingForTest {
             .consumeSubscriptionWith {
                 waitStrategy.next(
                     SimpleWaitSignal(
-                        generateGlobalId(),
-                        CommandStage.PROJECTED,
+                        id = generateGlobalId(),
+                        commandId = generateGlobalId(),
+                        stage = CommandStage.PROJECTED,
                         function = COMMAND_GATEWAY_FUNCTION,
                     )
                 )
