@@ -6,6 +6,7 @@ import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -20,6 +21,7 @@ class CommandWaitHandlerFunctionTest {
         val commandWaitHandlerFunction = CommandWaitHandlerFunction(SimpleWaitStrategyRegistrar)
         val request = mockk<ServerRequest> {
             every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(
+                id= generateGlobalId(),
                 commandId = "commandId",
                 stage = CommandStage.SENT,
                 function = COMMAND_GATEWAY_FUNCTION,

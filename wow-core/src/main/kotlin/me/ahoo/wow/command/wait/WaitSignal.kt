@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
@@ -28,6 +29,7 @@ interface SignalTimeCapable {
 }
 
 interface WaitSignal :
+    Identifier,
     CommandId,
     ErrorInfo,
     SignalTimeCapable,
@@ -40,6 +42,7 @@ interface WaitSignal :
 }
 
 data class SimpleWaitSignal(
+    override val id: String,
     override val commandId: String,
     override val stage: CommandStage,
     override val function: FunctionInfoData,
@@ -52,6 +55,7 @@ data class SimpleWaitSignal(
 ) : WaitSignal {
     companion object {
         fun FunctionInfo.toWaitSignal(
+            id: String,
             commandId: String,
             stage: CommandStage,
             isLastProjection: Boolean = false,
@@ -62,6 +66,7 @@ data class SimpleWaitSignal(
             signalTime: Long = System.currentTimeMillis()
         ): WaitSignal {
             return SimpleWaitSignal(
+                id = id,
                 commandId = commandId,
                 stage = stage,
                 function = this.materialize(),

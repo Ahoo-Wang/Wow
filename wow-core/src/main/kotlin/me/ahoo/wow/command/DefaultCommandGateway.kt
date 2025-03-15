@@ -24,6 +24,7 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
 import org.slf4j.LoggerFactory
@@ -158,6 +159,7 @@ class DefaultCommandGateway(
 
     private fun safeEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy) {
         val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+            id = generateGlobalId(),
             commandId = command.commandId,
             stage = CommandStage.SENT,
         )

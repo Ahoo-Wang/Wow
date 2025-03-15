@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
@@ -25,10 +26,12 @@ import me.ahoo.wow.command.wait.SignalTimeCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.id.generateGlobalId
 
 data class CommandResult(
     val stage: CommandStage,
     val aggregateId: String,
+    override val id: String,
     override val contextName: String,
     override val processorName: String,
     override val tenantId: String,
@@ -39,10 +42,11 @@ data class CommandResult(
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
     override val signalTime: Long = System.currentTimeMillis()
-) : CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable, SignalTimeCapable
+) : Identifier, CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable, SignalTimeCapable
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
+        id = this.id,
         stage = this.stage,
         aggregateId = commandMessage.aggregateId.id,
         contextName = function.contextName,
@@ -62,12 +66,14 @@ fun Throwable.toResult(
     commandMessage: CommandMessage<*>,
     contextName: String = commandMessage.contextName,
     processorName: String,
+    id: String = generateGlobalId(),
     stage: CommandStage = CommandStage.SENT,
     result: Map<String, Any> = emptyMap(),
     signalTime: Long = System.currentTimeMillis()
 ): CommandResult {
     val errorInfo = toErrorInfo()
     return CommandResult(
+        id = id,
         stage = stage,
         aggregateId = commandMessage.aggregateId.id,
         contextName = contextName,

@@ -111,6 +111,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForProcessed() {
         val message = createMessage()
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -133,6 +134,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForProcessedDefault() {
         val message = createMessage()
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -154,11 +156,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForSnapshot() {
         val message = createMessage()
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -182,11 +186,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForSnapshotDefault() {
         val message = createMessage()
         val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
             function = COMMAND_GATEWAY_FUNCTION,
         )
         val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.SNAPSHOT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -231,6 +237,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendThenWaitingForProcessedWhenError() {
         val message = createMessage()
         val errorSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
             function = FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", ""),

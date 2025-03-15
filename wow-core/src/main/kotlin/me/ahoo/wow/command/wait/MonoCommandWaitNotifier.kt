@@ -48,7 +48,6 @@ class MonoCommandWaitNotifier<E, M>(
                 commandWaitNotifier = commandWaitNotifier,
                 processingStage = processingStage,
                 waitStrategy = waitStrategy,
-                commandId = message.commandId,
                 messageExchange = messageExchange,
                 actual = actual,
             ),
@@ -60,7 +59,6 @@ class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
     private val waitStrategy: WaitStrategyInfo,
-    private val commandId: String,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
 ) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
@@ -101,8 +99,10 @@ class CommandWaitNotifierSubscriber<E, M>(
                 functionKind = FunctionKind.ERROR,
                 contextName = messageExchange.message.contextName
             )
+
         val waitSignal = functionInfo.toWaitSignal(
-            commandId = commandId,
+            id = messageExchange.message.id,
+            commandId = messageExchange.message.commandId,
             stage = processingStage,
             isLastProjection = isLastProjection,
             errorCode = error.errorCode,
