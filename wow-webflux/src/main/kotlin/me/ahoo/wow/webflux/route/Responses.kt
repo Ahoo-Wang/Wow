@@ -77,7 +77,7 @@ fun Publisher<CommandResult>.toCommandResponse(
 
     val serverSentEventStream = this.toFlux().map {
         ServerSentEvent.builder<String>()
-            .id(generateGlobalId())
+            .id(it.id)
             .event(it.stage.name)
             .data(it.toJsonString())
             .build()
