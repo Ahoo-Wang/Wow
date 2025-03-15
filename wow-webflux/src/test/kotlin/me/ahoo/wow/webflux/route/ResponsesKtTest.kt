@@ -89,7 +89,7 @@ class ResponsesKtTest {
     fun toCommandResponse() {
         val serverRequest = MockServerRequest.builder().build()
         CommandResult(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -121,7 +121,7 @@ class ResponsesKtTest {
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
         CommandResult(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -151,7 +151,7 @@ class ResponsesKtTest {
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
         CommandResult(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -178,7 +178,7 @@ class ResponsesKtTest {
             .build()
 
         CommandResult(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),

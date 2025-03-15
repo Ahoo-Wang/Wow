@@ -21,7 +21,7 @@ class CommandWaitHandlerFunctionTest {
         val commandWaitHandlerFunction = CommandWaitHandlerFunction(SimpleWaitStrategyRegistrar)
         val request = mockk<ServerRequest> {
             every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(
-                id= generateGlobalId(),
+                id = generateGlobalId(),
                 commandId = "commandId",
                 stage = CommandStage.SENT,
                 function = COMMAND_GATEWAY_FUNCTION,

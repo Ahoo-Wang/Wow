@@ -21,7 +21,7 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             commandId = GlobalIdGenerator.generateAsString(),
             stage = CommandStage.SENT,
             function = COMMAND_GATEWAY_FUNCTION,
@@ -48,7 +48,7 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
 
         val waitSignal = SimpleWaitSignal(
-            id= generateGlobalId(),
+            id = generateGlobalId(),
             commandId = "0ToC0Bez003X00Z",
             stage = CommandStage.SENT,
             function = COMMAND_GATEWAY_FUNCTION,
