@@ -28,7 +28,7 @@ val COMMAND_GATEWAY_FUNCTION = FunctionInfoData(
     functionKind = FunctionKind.COMMAND,
     contextName = Wow.WOW,
     processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
-    name = "send",
+    name = "Send",
 )
 
 /**
