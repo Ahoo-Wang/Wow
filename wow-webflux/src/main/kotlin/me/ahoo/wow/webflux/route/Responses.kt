@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders.WOW_ERROR_CODE
@@ -33,7 +32,6 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
-import java.util.concurrent.TimeoutException
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
@@ -83,11 +81,12 @@ fun Publisher<CommandResult>.toCommandResponse(
             .event(it.stage.name)
             .data(it.toJsonString())
             .build()
-    }.onErrorResume(TimeoutException::class.java) {
+    }.onErrorResume {
+        val errorInfo = it.toErrorInfo()
         ServerSentEvent.builder<String>()
             .id(generateGlobalId())
-            .event(ErrorCodes.REQUEST_TIMEOUT)
-            .data("Command request timeout")
+            .event(errorInfo.errorCode)
+            .data(errorInfo.errorMsg)
             .build().toMono()
     }
 
@@ -95,4 +94,7 @@ fun Publisher<CommandResult>.toCommandResponse(
         .contentType(MediaType.TEXT_EVENT_STREAM)
         .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
         .body(serverSentEventStream, ServerSentEvent::class.java)
+        .onErrorResume {
+            exceptionHandler.handle(request, it)
+        }
 }
