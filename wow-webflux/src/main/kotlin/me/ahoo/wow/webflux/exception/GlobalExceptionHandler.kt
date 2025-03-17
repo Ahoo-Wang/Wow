@@ -68,7 +68,7 @@ fun BindingResult.toBindingErrorInfo(): ErrorInfo {
 }
 
 fun HandlerMethodValidationException.toBindingErrorInfo(): ErrorInfo {
-    val bindingErrors = allValidationResults.flatMap { parameterValidationResult ->
+    val bindingErrors = parameterValidationResults.flatMap { parameterValidationResult ->
         val name = parameterValidationResult.methodParameter.parameterName.orEmpty()
         parameterValidationResult.resolvableErrors.map {
             BindingError(name, it.defaultMessage.orEmpty())
