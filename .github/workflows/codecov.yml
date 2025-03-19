@@ -57,6 +57,7 @@ jobs:
           large_files: true
           files: |
             wow-core/build/test-results/**/*.xml
+            wow-schema/build/test-results/**/*.xml
             wow-openapi/build/test-results/**/*.xml
             wow-openapi-joda-money/build/test-results/**/*.xml
             wow-compiler/build/test-results/**/*.xml
