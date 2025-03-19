@@ -27,9 +27,9 @@ class SimpleCommandMessageFactory(
 
     override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
-        validator.validateCommand(body)
         val rewriter = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
+        validator.validateCommand(body)
         return rewriter.rewrite(commandBuilder)
             .checkpoint("Rewrite $rewriter [SimpleCommandMessageFactory]")
             .switchIfEmpty(
