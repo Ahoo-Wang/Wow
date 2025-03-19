@@ -25,7 +25,6 @@
     },
     "ownerId": {
       "type": "string",
-      "minLength": 1,
       "description": "The owner ID of the aggregate resource",
       "default": ""
     },
@@ -41,12 +40,10 @@
     },
     "firstOperator": {
       "type": "string",
-      "minLength": 1,
       "description": "The first person who operates the aggregate is the creator"
     },
     "operator": {
       "type": "string",
-      "minLength": 1,
       "description": "The last person who operates the aggregate"
     },
     "firstEventTime": {
@@ -64,11 +61,11 @@
     },
     "snapshotTime": {
       "type": "integer",
+      "format": "int64",
       "description": "The snapshot time of the aggregate"
     }
   },
   "required": [
-    "id",
     "contextName",
     "aggregateName",
     "tenantId",

@@ -74,7 +74,6 @@
     },
     "ownerId": {
       "type": "string",
-      "minLength": 1,
       "description": "The owner ID of the aggregate resource",
       "default": ""
     },
@@ -140,7 +139,6 @@
     },
     "firstOperator": {
       "type": "string",
-      "minLength": 1,
       "description": "The first person who operates the aggregate is the creator"
     },
     "firstEventTime": {
@@ -161,7 +159,6 @@
     "id",
     "contextName",
     "aggregateName",
-    "name",
     "tenantId",
     "aggregateId",
     "ownerId",

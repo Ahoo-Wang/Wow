@@ -19,7 +19,7 @@
       "description": "aggregate tenant id",
       "default": "(0)"
     },
-    "id": {
+    "aggregateId": {
       "type": "string",
       "minLength": 1,
       "description": "aggregate id"
@@ -29,6 +29,6 @@
     "contextName",
     "aggregateName",
     "tenantId",
-    "id"
+    "aggregateId"
   ]
 }
