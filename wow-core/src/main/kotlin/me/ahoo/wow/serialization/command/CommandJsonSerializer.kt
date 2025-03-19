@@ -34,8 +34,8 @@ import me.ahoo.wow.serialization.toObject
 object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessage::class.java) {
 
     override fun writeExtendedInfo(generator: JsonGenerator, value: CommandMessage<*>) {
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
         generator.writeStringField(MessageRecords.REQUEST_ID, value.requestId)
         value.aggregateVersion?.let {

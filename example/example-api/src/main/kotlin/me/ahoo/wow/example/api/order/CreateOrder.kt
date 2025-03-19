@@ -13,7 +13,9 @@
 package me.ahoo.wow.example.api.order
 
 import jakarta.validation.Valid
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.CreateAggregate
@@ -46,8 +48,11 @@ data class CreateOrder(
     }
 
     data class Item(
+        @field:NotEmpty
         override val productId: String,
+        @field:Positive
         override val price: BigDecimal,
+        @field:Positive
         override val quantity: Int
     ) : CreateOrderItem
 }

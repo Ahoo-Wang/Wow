@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AggregateId",
+  "type": "object",
+  "properties": {
+    "contextName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "aggregate context name"
+    },
+    "aggregateName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "aggregate name"
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "aggregate tenant id"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "aggregate id"
+    }
+  },
+  "required": [
+    "contextName",
+    "aggregateName",
+    "tenantId",
+    "id"
+  ]
+}
