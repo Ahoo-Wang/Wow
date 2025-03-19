@@ -74,7 +74,6 @@
     },
     "ownerId": {
       "type": "string",
-      "minLength": 1,
       "description": "The owner ID of the aggregate resource",
       "default": ""
     },
@@ -144,7 +143,6 @@
     "id",
     "contextName",
     "aggregateName",
-    "name",
     "tenantId",
     "aggregateId",
     "ownerId",

@@ -1,0 +1,71 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "contextName" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The name of the context to which the state aggregate belongs"
+    },
+    "aggregateName" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The name of the aggregate to which the state aggregate belongs"
+    },
+    "tenantId" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The tenant id of the aggregate"
+    },
+    "aggregateId" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The id of the aggregate"
+    },
+    "ownerId" : {
+      "type" : "string",
+      "description" : "The owner ID of the aggregate resource",
+      "default" : ""
+    },
+    "version" : {
+      "type" : "integer",
+      "format" : "int32",
+      "description" : "The version of the snapshot"
+    },
+    "eventId" : {
+      "type" : "string",
+      "minLength" : 1,
+      "description" : "The ID of the domain event stream."
+    },
+    "firstOperator" : {
+      "type" : "string",
+      "description" : "The first person who operates the aggregate is the creator"
+    },
+    "operator" : {
+      "type" : "string",
+      "description" : "The last person who operates the aggregate"
+    },
+    "firstEventTime" : {
+      "type" : "integer",
+      "format" : "int64",
+      "description" : "The first event time of the aggregate, which is the time it was created"
+    },
+    "state" : {
+      "type" : "object",
+      "properties" : {
+        "data" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        }
+      },
+      "description" : "The state data of the aggregate"
+    },
+    "deleted" : {
+      "type" : "boolean",
+      "description" : "Whether the aggregate has been deleted"
+    }
+  },
+  "required" : [ "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "state", "deleted" ]
+}

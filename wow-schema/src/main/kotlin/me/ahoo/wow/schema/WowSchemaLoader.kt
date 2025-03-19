@@ -14,20 +14,24 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toObject
 
 object WowSchemaLoader {
     private const val WOW_SCHEMA_PATH_PREFIX = "META-INF/wow-schema/"
 
-    fun load(resourceName: String): ObjectNode {
+    fun loadAsString(resourceName: String): String {
         val resourcePath = "$WOW_SCHEMA_PATH_PREFIX$resourceName.json"
         val resourceURL = this.javaClass.classLoader.getResource(resourcePath)
         requireNotNull(resourceURL) {
             "Can not find wow schema resource: $resourcePath"
         }
-        resourceURL.openStream().use {
-            return JsonSerializer.readValue(it, ObjectNode::class.java)
+        return resourceURL.openStream().use {
+            it.readAllBytes().toString(Charsets.UTF_8)
         }
+    }
+
+    fun load(resourceName: String): ObjectNode {
+        return loadAsString(resourceName).toObject<ObjectNode>()
     }
 
     fun load(resourceType: Class<*>): ObjectNode {
