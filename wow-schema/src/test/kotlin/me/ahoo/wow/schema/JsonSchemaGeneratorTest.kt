@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.notNullValue
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
@@ -78,10 +79,22 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun ignoreCommandRouteVariable() {
+    fun ignoreCommandPathRouteVariable() {
         val schema = jsonSchemaGenerator.generate(Patch::class.java)
         assertThat(schema.get("properties"), nullValue())
-        println(schema.toPrettyString())
+    }
+
+    @Test
+    fun ignoreCommandHeaderRouteVariable() {
+        val schema = jsonSchemaGenerator.generate(Header::class.java)
+        assertThat(schema.get("properties"), nullValue())
+    }
+
+    @Test
+    fun notIgnoreCommandPathRouteVariable() {
+        val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
+        val schema = jsonSchemaGenerator.generate(Patch::class.java)
+        assertThat(schema.get("properties"), notNullValue())
     }
 
     data class Patch(
@@ -90,6 +103,15 @@ class JsonSchemaGeneratorTest {
         @CommandRoute.PathVariable
         val property: String,
         @get:CommandRoute.PathVariable
+        val getter: String
+    )
+
+    data class Header(
+        @field:CommandRoute.HeaderVariable
+        val field: String,
+        @CommandRoute.HeaderVariable
+        val property: String,
+        @get:CommandRoute.HeaderVariable
         val getter: String
     )
 }
