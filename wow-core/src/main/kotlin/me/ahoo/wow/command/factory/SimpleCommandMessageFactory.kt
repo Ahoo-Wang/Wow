@@ -13,17 +13,21 @@
 
 package me.ahoo.wow.command.factory
 
+import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.validation.validateCommand
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class SimpleCommandMessageFactory(
+    private val validator: Validator,
     private val commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
 ) : CommandMessageFactory {
 
     override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
+        validator.validateCommand(body)
         val rewriter = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
         return rewriter.rewrite(commandBuilder)
