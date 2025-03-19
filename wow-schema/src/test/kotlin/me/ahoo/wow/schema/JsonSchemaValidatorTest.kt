@@ -4,7 +4,6 @@ import com.fasterxml.classmate.TypeResolver
 import com.networknt.schema.InputFormat
 import com.networknt.schema.JsonSchema
 import com.networknt.schema.JsonSchemaFactory
-import com.networknt.schema.SchemaId
 import com.networknt.schema.SchemaLocation
 import com.networknt.schema.SchemaValidatorsConfig
 import com.networknt.schema.SpecVersion.VersionFlag
@@ -148,7 +147,7 @@ class JsonSchemaValidatorTest {
         val builder = SchemaValidatorsConfig.builder()
         val config = builder.build()
         val input = targetObject.toPrettyJson()
-        val schema: JsonSchema = jsonSchemaFactory.getSchema(SchemaLocation.of(SchemaId.V202012), config)
+        val schema: JsonSchema = jsonSchemaFactory.getSchema(SchemaLocation.of(type.toString()), config)
         val assertions = schema.validate(input, InputFormat.JSON) { executionContext ->
             executionContext.executionConfig.formatAssertionsEnabled = true
         }
