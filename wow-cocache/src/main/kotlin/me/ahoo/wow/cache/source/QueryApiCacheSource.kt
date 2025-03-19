@@ -15,6 +15,7 @@ package me.ahoo.wow.cache.source
 
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.apiclient.query.ReactiveSnapshotQueryApi
+import me.ahoo.wow.apiclient.query.switchNotFoundToEmpty
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import reactor.core.publisher.Mono
 
@@ -29,6 +30,6 @@ interface QueryApiCacheSource<S : Any> :
         }
 
     override fun loadState(key: String): Mono<MaterializedSnapshot<S>> {
-        return getById(key)
+        return getById(key).switchNotFoundToEmpty()
     }
 }

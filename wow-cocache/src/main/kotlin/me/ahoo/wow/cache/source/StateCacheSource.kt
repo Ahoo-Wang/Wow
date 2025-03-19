@@ -27,9 +27,10 @@ interface StateCacheSource<K, S : Any, D : Any> : CacheSource<K, D> {
     fun loadState(key: K): Mono<S>
 
     override fun loadCacheValue(key: K): CacheValue<D>? {
-        val state = loadState(key).map {
-            stateToCacheDataConverter.stateToCacheData(it)
-        }.toFuture()
+        val state = loadState(key).timeout(loadCacheSourceConfiguration.timeout)
+            .map {
+                stateToCacheDataConverter.stateToCacheData(it)
+            }.toFuture()
             .get(loadCacheSourceConfiguration.timeout.toMillis(), TimeUnit.MILLISECONDS)
             ?: return null
         val ttl = loadCacheSourceConfiguration.ttl ?: return DefaultCacheValue.forever(state)
