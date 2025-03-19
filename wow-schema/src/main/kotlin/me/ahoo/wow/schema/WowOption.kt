@@ -19,5 +19,5 @@ enum class WowOption {
      * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
      * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
      */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
+    IGNORE_COMMAND_ROUTE_VARIABLE
 }
