@@ -18,7 +18,7 @@ import me.ahoo.cache.api.CacheValue
 import me.ahoo.cache.api.source.CacheSource
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import reactor.core.publisher.Mono
-import java.util.concurrent.TimeUnit
+import reactor.core.scheduler.Schedulers
 
 interface StateCacheSource<K, S : Any, D : Any> : CacheSource<K, D> {
     val loadCacheSourceConfiguration: LoadCacheSourceConfiguration
@@ -27,11 +27,20 @@ interface StateCacheSource<K, S : Any, D : Any> : CacheSource<K, D> {
     fun loadState(key: K): Mono<S>
 
     override fun loadCacheValue(key: K): CacheValue<D>? {
+        if (!Schedulers.isInNonBlockingThread()) {
+            blockLoadCacheValue(key)
+        }
+        return Mono.fromCallable {
+            blockLoadCacheValue(key)
+        }.subscribeOn(Schedulers.boundedElastic())
+            .timeout(loadCacheSourceConfiguration.timeout)
+            .block()
+    }
+
+    private fun blockLoadCacheValue(key: K): CacheValue<D>? {
         val state = loadState(key).map {
             stateToCacheDataConverter.stateToCacheData(it)
-        }.toFuture()
-            .get(loadCacheSourceConfiguration.timeout.toMillis(), TimeUnit.MILLISECONDS)
-            ?: return null
+        }.block(loadCacheSourceConfiguration.timeout) ?: return null
         val ttl = loadCacheSourceConfiguration.ttl ?: return DefaultCacheValue.forever(state)
         return DefaultCacheValue.ttlAt(state, ttl, loadCacheSourceConfiguration.amplitude)
     }
