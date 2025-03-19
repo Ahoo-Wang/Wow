@@ -16,7 +16,8 @@
     "tenantId": {
       "type": "string",
       "minLength": 1,
-      "description": "aggregate tenant id"
+      "description": "aggregate tenant id",
+      "default": "(0)"
     },
     "id": {
       "type": "string",
