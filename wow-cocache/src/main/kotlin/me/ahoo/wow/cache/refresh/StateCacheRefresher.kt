@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 
 /**
  * 主动刷新缓存.
@@ -44,12 +45,12 @@ abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
     }
 
     override fun invoke(exchange: M): Mono<Void> {
-        return Mono.fromRunnable {
+        return Mono.fromRunnable<Void?> {
             if (log.isDebugEnabled) {
                 log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.message.aggregateId)
             }
             refresh(exchange)
-        }
+        }.subscribeOn(Schedulers.boundedElastic())
     }
 
     abstract fun refresh(exchange: M)

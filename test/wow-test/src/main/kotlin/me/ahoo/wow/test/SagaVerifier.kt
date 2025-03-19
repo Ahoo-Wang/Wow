@@ -54,6 +54,7 @@ object SagaVerifier {
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
         commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
+            validator = TestValidator,
             commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
         )
     ): WhenStage<T> {
