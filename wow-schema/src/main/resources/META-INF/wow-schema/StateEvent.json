@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StateEvent",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the domain event stream."
+    },
+    "contextName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of the context to which the domain event stream belongs"
+    },
+    "aggregateName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of the aggregate to which the domain event stream belongs"
+    },
+    "header": {
+      "type": "object",
+      "properties": {
+        "user_agent": {
+          "type": "string",
+          "description": "user agent"
+        },
+        "remote_ip": {
+          "type": "string",
+          "description": "remote ip"
+        },
+        "trace_id": {
+          "type": "string",
+          "description": "trace id"
+        },
+        "command_operator": {
+          "type": "string",
+          "description": "command operator"
+        },
+        "local_first": {
+          "type": "boolean",
+          "description": "local first"
+        },
+        "command_wait_endpoint": {
+          "type": "string",
+          "format": "url",
+          "description": "command wait endpoint"
+        },
+        "command_wait_stage": {
+          "type": "string",
+          "enum": [
+            "SENT",
+            "PROCESSED",
+            "SNAPSHOT",
+            "PROJECTED",
+            "EVENT_HANDLED",
+            "SAGA_HANDLED"
+          ],
+          "default": "PROCESSED"
+        }
+      },
+      "description": "message header",
+      "additionalProperties": true
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The tenant id of the aggregate"
+    },
+    "aggregateId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The id of the aggregate"
+    },
+    "ownerId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The owner ID of the aggregate resource",
+      "default": ""
+    },
+    "commandId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the command message."
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The request ID of the command message, which is used to check the idempotency of the command message"
+    },
+    "version": {
+      "type": "integer",
+      "format": "int32",
+      "description": "The version of the domain event stream"
+    },
+    "body": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The ID of the domain event."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The name of the domain event"
+          },
+          "revision": {
+            "type": "string",
+            "description": "The revision number of the domain event"
+          },
+          "bodyType": {
+            "type": "string",
+            "description": "The fully qualified name of the domain event body"
+          },
+          "body": {
+            "type": "object",
+            "description": "The message body of the domain event"
+          }
+        },
+        "description": "The body of the domain event",
+        "required": [
+          "id",
+          "name",
+          "revision",
+          "bodyType",
+          "body"
+        ]
+      },
+      "minItems": 1,
+      "description": "A list of domain events for the domain event stream"
+    },
+    "createTime": {
+      "type": "integer",
+      "format": "int64",
+      "description": "The time when the domain event stream was created"
+    },
+    "firstOperator": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The first person who operates the aggregate is the creator"
+    },
+    "firstEventTime": {
+      "type": "integer",
+      "format": "int64",
+      "description": "The first event time of the aggregate, which is the time it was created"
+    },
+    "state": {
+      "type": "object",
+      "description": "The state data of the aggregate"
+    },
+    "deleted": {
+      "type": "boolean",
+      "description": "Whether the aggregate has been deleted"
+    }
+  },
+  "required": [
+    "id",
+    "contextName",
+    "aggregateName",
+    "name",
+    "tenantId",
+    "aggregateId",
+    "ownerId",
+    "version",
+    "body",
+    "createTime",
+    "firstOperator",
+    "firstEventTime",
+    "state",
+    "deleted"
+  ]
+}

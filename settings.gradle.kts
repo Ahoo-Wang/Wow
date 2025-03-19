@@ -37,6 +37,7 @@ include(":wow-opentelemetry")
 include(":wow-bi")
 include(":wow-query")
 include(":wow-models")
+include(":wow-schema")
 
 //region test
 include(":wow-test")

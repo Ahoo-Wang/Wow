@@ -41,6 +41,7 @@
             <option value="$PROJECT_DIR$/wow-query" />
             <option value="$PROJECT_DIR$/wow-r2dbc" />
             <option value="$PROJECT_DIR$/wow-redis" />
+            <option value="$PROJECT_DIR$/wow-schema" />
             <option value="$PROJECT_DIR$/wow-spring" />
             <option value="$PROJECT_DIR$/wow-spring-boot-starter" />
             <option value="$PROJECT_DIR$/wow-webflux" />
