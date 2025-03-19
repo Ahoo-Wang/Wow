@@ -37,7 +37,7 @@ data class CommandRouteMetadata<C>(
     val headerVariableMetadata: Set<VariableMetadata> = setOf()
 ) : me.ahoo.wow.metadata.Metadata {
 
-    private fun ObjectNode.injectPathVariables(
+    private fun ObjectNode.injectVariables(
         variableMetadata: Set<VariableMetadata>,
         variableProvider: (String) -> String?
     ): ObjectNode {
@@ -46,7 +46,9 @@ data class CommandRouteMetadata<C>(
         }.forEach { metadata ->
             val variableValue = variableProvider(metadata.variableName)
             if (metadata.required) {
-                requireNotNull(variableValue)
+                requireNotNull(variableValue) {
+                    "Required variable [${metadata.variableName}] not found."
+                }
             }
             if (variableValue == null) {
                 return@forEach
@@ -71,8 +73,8 @@ data class CommandRouteMetadata<C>(
         pathVariableProvider: (String) -> String?,
         headerVariableProvider: (String) -> String?
     ): C {
-        return commandNode.injectPathVariables(pathVariableMetadata, pathVariableProvider)
-            .injectPathVariables(headerVariableMetadata, headerVariableProvider)
+        return commandNode.injectVariables(pathVariableMetadata, pathVariableProvider)
+            .injectVariables(headerVariableMetadata, headerVariableProvider)
             .toObject(commandMetadata.commandType)
     }
 
@@ -93,7 +95,7 @@ data class CommandRouteMetadata<C>(
 data class VariableMetadata(
     val fieldPath: List<String>,
     /**
-     * path variable name
+     * variable name
      */
     val variableName: String,
     val required: Boolean,

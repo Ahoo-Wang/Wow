@@ -70,7 +70,7 @@ class CommandFacadeBodyExtractorTest {
     }
 
     @Test
-    fun extractIfEmtpy() {
+    fun extractIfEmpty() {
         val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {
