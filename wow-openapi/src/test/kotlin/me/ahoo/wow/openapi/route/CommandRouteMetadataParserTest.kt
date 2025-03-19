@@ -21,13 +21,14 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 class CommandRouteMetadataParserTest {
 
     @Test
-    fun asCommandRouteMetadata() {
-        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
+    fun toCommandRouteMetadata() {
+        val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
         assertThat(commandRouteMetadata.enabled, equalTo(true))
         assertThat(commandRouteMetadata.action, equalTo("{id}/{name}"))
         assertThat(commandRouteMetadata.method, equalTo(Https.Method.PATCH))
@@ -58,6 +59,41 @@ class CommandRouteMetadataParserTest {
     @Test
     fun decode() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
+        val command = commandRouteMetadata.decode(
+            ObjectNode(JsonSerializer.nodeFactory),
+            {
+                mapOf(
+                    "id" to "id",
+                    "name" to "name",
+                )[it]
+            },
+            {
+                mapOf(
+                    "header" to "header-value",
+                )[it]
+            }
+        )
+        assertThat(command.id, equalTo("id"))
+        assertThat(command.name, equalTo("name"))
+        assertThat(command.header, equalTo("header-value"))
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+            commandRouteMetadata.decode(
+                ObjectNode(JsonSerializer.nodeFactory),
+                {
+                    mapOf(
+                        "id" to "id",
+                    )[it]
+                },
+                {
+                    null
+                }
+            )
+        }
+    }
+
+    @Test
+    fun decodeNotRequired() {
+        val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
         val command = commandRouteMetadata.decode(
             ObjectNode(JsonSerializer.nodeFactory),
             {
@@ -148,13 +184,24 @@ class CommandRouteMetadataParserTest {
 }
 
 @CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)
-data class MockCommandRoute(
+data class MockCommandRouteNotRequired(
     @CommandRoute.PathVariable
     val id: String,
     @field:JsonProperty("customName")
     @CommandRoute.PathVariable(name = "name", required = false)
     val name: String = "otherName",
     @CommandRoute.HeaderVariable(name = "header", required = false)
+    val header: String = "header",
+)
+
+@CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)
+data class MockCommandRoute(
+    @CommandRoute.PathVariable
+    val id: String,
+    @field:JsonProperty("customName")
+    @CommandRoute.PathVariable(name = "name")
+    val name: String = "otherName",
+    @CommandRoute.HeaderVariable(name = "header")
     val header: String = "header",
 )
 
