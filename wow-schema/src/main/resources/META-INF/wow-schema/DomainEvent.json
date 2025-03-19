@@ -95,7 +95,8 @@
     },
     "revision": {
       "type": "string",
-      "description": "The revision number of the domain event"
+      "description": "The revision number of the domain event",
+      "default": "0.0.1"
     },
     "isLast": {
       "type": "boolean",
