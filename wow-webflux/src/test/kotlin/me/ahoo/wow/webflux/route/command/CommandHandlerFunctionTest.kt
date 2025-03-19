@@ -19,6 +19,7 @@ import io.mockk.verify
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
@@ -48,7 +49,12 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandRouteMetadata,
             commandGateway,
-            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry()))),
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory(
+                    NoOpValidator,
+                    SimpleCommandBuilderRewriterRegistry()
+                )
+            ),
             DefaultRequestExceptionHandler,
         )
 

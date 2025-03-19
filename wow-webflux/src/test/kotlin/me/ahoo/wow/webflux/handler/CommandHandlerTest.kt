@@ -3,6 +3,7 @@ package me.ahoo.wow.webflux.handler
 import com.sun.security.auth.UserPrincipal
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
@@ -40,7 +41,12 @@ class CommandHandlerTest {
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory(
+                    NoOpValidator,
+                    SimpleCommandBuilderRewriterRegistry()
+                )
+            )
         )
         commandHandler.handle(
             request,
@@ -67,7 +73,12 @@ class CommandHandlerTest {
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory(
+                    NoOpValidator,
+                    SimpleCommandBuilderRewriterRegistry()
+                )
+            )
         )
         commandHandler.handle(
             request,
@@ -94,7 +105,12 @@ class CommandHandlerTest {
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
-            DefaultCommandMessageParser(SimpleCommandMessageFactory(SimpleCommandBuilderRewriterRegistry()))
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory(
+                    NoOpValidator,
+                    SimpleCommandBuilderRewriterRegistry()
+                )
+            )
         )
         commandHandler.handle(
             request,

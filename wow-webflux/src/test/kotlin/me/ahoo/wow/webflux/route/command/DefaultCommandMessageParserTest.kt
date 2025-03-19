@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
@@ -41,7 +42,9 @@ class DefaultCommandMessageParserTest {
             .header(CommandRequestHeaders.LOCAL_FIRST, false.toString())
             .build()
         val commandMessageParser =
-            DefaultCommandMessageParser(SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())))
+            DefaultCommandMessageParser(
+                SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
+            )
         commandMessageParser.parse(
             aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandBody = MockCreateAggregate(
@@ -70,7 +73,7 @@ class DefaultCommandMessageParserTest {
             .build()
         val commandMessageParser =
             DefaultCommandMessageParser(
-                SimpleCommandMessageFactory((SimpleCommandBuilderRewriterRegistry())),
+                SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry()),
                 listOf(
                     CommandRequestExtendHeaderAppender
                 )

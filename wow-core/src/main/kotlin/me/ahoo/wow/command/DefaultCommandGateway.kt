@@ -16,7 +16,7 @@ package me.ahoo.wow.command
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
-import me.ahoo.wow.command.CommandValidationException.Companion.toCommandValidationException
+import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
@@ -48,10 +48,7 @@ class DefaultCommandGateway(
         if (commandBody is CommandValidator) {
             commandBody.validate()
         }
-        val constraintViolations = validator.validate(commandBody)
-        if (constraintViolations.isNotEmpty()) {
-            throw constraintViolations.toCommandValidationException(commandBody)
-        }
+        validator.validateCommand(commandBody)
     }
 
     private fun idempotencyCheck(command: CommandMessage<*>): Mono<Void> {
