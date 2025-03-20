@@ -279,4 +279,17 @@ internal class WaitingForTest {
             .expectError(IllegalArgumentException::class.java)
             .verify()
     }
+
+    @Test
+    fun doFinallyError() {
+        val waitStrategy = WaitingFor.projected(contextName)
+        waitStrategy.onFinally {
+            throw IllegalArgumentException()
+        }
+        waitStrategy.error(IllegalArgumentException())
+        waitStrategy.waitingLast()
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
 }
