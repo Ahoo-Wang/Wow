@@ -29,12 +29,13 @@ open class WowException(
 ) : RuntimeException(errorMsg, cause), ErrorInfo {
     override val message: String
         get() = errorMsg
-    override val errorMsg: String by lazy {
-        if (bindingErrors.isEmpty()) {
-            return@lazy super.message.orEmpty()
+    override val errorMsg: String
+        get() {
+            if (bindingErrors.isEmpty()) {
+                return super.message.orEmpty()
+            }
+            return bindingErrors.first().msg
         }
-        return@lazy bindingErrors.first().msg
-    }
 }
 
 /**
