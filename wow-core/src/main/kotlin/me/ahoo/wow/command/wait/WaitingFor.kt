@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.command.wait
 
+import org.slf4j.LoggerFactory
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
 
 interface WaitingFor : WaitStrategy {
@@ -68,6 +70,8 @@ interface WaitingFor : WaitStrategy {
     }
 }
 
+private val LOG = LoggerFactory.getLogger(WaitingFor::class.java)
+
 abstract class AbstractWaitingFor : WaitingFor {
     companion object {
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
@@ -80,9 +84,23 @@ abstract class AbstractWaitingFor : WaitingFor {
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
-    private var doFinally: (Consumer<SignalType>) = EmptyOnFinally
+    private val onFinallyHooks: MutableList<Consumer<SignalType>> = CopyOnWriteArrayList()
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun safeDoFinally(signalType: SignalType) {
+        onFinallyHooks.forEach {
+            try {
+                it.accept(signalType)
+            } catch (error: Throwable) {
+                if (LOG.isErrorEnabled) {
+                    LOG.error("doFinally[$it] error.", error)
+                }
+            }
+        }
+    }
+
     override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux().doFinally(doFinally)
+        return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
     }
 
     private fun busyLooping(): Sinks.EmitFailureHandler {
@@ -101,11 +119,7 @@ abstract class AbstractWaitingFor : WaitingFor {
         waitSignalSink.emitComplete(busyLooping())
     }
 
-    override fun doFinally(doFinally: Consumer<SignalType>) {
-        this.doFinally = doFinally
-    }
-
-    object EmptyOnFinally : Consumer<SignalType> {
-        override fun accept(t: SignalType) = Unit
+    override fun onFinally(doFinally: Consumer<SignalType>) {
+        this.onFinallyHooks.add(doFinally)
     }
 }

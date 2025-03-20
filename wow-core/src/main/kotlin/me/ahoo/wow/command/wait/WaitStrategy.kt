@@ -40,5 +40,5 @@ interface WaitStrategy : ProcessorInfo {
 
     fun complete()
 
-    fun doFinally(doFinally: Consumer<SignalType>)
+    fun onFinally(doFinally: Consumer<SignalType>)
 }
