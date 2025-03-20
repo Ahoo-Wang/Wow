@@ -17,6 +17,7 @@ import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -291,5 +292,16 @@ internal class WaitingForTest {
             .test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
+    }
+
+    @Test
+    fun doFinallySetTwice() {
+        val waitStrategy = WaitingFor.projected(contextName)
+        waitStrategy.onFinally {
+        }
+        Assertions.assertThrows(IllegalStateException::class.java) {
+            waitStrategy.onFinally {
+            }
+        }
     }
 }
