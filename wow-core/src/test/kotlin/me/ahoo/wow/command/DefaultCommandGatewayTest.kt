@@ -55,6 +55,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
+        Thread.sleep(5)
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
@@ -68,6 +69,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .thenCancel()
                 .verify()
         }
+        Thread.sleep(5)
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
@@ -88,6 +90,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             .test()
             .expectError(CommandResultException::class.java)
             .verify()
+        Thread.sleep(5)
         assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
