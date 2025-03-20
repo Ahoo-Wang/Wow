@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.command.wait
 
-import org.slf4j.LoggerFactory
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.time.Duration
 import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
 interface WaitingFor : WaitStrategy {
@@ -70,7 +69,7 @@ interface WaitingFor : WaitStrategy {
     }
 }
 
-private val LOG = LoggerFactory.getLogger(WaitingFor::class.java)
+private val LOG = org.slf4j.LoggerFactory.getLogger(WaitingFor::class.java)
 
 abstract class AbstractWaitingFor : WaitingFor {
     companion object {
@@ -84,18 +83,15 @@ abstract class AbstractWaitingFor : WaitingFor {
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
-    private val onFinallyHooks: MutableList<Consumer<SignalType>> = CopyOnWriteArrayList()
+    private var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
 
     @Suppress("TooGenericExceptionCaught")
     private fun safeDoFinally(signalType: SignalType) {
-        onFinallyHooks.forEach {
-            try {
-                it.accept(signalType)
-            } catch (error: Throwable) {
-                if (LOG.isErrorEnabled) {
-                    LOG.error("doFinally[$it] error.", error)
-                }
-            }
+        val currentHook = onFinallyHook.get()
+        try {
+            currentHook.accept(signalType)
+        } catch (error: Throwable) {
+            LOG.error("Finally hook execution failed", error)
         }
     }
 
@@ -120,6 +116,12 @@ abstract class AbstractWaitingFor : WaitingFor {
     }
 
     override fun onFinally(doFinally: Consumer<SignalType>) {
-        this.onFinallyHooks.add(doFinally)
+        check(this.onFinallyHook.compareAndSet(EmptyOnFinally, doFinally)) {
+            "Finally hook already set [${this.onFinallyHook.get()}]"
+        }
+    }
+
+    object EmptyOnFinally : Consumer<SignalType> {
+        override fun accept(t: SignalType) = Unit
     }
 }

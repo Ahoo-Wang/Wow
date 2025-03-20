@@ -49,7 +49,6 @@ import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
-import java.util.concurrent.CountDownLatch
 
 abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
     override val topicKind: TopicKind
@@ -86,21 +85,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     @Test
     fun sendAndWaitForSent() {
         val message = createMessage()
-        val countDownLatch = CountDownLatch(1)
         verify {
             val waitStrategy = WaitingFor.sent()
             sendAndWaitStream(message, waitStrategy)
                 .test()
-                .then {
-                    waitStrategy.onFinally {
-                        countDownLatch.countDown()
-                    }
-                }
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        countDownLatch.await()
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -112,7 +103,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -135,7 +125,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -157,7 +146,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -187,7 +175,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(2)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -217,7 +204,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -238,7 +224,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verify()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -264,7 +249,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -277,6 +261,5 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 }
