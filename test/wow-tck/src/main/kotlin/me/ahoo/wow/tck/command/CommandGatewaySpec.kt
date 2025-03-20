@@ -92,6 +92,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -103,6 +104,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -125,6 +127,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -146,6 +149,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -175,6 +179,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(2)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -204,6 +209,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -224,6 +230,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verify()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -249,6 +256,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verifyComplete()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 
     @Test
@@ -261,5 +269,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
+        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
     }
 }
