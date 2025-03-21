@@ -79,7 +79,7 @@ _Saga_ 通过订阅事件完成处理逻辑后返回聚合命令。
 - `onEvent(EntryFailed)`: 订阅转账入账失败事件（`EntryFailed`），并生成解锁金额命令(`UnlockAmount`)。
 
 ```java
-@StatelessSaga
+@StatelessSagaComponent
 public class TransferSaga {
 
     Entry onEvent(Prepared prepared, AggregateId aggregateId) {
