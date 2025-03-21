@@ -11,14 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.kotlin
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
-    KOTLIN
+import com.github.victools.jsonschema.generator.FieldScope
+import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck.primaryConstructor
+import java.util.function.Predicate
+import kotlin.reflect.jvm.kotlinProperty
+
+object KotlinRequiredCheck : Predicate<FieldScope> {
+
+    override fun test(fieldScope: FieldScope): Boolean {
+        fieldScope.rawMember.kotlinProperty ?: return false
+        if (KotlinReadOnlyCheck.test(fieldScope)) {
+            return false
+        }
+        return fieldScope.primaryConstructor()?.parameters?.firstOrNull {
+            it.name == fieldScope.name
+        }?.isOptional == false
+    }
 }

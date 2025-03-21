@@ -11,14 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.kotlin
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
-    KOTLIN
+import com.github.victools.jsonschema.generator.ConfigFunction
+import com.github.victools.jsonschema.generator.FieldScope
+import kotlin.reflect.jvm.kotlinProperty
+
+object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
+
+    override fun apply(fieldScope: FieldScope): Boolean {
+        val property = fieldScope.rawMember.kotlinProperty ?: return false
+        return property.returnType.isMarkedNullable
+    }
 }
