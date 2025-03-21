@@ -13,12 +13,19 @@
 
 package me.ahoo.wow.spring.stereotype
 
-import me.ahoo.wow.api.annotation.ProjectionProcessor
 import org.springframework.stereotype.Component
 
 /**
  * @see org.springframework.core.annotation.MergedAnnotations
  */
 @Component
-@ProjectionProcessor
+@me.ahoo.wow.api.annotation.ProjectionProcessor
+@Deprecated(
+    "Use ProjectionProcessorComponent instead.",
+    ReplaceWith("ProjectionProcessorComponent")
+)
 annotation class ProjectionProcessor
+
+@Component
+@me.ahoo.wow.api.annotation.ProjectionProcessor
+annotation class ProjectionProcessorComponent

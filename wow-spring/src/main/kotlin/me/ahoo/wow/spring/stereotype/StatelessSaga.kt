@@ -13,9 +13,16 @@
 
 package me.ahoo.wow.spring.stereotype
 
-import me.ahoo.wow.api.annotation.StatelessSaga
 import org.springframework.stereotype.Component
 
 @Component
-@StatelessSaga
+@me.ahoo.wow.api.annotation.StatelessSaga
+@Deprecated(
+    "Use StatelessSagaComponent instead.",
+    ReplaceWith("StatelessSagaComponent")
+)
 annotation class StatelessSaga
+
+@Component
+@me.ahoo.wow.api.annotation.StatelessSaga
+annotation class StatelessSagaComponent

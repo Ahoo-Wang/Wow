@@ -20,11 +20,11 @@ import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.spring.stereotype.ProjectionProcessor
+import me.ahoo.wow.spring.stereotype.ProjectionProcessorComponent
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-@ProjectionProcessor
+@ProjectionProcessorComponent
 class OrderProjector {
     companion object {
         private val log = LoggerFactory.getLogger(OrderProjector::class.java)
