@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.server.webhook.weixin
 
+import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.event.DomainEvent
@@ -31,7 +32,7 @@ import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinSendMessage.C
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import reactor.core.publisher.Mono
 
-@me.ahoo.wow.api.annotation.StatelessSaga
+@EventProcessor
 class WeiXinWebHook(
     private val compensationProperties: CompensationProperties,
     private val hookProperties: WeiXinWebHookProperties,
