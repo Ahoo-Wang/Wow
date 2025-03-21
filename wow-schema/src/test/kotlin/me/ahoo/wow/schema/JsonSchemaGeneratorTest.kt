@@ -20,8 +20,8 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.nullValue
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -114,4 +114,44 @@ class JsonSchemaGeneratorTest {
         @get:CommandRoute.HeaderVariable
         val getter: String
     )
+
+    @Test
+    fun kotlin() {
+        val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.KOTLIN))
+        val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
+        val nullableFieldType = schema.get("properties").get("nullableField").get("type")
+        assertThat(nullableFieldType.isArray, equalTo(true))
+        assertThat(nullableFieldType.get(0).textValue(), equalTo("string"))
+        assertThat(nullableFieldType.get(1).textValue(), equalTo("null"))
+        val readOnlyField = schema.get("properties").get("readOnlyField")
+        assertThat(readOnlyField.get("readOnly").booleanValue(), equalTo(true))
+        val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
+        assertThat(readOnlyGetter.get("readOnly").booleanValue(), equalTo(true))
+        val required = schema.get("required")
+        assertThat(required.isArray, equalTo(true))
+        assertThat(required.get(0).textValue(), equalTo("field"))
+        assertThat(required.get(1).textValue(), equalTo("nullableField"))
+    }
+
+    @Test
+    fun kotlin_ignore() {
+        val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
+        val type = schema.get("properties").get("nullableField").get("type")
+        assertThat(type.isArray, equalTo(false))
+        assertThat(type.textValue(), equalTo("string"))
+    }
+
+    @Suppress("UnusedPrivateProperty")
+    data class KotlinData(
+        val field: String,
+        val nullableField: String?,
+        val defaultField: String = "default",
+    ) {
+        private var writeOnlyField: String = "writeOnly"
+
+        val readOnlyField: String = "readOnly"
+        val readOnlyGetter: String
+            get() = "readOnlyGetter"
+        val readOnlyFieldByLazy: String by lazy { "readOnlyByLazy" }
+    }
 }

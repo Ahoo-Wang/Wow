@@ -44,8 +44,7 @@ class JsonSchemaGenerator(private val options: Set<WowOption>) {
             .with(openApiModule)
             .with(wowModule)
             .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
-            .with(Option.PLAIN_DEFINITION_KEYS)
-            .with(Option.NONPUBLIC_NONSTATIC_FIELDS_WITHOUT_GETTERS)
+
         schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
     }
 

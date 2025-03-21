@@ -17,15 +17,19 @@ import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import kotlin.reflect.jvm.kotlinProperty
+import com.github.victools.jsonschema.generator.SchemaGeneratorGeneralConfigPart
+import me.ahoo.wow.schema.kotlin.KotlinCustomDefinitionProvider
+import me.ahoo.wow.schema.kotlin.KotlinNullableCheck
+import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
+import me.ahoo.wow.schema.kotlin.KotlinRequiredCheck
+import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
 
 class WowModule(private val options: Set<WowOption>) : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
+        kotlinNullable(fieldConfigPart, generalConfigPart)
         generalConfigPart.withCustomDefinitionProvider(AggregateIdDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(CommandDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)
@@ -40,15 +44,20 @@ class WowModule(private val options: Set<WowOption>) : Module {
             return
         }
 
-        configPart.withIgnoreCheck {
-            val property = it.rawMember.kotlinProperty!!
-            if (property.scanAnnotation<CommandRoute.PathVariable>() != null) {
-                return@withIgnoreCheck true
-            }
-            if (property.scanAnnotation<CommandRoute.HeaderVariable>() != null) {
-                return@withIgnoreCheck true
-            }
-            false
+        configPart.withIgnoreCheck(IgnoreCommandRouteVariableCheck)
+    }
+
+    private fun kotlinNullable(
+        fieldConfigPart: SchemaGeneratorConfigPart<FieldScope>,
+        generalConfigPart: SchemaGeneratorGeneralConfigPart
+    ) {
+        if (options.contains(WowOption.KOTLIN).not()) {
+            return
         }
+        fieldConfigPart.withNullableCheck(KotlinNullableCheck)
+        fieldConfigPart.withReadOnlyCheck(KotlinReadOnlyCheck)
+        fieldConfigPart.withRequiredCheck(KotlinRequiredCheck)
+        fieldConfigPart.withWriteOnlyCheck(KotlinWriteOnlyCheck)
+        generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
     }
 }
