@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.messaging.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
@@ -27,15 +27,15 @@ import reactor.core.scheduler.Scheduler
 abstract class AggregateMessageDispatcher<T : MessageExchange<*, *>> : MessageDispatcher, NamedAggregateDecorator,
     SafeSubscriber<Void>() {
     companion object {
-        private val log = LoggerFactory.getLogger(AggregateMessageDispatcher::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     abstract val parallelism: Int
     abstract val scheduler: Scheduler
     abstract val messageFlux: Flux<T>
     override fun run() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to $namedAggregate.")
+        log.info {
+            "[$name] Run subscribe to $namedAggregate."
         }
         messageFlux
             .groupBy { it.toGroupKey() }
@@ -61,8 +61,8 @@ abstract class AggregateMessageDispatcher<T : MessageExchange<*, *>> : MessageDi
     abstract fun handleExchange(exchange: T): Mono<Void>
 
     override fun close() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Close.")
+        log.info {
+            "[$name] Close."
         }
         cancel()
     }

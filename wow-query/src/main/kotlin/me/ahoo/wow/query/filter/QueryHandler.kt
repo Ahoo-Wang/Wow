@@ -37,7 +37,6 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long>
 }
 
-@Suppress("UNCHECKED_CAST")
 abstract class AbstractQueryHandler<R : Any>(
     private val chain: FilterChain<QueryContext<*, *>>,
     private val errorHandler: ErrorHandler<QueryContext<*, *>>

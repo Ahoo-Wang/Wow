@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.spring.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
 class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
     companion object {
-        private val log = LoggerFactory.getLogger(EventStreamQueryServiceRegistrar::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun registerQueryService(
@@ -34,12 +34,12 @@ class EventStreamQueryServiceRegistrar : QueryServiceRegistrar() {
     ) {
         val namedAggregate = entry.key
         val beanName = "${namedAggregate.toStringWithAlias()}.EventStreamQueryService"
-        if (log.isInfoEnabled) {
-            log.info("Register EventStreamQueryService [$beanName].")
+        log.info {
+            "Register EventStreamQueryService [$beanName]."
         }
         if (registry.containsBeanDefinition(beanName)) {
-            if (log.isWarnEnabled) {
-                log.warn("EventStreamQueryService [$beanName] already exists - Ignore.")
+            log.warn {
+                "EventStreamQueryService [$beanName] already exists - Ignore."
             }
             return
         }

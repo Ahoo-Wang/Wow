@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.id
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosid.IdGenerator
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -26,7 +26,7 @@ private val AGGREGATE_ID_GENERATORS: MutableMap<NamedAggregate, IdGenerator> =
 
 object AggregateIdGeneratorRegistrar :
     Map<NamedAggregate, IdGenerator> by AGGREGATE_ID_GENERATORS {
-    private val log = LoggerFactory.getLogger(AggregateIdGeneratorRegistrar::class.java)
+    private val log = KotlinLogging.logger {}
     private val factories: List<AggregateIdGeneratorFactory> by lazy {
         return@lazy ServiceLoader.load(AggregateIdGeneratorFactory::class.java)
             .sortedByOrder()
@@ -35,17 +35,17 @@ object AggregateIdGeneratorRegistrar :
     fun getOrInitialize(key: NamedAggregate): IdGenerator {
         return AGGREGATE_ID_GENERATORS.computeIfAbsent(key) { _ ->
             factories.firstNotNullOfOrNull {
-                if (log.isInfoEnabled) {
-                    log.info("Load $it to create [$key]'s AggregateIdGenerator.")
+                log.info {
+                    "Load $it to create [$key]'s AggregateIdGenerator."
                 }
                 val idGenerator = it.create(key)
                 if (idGenerator == null) {
-                    if (log.isInfoEnabled) {
-                        log.info("Ignore: $it create [$key]'s AggregateIdGenerator is null.")
+                    log.info {
+                        "Ignore: $it create [$key]'s AggregateIdGenerator is null."
                     }
                 } else {
-                    if (log.isInfoEnabled) {
-                        log.info("Setup $idGenerator to [$key]'s AggregateIdGenerator.")
+                    log.info {
+                        "Setup $idGenerator to [$key]'s AggregateIdGenerator."
                     }
                 }
                 idGenerator

@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.state
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
@@ -24,8 +25,6 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
@@ -45,12 +44,12 @@ class SimpleStateAggregate<S : Any>(
     private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
 
     companion object {
-        private val log: Logger = LoggerFactory.getLogger(SimpleStateAggregate::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
-        if (log.isDebugEnabled) {
-            log.debug("onSourcing {}.", eventStream)
+        log.debug {
+            "onSourcing $eventStream."
         }
 
         if (eventStream.ignoreSourcing()) {
@@ -96,11 +95,8 @@ class SimpleStateAggregate<S : Any>(
         if (sourcingFunction != null) {
             sourcingFunction.invoke(SimpleDomainEventExchange(domainEvent))
         } else {
-            if (log.isDebugEnabled) {
-                log.debug(
-                    "Sourcing {} Ignore this domain event because onSourcing does not exist.",
-                    domainEvent,
-                )
+            log.debug {
+                "Sourcing $domainEvent Ignore this domain event because onSourcing does not exist."
             }
         }
     }

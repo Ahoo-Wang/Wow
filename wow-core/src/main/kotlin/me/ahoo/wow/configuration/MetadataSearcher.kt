@@ -13,23 +13,23 @@
 
 package me.ahoo.wow.configuration
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.JsonSerializer
-import org.slf4j.LoggerFactory
 
 const val WOW_METADATA_RESOURCE_NAME = "META-INF/wow-metadata.json"
 
 object MetadataSearcher {
-    private val log = LoggerFactory.getLogger(MetadataSearcher::class.java)
+    private val log = KotlinLogging.logger {}
     val metadata: WowMetadata by lazy {
         var current = WowMetadata()
         ClassLoader.getSystemResources(WOW_METADATA_RESOURCE_NAME)
             .iterator()
             .forEach { resource ->
-                if (log.isDebugEnabled) {
-                    log.debug("Load metadata [{}].", resource)
+                log.debug {
+                    "Load metadata [$resource]."
                 }
                 @Suppress("TooGenericExceptionCaught")
                 resource.openStream().use {
@@ -37,9 +37,7 @@ object MetadataSearcher {
                         val next = JsonSerializer.readValue(it, WowMetadata::class.java)
                         current = current.merge(next)
                     } catch (e: Throwable) {
-                        if (log.isErrorEnabled) {
-                            log.error(e.message, e)
-                        }
+                        log.error(e) { e.message }
                     }
                 }
             }

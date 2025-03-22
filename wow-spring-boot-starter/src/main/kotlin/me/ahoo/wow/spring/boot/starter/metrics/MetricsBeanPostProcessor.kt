@@ -13,22 +13,24 @@
 
 package me.ahoo.wow.spring.boot.starter.metrics
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.metrics.Metrics.metrizable
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
 class MetricsBeanPostProcessor : BeanPostProcessor, Ordered {
     companion object {
-        private val log = LoggerFactory.getLogger(MetricsBeanPostProcessor::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        val metrizableBean = bean.metrizable()
-        if (metrizableBean !== bean && log.isInfoEnabled) {
-            log.info("Metrizable bean [{}] [{}] -> [{}]", beanName, bean.javaClass.name, metrizableBean.javaClass.name)
+        val metatableBean = bean.metrizable()
+        if (metatableBean !== bean) {
+            log.info {
+                "Magnetizable bean [$beanName] [${bean.javaClass.name}] -> [${metatableBean.javaClass.name}]"
+            }
         }
-        return metrizableBean
+        return metatableBean
     }
 
     override fun getOrder(): Int {

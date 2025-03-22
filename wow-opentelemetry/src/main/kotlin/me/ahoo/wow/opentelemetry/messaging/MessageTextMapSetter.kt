@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.opentelemetry.messaging
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.opentelemetry.context.propagation.TextMapSetter
 import me.ahoo.wow.api.messaging.Message
-import org.slf4j.LoggerFactory
 
 class MessageTextMapSetter<M : Message<*, *>> : TextMapSetter<M> {
     companion object {
-        private val log = LoggerFactory.getLogger(MessageTextMapSetter::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun set(carrier: M?, key: String, value: String) {
@@ -27,8 +27,8 @@ class MessageTextMapSetter<M : Message<*, *>> : TextMapSetter<M> {
             return
         }
         if (carrier.isReadOnly) {
-            if (log.isWarnEnabled) {
-                log.warn("carrier is read only. key:[{}],value:[{}]", key, value)
+            log.warn {
+                "carrier is read only. key:[$key],value:[$value]"
             }
             return
         }

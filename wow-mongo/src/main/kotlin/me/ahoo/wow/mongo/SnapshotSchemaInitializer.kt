@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoDatabase
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
@@ -23,12 +24,11 @@ import me.ahoo.wow.mongo.AggregateSchemaInitializer.createTenantIdIndex
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.ensureCollection
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.serialization.state.StateAggregateRecords
-import org.slf4j.LoggerFactory
 import reactor.kotlin.core.publisher.toMono
 
 class SnapshotSchemaInitializer(private val database: MongoDatabase) {
     companion object {
-        private val log = LoggerFactory.getLogger(SnapshotSchemaInitializer::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     fun initAll() {
@@ -39,13 +39,8 @@ class SnapshotSchemaInitializer(private val database: MongoDatabase) {
 
     fun initSchema(namedAggregate: NamedAggregate) {
         val collectionName = namedAggregate.toSnapshotCollectionName()
-        if (log.isInfoEnabled) {
-            log.info(
-                "Init NamedAggregate Schema [{}] to Database:[{}] CollectionName [{}]",
-                namedAggregate,
-                database.name,
-                collectionName,
-            )
+        log.info {
+            "Init NamedAggregate Schema [$namedAggregate] to Database:[${database.name}] CollectionName [$collectionName]"
         }
         if (!database.ensureCollection(collectionName)) {
             return

@@ -12,26 +12,21 @@
  */
 package me.ahoo.wow.eventsourcing
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 abstract class AbstractEventStore : EventStore {
     private companion object {
-        private val log: Logger = LoggerFactory.getLogger(AbstractEventStore::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun append(eventStream: DomainEventStream): Mono<Void> {
-        if (log.isDebugEnabled) {
-            log.debug(
-                "Append {} - version[{}]",
-                eventStream.aggregateId,
-                eventStream.version,
-            )
+        log.debug {
+            "Append ${eventStream.aggregateId} - version[${eventStream.version}]"
         }
         return appendStream(eventStream)
             .onErrorMap(EventVersionConflictException::class.java) {
@@ -49,13 +44,8 @@ abstract class AbstractEventStore : EventStore {
         headVersion: Int,
         tailVersion: Int
     ): Flux<DomainEventStream> {
-        if (log.isDebugEnabled) {
-            log.debug(
-                "Load {} - headVersion[{}] - tailVersion[{}].",
-                aggregateId,
-                headVersion,
-                tailVersion,
-            )
+        log.debug {
+            "Load $aggregateId - headVersion[$headVersion] - tailVersion[$tailVersion]."
         }
         require(headVersion > -1) {
             "$aggregateId headVersion[$headVersion] must be greater than -1!"

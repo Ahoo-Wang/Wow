@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.annotation
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toStringGetter
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
@@ -26,7 +27,6 @@ import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
-import org.slf4j.LoggerFactory
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1
@@ -34,8 +34,6 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaType
-
-private val log = LoggerFactory.getLogger(StateAggregateMetadataParser::class.java)
 
 /**
  * State Aggregate Metadata Parser .
@@ -54,6 +52,10 @@ object StateAggregateMetadataParser : CacheableMetadataParser() {
 
 internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregateType: Class<S>) :
     ClassVisitor<S> {
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
     private val constructor: Constructor<S>
     private var aggregateIdGetter: PropertyGetter<S, String>? = null
     private val sourcingFunctionRegistry: MutableMap<Class<*>, FunctionAccessorMetadata<S, Void>> = HashMap()
@@ -106,8 +108,8 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
 
     fun toMetadata(): StateAggregateMetadata<S> {
         if (sourcingFunctionRegistry.isEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn("StateAggregate[$stateAggregateType] requires at least one OnSourcing function!")
+            log.warn {
+                "StateAggregate[$stateAggregateType] requires at least one OnSourcing function!"
             }
         }
 

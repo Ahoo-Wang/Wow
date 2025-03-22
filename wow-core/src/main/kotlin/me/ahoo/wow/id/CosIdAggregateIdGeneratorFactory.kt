@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.id
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosid.IdGenerator
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator
@@ -22,7 +23,6 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
-import org.slf4j.LoggerFactory
 
 @Order(ORDER_LAST)
 class CosIdAggregateIdGeneratorFactory(
@@ -30,7 +30,7 @@ class CosIdAggregateIdGeneratorFactory(
 ) :
     AggregateIdGeneratorFactory {
     companion object {
-        private val log = LoggerFactory.getLogger(CosIdAggregateIdGeneratorFactory::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun create(namedAggregate: NamedAggregate): IdGenerator {
@@ -44,16 +44,16 @@ class CosIdAggregateIdGeneratorFactory(
         val idGeneratorOp = idProvider.get(idGenName)
         if (idGeneratorOp.isPresent) {
             val idGenerator = idGeneratorOp.get()
-            if (log.isInfoEnabled) {
-                log.info("Create $idGenerator to $namedAggregate from DefaultIdGeneratorProvider[$idGenName].")
+            log.info {
+                "Create $idGenerator to $namedAggregate from DefaultIdGeneratorProvider[$idGenName]."
             }
             return idGenerator
         }
 
         val idGenerator = Radix62CosIdGenerator(GlobalIdGenerator.machineId)
         val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create $clockSyncCosIdGenerator to $namedAggregate.")
+        log.info {
+            "Create $clockSyncCosIdGenerator to $namedAggregate."
         }
         return clockSyncCosIdGenerator
     }

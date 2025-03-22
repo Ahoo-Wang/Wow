@@ -13,30 +13,25 @@
 
 package me.ahoo.wow.exception
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.RecoverableType
-import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 object RecoverableExceptionRegistrar {
-    private val log = LoggerFactory.getLogger(RecoverableExceptionRegistrar::class.java)
+    private val log = KotlinLogging.logger {}
     private val registrar = ConcurrentHashMap<Class<out Throwable>, RecoverableType>()
 
     fun register(throwableClass: Class<out Throwable>, recoverableType: RecoverableType) {
         val previous = registrar.put(throwableClass, recoverableType)
-        if (log.isInfoEnabled) {
-            log.info(
-                "Register - throwableClass:[{}] - previous:[{}],current:[{}].",
-                throwableClass,
-                previous,
-                recoverableType
-            )
+        log.info {
+            "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$recoverableType]."
         }
     }
 
     fun unregister(throwableClass: Class<out Throwable>) {
         val removed = registrar.remove(throwableClass)
-        if (log.isInfoEnabled) {
-            log.info("Unregister - throwableClass:[{}] - removed:[{}].", throwableClass, removed)
+        log.info {
+            "Unregister - throwableClass:[$throwableClass] - removed:[$removed]."
         }
     }
 

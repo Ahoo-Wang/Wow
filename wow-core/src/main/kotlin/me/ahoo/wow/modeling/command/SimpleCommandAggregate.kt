@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
@@ -22,8 +23,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -34,7 +33,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     private val metadata: CommandAggregateMetadata<C>
 ) : CommandAggregate<C, S>, NamedTypedAggregate<C> by metadata {
     private companion object {
-        private val log: Logger = LoggerFactory.getLogger(SimpleCommandAggregate::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override val processorName: String = metadata.processorName
@@ -56,8 +55,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         val commandType = message.body.javaClass
         return Mono.defer {
             exchange.setCommandAggregate(this)
-            if (log.isDebugEnabled) {
-                log.debug("Process {}.", message)
+            log.debug {
+                "Process $message."
             }
             if (message.aggregateVersion != null && message.aggregateVersion != version) {
                 return@defer CommandExpectVersionConflictException(

@@ -13,25 +13,20 @@
 
 package me.ahoo.wow.webflux.route
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.openapi.RouteSpec
-import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 class RouteHandlerFunctionRegistrar {
     companion object {
-        private val log = LoggerFactory.getLogger(RouteHandlerFunctionRegistrar::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val factories = ConcurrentHashMap<Class<out RouteSpec>, RouteHandlerFunctionFactory<*>>()
     fun register(routeHandlerFunctionFactory: RouteHandlerFunctionFactory<*>) {
         val previous = factories.put(routeHandlerFunctionFactory.supportedSpec, routeHandlerFunctionFactory)
-        if (log.isInfoEnabled) {
-            log.info(
-                "Register - supportedSpec:[{}] - previous:[{}],current:[{}].",
-                routeHandlerFunctionFactory.supportedSpec,
-                previous,
-                routeHandlerFunctionFactory
-            )
+        log.info {
+            "Register - supportedSpec:[${routeHandlerFunctionFactory.supportedSpec}] - previous:[$previous],current:[$routeHandlerFunctionFactory]."
         }
     }
 

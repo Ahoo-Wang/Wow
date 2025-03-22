@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import reactor.core.publisher.Mono
 
@@ -23,7 +24,7 @@ class VersionOffsetSnapshotStrategy(
     private val snapshotRepository: SnapshotRepository
 ) : SnapshotStrategy {
     companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(VersionOffsetSnapshotStrategy::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
@@ -32,14 +33,8 @@ class VersionOffsetSnapshotStrategy(
             .flatMap { currentVersion ->
                 val currentVersionOffset = (stateEvent.version - currentVersion)
                 val matched = currentVersionOffset >= versionOffset
-                if (log.isDebugEnabled) {
-                    log.debug(
-                        "[{}] Current version offset:[{}] - expected offset:[{}] matched:[{}].",
-                        stateEvent.aggregateId,
-                        currentVersionOffset,
-                        versionOffset,
-                        matched,
-                    )
+                log.debug {
+                    "[${stateEvent.aggregateId}] Current version offset:[$currentVersionOffset] - expected offset:[$versionOffset] matched:[$matched]."
                 }
                 if (!matched) {
                     return@flatMap Mono.empty<Void>()

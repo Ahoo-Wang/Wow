@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.webflux.exception
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
-import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import java.util.concurrent.ConcurrentHashMap
 
 object ErrorHttpStatusMapping {
-    private val log = LoggerFactory.getLogger(ErrorHttpStatusMapping::class.java)
+    private val log = KotlinLogging.logger {}
     private val registrar = ConcurrentHashMap<String, HttpStatus>()
 
     init {
@@ -44,15 +44,15 @@ object ErrorHttpStatusMapping {
 
     fun register(errorCode: String, httpStatus: HttpStatus) {
         val previous = registrar.put(errorCode, httpStatus)
-        if (log.isInfoEnabled) {
-            log.info("Register - errorCode:[{}] - previous:[{}],current:[{}].", errorCode, previous, httpStatus)
+        log.info {
+            "Register - errorCode:[$errorCode] - previous:[$previous],current:[$httpStatus]."
         }
     }
 
     fun unregister(errorCode: String) {
         val removed = registrar.remove(errorCode)
-        if (log.isInfoEnabled) {
-            log.info("Unregister - errorCode:[{}] - removed:[{}].", errorCode, removed)
+        log.info {
+            "Unregister - errorCode:[$errorCode] - removed:[$removed]."
         }
     }
 

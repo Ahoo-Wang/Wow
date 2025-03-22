@@ -23,7 +23,6 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
 
 object AnnotationScanner {
-    val repeatableClass = java.lang.annotation.Repeatable::class
     const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
     const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
 

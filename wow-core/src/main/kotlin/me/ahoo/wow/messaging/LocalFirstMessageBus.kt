@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
@@ -20,7 +21,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks.EmissionException
@@ -54,7 +54,7 @@ fun <M> M.isLocalHandled(): Boolean where M : Message<*, *>, M : NamedAggregate 
     return isLocalFirst() && isLocal()
 }
 
-private val LOG = LoggerFactory.getLogger(LocalFirstMessageBus::class.java)
+private val log = KotlinLogging.logger {}
 
 interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate, M : Copyable<*> {
@@ -65,20 +65,13 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
 
     private fun logLocalSendError(message: M, error: Throwable) {
         if (error is EmissionException && error.reason == EmitResult.FAIL_ZERO_SUBSCRIBER) {
-            if (LOG.isDebugEnabled) {
-                LOG.debug(
-                    "[$localBusName] Failed to send local message[{}], No subscriber.",
-                    message.id
-                )
+            log.debug {
+                "[$localBusName] Failed to send local message[${message.id}], No subscriber."
             }
             return
         }
-        if (LOG.isErrorEnabled) {
-            LOG.error(
-                "[$localBusName] Failed to send local message[{}], LocalFirst mode temporarily disabled.",
-                message.id,
-                error
-            )
+        log.error(error) {
+            "[$localBusName] Failed to send local message[${message.id}], LocalFirst mode temporarily disabled."
         }
     }
 

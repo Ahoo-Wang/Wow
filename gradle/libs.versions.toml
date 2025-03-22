@@ -10,6 +10,7 @@ opentelemetry = "1.48.0"
 opentelemetry-instrumentation = "2.14.0"
 opentelemetry-semconv = "1.29.0-alpha"
 guava = "33.4.5-jre"
+kotlin-logging = "7.0.5"
 hamcrest = "3.0"
 mockk = "1.13.17"
 kotlin-compile-testing = "0.7.0"
@@ -42,6 +43,7 @@ ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processin
 ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
 kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-starter-common = { module = "org.springdoc:springdoc-openapi-starter-common", version.ref = "springdoc" }
 springdoc-openapi-starter-webflux-api = { module = "org.springdoc:springdoc-openapi-starter-webflux-api", version.ref = "springdoc" }

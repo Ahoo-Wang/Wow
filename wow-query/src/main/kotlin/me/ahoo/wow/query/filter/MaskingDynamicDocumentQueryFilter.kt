@@ -20,7 +20,6 @@ import me.ahoo.wow.query.mask.DataMaskerRegistry
 import me.ahoo.wow.query.mask.mask
 import reactor.core.publisher.Mono
 
-@Suppress("UNCHECKED_CAST")
 abstract class MaskingDynamicDocumentQueryFilter<MASKER : AggregateDynamicDocumentMasker>(
     protected val maskerRegistry: DataMaskerRegistry<MASKER>
 ) :

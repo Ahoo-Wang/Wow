@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.ApplicationContext
 import org.springframework.context.SmartLifecycle
 import org.springframework.context.SmartLifecycle.DEFAULT_PHASE
@@ -30,14 +30,14 @@ abstract class AutoRegistrar<CM : Annotation>(
     private val applicationContext: ApplicationContext
 ) : SmartLifecycle {
     companion object {
-        private val log = LoggerFactory.getLogger(AutoRegistrar::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val running = AtomicBoolean(false)
 
     override fun start() {
-        if (log.isInfoEnabled) {
-            log.info("Start registering component:${componentType.simpleName}.")
+        log.info {
+            "Start registering component:${componentType.simpleName}."
         }
         if (!running.compareAndSet(false, true)) {
             return
@@ -45,8 +45,8 @@ abstract class AutoRegistrar<CM : Annotation>(
         val components = applicationContext.getBeansWithAnnotation(componentType)
         components.forEach { entry ->
             val component = entry.value
-            if (log.isDebugEnabled) {
-                log.debug("Registering Component {}.", component)
+            log.debug {
+                "Registering Component [$component]."
             }
             register(component)
         }
@@ -55,8 +55,8 @@ abstract class AutoRegistrar<CM : Annotation>(
     abstract fun register(component: Any)
 
     override fun stop() {
-        if (log.isInfoEnabled) {
-            log.info("Stop ${componentType.simpleName}.")
+        log.info {
+            "Stop ${componentType.simpleName}."
         }
         if (!running.compareAndSet(true, false)) {
             return

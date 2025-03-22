@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -46,20 +46,20 @@ interface WaitStrategyRegistrar {
 }
 
 object SimpleWaitStrategyRegistrar : WaitStrategyRegistrar {
-    private val log = LoggerFactory.getLogger(SimpleWaitStrategyRegistrar::class.java)
+    private val log = KotlinLogging.logger {}
     private val waitStrategies: ConcurrentHashMap<String, WaitStrategy> = ConcurrentHashMap()
 
     override fun register(commandId: String, waitStrategy: WaitStrategy): WaitStrategy? {
-        if (log.isDebugEnabled) {
-            log.debug("Register - command[{}] WaitStrategy.", commandId)
+        log.debug {
+            "Register - command[$commandId] WaitStrategy."
         }
         return waitStrategies.putIfAbsent(commandId, waitStrategy)
     }
 
     override fun unregister(commandId: String): WaitStrategy? {
         val value = waitStrategies.remove(commandId)
-        if (log.isDebugEnabled) {
-            log.debug("Unregister - remove command[{}] WaitStrategy - [{}].", commandId, value != null)
+        log.debug {
+            "Unregister - remove command[$commandId] WaitStrategy - [${value != null}]."
         }
         return value
     }

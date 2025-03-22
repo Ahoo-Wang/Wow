@@ -12,20 +12,20 @@
  */
 package me.ahoo.wow.id
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.cosid.CosIdIdStateParser
 import me.ahoo.cosid.cosid.CosIdState
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.infra.Decorator
-import org.slf4j.LoggerFactory
 import java.util.*
 
 /**
  * Global Id Generator
  */
 object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
-    private val log = LoggerFactory.getLogger(GlobalIdGenerator::class.java)
+    private val log = KotlinLogging.logger {}
 
     override val delegate: CosIdGenerator by lazy {
         return@lazy loadGlobalIdGenerator() ?: throw NotInitializedGlobalIdGeneratorError()
@@ -35,17 +35,17 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
         return ServiceLoader.load(GlobalIdGeneratorFactory::class.java)
             .sortedByOrder()
             .firstNotNullOfOrNull {
-                if (log.isInfoEnabled) {
-                    log.info("Load $it to create GlobalIdGenerator.")
+                log.info {
+                    "Load $it to create GlobalIdGenerator."
                 }
                 val idGenerator = it.create()
                 if (idGenerator == null) {
-                    if (log.isInfoEnabled) {
-                        log.info("$it create GlobalIdGenerator is null.")
+                    log.info {
+                        "$it create GlobalIdGenerator is null."
                     }
                 } else {
-                    if (log.isInfoEnabled) {
-                        log.info("Setup $idGenerator to GlobalIdGenerator.")
+                    log.info {
+                        "Setup $idGenerator to GlobalIdGenerator."
                     }
                 }
                 idGenerator

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.command.factory
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
@@ -34,26 +34,21 @@ interface CommandBuilderRewriterRegistry {
 
 class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
     companion object {
-        private val log = LoggerFactory.getLogger(SimpleCommandBuilderRewriterRegistry::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter>()
     override fun register(extractor: CommandBuilderRewriter) {
         val previous = registrar.put(extractor.supportedCommandType, extractor)
-        if (log.isInfoEnabled) {
-            log.info(
-                "Register - supportedCommandType:[{}] - previous:[{}],current:[{}].",
-                extractor.supportedCommandType,
-                previous,
-                extractor
-            )
+        log.info {
+            "Register - supportedCommandType:[${extractor.supportedCommandType}] - previous:[$previous],current:[$extractor]."
         }
     }
 
     override fun unregister(commandType: Class<*>) {
         val removed = registrar.remove(commandType)
-        if (log.isInfoEnabled) {
-            log.info("Unregister - commandType:[{}] - removed:[{}].", commandType, removed)
+        log.info {
+            "Unregister - commandType:[$commandType] - removed:[$removed]."
         }
     }
 

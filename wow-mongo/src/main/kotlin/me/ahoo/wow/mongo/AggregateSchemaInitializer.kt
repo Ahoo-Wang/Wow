@@ -17,16 +17,16 @@ import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.accessor.function.reactive.toBlockable
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
-import org.slf4j.LoggerFactory
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 object AggregateSchemaInitializer {
-    private val log = LoggerFactory.getLogger(AggregateSchemaInitializer::class.java)
+    private val log = KotlinLogging.logger {}
     const val AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME = "aggregateId_1_version_1"
     const val REQUEST_ID_UNIQUE_INDEX_NAME = "requestId_1"
     private val uniqueIndexOptions = IndexOptions().unique(true)
@@ -43,17 +43,17 @@ object AggregateSchemaInitializer {
     fun MongoDatabase.ensureCollection(collectionName: String): Boolean {
         listCollectionNames().toFlux().collectList().toBlockable().block()!!.let {
             if (it.contains(collectionName)) {
-                if (log.isInfoEnabled) {
-                    log.info("Ensure Collection {} already exists,ignore create.", collectionName)
+                log.info {
+                    "Ensure Collection [$collectionName already exists,ignore create."
                 }
                 return false
             }
-            if (log.isInfoEnabled) {
-                log.info("Ensure Collection {} Creating.", collectionName)
+            log.info {
+                "Ensure Collection [$collectionName] Creating."
             }
             this.createCollection(collectionName).toMono().block()
-            if (log.isInfoEnabled) {
-                log.info("Ensure Collection {} Created.", collectionName)
+            log.info {
+                "Ensure Collection [$collectionName] Creating."
             }
             return true
         }
@@ -83,6 +83,7 @@ object AggregateSchemaInitializer {
         createIndex(Indexes.hashed(MessageRecords.TENANT_ID))
             .toMono().toBlockable().block()
     }
+
     fun MongoCollection<Document>.createOwnerIdIndex() {
         createIndex(Indexes.hashed(MessageRecords.OWNER_ID))
             .toMono().toBlockable().block()

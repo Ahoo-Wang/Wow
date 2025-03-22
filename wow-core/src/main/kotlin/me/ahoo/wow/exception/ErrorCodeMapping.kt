@@ -13,29 +13,24 @@
 
 package me.ahoo.wow.exception
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
 
 object ErrorCodeMapping {
-    private val log = LoggerFactory.getLogger(ErrorCodeMapping::class.java)
+    private val log = KotlinLogging.logger {}
     private val registrar = ConcurrentHashMap<Class<out Throwable>, String>()
 
     fun register(throwableClass: Class<out Throwable>, errorCode: String) {
         val previous = registrar.put(throwableClass, errorCode)
-        if (log.isInfoEnabled) {
-            log.info(
-                "Register - throwableClass:[{}] - previous:[{}],current:[{}].",
-                throwableClass,
-                previous,
-                errorCode
-            )
+        log.info {
+            "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$errorCode]."
         }
     }
 
     fun unregister(throwableClass: Class<out Throwable>) {
         val removed = registrar.remove(throwableClass)
-        if (log.isInfoEnabled) {
-            log.info("Unregister - throwableClass:[{}] - removed:[{}].", throwableClass, removed)
+        log.info {
+            "Unregister - throwableClass:[$throwableClass] - removed:[$removed]."
         }
     }
 

@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.command.wait
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.id.GlobalIdGenerator
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
@@ -82,25 +82,19 @@ class LocalCommandWaitNotifier(
     private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandWaitNotifier {
     companion object {
-        private val log = LoggerFactory.getLogger(LocalCommandWaitNotifier::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.fromRunnable {
             if (isLocalCommand(waitSignal.commandId)) {
-                if (log.isDebugEnabled) {
-                    log.debug(
-                        "Notify Local - waitSignal: {}",
-                        waitSignal,
-                    )
+                log.debug {
+                    "Notify Local - waitSignal: $waitSignal"
                 }
                 waitStrategyRegistrar.next(waitSignal)
             } else {
-                if (log.isWarnEnabled) {
-                    log.warn(
-                        "Ignore Notify - waitSignal: {}",
-                        waitSignal,
-                    )
+                log.warn {
+                    "Ignore Notify - waitSignal: $waitSignal"
                 }
             }
         }

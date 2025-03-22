@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
@@ -27,7 +28,6 @@ import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -41,7 +41,7 @@ class DefaultCommandGateway(
 ) : CommandGateway, CommandBus by commandBus {
 
     companion object {
-        private val log = LoggerFactory.getLogger(DefaultCommandGateway::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private fun <C : Any> validate(commandBody: C) {
@@ -164,11 +164,8 @@ class DefaultCommandGateway(
             // 防止基于内存的消息总线聚合处理信号早于命令发送完成而抛出异常。
             waitStrategy.next(waitSignal)
         } catch (emissionError: Sinks.EmissionException) {
-            if (log.isWarnEnabled) {
-                log.warn(
-                    "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent.",
-                    emissionError
-                )
+            log.warn(emissionError) {
+                "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent."
             }
         }
     }
