@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.infra
 
-inline fun <R> String?.ifNotBlank(func: (String) -> R): R? {
+public inline fun <R> String?.ifNotBlank(func: (String) -> R): R? {
     if (this.isNullOrBlank()) {
         return null
     }
