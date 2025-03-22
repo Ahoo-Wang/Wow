@@ -13,33 +13,31 @@
 
 package me.ahoo.wow.event.upgrader
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.event.DomainEventRecord
-import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 object EventUpgraderFactory {
-    private val log = LoggerFactory.getLogger(EventUpgraderFactory::class.java)
+    private val log = KotlinLogging.logger {}
     private val eventUpgraderFactories: ConcurrentHashMap<EventNamedAggregate, List<EventUpgrader>> =
         ConcurrentHashMap()
 
     init {
         ServiceLoader.load(EventUpgrader::class.java)
             .forEach {
-                if (log.isInfoEnabled) {
-                    log.info("Load $it to register.")
-                }
+                log.info { "Load $it to register." }
                 register(it)
             }
     }
 
     fun register(eventUpgrader: EventUpgrader) {
-        if (log.isInfoEnabled) {
-            log.info("Register $eventUpgrader.")
+        log.info {
+            "Register $eventUpgrader."
         }
         eventUpgraderFactories.compute(eventUpgrader.eventNamedAggregate) { _, value ->
             if (value == null) {
@@ -63,8 +61,8 @@ object EventUpgraderFactory {
         }
         var mutableDomainEventRecord = domainEventRecord.toMutableDomainEventRecord()
         eventUpgraders.forEach {
-            if (log.isDebugEnabled) {
-                log.debug("Upgrade [${domainEventRecord.id}]@[$eventNamedAggregate] by $it.")
+            log.debug {
+                "Upgrade [${domainEventRecord.id}]@[$eventNamedAggregate] by $it."
             }
             mutableDomainEventRecord = it.upgrade(mutableDomainEventRecord).toMutableDomainEventRecord()
         }

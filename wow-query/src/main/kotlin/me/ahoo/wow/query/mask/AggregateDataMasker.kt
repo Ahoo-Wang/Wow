@@ -48,7 +48,7 @@ class DefaultAggregateDataMasker<MASKER : DynamicDocumentMasker>(override val ma
     }
 
     companion object {
-        val EMPTY = DefaultAggregateDataMasker<DynamicDocumentMasker>(emptyList())
+        private val EMPTY = DefaultAggregateDataMasker<DynamicDocumentMasker>(emptyList())
 
         @Suppress("UNCHECKED_CAST")
         fun <MASKER : DynamicDocumentMasker> empty(): DefaultAggregateDataMasker<MASKER> =

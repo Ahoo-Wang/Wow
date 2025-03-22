@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.id
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosid.CosId
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
 import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import org.slf4j.LoggerFactory
 
 @Order(ORDER_FIRST)
 class CosIdGlobalIdGeneratorFactory(
@@ -27,7 +27,7 @@ class CosIdGlobalIdGeneratorFactory(
 ) :
     GlobalIdGeneratorFactory {
     companion object {
-        private val log = LoggerFactory.getLogger(CosIdGlobalIdGeneratorFactory::class.java)
+        private val log = KotlinLogging.logger {}
         const val ID_KEY = "wow.cosid"
         val ID_NAME: String = System.getProperty(ID_KEY, CosId.COSID)
     }
@@ -35,14 +35,14 @@ class CosIdGlobalIdGeneratorFactory(
     override fun create(): CosIdGenerator? {
         val idGenOp = idProvider.get(ID_NAME)
         if (idGenOp.isEmpty) {
-            if (log.isInfoEnabled) {
-                log.info("Create - Not found Id name[$ID_NAME] from DefaultIdGeneratorProvider.")
+            log.info {
+                "Create - Not found Id name[$ID_NAME] from DefaultIdGeneratorProvider."
             }
             return null
         }
         val idGenerator = idGenOp.get()
-        if (log.isInfoEnabled) {
-            log.info("Create - Found Id name[$ID_NAME] [$idGenerator] from DefaultIdGeneratorProvider.")
+        log.info {
+            "Create - Found Id name[$ID_NAME] [$idGenerator] from DefaultIdGeneratorProvider."
         }
         return idGenerator as CosIdGenerator
     }

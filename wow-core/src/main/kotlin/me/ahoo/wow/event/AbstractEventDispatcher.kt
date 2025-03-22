@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventBus
@@ -29,14 +30,13 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.serialization.toJsonString
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 
 abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     companion object {
-        private val log = LoggerFactory.getLogger(AbstractEventDispatcher::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     abstract val parallelism: Int
@@ -123,25 +123,25 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     }
 
     override fun run() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to Event:${eventStreamTopics.toJsonString()}.")
+        log.info {
+            "[$name] Run subscribe to Event:${eventStreamTopics.toJsonString()}."
         }
         if (eventStreamTopics.isEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start [DomainEventDistributionSubscriber] because namedAggregates is empty.")
+            log.warn {
+                "[$name] Ignore start [DomainEventDistributionSubscriber] because namedAggregates is empty."
             }
         } else {
             receiveEventStream(eventStreamTopics)
                 .groupBy { it.message.materialize() }
                 .subscribe(domainEventDistributionSubscriber)
         }
-        if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to State Event:${stateEventTopics.toJsonString()}.")
+        log.info {
+            "[$name] Run subscribe to State Event:${stateEventTopics.toJsonString()}."
         }
 
         if (stateEventTopics.isEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start [StateEventDistributionSubscriber] because namedAggregates is empty.")
+            log.warn {
+                "[$name] Ignore start [StateEventDistributionSubscriber] because namedAggregates is empty."
             }
         } else {
             receiveStateEventStream(stateEventTopics)
@@ -151,8 +151,8 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     }
 
     override fun close() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Close.")
+        log.info {
+            "[$name] Close."
         }
         domainEventDistributionSubscriber.cancel()
         stateEventDistributionSubscriber.cancel()

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.exception
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
@@ -20,7 +21,6 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
-import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -32,11 +32,11 @@ import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
 
 object GlobalExceptionHandler : WebExceptionHandler, Ordered {
-    private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+    private val log = KotlinLogging.logger {}
 
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        if (log.isWarnEnabled) {
-            log.warn(exchange.request.formatRequest(), ex)
+        log.warn(ex) {
+            exchange.request.formatRequest()
         }
 
         val errorInfo = when (ex) {

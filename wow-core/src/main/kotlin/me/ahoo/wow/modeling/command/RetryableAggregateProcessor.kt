@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
@@ -22,7 +23,6 @@ import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
@@ -35,7 +35,7 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
     private val commandAggregateFactory: CommandAggregateFactory
 ) : AggregateProcessor<C>, NamedTypedAggregate<C> by aggregateMetadata.command {
     private companion object {
-        private val log = LoggerFactory.getLogger(RetryableAggregateProcessor::class.java)
+        private val log = KotlinLogging.logger {}
         private const val MAX_RETRIES = 3L
         private val MIN_BACKOFF = Duration.ofMillis(500)
     }
@@ -46,13 +46,8 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         .filter {
             it.recoverable == RecoverableType.RECOVERABLE
         }.doBeforeRetry {
-            if (log.isWarnEnabled) {
-                log.warn(
-                    "[BeforeRetry] {} totalRetries[{}].",
-                    aggregateId,
-                    it.totalRetries(),
-                    it.failure()
-                )
+            log.warn(it.failure()) {
+                "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
             }
         }
 

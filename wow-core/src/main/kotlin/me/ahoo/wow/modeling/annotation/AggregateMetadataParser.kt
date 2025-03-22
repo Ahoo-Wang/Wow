@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.annotation
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
@@ -37,7 +38,6 @@ import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
@@ -45,8 +45,6 @@ import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaConstructor
 import kotlin.reflect.jvm.javaType
-
-private val log = LoggerFactory.getLogger(AggregateMetadataParser::class.java)
 
 /**
  * Aggregate Metadata Parser .
@@ -63,6 +61,10 @@ object AggregateMetadataParser : CacheableMetadataParser() {
 
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
         ClassVisitor<C> {
+        companion object {
+            private val log = KotlinLogging.logger {}
+        }
+
         private val commandAggregateType: Class<C>
         private val stateAggregateType: Class<S>
         private val stateAggregateMetadata: StateAggregateMetadata<S>
@@ -129,8 +131,8 @@ object AggregateMetadataParser : CacheableMetadataParser() {
 
         fun toMetadata(): AggregateMetadata<C, S> {
             if (commandFunctionRegistry.isEmpty()) {
-                if (log.isWarnEnabled) {
-                    log.warn("CommandAggregate[$commandAggregateType] requires at least one OnCommand function!")
+                log.warn {
+                    "CommandAggregate[$commandAggregateType] requires at least one OnCommand function!"
                 }
             }
             val namedAggregate = MetadataSearcher.typeNamedAggregate[commandAggregateType]

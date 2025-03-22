@@ -13,17 +13,17 @@
 
 package me.ahoo.wow.messaging.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.serialization.toJsonString
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 
 abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
     companion object {
-        private val log = LoggerFactory.getLogger(AbstractDispatcher::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     /**
@@ -44,12 +44,12 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
     }
 
     override fun run() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}.")
+        log.info {
+            "[$name] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}."
         }
         if (namedAggregates.isEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start because namedAggregates is empty.")
+            log.warn {
+                "[$name] Ignore start because namedAggregates is empty."
             }
             return
         }
@@ -57,8 +57,8 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
     }
 
     override fun close() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Close.")
+        log.info {
+            "[$name] Close."
         }
         aggregateDispatchers.forEach { it.close() }
     }

@@ -13,21 +13,21 @@
 
 package me.ahoo.wow.messaging.propagation
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import org.slf4j.LoggerFactory
 import java.util.*
 
 object MessagePropagatorProvider : MessagePropagator {
-    private val log = LoggerFactory.getLogger(MessagePropagatorProvider::class.java)
+    private val log = KotlinLogging.logger {}
 
     private val messagePropagators: List<MessagePropagator> by lazy {
         ServiceLoader.load(MessagePropagator::class.java)
             .sortedByOrder()
             .map {
-                if (log.isInfoEnabled) {
-                    log.info("Load MessagePropagator: [{}]", it.javaClass.name)
+                log.info {
+                    "Load MessagePropagator: [${it.javaClass.name}]"
                 }
                 it
             }

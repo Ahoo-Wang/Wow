@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.route
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_ACTION
 import me.ahoo.wow.api.annotation.Summary
@@ -28,7 +29,6 @@ import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.serialization.toJsonString
-import org.slf4j.LoggerFactory
 import org.springframework.web.util.UriTemplate
 import kotlin.reflect.KProperty1
 
@@ -44,7 +44,7 @@ object CommandRouteMetadataParser : CacheableMetadataParser() {
 internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Class<C>) :
     ClassVisitor<C> {
     companion object {
-        private val log = LoggerFactory.getLogger(CommandRouteMetadataVisitor::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private var pathVariables: MutableSet<VariableMetadata> = mutableSetOf()
@@ -145,12 +145,8 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         val pathVariableNames = pathVariables.map { it.variableName }.toSet()
         val missedVariableNames = uriPathVariables - pathVariableNames
         if (missedVariableNames.isNotEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn(
-                    "Command[{}] Route PathVariables{} is not bound to fields.",
-                    commandMetadata.commandType,
-                    missedVariableNames.toJsonString(),
-                )
+            log.warn {
+                "Command[${commandMetadata.commandType}] Route PathVariables [${missedVariableNames.toJsonString()}] is not bound to fields."
             }
             missedVariableNames.forEach {
                 val missedVariable = VariableMetadata(

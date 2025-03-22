@@ -13,21 +13,23 @@
 
 package me.ahoo.wow.messaging
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
-private val LOG = LoggerFactory.getLogger(InMemoryMessageBus::class.java)
-
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate {
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
     abstract val sinkSupplier: (NamedAggregate) -> Sinks.Many<M>
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
     private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> {
@@ -39,8 +41,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable<Void> {
             val sink = computeSink(message)
-            if (LOG.isDebugEnabled) {
-                LOG.debug("Send to [{}] \n {}.", sink.currentSubscriberCount(), message)
+            log.debug {
+                "Send to [${sink.currentSubscriberCount()}] \n $message."
             }
             message.withReadOnly()
             sink.tryEmitNext(message).orThrow()

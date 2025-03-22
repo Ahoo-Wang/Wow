@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
@@ -22,15 +23,13 @@ import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> :
     AggregateMessageDispatcher<E>() {
     companion object {
-        private val log: Logger = LoggerFactory.getLogger(AbstractAggregateEventDispatcher::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     abstract val functionRegistrar:
@@ -56,8 +55,8 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
                 event.match(it)
             }.toSet()
         if (functions.isEmpty()) {
-            if (log.isDebugEnabled) {
-                log.debug("Not find any functions.Ignore this event:[{}].", event.toJsonString())
+            log.debug {
+                "Not find any functions.Ignore this event:[${event.toJsonString()}]."
             }
             return Mono.empty()
         }

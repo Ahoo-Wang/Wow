@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.query.mask
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> {
@@ -26,14 +26,14 @@ interface DataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> {
 
 abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMasker> : DataMaskerRegistry<MASKER> {
     companion object {
-        private val log = LoggerFactory.getLogger(AbstractDataMaskerRegistry::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val maskers = ConcurrentHashMap<NamedAggregate, AggregateDataMasker<MASKER>>()
 
     override fun register(masker: MASKER) {
-        if (log.isInfoEnabled) {
-            log.info("Register - masker:[{}].", masker)
+        log.info {
+            "Register - masker:[$masker]."
         }
         maskers.compute(masker.namedAggregate.materialize()) { _, aggregateDataMasker ->
             aggregateDataMasker?.addMasker(masker) ?: DefaultAggregateDataMasker(listOf(masker))
@@ -41,8 +41,8 @@ abstract class AbstractDataMaskerRegistry<MASKER : AggregateDynamicDocumentMaske
     }
 
     override fun unregister(masker: MASKER) {
-        if (log.isInfoEnabled) {
-            log.info("Unregister - masker:[{}].", masker)
+        log.info {
+            "Unregister - masker:[$masker]."
         }
         maskers.compute(masker.namedAggregate.materialize()) { _, aggregateDataMasker ->
             aggregateDataMasker?.removeMasker(masker) ?: DefaultAggregateDataMasker.empty()

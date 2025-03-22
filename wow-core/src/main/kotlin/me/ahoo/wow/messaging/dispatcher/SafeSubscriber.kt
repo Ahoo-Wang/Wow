@@ -13,27 +13,27 @@
 
 package me.ahoo.wow.messaging.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.naming.Named
 import org.reactivestreams.Subscription
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.SignalType
 
 abstract class SafeSubscriber<T : Any> : BaseSubscriber<T>(), Named {
     companion object {
-        private val log = LoggerFactory.getLogger(SafeSubscriber::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     @Suppress("TooGenericExceptionCaught")
     override fun hookOnNext(value: T) {
-        if (log.isDebugEnabled) {
-            log.debug("[$name] OnNext $value")
+        log.debug {
+            "[$name] OnNext $value."
         }
         try {
             safeOnNext(value)
         } catch (e: Throwable) {
-            if (log.isErrorEnabled) {
-                log.error("[$name] OnNext handle error.", e)
+            log.error(e) {
+                "[$name] OnNext handle error."
             }
             safeOnNextError(value, throwable = e)
         }
@@ -43,21 +43,21 @@ abstract class SafeSubscriber<T : Any> : BaseSubscriber<T>(), Named {
     open fun safeOnNextError(value: T, throwable: Throwable) {}
 
     override fun hookOnSubscribe(subscription: Subscription) {
-        if (log.isDebugEnabled) {
-            log.debug("[$name] OnSubscribe.")
+        log.debug {
+            "[$name] OnSubscribe."
         }
         super.hookOnSubscribe(subscription)
     }
 
     override fun hookOnError(throwable: Throwable) {
-        if (log.isErrorEnabled) {
-            log.error("[$name] OnError.", throwable)
+        log.error(throwable) {
+            "[$name] OnError."
         }
     }
 
     override fun hookFinally(type: SignalType) {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Finally $type.")
+        log.info {
+            "[$name] Finally $type."
         }
     }
 }

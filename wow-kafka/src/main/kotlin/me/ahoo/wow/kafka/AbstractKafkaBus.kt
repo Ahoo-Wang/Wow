@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kafka
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -23,7 +24,6 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -44,15 +44,15 @@ abstract class AbstractKafkaBus<M, E>(
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
     companion object {
-        private val log = LoggerFactory.getLogger(AbstractKafkaBus::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
         return Mono.defer {
-            if (log.isDebugEnabled) {
-                log.debug("Send {}.", message)
+            log.debug {
+                "Send $message."
             }
             message.withReadOnly()
             val senderRecord = encode(message)
@@ -115,16 +115,16 @@ abstract class AbstractKafkaBus<M, E>(
         return try {
             receiverRecord.value().toObject(messageType)
         } catch (e: Throwable) {
-            if (log.isErrorEnabled) {
-                log.error("Failed to decode ReceiverRecord[$receiverRecord].", e)
+            log.error(e) {
+                "Failed to decode ReceiverRecord[$receiverRecord]."
             }
             null
         }
     }
 
     override fun close() {
-        if (log.isInfoEnabled) {
-            log.info("[${this.javaClass.simpleName}] Close KafkaSender.")
+        log.info {
+            "[${this.javaClass.simpleName}] Close KafkaSender."
         }
         sender.close()
     }

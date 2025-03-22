@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.annotation
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateVersionGetterIfAnnotated
@@ -39,12 +40,9 @@ import me.ahoo.wow.modeling.matedata.NamedAggregateGetter
 import me.ahoo.wow.modeling.matedata.SelfNamedAggregateGetter
 import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
-import org.slf4j.LoggerFactory
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.jvm.jvmErasure
-
-private val LOG = LoggerFactory.getLogger(CommandMetadataParser::class.java)
 
 /**
  * Command Metadata Parser .
@@ -62,6 +60,10 @@ object CommandMetadataParser : CacheableMetadataParser() {
 }
 
 internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C> {
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
     private val commandName: String = commandType.toName()
     private val isCreate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private val isVoid = commandType.isAnnotationPresent(VoidCommand::class.java)
@@ -127,10 +129,8 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
 
     fun toMetadata(): CommandMetadata<C> {
         if (aggregateIdGetter == null && !isCreate) {
-            if (LOG.isWarnEnabled) {
-                LOG.warn(
-                    "Command[$commandType] does not define an aggregate ID field and is not a create aggregate command.",
-                )
+            log.warn {
+                "Command[$commandType] does not define an aggregate ID field and is not a create aggregate command."
             }
         }
 

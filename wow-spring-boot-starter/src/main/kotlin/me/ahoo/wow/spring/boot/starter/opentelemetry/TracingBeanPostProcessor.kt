@@ -13,20 +13,22 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.opentelemetry.Tracing.tracing
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.Ordered
 
 class TracingBeanPostProcessor : BeanPostProcessor, Ordered {
     companion object {
-        private val log = LoggerFactory.getLogger(TracingBeanPostProcessor::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         val tracingBean = bean.tracing()
-        if (tracingBean !== bean && log.isInfoEnabled) {
-            log.info("Tracing bean [{}] [{}] -> [{}]", beanName, bean.javaClass.name, tracingBean.javaClass.name)
+        if (tracingBean !== bean) {
+            log.info {
+                "Tracing bean [$beanName] [${bean.javaClass.name}] -> [${tracingBean.javaClass.name}]"
+            }
         }
         return tracingBean
     }

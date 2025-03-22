@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.webflux.wait
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.isLocalCommand
 import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
-import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -28,27 +28,20 @@ class WebClientCommandWaitNotifier(
     private val webClient: WebClient
 ) : CommandWaitNotifier {
     companion object {
-        private val log = LoggerFactory.getLogger(WebClientCommandWaitNotifier::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.defer {
             if (isLocalCommand(waitSignal.commandId)) {
-                if (log.isDebugEnabled) {
-                    log.debug(
-                        "Notify Local - waitSignal: {}",
-                        waitSignal,
-                    )
+                log.debug {
+                    "Notify Local - waitSignal: $waitSignal."
                 }
                 waitStrategyRegistrar.next(waitSignal)
                 return@defer Mono.empty()
             }
-            if (log.isDebugEnabled) {
-                log.debug(
-                    "Notify remote: endpoint: [{}] - waitSignal: {}",
-                    commandWaitEndpoint,
-                    waitSignal,
-                )
+            log.debug {
+                "Notify remote: endpoint: [$commandWaitEndpoint] - waitSignal: $waitSignal."
             }
             webClient
                 .post()

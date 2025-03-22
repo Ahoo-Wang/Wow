@@ -13,24 +13,24 @@
 
 package me.ahoo.wow.messaging.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.serialization.toJsonString
-import org.slf4j.LoggerFactory
 
 abstract class AbstractMessageDispatcher<T : Any> : MessageDispatcher, SafeSubscriber<T>() {
     companion object {
-        private val log = LoggerFactory.getLogger(AbstractMessageDispatcher::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     abstract val topics: Set<Any>
 
     override fun run() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Run subscribe to topics:${topics.toJsonString()}.")
+        log.info {
+            "[$name] Run subscribe to topics:${topics.toJsonString()}."
         }
         if (topics.isEmpty()) {
-            if (log.isWarnEnabled) {
-                log.warn("[$name] Ignore start because topics is empty.")
+            log.warn {
+                "[$name] Ignore start because topics is empty."
             }
             return
         }
@@ -40,8 +40,8 @@ abstract class AbstractMessageDispatcher<T : Any> : MessageDispatcher, SafeSubsc
     abstract fun start()
 
     override fun close() {
-        if (log.isInfoEnabled) {
-            log.info("[$name] Close.")
+        log.info {
+            "[$name] Close."
         }
         cancel()
     }

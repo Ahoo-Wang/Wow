@@ -13,30 +13,29 @@
 
 package me.ahoo.wow.messaging.function
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArraySet
 
 class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunctionRegistrar<F> {
     private companion object {
-        private val log: Logger = LoggerFactory.getLogger(SimpleMessageFunctionRegistrar::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val registrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
 
     override fun register(function: F) {
-        if (log.isInfoEnabled) {
-            log.info("Register {}.", function)
+        log.info {
+            "Register $function."
         }
         registrar.add(function)
     }
 
     override fun unregister(function: F) {
-        if (log.isInfoEnabled) {
-            log.info("Unregister {}.", function)
+        log.info {
+            "Unregister $function."
         }
         registrar.remove(function)
     }

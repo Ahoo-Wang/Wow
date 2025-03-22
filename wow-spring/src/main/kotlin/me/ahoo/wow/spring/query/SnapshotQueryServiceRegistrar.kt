@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.spring.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -27,7 +27,7 @@ import org.springframework.core.ResolvableType
 
 class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
     companion object {
-        private val log = LoggerFactory.getLogger(SnapshotQueryServiceRegistrar::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     override fun registerQueryService(
@@ -36,12 +36,12 @@ class SnapshotQueryServiceRegistrar : QueryServiceRegistrar() {
     ) {
         val namedAggregate = entry.key
         val beanName = "${namedAggregate.toStringWithAlias()}.SnapshotQueryService"
-        if (log.isInfoEnabled) {
-            log.info("Register SnapshotQueryService [$beanName].")
+        log.info {
+            "Register SnapshotQueryService [$beanName]."
         }
         if (registry.containsBeanDefinition(beanName)) {
-            if (log.isWarnEnabled) {
-                log.warn("SnapshotQueryService [$beanName] already exists - Ignore.")
+            log.warn {
+                "SnapshotQueryService [$beanName] already exists - Ignore."
             }
             return
         }

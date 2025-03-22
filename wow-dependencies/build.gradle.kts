@@ -23,6 +23,7 @@ dependencies {
     api(platform(libs.testcontainers.bom))
     constraints {
         api(libs.guava)
+        api(libs.kotlin.logging)
         api(libs.opentelemetry.semconv)
         api(libs.swagger)
         api(libs.springdoc.starter.common)

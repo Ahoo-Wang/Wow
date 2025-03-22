@@ -13,7 +13,7 @@
 package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 import java.time.Duration
 
@@ -30,12 +30,12 @@ class BloomFilterIdempotencyChecker(
 ) :
     IdempotencyChecker {
     companion object {
-        private val log = LoggerFactory.getLogger(BloomFilterIdempotencyChecker::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private val bloomFilterCache = Mono.fromCallable {
-        if (log.isInfoEnabled) {
-            log.info("Create new BloomFilter.")
+        log.info {
+            "Create new BloomFilter."
         }
         bloomFilterSupplier()
     }.cache(ttl)

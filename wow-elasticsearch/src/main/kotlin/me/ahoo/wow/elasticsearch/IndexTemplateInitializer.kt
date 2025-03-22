@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.common.io.Resources
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -27,7 +28,7 @@ import reactor.core.publisher.Mono
 
 class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElasticsearchOperations) {
     companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(IndexTemplateInitializer::class.java)
+        private val log = KotlinLogging.logger {}
         private const val EVENT_STREAM_TEMPLATE_NAME = "wow-event-stream-template"
         private const val SNAPSHOT_TEMPLATE_NAME = "wow-snapshot-template"
         private const val INDEX_PATTERNS_KEY = "index_patterns"
@@ -53,8 +54,8 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
     }
 
     fun initTemplate(name: String, template: JsonNode): Mono<Boolean> {
-        if (log.isInfoEnabled) {
-            log.info("initTemplate - name:$name .")
+        log.info {
+            "initTemplate - name:$name ."
         }
         val indexPatterns = template.get(INDEX_PATTERNS_KEY).map {
             it.asText()

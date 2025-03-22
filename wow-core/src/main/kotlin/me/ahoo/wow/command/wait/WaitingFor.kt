@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command.wait
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
@@ -69,10 +70,11 @@ interface WaitingFor : WaitStrategy {
     }
 }
 
-private val LOG = org.slf4j.LoggerFactory.getLogger(WaitingFor::class.java)
+private val log = KotlinLogging.logger {}
 
 abstract class AbstractWaitingFor : WaitingFor {
     companion object {
+
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
     }
 
@@ -91,7 +93,9 @@ abstract class AbstractWaitingFor : WaitingFor {
         try {
             currentHook.accept(signalType)
         } catch (error: Throwable) {
-            LOG.error("Finally hook execution failed", error)
+            log.error(error) {
+                "Finally hook execution failed"
+            }
         }
     }
 

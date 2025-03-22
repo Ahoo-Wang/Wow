@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.filter
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
 
 fun interface FilterCondition {
@@ -48,7 +48,7 @@ class TypedFilterCondition(private val filterType: KClass<*>) :
 
 class FilterChainBuilder<T> {
     companion object {
-        private val log = LoggerFactory.getLogger(FilterChainBuilder::class.java)
+        private val log = KotlinLogging.logger {}
     }
 
     private var filterCondition: FilterCondition = FilterCondition.ALL
@@ -90,7 +90,7 @@ class FilterChainBuilder<T> {
         for (i in sortedFilters.size - 1 downTo 0) {
             next = chainFactory(sortedFilters[i], next)
         }
-        if (log.isInfoEnabled) {
+        log.info {
             buildString {
                 sortedFilters.forEachIndexed { index, filter ->
                     append(filter.javaClass.name)
@@ -99,7 +99,7 @@ class FilterChainBuilder<T> {
                     }
                 }
             }.let {
-                log.info("Build - Condition:[{}] - FilterChain: {}", filterCondition, it)
+                "Build - Condition:[$filterCondition] - FilterChain: $it"
             }
         }
         return next
