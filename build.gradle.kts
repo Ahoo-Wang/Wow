@@ -117,7 +117,6 @@ configure(libraryProjects) {
         api(platform(dependenciesProject))
         detektPlugins(platform(dependenciesProject))
         implementation("org.slf4j:slf4j-api")
-        implementation("io.github.oshai:kotlin-logging-jvm")
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("org.junit.jupiter:junit-jupiter-api")
         testImplementation("org.junit.jupiter:junit-jupiter-params")
