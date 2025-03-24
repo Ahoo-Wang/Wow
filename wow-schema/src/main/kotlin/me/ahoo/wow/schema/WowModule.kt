@@ -27,6 +27,7 @@ import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
 class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
+        fieldConfigPart.withInstanceAttributeOverride { collectedMemberAttributes, member, context -> }
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
         kotlinNullable(fieldConfigPart, generalConfigPart)
