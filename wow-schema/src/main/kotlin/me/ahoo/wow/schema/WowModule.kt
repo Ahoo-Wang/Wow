@@ -37,6 +37,7 @@ class WowModule(private val options: Set<WowOption>) : Module {
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
+        wowNamingStrategy(generalConfigPart)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {
@@ -59,5 +60,12 @@ class WowModule(private val options: Set<WowOption>) : Module {
         fieldConfigPart.withRequiredCheck(KotlinRequiredCheck)
         fieldConfigPart.withWriteOnlyCheck(KotlinWriteOnlyCheck)
         generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
+    }
+
+    private fun wowNamingStrategy(generalConfigPart: SchemaGeneratorGeneralConfigPart) {
+        if (options.contains(WowOption.WOW_NAMING_STRATEGY).not()) {
+            return
+        }
+        generalConfigPart.withDefinitionNamingStrategy(WowSchemaDefinitionNamingStrategy)
     }
 }
