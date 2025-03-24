@@ -21,5 +21,9 @@ enum class WowOption {
      */
     IGNORE_COMMAND_ROUTE_VARIABLE,
     KOTLIN,
-    WOW_NAMING_STRATEGY
+    WOW_NAMING_STRATEGY;
+
+    companion object {
+        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE, KOTLIN, WOW_NAMING_STRATEGY)
+    }
 }

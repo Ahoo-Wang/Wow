@@ -24,7 +24,7 @@ import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
 import me.ahoo.wow.schema.kotlin.KotlinRequiredCheck
 import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
 
-class WowModule(private val options: Set<WowOption>) : Module {
+class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
         ignoreCommandRouteVariable(fieldConfigPart)
