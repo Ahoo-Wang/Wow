@@ -40,7 +40,7 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType
     fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
-    fun parameter(key: String = "", builder: (Parameter) -> Unit): Parameter
+    fun parameter(key: String = "", builder: Parameter.() -> Unit): Parameter
     fun header(key: String = "", builder: (Header) -> Unit): Header
     fun requestBody(key: String = "", builder: (RequestBody) -> Unit): RequestBody
     fun response(key: String = "", builder: (ApiResponse) -> Unit): ApiResponse

@@ -13,6 +13,12 @@
 
 package me.ahoo.wow.openapi.command
 
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.parameters.Parameter
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+
 object CommandRequestHeaders {
 
     const val COMMAND_HEADERS_PREFIX = "Command-"
@@ -34,4 +40,85 @@ object CommandRequestHeaders {
 
     const val COMMAND_HEADER_X_PREFIX = "${COMMAND_HEADERS_PREFIX}Header-"
     const val WOW_ERROR_CODE = "Wow-Error-Code"
+
+    fun OpenAPIComponentContext.waitContext(): Parameter = parameter("${Wow.WOW_PREFIX}.$WAIT_CONTEXT") {
+        name = WAIT_CONTEXT
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.tenantId(): Parameter = parameter("${Wow.WOW_PREFIX}.$TENANT_ID") {
+        name = TENANT_ID
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.ownerId(): Parameter = parameter("${Wow.WOW_PREFIX}.$OWNER_ID") {
+        name = OWNER_ID
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.aggregateId(): Parameter = parameter("${Wow.WOW_PREFIX}.$AGGREGATE_ID") {
+        name = AGGREGATE_ID
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.aggregateVersion(): Parameter = parameter("${Wow.WOW_PREFIX}.$AGGREGATE_VERSION") {
+        name = AGGREGATE_VERSION
+        schema = schema(Int::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.waitStage(): Parameter = parameter("${Wow.WOW_PREFIX}.$WAIT_STAGE") {
+        name = WAIT_STAGE
+        schema = schema(CommandStage::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.waitProcessor(): Parameter = parameter("${Wow.WOW_PREFIX}.$WAIT_PROCESSOR") {
+        name = WAIT_PROCESSOR
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.waitTimeOut(): Parameter = parameter("${Wow.WOW_PREFIX}.$WAIT_TIME_OUT") {
+        name = WAIT_TIME_OUT
+        schema = schema(Int::class.java)
+        `in`(ParameterIn.HEADER.toString())
+        description = "Command timeout period. Milliseconds"
+    }
+
+    fun OpenAPIComponentContext.requestId(): Parameter = parameter("${Wow.WOW_PREFIX}.$REQUEST_ID") {
+        name = REQUEST_ID
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.localFirst(): Parameter = parameter("${Wow.WOW_PREFIX}.$LOCAL_FIRST") {
+        name = LOCAL_FIRST
+        schema = schema(Boolean::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
+
+    fun OpenAPIComponentContext.commandAggregateContext(): Parameter =
+        parameter("${Wow.WOW_PREFIX}.$COMMAND_AGGREGATE_CONTEXT") {
+            name = COMMAND_AGGREGATE_CONTEXT
+            schema = schema(String::class.java)
+            `in`(ParameterIn.HEADER.toString())
+        }
+
+    fun OpenAPIComponentContext.commandAggregateName(): Parameter =
+        parameter("${Wow.WOW_PREFIX}.$COMMAND_AGGREGATE_NAME") {
+            name = COMMAND_AGGREGATE_NAME
+            schema = schema(String::class.java)
+            `in`(ParameterIn.HEADER.toString())
+        }
+
+    fun OpenAPIComponentContext.commandType(): Parameter = parameter("${Wow.WOW_PREFIX}.$COMMAND_TYPE") {
+        name = COMMAND_TYPE
+        schema = schema(String::class.java)
+        `in`(ParameterIn.HEADER.toString())
+    }
 }
