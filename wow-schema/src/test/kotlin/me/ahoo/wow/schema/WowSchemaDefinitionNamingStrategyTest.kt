@@ -2,6 +2,7 @@ package me.ahoo.wow.schema
 
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.schema.WowSchemaDefinitionNamingStrategy.toSchemaName
 import org.hamcrest.CoreMatchers.equalTo
@@ -20,7 +21,8 @@ class WowSchemaDefinitionNamingStrategyTest {
                 Arguments.of(AggregateId::class.java, "wow.AggregateId"),
                 Arguments.of(CreateOrder::class.java, "example.order.CreateOrder"),
                 Arguments.of(Any::class.java, "Object"),
-                Arguments.of(WowSchemaDefinitionNamingStrategyTest::class.java, "SchemaDefinitionNamingStrategyTest")
+                Arguments.of(WowSchemaDefinitionNamingStrategyTest::class.java, "SchemaDefinitionNamingStrategyTest"),
+                Arguments.of(ExampleService::class.java, "example.ExampleService")
             )
         }
     }
