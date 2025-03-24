@@ -55,7 +55,7 @@ class OpenAPISchemaBuilder(
         it.forFields().withInstanceAttributeOverride(OpenAPICompatibilityAttributeOverride(schemaVersion))
         it.forMethods().withInstanceAttributeOverride(OpenAPICompatibilityAttributeOverride(schemaVersion))
     }
-) {
+) : InlineSchemaCapable {
     companion object {
         const val DEFINITION_PATH = "components/schemas"
     }
@@ -68,7 +68,7 @@ class OpenAPISchemaBuilder(
     private val typeContext: TypeContext = TypeContextFactory.createDefaultTypeContext(generatorConfig)
     private val schemaGenerator: SchemaGenerator = SchemaGenerator(generatorConfig, typeContext)
 
-    private val inline: Boolean
+    override val inline: Boolean
         get() = generatorConfig.shouldInlineAllSchemas()
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
