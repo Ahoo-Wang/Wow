@@ -27,7 +27,7 @@ import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.wow.serialization.JsonSerializer
 import java.lang.reflect.Type
 
-class JsonSchemaGenerator(private val options: Set<WowOption>) {
+class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
     private val schemaGenerator: SchemaGenerator
 
     init {
