@@ -42,7 +42,6 @@ class JsonSchema(
         }
     }
 
-
     @Suppress("UNCHECKED_CAST")
     fun <R : JsonNode> get(propertyName: String): R? {
         return actual.get(propertyName) as R?
