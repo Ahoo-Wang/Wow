@@ -129,6 +129,7 @@ class JsonSchemaGeneratorTest {
             .with(Option.PLAIN_DEFINITION_KEYS)
 
         val schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
+
         val openAPISchemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
         val schema = openAPISchemaBuilder.createSchemaReference(CreateOrder::class.java).asJsonSchema()
         val componentsSchemas = openAPISchemaBuilder.collectDefinitions("components/schemas")

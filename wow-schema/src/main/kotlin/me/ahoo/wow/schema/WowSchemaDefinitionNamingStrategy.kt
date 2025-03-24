@@ -15,6 +15,7 @@ package me.ahoo.wow.schema
 
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
+import com.github.victools.jsonschema.generator.naming.DefaultSchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.configuration.namedAggregate
@@ -24,7 +25,8 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 
 object WowSchemaDefinitionNamingStrategy : SchemaDefinitionNamingStrategy {
-    fun Class<*>.toSchemaName(): String {
+    private val baseStrategy: SchemaDefinitionNamingStrategy = DefaultSchemaDefinitionNamingStrategy()
+    fun Class<*>.toSchemaName(): String? {
         kotlin.scanAnnotation<io.swagger.v3.oas.annotations.media.Schema>()?.let {
             if (it.name.isNotBlank()) {
                 return it.name
@@ -41,10 +43,10 @@ object WowSchemaDefinitionNamingStrategy : SchemaDefinitionNamingStrategy {
         if (name.startsWith("me.ahoo.wow.")) {
             return Wow.WOW_PREFIX + simpleName
         }
-        return simpleName
+        return null
     }
 
     override fun getDefinitionNameForKey(key: DefinitionKey, generationContext: SchemaGenerationContext): String {
-        return key.type.erasedType.toSchemaName()
+        return key.type.erasedType.toSchemaName() ?: baseStrategy.getDefinitionNameForKey(key, generationContext)
     }
 }

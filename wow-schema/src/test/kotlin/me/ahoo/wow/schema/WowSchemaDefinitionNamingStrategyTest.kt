@@ -20,7 +20,7 @@ class WowSchemaDefinitionNamingStrategyTest {
             return Stream.of(
                 Arguments.of(AggregateId::class.java, "wow.AggregateId"),
                 Arguments.of(CreateOrder::class.java, "example.order.CreateOrder"),
-                Arguments.of(Any::class.java, "Object"),
+                Arguments.of(Any::class.java, null),
                 Arguments.of(WowSchemaDefinitionNamingStrategyTest::class.java, "SchemaDefinitionNamingStrategyTest"),
                 Arguments.of(ExampleService::class.java, "example.ExampleService")
             )
@@ -29,7 +29,7 @@ class WowSchemaDefinitionNamingStrategyTest {
 
     @ParameterizedTest
     @MethodSource("parametersForToSchemaName")
-    fun toSchemaName(clazz: Class<*>, expectedSchemaName: String) {
+    fun toSchemaName(clazz: Class<*>, expectedSchemaName: String?) {
         val schemaName = clazz.toSchemaName()
         assertThat(schemaName, equalTo(expectedSchemaName))
     }
