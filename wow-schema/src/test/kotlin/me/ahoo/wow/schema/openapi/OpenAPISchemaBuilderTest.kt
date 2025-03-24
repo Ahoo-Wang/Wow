@@ -9,7 +9,7 @@ import me.ahoo.wow.example.domain.order.OrderState
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
 import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class OpenAPISchemaBuilderTest {
@@ -18,6 +18,8 @@ class OpenAPISchemaBuilderTest {
     fun build() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         assertThat(openAPISchemaBuilder.inline, equalTo(false))
+        val stringSchema = openAPISchemaBuilder.generateSchema(String::class.java)
+        assertThat(stringSchema.type, equalTo("string"))
         val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)
         assertThat(createOderSchema.`$ref`, nullValue())
         val addCartItemSchema = openAPISchemaBuilder.generateSchema(AddCartItem::class.java)
