@@ -49,7 +49,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
-    override fun parameter(key: String, builder: (Parameter) -> Unit): Parameter {
+    override fun parameter(key: String, builder: Parameter.() -> Unit): Parameter {
         val parameter = Parameter().also(builder)
         if (inline) {
             return parameter
