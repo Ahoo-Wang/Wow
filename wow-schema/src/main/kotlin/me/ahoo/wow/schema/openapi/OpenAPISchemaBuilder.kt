@@ -23,6 +23,7 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfig
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
+import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.TypeContextFactory
 import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
@@ -59,18 +60,21 @@ class OpenAPISchemaBuilder(
         const val DEFINITION_PATH = "components/schemas"
     }
 
-    private val configBuilder: SchemaGeneratorConfig =
+    private val generatorConfig: SchemaGeneratorConfig =
         SchemaGeneratorConfigBuilder(JsonSerializer, schemaVersion, optionPreset)
             .also {
                 customizer.accept(it)
             }.build()
-    private val typeContext = TypeContextFactory.createDefaultTypeContext(configBuilder)
-    private val schemaGenerator: SchemaGenerator = SchemaGenerator(configBuilder, typeContext)
+    private val typeContext: TypeContext = TypeContextFactory.createDefaultTypeContext(generatorConfig)
+    private val schemaGenerator: SchemaGenerator = SchemaGenerator(generatorConfig, typeContext)
 
     private val inline: Boolean
-        get() = configBuilder.shouldInlineAllSchemas()
+        get() = generatorConfig.shouldInlineAllSchemas()
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
+    fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
+        return typeContext.resolve(mainTargetType, *typeParameters)
+    }
 
     fun generateSchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
         val resolvedType = typeContext.resolve(mainTargetType, *typeParameters)

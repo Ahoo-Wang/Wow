@@ -47,12 +47,9 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         }
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
         val propertiesNode: ObjectNode = (rootSchema.getProperties()).let {
-            if (it == null) {
-                context.generatorConfig.createObjectNode().also { node ->
-                    rootSchema.set(SchemaKeyword.TAG_PROPERTIES, node)
-                }
+            it ?: context.generatorConfig.createObjectNode().also { node ->
+                rootSchema.set(SchemaKeyword.TAG_PROPERTIES, node)
             }
-            it!!
         }
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
