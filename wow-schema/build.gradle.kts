@@ -4,6 +4,7 @@ dependencies {
     api(project(":wow-api"))
     api(project(":wow-core"))
     implementation(kotlin("reflect"))
+    api("io.swagger.core.v3:swagger-core-jakarta")
     api("com.github.victools:jsonschema-generator")
     api("com.github.victools:jsonschema-module-jackson")
     api("com.github.victools:jsonschema-module-jakarta-validation")

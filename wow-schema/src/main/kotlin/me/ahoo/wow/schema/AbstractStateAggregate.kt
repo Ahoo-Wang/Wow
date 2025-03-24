@@ -22,6 +22,9 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import java.lang.reflect.ParameterizedType
 
@@ -43,17 +46,16 @@ abstract class AbstractStateAggregate<S : ReadOnlyStateAggregate<*>> :
             return super.createCustomDefinition(javaType, context)
         }
 
-        val typedSchema = getTypedSchema()
-        typedSchema.remove(SchemaKeyword.TAG_TITLE.toTagKey())
+        val typedSchema = getTypedSchema().asJsonSchema()
+        typedSchema.remove(SchemaKeyword.TAG_TITLE)
         val stateType = getStateType(javaType)
-        val propertiesKey = SchemaKeyword.TAG_PROPERTIES.toTagKey()
-        val propertiesNode = typedSchema[propertiesKey] as ObjectNode
+        val propertiesNode = typedSchema.requiredGetProperties()
         val stateOriginalNode = propertiesNode[StateAggregateRecords.STATE] as ObjectNode
-        val stateNode = context.createStandardDefinition(stateType, this)
-        val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toTagKey()
-        stateNode.set<ObjectNode>(descriptionKey, stateOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(StateAggregateRecords.STATE, stateNode)
-        return CustomDefinition(typedSchema)
+        val stateSchema = context.createStandardDefinition(stateType, this).asJsonSchema()
+        val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
+        stateSchema.set(SchemaKeyword.TAG_DESCRIPTION, stateOriginalNode[descriptionKey])
+        propertiesNode.set<ObjectNode>(StateAggregateRecords.STATE, stateSchema.actual)
+        return typedSchema.asCustomDefinition()
     }
 }
 

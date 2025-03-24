@@ -21,6 +21,9 @@ import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.serialization.MessageRecords
 import java.lang.reflect.ParameterizedType
 
@@ -42,22 +45,21 @@ abstract class MessageDefinitionProvider<M : Message<*, *>> :
             return super.createCustomDefinition(javaType, context)
         }
 
-        val typedSchema = getTypedSchema()
-        typedSchema.remove(SchemaKeyword.TAG_TITLE.toTagKey())
+        val typedSchema = getTypedSchema().asJsonSchema()
+        typedSchema.remove(SchemaKeyword.TAG_TITLE)
         val bodyType = getBodyType(javaType)
-        val propertiesKey = SchemaKeyword.TAG_PROPERTIES.toTagKey()
-        val propertiesNode = typedSchema[propertiesKey] as ObjectNode
+        val propertiesNode = typedSchema.requiredGetProperties()
         val bodyTypeNode = propertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
-        val typeKey = SchemaKeyword.TAG_TYPE.toTagKey()
+        val typeKey = SchemaKeyword.TAG_TYPE.toPropertyName()
         bodyTypeNode.remove(typeKey)
-        val constKey = SchemaKeyword.TAG_CONST.toTagKey()
+        val constKey = SchemaKeyword.TAG_CONST.toPropertyName()
         bodyTypeNode.put(constKey, bodyType.erasedType.name)
         val bodyOriginalNode = propertiesNode[MessageRecords.BODY] as ObjectNode
-        val bodyNode = context.createStandardDefinition(bodyType, this)
-        val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toTagKey()
-        bodyNode.set<ObjectNode>(descriptionKey, bodyOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(MessageRecords.BODY, bodyNode)
-        return CustomDefinition(typedSchema)
+        val bodySchema = context.createStandardDefinition(bodyType, this).asJsonSchema()
+        val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
+        bodySchema.set(SchemaKeyword.TAG_DESCRIPTION, bodyOriginalNode[descriptionKey])
+        propertiesNode.set<ObjectNode>(MessageRecords.BODY, bodySchema.actual)
+        return typedSchema.asCustomDefinition()
     }
 }
 

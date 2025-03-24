@@ -1,5 +1,16 @@
 package me.ahoo.wow.schema
 
+import com.github.victools.jsonschema.generator.Module
+import com.github.victools.jsonschema.generator.Option
+import com.github.victools.jsonschema.generator.OptionPreset
+import com.github.victools.jsonschema.generator.SchemaGenerator
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import com.github.victools.jsonschema.generator.SchemaKeyword
+import com.github.victools.jsonschema.generator.SchemaVersion
+import com.github.victools.jsonschema.module.jackson.JacksonModule
+import com.github.victools.jsonschema.module.jackson.JacksonOption
+import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
+import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -17,6 +28,8 @@ import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
@@ -95,6 +108,32 @@ class JsonSchemaGeneratorTest {
         val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
         val schema = jsonSchemaGenerator.generate(Patch::class.java)
         assertThat(schema.get("properties"), notNullValue())
+    }
+
+    @Test
+    fun openAPI() {
+        val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
+        val jakartaModule = JakartaValidationModule()
+        val openApiModule: Module = Swagger2Module()
+        val wowModule = WowModule(setOf(WowOption.KOTLIN, WowOption.WOW_NAMING_STRATEGY))
+        val schemaGeneratorConfigBuilder = SchemaGeneratorConfigBuilder(
+            JsonSerializer,
+            SchemaVersion.DRAFT_2020_12,
+            OptionPreset.PLAIN_JSON
+        ).with(jacksonModule)
+            .with(jakartaModule)
+            .with(openApiModule)
+            .with(wowModule)
+            .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
+            .with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+            .with(Option.PLAIN_DEFINITION_KEYS)
+
+        val schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
+        val openAPISchemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
+        val schema = openAPISchemaBuilder.createSchemaReference(CreateOrder::class.java).asJsonSchema()
+        val componentsSchemas = openAPISchemaBuilder.collectDefinitions("components/schemas")
+        assertThat(schema.get(SchemaKeyword.TAG_REF), notNullValue())
+        assertThat(componentsSchemas.size(), equalTo(3))
     }
 
     data class Patch(

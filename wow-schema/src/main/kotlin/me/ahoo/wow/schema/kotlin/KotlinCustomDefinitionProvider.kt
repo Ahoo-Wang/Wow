@@ -19,7 +19,9 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.schema.toTagKey
+import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
@@ -43,12 +45,11 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         if (kotlinGettersIfNonFields.isEmpty()) {
             return null
         }
-        val rootNode = context.createStandardDefinition(javaType, this)
-        val propertiesKey = SchemaKeyword.TAG_PROPERTIES.toTagKey()
-        val propertiesNode: ObjectNode = (rootNode[propertiesKey] as ObjectNode?).let {
+        val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
+        val propertiesNode: ObjectNode = (rootSchema.getProperties()).let {
             if (it == null) {
                 context.generatorConfig.createObjectNode().also { node ->
-                    rootNode.set<ObjectNode>(propertiesKey, node)
+                    rootSchema.set(SchemaKeyword.TAG_PROPERTIES, node)
                 }
             }
             it!!
@@ -57,11 +58,11 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             if (propertiesNode.get(kotlinGetter.name) == null) {
                 val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
                 val getterNode = context.createDefinition(returnType)
-                val readOnly = SchemaKeyword.TAG_READ_ONLY.toTagKey()
+                val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
                 getterNode.put(readOnly, true)
                 propertiesNode.set<ObjectNode>(kotlinGetter.name, getterNode)
             }
         }
-        return CustomDefinition(rootNode)
+        return rootSchema.asCustomDefinition()
     }
 }

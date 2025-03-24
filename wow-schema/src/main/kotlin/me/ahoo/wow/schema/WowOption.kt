@@ -20,5 +20,6 @@ enum class WowOption {
      * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
      */
     IGNORE_COMMAND_ROUTE_VARIABLE,
-    KOTLIN
+    KOTLIN,
+    WOW_NAMING_STRATEGY
 }
