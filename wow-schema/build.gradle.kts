@@ -1,4 +1,4 @@
-description = "Wow Model Context Protocol"
+description = "Wow Schema"
 
 dependencies {
     api(project(":wow-api"))
