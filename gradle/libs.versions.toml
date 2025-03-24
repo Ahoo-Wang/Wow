@@ -17,7 +17,7 @@ kotlin-compile-testing = "0.7.0"
 swagger = "2.2.29"
 springdoc = "2.8.6"
 jte = "3.1.16"
-jsonschema-generator = "4.37.0"
+jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.6"
 # plugins
 test-retry = "1.6.2"
