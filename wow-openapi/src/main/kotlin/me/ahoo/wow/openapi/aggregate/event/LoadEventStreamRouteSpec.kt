@@ -18,10 +18,11 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.BatchComponent.Parameter.headVersionPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.tailVersionPathParameter
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent.Response.loadEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -52,7 +53,7 @@ class LoadEventStreamRouteSpec(
     }
 
     override val appendPathSuffix: String
-        get() = "event/{${RoutePaths.HEAD_VERSION_KEY}}/{${RoutePaths.TAIL_VERSION_KEY}}"
+        get() = "event/{${HEAD_VERSION}}/{${TAIL_VERSION}}"
     override val parameters: List<Parameter>
         get() = super.parameters + listOf(
             componentContext.headVersionPathParameter(),

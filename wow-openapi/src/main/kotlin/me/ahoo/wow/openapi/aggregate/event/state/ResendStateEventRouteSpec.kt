@@ -14,7 +14,8 @@
 package me.ahoo.wow.openapi.aggregate.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.BatchComponent
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
@@ -41,7 +42,7 @@ class ResendStateEventRouteSpec(
     override val summary: String
         get() = "Resend State Event"
     override val appendPathSuffix: String
-        get() = "state/{${BatchComponent.PathVariable.BATCH_AFTER_ID}}/{${BatchComponent.PathVariable.BATCH_LIMIT}}"
+        get() = "state/{${BATCH_AFTER_ID}}/{${BATCH_LIMIT}}"
 }
 
 class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {

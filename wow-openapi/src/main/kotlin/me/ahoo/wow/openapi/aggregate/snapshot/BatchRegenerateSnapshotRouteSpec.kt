@@ -14,12 +14,12 @@
 package me.ahoo.wow.openapi.aggregate.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID
-import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
