@@ -36,7 +36,6 @@
             <option value="$PROJECT_DIR$/wow-models" />
             <option value="$PROJECT_DIR$/wow-mongo" />
             <option value="$PROJECT_DIR$/wow-openapi" />
-            <option value="$PROJECT_DIR$/wow-openapi-joda-money" />
             <option value="$PROJECT_DIR$/wow-opentelemetry" />
             <option value="$PROJECT_DIR$/wow-query" />
             <option value="$PROJECT_DIR$/wow-r2dbc" />

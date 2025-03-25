@@ -123,7 +123,8 @@
               "type" : "string",
               "minLength" : 1
             }
-          }
+          },
+          "required" : [ "city", "country", "detail", "district", "province" ]
         },
         "fromCart" : {
           "type" : "boolean"
@@ -147,10 +148,12 @@
                 "format" : "int32",
                 "exclusiveMinimum" : 0
               }
-            }
+            },
+            "required" : [ "price", "productId", "quantity" ]
           }
         }
       },
+      "required" : [ "address", "fromCart", "items" ],
       "description" : "Command message body"
     },
     "createTime" : {

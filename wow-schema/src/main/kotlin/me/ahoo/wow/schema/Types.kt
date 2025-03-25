@@ -13,12 +13,32 @@
 
 package me.ahoo.wow.schema
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.modeling.state.StateAggregate
 import java.lang.reflect.AnnotatedElement
 
 object Types {
-
     fun AnnotatedElement.isKotlinElement(): Boolean {
         return getAnnotation(Metadata::class.java) != null
+    }
+
+    fun Class<*>.isInstanceOf(clazz: Class<*>): Boolean {
+        return clazz.isAssignableFrom(this)
+    }
+
+    fun Class<*>.isWowType(): Boolean {
+        return isInstanceOf(AggregateId::class.java) ||
+            isInstanceOf(CommandMessage::class.java) ||
+            isInstanceOf(DomainEvent::class.java) ||
+            isInstanceOf(DomainEventStream::class.java) ||
+            isInstanceOf(Snapshot::class.java) ||
+            isInstanceOf(StateAggregate::class.java) ||
+            isInstanceOf(StateEvent::class.java)
     }
 
     @Suppress("ComplexCondition")

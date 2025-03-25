@@ -24,6 +24,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.schema.Types.isWowType
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
@@ -34,7 +35,7 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.erasedType.isKotlinElement() || javaType.erasedType.isStdType()) {
+        if (!javaType.erasedType.isKotlinElement() || javaType.erasedType.isStdType() || javaType.erasedType.isWowType()) {
             return null
         }
 
