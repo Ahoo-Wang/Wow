@@ -119,12 +119,25 @@ class CommandRouteSpec(
             return tags
         }
 
-    private val pathParameters: List<Parameter> = commandRouteMetadata.pathVariableMetadata.map { variableMetadata ->
-        Parameter()
-            .name(variableMetadata.variableName)
-            .`in`(ParameterIn.PATH.toString())
-            .schema(StringSchema())
-    }
+    private val pathParameters: List<Parameter> = commandRouteMetadata.pathVariableMetadata
+        .filter {
+            if (it.variableName == MessageRecords.ID) {
+                return@filter appendIdPath.not()
+            }
+            if (it.variableName == MessageRecords.OWNER_ID) {
+                return@filter appendOwnerPath.not()
+            }
+            if (it.variableName == MessageRecords.TENANT_ID) {
+                return@filter appendTenantPath.not()
+            }
+            true
+        }
+        .map { variableMetadata ->
+            Parameter()
+                .name(variableMetadata.variableName)
+                .`in`(ParameterIn.PATH.toString())
+                .schema(StringSchema())
+        }
 
     private val headerParameters: List<Parameter> =
         commandRouteMetadata.headerVariableMetadata.map { variableMetadata ->
