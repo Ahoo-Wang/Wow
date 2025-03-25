@@ -52,7 +52,7 @@ class CountEventStreamRouteSpec(
     override val requestBody: RequestBody = componentContext.countQueryRequestBody()
 
     override val responses: ApiResponses = ApiResponses().apply {
-        addApiResponse("200", componentContext.countQueryResponse())
+        addApiResponse(Https.Code.OK, componentContext.countQueryResponse())
     }
 }
 
