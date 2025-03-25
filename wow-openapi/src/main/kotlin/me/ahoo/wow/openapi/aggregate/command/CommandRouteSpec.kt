@@ -31,14 +31,7 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStageHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandCommonHeaderParameters
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.commandResponses
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -146,14 +139,7 @@ class CommandRouteSpec(
         addAll(super.parameters)
         addAll(pathParameters)
         addAll(headerParameters)
-        add(componentContext.waitStageHeaderParameter())
-        add(componentContext.waitContextHeaderParameter())
-        add(componentContext.waitProcessorHeaderParameter())
-        add(componentContext.waitTimeOutHeaderParameter())
-        add(componentContext.aggregateIdHeaderParameter())
-        add(componentContext.aggregateVersionHeaderParameter())
-        add(componentContext.requestIdHeaderParameter())
-        add(componentContext.localFirstHeaderParameter())
+        addAll(componentContext.commandCommonHeaderParameters())
     }
     override val requestBody: RequestBody = RequestBodyBuilder().description(summary)
         .content(schema = componentContext.schema(commandRouteMetadata.commandMetadata.commandType)).build()
