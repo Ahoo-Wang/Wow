@@ -15,13 +15,14 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.Schema
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 
 interface RouteSpecFactory {
     /**
      * Global Components
      */
     val components: Components
-
+    fun initialize(context: OpenAPIComponentContext) = Unit
     fun Map<String, Schema<*>>.mergeSchemas() {
         components.schemas.putAll(this)
     }

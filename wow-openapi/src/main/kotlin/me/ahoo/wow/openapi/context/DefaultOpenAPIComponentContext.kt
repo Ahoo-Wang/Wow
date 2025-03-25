@@ -57,7 +57,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         key.requiredKeyNotBlank()
         parameters[key] = parameter
         return Parameter().also {
-            it.`$ref` = "$COMPONENTS_PARAMETERS_REF/$key"
+            it.`$ref` = "$COMPONENTS_PARAMETERS_REF$key"
         }
     }
 
@@ -69,7 +69,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         key.requiredKeyNotBlank()
         headers[key] = header
         return Header().also {
-            it.`$ref` = "$COMPONENTS_HEADERS_REF/$key"
+            it.`$ref` = "$COMPONENTS_HEADERS_REF$key"
         }
     }
 
@@ -81,7 +81,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         key.requiredKeyNotBlank()
         requestBodies[key] = requestBody
         return RequestBody().also {
-            it.`$ref` = "$COMPONENTS_REQUEST_BODIES_REF/$key"
+            it.`$ref` = "$COMPONENTS_REQUEST_BODIES_REF$key"
         }
     }
 
@@ -93,7 +93,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         key.requiredKeyNotBlank()
         responses[key] = apiResponse
         return ApiResponse().also {
-            it.`$ref` = "$COMPONENTS_RESPONSES_REF/$key"
+            it.`$ref` = "$COMPONENTS_RESPONSES_REF$key"
         }
     }
 }

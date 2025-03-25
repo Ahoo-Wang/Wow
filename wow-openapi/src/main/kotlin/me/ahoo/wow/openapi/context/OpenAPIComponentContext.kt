@@ -24,12 +24,11 @@ import java.lang.reflect.Type
 
 interface OpenAPIComponentContext : InlineSchemaCapable {
     companion object {
-        const val COMPONENTS_PREFIX = "components"
-        const val COMPONENTS_SCHEMAS_REF = "$COMPONENTS_PREFIX/schemas"
-        const val COMPONENTS_HEADERS_REF = "$COMPONENTS_PREFIX/headers"
-        const val COMPONENTS_PARAMETERS_REF = "$COMPONENTS_PREFIX/parameters"
-        const val COMPONENTS_REQUEST_BODIES_REF = "$COMPONENTS_PREFIX/requestBodies"
-        const val COMPONENTS_RESPONSES_REF = "$COMPONENTS_PREFIX/responses"
+        const val COMPONENTS_PREFIX = "#/components/"
+        const val COMPONENTS_HEADERS_REF = "${COMPONENTS_PREFIX}headers/"
+        const val COMPONENTS_PARAMETERS_REF = "${COMPONENTS_PREFIX}parameters/"
+        const val COMPONENTS_REQUEST_BODIES_REF = "${COMPONENTS_PREFIX}requestBodies/"
+        const val COMPONENTS_RESPONSES_REF = "${COMPONENTS_PREFIX}responses/"
     }
 
     val schemas: Map<String, Schema<*>>
