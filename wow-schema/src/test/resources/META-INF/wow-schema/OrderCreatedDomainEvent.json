@@ -120,7 +120,8 @@
               "type" : "string",
               "minLength" : 1
             }
-          }
+          },
+          "required" : [ "city", "country", "detail", "district", "province" ]
         },
         "fromCart" : {
           "type" : "boolean"
@@ -142,14 +143,20 @@
               "quantity" : {
                 "type" : "integer",
                 "format" : "int32"
+              },
+              "totalPrice" : {
+                "type" : "number",
+                "readOnly" : true
               }
-            }
+            },
+            "required" : [ "id", "price", "productId", "quantity" ]
           }
         },
         "orderId" : {
           "type" : "string"
         }
       },
+      "required" : [ "address", "fromCart", "items", "orderId" ],
       "description" : "The message body of the domain event"
     },
     "createTime" : {

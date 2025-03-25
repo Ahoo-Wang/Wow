@@ -60,6 +60,7 @@
           "type" : "string"
         }
       },
+      "required" : [ "id" ],
       "description" : "The state data of the aggregate"
     },
     "deleted" : {

@@ -46,8 +46,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 class JsonSchemaGeneratorTest {
-    private val jsonSchemaGenerator =
-        JsonSchemaGenerator(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE, WowOption.JODA_MONEY))
+    private val jsonSchemaGenerator = JsonSchemaGenerator()
 
     companion object {
         @JvmStatic
@@ -171,7 +170,6 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun kotlin() {
-        val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.KOTLIN))
         val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
         val nullableFieldType = schema.get("properties").get("nullableField").get("type")
         assertThat(nullableFieldType.isArray, equalTo(true))
@@ -195,6 +193,7 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun kotlin_ignore() {
+        val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
         val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
         val type = schema.get("properties").get("nullableField").get("type")
         assertThat(type.isArray, equalTo(false))
