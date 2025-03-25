@@ -1,0 +1,10 @@
+{
+  "contexts": {
+    "wow.openapi": {
+      "alias": "wow.openapi",
+      "scopes": [
+        "me.ahoo.wow.openapi"
+      ]
+    }
+  }
+}
