@@ -11,6 +11,7 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
+import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -179,6 +180,12 @@ class JsonSchemaGeneratorTest {
         assertThat(required.isArray, equalTo(true))
         assertThat(required.get(0).textValue(), equalTo("field"))
         assertThat(required.get(1).textValue(), equalTo("nullableField"))
+    }
+
+    @Test
+    fun javaType() {
+        val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.KOTLIN))
+        jsonSchemaGenerator.generate(CosIdGeneratorStat::class.java)
     }
 
     @Test
