@@ -33,8 +33,8 @@ import java.lang.reflect.Type
 class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) :
     OpenAPIComponentContext,
     InlineSchemaCapable by schemaBuilder {
-    override val schemas: Map<String, Schema<*>>
-        get() = schemaBuilder.build()
+    override var schemas: Map<String, Schema<*>> = emptyMap()
+
     override val parameters: MutableMap<String, Parameter> = mutableMapOf()
     override val headers: MutableMap<String, Header> = mutableMapOf()
     override val requestBodies: MutableMap<String, RequestBody> = mutableMapOf()
@@ -114,5 +114,9 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         return ApiResponse().also {
             it.`$ref` = "$COMPONENTS_RESPONSES_REF$key"
         }
+    }
+
+    override fun finish() {
+        schemas = schemaBuilder.build()
     }
 }

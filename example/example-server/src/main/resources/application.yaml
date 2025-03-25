@@ -15,6 +15,9 @@ management:
 
 springdoc:
   show-actuator: true
+  api-docs:
+    version: openapi-3-1
+
 
 spring:
   application:
@@ -73,6 +76,8 @@ wow:
     state:
       bus:
         type: in_memory
+  openapi:
+    inline: true
 #  r2dbc:
 #    datasource:
 #      type: sharding

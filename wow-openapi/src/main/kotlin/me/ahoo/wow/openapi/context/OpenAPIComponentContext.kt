@@ -69,4 +69,6 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
     fun header(key: String = "", builder: Header.() -> Unit): Header
     fun requestBody(key: String = "", builder: RequestBodyBuilder.() -> Unit): RequestBody
     fun response(key: String = "", builder: ApiResponseBuilder.() -> Unit): ApiResponse
+
+    fun finish()
 }

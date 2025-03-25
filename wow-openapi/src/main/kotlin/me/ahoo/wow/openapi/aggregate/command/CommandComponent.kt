@@ -14,7 +14,6 @@
 package me.ahoo.wow.openapi.aggregate.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponse
@@ -164,11 +163,11 @@ object CommandComponent {
 
     object Response {
         fun OpenAPIComponentContext.okCommandResponse(): ApiResponse =
-            response("${Wow.WOW_PREFIX}${ErrorCodes.SUCCEEDED}") {
+            response("${Wow.WOW_PREFIX}Command${ErrorCodes.SUCCEEDED}") {
                 description(ErrorCodes.SUCCEEDED_MESSAGE)
                 header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
-                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = ArraySchema().items(commandResultSchema()))
+                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = arraySchema(CommandResult::class.java))
             }
 
         fun OpenAPIComponentContext.badRequestCommandResponse(): ApiResponse =
