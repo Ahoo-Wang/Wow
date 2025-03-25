@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import me.ahoo.wow.schema.WowSchemaLoader
 
 abstract class TypedCustomDefinitionProvider : CustomDefinitionProviderV2 {
     abstract val type: Class<*>

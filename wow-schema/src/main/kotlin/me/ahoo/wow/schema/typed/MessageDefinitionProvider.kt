@@ -11,33 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
-import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
-import me.ahoo.wow.serialization.state.StateAggregateRecords
+import me.ahoo.wow.serialization.MessageRecords
 import java.lang.reflect.ParameterizedType
 
-abstract class AbstractStateAggregate<S : ReadOnlyStateAggregate<*>> :
+abstract class MessageDefinitionProvider<M : Message<*, *>> :
     TypedCustomDefinitionProvider() {
     @Suppress("UNCHECKED_CAST")
     override val type: Class<*> by lazy {
         val superType = javaClass.genericSuperclass as ParameterizedType
         val messageType = superType.actualTypeArguments[0] as ParameterizedType
-        messageType.rawType as Class<S>
+        messageType.rawType as Class<M>
     }
 
-    open fun getStateType(javaType: ResolvedType): ResolvedType {
+    open fun getBodyType(javaType: ResolvedType): ResolvedType {
         return javaType.typeBindings.getBoundType(0)
     }
 
@@ -48,17 +47,22 @@ abstract class AbstractStateAggregate<S : ReadOnlyStateAggregate<*>> :
 
         val typedSchema = getTypedSchema().asJsonSchema()
         typedSchema.remove(SchemaKeyword.TAG_TITLE)
-        val stateType = getStateType(javaType)
+        val bodyType = getBodyType(javaType)
         val propertiesNode = typedSchema.requiredGetProperties()
-        val stateOriginalNode = propertiesNode[StateAggregateRecords.STATE] as ObjectNode
-        val stateSchema = context.createStandardDefinition(stateType, this).asJsonSchema()
+        val bodyTypeNode = propertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
+        val typeKey = SchemaKeyword.TAG_TYPE.toPropertyName()
+        bodyTypeNode.remove(typeKey)
+        val constKey = SchemaKeyword.TAG_CONST.toPropertyName()
+        bodyTypeNode.put(constKey, bodyType.erasedType.name)
+        val bodyOriginalNode = propertiesNode[MessageRecords.BODY] as ObjectNode
+        val bodySchema = context.createStandardDefinition(bodyType, this).asJsonSchema()
         val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
-        stateSchema.set(SchemaKeyword.TAG_DESCRIPTION, stateOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(StateAggregateRecords.STATE, stateSchema.actual)
+        bodySchema.set(SchemaKeyword.TAG_DESCRIPTION, bodyOriginalNode[descriptionKey])
+        propertiesNode.set<ObjectNode>(MessageRecords.BODY, bodySchema.actual)
         return typedSchema.asCustomDefinition()
     }
 }
 
-object StateAggregateDefinitionProvider : AbstractStateAggregate<StateAggregate<*>>()
-object SnapshotDefinitionProvider : AbstractStateAggregate<Snapshot<*>>()
-object StateEventDefinitionProvider : AbstractStateAggregate<StateEvent<*>>()
+object CommandDefinitionProvider : MessageDefinitionProvider<CommandMessage<*>>()
+
+object DomainEventDefinitionProvider : MessageDefinitionProvider<DomainEvent<*>>()

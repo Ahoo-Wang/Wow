@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.typed
 
 import me.ahoo.wow.api.modeling.AggregateId
 
