@@ -19,6 +19,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
@@ -105,7 +106,7 @@ object CommandComponent {
         fun OpenAPIComponentContext.waitStageHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_STAGE
-                schema = commandResultSchema()
+                schema = schema(CommandStage::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
