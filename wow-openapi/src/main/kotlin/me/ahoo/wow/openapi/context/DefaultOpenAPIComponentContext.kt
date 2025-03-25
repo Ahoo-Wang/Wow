@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_HEADERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
@@ -97,8 +98,8 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
-    override fun response(key: String, builder: ApiResponse.() -> Unit): ApiResponse {
-        val apiResponse = ApiResponse().also(builder)
+    override fun response(key: String, builder: ApiResponseBuilder.() -> Unit): ApiResponse {
+        val apiResponse = ApiResponseBuilder().also(builder).build()
         if (inline) {
             return apiResponse
         }

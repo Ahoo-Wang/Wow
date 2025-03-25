@@ -23,7 +23,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.state.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory

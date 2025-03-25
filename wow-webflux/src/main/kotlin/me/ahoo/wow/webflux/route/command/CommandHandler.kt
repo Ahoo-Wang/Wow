@@ -18,7 +18,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux

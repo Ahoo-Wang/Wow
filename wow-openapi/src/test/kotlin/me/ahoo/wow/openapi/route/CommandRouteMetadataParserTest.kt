@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

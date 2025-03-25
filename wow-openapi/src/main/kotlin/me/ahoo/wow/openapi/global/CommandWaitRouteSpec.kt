@@ -30,7 +30,8 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory.Companion.PATH
 
-class CommandWaitRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+class CommandWaitRouteSpec(override val componentContext: OpenAPIComponentContext) :
+    RouteSpec,
     OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)

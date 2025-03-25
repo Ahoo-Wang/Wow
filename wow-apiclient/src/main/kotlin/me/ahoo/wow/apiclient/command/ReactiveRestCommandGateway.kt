@@ -17,7 +17,7 @@ import me.ahoo.coapi.api.CoApi
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader

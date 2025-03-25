@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.openapi.snapshot.SingleSnapshotStateRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpec
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler

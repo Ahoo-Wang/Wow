@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.openapi.command.CommandFacadeRouteSpec
+import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.toCommandResponse

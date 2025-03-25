@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.openapi.event.ListQueryEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory

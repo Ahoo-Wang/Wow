@@ -4,7 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test

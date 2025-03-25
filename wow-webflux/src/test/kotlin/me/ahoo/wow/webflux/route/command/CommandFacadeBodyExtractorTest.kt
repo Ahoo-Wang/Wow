@@ -6,8 +6,8 @@ import io.mockk.mockk
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MockCommandAggregate

@@ -21,6 +21,8 @@ import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
+import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 
 interface BatchRouteSpec : AggregateRouteSpec {
     override val appendTenantPath: Boolean

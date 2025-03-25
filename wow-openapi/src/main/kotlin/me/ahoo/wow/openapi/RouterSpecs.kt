@@ -21,10 +21,11 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 
 class RouterSpecs(

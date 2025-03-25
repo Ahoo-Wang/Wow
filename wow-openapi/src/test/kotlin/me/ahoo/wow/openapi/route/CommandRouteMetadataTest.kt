@@ -1,5 +1,6 @@
 package me.ahoo.wow.openapi.route
 
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test

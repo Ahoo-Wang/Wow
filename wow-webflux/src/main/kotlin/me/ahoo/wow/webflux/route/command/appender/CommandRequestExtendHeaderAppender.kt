@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 import org.springframework.web.reactive.function.server.ServerRequest
 
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {

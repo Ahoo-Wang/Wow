@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
@@ -26,6 +27,11 @@ class ApiResponseBuilder {
     private val apiResponse = ApiResponse().content(Content())
     fun description(description: String): ApiResponseBuilder {
         apiResponse.description(description)
+        return this
+    }
+
+    fun header(name: String, header: Header): ApiResponseBuilder {
+        apiResponse.addHeaderObject(name, header)
         return this
     }
 

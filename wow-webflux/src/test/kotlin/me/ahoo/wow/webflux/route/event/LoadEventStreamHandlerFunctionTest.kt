@@ -2,8 +2,8 @@ package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler

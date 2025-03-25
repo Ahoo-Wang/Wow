@@ -26,7 +26,8 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 
-class GetWowMetadataRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+class GetWowMetadataRouteSpec(override val componentContext: OpenAPIComponentContext) :
+    RouteSpec,
     OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)

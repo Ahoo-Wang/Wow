@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler

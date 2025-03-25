@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
