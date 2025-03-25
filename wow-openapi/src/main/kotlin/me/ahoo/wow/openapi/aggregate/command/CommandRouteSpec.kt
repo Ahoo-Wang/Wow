@@ -24,7 +24,6 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
@@ -144,14 +143,21 @@ class CommandRouteSpec(
         add(componentContext.requestIdPathParameter())
         add(componentContext.localFirstPathParameter())
         commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
-            withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
-                it.required(variableMetadata.required)
-            }
+            Parameter()
+                .name(variableMetadata.variableName)
+                .`in`(ParameterIn.PATH.toString())
+                .schema(StringSchema())
+                .let { add(it) }
         }
         commandRouteMetadata.headerVariableMetadata.forEach { variableMetadata ->
-            withParameter(variableMetadata.variableName, ParameterIn.HEADER, StringSchema()) {
-                it.required(variableMetadata.required)
-            }
+            Parameter()
+                .name(variableMetadata.variableName)
+                .`in`(ParameterIn.HEADER.toString())
+                .schema(StringSchema())
+                .required(variableMetadata.required)
+                .let {
+                    add(it)
+                }
         }
     }
     override val requestBody: RequestBody = RequestBodyBuilder().description(summary)

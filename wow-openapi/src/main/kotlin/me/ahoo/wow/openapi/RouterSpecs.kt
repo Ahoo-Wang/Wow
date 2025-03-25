@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
@@ -34,9 +33,6 @@ class RouterSpecs(
     private val routes: MutableList<RouteSpec> = mutableListOf(),
     override val inline: Boolean = false
 ) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
-    companion object {
-        private val log = KotlinLogging.logger { }
-    }
 
     override val componentContext: OpenAPIComponentContext = OpenAPIComponentContext.default(inline)
 
@@ -66,14 +62,8 @@ class RouterSpecs(
             val aggregateType = aggregateEntry.value
             val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
             aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
-                try {
-                    aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
-                        add(routeSpec)
-                    }
-                } catch (error: Throwable) {
-                    log.error(
-                        error
-                    ) { "aggregateRouteSpecFactory:${aggregateRouteSpecFactory.javaClass.name} error:${error.message}" }
+                aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
+                    add(routeSpec)
                 }
             }
         }

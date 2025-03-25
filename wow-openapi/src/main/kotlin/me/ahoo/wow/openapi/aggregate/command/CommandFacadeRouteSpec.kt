@@ -21,6 +21,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdPathParameter
@@ -47,7 +48,6 @@ import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory.Compa
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
-import me.ahoo.wow.openapi.toJsonContent
 
 class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentContext) :
     RouteSpec,
@@ -78,11 +78,12 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         add(componentContext.commandAggregateNamePathParameter())
     }
 
-    override val requestBody: RequestBody = RequestBody()
-        .required(true)
+    override val requestBody: RequestBody = RequestBodyBuilder()
+        .description("command body")
         .content(
-            ObjectSchema().toJsonContent()
+            schema = ObjectSchema()
         )
+        .build()
     override val responses: ApiResponses = ApiResponses().apply {
         addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
         addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())

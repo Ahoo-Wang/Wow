@@ -3,6 +3,7 @@ package me.ahoo.wow.schema.openapi
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.order.OrderState
@@ -70,5 +71,14 @@ class OpenAPISchemaBuilderTest {
         assertThat(orderStateSnapshotPagedListSchema.`$ref`, nullValue())
         val componentsSchemas = openAPISchemaBuilder.build()
         assertThat(componentsSchemas.size, equalTo(0))
+    }
+
+    @Test
+    fun buildIn() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        assertThat(openAPISchemaBuilder.inline, equalTo(false))
+        val waitSignalSchema = openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
+        val componentsSchemas = openAPISchemaBuilder.build()
+        assertThat(componentsSchemas.size, equalTo(6))
     }
 }
