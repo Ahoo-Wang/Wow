@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponse
+import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
@@ -211,5 +212,15 @@ object CommandComponent {
                 header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
+
+        fun OpenAPIComponentContext.commandResponses(): ApiResponses = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, okCommandResponse())
+            addApiResponse(Https.Code.BAD_REQUEST, badRequestCommandResponse())
+            addApiResponse(Https.Code.NOT_FOUND, notFoundCommandResponse())
+            addApiResponse(Https.Code.CONFLICT, versionConflictCommandResponse())
+            addApiResponse(Https.Code.TOO_MANY_REQUESTS, tooManyRequestsCommandResponse())
+            addApiResponse(Https.Code.REQUEST_TIMEOUT, requestTimeoutCommandResponse())
+            addApiResponse(Https.Code.GONE, illegalAccessDeletedAggregateCommandResponse())
+        }
     }
 }

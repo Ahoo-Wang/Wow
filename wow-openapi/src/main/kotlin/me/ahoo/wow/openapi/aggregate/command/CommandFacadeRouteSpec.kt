@@ -37,13 +37,7 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitCont
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStageHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequestCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregateCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFoundCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.okCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.requestTimeoutCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.tooManyRequestsCommandResponse
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.versionConflictCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.commandResponses
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory.Companion.PATH
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
@@ -84,15 +78,7 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
             schema = ObjectSchema()
         )
         .build()
-    override val responses: ApiResponses = ApiResponses().apply {
-        addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
-        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
-        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
-        addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
-        addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
-        addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
-        addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
-    }
+    override val responses: ApiResponses = componentContext.commandResponses()
 }
 
 class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory, AbstractRouteSpecFactory() {
