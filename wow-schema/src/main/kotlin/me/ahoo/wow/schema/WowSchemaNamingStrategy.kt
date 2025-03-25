@@ -25,7 +25,7 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 
-object WowSchemaDefinitionNamingStrategy : SchemaDefinitionNamingStrategy {
+object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
     private val baseStrategy: SchemaDefinitionNamingStrategy = DefaultSchemaDefinitionNamingStrategy()
 
     private fun Class<*>.resolveNamePrefix(): String? {
