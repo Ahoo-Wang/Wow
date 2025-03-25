@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.route.metadata
 
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
@@ -11,7 +12,11 @@ import reactor.kotlin.test.test
 class GetWowMetadataHandlerFunctionTest {
     @Test
     fun handle() {
-        val handlerFunction = GetWowMetadataHandlerFunctionFactory().create(GetWowMetadataRouteSpec)
+        val handlerFunction = GetWowMetadataHandlerFunctionFactory().create(
+            GetWowMetadataRouteSpec(
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
         val request = MockServerRequest.builder().build()
         handlerFunction.handle(request)
             .test()

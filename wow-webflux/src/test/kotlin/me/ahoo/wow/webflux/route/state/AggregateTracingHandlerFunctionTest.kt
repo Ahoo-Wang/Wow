@@ -11,6 +11,7 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.whenCommand
@@ -48,7 +49,8 @@ class AggregateTracingHandlerFunctionTest {
             .create(
                 AggregateTracingRouteSpec(
                     aggregateMetadata<Cart, CartState>(),
-                    aggregateMetadata<Cart, CartState>().command.aggregateType.aggregateRouteMetadata()
+                    aggregateMetadata<Cart, CartState>().command.aggregateType.aggregateRouteMetadata(),
+                    componentContext = OpenAPIComponentContext.default()
                 )
             )
 

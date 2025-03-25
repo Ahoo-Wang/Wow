@@ -5,6 +5,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -29,7 +30,8 @@ class ListQuerySnapshotStateHandlerFunctionTest {
                 MOCK_AGGREGATE_METADATA,
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
                 appendTenantPath = true,
-                appendOwnerPath = false
+                appendOwnerPath = false,
+                componentContext = OpenAPIComponentContext.default()
             )
         )
         val request = MockServerRequest.builder()

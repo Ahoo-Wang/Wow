@@ -24,6 +24,7 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.`when`
@@ -68,7 +69,8 @@ class LoadAggregateHandlerFunctionTest {
         ).create(
             LoadAggregateRouteSpec(
                 Cart::class.java.requiredNamedBoundedContext(),
-                aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata()
+                aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata(),
+                componentContext = OpenAPIComponentContext.default()
             )
         )
 

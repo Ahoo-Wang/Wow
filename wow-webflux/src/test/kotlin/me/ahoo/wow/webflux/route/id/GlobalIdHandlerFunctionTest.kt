@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.route.id
 
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
@@ -11,7 +12,11 @@ import reactor.kotlin.test.test
 class GlobalIdHandlerFunctionTest {
     @Test
     fun handle() {
-        val handlerFunction = GlobalIdHandlerFunctionFactory().create(GenerateGlobalIdRouteSpec)
+        val handlerFunction = GlobalIdHandlerFunctionFactory().create(
+            GenerateGlobalIdRouteSpec(
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
         val request = MockServerRequest.builder().build()
         handlerFunction.handle(request)
             .test()
