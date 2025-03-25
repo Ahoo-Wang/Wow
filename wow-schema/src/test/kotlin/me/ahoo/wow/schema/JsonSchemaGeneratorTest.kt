@@ -36,6 +36,8 @@ import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.joda.money.CurrencyUnit
+import org.joda.money.Money
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -43,7 +45,8 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 class JsonSchemaGeneratorTest {
-    private val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))
+    private val jsonSchemaGenerator =
+        JsonSchemaGenerator(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE, WowOption.JODA_MONEY))
 
     companion object {
         @JvmStatic
@@ -63,6 +66,8 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(Snapshot::class.java, SimpleSnapshot::class.java),
                 Arguments.of(StateEvent::class.java, StateEvent::class.java),
                 Arguments.of(StateEvent::class.java, StateEventData::class.java),
+                Arguments.of(CurrencyUnit::class.java, CurrencyUnit::class.java),
+                Arguments.of(Money::class.java, Money::class.java),
             )
         }
 

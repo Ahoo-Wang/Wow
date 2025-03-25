@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Money",
+  "type": "object",
+  "properties": {
+    "currency": {
+      "type": "string",
+      "format": "currency",
+      "default": "CNY",
+      "examples": [
+        "CNY",
+        "USD",
+        "EUR"
+      ]
+    },
+    "amount": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "currency",
+    "amount"
+  ]
+}
