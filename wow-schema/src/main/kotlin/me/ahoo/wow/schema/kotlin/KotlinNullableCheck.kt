@@ -21,7 +21,7 @@ import kotlin.reflect.jvm.kotlinProperty
 object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
 
     override fun apply(fieldScope: FieldScope): Boolean {
-        if (!fieldScope.rawMember.isKotlinElement()) {
+        if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
             return false
         }
         val property = fieldScope.rawMember.kotlinProperty ?: return false
