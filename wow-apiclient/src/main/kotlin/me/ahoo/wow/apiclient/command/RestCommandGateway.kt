@@ -18,7 +18,8 @@ import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.toObject
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -30,33 +31,33 @@ interface RestCommandGateway<RW, RB> {
     @PostExchange
     fun send(
         sendUri: URI,
-        @RequestHeader(CommandRequestHeaders.COMMAND_TYPE, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_TYPE, required = false)
         commandType: String,
         @RequestBody
         command: Any,
-        @RequestHeader(CommandRequestHeaders.WAIT_STAGE, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_STAGE, required = false)
         waitStage: CommandStage = CommandStage.PROCESSED,
-        @RequestHeader(CommandRequestHeaders.WAIT_CONTEXT, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_CONTEXT, required = false)
         waitContext: String? = null,
-        @RequestHeader(CommandRequestHeaders.WAIT_PROCESSOR, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_PROCESSOR, required = false)
         waitProcessor: String? = null,
-        @RequestHeader(CommandRequestHeaders.WAIT_TIME_OUT, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_TIME_OUT, required = false)
         waitTimeout: Long? = null,
-        @RequestHeader(CommandRequestHeaders.TENANT_ID, required = false)
+        @RequestHeader(CommandComponent.Header.TENANT_ID, required = false)
         tenantId: String? = null,
-        @RequestHeader(CommandRequestHeaders.OWNER_ID, required = false)
+        @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
-        @RequestHeader(CommandRequestHeaders.AGGREGATE_ID, required = false)
+        @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
-        @RequestHeader(CommandRequestHeaders.AGGREGATE_VERSION, required = false)
+        @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)
         aggregateVersion: Int? = null,
-        @RequestHeader(CommandRequestHeaders.REQUEST_ID, required = false)
+        @RequestHeader(CommandComponent.Header.REQUEST_ID, required = false)
         requestId: String? = null,
-        @RequestHeader(CommandRequestHeaders.LOCAL_FIRST, required = false)
+        @RequestHeader(CommandComponent.Header.LOCAL_FIRST, required = false)
         localFirst: Boolean? = null,
-        @RequestHeader(CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, required = false)
         context: String? = null,
-        @RequestHeader(CommandRequestHeaders.COMMAND_AGGREGATE_NAME, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_AGGREGATE_NAME, required = false)
         aggregate: String? = null
     ): RW
 
@@ -97,7 +98,7 @@ interface RestCommandGateway<RW, RB> {
         }
 
         fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
-            val errorCode = this.headers.getFirst(CommandRequestHeaders.WOW_ERROR_CODE).orEmpty()
+            val errorCode = this.headers.getFirst(CommonComponent.Header.WOW_ERROR_CODE).orEmpty()
             val responseBody = this.responseBodyAsString
             if (responseBody.isBlank()) {
                 return RestCommandGatewayException(

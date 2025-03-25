@@ -17,7 +17,6 @@ import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -37,7 +36,7 @@ class EventCompensateHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
+        val id = request.pathVariable(MessageRecords.ID)
         return request.bodyToMono(CompensationTarget::class.java)
             .flatMap {
                 requireNotNull(it) {

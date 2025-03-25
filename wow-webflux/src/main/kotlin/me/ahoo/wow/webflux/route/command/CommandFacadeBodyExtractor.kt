@@ -18,7 +18,7 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.toObject
@@ -35,15 +35,15 @@ object CommandFacadeBodyExtractor :
         inputMessage: ReactiveHttpInputMessage,
         context: BodyExtractor.Context
     ): Mono<Tuple2<Any, AggregateRouteMetadata<Any>>> {
-        val commandType = requireNotNull(inputMessage.headers.getFirst(CommandRequestHeaders.COMMAND_TYPE)) {
-            "${CommandRequestHeaders.COMMAND_TYPE} can not be empty."
+        val commandType = requireNotNull(inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_TYPE)) {
+            "${CommandComponent.Header.COMMAND_TYPE} can not be empty."
         }.toType<Any>()
 
-        val commandAggregateContext = inputMessage.headers.getFirst(CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT)
-        val commandAggregateName = inputMessage.headers.getFirst(CommandRequestHeaders.COMMAND_AGGREGATE_NAME)
+        val commandAggregateContext = inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT)
+        val commandAggregateName = inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_NAME)
         val namedAggregate = if (!commandAggregateContext.isNullOrBlank()) {
             requireNotNull(commandAggregateName) {
-                "${CommandRequestHeaders.COMMAND_AGGREGATE_NAME} can not be empty."
+                "${CommandComponent.Header.COMMAND_AGGREGATE_NAME} can not be empty."
             }
             MaterializedNamedAggregate(commandAggregateContext, commandAggregateName)
         } else {

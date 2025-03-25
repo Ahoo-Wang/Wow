@@ -22,8 +22,8 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
@@ -43,7 +43,7 @@ class AggregateTracingHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
+        val id = request.pathVariable(MessageRecords.ID)
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         return eventStore
             .load(

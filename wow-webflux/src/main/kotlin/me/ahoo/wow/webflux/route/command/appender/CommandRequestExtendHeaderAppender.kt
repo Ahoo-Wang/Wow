@@ -14,15 +14,15 @@
 package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.springframework.web.reactive.function.server.ServerRequest
 
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
         val extendedHeaders = request.headers().asHttpHeaders()
-            .filter { (key, _) -> key.startsWith(CommandRequestHeaders.COMMAND_HEADER_X_PREFIX) }
+            .filter { (key, _) -> key.startsWith(CommandComponent.Header.COMMAND_HEADER_X_PREFIX) }
             .map { (key, value) ->
-                key.substring(CommandRequestHeaders.COMMAND_HEADER_X_PREFIX.length) to value.firstOrNull<String>().orEmpty()
+                key.substring(CommandComponent.Header.COMMAND_HEADER_X_PREFIX.length) to value.firstOrNull<String>().orEmpty()
             }.toMap<String, String>()
         if (extendedHeaders.isEmpty()) {
             return

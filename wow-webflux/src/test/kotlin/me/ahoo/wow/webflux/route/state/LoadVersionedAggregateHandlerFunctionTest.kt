@@ -18,7 +18,6 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -56,7 +55,7 @@ class LoadVersionedAggregateHandlerFunctionTest {
         val request = MockServerRequest.builder()
             .method(HttpMethod.GET)
             .uri(URI.create("http://localhost"))
-            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(MessageRecords.VERSION, "1")
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .build()

@@ -17,7 +17,6 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -40,7 +39,7 @@ class RegenerateSnapshotHandlerFunctionTest {
             DefaultRequestExceptionHandler,
         )
         val request = MockServerRequest.builder()
-            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .build()
 

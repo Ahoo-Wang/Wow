@@ -24,20 +24,20 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_NAME
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_TYPE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.LOCAL_FIRST
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.TENANT_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEXT
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_PROCESSOR
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_STAGE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TIME_OUT
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Schema.commandResultSchema
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.AGGREGATE_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.COMMAND_AGGREGATE_NAME
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.COMMAND_TYPE
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.LOCAL_FIRST
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.OWNER_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.REQUEST_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.TENANT_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.WAIT_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.WAIT_PROCESSOR
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.WAIT_STAGE
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.WAIT_TIME_OUT
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 
 object CommandComponent {

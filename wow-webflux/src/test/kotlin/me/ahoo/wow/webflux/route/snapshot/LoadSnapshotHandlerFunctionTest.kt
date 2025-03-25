@@ -3,7 +3,6 @@ package me.ahoo.wow.webflux.route.snapshot
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -36,7 +35,7 @@ class LoadSnapshotHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { method() } returns HttpMethod.GET
             every { uri() } returns URI.create("http://localhost")
-            every { pathVariables()[RoutePaths.ID_KEY] } returns generateGlobalId()
+            every { pathVariables()[MessageRecords.ID] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.TENANT_ID] } returns generateGlobalId()
             every { pathVariables()[MessageRecords.OWNER_ID] } returns generateGlobalId()
         }

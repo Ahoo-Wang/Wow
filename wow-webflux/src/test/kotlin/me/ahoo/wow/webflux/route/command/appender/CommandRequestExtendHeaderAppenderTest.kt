@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -24,7 +24,7 @@ class CommandRequestExtendHeaderAppenderTest {
     @Test
     fun append() {
         val headerKey = "app"
-        val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
+        val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
 
         val request = MockServerRequest.builder()

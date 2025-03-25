@@ -18,7 +18,7 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -37,9 +37,9 @@ class DefaultCommandMessageParserTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .pathVariable(CommandRequestHeaders.AGGREGATE_VERSION, 1.toString())
-            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.toString())
-            .header(CommandRequestHeaders.LOCAL_FIRST, false.toString())
+            .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
+            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
             .build()
         val commandMessageParser =
             DefaultCommandMessageParser(
@@ -60,15 +60,15 @@ class DefaultCommandMessageParserTest {
     @Test
     fun injectExtensionHeaders() {
         val headerKey = "app"
-        val key = CommandRequestHeaders.COMMAND_HEADER_X_PREFIX + headerKey
+        val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
 
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .pathVariable(CommandRequestHeaders.AGGREGATE_VERSION, 1.toString())
-            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.toString())
-            .header(CommandRequestHeaders.LOCAL_FIRST, false.toString())
+            .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
+            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
             .header(key, value)
             .build()
         val commandMessageParser =
