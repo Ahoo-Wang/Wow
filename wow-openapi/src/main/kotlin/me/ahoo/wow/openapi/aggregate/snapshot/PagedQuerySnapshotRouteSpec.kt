@@ -53,23 +53,22 @@ class PagedQuerySnapshotRouteSpec(
     override val summary: String
         get() = "Paged Query snapshot"
     override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(
-                    schema = componentContext.schema(
-                        PagedList::class.java,
-                        componentContext.resolveType(
-                            MaterializedSnapshot::class.java,
-                            aggregateMetadata.state.aggregateType
-                        )
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(
+                schema = componentContext.schema(
+                    PagedList::class.java,
+                    componentContext.resolveType(
+                        MaterializedSnapshot::class.java,
+                        aggregateMetadata.state.aggregateType
                     )
                 )
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-        }
+            )
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+    }
 }
 
 class PagedQuerySnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {

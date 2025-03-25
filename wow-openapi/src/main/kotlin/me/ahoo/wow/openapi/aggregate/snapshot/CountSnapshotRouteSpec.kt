@@ -51,10 +51,9 @@ class CountSnapshotRouteSpec(
         get() = "Count snapshot"
     override val requestBody: RequestBody = componentContext.countQueryRequestBody()
 
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.countQueryResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.countQueryResponse())
+    }
 }
 
 class CountSnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {

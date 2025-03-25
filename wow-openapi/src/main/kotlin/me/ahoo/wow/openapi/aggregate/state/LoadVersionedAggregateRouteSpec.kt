@@ -59,19 +59,18 @@ class LoadVersionedAggregateRouteSpec(
     override val parameters: List<Parameter>
         get() = super.parameters + componentContext.versionPathParameter()
     override val requestBody: RequestBody? = null
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder()
-                .description(summary)
-                .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder()
+            .description(summary)
+            .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+    }
 }
 
 class LoadVersionedAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

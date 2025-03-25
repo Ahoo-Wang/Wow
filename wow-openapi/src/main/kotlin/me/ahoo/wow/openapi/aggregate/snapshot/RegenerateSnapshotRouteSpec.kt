@@ -47,11 +47,10 @@ class RegenerateSnapshotRouteSpec(
         get() = true
     override val appendPathSuffix: String
         get() = "snapshot"
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, ApiResponse())
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, ApiResponse())
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+    }
 }
 
 class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

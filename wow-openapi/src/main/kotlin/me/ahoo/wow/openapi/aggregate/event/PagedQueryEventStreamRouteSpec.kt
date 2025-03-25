@@ -49,10 +49,9 @@ class PagedQueryEventStreamRouteSpec(
     override val summary: String
         get() = "Paged Query Event Stream"
     override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse())
+    }
 }
 
 class PagedQueryEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {

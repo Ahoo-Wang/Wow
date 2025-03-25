@@ -47,10 +47,9 @@ class LoadEventStreamRouteSpec(
         get() = true
     override val summary: String
         get() = "Load Event Stream"
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
+    }
 
     override val appendPathSuffix: String
         get() = "event/{${RoutePaths.HEAD_VERSION_KEY}}/{${RoutePaths.TAIL_VERSION_KEY}}"

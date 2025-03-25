@@ -53,15 +53,14 @@ class ListQuerySnapshotStateRouteSpec(
         get() = "List Query snapshot state"
     override val requestBody: RequestBody = componentContext.listQueryRequestBody()
 
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(schema = componentContext.arraySchema(aggregateMetadata.state.aggregateType))
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(schema = componentContext.arraySchema(aggregateMetadata.state.aggregateType))
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+    }
 }
 
 class ListQuerySnapshotStateRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {

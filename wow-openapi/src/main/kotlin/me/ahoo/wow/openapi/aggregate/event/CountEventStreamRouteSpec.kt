@@ -51,10 +51,9 @@ class CountEventStreamRouteSpec(
         get() = "Count Event Stream"
     override val requestBody: RequestBody = componentContext.countQueryRequestBody()
 
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse("200", componentContext.countQueryResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse("200", componentContext.countQueryResponse())
+    }
 }
 
 class CountEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
