@@ -22,17 +22,17 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.openapi.ComponentRef
-import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ParameterRef
-import me.ahoo.wow.openapi.ParameterRef.Companion.with
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
-import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_PARAMETER
+import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
 
-object GenerateBIScriptRouteSpec : RouteSpec {
+class GenerateBIScriptRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+    OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
         .resourceName("bi_script")
@@ -42,7 +42,12 @@ object GenerateBIScriptRouteSpec : RouteSpec {
     override val path: String = "/${Wow.WOW}/bi/script"
     override val method: String = Https.Method.GET
     override val summary: String = "Generate BI Sync Script"
-    override val parameters: List<Parameter> = listOf(BI_HEADER_TYPE_PARAMETER.ref)
+    override val parameters: List<Parameter> = listOf(componentContext.parameter {
+        name = BI_HEADER_TYPE_HEADER
+        `in` = ParameterIn.HEADER.toString()
+        schema = componentContext.schema(MessageHeaderSqlType::class.java)
+        description = "The type of BI Message header."
+    })
     override val accept: List<String> = listOf(Https.MediaType.APPLICATION_SQL)
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
@@ -50,28 +55,18 @@ object GenerateBIScriptRouteSpec : RouteSpec {
     )
 }
 
-class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory {
+class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory, OpenAPIComponentContextCapable {
     companion object {
-        private val BI_HEADER_SCHEMA = MessageHeaderSqlType::class.java.toSchemaRef(MessageHeaderSqlType.MAP.name)
         const val BI_HEADER_TYPE_HEADER = "Wow-BI-Header-Sql-Type"
-        val BI_HEADER_TYPE_PARAMETER = Parameter()
-            .name(BI_HEADER_TYPE_HEADER)
-            .`in`(ParameterIn.HEADER.toString())
-            .schema(BI_HEADER_SCHEMA.component)
-            .description("The type of BI Message header.")
-            .let {
-                ParameterRef("${Wow.WOW_PREFIX}${it.name}", it)
-            }
     }
 
-    override val components: Components = ComponentRef.createComponents()
+    override lateinit var componentContext: OpenAPIComponentContext
 
-    init {
-        components.parameters
-            .with(BI_HEADER_TYPE_PARAMETER)
+    override fun initialize(componentContext: OpenAPIComponentContext) {
+        this.componentContext = componentContext
     }
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
-        return listOf(GenerateBIScriptRouteSpec)
+        return listOf(GenerateBIScriptRouteSpec(componentContext))
     }
 }

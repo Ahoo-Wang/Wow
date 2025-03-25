@@ -19,6 +19,7 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_HEADERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
@@ -27,7 +28,8 @@ import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
 
-class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) : OpenAPIComponentContext,
+class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) :
+    OpenAPIComponentContext,
     InlineSchemaCapable by schemaBuilder {
     override val schemas: Map<String, Schema<*>>
         get() = schemaBuilder.build()
@@ -49,19 +51,29 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
+    private fun resolveKey(key: String, componentName: String?): String {
+        if (key.isNotBlank()) {
+            return key
+        }
+        require(componentName?.isNotBlank() == true) {
+            "componentName must not be blank"
+        }
+        return Wow.WOW_PREFIX + componentName
+    }
+
     override fun parameter(key: String, builder: Parameter.() -> Unit): Parameter {
         val parameter = Parameter().also(builder)
         if (inline) {
             return parameter
         }
-        key.requiredKeyNotBlank()
-        parameters[key] = parameter
+        val resolvedKey= resolveKey(key, parameter.name)
+        parameters[resolvedKey] = parameter
         return Parameter().also {
-            it.`$ref` = "$COMPONENTS_PARAMETERS_REF$key"
+            it.`$ref` = "$COMPONENTS_PARAMETERS_REF$resolvedKey"
         }
     }
 
-    override fun header(key: String, builder: (Header) -> Unit): Header {
+    override fun header(key: String, builder: Header.() -> Unit): Header {
         val header = Header().also(builder)
         if (inline) {
             return header
@@ -73,7 +85,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
-    override fun requestBody(key: String, builder: (RequestBody) -> Unit): RequestBody {
+    override fun requestBody(key: String, builder: RequestBody.() -> Unit): RequestBody {
         val requestBody = RequestBody().also(builder)
         if (inline) {
             return requestBody
@@ -85,7 +97,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
-    override fun response(key: String, builder: (ApiResponse) -> Unit): ApiResponse {
+    override fun response(key: String, builder: ApiResponse.() -> Unit): ApiResponse {
         val apiResponse = ApiResponse().also(builder)
         if (inline) {
             return apiResponse

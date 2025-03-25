@@ -20,11 +20,11 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.ComponentRef
-import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
 
 object GenerateGlobalIdRouteSpec : RouteSpec {
     override val id: String = RouteIdSpec()

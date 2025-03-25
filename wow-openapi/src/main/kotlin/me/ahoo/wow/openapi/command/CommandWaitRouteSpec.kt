@@ -23,13 +23,13 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
-import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory.Companion.PATH
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
 
 object CommandWaitRouteSpec : RouteSpec {
     override val id: String = RouteIdSpec()

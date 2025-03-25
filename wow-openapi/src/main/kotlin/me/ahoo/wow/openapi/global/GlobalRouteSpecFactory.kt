@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.openapi.global
 
 import io.swagger.v3.oas.models.Components
 import me.ahoo.wow.api.naming.NamedBoundedContext
@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.openapi.BatchResult
+import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
 import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.HeaderRef.Companion.with
@@ -33,6 +35,9 @@ import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
 import me.ahoo.wow.openapi.RoutePaths.HEAD_VERSION
 import me.ahoo.wow.openapi.RoutePaths.TAIL_VERSION
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.RouteSpecFactory
+import me.ahoo.wow.openapi.SchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.command.CommandRequestParameters.AGGREGATE_ID_PARAMETER

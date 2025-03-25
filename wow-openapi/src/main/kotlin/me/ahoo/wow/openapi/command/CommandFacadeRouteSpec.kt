@@ -21,7 +21,6 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
-import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.with
 import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
@@ -47,6 +46,7 @@ import me.ahoo.wow.openapi.command.CommandResponses.COMMAND_RESULT_RESPONSE
 import me.ahoo.wow.openapi.command.CommandResponses.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
 import me.ahoo.wow.openapi.command.CommandResponses.NOT_FOUND_RESPONSE
 import me.ahoo.wow.openapi.command.CommandResponses.VERSION_CONFLICT_RESPONSE
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.toJsonContent
 
 object CommandFacadeRouteSpec : RouteSpec {

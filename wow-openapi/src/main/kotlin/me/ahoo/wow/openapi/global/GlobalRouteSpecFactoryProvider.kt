@@ -11,24 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.openapi.global
 
-import io.swagger.v3.oas.models.Components
-import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
+import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
-interface RouteSpecFactory {
-    /**
-     * Global Components
-     */
-    @Deprecated("Use OpenAPIComponentContext instead.")
-    val components: Components
-        get() = Components()
+class GlobalRouteSpecFactoryProvider(override val componentContext: OpenAPIComponentContext) :
+    OpenAPIComponentContextCapable {
+    private val factories: MutableList<GlobalRouteSpecFactory> = CopyOnWriteArrayList()
 
-    fun initialize(componentContext: OpenAPIComponentContext) = Unit
+    init {
+        ServiceLoader.load(GlobalRouteSpecFactory::class.java).map {
+            it.initialize(componentContext)
+            it
+        }.let {
+            factories.addAll(it)
+        }
+    }
 
-    @Deprecated("Use OpenAPIComponentContext instead.")
-    fun Map<String, Schema<*>>.mergeSchemas() {
-        components.schemas.putAll(this)
+    fun get(): List<GlobalRouteSpecFactory> {
+        return factories
     }
 }

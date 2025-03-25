@@ -20,12 +20,12 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.WowMetadata
 import me.ahoo.wow.openapi.ComponentRef
-import me.ahoo.wow.openapi.GlobalRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
 
 object GetWowMetadataRouteSpec : RouteSpec {
     override val id: String = RouteIdSpec()
