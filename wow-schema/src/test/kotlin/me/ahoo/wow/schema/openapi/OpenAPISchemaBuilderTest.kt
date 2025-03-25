@@ -1,6 +1,6 @@
 package me.ahoo.wow.schema.openapi
 
-import com.github.victools.jsonschema.generator.Option
+import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.example.api.cart.AddCartItem
@@ -45,9 +45,11 @@ class OpenAPISchemaBuilderTest {
 
     @Test
     fun buildInline() {
-        val openAPISchemaBuilder = OpenAPISchemaBuilder {
-            it.with(Option.INLINE_ALL_SCHEMAS)
-        }
+        val openAPISchemaBuilder = OpenAPISchemaBuilder(
+            customizer = OpenAPISchemaBuilder.InlineCustomizer(
+                SchemaVersion.DRAFT_2020_12
+            )
+        )
         assertThat(openAPISchemaBuilder.inline, equalTo(true))
         val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)
         assertThat(createOderSchema.`$ref`, nullValue())
