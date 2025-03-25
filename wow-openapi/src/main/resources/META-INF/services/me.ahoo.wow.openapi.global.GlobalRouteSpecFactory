@@ -1,5 +1,5 @@
 me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
-me.ahoo.wow.openapi.command.CommandFacadeRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory
 me.ahoo.wow.openapi.global.DefaultGlobalRouteSpecFactory
 me.ahoo.wow.openapi.global.GetWowMetadataRouteSpecFactory
 me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpecFactory

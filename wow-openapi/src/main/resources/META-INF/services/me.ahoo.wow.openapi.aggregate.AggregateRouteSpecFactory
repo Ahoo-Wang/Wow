@@ -1,0 +1,26 @@
+#command
+me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
+#state
+## WARN: AggregateTracingRouteSpecFactory must be defined first, otherwise it won't match. LoadVersionedAggregateRouteSpecFactory will be matched.
+me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpecFactory
+#snapshot
+me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpecFactory
+#event
+me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpecFactory
+me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpecFactory

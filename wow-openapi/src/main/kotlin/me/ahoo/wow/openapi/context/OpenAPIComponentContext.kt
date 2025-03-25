@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
@@ -65,5 +66,5 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
     fun parameter(key: String = "", builder: Parameter.() -> Unit): Parameter
     fun header(key: String = "", builder: Header.() -> Unit): Header
     fun requestBody(key: String = "", builder: RequestBody.() -> Unit): RequestBody
-    fun response(key: String = "", builder: ApiResponse.() -> Unit): ApiResponse
+    fun response(key: String = "", builder: ApiResponseBuilder.() -> Unit): ApiResponse
 }

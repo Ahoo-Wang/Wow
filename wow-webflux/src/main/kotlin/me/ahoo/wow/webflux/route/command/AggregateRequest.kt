@@ -19,7 +19,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest

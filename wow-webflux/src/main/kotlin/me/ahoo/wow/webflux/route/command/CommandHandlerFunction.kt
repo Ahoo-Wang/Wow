@@ -14,9 +14,9 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.openapi.command.CommandRouteSpec
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
-import me.ahoo.wow.openapi.route.CommandRouteMetadata
+import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.toCommandResponse

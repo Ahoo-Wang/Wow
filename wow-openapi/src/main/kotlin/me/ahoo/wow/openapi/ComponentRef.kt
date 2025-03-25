@@ -38,7 +38,7 @@ import me.ahoo.wow.openapi.HeaderRef.Companion.ERROR_CODE_HEADER
 import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toRefSchema
 import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaName
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
 
 interface ComponentRef<C> {
     val name: String

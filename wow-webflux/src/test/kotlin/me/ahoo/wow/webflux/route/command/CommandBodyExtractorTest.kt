@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
-import me.ahoo.wow.openapi.route.commandRouteMetadata
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*

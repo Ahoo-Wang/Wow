@@ -23,8 +23,8 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
-import me.ahoo.wow.openapi.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier

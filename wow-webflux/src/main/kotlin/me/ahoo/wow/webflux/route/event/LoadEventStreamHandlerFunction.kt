@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.serialization.MessageRecords

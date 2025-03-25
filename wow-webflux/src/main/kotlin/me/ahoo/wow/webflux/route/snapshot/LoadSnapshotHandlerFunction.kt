@@ -14,8 +14,8 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
-import me.ahoo.wow.openapi.snapshot.LoadSnapshotRouteSpec
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler

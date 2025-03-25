@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import me.ahoo.wow.openapi.route.CommandRouteMetadata
+import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor

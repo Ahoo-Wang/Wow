@@ -18,9 +18,9 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.toObject
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor

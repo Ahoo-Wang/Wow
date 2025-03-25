@@ -15,8 +15,8 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.route.AggregateRouteMetadata
-import me.ahoo.wow.openapi.state.LoadVersionedAggregateRouteSpec
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory

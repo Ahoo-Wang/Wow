@@ -22,9 +22,9 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.command.CommandRequestHeaders
-import me.ahoo.wow.openapi.route.aggregateRouteMetadata
-import me.ahoo.wow.openapi.route.commandRouteMetadata
+import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
