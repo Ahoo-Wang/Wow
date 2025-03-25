@@ -18,6 +18,8 @@ import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
 import com.github.victools.jsonschema.generator.SchemaGeneratorGeneralConfigPart
+import me.ahoo.wow.schema.joda.money.CurrencyUnitDefinitionProvider
+import me.ahoo.wow.schema.joda.money.MoneyDefinitionProvider
 import me.ahoo.wow.schema.kotlin.KotlinCustomDefinitionProvider
 import me.ahoo.wow.schema.kotlin.KotlinNullableCheck
 import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
@@ -45,6 +47,7 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
         wowNamingStrategy(generalConfigPart)
+        jodaMoney(generalConfigPart)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {
@@ -74,5 +77,13 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
             return
         }
         generalConfigPart.withDefinitionNamingStrategy(WowSchemaNamingStrategy)
+    }
+
+    private fun jodaMoney(generalConfigPart: SchemaGeneratorGeneralConfigPart) {
+        if (options.contains(WowOption.JODA_MONEY).not()) {
+            return
+        }
+        generalConfigPart.withCustomDefinitionProvider(CurrencyUnitDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(MoneyDefinitionProvider)
     }
 }
