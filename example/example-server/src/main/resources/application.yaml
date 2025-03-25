@@ -17,7 +17,6 @@ springdoc:
   show-actuator: true
   api-docs:
     version: openapi-3-1
-  remove-broken-reference-definitions: false
 
 spring:
   application:
