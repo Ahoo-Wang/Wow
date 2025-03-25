@@ -20,6 +20,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -47,7 +48,8 @@ class LoadVersionedAggregateHandlerFunctionTest {
         ).create(
             LoadVersionedAggregateRouteSpec(
                 MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                componentContext = OpenAPIComponentContext.default()
             )
         )
 
