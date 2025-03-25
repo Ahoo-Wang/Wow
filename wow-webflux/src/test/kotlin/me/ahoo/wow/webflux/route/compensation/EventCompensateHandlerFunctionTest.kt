@@ -23,7 +23,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -66,7 +65,7 @@ class EventCompensateHandlerFunctionTest {
         )
 
         val request = MockServerRequest.builder()
-            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(MessageRecords.VERSION, "1")
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .body(

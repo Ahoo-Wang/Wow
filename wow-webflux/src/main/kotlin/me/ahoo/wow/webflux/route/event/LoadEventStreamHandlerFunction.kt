@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -36,9 +36,9 @@ class LoadEventStreamHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(RoutePaths.ID_KEY)
-        val headVersion = request.pathVariable(RoutePaths.HEAD_VERSION_KEY).toInt()
-        val tailVersion = request.pathVariable(RoutePaths.TAIL_VERSION_KEY).toInt()
+        val id = request.pathVariable(MessageRecords.ID)
+        val headVersion = request.pathVariable(BatchComponent.PathVariable.HEAD_VERSION).toInt()
+        val tailVersion = request.pathVariable(BatchComponent.PathVariable.TAIL_VERSION).toInt()
         val limit = tailVersion - headVersion + 1
         val listQuery = listQuery {
             condition {

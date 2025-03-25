@@ -18,8 +18,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,7 +32,7 @@ fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): Strin
     pathVariables()[MessageRecords.TENANT_ID].ifNotBlank<String> {
         return it
     }
-    headers().firstHeader(CommandRequestHeaders.TENANT_ID).ifNotBlank<String> {
+    headers().firstHeader(CommandComponent.Header.TENANT_ID).ifNotBlank<String> {
         return it
     }
     return null
@@ -43,7 +42,7 @@ fun ServerRequest.getOwnerId(): String? {
     pathVariables()[MessageRecords.OWNER_ID].ifNotBlank<String> {
         return it
     }
-    headers().firstHeader(CommandRequestHeaders.OWNER_ID).ifNotBlank<String> {
+    headers().firstHeader(CommandComponent.Header.OWNER_ID).ifNotBlank<String> {
         return it
     }
     return null
@@ -54,10 +53,10 @@ fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *
 }
 
 fun ServerRequest.getAggregateId(): String? {
-    pathVariables()[RoutePaths.ID_KEY].ifNotBlank<String> {
+    pathVariables()[MessageRecords.ID].ifNotBlank<String> {
         return it
     }
-    headers().firstHeader(CommandRequestHeaders.AGGREGATE_ID).ifNotBlank<String> {
+    headers().firstHeader(CommandComponent.Header.AGGREGATE_ID).ifNotBlank<String> {
         return it
     }
     return null
@@ -78,28 +77,28 @@ fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? {
 }
 
 fun ServerRequest.getLocalFirst(): Boolean? {
-    headers().firstHeader(CommandRequestHeaders.LOCAL_FIRST).ifNotBlank<String> {
+    headers().firstHeader(CommandComponent.Header.LOCAL_FIRST).ifNotBlank<String> {
         return it.toBoolean()
     }
     return null
 }
 
 fun ServerRequest.getCommandStage(): CommandStage {
-    return headers().firstHeader(CommandRequestHeaders.WAIT_STAGE).ifNotBlank { stage ->
+    return headers().firstHeader(CommandComponent.Header.WAIT_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     } ?: CommandStage.PROCESSED
 }
 
 fun ServerRequest.getWaitContext(): String {
-    return headers().firstHeader(CommandRequestHeaders.WAIT_CONTEXT).orEmpty()
+    return headers().firstHeader(CommandComponent.Header.WAIT_CONTEXT).orEmpty()
 }
 
 fun ServerRequest.getWaitProcessor(): String {
-    return headers().firstHeader(CommandRequestHeaders.WAIT_PROCESSOR).orEmpty()
+    return headers().firstHeader(CommandComponent.Header.WAIT_PROCESSOR).orEmpty()
 }
 
 fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
-    return headers().firstHeader(CommandRequestHeaders.WAIT_TIME_OUT)?.toLongOrNull()?.let {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)?.toLongOrNull()?.let {
         Duration.ofMillis(it)
     } ?: default
 }

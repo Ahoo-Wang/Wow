@@ -9,7 +9,6 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -55,7 +54,7 @@ class AggregateTracingHandlerFunctionTest {
             )
 
         val request = MockServerRequest.builder()
-            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
+            .pathVariable(MessageRecords.ID, generateGlobalId())
             .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
             .build()
         handlerFunction.handle(request)

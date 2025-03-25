@@ -17,7 +17,7 @@ import me.ahoo.coapi.api.CoApi
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -32,33 +32,33 @@ interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<Co
     @PostExchange
     override fun send(
         sendUri: URI,
-        @RequestHeader(CommandRequestHeaders.COMMAND_TYPE, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_TYPE, required = false)
         commandType: String,
         @RequestBody
         command: Any,
-        @RequestHeader(CommandRequestHeaders.WAIT_STAGE, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_STAGE, required = false)
         waitStage: CommandStage,
-        @RequestHeader(CommandRequestHeaders.WAIT_CONTEXT, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_CONTEXT, required = false)
         waitContext: String?,
-        @RequestHeader(CommandRequestHeaders.WAIT_PROCESSOR, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_PROCESSOR, required = false)
         waitProcessor: String?,
-        @RequestHeader(CommandRequestHeaders.WAIT_TIME_OUT, required = false)
+        @RequestHeader(CommandComponent.Header.WAIT_TIME_OUT, required = false)
         waitTimeout: Long?,
-        @RequestHeader(CommandRequestHeaders.TENANT_ID, required = false)
+        @RequestHeader(CommandComponent.Header.TENANT_ID, required = false)
         tenantId: String?,
-        @RequestHeader(CommandRequestHeaders.OWNER_ID, required = false)
+        @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
-        @RequestHeader(CommandRequestHeaders.AGGREGATE_ID, required = false)
+        @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String?,
-        @RequestHeader(CommandRequestHeaders.AGGREGATE_VERSION, required = false)
+        @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)
         aggregateVersion: Int?,
-        @RequestHeader(CommandRequestHeaders.REQUEST_ID, required = false)
+        @RequestHeader(CommandComponent.Header.REQUEST_ID, required = false)
         requestId: String?,
-        @RequestHeader(CommandRequestHeaders.LOCAL_FIRST, required = false)
+        @RequestHeader(CommandComponent.Header.LOCAL_FIRST, required = false)
         localFirst: Boolean?,
-        @RequestHeader(CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, required = false)
         context: String?,
-        @RequestHeader(CommandRequestHeaders.COMMAND_AGGREGATE_NAME, required = false)
+        @RequestHeader(CommandComponent.Header.COMMAND_AGGREGATE_NAME, required = false)
         aggregate: String?
     ): Mono<ResponseEntity<CommandResult>>
 

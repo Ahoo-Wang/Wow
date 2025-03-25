@@ -1,7 +1,7 @@
 package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -32,9 +32,9 @@ class LoadEventStreamHandlerFunctionTest {
             )
 
         val request = MockServerRequest.builder()
-            .pathVariable(RoutePaths.ID_KEY, generateGlobalId())
-            .pathVariable(RoutePaths.HEAD_VERSION_KEY, "0")
-            .pathVariable(RoutePaths.TAIL_VERSION_KEY, Int.MAX_VALUE.toString())
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(BatchComponent.PathVariable.HEAD_VERSION, "0")
+            .pathVariable(BatchComponent.PathVariable.TAIL_VERSION, Int.MAX_VALUE.toString())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .build()
         handlerFunction.handle(request)

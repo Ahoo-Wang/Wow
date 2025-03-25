@@ -19,8 +19,8 @@ import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.withLocalFirst
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.REQUEST_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import org.springframework.web.reactive.function.server.ServerRequest

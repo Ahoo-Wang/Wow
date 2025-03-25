@@ -16,8 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -36,7 +35,7 @@ class AggregateRequestTest {
     @Test
     fun getOwnerIdFromHeader() {
         val ownerId = generateGlobalId()
-        val request = MockServerRequest.builder().header(CommandRequestHeaders.OWNER_ID, ownerId).build()
+        val request = MockServerRequest.builder().header(CommandComponent.Header.OWNER_ID, ownerId).build()
         assertThat(request.getOwnerId(), equalTo(ownerId))
     }
 
@@ -51,7 +50,7 @@ class AggregateRequestTest {
     fun getAggregateIdWithOwnerIdIsNullFromPathVariable() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()
-            .pathVariable(RoutePaths.ID_KEY, aggregateId)
+            .pathVariable(MessageRecords.ID, aggregateId)
             .build()
         assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, null), equalTo(aggregateId))
     }
@@ -66,7 +65,7 @@ class AggregateRequestTest {
     @Test
     fun getCommandStage() {
         val request = MockServerRequest.builder()
-            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.name).build()
+            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name).build()
         assertThat(request.getCommandStage(), equalTo(CommandStage.SENT))
     }
 
@@ -79,14 +78,14 @@ class AggregateRequestTest {
     @Test
     fun getWaitContext() {
         val request = MockServerRequest.builder()
-            .header(CommandRequestHeaders.WAIT_CONTEXT, "test").build()
+            .header(CommandComponent.Header.WAIT_CONTEXT, "test").build()
         assertThat(request.getWaitContext(), equalTo("test"))
     }
 
     @Test
     fun getWaitProcessor() {
         val request = MockServerRequest.builder()
-            .header(CommandRequestHeaders.WAIT_PROCESSOR, "test").build()
+            .header(CommandComponent.Header.WAIT_PROCESSOR, "test").build()
         assertThat(request.getWaitProcessor(), equalTo("test"))
     }
 }

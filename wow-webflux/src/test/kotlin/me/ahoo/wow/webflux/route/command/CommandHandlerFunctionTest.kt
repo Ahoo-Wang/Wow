@@ -22,7 +22,7 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
@@ -63,7 +63,7 @@ class CommandHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandRequestHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
             .body(
                 MockCreateAggregate(
                     id = generateGlobalId(),
