@@ -2,6 +2,7 @@ package me.ahoo.wow.openapi.converter
 
 import io.swagger.v3.core.converter.ModelConverters
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
+import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -25,5 +26,11 @@ class BoundedContextSchemaNameConverterTest {
     fun resolveJavaClass() {
         val schemas = ModelConverters.getInstance(true).read(CosIdGeneratorStat::class.java)
         assertThat(schemas.containsKey("CosIdGeneratorStat"), equalTo(true))
+    }
+
+    @Test
+    fun resolveBatchResult() {
+        val schemas = ModelConverters.getInstance(true).read(BatchResult::class.java)
+        assertThat(schemas.containsKey("wow.openapi.BatchResult"), equalTo(true))
     }
 }
