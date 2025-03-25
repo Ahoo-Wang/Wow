@@ -19,7 +19,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.Https
@@ -44,7 +44,7 @@ class CommandWaitRouteSpec(override val componentContext: OpenAPIComponentContex
     override val summary: String = "command wait handler"
     override val parameters: List<Parameter> = listOf()
     override val requestBody: RequestBody =
-        RequestBodyBuilder().content(schema = componentContext.schema(WaitSignal::class.java))
+        RequestBodyBuilder().content(schema = componentContext.schema(SimpleWaitSignal::class.java))
             .build()
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
