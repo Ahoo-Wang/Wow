@@ -14,12 +14,14 @@
 package me.ahoo.wow.openapi.context
 
 import com.fasterxml.classmate.ResolvedType
+import com.github.victools.jsonschema.generator.SchemaVersion
 import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.schema.openapi.InlineSchemaCapable
+import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
 
 interface OpenAPIComponentContext : InlineSchemaCapable {
@@ -29,6 +31,27 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
         const val COMPONENTS_PARAMETERS_REF = "${COMPONENTS_PREFIX}parameters/"
         const val COMPONENTS_REQUEST_BODIES_REF = "${COMPONENTS_PREFIX}requestBodies/"
         const val COMPONENTS_RESPONSES_REF = "${COMPONENTS_PREFIX}responses/"
+
+        fun default(
+            inline: Boolean = false,
+            schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12
+        ): OpenAPIComponentContext {
+            val customizer = if (inline) {
+                OpenAPISchemaBuilder.InlineCustomizer(
+                    schemaVersion
+                )
+            } else {
+                OpenAPISchemaBuilder.DefaultCustomizer(
+                    schemaVersion
+                )
+            }
+            return DefaultOpenAPIComponentContext(
+                OpenAPISchemaBuilder(
+                    schemaVersion = schemaVersion,
+                    customizer = customizer
+                )
+            )
+        }
     }
 
     val schemas: Map<String, Schema<*>>
@@ -40,7 +63,7 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType
     fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
     fun parameter(key: String = "", builder: Parameter.() -> Unit): Parameter
-    fun header(key: String = "", builder: (Header) -> Unit): Header
-    fun requestBody(key: String = "", builder: (RequestBody) -> Unit): RequestBody
-    fun response(key: String = "", builder: (ApiResponse) -> Unit): ApiResponse
+    fun header(key: String = "", builder: Header.() -> Unit): Header
+    fun requestBody(key: String = "", builder: RequestBody.() -> Unit): RequestBody
+    fun response(key: String = "", builder: ApiResponse.() -> Unit): ApiResponse
 }

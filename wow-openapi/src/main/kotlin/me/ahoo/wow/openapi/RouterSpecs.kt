@@ -21,12 +21,19 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
+import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.route.aggregateRouteMetadata
+import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
-    private val routes: MutableList<RouteSpec> = mutableListOf()
-) : MutableList<RouteSpec> by routes {
+    private val routes: MutableList<RouteSpec> = mutableListOf(),
+    override val inline: Boolean = false
+) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
+    override val componentContext: OpenAPIComponentContext = OpenAPIComponentContext.default(inline)
+
     @Volatile
     private var built: Boolean = false
     private val openAPI = OpenAPI().apply {
@@ -75,7 +82,7 @@ class RouterSpecs(
     }
 
     private fun mergeRouteSpecFactoryComponents() {
-        GlobalRouteSpecFactoryProvider.get().forEach {
+        GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
             mergeComponents(it.components)
         }
         AggregateRouteSpecFactoryProvider.get().forEach {
@@ -84,7 +91,7 @@ class RouterSpecs(
     }
 
     private fun buildGlobalRouteSpec() {
-        GlobalRouteSpecFactoryProvider.get().forEach {
+        GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
             it.create(currentContext).forEach { routeSpec ->
                 add(routeSpec)
             }
@@ -103,6 +110,24 @@ class RouterSpecs(
         }
     }
 
+    private fun mergeComponentContext() {
+        componentContext.schemas.forEach { (name, schema) ->
+            openAPI.components.addSchemas(name, schema)
+        }
+        componentContext.parameters.forEach { (name, parameter) ->
+            openAPI.components.addParameters(name, parameter)
+        }
+        componentContext.headers.forEach { (name, header) ->
+            openAPI.components.addHeaders(name, header)
+        }
+        componentContext.requestBodies.forEach { (name, requestBody) ->
+            openAPI.components.addRequestBodies(name, requestBody)
+        }
+        componentContext.responses.forEach { (name, response) ->
+            openAPI.components.addResponses(name, response)
+        }
+    }
+
     fun openAPI(): OpenAPI {
         build()
         return openAPI
@@ -116,6 +141,7 @@ class RouterSpecs(
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
         mergeRouteSpecFactoryComponents()
+        mergeComponentContext()
         val groupedPathRoutes = routes.groupBy {
             it.path
         }

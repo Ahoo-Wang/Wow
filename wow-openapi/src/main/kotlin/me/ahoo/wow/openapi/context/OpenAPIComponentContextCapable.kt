@@ -11,29 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.openapi.context
 
-import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
-
-object GlobalRouteSpecFactoryProvider {
-    private val factories: MutableList<GlobalRouteSpecFactory> = CopyOnWriteArrayList()
-
-    init {
-        ServiceLoader.load(GlobalRouteSpecFactory::class.java).let {
-            factories.addAll(it)
-        }
-    }
-
-    fun get(): List<GlobalRouteSpecFactory> {
-        return factories
-    }
-
-    fun add(factory: GlobalRouteSpecFactory) {
-        factories.add(factory)
-    }
-
-    fun remove(factory: GlobalRouteSpecFactory) {
-        factories.remove(factory)
-    }
+interface OpenAPIComponentContextCapable {
+    val componentContext: OpenAPIComponentContext
 }
