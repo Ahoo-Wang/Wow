@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
@@ -33,6 +34,10 @@ class RouterSpecs(
     private val routes: MutableList<RouteSpec> = mutableListOf(),
     override val inline: Boolean = false
 ) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
+    companion object {
+        private val log = KotlinLogging.logger { }
+    }
+
     override val componentContext: OpenAPIComponentContext = OpenAPIComponentContext.default(inline)
 
     @Volatile
@@ -46,51 +51,6 @@ class RouterSpecs(
         components = Components()
     }
 
-    private fun mergeComponents(other: Components) {
-        other.schemas?.forEach { (name, schema) ->
-            openAPI.components.addSchemas(name, schema)
-        }
-        other.responses?.forEach { (name, response) ->
-            openAPI.components.addResponses(name, response)
-        }
-        other.parameters?.forEach { (name, parameter) ->
-            openAPI.components.addParameters(name, parameter)
-        }
-        other.examples?.forEach { (name, example) ->
-            openAPI.components.addExamples(name, example)
-        }
-        other.requestBodies?.forEach { (name, requestBody) ->
-            openAPI.components.addRequestBodies(name, requestBody)
-        }
-        other.headers?.forEach { (name, header) ->
-            openAPI.components.addHeaders(name, header)
-        }
-        other.securitySchemes?.forEach { (name, securityScheme) ->
-            openAPI.components.addSecuritySchemes(name, securityScheme)
-        }
-        other.links?.forEach { (name, link) ->
-            openAPI.components.addLinks(name, link)
-        }
-        other.callbacks?.forEach { (name, callback) ->
-            openAPI.components.addCallbacks(name, callback)
-        }
-        other.extensions?.forEach { (name, extension) ->
-            openAPI.components.addExtension(name, extension)
-        }
-        other.pathItems?.forEach { (name, pathItem) ->
-            openAPI.components.addPathItem(name, pathItem)
-        }
-    }
-
-    private fun mergeRouteSpecFactoryComponents() {
-        GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
-            mergeComponents(it.components)
-        }
-        AggregateRouteSpecFactoryProvider.get().forEach {
-            mergeComponents(it.components)
-        }
-    }
-
     private fun buildGlobalRouteSpec() {
         GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
             it.create(currentContext).forEach { routeSpec ->
@@ -99,13 +59,19 @@ class RouterSpecs(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun buildAggregateRouteSpec() {
+        val aggregateRouteSpecFactories = AggregateRouteSpecFactoryProvider(componentContext).get()
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
             val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
-            AggregateRouteSpecFactoryProvider.get().forEach { aggregateRouteSpecFactory ->
-                aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
-                    add(routeSpec)
+            aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
+                try {
+                    aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
+                        add(routeSpec)
+                    }
+                } catch (error: Throwable) {
+                    log.error(error) { "aggregateRouteSpecFactory:${aggregateRouteSpecFactory.javaClass.name} error:${error.message}" }
                 }
             }
         }
@@ -141,7 +107,6 @@ class RouterSpecs(
         built = true
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
-        mergeRouteSpecFactoryComponents()
         mergeComponentContext()
         val groupedPathRoutes = routes.groupBy {
             it.path

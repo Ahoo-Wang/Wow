@@ -20,8 +20,8 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent.Header.errorCode
-import me.ahoo.wow.openapi.CommonComponent.Schema.errorInfo
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
+import me.ahoo.wow.openapi.CommonComponent.Schema.errorInfoSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -30,7 +30,7 @@ object CommonComponent {
     object Header {
         const val WOW_ERROR_CODE = "Wow-Error-Code"
 
-        fun OpenAPIComponentContext.errorCode(): io.swagger.v3.oas.models.headers.Header =
+        fun OpenAPIComponentContext.errorCodeHeader(): io.swagger.v3.oas.models.headers.Header =
             header("${Wow.WOW_PREFIX}.${WOW_ERROR_CODE}") {
                 schema = StringSchema().example(ErrorCodes.SUCCEEDED)
                 description = "Error code"
@@ -38,40 +38,40 @@ object CommonComponent {
     }
 
     object Schema {
-        fun OpenAPIComponentContext.errorInfo(): io.swagger.v3.oas.models.media.Schema<*> =
+        fun OpenAPIComponentContext.errorInfoSchema(): io.swagger.v3.oas.models.media.Schema<*> =
             schema(DefaultErrorInfo::class.java)
     }
 
     object Parameter {
-        fun OpenAPIComponentContext.id(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.idPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.ID
                 schema = StringSchema().description("aggregate id")
                 `in`(ParameterIn.PATH.toString())
             }
 
-        fun OpenAPIComponentContext.ownerId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.ownerIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.OWNER_ID
                 schema = StringSchema().description("aggregate owner id")
                 `in`(ParameterIn.PATH.toString())
             }
 
-        fun OpenAPIComponentContext.tenantId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.tenantIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.TENANT_ID
-                schema = StringSchema().description("aggregate tenant id")._default(TenantId.DEFAULT_TENANT_ID)
+                schema = StringSchema().description("aggregate tenant id").example(TenantId.DEFAULT_TENANT_ID)
                 `in`(ParameterIn.PATH.toString())
             }
 
-        fun OpenAPIComponentContext.version(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.versionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.VERSION
-                schema = IntegerSchema().description("aggregate version")._default(Int.MAX_VALUE)
+                schema = IntegerSchema().description("aggregate version").example(Int.MAX_VALUE)
                 `in`(ParameterIn.PATH.toString())
             }
 
-        fun OpenAPIComponentContext.createTime(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.createTimePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.CREATE_TIME
                 schema = IntegerSchema()
@@ -81,45 +81,43 @@ object CommonComponent {
 
     object Response {
 
-        fun OpenAPIComponentContext.ok(): io.swagger.v3.oas.models.responses.ApiResponse =
+        fun ApiResponseBuilder.withErrorCodeHeader(componentContext: OpenAPIComponentContext): ApiResponseBuilder {
+            return header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        }
+
+        fun OpenAPIComponentContext.okResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.SUCCEEDED}") {
+                withErrorCodeHeader(this@okResponse)
                 description(ErrorCodes.SUCCEEDED_MESSAGE)
-                content(schema = errorInfo())
+                content(schema = errorInfoSchema())
             }
 
-        fun OpenAPIComponentContext.badRequest(): io.swagger.v3.oas.models.responses.ApiResponse =
+        fun OpenAPIComponentContext.badRequestResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.BAD_REQUEST}") {
+                withErrorCodeHeader(this@badRequestResponse)
                 description("Bad Request")
-                header(Header.WOW_ERROR_CODE, errorCode())
-                content(schema = errorInfo())
+                content(schema = errorInfoSchema())
             }
 
-        fun OpenAPIComponentContext.notFound(): io.swagger.v3.oas.models.responses.ApiResponse =
+        fun OpenAPIComponentContext.notFoundResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.NOT_FOUND}") {
+                withErrorCodeHeader(this@notFoundResponse)
                 description("Not Found")
-                header(Header.WOW_ERROR_CODE, errorCode())
-                content(schema = errorInfo())
+                content(schema = errorInfoSchema())
             }
 
-        fun OpenAPIComponentContext.requestTimeout(): io.swagger.v3.oas.models.responses.ApiResponse =
+        fun OpenAPIComponentContext.requestTimeoutResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.REQUEST_TIMEOUT}") {
+                withErrorCodeHeader(this@requestTimeoutResponse)
                 description("Request Timeout")
-                header(Header.WOW_ERROR_CODE, errorCode())
-                content(schema = errorInfo())
+                content(schema = errorInfoSchema())
             }
 
-        fun OpenAPIComponentContext.tooManyRequests(): io.swagger.v3.oas.models.responses.ApiResponse =
+        fun OpenAPIComponentContext.tooManyRequestsResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.TOO_MANY_REQUESTS}") {
+                withErrorCodeHeader(this@tooManyRequestsResponse)
                 description("Too Many Requests")
-                header(Header.WOW_ERROR_CODE, errorCode())
-                content(schema = errorInfo())
-            }
-
-        fun OpenAPIComponentContext.internalServerError(): io.swagger.v3.oas.models.responses.ApiResponse =
-            response("${Wow.WOW_PREFIX}${ErrorCodes.INTERNAL_SERVER_ERROR}") {
-                description("Internal Server Error")
-                header(Header.WOW_ERROR_CODE, errorCode())
-                content(schema = errorInfo())
+                content(schema = errorInfoSchema())
             }
     }
 }

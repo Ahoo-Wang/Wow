@@ -17,22 +17,24 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.openapi.ApiResponseBuilder
+import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
+import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.singleQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class SingleSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendOwnerPath: Boolean
+    override val appendOwnerPath: Boolean,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -51,17 +53,23 @@ class SingleSnapshotRouteSpec(
 
     override val summary: String
         get() = "Single snapshot"
-    override val requestBody: RequestBody = SingleQuery::class.java.toRequestBody()
-
-    private val responseSchema = MaterializedSnapshot::class.java.toSchemaRef(
-        MaterializedSnapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    )
+    override val requestBody: RequestBody = componentContext.singleQueryRequestBody()
 
     override val responses: ApiResponses
-        get() = responseSchema.ref.toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withNotFound()
+        get() = ApiResponses().apply {
+            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+                .content(
+                    schema = componentContext.schema(
+                        MaterializedSnapshot::class.java,
+                        aggregateMetadata.state.aggregateType
+                    )
+                )
+                .build()
+                .let {
+                    addApiResponse(Https.Code.OK, it)
+                }
+            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+        }
 }
 
 class SingleSnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
@@ -75,7 +83,8 @@ class SingleSnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFact
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendOwnerPath = appendOwnerPath
+            appendOwnerPath = appendOwnerPath,
+            componentContext = componentContext
         )
     }
 }

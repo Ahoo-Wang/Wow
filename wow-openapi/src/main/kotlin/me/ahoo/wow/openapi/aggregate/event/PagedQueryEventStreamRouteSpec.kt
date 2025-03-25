@@ -16,23 +16,21 @@ package me.ahoo.wow.openapi.aggregate.event
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.Response.pagedListEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class PagedQueryEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendOwnerPath: Boolean
+    override val appendOwnerPath: Boolean,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -50,15 +48,10 @@ class PagedQueryEventStreamRouteSpec(
 
     override val summary: String
         get() = "Paged Query Event Stream"
-    override val requestBody: RequestBody = PagedQuery::class.java.toRequestBody()
-    val responseSchemaRef = PagedList::class.java.toSchemaRef(
-        propertyName = PagedList<*>::list.name,
-        propertySchemaRef = DomainEventStream::class.java.toSchemaRef(),
-        isArray = true
-    )
+    override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse())
         }
 }
 
@@ -69,13 +62,12 @@ class PagedQueryEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteS
         appendTenantPath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
-        val routeSpec = PagedQueryEventStreamRouteSpec(
+        return PagedQueryEventStreamRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendOwnerPath = appendOwnerPath
+            appendOwnerPath = appendOwnerPath,
+            componentContext = componentContext
         )
-        routeSpec.responseSchemaRef.schemas.mergeSchemas()
-        return routeSpec
     }
 }

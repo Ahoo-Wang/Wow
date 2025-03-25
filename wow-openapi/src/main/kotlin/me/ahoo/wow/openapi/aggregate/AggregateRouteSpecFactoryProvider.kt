@@ -13,13 +13,19 @@
 
 package me.ahoo.wow.openapi.aggregate
 
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import java.util.*
 
-object AggregateRouteSpecFactoryProvider {
+class AggregateRouteSpecFactoryProvider(override val componentContext: OpenAPIComponentContext) :
+    OpenAPIComponentContextCapable {
     private val factories: MutableList<AggregateRouteSpecFactory> = mutableListOf()
 
     init {
-        ServiceLoader.load(AggregateRouteSpecFactory::class.java).let {
+        ServiceLoader.load(AggregateRouteSpecFactory::class.java).map {
+            it.initialize(componentContext)
+            it
+        }.let {
             factories.addAll(it)
         }
     }

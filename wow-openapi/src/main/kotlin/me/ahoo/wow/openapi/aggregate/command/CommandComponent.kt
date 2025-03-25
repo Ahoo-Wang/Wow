@@ -21,9 +21,9 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.CommonComponent.Header.errorCode
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Schema.commandResult
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Schema.commandResultSchema
 import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.AGGREGATE_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.AGGREGATE_VERSION
 import me.ahoo.wow.openapi.aggregate.command.CommandRequestHeaders.COMMAND_AGGREGATE_CONTEXT
@@ -62,61 +62,61 @@ object CommandComponent {
     }
 
     object Schema {
-        fun OpenAPIComponentContext.commandResult(): io.swagger.v3.oas.models.media.Schema<*> =
+        fun OpenAPIComponentContext.commandResultSchema(): io.swagger.v3.oas.models.media.Schema<*> =
             schema(CommandResult::class.java)
     }
 
     object Parameter {
-        fun OpenAPIComponentContext.waitContext(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitContextPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_CONTEXT
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.tenantId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.tenantIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = TENANT_ID
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.ownerId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.ownerIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = OWNER_ID
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.aggregateId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.aggregateIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = AGGREGATE_ID
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.aggregateVersion(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.aggregateVersionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = AGGREGATE_VERSION
                 schema = schema(Int::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitStage(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitStagePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_STAGE
                 schema = schema(CommandStage::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitProcessor(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitProcessorPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_PROCESSOR
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitTimeOut(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitTimeOutPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_TIME_OUT
                 schema = schema(Int::class.java)
@@ -124,35 +124,35 @@ object CommandComponent {
                 description = "Command timeout period. Milliseconds"
             }
 
-        fun OpenAPIComponentContext.requestId(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.requestIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = REQUEST_ID
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.localFirst(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.localFirstPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = LOCAL_FIRST
                 schema = schema(Boolean::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandAggregateContext(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandAggregateContextPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_AGGREGATE_CONTEXT
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandAggregateName(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandAggregateNamePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_AGGREGATE_NAME
                 schema = schema(String::class.java)
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandType(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandTypePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_TYPE
                 schema = schema(String::class.java)
@@ -161,54 +161,54 @@ object CommandComponent {
     }
 
     object Response {
-        fun OpenAPIComponentContext.ok(): ApiResponse =
+        fun OpenAPIComponentContext.okCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.SUCCEEDED}") {
                 description(ErrorCodes.SUCCEEDED_MESSAGE)
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
-                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = ArraySchema().items(commandResult()))
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
+                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = ArraySchema().items(commandResultSchema()))
             }
 
-        fun OpenAPIComponentContext.badRequest(): ApiResponse =
+        fun OpenAPIComponentContext.badRequestCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.BAD_REQUEST}") {
                 description("Command Bad Request")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
 
-        fun OpenAPIComponentContext.notFound(): ApiResponse =
+        fun OpenAPIComponentContext.notFoundCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.NOT_FOUND}") {
                 description("Aggregate Not Found")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
 
-        fun OpenAPIComponentContext.requestTimeout(): ApiResponse =
+        fun OpenAPIComponentContext.requestTimeoutCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.REQUEST_TIMEOUT}") {
                 description("Command Request Timeout")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
 
-        fun OpenAPIComponentContext.tooManyRequests(): ApiResponse =
+        fun OpenAPIComponentContext.tooManyRequestsCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.TOO_MANY_REQUESTS}") {
                 description("Command Too Many Requests")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
 
-        fun OpenAPIComponentContext.versionConflict(): ApiResponse =
+        fun OpenAPIComponentContext.versionConflictCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}CommandVersionConflict") {
                 description("Command Version Conflict")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
 
-        fun OpenAPIComponentContext.illegalAccessDeletedAggregate(): ApiResponse =
+        fun OpenAPIComponentContext.illegalAccessDeletedAggregateCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE}") {
                 description("Illegal Access Deleted Aggregate")
-                header(CommonComponent.Header.WOW_ERROR_CODE, errorCode())
-                content(schema = commandResult())
+                header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
+                content(schema = commandResultSchema())
             }
     }
 }

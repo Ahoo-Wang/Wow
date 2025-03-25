@@ -14,16 +14,18 @@
 package me.ahoo.wow.openapi.aggregate.event.state
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.BatchRouteSpec
 import me.ahoo.wow.openapi.BatchRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RoutePaths
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class ResendStateEventRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : BatchRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -39,7 +41,7 @@ class ResendStateEventRouteSpec(
     override val summary: String
         get() = "Resend State Event"
     override val appendPathSuffix: String
-        get() = "state/{${RoutePaths.BATCH_AFTER_ID}}/{${RoutePaths.BATCH_LIMIT}}"
+        get() = "state/{${BatchComponent.PathVariable.BATCH_AFTER_ID}}/{${BatchComponent.PathVariable.BATCH_LIMIT}}"
 }
 
 class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {
@@ -48,6 +50,12 @@ class ResendStateEventRouteSpecFactory : BatchRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<ResendStateEventRouteSpec> {
-        return listOf(ResendStateEventRouteSpec(currentContext, aggregateRouteMetadata))
+        return listOf(
+            ResendStateEventRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext
+            )
+        )
     }
 }

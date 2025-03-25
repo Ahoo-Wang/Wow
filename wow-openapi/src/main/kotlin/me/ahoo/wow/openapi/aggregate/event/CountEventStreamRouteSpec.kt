@@ -13,24 +13,24 @@
 
 package me.ahoo.wow.openapi.aggregate.event
 
-import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class CountEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendOwnerPath: Boolean
+    override val appendOwnerPath: Boolean,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -49,11 +49,11 @@ class CountEventStreamRouteSpec(
 
     override val summary: String
         get() = "Count Event Stream"
-    override val requestBody: RequestBody = Condition::class.java.toRequestBody()
+    override val requestBody: RequestBody = componentContext.countQueryRequestBody()
 
     override val responses: ApiResponses
-        get() = IntegerSchema().toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
+        get() = ApiResponses().apply {
+            addApiResponse("200", componentContext.countQueryResponse())
         }
 }
 
@@ -68,7 +68,8 @@ class CountEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFa
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendOwnerPath = appendOwnerPath
+            appendOwnerPath = appendOwnerPath,
+            componentContext = componentContext
         )
     }
 }

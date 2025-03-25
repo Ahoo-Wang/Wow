@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.aggregate.command
 
+@Deprecated("Use OpenAPIComponentContext instead.")
 object CommandRequestHeaders {
 
     const val COMMAND_HEADERS_PREFIX = "Command-"
