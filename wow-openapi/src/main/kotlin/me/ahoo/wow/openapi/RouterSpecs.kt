@@ -70,6 +70,7 @@ class RouterSpecs(
     }
 
     private fun mergeComponentContext() {
+        componentContext.finish()
         componentContext.schemas.forEach { (name, schema) ->
             openAPI.components.addSchemas(name, schema)
         }
@@ -99,13 +100,13 @@ class RouterSpecs(
         built = true
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
-        mergeComponentContext()
         val groupedPathRoutes = routes.groupBy {
             it.path
         }
         for ((path, routeSpecs) in groupedPathRoutes) {
             openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
         }
+        mergeComponentContext()
         return this
     }
 }
