@@ -13,25 +13,20 @@
 
 package me.ahoo.wow.openapi.aggregate
 
-import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.Components
-import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.wow.api.annotation.AggregateRoute
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
-import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
-import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory.Companion.appendIdPathParameter
-import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory.Companion.appendOwnerPathParameter
-import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory.Companion.appendTenantPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdPathParameter
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -41,7 +36,7 @@ const val OWNER_PATH_VARIABLE = "{${MessageRecords.OWNER_ID}}"
 const val OWNER_PATH_PREFIX = "owner/$OWNER_PATH_VARIABLE"
 const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
-interface AggregateRouteSpec : RouteSpec {
+interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
     val currentContext: NamedBoundedContext
     val aggregateRouteMetadata: AggregateRouteMetadata<*>
     val aggregateMetadata: AggregateMetadata<*, *>
@@ -87,49 +82,21 @@ interface AggregateRouteSpec : RouteSpec {
         }
     override val parameters: List<Parameter>
         get() {
-            return mutableListOf<Parameter>()
-                .appendTenantPathParameter(appendTenantPath)
-                .appendOwnerPathParameter(appendOwnerPath)
-                .appendIdPathParameter(appendIdPath)
+            return buildList {
+                if (appendTenantPath) {
+                    add(componentContext.tenantIdPathParameter())
+                }
+                if (appendOwnerPath) {
+                    add(componentContext.ownerIdPathParameter())
+                }
+                if (appendIdPath) {
+                    add(componentContext.idPathParameter())
+                }
+            }
         }
 }
 
-abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory, AbstractRouteSpecFactory() {
-    override val components: Components = createComponents()
-
-    companion object {
-        fun MutableList<Parameter>.appendTenantPathParameter(appendTenantPath: Boolean): MutableList<Parameter> {
-            if (appendTenantPath.not()) {
-                return this
-            }
-            withParameter(MessageRecords.TENANT_ID, ParameterIn.PATH, StringSchema()) {
-                it.required(true)
-                it.example(TenantId.DEFAULT_TENANT_ID)
-            }
-            return this
-        }
-
-        fun MutableList<Parameter>.appendOwnerPathParameter(appendOwnerPath: Boolean): MutableList<Parameter> {
-            if (appendOwnerPath.not()) {
-                return this
-            }
-            withParameter(MessageRecords.OWNER_ID, ParameterIn.PATH, StringSchema()) {
-                it.required(true)
-            }
-            return this
-        }
-
-        fun MutableList<Parameter>.appendIdPathParameter(appendIdPath: Boolean): MutableList<Parameter> {
-            if (appendIdPath.not()) {
-                return this
-            }
-            withParameter(MessageRecords.ID, ParameterIn.PATH, StringSchema()) {
-                it.required(true)
-            }
-            return this
-        }
-    }
-}
+abstract class AbstractAggregateRouteSpecFactory : AggregateRouteSpecFactory, AbstractRouteSpecFactory()
 
 abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 

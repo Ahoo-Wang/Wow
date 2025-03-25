@@ -16,16 +16,18 @@ package me.ahoo.wow.openapi.aggregate.snapshot
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class RegenerateSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -46,7 +48,10 @@ class RegenerateSnapshotRouteSpec(
     override val appendPathSuffix: String
         get() = "snapshot"
     override val responses: ApiResponses
-        get() = ApiResponses().addApiResponse(Https.Code.OK, ApiResponse()).withNotFound()
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, ApiResponse())
+            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+        }
 }
 
 class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
@@ -54,6 +59,12 @@ class RegenerateSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        return listOf(RegenerateSnapshotRouteSpec(currentContext, aggregateRouteMetadata))
+        return listOf(
+            RegenerateSnapshotRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext
+            )
+        )
     }
 }

@@ -21,6 +21,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.openapi.ApiResponseBuilder
+import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_HEADERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
@@ -40,6 +41,11 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
     override val responses: MutableMap<String, ApiResponse> = mutableMapOf()
     override fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
         return schemaBuilder.resolveType(mainTargetType, *typeParameters)
+    }
+
+    override fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
+        val elementType = resolveType(mainTargetType, *typeParameters)
+        return schema(List::class.java, elementType)
     }
 
     override fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
@@ -86,8 +92,8 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         }
     }
 
-    override fun requestBody(key: String, builder: RequestBody.() -> Unit): RequestBody {
-        val requestBody = RequestBody().also(builder)
+    override fun requestBody(key: String, builder: RequestBodyBuilder.() -> Unit): RequestBody {
+        val requestBody = RequestBodyBuilder().also(builder).build()
         if (inline) {
             return requestBody
         }

@@ -26,30 +26,28 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.ParameterRef.Companion.withParameter
 import me.ahoo.wow.openapi.PathBuilder
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.with
-import me.ahoo.wow.openapi.ResponseRef.Companion.withRequestTimeout
-import me.ahoo.wow.openapi.ResponseRef.Companion.withTooManyRequests
+import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
 import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.AGGREGATE_ID_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.AGGREGATE_VERSION_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.LOCAL_FIRST_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.REQUEST_ID_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.WAIT_CONTEXT_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.WAIT_PROCESSOR_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.WAIT_STAGE_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandRequestParameters.WAIT_TIME_OUT_PARAMETER
-import me.ahoo.wow.openapi.aggregate.command.CommandResponses.BAD_REQUEST_RESPONSE
-import me.ahoo.wow.openapi.aggregate.command.CommandResponses.COMMAND_RESULT_RESPONSE
-import me.ahoo.wow.openapi.aggregate.command.CommandResponses.ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE
-import me.ahoo.wow.openapi.aggregate.command.CommandResponses.NOT_FOUND_RESPONSE
-import me.ahoo.wow.openapi.aggregate.command.CommandResponses.VERSION_CONFLICT_RESPONSE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStagePathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequestCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregateCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFoundCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.okCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.requestTimeoutCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.tooManyRequestsCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.versionConflictCommandResponse
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
@@ -59,6 +57,7 @@ class CommandRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     val commandRouteMetadata: CommandRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
 
     override val id: String
@@ -138,14 +137,14 @@ class CommandRouteSpec(
         get() {
             return buildList {
                 addAll(super.parameters)
-                add(WAIT_STAGE_PARAMETER.component)
-                add(WAIT_CONTEXT_PARAMETER.ref)
-                add(WAIT_PROCESSOR_PARAMETER.ref)
-                add(WAIT_TIME_OUT_PARAMETER.ref)
-                add(AGGREGATE_ID_PARAMETER.ref)
-                add(AGGREGATE_VERSION_PARAMETER.ref)
-                add(REQUEST_ID_PARAMETER.ref)
-                add(LOCAL_FIRST_PARAMETER.ref)
+                add(componentContext.waitStagePathParameter())
+                add(componentContext.waitContextPathParameter())
+                add(componentContext.waitProcessorPathParameter())
+                add(componentContext.waitTimeOutPathParameter())
+                add(componentContext.aggregateIdPathParameter())
+                add(componentContext.aggregateVersionPathParameter())
+                add(componentContext.requestIdPathParameter())
+                add(componentContext.localFirstPathParameter())
                 commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
                     withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
                         it.required(variableMetadata.required)
@@ -158,16 +157,18 @@ class CommandRouteSpec(
                 }
             }
         }
-    override val requestBody: RequestBody = commandRouteMetadata.commandMetadata.commandType.toRequestBody()
+    override val requestBody: RequestBody = RequestBodyBuilder().description(summary)
+        .content(schema = componentContext.schema(commandRouteMetadata.commandMetadata.commandType)).build()
     override val responses: ApiResponses
-        get() = ApiResponses()
-            .with(COMMAND_RESULT_RESPONSE)
-            .with(BAD_REQUEST_RESPONSE)
-            .with(NOT_FOUND_RESPONSE)
-            .withRequestTimeout()
-            .withTooManyRequests()
-            .with(VERSION_CONFLICT_RESPONSE)
-            .with(ILLEGAL_ACCESS_DELETED_AGGREGATE_RESPONSE)
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
+            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
+            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
+            addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
+            addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
+            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
+            addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
+        }
 }
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
@@ -183,7 +184,8 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         return CommandRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            commandRouteMetadata = commandRouteMetadata
+            commandRouteMetadata = commandRouteMetadata,
+            componentContext = componentContext
         )
     }
 
@@ -192,25 +194,21 @@ class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
-        aggregateMetadata.state.aggregateType.toSchemaRef().schemas.mergeSchemas()
         return buildList {
             aggregateMetadata.command.registeredCommands
                 .forEach { commandType ->
                     commandType.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
-                        it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                         add(it)
                     }
                 }
 
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
-                    it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }
             }
             if (!aggregateMetadata.command.registeredRecoverAggregate) {
                 DefaultRecoverAggregate::class.java.toCommandRouteSpec(currentContext, aggregateRouteMetadata)?.let {
-                    it.commandRouteMetadata.commandMetadata.commandType.toSchemas().mergeSchemas()
                     add(it)
                 }
             }

@@ -15,25 +15,22 @@ package me.ahoo.wow.openapi.aggregate.event
 
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.openapi.BatchComponent.Parameter.headVersionPathParameter
+import me.ahoo.wow.openapi.BatchComponent.Parameter.tailVersionPathParameter
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.with
+import me.ahoo.wow.openapi.QueryComponent.Response.loadEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RoutePaths
-import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpecFactory.Companion.DOMAIN_EVENT_STREAM_ARRAY_RESPONSE
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class LoadEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
 
     override val id: String
@@ -51,33 +48,31 @@ class LoadEventStreamRouteSpec(
     override val summary: String
         get() = "Load Event Stream"
     override val responses: ApiResponses
-        get() = ApiResponses().with(DOMAIN_EVENT_STREAM_ARRAY_RESPONSE)
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
+        }
 
     override val appendPathSuffix: String
         get() = "event/{${RoutePaths.HEAD_VERSION_KEY}}/{${RoutePaths.TAIL_VERSION_KEY}}"
     override val parameters: List<Parameter>
         get() = super.parameters + listOf(
-            RoutePaths.HEAD_VERSION.ref,
-            RoutePaths.TAIL_VERSION.ref
+            componentContext.headVersionPathParameter(),
+            componentContext.tailVersionPathParameter()
         )
 }
 
 class LoadEventStreamRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    init {
-        DOMAIN_EVENT_STREAM_SCHEMA.schemas.mergeSchemas()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        return listOf(LoadEventStreamRouteSpec(currentContext, aggregateRouteMetadata))
-    }
-
-    companion object {
-        val DOMAIN_EVENT_STREAM_SCHEMA = DomainEventStream::class.java.toSchemaRef()
-        val DOMAIN_EVENT_STREAM_ARRAY_RESPONSE = DOMAIN_EVENT_STREAM_SCHEMA.ref.toArraySchema().toResponse().let {
-            ResponseRef("${Wow.WOW_PREFIX}EventStreamArray", it)
-        }
+        return listOf(
+            LoadEventStreamRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext
+            )
+        )
     }
 }

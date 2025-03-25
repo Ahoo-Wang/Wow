@@ -13,29 +13,27 @@
 
 package me.ahoo.wow.openapi.aggregate.event
 
-import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.messaging.compensation.CompensationTarget
+import me.ahoo.wow.openapi.CommonComponent.Parameter.versionPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Response.badRequestResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withBadRequest
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RoutePaths
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpecFactory.Companion.COMPENSATION_TARGET_REQUEST
+import me.ahoo.wow.openapi.aggregate.event.EventComponent.Request.compensationTargetRequestBody
+import me.ahoo.wow.openapi.aggregate.event.EventComponent.Response.compensationTargetResponse
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
 class EventCompensateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
 
     override val id: String
@@ -52,28 +50,30 @@ class EventCompensateRouteSpec(
         get() = false
     override val appendPathSuffix: String
         get() = "{${MessageRecords.VERSION}}/compensate"
-    override val requestBody: RequestBody = COMPENSATION_TARGET_REQUEST
+    override val requestBody: RequestBody = componentContext.compensationTargetRequestBody()
     override val responses: ApiResponses
-        get() = IntegerSchema().toResponse().let {
-            it.description("Number of event streams compensated")
-            ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withBadRequest()
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, componentContext.compensationTargetResponse())
+            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
+        }
     override val appendIdPath: Boolean
         get() = true
     override val parameters: List<Parameter>
-        get() = super.parameters + RoutePaths.VERSION
+        get() = super.parameters + componentContext.versionPathParameter()
 }
 
 class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    companion object {
-        val COMPENSATION_TARGET_SCHEMA = CompensationTarget::class.java.toSchemaRef()
-        val COMPENSATION_TARGET_REQUEST = CompensationTarget::class.java.toRequestBody()
-    }
 
     override fun create(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        return listOf(EventCompensateRouteSpec(currentContext, aggregateRouteMetadata))
+        return listOf(
+            EventCompensateRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext
+            )
+        )
     }
 }

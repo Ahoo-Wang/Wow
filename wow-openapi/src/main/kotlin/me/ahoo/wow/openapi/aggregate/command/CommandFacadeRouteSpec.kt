@@ -23,26 +23,26 @@ import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersion
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContext
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateName
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandType
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirst
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContext
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessor
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStage
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOut
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequest
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregate
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFound
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.ok
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.requestTimeout
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.tooManyRequests
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.versionConflict
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContextPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateNamePathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandTypePathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStagePathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequestCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregateCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFoundCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.okCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.requestTimeoutCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.tooManyRequestsCommandResponse
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.versionConflictCommandResponse
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory.Companion.PATH
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
@@ -65,19 +65,19 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
     override val parameters: List<Parameter>
         get() {
             return buildList {
-                add(componentContext.commandType())
-                add(componentContext.waitStage())
-                add(componentContext.waitContext())
-                add(componentContext.waitProcessor())
-                add(componentContext.waitTimeOut())
-                add(componentContext.tenantId())
-                add(componentContext.ownerId())
-                add(componentContext.aggregateId())
-                add(componentContext.aggregateVersion())
-                add(componentContext.requestId())
-                add(componentContext.localFirst())
-                add(componentContext.commandAggregateContext())
-                add(componentContext.commandAggregateName())
+                add(componentContext.commandTypePathParameter())
+                add(componentContext.waitStagePathParameter())
+                add(componentContext.waitContextPathParameter())
+                add(componentContext.waitProcessorPathParameter())
+                add(componentContext.waitTimeOutPathParameter())
+                add(componentContext.tenantIdPathParameter())
+                add(componentContext.ownerIdPathParameter())
+                add(componentContext.aggregateIdPathParameter())
+                add(componentContext.aggregateVersionPathParameter())
+                add(componentContext.requestIdPathParameter())
+                add(componentContext.localFirstPathParameter())
+                add(componentContext.commandAggregateContextPathParameter())
+                add(componentContext.commandAggregateNamePathParameter())
             }
         }
     override val requestBody: RequestBody = RequestBody()
@@ -87,13 +87,13 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         )
     override val responses: ApiResponses
         get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.ok())
-            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequest())
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFound())
-            addApiResponse(Https.Code.CONFLICT, componentContext.versionConflict())
-            addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequests())
-            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeout())
-            addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregate())
+            addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
+            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
+            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
+            addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
+            addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
+            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
+            addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
         }
 }
 

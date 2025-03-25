@@ -17,18 +17,20 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.openapi.ApiResponseBuilder
+import me.ahoo.wow.openapi.CommonComponent.Header
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class AggregateTracingRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -49,11 +51,21 @@ class AggregateTracingRouteSpec(
     override val summary: String
         get() = "Get aggregate tracing"
     override val requestBody: RequestBody? = null
-    val responseSchemaRef = StateEvent::class.java
-        .toSchemaRef(StateEvent<*>::state.name, aggregateMetadata.state.aggregateType)
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.toArraySchema().toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
+        get() = ApiResponses().apply {
+            ApiResponseBuilder()
+                .description(summary)
+                .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+                .content(
+                    schema = componentContext.arraySchema(
+                        StateEvent::class.java,
+                        aggregateMetadata.state.aggregateType
+                    )
+                )
+                .build()
+                .let {
+                    addApiResponse(Https.Code.OK, it)
+                }
         }
 }
 
@@ -63,8 +75,11 @@ class AggregateTracingRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<AggregateRouteSpec> {
-        val routeSpec = AggregateTracingRouteSpec(currentContext, aggregateRouteMetadata)
-        routeSpec.responseSchemaRef.schemas.mergeSchemas()
+        val routeSpec = AggregateTracingRouteSpec(
+            currentContext = currentContext,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            componentContext = componentContext
+        )
         return listOf(routeSpec)
     }
 }

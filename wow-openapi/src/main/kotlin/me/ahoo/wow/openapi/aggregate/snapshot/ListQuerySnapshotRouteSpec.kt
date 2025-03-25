@@ -16,23 +16,24 @@ package me.ahoo.wow.openapi.aggregate.snapshot
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.openapi.ApiResponseBuilder
+import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toArraySchema
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class ListQuerySnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendOwnerPath: Boolean
+    override val appendOwnerPath: Boolean,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -50,16 +51,21 @@ class ListQuerySnapshotRouteSpec(
 
     override val summary: String
         get() = "List Query snapshot"
-    override val requestBody: RequestBody = ListQuery::class.java.toRequestBody()
-
-    val responseSchema = MaterializedSnapshot::class.java.toSchemaRef(
-        MaterializedSnapshot<*>::state.name,
-        aggregateMetadata.state.aggregateType
-    ).ref.toArraySchema()
+    override val requestBody: RequestBody = componentContext.listQueryRequestBody()
 
     override val responses: ApiResponses
-        get() = responseSchema.toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
+        get() = ApiResponses().apply {
+            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+                .content(
+                    schema = componentContext.arraySchema(
+                        MaterializedSnapshot::class.java,
+                        aggregateMetadata.state.aggregateType
+                    )
+                )
+                .build()
+                .let {
+                    addApiResponse(Https.Code.OK, it)
+                }
         }
 }
 
@@ -74,7 +80,8 @@ class ListQuerySnapshotRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecF
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendOwnerPath = appendOwnerPath
+            appendOwnerPath = appendOwnerPath,
+            componentContext = componentContext
         )
     }
 }

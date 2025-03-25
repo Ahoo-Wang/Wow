@@ -13,16 +13,9 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.media.IntegerSchema
-import io.swagger.v3.oas.models.media.StringSchema
-import io.swagger.v3.oas.models.parameters.Parameter
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.annotation.DEFAULT_AGGREGATE_ID_NAME
-import me.ahoo.wow.eventsourcing.AggregateIdScanner
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.serialization.MessageRecords
 
+@Deprecated("Use CommonComponent instead.")
 object RoutePaths {
     const val ID_KEY = DEFAULT_AGGREGATE_ID_NAME
 
@@ -31,41 +24,4 @@ object RoutePaths {
 
     const val BATCH_AFTER_ID = "afterId"
     const val BATCH_LIMIT = "limit"
-
-    val VERSION: Parameter = Parameter()
-        .name(MessageRecords.VERSION)
-        .`in`(ParameterIn.PATH.toString())
-        .schema(IntegerSchema())
-        .example(EventStore.DEFAULT_HEAD_VERSION)
-
-    val HEAD_VERSION = Parameter()
-        .name(HEAD_VERSION_KEY)
-        .`in`(ParameterIn.PATH.toString())
-        .schema(IntegerSchema())
-        .example(EventStore.DEFAULT_HEAD_VERSION).let {
-            ParameterRef("${Wow.WOW_PREFIX}$HEAD_VERSION_KEY", it)
-        }
-    val TAIL_VERSION = Parameter()
-        .name(TAIL_VERSION_KEY)
-        .`in`(ParameterIn.PATH.toString())
-        .schema(IntegerSchema())
-        .example(Int.MAX_VALUE).let {
-            ParameterRef("${Wow.WOW_PREFIX}$TAIL_VERSION_KEY", it)
-        }
-    val BATCH_AFTER_ID_PARAMETER = Parameter()
-        .name(BATCH_AFTER_ID)
-        .`in`(ParameterIn.PATH.toString())
-        .schema(StringSchema())
-        .example(AggregateIdScanner.FIRST_ID)
-        .description("The ID of the last record in the batch.").let {
-            ParameterRef("${Wow.WOW_PREFIX}$BATCH_AFTER_ID", it)
-        }
-    val BATCH_LIMIT_PARAMETER = Parameter()
-        .name(BATCH_LIMIT)
-        .`in`(ParameterIn.PATH.toString())
-        .schema(IntegerSchema())
-        .example(Int.MAX_VALUE)
-        .description("The size of batch.").let {
-            ParameterRef("${Wow.WOW_PREFIX}$BATCH_LIMIT", it)
-        }
 }

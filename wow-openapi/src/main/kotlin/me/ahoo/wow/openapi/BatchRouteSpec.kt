@@ -15,12 +15,9 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.openapi.BatchRouteSpecFactory.Companion.BATCH_RESULT_RESPONSE
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.with
-import me.ahoo.wow.openapi.RoutePaths.BATCH_AFTER_ID_PARAMETER
-import me.ahoo.wow.openapi.RoutePaths.BATCH_LIMIT_PARAMETER
+import me.ahoo.wow.openapi.BatchComponent.Parameter.batchAfterIdPathParameter
+import me.ahoo.wow.openapi.BatchComponent.Parameter.batchLimitPathParameter
+import me.ahoo.wow.openapi.BatchComponent.Response.batchResultResponse
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 
@@ -29,19 +26,15 @@ interface BatchRouteSpec : AggregateRouteSpec {
         get() = false
 
     override val responses: ApiResponses
-        get() = ApiResponses().with(BATCH_RESULT_RESPONSE)
+        get() = ApiResponses().apply {
+            addApiResponse(Https.Code.OK, componentContext.batchResultResponse())
+        }
 
     override val parameters: List<Parameter>
         get() = super.parameters + listOf(
-            BATCH_AFTER_ID_PARAMETER.ref,
-            BATCH_LIMIT_PARAMETER.ref
+            componentContext.batchAfterIdPathParameter(),
+            componentContext.batchLimitPathParameter()
         )
 }
 
-abstract class BatchRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
-    companion object {
-        val BATCH_RESULT_RESPONSE = BatchResult::class.java.toResponse().let {
-            ResponseRef("${Wow.WOW_PREFIX}BatchResult", it)
-        }
-    }
-}
+abstract class BatchRouteSpecFactory : AbstractAggregateRouteSpecFactory()

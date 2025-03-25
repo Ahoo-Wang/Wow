@@ -17,19 +17,22 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.openapi.ApiResponseBuilder
+import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
+import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
-import me.ahoo.wow.openapi.ResponseRef.Companion.withNotFound
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemaRef
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 class LoadSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    override val componentContext: OpenAPIComponentContext
 ) : AggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
@@ -49,15 +52,22 @@ class LoadSnapshotRouteSpec(
 
     override val summary: String
         get() = "Get snapshot"
-    val responseSchemaRef = Snapshot::class.java.toSchemaRef(
-        propertyName = Snapshot<*>::state.name,
-        propertyType = aggregateMetadata.state.aggregateType
-    )
 
     override val responses: ApiResponses
-        get() = responseSchemaRef.ref.toResponse().let {
-            ApiResponses().addApiResponse(Https.Code.OK, it)
-        }.withNotFound()
+        get() = ApiResponses().apply {
+            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+                .content(
+                    schema = componentContext.schema(
+                        Snapshot::class.java,
+                        aggregateMetadata.state.aggregateType
+                    )
+                )
+                .build()
+                .let {
+                    addApiResponse(Https.Code.OK, it)
+                }
+            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+        }
 }
 
 class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
@@ -65,8 +75,12 @@ class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<RouteSpec> {
-        val routeSpec = LoadSnapshotRouteSpec(currentContext, aggregateRouteMetadata)
-        routeSpec.responseSchemaRef.schemas.mergeSchemas()
-        return listOf(routeSpec)
+        return listOf(
+            LoadSnapshotRouteSpec(
+                currentContext = currentContext,
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                componentContext = componentContext
+            )
+        )
     }
 }
