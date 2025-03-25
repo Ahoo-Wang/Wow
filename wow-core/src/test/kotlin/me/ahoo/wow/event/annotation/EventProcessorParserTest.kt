@@ -25,7 +25,7 @@ internal class EventProcessorParserTest {
     @Test
     fun eventProcessorMetadata() {
         val eventProcessorMetadata = eventProcessorMetadata<MockEventProcessor>()
-        assertThat(eventProcessorMetadata.contextName, equalTo("wow-core-test"))
+        assertThat(eventProcessorMetadata.contextName, equalTo("wow.event"))
         assertThat(eventProcessorMetadata.processorType, equalTo(MockEventProcessor::class.java))
         assertThat(
             eventProcessorMetadata.functionRegistry.map { it.supportedType }.toSet(),

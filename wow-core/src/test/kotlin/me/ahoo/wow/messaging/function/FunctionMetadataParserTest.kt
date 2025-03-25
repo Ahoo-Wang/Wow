@@ -74,8 +74,8 @@ class FunctionMetadataParserTest {
         assertThat(
             metadata.supportedTopics,
             hasItems(
-                MaterializedNamedAggregate("wow-core-test", "aggregate1"),
-                MaterializedNamedAggregate("wow-core-test", "aggregate2"),
+                MaterializedNamedAggregate("wow.messaging", "aggregate1"),
+                MaterializedNamedAggregate("wow.messaging", "aggregate2"),
             ),
         )
         assertThat(
@@ -92,7 +92,7 @@ class FunctionMetadataParserTest {
         assertThat(
             metadata.supportedTopics,
             hasItems(
-                MaterializedNamedAggregate("wow-core-test", "aggregate1")
+                MaterializedNamedAggregate("wow.messaging", "aggregate1")
             ),
         )
         assertThat(
