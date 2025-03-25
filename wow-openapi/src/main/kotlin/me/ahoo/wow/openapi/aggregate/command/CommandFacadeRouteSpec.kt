@@ -24,19 +24,12 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContextHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateNameHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandCommonHeaderParameters
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandTypeHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStageHeaderParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.commandResponses
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory.Companion.PATH
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -58,16 +51,9 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
     override val summary: String = "send command"
     override val parameters: List<Parameter> = buildList {
         add(componentContext.commandTypeHeaderParameter())
-        add(componentContext.waitStageHeaderParameter())
-        add(componentContext.waitContextHeaderParameter())
-        add(componentContext.waitProcessorHeaderParameter())
-        add(componentContext.waitTimeOutHeaderParameter())
+        addAll(componentContext.commandCommonHeaderParameters())
         add(componentContext.tenantIdHeaderParameter())
         add(componentContext.ownerIdHeaderParameter())
-        add(componentContext.aggregateIdHeaderParameter())
-        add(componentContext.aggregateVersionHeaderParameter())
-        add(componentContext.requestIdHeaderParameter())
-        add(componentContext.localFirstHeaderParameter())
         add(componentContext.commandAggregateContextHeaderParameter())
         add(componentContext.commandAggregateNameHeaderParameter())
     }

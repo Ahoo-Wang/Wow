@@ -160,6 +160,19 @@ object CommandComponent {
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
+
+        fun OpenAPIComponentContext.commandCommonHeaderParameters(): List<io.swagger.v3.oas.models.parameters.Parameter> {
+            return listOf(
+                waitStageHeaderParameter(),
+                waitContextHeaderParameter(),
+                waitProcessorHeaderParameter(),
+                waitTimeOutHeaderParameter(),
+                aggregateIdHeaderParameter(),
+                aggregateVersionHeaderParameter(),
+                requestIdHeaderParameter(),
+                localFirstHeaderParameter()
+            )
+        }
     }
 
     object Response {
