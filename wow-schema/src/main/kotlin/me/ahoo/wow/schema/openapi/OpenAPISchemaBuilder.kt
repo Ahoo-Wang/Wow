@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
@@ -29,26 +30,26 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
+import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowModule
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.Companion.defaultConfig
-import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.toObject
 import java.lang.reflect.Type
 import java.util.function.Consumer
 
 class OpenAPISchemaBuilder(
     private val schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
     private val optionPreset: OptionPreset = OptionPreset.PLAIN_JSON,
-    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer(schemaVersion)
+    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer()
 ) : InlineSchemaCapable {
     companion object {
         const val DEFINITION_PATH = "components/schemas"
     }
 
+    private val openAPIObjectMapper = ObjectMapperFactory.createJson31()
     private val generatorConfig: SchemaGeneratorConfig =
-        SchemaGeneratorConfigBuilder(JsonSerializer, schemaVersion, optionPreset)
+        SchemaGeneratorConfigBuilder(openAPIObjectMapper, schemaVersion, optionPreset)
             .also {
                 customizer.accept(it)
             }.build()
@@ -59,6 +60,11 @@ class OpenAPISchemaBuilder(
         get() = generatorConfig.shouldInlineAllSchemas()
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
+
+    private fun JsonNode.toSchema(): Schema<*> {
+        return openAPIObjectMapper.treeToValue(this, Schema::class.java)
+    }
+
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
         return typeContext.resolve(mainTargetType, *typeParameters)
     }
@@ -66,10 +72,10 @@ class OpenAPISchemaBuilder(
     fun generateSchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
         val resolvedType = typeContext.resolve(mainTargetType, *typeParameters)
         if (inline) {
-            return schemaGenerator.generateSchema(resolvedType).toObject()
+            return schemaGenerator.generateSchema(resolvedType).toSchema()
         }
         val refSchemaNode = schemaBuilder.createSchemaReference(resolvedType)
-        val schemaReference = SchemaReference(resolvedType, refSchemaNode.toObject(), refSchemaNode)
+        val schemaReference = SchemaReference(resolvedType, refSchemaNode.toSchema(), refSchemaNode)
         schemaReferences.add(schemaReference)
         return schemaReference.schema
     }
@@ -80,7 +86,7 @@ class OpenAPISchemaBuilder(
             schemaReference.merge()
         }
         return collectedDefs.properties().associate { (name, node) ->
-            name to node.toObject()
+            name to node.toSchema()
         }
     }
 
@@ -94,11 +100,11 @@ class OpenAPISchemaBuilder(
         }
     }
 
-    class DefaultCustomizer(private val schemaVersion: SchemaVersion) :
+    class DefaultCustomizer :
         Consumer<SchemaGeneratorConfigBuilder> {
 
         companion object {
-            fun SchemaGeneratorConfigBuilder.defaultConfig(schemaVersion: SchemaVersion): SchemaGeneratorConfigBuilder {
+            fun SchemaGeneratorConfigBuilder.defaultConfig(): SchemaGeneratorConfigBuilder {
                 val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
                 val jakartaModule = JakartaValidationModule()
                 val openApiModule: Module = Swagger2Module()
@@ -109,24 +115,20 @@ class OpenAPISchemaBuilder(
                     .with(wowModule)
                     .with(Option.PLAIN_DEFINITION_KEYS)
                     .with(Option.SIMPLIFIED_ENUMS)
-                forFields()
-                    .withInstanceAttributeOverride(OpenAPICompatibilityAttributeOverride(schemaVersion))
-                forMethods()
-                    .withInstanceAttributeOverride(OpenAPICompatibilityAttributeOverride(schemaVersion))
                 return this
             }
         }
 
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
-            configBuilder.defaultConfig(schemaVersion)
+            configBuilder.defaultConfig()
                 .with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
         }
     }
 
-    class InlineCustomizer(private val schemaVersion: SchemaVersion) :
+    class InlineCustomizer :
         Consumer<SchemaGeneratorConfigBuilder> {
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
-            configBuilder.defaultConfig(schemaVersion)
+            configBuilder.defaultConfig()
                 .with(Option.INLINE_ALL_SCHEMAS)
         }
     }
