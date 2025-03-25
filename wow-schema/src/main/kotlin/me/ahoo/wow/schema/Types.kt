@@ -11,21 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.kotlin
+package me.ahoo.wow.schema
 
-import com.github.victools.jsonschema.generator.FieldScope
-import me.ahoo.wow.schema.Types.isKotlinElement
-import java.util.function.Predicate
-import kotlin.reflect.KVisibility
-import kotlin.reflect.jvm.kotlinProperty
+import java.lang.reflect.AnnotatedElement
 
-object KotlinWriteOnlyCheck : Predicate<FieldScope> {
+object Types {
 
-    override fun test(fieldScope: FieldScope): Boolean {
-        if (!fieldScope.rawMember.isKotlinElement()) {
-            return false
+    fun AnnotatedElement.isKotlinElement(): Boolean {
+        return getAnnotation(Metadata::class.java) != null
+    }
+
+    @Suppress("ComplexCondition")
+    fun Class<*>.isStdType(): Boolean {
+        if (this.isArray || this.isPrimitive || this.isEnum) {
+            return true
         }
-        val property = fieldScope.rawMember.kotlinProperty ?: return false
-        return property.getter.visibility == KVisibility.PRIVATE
+
+        if (name.startsWith("java.") || name.startsWith("javax.") ||
+            name.startsWith("kotlin.") || name.startsWith("kotlinx.")
+        ) {
+            return true
+        }
+
+        return when (this) {
+            String::class.java -> true
+            else -> false
+        }
     }
 }

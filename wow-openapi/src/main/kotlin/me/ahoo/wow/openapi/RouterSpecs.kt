@@ -107,6 +107,18 @@ class RouterSpecs(
             openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
         }
         mergeComponentContext()
+        ensureObjectProperties()
         return this
+    }
+
+    private fun ensureObjectProperties() {
+        openAPI.components.schemas.forEach { (_, schema) ->
+            if (schema.type == "object" &&
+                schema.`$ref` == null &&
+                schema.properties == null
+            ) {
+                schema.properties = mapOf()
+            }
+        }
     }
 }

@@ -25,11 +25,13 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration
 @ConditionalOnOpenAPIEnabled
 @EnableConfigurationProperties(OpenAPIProperties::class)
-class OpenAPIAutoConfiguration(private val openAPIProperties: OpenAPIProperties) {
+class OpenAPIAutoConfiguration {
 
     @Bean
-    fun router(@Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext): RouterSpecs {
-        return RouterSpecs(boundedContext, inline = openAPIProperties.inline).build()
+    fun router(
+        @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext
+    ): RouterSpecs {
+        return RouterSpecs(boundedContext).build()
     }
 
     @Bean
