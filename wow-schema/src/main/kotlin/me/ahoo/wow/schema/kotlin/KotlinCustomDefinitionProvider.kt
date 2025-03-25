@@ -33,7 +33,8 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         context: SchemaGenerationContext
     ): CustomDefinition? {
         javaType.erasedType.getAnnotation(Metadata::class.java) ?: return null
-        if (javaType.erasedType.packageName.startsWith("kotlin") ||
+        if (javaType.erasedType.isEnum ||
+            javaType.erasedType.packageName.startsWith("kotlin") ||
             javaType.erasedType.packageName.startsWith("kotlinx")
         ) {
             return null

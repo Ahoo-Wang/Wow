@@ -16,6 +16,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleCommandMessage
+import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.event.SimpleDomainEventStream
@@ -93,21 +94,28 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun ignoreCommandPathRouteVariable() {
-        val schema = jsonSchemaGenerator.generate(Patch::class.java)
-        assertThat(schema.get("properties"), nullValue())
+        val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
+        assertThat(schema.getProperties(), nullValue())
     }
 
     @Test
     fun ignoreCommandHeaderRouteVariable() {
-        val schema = jsonSchemaGenerator.generate(Header::class.java)
-        assertThat(schema.get("properties"), nullValue())
+        val schema = jsonSchemaGenerator.generate(Header::class.java).asJsonSchema()
+        assertThat(schema.getProperties(), nullValue())
     }
 
     @Test
     fun notIgnoreCommandPathRouteVariable() {
         val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
-        val schema = jsonSchemaGenerator.generate(Patch::class.java)
-        assertThat(schema.get("properties"), notNullValue())
+        val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
+        assertThat(schema.getProperties(), notNullValue())
+    }
+
+    @Test
+    fun enum() {
+        val jsonSchemaGenerator = JsonSchemaGenerator()
+        val schema = jsonSchemaGenerator.generate(CommandStage::class.java).asJsonSchema()
+        assertThat(schema.getProperties(), nullValue())
     }
 
     @Test
