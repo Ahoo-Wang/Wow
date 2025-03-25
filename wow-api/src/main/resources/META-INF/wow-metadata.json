@@ -1,0 +1,46 @@
+{
+  "contexts": {
+    "wow.api": {
+      "alias": "wow.api",
+      "scopes": [
+        "me.ahoo.wow.api"
+      ]
+    },
+    "wow.api.command": {
+      "alias": "wow.api.command",
+      "scopes": [
+        "me.ahoo.wow.api.command"
+      ]
+    },
+    "wow.api.event": {
+      "alias": "wow.api.event",
+      "scopes": [
+        "me.ahoo.wow.api.event"
+      ]
+    },
+    "wow.api.exception": {
+      "alias": "wow.api.exception",
+      "scopes": [
+        "me.ahoo.wow.api.event"
+      ]
+    },
+    "wow.api.messaging": {
+      "alias": "wow.api.messaging",
+      "scopes": [
+        "me.ahoo.wow.api.messaging"
+      ]
+    },
+    "wow.api.modeling": {
+      "alias": "wow.api.modeling",
+      "scopes": [
+        "me.ahoo.wow.api.modeling"
+      ]
+    },
+    "wow.api.query": {
+      "alias": "wow.api.query",
+      "scopes": [
+        "me.ahoo.wow.api.query"
+      ]
+    }
+  }
+}

@@ -35,7 +35,7 @@ class WowSchemaNamingStrategyTest {
         @JvmStatic
         fun parametersForToSchemaName(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of(typeContext.resolve(AggregateId::class.java), "wow.AggregateId"),
+                Arguments.of(typeContext.resolve(AggregateId::class.java), "wow.api.modeling.AggregateId"),
                 Arguments.of(typeContext.resolve(CreateOrder::class.java), "example.order.CreateOrder"),
                 Arguments.of(typeContext.resolve(Any::class.java), null),
                 Arguments.of(
