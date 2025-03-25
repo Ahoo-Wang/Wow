@@ -116,6 +116,7 @@ class OpenAPISchemaBuilder(
                     .with(wowModule)
                     .with(Option.PLAIN_DEFINITION_KEYS)
                     .with(Option.SIMPLIFIED_ENUMS)
+                    .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
                 return this
             }
         }
