@@ -71,7 +71,9 @@ class RouterSpecs(
                         add(routeSpec)
                     }
                 } catch (error: Throwable) {
-                    log.error(error) { "aggregateRouteSpecFactory:${aggregateRouteSpecFactory.javaClass.name} error:${error.message}" }
+                    log.error(
+                        error
+                    ) { "aggregateRouteSpecFactory:${aggregateRouteSpecFactory.javaClass.name} error:${error.message}" }
                 }
             }
         }

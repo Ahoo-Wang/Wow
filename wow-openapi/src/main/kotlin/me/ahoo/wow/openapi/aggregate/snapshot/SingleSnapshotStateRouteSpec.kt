@@ -53,16 +53,15 @@ class SingleSnapshotStateRouteSpec(
     override val summary: String
         get() = "Single snapshot state"
     override val requestBody: RequestBody = componentContext.singleQueryRequestBody()
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+    }
 }
 
 class SingleSnapshotStateRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {

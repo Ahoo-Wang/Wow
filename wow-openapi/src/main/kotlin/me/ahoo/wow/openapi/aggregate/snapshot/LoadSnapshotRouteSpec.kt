@@ -53,21 +53,20 @@ class LoadSnapshotRouteSpec(
     override val summary: String
         get() = "Get snapshot"
 
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(
-                    schema = componentContext.schema(
-                        Snapshot::class.java,
-                        aggregateMetadata.state.aggregateType
-                    )
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(
+                schema = componentContext.schema(
+                    Snapshot::class.java,
+                    aggregateMetadata.state.aggregateType
                 )
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
-        }
+            )
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
+    }
 }
 
 class LoadSnapshotRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

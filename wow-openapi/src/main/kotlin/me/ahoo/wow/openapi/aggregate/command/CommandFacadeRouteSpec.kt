@@ -62,39 +62,36 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
     override val method: String
         get() = Https.Method.POST
     override val summary: String = "send command"
-    override val parameters: List<Parameter>
-        get() {
-            return buildList {
-                add(componentContext.commandTypePathParameter())
-                add(componentContext.waitStagePathParameter())
-                add(componentContext.waitContextPathParameter())
-                add(componentContext.waitProcessorPathParameter())
-                add(componentContext.waitTimeOutPathParameter())
-                add(componentContext.tenantIdPathParameter())
-                add(componentContext.ownerIdPathParameter())
-                add(componentContext.aggregateIdPathParameter())
-                add(componentContext.aggregateVersionPathParameter())
-                add(componentContext.requestIdPathParameter())
-                add(componentContext.localFirstPathParameter())
-                add(componentContext.commandAggregateContextPathParameter())
-                add(componentContext.commandAggregateNamePathParameter())
-            }
-        }
+    override val parameters: List<Parameter> = buildList {
+        add(componentContext.commandTypePathParameter())
+        add(componentContext.waitStagePathParameter())
+        add(componentContext.waitContextPathParameter())
+        add(componentContext.waitProcessorPathParameter())
+        add(componentContext.waitTimeOutPathParameter())
+        add(componentContext.tenantIdPathParameter())
+        add(componentContext.ownerIdPathParameter())
+        add(componentContext.aggregateIdPathParameter())
+        add(componentContext.aggregateVersionPathParameter())
+        add(componentContext.requestIdPathParameter())
+        add(componentContext.localFirstPathParameter())
+        add(componentContext.commandAggregateContextPathParameter())
+        add(componentContext.commandAggregateNamePathParameter())
+    }
+
     override val requestBody: RequestBody = RequestBody()
         .required(true)
         .content(
             ObjectSchema().toJsonContent()
         )
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
-            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
-            addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
-            addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
-            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
-            addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
+        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
+        addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
+        addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
+        addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
+        addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
+    }
 }
 
 class CommandFacadeRouteSpecFactory : GlobalRouteSpecFactory, AbstractRouteSpecFactory() {

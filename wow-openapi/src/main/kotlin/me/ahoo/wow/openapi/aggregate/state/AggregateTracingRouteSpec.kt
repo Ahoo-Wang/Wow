@@ -51,22 +51,21 @@ class AggregateTracingRouteSpec(
     override val summary: String
         get() = "Get aggregate tracing"
     override val requestBody: RequestBody? = null
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            ApiResponseBuilder()
-                .description(summary)
-                .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-                .content(
-                    schema = componentContext.arraySchema(
-                        StateEvent::class.java,
-                        aggregateMetadata.state.aggregateType
-                    )
+    override val responses: ApiResponses = ApiResponses().apply {
+        ApiResponseBuilder()
+            .description(summary)
+            .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .content(
+                schema = componentContext.arraySchema(
+                    StateEvent::class.java,
+                    aggregateMetadata.state.aggregateType
                 )
-                .build()
-                .let {
-                    addApiResponse(Https.Code.OK, it)
-                }
-        }
+            )
+            .build()
+            .let {
+                addApiResponse(Https.Code.OK, it)
+            }
+    }
 }
 
 class AggregateTracingRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

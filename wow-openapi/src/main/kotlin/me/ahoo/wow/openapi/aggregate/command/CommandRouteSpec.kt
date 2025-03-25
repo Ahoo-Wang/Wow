@@ -133,42 +133,38 @@ class CommandRouteSpec(
             return tags
         }
 
-    override val parameters: List<Parameter>
-        get() {
-            return buildList {
-                addAll(super.parameters)
-                add(componentContext.waitStagePathParameter())
-                add(componentContext.waitContextPathParameter())
-                add(componentContext.waitProcessorPathParameter())
-                add(componentContext.waitTimeOutPathParameter())
-                add(componentContext.aggregateIdPathParameter())
-                add(componentContext.aggregateVersionPathParameter())
-                add(componentContext.requestIdPathParameter())
-                add(componentContext.localFirstPathParameter())
-                commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
-                    withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
-                        it.required(variableMetadata.required)
-                    }
-                }
-                commandRouteMetadata.headerVariableMetadata.forEach { variableMetadata ->
-                    withParameter(variableMetadata.variableName, ParameterIn.HEADER, StringSchema()) {
-                        it.required(variableMetadata.required)
-                    }
-                }
+    override val parameters: List<Parameter> = buildList {
+        addAll(super.parameters)
+        add(componentContext.waitStagePathParameter())
+        add(componentContext.waitContextPathParameter())
+        add(componentContext.waitProcessorPathParameter())
+        add(componentContext.waitTimeOutPathParameter())
+        add(componentContext.aggregateIdPathParameter())
+        add(componentContext.aggregateVersionPathParameter())
+        add(componentContext.requestIdPathParameter())
+        add(componentContext.localFirstPathParameter())
+        commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
+            withParameter(variableMetadata.variableName, ParameterIn.PATH, StringSchema()) {
+                it.required(variableMetadata.required)
             }
         }
+        commandRouteMetadata.headerVariableMetadata.forEach { variableMetadata ->
+            withParameter(variableMetadata.variableName, ParameterIn.HEADER, StringSchema()) {
+                it.required(variableMetadata.required)
+            }
+        }
+    }
     override val requestBody: RequestBody = RequestBodyBuilder().description(summary)
         .content(schema = componentContext.schema(commandRouteMetadata.commandMetadata.commandType)).build()
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
-            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
-            addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
-            addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
-            addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
-            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
-            addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.okCommandResponse())
+        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestCommandResponse())
+        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundCommandResponse())
+        addApiResponse(Https.Code.CONFLICT, componentContext.versionConflictCommandResponse())
+        addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsCommandResponse())
+        addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutCommandResponse())
+        addApiResponse(Https.Code.GONE, componentContext.illegalAccessDeletedAggregateCommandResponse())
+    }
 }
 
 class CommandRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

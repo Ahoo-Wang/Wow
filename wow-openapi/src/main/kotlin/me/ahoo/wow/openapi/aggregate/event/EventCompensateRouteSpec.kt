@@ -51,15 +51,13 @@ class EventCompensateRouteSpec(
     override val appendPathSuffix: String
         get() = "{${MessageRecords.VERSION}}/compensate"
     override val requestBody: RequestBody = componentContext.compensationTargetRequestBody()
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.compensationTargetResponse())
-            addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.compensationTargetResponse())
+        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
+    }
     override val appendIdPath: Boolean
         get() = true
-    override val parameters: List<Parameter>
-        get() = super.parameters + componentContext.versionPathParameter()
+    override val parameters: List<Parameter> = super.parameters + componentContext.versionPathParameter()
 }
 
 class EventCompensateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {

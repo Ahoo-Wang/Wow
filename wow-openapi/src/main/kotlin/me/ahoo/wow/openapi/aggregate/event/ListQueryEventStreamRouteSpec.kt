@@ -50,10 +50,9 @@ class ListQueryEventStreamRouteSpec(
         get() = "List Query Event Stream"
     override val requestBody: RequestBody = componentContext.listQueryRequestBody()
 
-    override val responses: ApiResponses
-        get() = ApiResponses().apply {
-            addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
-        }
+    override val responses: ApiResponses = ApiResponses().apply {
+        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
+    }
 }
 
 class ListQueryEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
