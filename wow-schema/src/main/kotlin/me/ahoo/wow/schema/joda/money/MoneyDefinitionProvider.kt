@@ -11,20 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.joda.money
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
-    KOTLIN,
-    WOW_NAMING_STRATEGY,
-    JODA_MONEY;
+import me.ahoo.wow.schema.typed.TypedCustomDefinitionProvider
+import org.joda.money.Money
 
-    companion object {
-        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE, KOTLIN, WOW_NAMING_STRATEGY, JODA_MONEY)
-    }
+object MoneyDefinitionProvider : TypedCustomDefinitionProvider() {
+    override val type: Class<*>
+        get() = Money::class.java
 }

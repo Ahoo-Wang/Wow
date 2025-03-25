@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CurrencyUnit",
+  "type": "string",
+  "format": "currency",
+  "default": "CNY",
+  "examples": [
+    "CNY",
+    "USD",
+    "EUR"
+  ]
+}
