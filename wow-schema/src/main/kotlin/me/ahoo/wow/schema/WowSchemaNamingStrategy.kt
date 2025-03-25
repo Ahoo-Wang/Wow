@@ -28,7 +28,7 @@ import me.ahoo.wow.naming.getContextAlias
 object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
     private val baseStrategy: SchemaDefinitionNamingStrategy = DefaultSchemaDefinitionNamingStrategy()
 
-    private fun Class<*>.resolveNamePrefix(): String? {
+    fun Class<*>.resolveNamePrefix(): String? {
         this.namedAggregate()?.let {
             return "${it.toStringWithAlias()}."
         }
@@ -43,7 +43,7 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
         return null
     }
 
-    private fun Class<*>.toSchemaName(): String {
+    fun Class<*>.toSchemaName(): String {
         kotlin.scanAnnotation<io.swagger.v3.oas.annotations.media.Schema>()?.let {
             if (it.name.isNotBlank()) {
                 return it.name
