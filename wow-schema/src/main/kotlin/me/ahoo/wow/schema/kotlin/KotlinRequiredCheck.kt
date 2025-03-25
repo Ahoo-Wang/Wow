@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.FieldScope
+import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck.primaryConstructor
 import java.util.function.Predicate
 import kotlin.reflect.jvm.kotlinProperty
@@ -21,6 +22,9 @@ import kotlin.reflect.jvm.kotlinProperty
 object KotlinRequiredCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
+        if (!fieldScope.rawMember.isKotlinElement()) {
+            return false
+        }
         fieldScope.rawMember.kotlinProperty ?: return false
         if (KotlinReadOnlyCheck.test(fieldScope)) {
             return false

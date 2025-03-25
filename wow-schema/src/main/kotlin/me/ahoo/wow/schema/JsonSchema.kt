@@ -20,6 +20,7 @@ import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclus
 import com.github.victools.jsonschema.generator.CustomDefinition.DefinitionType
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
+import me.ahoo.wow.serialization.JsonSerializer
 
 class JsonSchema(
     val actual: ObjectNode,
@@ -81,6 +82,20 @@ class JsonSchema(
 
     fun remove(keyword: SchemaKeyword): JsonSchema {
         actual.remove(keyword.toPropertyName(schemaVersion))
+        return this
+    }
+
+    fun ensureProperties(): JsonSchema {
+        val propertiesName = SchemaKeyword.TAG_PROPERTIES.toPropertyName(schemaVersion)
+        if (actual.has(propertiesName)) {
+            return this
+        }
+
+        val typePropertyName = SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion)
+        if (actual.get(typePropertyName)?.textValue() != "object") {
+            return this
+        }
+        actual.set<ObjectNode>(propertiesName, JsonSerializer.createObjectNode())
         return this
     }
 }

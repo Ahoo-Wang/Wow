@@ -24,19 +24,19 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContextPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateNamePathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandTypePathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStagePathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContextHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateNameHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandTypeHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStageHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequestCommandResponse
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregateCommandResponse
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFoundCommandResponse
@@ -63,19 +63,19 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         get() = Https.Method.POST
     override val summary: String = "send command"
     override val parameters: List<Parameter> = buildList {
-        add(componentContext.commandTypePathParameter())
-        add(componentContext.waitStagePathParameter())
-        add(componentContext.waitContextPathParameter())
-        add(componentContext.waitProcessorPathParameter())
-        add(componentContext.waitTimeOutPathParameter())
-        add(componentContext.tenantIdPathParameter())
-        add(componentContext.ownerIdPathParameter())
-        add(componentContext.aggregateIdPathParameter())
-        add(componentContext.aggregateVersionPathParameter())
-        add(componentContext.requestIdPathParameter())
-        add(componentContext.localFirstPathParameter())
-        add(componentContext.commandAggregateContextPathParameter())
-        add(componentContext.commandAggregateNamePathParameter())
+        add(componentContext.commandTypeHeaderParameter())
+        add(componentContext.waitStageHeaderParameter())
+        add(componentContext.waitContextHeaderParameter())
+        add(componentContext.waitProcessorHeaderParameter())
+        add(componentContext.waitTimeOutHeaderParameter())
+        add(componentContext.tenantIdHeaderParameter())
+        add(componentContext.ownerIdHeaderParameter())
+        add(componentContext.aggregateIdHeaderParameter())
+        add(componentContext.aggregateVersionHeaderParameter())
+        add(componentContext.requestIdHeaderParameter())
+        add(componentContext.localFirstHeaderParameter())
+        add(componentContext.commandAggregateContextHeaderParameter())
+        add(componentContext.commandAggregateNameHeaderParameter())
     }
 
     override val requestBody: RequestBody = RequestBodyBuilder()

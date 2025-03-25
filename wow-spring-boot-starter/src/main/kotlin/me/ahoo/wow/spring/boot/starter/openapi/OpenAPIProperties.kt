@@ -14,17 +14,14 @@
 package me.ahoo.wow.spring.boot.starter.openapi
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 
 @ConfigurationProperties(prefix = OpenAPIProperties.PREFIX)
 class OpenAPIProperties(
-    @DefaultValue("true") override var enabled: Boolean = true,
-    @DefaultValue("false")
-    override var inline: Boolean = false
-) : EnabledCapable, InlineSchemaCapable {
+    @DefaultValue("true") override var enabled: Boolean = true
+) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}openapi"
     }

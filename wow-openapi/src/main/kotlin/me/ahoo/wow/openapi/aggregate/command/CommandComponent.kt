@@ -19,7 +19,6 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
@@ -68,56 +67,56 @@ object CommandComponent {
     }
 
     object Parameter {
-        fun OpenAPIComponentContext.waitContextPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_CONTEXT
-                schema = schema(String::class.java)
+                schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.tenantIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.tenantIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = TENANT_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.ownerIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.ownerIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = OWNER_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.aggregateIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.aggregateIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = AGGREGATE_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.aggregateVersionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.aggregateVersionHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = AGGREGATE_VERSION
                 schema = IntegerSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitStagePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitStageHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_STAGE
-                schema = schema(CommandStage::class.java)
+                schema = commandResultSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitProcessorPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitProcessorHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_PROCESSOR
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitTimeOutPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.waitTimeOutHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_TIME_OUT
                 schema = IntegerSchema()
@@ -125,35 +124,35 @@ object CommandComponent {
                 description = "Command timeout period. Milliseconds"
             }
 
-        fun OpenAPIComponentContext.requestIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.requestIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = REQUEST_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.localFirstPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.localFirstHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = LOCAL_FIRST
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandAggregateContextPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandAggregateContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_AGGREGATE_CONTEXT
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandAggregateNamePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandAggregateNameHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_AGGREGATE_NAME
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.commandTypePathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        fun OpenAPIComponentContext.commandTypeHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = COMMAND_TYPE
                 schema = StringSchema()

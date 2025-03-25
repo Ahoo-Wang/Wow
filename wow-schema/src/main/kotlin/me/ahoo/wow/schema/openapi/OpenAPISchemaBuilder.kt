@@ -109,7 +109,6 @@ class OpenAPISchemaBuilder(
                     .with(wowModule)
                     .with(Option.PLAIN_DEFINITION_KEYS)
                     .with(Option.SIMPLIFIED_ENUMS)
-
                 forFields()
                     .withInstanceAttributeOverride(OpenAPICompatibilityAttributeOverride(schemaVersion))
                 forMethods()

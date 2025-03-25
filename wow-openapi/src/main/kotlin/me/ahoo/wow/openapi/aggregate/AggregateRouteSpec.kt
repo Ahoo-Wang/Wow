@@ -21,11 +21,11 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdPathParameter
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords

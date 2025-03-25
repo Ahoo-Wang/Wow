@@ -31,14 +31,14 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorPathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStagePathParameter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutPathParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.aggregateVersionHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.localFirstHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.requestIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitContextHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitProcessorHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitStageHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.waitTimeOutHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.badRequestCommandResponse
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.illegalAccessDeletedAggregateCommandResponse
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.notFoundCommandResponse
@@ -132,33 +132,34 @@ class CommandRouteSpec(
             return tags
         }
 
-    override val parameters: List<Parameter> = buildList {
-        addAll(super.parameters)
-        add(componentContext.waitStagePathParameter())
-        add(componentContext.waitContextPathParameter())
-        add(componentContext.waitProcessorPathParameter())
-        add(componentContext.waitTimeOutPathParameter())
-        add(componentContext.aggregateIdPathParameter())
-        add(componentContext.aggregateVersionPathParameter())
-        add(componentContext.requestIdPathParameter())
-        add(componentContext.localFirstPathParameter())
-        commandRouteMetadata.pathVariableMetadata.forEach { variableMetadata ->
-            Parameter()
-                .name(variableMetadata.variableName)
-                .`in`(ParameterIn.PATH.toString())
-                .schema(StringSchema())
-                .let { add(it) }
-        }
-        commandRouteMetadata.headerVariableMetadata.forEach { variableMetadata ->
+    private val pathParameters: List<Parameter> = commandRouteMetadata.pathVariableMetadata.map { variableMetadata ->
+        Parameter()
+            .name(variableMetadata.variableName)
+            .`in`(ParameterIn.PATH.toString())
+            .schema(StringSchema())
+    }
+
+    private val headerParameters: List<Parameter> =
+        commandRouteMetadata.headerVariableMetadata.map { variableMetadata ->
             Parameter()
                 .name(variableMetadata.variableName)
                 .`in`(ParameterIn.HEADER.toString())
                 .schema(StringSchema())
                 .required(variableMetadata.required)
-                .let {
-                    add(it)
-                }
         }
+
+    override val parameters: List<Parameter> = buildList {
+        addAll(super.parameters)
+        addAll(pathParameters)
+        addAll(headerParameters)
+        add(componentContext.waitStageHeaderParameter())
+        add(componentContext.waitContextHeaderParameter())
+        add(componentContext.waitProcessorHeaderParameter())
+        add(componentContext.waitTimeOutHeaderParameter())
+        add(componentContext.aggregateIdHeaderParameter())
+        add(componentContext.aggregateVersionHeaderParameter())
+        add(componentContext.requestIdHeaderParameter())
+        add(componentContext.localFirstHeaderParameter())
     }
     override val requestBody: RequestBody = RequestBodyBuilder().description(summary)
         .content(schema = componentContext.schema(commandRouteMetadata.commandMetadata.commandType)).build()

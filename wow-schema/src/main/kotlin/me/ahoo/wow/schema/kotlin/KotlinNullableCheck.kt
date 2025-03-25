@@ -15,11 +15,15 @@ package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.ConfigFunction
 import com.github.victools.jsonschema.generator.FieldScope
+import me.ahoo.wow.schema.Types.isKotlinElement
 import kotlin.reflect.jvm.kotlinProperty
 
 object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
 
     override fun apply(fieldScope: FieldScope): Boolean {
+        if (!fieldScope.rawMember.isKotlinElement()) {
+            return false
+        }
         val property = fieldScope.rawMember.kotlinProperty ?: return false
         return property.returnType.isMarkedNullable
     }

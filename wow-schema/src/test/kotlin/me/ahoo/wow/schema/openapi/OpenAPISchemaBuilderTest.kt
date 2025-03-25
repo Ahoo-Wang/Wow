@@ -77,7 +77,7 @@ class OpenAPISchemaBuilderTest {
     fun buildIn() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         assertThat(openAPISchemaBuilder.inline, equalTo(false))
-        val waitSignalSchema = openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
+        openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
         assertThat(componentsSchemas.size, equalTo(6))
     }

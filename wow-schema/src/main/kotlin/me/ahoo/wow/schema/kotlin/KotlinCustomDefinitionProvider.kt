@@ -22,6 +22,8 @@ import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
+import me.ahoo.wow.schema.Types.isKotlinElement
+import me.ahoo.wow.schema.Types.isStdType
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
@@ -32,11 +34,7 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        javaType.erasedType.getAnnotation(Metadata::class.java) ?: return null
-        if (javaType.erasedType.isEnum ||
-            javaType.erasedType.packageName.startsWith("kotlin") ||
-            javaType.erasedType.packageName.startsWith("kotlinx")
-        ) {
+        if (!javaType.erasedType.isKotlinElement() || javaType.erasedType.isStdType()) {
             return null
         }
 
@@ -47,11 +45,8 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             return null
         }
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
-        val propertiesNode: ObjectNode = (rootSchema.getProperties()).let {
-            it ?: context.generatorConfig.createObjectNode().also { node ->
-                rootSchema.set(SchemaKeyword.TAG_PROPERTIES, node)
-            }
-        }
+        rootSchema.ensureProperties()
+        val propertiesNode: ObjectNode = rootSchema.requiredGetProperties()
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
                 val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
