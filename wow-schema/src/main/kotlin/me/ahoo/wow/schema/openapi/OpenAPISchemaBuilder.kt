@@ -41,13 +41,14 @@ import java.util.function.Consumer
 class OpenAPISchemaBuilder(
     private val schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
     private val optionPreset: OptionPreset = OptionPreset.PLAIN_JSON,
-    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer()
+    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer(),
+    private val openapi31: Boolean = true
 ) : InlineSchemaCapable {
     companion object {
         const val DEFINITION_PATH = "components/schemas"
     }
 
-    private val openAPIObjectMapper = ObjectMapperFactory.createJson31()
+    private val openAPIObjectMapper = ObjectMapperFactory.create(null, openapi31)
     private val generatorConfig: SchemaGeneratorConfig =
         SchemaGeneratorConfigBuilder(openAPIObjectMapper, schemaVersion, optionPreset)
             .also {
