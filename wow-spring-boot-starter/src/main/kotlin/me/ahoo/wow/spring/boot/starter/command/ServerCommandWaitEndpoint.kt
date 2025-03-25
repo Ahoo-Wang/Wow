@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory
+import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
 import org.springframework.boot.web.context.WebServerInitializedEvent
 import org.springframework.context.ApplicationListener
 import kotlin.properties.Delegates

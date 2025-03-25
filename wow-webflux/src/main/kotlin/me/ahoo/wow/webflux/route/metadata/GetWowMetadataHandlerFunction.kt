@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.metadata
 
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.openapi.metadata.GetWowMetadataRouteSpec
+import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction

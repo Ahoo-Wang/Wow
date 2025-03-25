@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.id
 
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.openapi.id.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction

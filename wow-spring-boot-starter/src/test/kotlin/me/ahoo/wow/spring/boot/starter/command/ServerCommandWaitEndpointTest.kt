@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.command
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.cosid.machine.HostAddressSupplier
-import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory
+import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test

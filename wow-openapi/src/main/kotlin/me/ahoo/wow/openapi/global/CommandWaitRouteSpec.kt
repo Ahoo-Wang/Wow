@@ -11,27 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.command
+package me.ahoo.wow.openapi.global
 
-import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
-import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.openapi.ComponentRef.Companion.createComponents
+import me.ahoo.wow.openapi.AbstractRouteSpecFactory
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.RequestBodyRef.Companion.toRequestBody
+import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.SchemaRef.Companion.toSchemas
-import me.ahoo.wow.openapi.command.CommandWaitRouteSpecFactory.Companion.PATH
-import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
+import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory.Companion.PATH
 
-object CommandWaitRouteSpec : RouteSpec {
+class CommandWaitRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+    OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
         .resourceName("command")
@@ -43,25 +43,21 @@ object CommandWaitRouteSpec : RouteSpec {
         get() = Https.Method.POST
     override val summary: String = "command wait handler"
     override val parameters: List<Parameter> = listOf()
-    override val requestBody: RequestBody = WaitSignal::class.java.toRequestBody()
+    override val requestBody: RequestBody =
+        RequestBodyBuilder().content(schema = componentContext.schema(WaitSignal::class.java))
+            .build()
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
-        ApiResponse().description(ErrorInfo.SUCCEEDED)
+        ApiResponseBuilder().description(ErrorInfo.SUCCEEDED).build()
     )
 }
 
-class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory {
+class CommandWaitRouteSpecFactory : GlobalRouteSpecFactory, AbstractRouteSpecFactory() {
     companion object {
         const val PATH = "/${Wow.WOW}/command/wait"
     }
 
-    override val components: Components = createComponents()
-
-    init {
-        WaitSignal::class.java.toSchemas().mergeSchemas()
-    }
-
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
-        return listOf(CommandWaitRouteSpec)
+        return listOf(CommandWaitRouteSpec(componentContext))
     }
 }

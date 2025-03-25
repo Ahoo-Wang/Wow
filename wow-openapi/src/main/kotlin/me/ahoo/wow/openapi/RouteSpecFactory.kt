@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 
 interface RouteSpecFactory {
     /**
@@ -30,5 +31,14 @@ interface RouteSpecFactory {
     @Deprecated("Use OpenAPIComponentContext instead.")
     fun Map<String, Schema<*>>.mergeSchemas() {
         components.schemas.putAll(this)
+    }
+}
+
+abstract class AbstractRouteSpecFactory : RouteSpecFactory, OpenAPIComponentContextCapable {
+    final override lateinit var componentContext: OpenAPIComponentContext
+        private set
+
+    override fun initialize(componentContext: OpenAPIComponentContext) {
+        this.componentContext = componentContext
     }
 }
