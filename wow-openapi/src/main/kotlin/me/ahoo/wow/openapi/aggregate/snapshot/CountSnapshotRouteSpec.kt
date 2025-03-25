@@ -16,6 +16,8 @@ package me.ahoo.wow.openapi.aggregate.snapshot
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.CommonComponent.Response.requestTimeoutResponse
+import me.ahoo.wow.openapi.CommonComponent.Response.tooManyRequestsResponse
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
@@ -53,6 +55,8 @@ class CountSnapshotRouteSpec(
 
     override val responses: ApiResponses = ApiResponses().apply {
         addApiResponse(Https.Code.OK, componentContext.countQueryResponse())
+        addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutResponse())
+        addApiResponse(Https.Code.TOO_MANY_REQUESTS, componentContext.tooManyRequestsResponse())
     }
 }
 
