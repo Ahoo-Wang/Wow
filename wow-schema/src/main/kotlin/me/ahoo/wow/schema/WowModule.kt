@@ -23,6 +23,13 @@ import me.ahoo.wow.schema.kotlin.KotlinNullableCheck
 import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
 import me.ahoo.wow.schema.kotlin.KotlinRequiredCheck
 import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
+import me.ahoo.wow.schema.typed.AggregateIdDefinitionProvider
+import me.ahoo.wow.schema.typed.CommandDefinitionProvider
+import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
+import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
+import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
+import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
+import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 
 class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
@@ -66,6 +73,6 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         if (options.contains(WowOption.WOW_NAMING_STRATEGY).not()) {
             return
         }
-        generalConfigPart.withDefinitionNamingStrategy(WowSchemaDefinitionNamingStrategy)
+        generalConfigPart.withDefinitionNamingStrategy(WowSchemaNamingStrategy)
     }
 }

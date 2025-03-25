@@ -15,7 +15,7 @@ import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.OrderState
-import me.ahoo.wow.schema.WowSchemaDefinitionNamingStrategy.toSchemaName
+import me.ahoo.wow.schema.WowSchemaNamingStrategy.toSchemaName
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
@@ -25,7 +25,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 @Schema(name = "SchemaDefinitionNamingStrategyTest")
-class WowSchemaDefinitionNamingStrategyTest {
+class WowSchemaNamingStrategyTest {
     companion object {
         private val generatorConfig: SchemaGeneratorConfig =
             SchemaGeneratorConfigBuilder(JsonSerializer, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
@@ -39,7 +39,7 @@ class WowSchemaDefinitionNamingStrategyTest {
                 Arguments.of(typeContext.resolve(CreateOrder::class.java), "example.order.CreateOrder"),
                 Arguments.of(typeContext.resolve(Any::class.java), null),
                 Arguments.of(
-                    typeContext.resolve(WowSchemaDefinitionNamingStrategyTest::class.java),
+                    typeContext.resolve(WowSchemaNamingStrategyTest::class.java),
                     "wow.SchemaDefinitionNamingStrategyTest"
                 ),
                 Arguments.of(typeContext.resolve(ExampleService::class.java), "example.ExampleService"),
