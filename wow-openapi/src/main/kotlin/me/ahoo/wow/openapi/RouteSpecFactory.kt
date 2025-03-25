@@ -17,7 +17,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 
 interface RouteSpecFactory {
-    fun initialize(componentContext: OpenAPIComponentContext) = Unit
+    fun initialize(componentContext: OpenAPIComponentContext)
 }
 
 abstract class AbstractRouteSpecFactory : RouteSpecFactory, OpenAPIComponentContextCapable {
