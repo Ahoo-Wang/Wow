@@ -35,11 +35,11 @@ class OpenAPICompatibilityAttributeOverride<M : MemberScope<*, *>?>(private val 
     private fun ObjectNode.replaceAttributes() {
         replaceAttribute(
             SchemaKeyword.TAG_MINIMUM_EXCLUSIVE.toPropertyName(schemaVersion),
-            Schema<*>::exclusiveMaximumValue.name
+            Schema<*>::exclusiveMinimumValue.name
         )
         replaceAttribute(
             SchemaKeyword.TAG_MAXIMUM_EXCLUSIVE.toPropertyName(schemaVersion),
-            Schema<*>::exclusiveMinimumValue.name
+            Schema<*>::exclusiveMaximumValue.name
         )
     }
 
