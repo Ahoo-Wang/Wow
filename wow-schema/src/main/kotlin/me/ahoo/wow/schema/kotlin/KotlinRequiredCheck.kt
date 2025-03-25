@@ -22,7 +22,7 @@ import kotlin.reflect.jvm.kotlinProperty
 object KotlinRequiredCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
-        if (!fieldScope.rawMember.isKotlinElement()) {
+        if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
             return false
         }
         fieldScope.rawMember.kotlinProperty ?: return false

@@ -24,7 +24,7 @@ import kotlin.reflect.jvm.kotlinProperty
 object KotlinReadOnlyCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
-        if (!fieldScope.rawMember.isKotlinElement()) {
+        if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
             return false
         }
         val property = fieldScope.rawMember.kotlinProperty ?: return false
