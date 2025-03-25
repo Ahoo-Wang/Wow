@@ -11,27 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.bi
+package me.ahoo.wow.openapi.global
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
-import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.bi.MessageHeaderSqlType
-import me.ahoo.wow.openapi.ComponentRef
+import me.ahoo.wow.openapi.AbstractRouteSpecFactory
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
-import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
+import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 
-class GenerateBIScriptRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+class GenerateBIScriptRouteSpec(override val componentContext: OpenAPIComponentContext) :
+    RouteSpec,
     OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
@@ -42,28 +41,25 @@ class GenerateBIScriptRouteSpec(override val componentContext: OpenAPIComponentC
     override val path: String = "/${Wow.WOW}/bi/script"
     override val method: String = Https.Method.GET
     override val summary: String = "Generate BI Sync Script"
-    override val parameters: List<Parameter> = listOf(componentContext.parameter {
-        name = BI_HEADER_TYPE_HEADER
-        `in` = ParameterIn.HEADER.toString()
-        schema = componentContext.schema(MessageHeaderSqlType::class.java)
-        description = "The type of BI Message header."
-    })
+    override val parameters: List<Parameter> = listOf(
+        componentContext.parameter {
+            name = BI_HEADER_TYPE_HEADER
+            `in` = ParameterIn.HEADER.toString()
+            schema = componentContext.schema(MessageHeaderSqlType::class.java)
+            description = "The type of BI Message header."
+        }
+    )
     override val accept: List<String> = listOf(Https.MediaType.APPLICATION_SQL)
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
-        StringSchema().toResponse(mediaType = Https.MediaType.APPLICATION_SQL)
+        ApiResponseBuilder().description("The generated BI synchronization script.")
+            .content(Https.MediaType.APPLICATION_SQL, StringSchema()).build()
     )
 }
 
-class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory, OpenAPIComponentContextCapable {
+class GenerateBIScriptRouteSpecFactory : GlobalRouteSpecFactory, AbstractRouteSpecFactory() {
     companion object {
         const val BI_HEADER_TYPE_HEADER = "Wow-BI-Header-Sql-Type"
-    }
-
-    override lateinit var componentContext: OpenAPIComponentContext
-
-    override fun initialize(componentContext: OpenAPIComponentContext) {
-        this.componentContext = componentContext
     }
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {

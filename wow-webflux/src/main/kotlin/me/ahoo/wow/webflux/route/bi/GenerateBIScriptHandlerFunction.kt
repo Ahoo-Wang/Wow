@@ -18,8 +18,8 @@ import me.ahoo.wow.bi.ScriptEngine
 import me.ahoo.wow.bi.ScriptTemplateEngine
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.infra.ifNotBlank
-import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpec
-import me.ahoo.wow.openapi.bi.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
+import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
+import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction

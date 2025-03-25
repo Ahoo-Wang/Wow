@@ -66,7 +66,7 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
         if (inline) {
             return parameter
         }
-        val resolvedKey= resolveKey(key, parameter.name)
+        val resolvedKey = resolveKey(key, parameter.name)
         parameters[resolvedKey] = parameter
         return Parameter().also {
             it.`$ref` = "$COMPONENTS_PARAMETERS_REF$resolvedKey"

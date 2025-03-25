@@ -11,43 +11,44 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.id
+package me.ahoo.wow.openapi.global
 
-import io.swagger.v3.oas.models.Components
-import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.ComponentRef
+import me.ahoo.wow.configuration.WowMetadata
+import me.ahoo.wow.openapi.AbstractRouteSpecFactory
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.ResponseRef.Companion.toResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.global.GlobalRouteSpecFactory
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 
-object GenerateGlobalIdRouteSpec : RouteSpec {
+class GetWowMetadataRouteSpec(override val componentContext: OpenAPIComponentContext) : RouteSpec,
+    OpenAPIComponentContextCapable {
     override val id: String = RouteIdSpec()
         .prefix(Wow.WOW)
-        .resourceName("global_id")
-        .operation("generate")
+        .resourceName("metadata")
+        .operation("get")
         .build()
 
-    override val path: String = "/${Wow.WOW}/id/global"
+    override val path: String = "/${Wow.WOW}/metadata"
     override val method: String = Https.Method.GET
-    override val summary: String = "Generate Global ID"
-    override val accept: List<String> = listOf(Https.MediaType.TEXT_PLAIN)
+    override val summary: String = "Get Wow Metadata"
     override val parameters: List<Parameter> = emptyList()
     override val responses: ApiResponses = ApiResponses().addApiResponse(
         Https.Code.OK,
-        StringSchema().toResponse(Https.MediaType.TEXT_PLAIN)
+        ApiResponseBuilder()
+            .description("The Wow Metadata.")
+            .content(schema = componentContext.schema(WowMetadata::class.java)).build()
     )
 }
 
-class GenerateGlobalIdRouteSpecFactory : GlobalRouteSpecFactory {
-    override val components: Components = ComponentRef.createComponents()
+class GetWowMetadataRouteSpecFactory : GlobalRouteSpecFactory, AbstractRouteSpecFactory() {
 
     override fun create(currentContext: NamedBoundedContext): List<RouteSpec> {
-        return listOf(GenerateGlobalIdRouteSpec)
+        return listOf(GetWowMetadataRouteSpec(componentContext))
     }
 }

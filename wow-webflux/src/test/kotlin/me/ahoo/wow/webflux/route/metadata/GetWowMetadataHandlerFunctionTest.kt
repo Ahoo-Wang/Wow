@@ -1,6 +1,6 @@
 package me.ahoo.wow.webflux.route.metadata
 
-import me.ahoo.wow.openapi.metadata.GetWowMetadataRouteSpec
+import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test

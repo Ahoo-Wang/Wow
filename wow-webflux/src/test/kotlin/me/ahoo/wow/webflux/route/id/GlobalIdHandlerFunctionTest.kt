@@ -1,6 +1,6 @@
 package me.ahoo.wow.webflux.route.id
 
-import me.ahoo.wow.openapi.id.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
