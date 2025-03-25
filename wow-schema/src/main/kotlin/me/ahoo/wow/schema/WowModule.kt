@@ -66,6 +66,6 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         if (options.contains(WowOption.WOW_NAMING_STRATEGY).not()) {
             return
         }
-        generalConfigPart.withDefinitionNamingStrategy(WowSchemaDefinitionNamingStrategy)
+        generalConfigPart.withDefinitionNamingStrategy(WowSchemaNamingStrategy)
     }
 }
