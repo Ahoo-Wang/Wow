@@ -18,17 +18,13 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.ApiResponseBuilder
-import me.ahoo.wow.openapi.CommonComponent.Header
-import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.CommonComponent.Parameter.createTimePathParameter
-import me.ahoo.wow.openapi.CommonComponent.Response.badRequestResponse
-import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateComponent.Response.loadAggregateResponses
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
@@ -59,18 +55,7 @@ class LoadTimeBasedAggregateRouteSpec(
     override val parameters: List<Parameter>
         get() = super.parameters + componentContext.createTimePathParameter()
     override val requestBody: RequestBody? = null
-    override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder()
-            .description(summary)
-            .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-            .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
-            .build()
-            .let {
-                addApiResponse(Https.Code.OK, it)
-            }
-        addApiResponse(Https.Code.BAD_REQUEST, componentContext.badRequestResponse())
-        addApiResponse(Https.Code.NOT_FOUND, componentContext.notFoundResponse())
-    }
+    override val responses: ApiResponses = componentContext.loadAggregateResponses(summary, aggregateMetadata)
 }
 
 class LoadTimeBasedAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
