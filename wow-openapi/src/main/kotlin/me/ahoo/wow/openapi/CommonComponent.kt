@@ -31,7 +31,7 @@ object CommonComponent {
         const val WOW_ERROR_CODE = "Wow-Error-Code"
 
         fun OpenAPIComponentContext.errorCodeHeader(): io.swagger.v3.oas.models.headers.Header =
-            header("${Wow.WOW_PREFIX}.${WOW_ERROR_CODE}") {
+            header("${Wow.WOW_PREFIX}${WOW_ERROR_CODE}") {
                 schema = StringSchema().example(ErrorCodes.SUCCEEDED)
                 description = "Error code"
             }
@@ -84,13 +84,6 @@ object CommonComponent {
         fun ApiResponseBuilder.withErrorCodeHeader(componentContext: OpenAPIComponentContext): ApiResponseBuilder {
             return header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
         }
-
-        fun OpenAPIComponentContext.okResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
-            response("${Wow.WOW_PREFIX}${ErrorCodes.SUCCEEDED}") {
-                withErrorCodeHeader(this@okResponse)
-                description(ErrorCodes.SUCCEEDED_MESSAGE)
-                content(schema = errorInfoSchema())
-            }
 
         fun OpenAPIComponentContext.badRequestResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}${ErrorCodes.BAD_REQUEST}") {

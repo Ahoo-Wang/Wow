@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.context
 
 import com.fasterxml.classmate.ResolvedType
 import io.swagger.v3.oas.models.headers.Header
+import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
@@ -34,7 +35,6 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
     OpenAPIComponentContext,
     InlineSchemaCapable by schemaBuilder {
     override var schemas: Map<String, Schema<*>> = emptyMap()
-
     override val parameters: MutableMap<String, Parameter> = mutableMapOf()
     override val headers: MutableMap<String, Header> = mutableMapOf()
     override val requestBodies: MutableMap<String, RequestBody> = mutableMapOf()
@@ -44,8 +44,9 @@ class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBui
     }
 
     override fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {
-        val elementType = resolveType(mainTargetType, *typeParameters)
-        return schema(List::class.java, elementType)
+        return schema(mainTargetType, *typeParameters).let {
+            ArraySchema().items(it)
+        }
     }
 
     override fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> {

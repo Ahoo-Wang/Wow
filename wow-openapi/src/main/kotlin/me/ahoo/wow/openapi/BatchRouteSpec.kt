@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchAfterIdPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchLimitPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Response.batchResultResponse
+import me.ahoo.wow.openapi.CommonComponent.Response.requestTimeoutResponse
 import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 
@@ -28,6 +29,7 @@ interface BatchRouteSpec : AggregateRouteSpec {
     override val responses: ApiResponses
         get() = ApiResponses().apply {
             addApiResponse(Https.Code.OK, componentContext.batchResultResponse())
+            addApiResponse(Https.Code.REQUEST_TIMEOUT, componentContext.requestTimeoutResponse())
         }
 
     override val parameters: List<Parameter>
