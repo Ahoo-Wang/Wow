@@ -98,6 +98,6 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         val mergedEventTypes = eventTypes + metadataEventTypes
         return mergedEventTypes.map {
             it.toEventMetadata()
-        }.sortedBy { it.name }
+        }.sortedBy { it.eventType.name }
     }
 }
