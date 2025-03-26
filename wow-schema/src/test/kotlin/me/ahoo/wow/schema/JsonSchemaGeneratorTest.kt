@@ -85,7 +85,11 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(StateAggregate::class.java, MockStateAggregate::class.java, "MockStateAggregate"),
                 Arguments.of(Snapshot::class.java, MockStateAggregate::class.java, "MockStateAggregateSnapshot"),
                 Arguments.of(StateEvent::class.java, MockStateAggregate::class.java, "MockStateAggregateStateEvent"),
-                Arguments.of(AggregatedDomainEventStream::class.java, Cart::class.java, "AggregatedDomainEventStream"),
+                Arguments.of(
+                    AggregatedDomainEventStream::class.java,
+                    Cart::class.java,
+                    "CartAggregatedDomainEventStream"
+                ),
                 Arguments.of(
                     AggregatedDomainEventStream::class.java,
                     MockEmptyAggregate::class.java,

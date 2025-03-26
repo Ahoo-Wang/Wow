@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AggregatedDomainEventStream",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the domain event stream."
+    },
+    "contextName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of the context to which the domain event stream belongs"
+    },
+    "aggregateName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of the aggregate to which the domain event stream belongs"
+    },
+    "header": {
+      "type": "object",
+      "properties": {
+        "user_agent": {
+          "type": "string",
+          "description": "user agent"
+        },
+        "remote_ip": {
+          "type": "string",
+          "description": "remote ip"
+        },
+        "trace_id": {
+          "type": "string",
+          "description": "trace id"
+        },
+        "command_operator": {
+          "type": "string",
+          "description": "command operator"
+        },
+        "local_first": {
+          "type": "boolean",
+          "description": "local first"
+        },
+        "command_wait_endpoint": {
+          "type": "string",
+          "format": "url",
+          "description": "command wait endpoint"
+        },
+        "command_wait_stage": {
+          "type": "string",
+          "enum": [
+            "SENT",
+            "PROCESSED",
+            "SNAPSHOT",
+            "PROJECTED",
+            "EVENT_HANDLED",
+            "SAGA_HANDLED"
+          ],
+          "default": "PROCESSED"
+        }
+      },
+      "description": "message header",
+      "additionalProperties": true
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The tenant id of the aggregate"
+    },
+    "aggregateId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The id of the aggregate"
+    },
+    "ownerId": {
+      "type": "string",
+      "description": "The owner ID of the aggregate resource",
+      "default": ""
+    },
+    "commandId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of the command message."
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The request ID of the command message, which is used to check the idempotency of the command message"
+    },
+    "version": {
+      "type": "integer",
+      "format": "int32",
+      "description": "The version of the domain event stream"
+    },
+    "body": {
+      "type": "array",
+      "items": {
+        "anyOf": []
+      },
+      "minItems": 1,
+      "description": "A list of domain events for the domain event stream"
+    },
+    "createTime": {
+      "type": "integer",
+      "format": "int64",
+      "description": "The time when the domain event stream was created"
+    }
+  },
+  "required": [
+    "id",
+    "contextName",
+    "aggregateName",
+    "tenantId",
+    "aggregateId",
+    "ownerId",
+    "version",
+    "body",
+    "createTime"
+  ]
+}
