@@ -14,6 +14,8 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.FieldScope
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
 import java.util.function.Predicate
 import kotlin.reflect.KFunction
@@ -28,6 +30,10 @@ object KotlinReadOnlyCheck : Predicate<FieldScope> {
             return false
         }
         val property = fieldScope.rawMember.kotlinProperty ?: return false
+        val schemaAnnotation = property.scanAnnotation<Schema>()
+        if (schemaAnnotation != null && schemaAnnotation.accessMode != Schema.AccessMode.AUTO) {
+            return schemaAnnotation.accessMode == Schema.AccessMode.READ_ONLY
+        }
         if (property.isLateinit) {
             return true
         }

@@ -14,6 +14,8 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.FieldScope
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck.primaryConstructor
 import java.util.function.Predicate
@@ -25,7 +27,13 @@ object KotlinRequiredCheck : Predicate<FieldScope> {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
             return false
         }
-        fieldScope.rawMember.kotlinProperty ?: return false
+        val property = fieldScope.rawMember.kotlinProperty ?: return false
+        val schemaAnnotation = property.scanAnnotation<Schema>()
+
+        if (schemaAnnotation != null && schemaAnnotation.requiredMode != Schema.RequiredMode.AUTO) {
+            return schemaAnnotation.requiredMode == Schema.RequiredMode.REQUIRED
+        }
+
         if (KotlinReadOnlyCheck.test(fieldScope)) {
             return false
         }

@@ -15,6 +15,8 @@ package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.ConfigFunction
 import com.github.victools.jsonschema.generator.FieldScope
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -24,7 +26,9 @@ object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {
             return false
         }
+
         val property = fieldScope.rawMember.kotlinProperty ?: return false
-        return property.returnType.isMarkedNullable
+        val schemaAnnotation = property.scanAnnotation<Schema>() ?: return property.returnType.isMarkedNullable
+        return schemaAnnotation.nullable
     }
 }

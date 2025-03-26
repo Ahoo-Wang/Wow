@@ -106,7 +106,11 @@ class OpenAPISchemaBuilder(
         Consumer<SchemaGeneratorConfigBuilder> {
 
         fun SchemaGeneratorConfigBuilder.defaultConfig(): SchemaGeneratorConfigBuilder {
-            val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
+            val jacksonModule: Module = JacksonModule(
+                JacksonOption.RESPECT_JSONPROPERTY_ORDER,
+                JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+                JacksonOption.INLINE_TRANSFORMED_SUBTYPES
+            )
             val jakartaModule = JakartaValidationModule(
                 JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
                 JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
