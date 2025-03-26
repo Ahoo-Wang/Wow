@@ -11,6 +11,7 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.CommandMessage
@@ -200,6 +201,21 @@ class JsonSchemaGeneratorTest {
         assertThat(type.textValue(), equalTo("string"))
     }
 
+    @Test
+    fun schema() {
+        val schema = jsonSchemaGenerator.generate(SchemaData::class.java)
+        val nullableFieldType = schema.get("properties").get("nullableField").get("type")
+        assertThat(nullableFieldType.isArray, equalTo(true))
+        assertThat(nullableFieldType.get(0).textValue(), equalTo("string"))
+        assertThat(nullableFieldType.get(1).textValue(), equalTo("null"))
+        val readOnlyField = schema.get("properties").get("readOnlyField")
+        assertThat(readOnlyField.get("readOnly").booleanValue(), equalTo(true))
+        val required = schema.get("required")
+        assertThat(required.isArray, equalTo(true))
+        assertThat(required.get(0).textValue(), equalTo("nullableField"))
+        assertThat(required.get(1).textValue(), equalTo("requiredField"))
+    }
+
     @Suppress("UnusedPrivateProperty")
     data class KotlinData(
         val field: String,
@@ -213,4 +229,15 @@ class JsonSchemaGeneratorTest {
             get() = "readOnlyGetter"
         val readOnlyFieldByLazy: String by lazy { "readOnlyByLazy" }
     }
+
+    data class SchemaData(
+        @field:Schema(nullable = true)
+        val nullableField: String?,
+        @field:Schema(accessMode = Schema.AccessMode.READ_ONLY)
+        val readOnlyField: String?,
+        @field:Schema(accessMode = Schema.AccessMode.WRITE_ONLY)
+        val writeOnlyField: String?,
+        @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        val requiredField: String?,
+    )
 }

@@ -14,6 +14,8 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.FieldScope
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
 import java.util.function.Predicate
 import kotlin.reflect.KVisibility
@@ -26,6 +28,8 @@ object KotlinWriteOnlyCheck : Predicate<FieldScope> {
             return false
         }
         val property = fieldScope.rawMember.kotlinProperty ?: return false
-        return property.getter.visibility == KVisibility.PRIVATE
+        val schemaAnnotation = property.scanAnnotation<Schema>()
+            ?: return property.getter.visibility == KVisibility.PRIVATE
+        return schemaAnnotation.accessMode == Schema.AccessMode.WRITE_ONLY
     }
 }
