@@ -20,8 +20,11 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.annotation.toEventMetadata
+import me.ahoo.wow.event.metadata.EventMetadata
+import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
@@ -45,10 +48,8 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
             return domainEventStreamNode()
         }
         val schemaVersion = context.generatorConfig.schemaVersion
-        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
-        val aggregateMetadata = commandAggregateType.aggregateMetadata<Any, Any>()
-        val eventTypes = aggregateMetadata.state.sourcingFunctionRegistry.keys.sortedBy { it.name }
-        if (eventTypes.isEmpty()) {
+        val eventMetadataSet = resolveEvents(javaType)
+        if (eventMetadataSet.isEmpty()) {
             return domainEventStreamNode()
         }
         val rootSchema = WowSchemaLoader.load(type).asJsonSchema(schemaVersion)
@@ -57,16 +58,15 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         val itemsNode = rootPropertiesBodyNode[SchemaKeyword.TAG_ITEMS.toPropertyName()] as ObjectNode
         val itemsAnyOfNode = itemsNode[SchemaKeyword.TAG_ANYOF.toPropertyName(schemaVersion)] as ArrayNode
         val eventBodyNodeTemplate = WowSchemaLoader.load(DOMAIN_EVENT_STREAM_BODY_RESOURCE_NAME)
-        eventTypes.forEach { eventType ->
-            val eventMetadata = eventType.toEventMetadata()
+        eventMetadataSet.forEach { eventMetadata ->
             val eventBodySchema = eventBodyNodeTemplate.deepCopy().asJsonSchema(schemaVersion)
             eventBodySchema.actual.put(SchemaKeyword.TAG_TITLE.toPropertyName(schemaVersion), eventMetadata.name)
             val eventBodyPropertiesNode = eventBodySchema.requiredGetProperties()
             val eventBodyNameNode = eventBodyPropertiesNode[MessageRecords.NAME] as ObjectNode
             eventBodyNameNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.name)
             val eventBodyTypeNode = eventBodyPropertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
-            eventBodyTypeNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventType.name)
-            val eventNode = createEventTypeDefinition(eventType, context)
+            eventBodyTypeNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.eventType.name)
+            val eventNode = createEventTypeDefinition(eventMetadata, context)
             eventBodyPropertiesNode.set<ObjectNode>(MessageRecords.BODY, eventNode)
             itemsAnyOfNode.add(eventBodySchema.actual)
         }
@@ -74,14 +74,30 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         return rootSchema.asCustomDefinition()
     }
 
-    private fun createEventTypeDefinition(eventType: Class<*>, context: SchemaGenerationContext): ObjectNode {
+    private fun createEventTypeDefinition(
+        eventMetadata: EventMetadata<*>,
+        context: SchemaGenerationContext
+    ): ObjectNode {
         if (context.generatorConfig.shouldCreateDefinitionsForAllObjects()) {
-            return context.createDefinitionReference(context.typeContext.resolve(eventType))
+            return context.createDefinitionReference(context.typeContext.resolve(eventMetadata.eventType))
         }
-        return context.createStandardDefinition(context.typeContext.resolve(eventType), this)
+        return context.createStandardDefinition(context.typeContext.resolve(eventMetadata.eventType), this)
     }
 
     private fun domainEventStreamNode(): CustomDefinition {
         return CustomDefinition(WowSchemaLoader.load(DomainEventStream::class.java))
+    }
+
+    private fun resolveEvents(javaType: ResolvedType): List<EventMetadata<*>> {
+        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
+        val aggregateMetadata = commandAggregateType.aggregateMetadata<Any, Any>()
+        val eventTypes = aggregateMetadata.state.sourcingFunctionRegistry.keys
+        val metadataEventTypes = MetadataSearcher.getAggregate(aggregateMetadata.namedAggregate)?.events?.map {
+            it.toType<Any>()
+        } ?: emptyList()
+        val mergedEventTypes = eventTypes + metadataEventTypes
+        return mergedEventTypes.map {
+            it.toEventMetadata()
+        }.sortedBy { it.name }
     }
 }
