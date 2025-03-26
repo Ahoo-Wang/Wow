@@ -26,6 +26,7 @@ import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
 import me.ahoo.wow.schema.kotlin.KotlinRequiredCheck
 import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
 import me.ahoo.wow.schema.typed.AggregateIdDefinitionProvider
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
@@ -43,6 +44,7 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         generalConfigPart.withCustomDefinitionProvider(CommandDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventStreamDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(AggregatedDomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)

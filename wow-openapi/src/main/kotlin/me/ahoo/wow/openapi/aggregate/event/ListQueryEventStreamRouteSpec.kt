@@ -51,7 +51,7 @@ class ListQueryEventStreamRouteSpec(
     override val requestBody: RequestBody = componentContext.listQueryRequestBody()
 
     override val responses: ApiResponses = ApiResponses().apply {
-        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
+        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse(aggregateMetadata))
     }
 }
 

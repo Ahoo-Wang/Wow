@@ -27,7 +27,9 @@ object DomainEventStreamDefinitionProvider : TypedCustomDefinitionProvider() {
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type) || javaType.isInstanceOf(StateEvent::class.java)) {
+        if (!javaType.isInstanceOf(type) || javaType.isInstanceOf(StateEvent::class.java) ||
+            javaType.isInstanceOf(AggregatedDomainEventStream::class.java)
+        ) {
             return null
         }
         return createCustomDefinition(javaType, context)

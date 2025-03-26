@@ -40,7 +40,7 @@ class WowSchemaNamingStrategyTest {
                 Arguments.of(typeContext.resolve(Any::class.java), null),
                 Arguments.of(
                     typeContext.resolve(WowSchemaNamingStrategyTest::class.java),
-                    "wow.SchemaDefinitionNamingStrategyTest"
+                    "wow.schema.SchemaDefinitionNamingStrategyTest"
                 ),
                 Arguments.of(typeContext.resolve(ExampleService::class.java), "example.ExampleService"),
                 Arguments.of(

@@ -1,0 +1,15 @@
+{
+  "contexts": {
+    "wow-schema": {
+      "alias": "wow.schema",
+      "scopes": [
+        "me.ahoo.wow.schema"
+      ],
+      "aggregates": {
+        "mock_empty_aggregate": {
+          "type": "me.ahoo.wow.schema.MockEmptyAggregate"
+        }
+      }
+    }
+  }
+}
