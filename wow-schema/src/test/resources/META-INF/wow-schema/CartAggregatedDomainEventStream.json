@@ -15,7 +15,7 @@
       "required" : [ "productId" ]
     }
   },
-  "title" : "DomainEventStream",
+  "title" : "AggregatedDomainEventStream",
   "type" : "object",
   "properties" : {
     "id" : {
@@ -103,32 +103,31 @@
     "body" : {
       "type" : "array",
       "items" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "minLength" : 1,
-            "description" : "The ID of the domain event."
-          },
-          "name" : {
-            "type" : "string",
-            "minLength" : 1,
-            "description" : "The name of the domain event"
-          },
-          "revision" : {
-            "type" : "string",
-            "description" : "The revision number of the domain event",
-            "default" : "0.0.1"
-          },
-          "bodyType" : {
-            "type" : "string",
-            "description" : "The fully qualified name of the domain event body",
-            "enum" : [ "me.ahoo.wow.example.api.cart.CartItemAdded", "me.ahoo.wow.example.api.cart.CartItemRemoved", "me.ahoo.wow.example.api.cart.CartQuantityChanged" ]
-          },
-          "body" : {
-            "type" : "object",
-            "description" : "The message body of the domain event",
-            "anyOf" : [ {
+        "anyOf" : [ {
+          "type" : "object",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The ID of the domain event."
+            },
+            "name" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The name of the domain event",
+              "const" : "cart_item_added"
+            },
+            "revision" : {
+              "type" : "string",
+              "description" : "The revision number of the domain event",
+              "default" : "0.0.1"
+            },
+            "bodyType" : {
+              "type" : "string",
+              "description" : "The fully qualified name of the domain event body",
+              "const" : "me.ahoo.wow.example.api.cart.CartItemAdded"
+            },
+            "body" : {
               "type" : "object",
               "properties" : {
                 "added" : {
@@ -136,7 +135,36 @@
                 }
               },
               "required" : [ "added" ]
-            }, {
+            }
+          },
+          "description" : "The body of the domain event",
+          "required" : [ "id", "name", "revision", "bodyType", "body" ],
+          "title" : "cart_item_added"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The ID of the domain event."
+            },
+            "name" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The name of the domain event",
+              "const" : "cart_item_removed"
+            },
+            "revision" : {
+              "type" : "string",
+              "description" : "The revision number of the domain event",
+              "default" : "0.0.1"
+            },
+            "bodyType" : {
+              "type" : "string",
+              "description" : "The fully qualified name of the domain event body",
+              "const" : "me.ahoo.wow.example.api.cart.CartItemRemoved"
+            },
+            "body" : {
               "type" : "object",
               "properties" : {
                 "productIds" : {
@@ -147,7 +175,36 @@
                 }
               },
               "required" : [ "productIds" ]
-            }, {
+            }
+          },
+          "description" : "The body of the domain event",
+          "required" : [ "id", "name", "revision", "bodyType", "body" ],
+          "title" : "cart_item_removed"
+        }, {
+          "type" : "object",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The ID of the domain event."
+            },
+            "name" : {
+              "type" : "string",
+              "minLength" : 1,
+              "description" : "The name of the domain event",
+              "const" : "cart_quantity_changed"
+            },
+            "revision" : {
+              "type" : "string",
+              "description" : "The revision number of the domain event",
+              "default" : "0.0.1"
+            },
+            "bodyType" : {
+              "type" : "string",
+              "description" : "The fully qualified name of the domain event body",
+              "const" : "me.ahoo.wow.example.api.cart.CartQuantityChanged"
+            },
+            "body" : {
               "type" : "object",
               "properties" : {
                 "changed" : {
@@ -155,11 +212,12 @@
                 }
               },
               "required" : [ "changed" ]
-            } ]
-          }
-        },
-        "description" : "The body of the domain event",
-        "required" : [ "id", "name", "revision", "bodyType", "body" ]
+            }
+          },
+          "description" : "The body of the domain event",
+          "required" : [ "id", "name", "revision", "bodyType", "body" ],
+          "title" : "cart_quantity_changed"
+        } ]
       },
       "minItems" : 1,
       "description" : "A list of domain events for the domain event stream"
