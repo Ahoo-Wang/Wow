@@ -4,6 +4,7 @@ import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
 import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test

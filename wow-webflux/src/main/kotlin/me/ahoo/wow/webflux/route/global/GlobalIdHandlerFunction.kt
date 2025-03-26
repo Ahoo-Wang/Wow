@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.metadata
+package me.ahoo.wow.webflux.route.global
 
-import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
+import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -22,20 +22,20 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-class GetWowMetadataHandlerFunction : HandlerFunction<ServerResponse> {
+class GlobalIdHandlerFunction : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return ServerResponse
             .ok()
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(MetadataSearcher.metadata)
+            .contentType(MediaType.TEXT_PLAIN)
+            .bodyValue(GlobalIdGenerator.generateAsString())
     }
 }
 
-class GetWowMetadataHandlerFunctionFactory : RouteHandlerFunctionFactory<GetWowMetadataRouteSpec> {
-    override val supportedSpec: Class<GetWowMetadataRouteSpec>
-        get() = GetWowMetadataRouteSpec::class.java
+class GlobalIdHandlerFunctionFactory : RouteHandlerFunctionFactory<GenerateGlobalIdRouteSpec> {
+    override val supportedSpec: Class<GenerateGlobalIdRouteSpec>
+        get() = GenerateGlobalIdRouteSpec::class.java
 
-    override fun create(spec: GetWowMetadataRouteSpec): HandlerFunction<ServerResponse> {
-        return GetWowMetadataHandlerFunction()
+    override fun create(spec: GenerateGlobalIdRouteSpec): HandlerFunction<ServerResponse> {
+        return GlobalIdHandlerFunction()
     }
 }

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.bi
+package me.ahoo.wow.webflux.route.global
 
 import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.bi.ScriptEngine

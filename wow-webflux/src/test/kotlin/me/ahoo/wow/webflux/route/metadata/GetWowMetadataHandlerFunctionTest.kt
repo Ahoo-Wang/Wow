@@ -2,6 +2,7 @@ package me.ahoo.wow.webflux.route.metadata
 
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
+import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test

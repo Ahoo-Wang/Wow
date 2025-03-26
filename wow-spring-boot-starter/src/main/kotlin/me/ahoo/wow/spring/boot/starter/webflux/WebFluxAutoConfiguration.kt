@@ -35,7 +35,6 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
-import me.ahoo.wow.webflux.route.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandMessageParser
@@ -51,8 +50,9 @@ import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactor
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
-import me.ahoo.wow.webflux.route.id.GlobalIdHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.metadata.GetWowMetadataHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
