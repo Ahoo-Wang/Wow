@@ -19,13 +19,14 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
 import me.ahoo.wow.openapi.QueryComponent.Schema.conditionSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 
 object QueryComponent {
 
@@ -36,6 +37,7 @@ object QueryComponent {
 
     const val PAGED_LIST_EVENT_STREAM_RESPONSE_KEY = Wow.WOW_PREFIX + "PagedListEventStream"
     const val LOAD_EVENT_STREAM_RESPONSE_KEY = Wow.WOW_PREFIX + "LoadEventStream"
+
     object Schema {
         fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(SingleQuery::class.java)
@@ -89,17 +91,27 @@ object QueryComponent {
             }
         }
 
-        fun OpenAPIComponentContext.pagedListEventStreamResponse(): io.swagger.v3.oas.models.responses.ApiResponse {
+        fun OpenAPIComponentContext.pagedListEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
             return response(PAGED_LIST_EVENT_STREAM_RESPONSE_KEY) {
                 withErrorCodeHeader(this@pagedListEventStreamResponse)
-                content(schema = schema(PagedList::class.java, DomainEventStream::class.java))
+                content(
+                    schema = schema(
+                        PagedList::class.java,
+                        resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
+                    )
+                )
             }
         }
 
-        fun OpenAPIComponentContext.loadEventStreamResponse(): io.swagger.v3.oas.models.responses.ApiResponse {
+        fun OpenAPIComponentContext.loadEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
             return response(LOAD_EVENT_STREAM_RESPONSE_KEY) {
                 withErrorCodeHeader(this@loadEventStreamResponse)
-                content(schema = arraySchema(DomainEventStream::class.java))
+                content(
+                    schema = arraySchema(
+                        AggregatedDomainEventStream::class.java,
+                        aggregateMetadata.command.aggregateType
+                    )
+                )
             }
         }
     }

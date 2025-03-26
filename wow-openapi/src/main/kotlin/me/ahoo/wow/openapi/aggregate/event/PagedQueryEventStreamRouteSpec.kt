@@ -50,7 +50,7 @@ class PagedQueryEventStreamRouteSpec(
         get() = "Paged Query Event Stream"
     override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
     override val responses: ApiResponses = ApiResponses().apply {
-        addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse())
+        addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse(aggregateMetadata))
     }
 }
 

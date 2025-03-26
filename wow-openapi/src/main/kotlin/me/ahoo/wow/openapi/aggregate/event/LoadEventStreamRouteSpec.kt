@@ -49,7 +49,7 @@ class LoadEventStreamRouteSpec(
     override val summary: String
         get() = "Load Event Stream"
     override val responses: ApiResponses = ApiResponses().apply {
-        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse())
+        addApiResponse(Https.Code.OK, componentContext.loadEventStreamResponse(aggregateMetadata))
     }
 
     override val appendPathSuffix: String

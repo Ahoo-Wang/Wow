@@ -13,6 +13,8 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
+import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -28,10 +30,12 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
+import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.CoreMatchers.equalTo
@@ -69,6 +73,7 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(StateEvent::class.java, StateEventData::class.java),
                 Arguments.of(CurrencyUnit::class.java, CurrencyUnit::class.java),
                 Arguments.of(Money::class.java, Money::class.java),
+                Arguments.of(DomainEventStream::class.java, AggregatedDomainEventStream::class.java),
             )
         }
 
@@ -80,6 +85,12 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(StateAggregate::class.java, MockStateAggregate::class.java, "MockStateAggregate"),
                 Arguments.of(Snapshot::class.java, MockStateAggregate::class.java, "MockStateAggregateSnapshot"),
                 Arguments.of(StateEvent::class.java, MockStateAggregate::class.java, "MockStateAggregateStateEvent"),
+                Arguments.of(AggregatedDomainEventStream::class.java, Cart::class.java, "AggregatedDomainEventStream"),
+                Arguments.of(
+                    AggregatedDomainEventStream::class.java,
+                    MockEmptyAggregate::class.java,
+                    "EmptyAggregatedDomainEventStream"
+                ),
             )
         }
     }
@@ -241,3 +252,6 @@ class JsonSchemaGeneratorTest {
         val requiredField: String?,
     )
 }
+
+@AggregateRoot
+class MockEmptyAggregate(override val id: String) : Identifier
