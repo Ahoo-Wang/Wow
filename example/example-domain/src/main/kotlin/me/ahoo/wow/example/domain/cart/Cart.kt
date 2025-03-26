@@ -24,6 +24,7 @@ import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
+import me.ahoo.wow.example.api.cart.MockPathCommand
 import me.ahoo.wow.example.api.cart.MountedCommand
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.cart.ViewCart
@@ -31,7 +32,7 @@ import me.ahoo.wow.example.api.cart.ViewCart
 const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
-@AggregateRoot(commands = [MountedCommand::class, ViewCart::class])
+@AggregateRoot(commands = [MountedCommand::class, ViewCart::class, MockPathCommand::class])
 @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
