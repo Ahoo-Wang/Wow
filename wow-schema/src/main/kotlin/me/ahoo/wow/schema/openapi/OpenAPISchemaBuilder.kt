@@ -29,19 +29,20 @@ import com.github.victools.jsonschema.generator.impl.TypeContextFactory
 import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
+import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowModule
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.Companion.defaultConfig
+import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.defaultConfig
 import java.lang.reflect.Type
 import java.util.function.Consumer
 
 class OpenAPISchemaBuilder(
     private val schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
     private val optionPreset: OptionPreset = OptionPreset.PLAIN_JSON,
-    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer(),
+    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer,
     private val openapi31: Boolean = true
 ) : InlineSchemaCapable {
     companion object {
@@ -101,24 +102,25 @@ class OpenAPISchemaBuilder(
         }
     }
 
-    class DefaultCustomizer :
+    object DefaultCustomizer :
         Consumer<SchemaGeneratorConfigBuilder> {
 
-        companion object {
-            fun SchemaGeneratorConfigBuilder.defaultConfig(): SchemaGeneratorConfigBuilder {
-                val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
-                val jakartaModule = JakartaValidationModule()
-                val openApiModule: Module = Swagger2Module()
-                val wowModule = WowModule()
-                with(jacksonModule)
-                    .with(jakartaModule)
-                    .with(openApiModule)
-                    .with(wowModule)
-                    .with(Option.PLAIN_DEFINITION_KEYS)
-                    .with(Option.SIMPLIFIED_ENUMS)
-                    .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
-                return this
-            }
+        fun SchemaGeneratorConfigBuilder.defaultConfig(): SchemaGeneratorConfigBuilder {
+            val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
+            val jakartaModule = JakartaValidationModule(
+                JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
+                JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
+            )
+            val openApiModule: Module = Swagger2Module()
+            val wowModule = WowModule()
+            with(jacksonModule)
+                .with(jakartaModule)
+                .with(openApiModule)
+                .with(wowModule)
+                .with(Option.PLAIN_DEFINITION_KEYS)
+                .with(Option.SIMPLIFIED_ENUMS)
+                .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
+            return this
         }
 
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
@@ -127,7 +129,7 @@ class OpenAPISchemaBuilder(
         }
     }
 
-    class InlineCustomizer :
+    object InlineCustomizer :
         Consumer<SchemaGeneratorConfigBuilder> {
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
             configBuilder.defaultConfig()

@@ -39,9 +39,9 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
             schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12
         ): OpenAPIComponentContext {
             val customizer = if (inline) {
-                OpenAPISchemaBuilder.InlineCustomizer()
+                OpenAPISchemaBuilder.InlineCustomizer
             } else {
-                OpenAPISchemaBuilder.DefaultCustomizer()
+                OpenAPISchemaBuilder.DefaultCustomizer
             }
             return DefaultOpenAPIComponentContext(
                 OpenAPISchemaBuilder(
