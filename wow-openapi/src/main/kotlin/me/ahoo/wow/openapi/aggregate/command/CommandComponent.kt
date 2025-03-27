@@ -200,10 +200,18 @@ object CommandComponent {
     object Response {
         fun OpenAPIComponentContext.okCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.SUCCEEDED}") {
+                val commandResultSchema = commandResultSchema()
                 description(ErrorCodes.SUCCEEDED_MESSAGE)
                 header(CommonComponent.Header.WOW_ERROR_CODE, errorCodeHeader())
-                content(schema = commandResultSchema())
-                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = arraySchema(CommandResult::class.java))
+                content(schema = commandResultSchema)
+                val textEventStreamSchema = io.swagger.v3.oas.models.media.Schema<Any>()
+                    .addAnyOfItem(commandResultSchema)
+                    .addAnyOfItem(
+                        StringSchema()
+                            .title("error")
+                            .description("This value is returned when the task fails to be executed")
+                    )
+                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = textEventStreamSchema)
             }
 
         fun OpenAPIComponentContext.badRequestCommandResponse(): ApiResponse =
