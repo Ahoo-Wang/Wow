@@ -30,6 +30,7 @@ data class ChangeAddress(
     val shippingAddress: ShippingAddress
 )
 
+@Summary("收货地址已修改")
 data class AddressChanged(
     val shippingAddress: ShippingAddress
 )
