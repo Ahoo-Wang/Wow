@@ -79,18 +79,12 @@ object CommandComponent {
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = WAIT_CONTEXT
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
-
         fun OpenAPIComponentContext.tenantIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = TENANT_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
+                description = "The tenant ID of the aggregate"
             }
 
         fun OpenAPIComponentContext.ownerIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
@@ -98,6 +92,7 @@ object CommandComponent {
                 name = OWNER_ID
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
+                description = "The owner ID of the aggregate resource"
             }
 
         fun OpenAPIComponentContext.aggregateIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
@@ -111,6 +106,31 @@ object CommandComponent {
             parameter {
                 name = AGGREGATE_VERSION
                 schema = IntegerSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "The version of the target aggregate, which is used to control version conflicts"
+            }
+
+        fun OpenAPIComponentContext.requestIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = REQUEST_ID
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description =
+                    "The request ID of the command message, which is used to check the idempotency of the command message"
+            }
+
+        fun OpenAPIComponentContext.localFirstHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = LOCAL_FIRST
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+            }
+
+        //region Wait Strategy
+        fun OpenAPIComponentContext.waitContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_CONTEXT
+                schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
             }
 
@@ -135,41 +155,7 @@ object CommandComponent {
                 `in`(ParameterIn.HEADER.toString())
                 description = "Command timeout period. Milliseconds"
             }
-
-        fun OpenAPIComponentContext.requestIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = REQUEST_ID
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
-
-        fun OpenAPIComponentContext.localFirstHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = LOCAL_FIRST
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
-
-        fun OpenAPIComponentContext.commandAggregateContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = COMMAND_AGGREGATE_CONTEXT
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
-
-        fun OpenAPIComponentContext.commandAggregateNameHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = COMMAND_AGGREGATE_NAME
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
-
-        fun OpenAPIComponentContext.commandTypeHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = COMMAND_TYPE
-                schema = StringSchema()
-                `in`(ParameterIn.HEADER.toString())
-            }
+        //endregion
 
         fun OpenAPIComponentContext.commandCommonHeaderParameters(): List<io.swagger.v3.oas.models.parameters.Parameter> {
             return listOf(
@@ -184,6 +170,31 @@ object CommandComponent {
                 acceptHeaderParameter()
             )
         }
+
+        fun OpenAPIComponentContext.commandAggregateContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = COMMAND_AGGREGATE_CONTEXT
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "The name of the context to which the command message belongs"
+            }
+
+        fun OpenAPIComponentContext.commandAggregateNameHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = COMMAND_AGGREGATE_NAME
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "The name of the aggregate to which the command message belongs"
+            }
+
+        fun OpenAPIComponentContext.commandTypeHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = COMMAND_TYPE
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "The fully qualified name of the command message body"
+                required = true
+            }
     }
 
     object Response {
