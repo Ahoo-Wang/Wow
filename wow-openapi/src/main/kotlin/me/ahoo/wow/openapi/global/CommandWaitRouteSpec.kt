@@ -42,7 +42,7 @@ class CommandWaitRouteSpec(override val componentContext: OpenAPIComponentContex
         get() = PATH
     override val method: String
         get() = Https.Method.POST
-    override val summary: String = "command wait handler"
+    override val summary: String = "The receiving endpoint of the wait signal"
     override val parameters: List<Parameter> = listOf()
     override val requestBody: RequestBody =
         RequestBodyBuilder().content(schema = componentContext.schema(SimpleWaitSignal::class.java))
