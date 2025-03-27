@@ -139,7 +139,7 @@
           },
           "description" : "The body of the domain event",
           "required" : [ "id", "name", "revision", "bodyType", "body" ],
-          "title" : "cart_item_added"
+          "title" : "商品已加入购物车"
         }, {
           "type" : "object",
           "properties" : {
