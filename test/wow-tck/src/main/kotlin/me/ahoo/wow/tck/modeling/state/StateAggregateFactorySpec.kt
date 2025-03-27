@@ -25,7 +25,6 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
-import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 abstract class StateAggregateFactorySpec {
@@ -38,8 +37,7 @@ abstract class StateAggregateFactorySpec {
     ) {
         val aggregateFactory = createStateAggregateFactory()
         val aggregateId = aggregateMetadata.aggregateId(id = GlobalIdGenerator.generateAsString())
-        aggregateFactory.create(aggregateMetadata.state, aggregateId)
-            .toMono()
+        aggregateFactory.createAsMono(aggregateMetadata.state, aggregateId)
             .test()
             .consumeNextWith { stateAggregate: StateAggregate<S> ->
                 assertThat(stateAggregate, notNullValue())

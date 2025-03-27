@@ -14,17 +14,21 @@ package me.ahoo.wow.modeling.state
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
+import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
@@ -69,6 +73,28 @@ internal class SimpleStateAggregateTest {
             ),
             equalTo(true)
         )
+    }
+
+    @Test
+    fun toStateAggregate() {
+        val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
+        val stateAggregate = aggregateMetadata.state.toStateAggregate(
+            aggregateId = aggregateMetadata.aggregateId(),
+            state = MockStateAggregate(generateGlobalId()),
+            ownerId = generateGlobalId(),
+            eventId = generateGlobalId(),
+            firstOperator = generateGlobalId(),
+            operator = generateGlobalId(),
+            firstEventTime = System.currentTimeMillis(),
+            version = Version.INITIAL_VERSION,
+            eventTime = System.currentTimeMillis(),
+            deleted = true
+        )
+
+        assertThat(stateAggregate.version, CoreMatchers.equalTo(Version.INITIAL_VERSION))
+        assertThat(stateAggregate.deleted, CoreMatchers.equalTo(true))
+        assertThat(stateAggregate.hashCode(), CoreMatchers.not(0))
+        assertThat(stateAggregate, equalTo(stateAggregate))
     }
 
     @Test
