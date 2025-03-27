@@ -16,6 +16,8 @@ import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -219,10 +221,13 @@ class JsonSchemaGeneratorTest {
     @Test
     fun schema() {
         val schema = jsonSchemaGenerator.generate(SchemaData::class.java)
-        val nullableFieldType = schema.get("properties").get("nullableField").get("type")
+        val nullableFieldNode = schema.get("properties").get("nullableField")
+        val nullableFieldType = nullableFieldNode.get("type")
         assertThat(nullableFieldType.isArray, equalTo(true))
         assertThat(nullableFieldType.get(0).textValue(), equalTo("string"))
         assertThat(nullableFieldType.get(1).textValue(), equalTo("null"))
+        assertThat(nullableFieldNode.get("title").textValue(), equalTo("testSummary"))
+        assertThat(nullableFieldNode.get("description").textValue(), equalTo("testDescription"))
         val readOnlyField = schema.get("properties").get("readOnlyField")
         assertThat(readOnlyField.get("readOnly").booleanValue(), equalTo(true))
         val required = schema.get("required")
@@ -247,6 +252,8 @@ class JsonSchemaGeneratorTest {
 
     data class SchemaData(
         @field:Schema(nullable = true)
+        @Summary("testSummary")
+        @Description("testDescription")
         val nullableField: String?,
         @field:Schema(accessMode = Schema.AccessMode.READ_ONLY)
         val readOnlyField: String?,
