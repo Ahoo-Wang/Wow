@@ -20,6 +20,7 @@ import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.annotation.toEventMetadata
@@ -60,7 +61,8 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         val eventBodyNodeTemplate = WowSchemaLoader.load(DOMAIN_EVENT_STREAM_BODY_RESOURCE_NAME)
         eventMetadataSet.forEach { eventMetadata ->
             val eventBodySchema = eventBodyNodeTemplate.deepCopy().asJsonSchema(schemaVersion)
-            eventBodySchema.actual.put(SchemaKeyword.TAG_TITLE.toPropertyName(schemaVersion), eventMetadata.name)
+            val title = eventMetadata.eventType.getAnnotation(Summary::class.java)?.value ?: eventMetadata.name
+            eventBodySchema.actual.put(SchemaKeyword.TAG_TITLE.toPropertyName(schemaVersion), title)
             val eventBodyPropertiesNode = eventBodySchema.requiredGetProperties()
             val eventBodyNameNode = eventBodyPropertiesNode[MessageRecords.NAME] as ObjectNode
             eventBodyNameNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.name)

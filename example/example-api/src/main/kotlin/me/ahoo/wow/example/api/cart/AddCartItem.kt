@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.api.annotation.Summary
 
 @Order(1)
 @AllowCreate
@@ -20,6 +21,7 @@ data class AddCartItem(
     val quantity: Int = 1
 )
 
+@Summary("商品已加入购物车")
 data class CartItemAdded(
     val added: CartItem
 )
