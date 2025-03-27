@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.DEFAULT_COMMAND_ACTION
+import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.metadata.CommandMetadata
@@ -99,7 +100,8 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
     fun toMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.commandMetadata()
 
-        val summary = commandType.kotlin.scanAnnotation<Summary>()?.value ?: ""
+        val summary = commandType.kotlin.scanAnnotation<Summary>()?.value.orEmpty()
+        val description = commandType.kotlin.scanAnnotation<Description>()?.value.orEmpty()
         val commandRoute = commandType.kotlin.scanAnnotation<CommandRoute>() ?: return CommandRouteMetadata(
             enabled = true,
             action = commandMetadata.name,
@@ -109,7 +111,8 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
-            summary = summary
+            summary = summary,
+            description = description
         )
 
         val action = parseAction(commandRoute, commandMetadata)
@@ -126,7 +129,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
             summary = commandRoute.summary.ifBlank { summary },
-            description = commandRoute.description,
+            description = commandRoute.description.ifBlank { description },
         )
     }
 
