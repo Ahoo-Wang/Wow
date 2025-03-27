@@ -48,7 +48,7 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         get() = PATH
     override val method: String
         get() = Https.Method.POST
-    override val summary: String = "send command"
+    override val summary: String = "Unified sending endpoint for command messages"
     override val parameters: List<Parameter> = buildList {
         add(componentContext.commandTypeHeaderParameter())
         addAll(componentContext.commandCommonHeaderParameters())
@@ -59,7 +59,7 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
     }
 
     override val requestBody: RequestBody = RequestBodyBuilder()
-        .description("command body")
+        .description("command message body")
         .content(
             schema = ObjectSchema()
         )
