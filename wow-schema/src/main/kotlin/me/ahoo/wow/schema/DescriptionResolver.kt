@@ -11,18 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.annotation
+package me.ahoo.wow.schema
 
-import java.lang.annotation.Inherited
+import com.github.victools.jsonschema.generator.ConfigFunction
+import com.github.victools.jsonschema.generator.FieldScope
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import kotlin.reflect.jvm.kotlinProperty
 
-@Target(
-    AnnotationTarget.CLASS,
-    AnnotationTarget.ANNOTATION_CLASS,
-    AnnotationTarget.PROPERTY,
-    AnnotationTarget.FIELD
-)
-@Inherited
-@MustBeDocumented
-annotation class Summary(
-    val value: String
-)
+object DescriptionResolver : ConfigFunction<FieldScope, String> {
+    override fun apply(fieldScope: FieldScope): String? {
+        val property = fieldScope.rawMember.kotlinProperty ?: return null
+        return property.scanAnnotation<Description>()?.value
+    }
+}

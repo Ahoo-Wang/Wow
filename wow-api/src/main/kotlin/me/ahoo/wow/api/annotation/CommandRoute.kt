@@ -31,7 +31,15 @@ annotation class CommandRoute(
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
     val appendOwnerPath: AppendPath = AppendPath.DEFAULT,
+    @Deprecated(
+        message = "use @Summary instead.",
+        replaceWith = ReplaceWith("@Summary(summary)")
+    )
     val summary: String = "",
+    @Deprecated(
+        message = "use @Description instead.",
+        replaceWith = ReplaceWith("@Description(description)")
+    )
     val description: String = "",
 ) {
 

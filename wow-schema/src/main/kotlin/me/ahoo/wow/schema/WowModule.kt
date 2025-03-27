@@ -37,6 +37,8 @@ import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
+        fieldConfigPart.withTitleResolver(SummaryTitleResolver)
+        fieldConfigPart.withDescriptionResolver(DescriptionResolver)
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
         kotlinNullable(fieldConfigPart, generalConfigPart)
