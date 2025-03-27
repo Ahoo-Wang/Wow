@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.metadata
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.naming.DescriptionCapable
 import me.ahoo.wow.api.naming.SummaryCapable
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
@@ -30,13 +31,13 @@ data class CommandRouteMetadata<C>(
     val appendOwnerPath: CommandRoute.AppendPath = CommandRoute.AppendPath.DEFAULT,
     val commandMetadata: CommandMetadata<C>,
     override val summary: String = "",
-    val description: String = "",
+    override val description: String = "",
     /**
      * filedName -> PathVariableMetadata
      */
     val pathVariableMetadata: Set<VariableMetadata> = setOf(),
     val headerVariableMetadata: Set<VariableMetadata> = setOf()
-) : me.ahoo.wow.metadata.Metadata, SummaryCapable {
+) : me.ahoo.wow.metadata.Metadata, SummaryCapable, DescriptionCapable {
 
     private fun ObjectNode.injectVariables(
         variableMetadata: Set<VariableMetadata>,

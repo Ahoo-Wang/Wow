@@ -20,16 +20,17 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.naming.DescriptionCapable
 import me.ahoo.wow.api.naming.SummaryCapable
 
-interface RouteSpec : Identifier, SummaryCapable {
+interface RouteSpec : Identifier, SummaryCapable, DescriptionCapable {
     /**
      * @see [io.swagger.v3.oas.models.Operation.getOperationId]
      */
     override val id: String
     val path: String
     val method: String
-    val description: String
+    override val description: String
         get() = ""
     val tags: List<String>
         get() = listOf(Wow.WOW)
