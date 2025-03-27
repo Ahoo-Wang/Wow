@@ -35,9 +35,6 @@ object QueryComponent {
     const val LIST_QUERY_KEY = Wow.WOW_PREFIX + "ListQuery"
     const val PAGED_QUERY_KEY = Wow.WOW_PREFIX + "PagedQuery"
 
-    const val PAGED_LIST_EVENT_STREAM_RESPONSE_KEY = Wow.WOW_PREFIX + "PagedListEventStream"
-    const val LOAD_EVENT_STREAM_RESPONSE_KEY = Wow.WOW_PREFIX + "LoadEventStream"
-
     object Schema {
         fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(SingleQuery::class.java)
@@ -92,27 +89,23 @@ object QueryComponent {
         }
 
         fun OpenAPIComponentContext.pagedListEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
-            return response(PAGED_LIST_EVENT_STREAM_RESPONSE_KEY) {
-                withErrorCodeHeader(this@pagedListEventStreamResponse)
-                content(
+            return ApiResponseBuilder().withErrorCodeHeader(this)
+                .content(
                     schema = schema(
                         PagedList::class.java,
                         resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
                     )
-                )
-            }
+                ).build()
         }
 
         fun OpenAPIComponentContext.loadEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
-            return response(LOAD_EVENT_STREAM_RESPONSE_KEY) {
-                withErrorCodeHeader(this@loadEventStreamResponse)
-                content(
+            return ApiResponseBuilder().withErrorCodeHeader(this)
+                .content(
                     schema = arraySchema(
                         AggregatedDomainEventStream::class.java,
                         aggregateMetadata.command.aggregateType
                     )
-                )
-            }
+                ).build()
         }
     }
 }
