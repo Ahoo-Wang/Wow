@@ -14,6 +14,10 @@
 package me.ahoo.wow.openapi
 
 object Https {
+    object Header {
+        const val ACCEPT = "Accept"
+    }
+
     object Code {
         const val OK = "200"
         const val BAD_REQUEST = "400"

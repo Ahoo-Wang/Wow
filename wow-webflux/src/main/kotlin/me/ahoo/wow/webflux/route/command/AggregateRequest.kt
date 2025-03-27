@@ -104,5 +104,5 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
 }
 
 fun ServerRequest.isSse(): Boolean {
-    return headers().accept().contains(MediaType.TEXT_EVENT_STREAM)
+    return headers().accept().firstOrNull() == MediaType.TEXT_EVENT_STREAM
 }
