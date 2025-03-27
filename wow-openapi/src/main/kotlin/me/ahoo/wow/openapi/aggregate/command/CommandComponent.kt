@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.aggregate.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.BooleanSchema
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponse
@@ -122,8 +123,10 @@ object CommandComponent {
         fun OpenAPIComponentContext.localFirstHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = LOCAL_FIRST
-                schema = StringSchema()
+                schema = BooleanSchema()
                 `in`(ParameterIn.HEADER.toString())
+                description =
+                    "Whether to enable local priority mode, if false, it will be turned off, and the default is true."
             }
 
         //region Wait Strategy
