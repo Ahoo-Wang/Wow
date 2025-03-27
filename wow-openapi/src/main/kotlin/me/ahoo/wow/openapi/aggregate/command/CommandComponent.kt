@@ -69,6 +69,16 @@ object CommandComponent {
     }
 
     object Parameter {
+        fun OpenAPIComponentContext.acceptHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = Https.Header.ACCEPT
+                schema = StringSchema()
+                    .addEnumItem(Https.MediaType.APPLICATION_JSON)
+                    .addEnumItem(Https.MediaType.TEXT_EVENT_STREAM)
+                    ._default(Https.MediaType.APPLICATION_JSON)
+                `in`(ParameterIn.HEADER.toString())
+            }
+
         fun OpenAPIComponentContext.waitContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_CONTEXT
@@ -170,7 +180,8 @@ object CommandComponent {
                 aggregateIdHeaderParameter(),
                 aggregateVersionHeaderParameter(),
                 requestIdHeaderParameter(),
-                localFirstHeaderParameter()
+                localFirstHeaderParameter(),
+                acceptHeaderParameter()
             )
         }
     }
