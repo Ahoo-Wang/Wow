@@ -106,7 +106,7 @@ class CommandRouteSpec(
                 .append(commandRouteMetadata.action).build()
         }
     override val summary: String
-        get() = commandRouteMetadata.summary
+        get() = commandRouteMetadata.summary.ifBlank { commandRouteMetadata.commandMetadata.name }
     override val description: String
         get() = commandRouteMetadata.description
     override val tags: List<String>
