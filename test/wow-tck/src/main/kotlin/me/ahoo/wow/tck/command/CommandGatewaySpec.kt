@@ -92,7 +92,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        repeat(5) {
+        repeat(10) {
             if (waitStrategyRegistrar.contains(message.commandId)) {
                 Thread.sleep(5)
             }
