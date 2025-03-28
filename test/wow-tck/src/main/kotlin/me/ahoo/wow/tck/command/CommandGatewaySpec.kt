@@ -82,6 +82,15 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
     }
 
+    private fun verifyWaitStrategyDestroyed(commandId: String) {
+        repeat(10) {
+            if (waitStrategyRegistrar.contains(commandId)) {
+                Thread.sleep(5)
+            }
+        }
+        assertThat(waitStrategyRegistrar.contains(commandId), equalTo(false))
+    }
+
     @Test
     fun sendAndWaitForSent() {
         val message = createMessage()
@@ -92,12 +101,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        repeat(10) {
-            if (waitStrategyRegistrar.contains(message.commandId)) {
-                Thread.sleep(5)
-            }
-        }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -109,7 +113,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -132,7 +136,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -154,7 +158,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -184,7 +188,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(2)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -214,7 +218,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -235,7 +239,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verify()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -261,7 +265,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verifyComplete()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -274,6 +278,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 }
