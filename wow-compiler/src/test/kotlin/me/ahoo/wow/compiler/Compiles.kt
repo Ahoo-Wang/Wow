@@ -24,15 +24,21 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import java.io.File
 
 @OptIn(ExperimentalCompilerApi::class)
-fun compileTest(sources: List<File>, symbolProcessorProvider: SymbolProcessorProvider): JvmCompilationResult {
-    val result = KotlinCompilation().apply {
+fun compileTest(
+    sources: List<File>,
+    symbolProcessorProvider: SymbolProcessorProvider,
+    consumer: (KotlinCompilation, JvmCompilationResult) -> Unit = { _, _ ->
+    }
+) {
+    val kotlinCompilation = KotlinCompilation().apply {
         inheritClassPath = true
         this.sources = sources.map { it.toSourceFile() }
         configureKsp(useKsp2 = true) {
             incremental = true
             symbolProcessorProviders += symbolProcessorProvider
         }
-    }.compile()
+    }
+    val result = kotlinCompilation.compile()
     assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
-    return result
+    consumer(kotlinCompilation, result)
 }
