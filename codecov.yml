@@ -18,3 +18,5 @@ ignore:
   - "test/wow-test/.*"
   - "wow-api/.*"
   - "wow-apiclient/.*"
+  - "example/example-api/.*"
+  - "example/transfer/example-transfer-api/.*"
