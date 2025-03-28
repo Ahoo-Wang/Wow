@@ -25,6 +25,15 @@
 - 修改 `api/{package}/DemoService`
 - 修改 `domain/{package}/DemoBoundedContext`
 
+::: tip
+IDEA 基于模版创建项目会将 `gradlew` 脚本被注释，需要重新从模板项目中Copy过来。
+> 开启可执行权限：
+```shell
+chmod +x ./gradlew
+```
+:::
+
+
 ## 项目模块
 
 | 模块                   | 说明                                                                                                                                |
