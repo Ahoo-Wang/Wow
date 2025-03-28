@@ -20,6 +20,7 @@ import me.ahoo.wow.api.naming.SummaryCapable
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toObject
+import java.lang.reflect.Field
 
 data class CommandRouteMetadata<C>(
     val enabled: Boolean,
@@ -95,6 +96,7 @@ data class CommandRouteMetadata<C>(
 }
 
 data class VariableMetadata(
+    val field: Field?,
     val fieldPath: List<String>,
     /**
      * variable name

@@ -24,6 +24,7 @@ import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import kotlin.reflect.jvm.javaField
 
 class CommandRouteMetadataParserTest {
 
@@ -36,6 +37,7 @@ class CommandRouteMetadataParserTest {
         assertThat(commandRouteMetadata.prefix, equalTo(""))
         assertThat(commandRouteMetadata.appendIdPath, equalTo(CommandRoute.AppendPath.DEFAULT))
         val idPathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "id" }
+        assertThat(idPathVariable.field, equalTo(MockCommandRouteNotRequired::id.javaField))
         assertThat(idPathVariable.fieldName, equalTo("id"))
         assertThat(idPathVariable.variableName, equalTo("id"))
         assertThat(idPathVariable.required, equalTo(true))

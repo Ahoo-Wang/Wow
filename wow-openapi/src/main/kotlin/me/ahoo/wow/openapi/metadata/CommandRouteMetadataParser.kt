@@ -32,6 +32,7 @@ import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.serialization.toJsonString
 import org.springframework.web.util.UriTemplate
 import kotlin.reflect.KProperty1
+import kotlin.reflect.jvm.javaField
 
 object CommandRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
@@ -67,6 +68,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             addAll(nestedPath)
         }
         return VariableMetadata(
+            field = javaField,
             fieldPath = fieldPath,
             variableName = variableName,
             required = required,
@@ -153,6 +155,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             }
             missedVariableNames.forEach {
                 val missedVariable = VariableMetadata(
+                    field = null,
                     fieldPath = listOf(it),
                     variableName = it,
                     required = true,
