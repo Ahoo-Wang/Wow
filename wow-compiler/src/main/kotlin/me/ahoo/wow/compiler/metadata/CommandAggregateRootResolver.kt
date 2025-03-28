@@ -79,8 +79,16 @@ object CommandAggregateRootResolver {
         return Aggregate(
             type = aggregateRootMetadata.type,
             tenantId = tenantId,
-            commands = (commands + mountCommands).distinct().toList(),
-            events = (commandReturnEvents + sourcingEvents).distinct().toList()
+            commands = (commands + mountCommands).let {
+                linkedSetOf<String>().apply {
+                    addAll(it)
+                }
+            },
+            events = (commandReturnEvents + sourcingEvents).let {
+                linkedSetOf<String>().apply {
+                    addAll(it)
+                }
+            }
         )
     }
 

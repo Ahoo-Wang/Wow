@@ -44,7 +44,7 @@ data class WowMetadata(
 
 data class BoundedContext(
     val alias: String? = null,
-    override val scopes: List<String> = listOf(),
+    override val scopes: Set<String> = linkedSetOf(),
     /**
      * `aggregateName` -> `Aggregate`
      */
@@ -64,7 +64,7 @@ data class BoundedContext(
 }
 
 data class Aggregate(
-    override val scopes: List<String> = emptyList(),
+    override val scopes: Set<String> = linkedSetOf(),
     /**
      * Aggregate type fully qualified name
      */
@@ -77,13 +77,22 @@ data class Aggregate(
      * Custom ID generator name
      */
     val id: String? = null,
-    val commands: List<String> = listOf(),
-    val events: List<String> = listOf()
+    val commands: Set<String> = linkedSetOf(),
+    val events: Set<String> = linkedSetOf()
 ) : NamingScopes, Merge<Aggregate> {
     override fun merge(other: Aggregate): Aggregate {
-        val mergedScopes = scopes.plus(other.scopes)
-        val mergedCommands = commands.plus(other.commands)
-        val mergedEvents = events.plus(other.events)
+        val mergedScopes = linkedSetOf<String>().apply {
+            addAll(scopes)
+            addAll(other.scopes)
+        }
+        val mergedCommands = linkedSetOf<String>().apply {
+            addAll(commands)
+            addAll(other.commands)
+        }
+        val mergedEvents = linkedSetOf<String>().apply {
+            addAll(events)
+            addAll(other.events)
+        }
         if (type.isNullOrBlank().not() && other.type.isNullOrBlank().not()) {
             check(type == other.type) {
                 "The current aggregate type[$type] conflicts with the aggregate[${other.type}] to be merged."
@@ -106,7 +115,7 @@ data class Aggregate(
 }
 
 interface NamingScopes {
-    val scopes: List<String>
+    val scopes: Set<String>
 }
 
 interface Merge<T> {
