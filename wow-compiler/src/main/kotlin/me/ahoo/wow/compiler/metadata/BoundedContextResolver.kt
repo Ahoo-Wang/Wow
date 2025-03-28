@@ -31,7 +31,7 @@ object BoundedContextResolver {
         val contextScopes = contextAnnotation.getScopes()
         val contextPackageScopes = contextAnnotation.getPackageScopes()
         val mergedContextScopes = contextPackageScopes.plus(contextScopes).ifEmpty {
-            setOf(packageName.asString())
+            listOf(packageName.asString())
         }
 
         val contextAggregates = contextAnnotation.getAggregates().associate {
@@ -52,10 +52,10 @@ object BoundedContextResolver {
         return getArgumentValue<List<KSAnnotation>>(BoundedContext::aggregates.name).toSet()
     }
 
-    private fun KSAnnotation.getPackageScopes(): Set<String> {
+    private fun KSAnnotation.getPackageScopes(): List<String> {
         return getArgumentValue<List<KSType>>(BoundedContext::packageScopes.name).map {
             it.declaration.packageName.asString()
-        }.toSet()
+        }
     }
 
     private fun KSAnnotation.getScopes(): Set<String> {

@@ -44,7 +44,7 @@ data class WowMetadata(
 
 data class BoundedContext(
     val alias: String? = null,
-    override val scopes: Set<String> = setOf(),
+    override val scopes: List<String> = listOf(),
     /**
      * `aggregateName` -> `Aggregate`
      */
@@ -64,7 +64,7 @@ data class BoundedContext(
 }
 
 data class Aggregate(
-    override val scopes: Set<String> = emptySet(),
+    override val scopes: List<String> = emptyList(),
     /**
      * Aggregate type fully qualified name
      */
@@ -77,8 +77,8 @@ data class Aggregate(
      * Custom ID generator name
      */
     val id: String? = null,
-    val commands: Set<String> = emptySet(),
-    val events: Set<String> = emptySet()
+    val commands: List<String> = listOf(),
+    val events: List<String> = listOf()
 ) : NamingScopes, Merge<Aggregate> {
     override fun merge(other: Aggregate): Aggregate {
         val mergedScopes = scopes.plus(other.scopes)
@@ -106,7 +106,7 @@ data class Aggregate(
 }
 
 interface NamingScopes {
-    val scopes: Set<String>
+    val scopes: List<String>
 }
 
 interface Merge<T> {
