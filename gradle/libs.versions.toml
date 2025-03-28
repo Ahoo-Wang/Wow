@@ -24,8 +24,8 @@ test-retry = "1.6.2"
 detekt = "1.23.8"
 dokka = "2.0.0"
 kotlin = "2.1.20"
+ksp = "2.1.20-1.0.32"
 publish-plugin = "2.0.0"
-ksp = "2.0.21-1.0.28"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
