@@ -24,7 +24,7 @@ import me.ahoo.wow.api.annotation.Order
     appendOwnerPath = CommandRoute.AppendPath.ALWAYS,
     action = "{id}/{customerId}/{enum}"
 )
-data class MockPathCommand(
+data class MockVariableCommand(
     @field:CommandRoute.PathVariable
     val tenantId: String,
     @field:CommandRoute.PathVariable
@@ -34,7 +34,11 @@ data class MockPathCommand(
     @field:CommandRoute.PathVariable
     val customerId: Int,
     @field:CommandRoute.PathVariable
-    val enum: MockEnum
+    val enum: MockEnum,
+    @field:CommandRoute.HeaderVariable
+    val headerParameter: String,
+    @field:CommandRoute.HeaderVariable
+    val headerEnumParameter: MockEnum
 ) {
     enum class MockEnum {
         First, Second, Third
