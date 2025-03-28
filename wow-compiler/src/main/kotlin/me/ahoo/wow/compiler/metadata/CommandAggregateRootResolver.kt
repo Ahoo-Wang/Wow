@@ -45,7 +45,6 @@ object CommandAggregateRootResolver {
             .map {
                 it.toMessageType(resolver)
             }
-            .toSet()
 
         val mountCommands = aggregateRootMetadata.command.getAnnotation(AggregateRoot::class)
             ?.getArgumentValue<List<KSType>>(AggregateRoot::commands.name)
@@ -62,14 +61,12 @@ object CommandAggregateRootResolver {
                     ?.toSet()
                     .orEmpty()
             }
-            .toSet()
 
         val sourcingEvents = aggregateRootMetadata.state.getAllFunctions()
             .filter { it.isDomainEvent() }
             .map {
                 it.toMessageType(resolver)
             }
-            .toSet()
 
         val tenantId =
             getAnnotation(StaticTenantId::class)?.getArgumentValue<String>(StaticTenantId::tenantId.name)
@@ -82,8 +79,8 @@ object CommandAggregateRootResolver {
         return Aggregate(
             type = aggregateRootMetadata.type,
             tenantId = tenantId,
-            commands = commands + mountCommands,
-            events = commandReturnEvents + sourcingEvents
+            commands = (commands + mountCommands).distinct().toList(),
+            events = (commandReturnEvents + sourcingEvents).distinct().toList()
         )
     }
 
