@@ -30,14 +30,20 @@ object BoundedContextResolver {
         val contextAlias = contextAnnotation.getAlias().ifBlank { null }
         val contextScopes = contextAnnotation.getScopes()
         val contextPackageScopes = contextAnnotation.getPackageScopes()
-        val mergedContextScopes = contextPackageScopes.plus(contextScopes).ifEmpty {
-            listOf(packageName.asString())
+        val mergedContextScopes = linkedSetOf<String>().apply {
+            addAll(contextPackageScopes)
+            addAll(contextScopes)
+            add(packageName.asString())
         }
 
         val contextAggregates = contextAnnotation.getAggregates().associate {
             val id = it.getArgumentValue<String>(BoundedContext.Aggregate::id.name).ifBlank { null }
             val tenantId = it.getArgumentValue<String>(BoundedContext.Aggregate::tenantId.name).ifBlank { null }
-            val mergedAggregateScopes = it.getPackageScopes().plus(it.getScopes())
+            val mergedAggregateScopes = it.getPackageScopes().plus(it.getScopes()).let {
+                linkedSetOf<String>().apply {
+                    addAll(it)
+                }
+            }
             it.getName() to Aggregate(tenantId = tenantId, id = id, scopes = mergedAggregateScopes)
         }
         val boundedContext = me.ahoo.wow.configuration.BoundedContext(
@@ -58,8 +64,8 @@ object BoundedContextResolver {
         }
     }
 
-    private fun KSAnnotation.getScopes(): Set<String> {
-        return getArgumentValue<List<String>>(BoundedContext::scopes.name).toSet()
+    private fun KSAnnotation.getScopes(): List<String> {
+        return getArgumentValue(BoundedContext::scopes.name)
     }
 
     private fun KSAnnotation.getName(): String {

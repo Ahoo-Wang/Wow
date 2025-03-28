@@ -21,11 +21,11 @@ internal class NamedBoundedContextTest {
 
     @Test
     fun merge() {
-        val currentAggregates = mapOf("a1" to Aggregate(listOf("1"), null))
-        val current = BoundedContext(scopes = listOf("1", "2"), aggregates = currentAggregates)
+        val currentAggregates = mapOf("a1" to Aggregate(linkedSetOf("1"), null))
+        val current = BoundedContext(scopes = linkedSetOf("1", "2"), aggregates = currentAggregates)
 
-        val otherAggregates = mapOf("a1" to Aggregate(listOf("2"), "a1"))
-        val other = BoundedContext(scopes = listOf("1", "3"), aggregates = otherAggregates)
+        val otherAggregates = mapOf("a1" to Aggregate(linkedSetOf("2"), "a1"))
+        val other = BoundedContext(scopes = linkedSetOf("1", "3"), aggregates = otherAggregates)
         val merged = current.merge(other)
         assertThat(merged.scopes, hasItems("1", "2", "3"))
     }

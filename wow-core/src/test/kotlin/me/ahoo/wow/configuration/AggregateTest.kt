@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test
 internal class AggregateTest {
     @Test
     fun merge() {
-        val current = Aggregate(listOf("1", "2"), null)
-        val other = Aggregate(listOf("1", "3"), "")
+        val current = Aggregate(linkedSetOf("1", "2"), null)
+        val other = Aggregate(linkedSetOf("1", "3"), "")
         val merged = current.merge(other)
         assertThat(merged.scopes, hasItems("1", "2", "3"))
         assertThat(merged.type, equalTo(""))
@@ -31,15 +31,15 @@ internal class AggregateTest {
 
     @Test
     fun mergeEmpty() {
-        val current = Aggregate(listOf(), "")
-        val other = Aggregate(listOf(), "")
+        val current = Aggregate(linkedSetOf(), "")
+        val other = Aggregate(linkedSetOf(), "")
         current.merge(other)
     }
 
     @Test
     fun mergeEmptyNull() {
-        val current = Aggregate(listOf(), "")
-        val other = Aggregate(listOf(), null)
+        val current = Aggregate(linkedSetOf(), "")
+        val other = Aggregate(linkedSetOf(), null)
         current.merge(other)
     }
 
