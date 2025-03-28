@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.aggregate.command
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
@@ -36,6 +37,7 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.commandRe
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
+import me.ahoo.wow.openapi.metadata.VariableMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
@@ -136,15 +138,21 @@ class CommandRouteSpec(
             Parameter()
                 .name(variableMetadata.variableName)
                 .`in`(ParameterIn.PATH.toString())
-                .schema(StringSchema())
+                .schema(variableMetadata.variableSchema())
         }
+
+    private fun VariableMetadata.variableSchema(): Schema<*> {
+        return field?.type?.let {
+            componentContext.schema(it)
+        } ?: StringSchema()
+    }
 
     private val headerParameters: List<Parameter> =
         commandRouteMetadata.headerVariableMetadata.map { variableMetadata ->
             Parameter()
                 .name(variableMetadata.variableName)
                 .`in`(ParameterIn.HEADER.toString())
-                .schema(StringSchema())
+                .schema(variableMetadata.variableSchema())
                 .required(variableMetadata.required)
         }
 
