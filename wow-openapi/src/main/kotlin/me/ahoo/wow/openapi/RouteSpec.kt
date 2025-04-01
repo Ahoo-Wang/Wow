@@ -35,7 +35,7 @@ interface RouteSpec : Identifier, SummaryCapable, DescriptionCapable {
     val tags: List<String>
         get() = listOf(Wow.WOW)
     val accept: List<String>
-        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_PLAIN)
+        get() = listOf(Https.MediaType.APPLICATION_JSON)
     val parameters: List<Parameter>
     val requestBody: RequestBody?
         get() = null
