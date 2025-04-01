@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.infra.reflection
 
-import me.ahoo.wow.infra.reflection.IntimatePropertyAnnotationElement.Companion.toIntimateAnnotationElement
+import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 
@@ -25,8 +25,8 @@ object AnnotationScanner {
 
     @Suppress("UNCHECKED_CAST")
     fun <A : Annotation> KAnnotatedElement.scanAnnotations(annotationClass: KClass<A>): List<A> {
-        return this.toIntimateAnnotationElement()
-            .inheritedAnnotations
+        return this.toMergedAnnotation()
+            .mergedAnnotations
             .filter { it.annotationClass == annotationClass } as List<A>
     }
 

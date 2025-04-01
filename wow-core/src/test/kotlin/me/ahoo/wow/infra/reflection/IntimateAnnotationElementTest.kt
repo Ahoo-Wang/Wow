@@ -2,14 +2,14 @@ package me.ahoo.wow.infra.reflection
 
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.infra.reflection.IntimatePropertyAnnotationElement.Companion.toIntimateAnnotationElement
+import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.kotlinProperty
 
-class IntimatePropertyAnnotationElementTest {
+class IntimateAnnotationElementTest {
 
     @Test
     fun getElement() {
