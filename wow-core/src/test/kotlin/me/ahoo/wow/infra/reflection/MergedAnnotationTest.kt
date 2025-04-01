@@ -51,7 +51,7 @@ class MergedAnnotationTest {
     fun getInheritedAnnotationsIfFunctionNotSame() {
         val mergedAnnotation = MockClass::class.declaredFunctions.first {
             it.name == "interfaceFunction" &&
-                    it.parameters.last().type.classifier == String::class
+                it.parameters.last().type.classifier == String::class
         }.toMergedAnnotation()
         assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
     }
@@ -60,7 +60,7 @@ class MergedAnnotationTest {
     fun getInheritedAnnotationsIfFunctionNotSame2() {
         val mergedAnnotation = MockClass::class.declaredFunctions.first {
             it.name == "interfaceFunction" &&
-                    it.parameters.size == 3
+                it.parameters.size == 3
         }.toMergedAnnotation()
         assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
     }
