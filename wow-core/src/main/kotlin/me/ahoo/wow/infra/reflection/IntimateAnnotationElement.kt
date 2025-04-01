@@ -38,19 +38,20 @@ class IntimateAnnotationElement(
     val field: Field? = property?.javaField
 
     val intimatedAnnotations: LinkedHashSet<Annotation> by lazy {
-        val merged = linkedSetOf<Annotation>()
-        merged.addAll(element.annotations)
+        val annotations = linkedSetOf<Annotation>()
+        annotations.addAll(element.annotations)
         if (getter != null) {
-            merged.addAll(getter.annotations)
+            annotations.addAll(getter.annotations)
         }
         if (setter != null) {
-            merged.addAll(setter.annotations)
+            annotations.addAll(setter.annotations)
         }
         if (field != null) {
-            merged.addAll(field.annotations)
+            annotations.addAll(field.annotations)
         }
-        merged.flatMap {
-            it.flatRepeatableAnnotation()
+        val merged = linkedSetOf<Annotation>()
+        annotations.forEach {
+            merged.addAll(it.flatRepeatableAnnotation())
         }
         merged
     }

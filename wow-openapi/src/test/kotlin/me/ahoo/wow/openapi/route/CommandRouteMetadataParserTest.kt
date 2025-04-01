@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
@@ -160,6 +161,7 @@ class CommandRouteMetadataParserTest {
 
     @Test
     fun decodeFieldNested() {
+        NestedFieldMockCommandRoute::customer.toIntimateAnnotationElement()
         val commandRouteMetadata = commandRouteMetadata<NestedFieldMockCommandRoute>()
         assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
         val customerIdPathVariable =
