@@ -84,7 +84,7 @@ object QueryComponent {
         fun OpenAPIComponentContext.countQueryResponse(): io.swagger.v3.oas.models.responses.ApiResponse {
             return response(COUNT_QUERY_KEY) {
                 withErrorCodeHeader(this@countQueryResponse)
-                content(Https.MediaType.TEXT_PLAIN, schema = schema(Long::class.java))
+                content(Https.MediaType.APPLICATION_JSON, schema = schema(Long::class.java))
             }
         }
 
