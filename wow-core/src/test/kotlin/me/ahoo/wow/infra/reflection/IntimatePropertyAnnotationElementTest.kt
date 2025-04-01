@@ -2,19 +2,25 @@ package me.ahoo.wow.infra.reflection
 
 import me.ahoo.wow.api.annotation.OnMessage
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
+import me.ahoo.wow.infra.reflection.IntimatePropertyAnnotationElement.Companion.toIntimateAnnotationElement
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.kotlinProperty
 
-class IntimateAnnotationElementTest {
+class IntimatePropertyAnnotationElementTest {
 
     @Test
     fun getElement() {
         val element = Data::property.toIntimateAnnotationElement()
         assertThat(element.element, equalTo(Data::property))
+    }
+
+    @Test
+    fun getDeclaringClass() {
+        val element = Data::fieldProperty.toIntimateAnnotationElement()
+        assertThat(element.declaringClass, equalTo(Data::class))
     }
 
     @Test
@@ -38,7 +44,7 @@ class IntimateAnnotationElementTest {
     @Test
     fun getField() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
-        assertThat(element.field, equalTo(Data::fieldProperty.javaField))
+        assertThat(element.javaField, equalTo(Data::fieldProperty.javaField))
     }
 
     @Test
@@ -54,7 +60,7 @@ class IntimateAnnotationElementTest {
     fun getMergedAnnotations() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
         assertThat(
-            element.mergedAnnotations,
+            element.inheritedAnnotations,
             equalTo(linkedSetOf(MockAnnotation(), OnMessage(FunctionKind.EVENT, "hi")))
         )
     }

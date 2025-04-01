@@ -16,71 +16,39 @@ package me.ahoo.wow.infra.reflection
 import java.lang.reflect.Field
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KAnnotatedElement
+import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaMethod
 
 /**
  * IntimateAnnotationElement.
  *
  */
-class IntimateAnnotationElement(
-    val element: KAnnotatedElement,
-) {
-    val property: KProperty<*>? = element as? KProperty<*>
-    val getter: KProperty.Getter<*>? = property?.getter
-    val setter: KMutableProperty.Setter<*>? = if (property is KMutableProperty<*>) {
-        property.setter
-    } else {
-        null
-    }
-    val field: Field? = property?.javaField
-
-    val intimatedAnnotations: LinkedHashSet<Annotation> by lazy {
-        val annotations = linkedSetOf<Annotation>()
-        annotations.addAll(element.annotations)
-        if (getter != null) {
-            annotations.addAll(getter.annotations)
-        }
-        if (setter != null) {
-            annotations.addAll(setter.annotations)
-        }
-        if (field != null) {
-            annotations.addAll(field.annotations)
-        }
-        val merged = linkedSetOf<Annotation>()
-        annotations.forEach {
-            merged.addAll(it.flatRepeatableAnnotation())
-        }
-        merged
-    }
-
-    val mergedAnnotations: Set<Annotation> by lazy {
-        val merged = linkedSetOf<Annotation>()
-        intimatedAnnotations.forEach {
-            it.inheritedAnnotations(merged)
-        }
-        merged
-    }
+class IntimatePropertyAnnotationElement(val element: KAnnotatedElement) {
 
     companion object {
         private const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
         private const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
 
-        private val cache: ConcurrentHashMap<KAnnotatedElement, IntimateAnnotationElement> = ConcurrentHashMap()
+        private val cache: ConcurrentHashMap<KAnnotatedElement, IntimatePropertyAnnotationElement> = ConcurrentHashMap()
 
-        fun KAnnotatedElement.toIntimateAnnotationElement(): IntimateAnnotationElement {
+        fun KAnnotatedElement.toIntimateAnnotationElement(): IntimatePropertyAnnotationElement {
             return cache.computeIfAbsent(this) {
-                IntimateAnnotationElement(it)
+                IntimatePropertyAnnotationElement(it)
             }
         }
 
-        fun Annotation.flatRepeatableAnnotation(): List<Annotation> {
+        private fun Annotation.isRepeatableContainer(): Boolean {
             val containerClass = this.annotationClass.java
-            if (containerClass.simpleName == REPEATABLE_CONTAINER_SIMPLE_NAME &&
+            return containerClass.simpleName == REPEATABLE_CONTAINER_SIMPLE_NAME &&
                 containerClass.name.endsWith(REPEATABLE_CONTAINER_ENDS_WITH)
-            ) {
+        }
+
+        fun Annotation.flatRepeatableAnnotation(): List<Annotation> {
+            if (isRepeatableContainer()) {
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val value = this.annotationClass.java.getMethod("value").invoke(this) as Array<Annotation>
@@ -105,5 +73,44 @@ class IntimateAnnotationElement(
             }
             return scanned
         }
+    }
+
+    val property: KProperty<*>? = element as? KProperty<*>
+    val getter: KProperty.Getter<*>? = property?.getter
+    val setter: KMutableProperty.Setter<*>? = if (property is KMutableProperty<*>) {
+        property.setter
+    } else {
+        null
+    }
+    val javaField: Field? = property?.javaField
+    val declaringClass: KClass<*>? by lazy {
+        val function = getter?.javaMethod ?: setter?.javaMethod
+        function?.declaringClass?.kotlin ?: javaField?.declaringClass?.kotlin
+    }
+    val intimatedAnnotations: LinkedHashSet<Annotation> by lazy {
+        val annotations = linkedSetOf<Annotation>()
+        annotations.addAll(element.annotations)
+        if (getter != null) {
+            annotations.addAll(getter.annotations)
+        }
+        if (setter != null) {
+            annotations.addAll(setter.annotations)
+        }
+        if (javaField != null) {
+            annotations.addAll(javaField.annotations)
+        }
+        val merged = linkedSetOf<Annotation>()
+        annotations.forEach {
+            merged.addAll(it.flatRepeatableAnnotation())
+        }
+        merged
+    }
+
+    val inheritedAnnotations: Set<Annotation> by lazy {
+        val merged = linkedSetOf<Annotation>()
+        intimatedAnnotations.forEach {
+            it.inheritedAnnotations(merged)
+        }
+        merged
     }
 }
