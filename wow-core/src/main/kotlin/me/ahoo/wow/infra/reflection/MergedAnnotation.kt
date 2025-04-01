@@ -82,7 +82,7 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             inheritedClass().flatMap {
                 it.toIntimateAnnotationElement().inheritedAnnotations
             }.forEach { inheritedAnnotation ->
-                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
                     merged.add(inheritedAnnotation)
                 }
             }
@@ -102,7 +102,7 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             }.flatMap {
                 it.toIntimateAnnotationElement().inheritedAnnotations
             }.forEach { inheritedAnnotation ->
-                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
                     merged.add(inheritedAnnotation)
                 }
             }
@@ -144,7 +144,7 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             }.flatMap {
                 it.toIntimateAnnotationElement().inheritedAnnotations
             }.forEach { inheritedAnnotation ->
-                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                if (merged.all { it.annotationClass != inheritedAnnotation.annotationClass }) {
                     merged.add(inheritedAnnotation)
                 }
             }
