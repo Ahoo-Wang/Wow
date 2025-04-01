@@ -27,17 +27,17 @@ import kotlin.reflect.jvm.javaMethod
  * IntimateAnnotationElement.
  *
  */
-class IntimatePropertyAnnotationElement(val element: KAnnotatedElement) {
+class IntimateAnnotationElement(val element: KAnnotatedElement) {
 
     companion object {
         private const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
         private const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
 
-        private val cache: ConcurrentHashMap<KAnnotatedElement, IntimatePropertyAnnotationElement> = ConcurrentHashMap()
+        private val cache: ConcurrentHashMap<KAnnotatedElement, IntimateAnnotationElement> = ConcurrentHashMap()
 
-        fun KAnnotatedElement.toIntimateAnnotationElement(): IntimatePropertyAnnotationElement {
+        fun KAnnotatedElement.toIntimateAnnotationElement(): IntimateAnnotationElement {
             return cache.computeIfAbsent(this) {
-                IntimatePropertyAnnotationElement(it)
+                IntimateAnnotationElement(it)
             }
         }
 
