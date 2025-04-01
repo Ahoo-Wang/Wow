@@ -169,9 +169,8 @@ data class Data(
             JvmRepeatableTag("tag4")
         ]
     )
-    val jvmRepeatable2: String,
-    override val parentProperty: String,
-) : InterfaceAnnotation
+    val jvmRepeatable2: String
+)
 
 @Target(
     AnnotationTarget.FIELD,
@@ -183,8 +182,3 @@ data class Data(
 @Repeatable
 @OnMessage(FunctionKind.EVENT, "hi")
 annotation class MockAnnotation
-
-interface InterfaceAnnotation {
-    @get:MockAnnotation
-    val parentProperty: String
-}
