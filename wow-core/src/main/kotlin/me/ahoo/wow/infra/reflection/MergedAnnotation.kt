@@ -19,6 +19,8 @@ import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.declaredFunctions
+import kotlin.reflect.full.declaredMembers
 import kotlin.reflect.full.superclasses
 
 /**
@@ -36,8 +38,12 @@ class MergedAnnotation(val element: KAnnotatedElement) {
                 element.inheritedAnnotations()
             }
 
+            is KFunction<*> -> {
+                element.inheritedAnnotations()
+            }
+
             else -> {
-                element.annotations.toSet()
+                element.toIntimateAnnotationElement().inheritedAnnotations
             }
         }
     }
@@ -50,48 +56,99 @@ class MergedAnnotation(val element: KAnnotatedElement) {
             }
         }
 
-        fun KClass<*>.inheritedClass(scanned: LinkedHashSet<KClass<*>> = linkedSetOf()): Set<KClass<*>> {
+        private fun KClass<*>.inheritedClass(
+            root: KClass<*> = this,
+            scanned: LinkedHashSet<KClass<*>> = linkedSetOf()
+        ): Set<KClass<*>> {
             val existed = scanned.any { it == this }
             if (existed) {
                 return scanned
             }
-            scanned.add(this)
-            superclasses.forEach {
-                it.inheritedClass(scanned)
+            if (this != root) {
+                scanned.add(this)
+            }
+            superclasses.filter {
+                it != this && it != Any::class
+            }.forEach {
+                it.inheritedClass(root, scanned)
             }
             return scanned
         }
 
         fun KClass<*>.inheritedAnnotations(): Set<Annotation> {
+            val intimateAnnotationElement = this.toIntimateAnnotationElement()
             val merged: LinkedHashSet<Annotation> = linkedSetOf()
-            inheritedClass().forEach {
-                merged.addAll(it.annotations)
+            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
+            inheritedClass().flatMap {
+                it.toIntimateAnnotationElement().inheritedAnnotations
+            }.forEach { inheritedAnnotation ->
+                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                    merged.add(inheritedAnnotation)
+                }
             }
             return merged
         }
 
         fun KProperty<*>.inheritedAnnotations(): Set<Annotation> {
-            val intimatePropertyAnnotationElement = this.toIntimateAnnotationElement()
-            val declaringClass = intimatePropertyAnnotationElement.declaringClass
-            declaringClass ?: return intimatePropertyAnnotationElement.inheritedAnnotations
+            val intimateAnnotationElement = this.toIntimateAnnotationElement()
+            val declaringClass = intimateAnnotationElement.declaringClass
+            declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
             val merged: LinkedHashSet<Annotation> = linkedSetOf()
-            merged.addAll(intimatePropertyAnnotationElement.inheritedAnnotations)
+            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
             declaringClass.inheritedClass().flatMap {
-                it.members
+                it.declaredMembers
             }.filter {
                 it.name == this.name
             }.flatMap {
                 it.toIntimateAnnotationElement().inheritedAnnotations
-            }.forEach {
-                merged.add(it)
+            }.forEach { inheritedAnnotation ->
+                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                    merged.add(inheritedAnnotation)
+                }
             }
             return merged
         }
 
+        private fun KFunction<*>.sameSignature(other: KFunction<*>): Boolean {
+            if (this.name != other.name) {
+                return false
+            }
+            if (this.parameters.size != other.parameters.size) {
+                return false
+            }
+            if (this.parameters.size <= 1) {
+                return true
+            }
+
+            /**
+             * 遍历比较参数类型,排除第一个参数
+             */
+            for (i in 1 until this.parameters.size) {
+                if (this.parameters[i].type != other.parameters[i].type) {
+                    return false
+                }
+            }
+            return true
+        }
+
         fun KFunction<*>.inheritedAnnotations(): Set<Annotation> {
-            val intimatePropertyAnnotationElement = this.toIntimateAnnotationElement()
-            TODO()
+            val intimateAnnotationElement = this.toIntimateAnnotationElement()
+            val declaringClass = intimateAnnotationElement.declaringClass
+            declaringClass ?: return intimateAnnotationElement.inheritedAnnotations
+            val merged: LinkedHashSet<Annotation> = linkedSetOf()
+            merged.addAll(intimateAnnotationElement.inheritedAnnotations)
+            declaringClass.inheritedClass().flatMap {
+                it.declaredFunctions
+            }.filter {
+                it.sameSignature(this)
+            }.flatMap {
+                it.toIntimateAnnotationElement().inheritedAnnotations
+            }.forEach { inheritedAnnotation ->
+                if (merged.any { it.annotationClass != inheritedAnnotation.annotationClass }) {
+                    merged.add(inheritedAnnotation)
+                }
+            }
+            return merged
         }
     }
 }
-

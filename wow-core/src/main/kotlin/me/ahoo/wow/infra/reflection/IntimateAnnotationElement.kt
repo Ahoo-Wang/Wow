@@ -13,15 +13,16 @@
 
 package me.ahoo.wow.infra.reflection
 
+import me.ahoo.wow.infra.accessor.function.declaringClass
 import java.lang.reflect.Field
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.javaMethod
 
 /**
  * IntimateAnnotationElement.
@@ -83,9 +84,13 @@ class IntimateAnnotationElement(val element: KAnnotatedElement) {
         null
     }
     val javaField: Field? = property?.javaField
+    val function: KFunction<*>? = if (element is KFunction<*>) {
+        element
+    } else {
+        getter ?: setter
+    }
     val declaringClass: KClass<*>? by lazy {
-        val function = getter?.javaMethod ?: setter?.javaMethod
-        function?.declaringClass?.kotlin ?: javaField?.declaringClass?.kotlin
+        function?.declaringClass ?: javaField?.declaringClass?.kotlin
     }
     val intimatedAnnotations: LinkedHashSet<Annotation> by lazy {
         val annotations = linkedSetOf<Annotation>()
