@@ -13,88 +13,21 @@
 
 package me.ahoo.wow.infra.reflection
 
-import java.lang.annotation.Inherited
-import java.util.concurrent.ConcurrentHashMap
+import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
-import kotlin.reflect.KMutableProperty
-import kotlin.reflect.KProperty
-import kotlin.reflect.full.hasAnnotation
-import kotlin.reflect.jvm.javaField
 
+/**
+ * AnnotationScanner
+ *
+ */
 object AnnotationScanner {
-    const val REPEATABLE_CONTAINER_SIMPLE_NAME = "Container"
-    const val REPEATABLE_CONTAINER_ENDS_WITH = "${'$'}$REPEATABLE_CONTAINER_SIMPLE_NAME"
 
-    private data class AnnotationCacheKey(
-        val annotatedElement: KAnnotatedElement,
-        val annotationClass: KClass<out Annotation>
-    )
-
-    private val cache: ConcurrentHashMap<AnnotationCacheKey, List<Any>> = ConcurrentHashMap()
-
-    private fun Annotation.getRepeatableValue(): List<Annotation> {
-        val containerClass = this.annotationClass.java
-        if (containerClass.simpleName == REPEATABLE_CONTAINER_SIMPLE_NAME &&
-            containerClass.name.endsWith(REPEATABLE_CONTAINER_ENDS_WITH)
-        ) {
-            try {
-                @Suppress("UNCHECKED_CAST")
-                val value = this.annotationClass.java.getMethod("value").invoke(this) as Array<Annotation>
-                return value.toList<Annotation>()
-            } catch (ignore: Exception) {
-                // ignore
-            }
-        }
-        return listOf(this)
-    }
-
-    fun KAnnotatedElement.intimateAnnotations(): List<Annotation> {
-        val found = mutableListOf<Annotation>()
-        found.addAll(annotations)
-        if (this is KProperty<*>) {
-            found.addAll(getter.annotations)
-            if (javaField != null) {
-                found.addAll(
-                    javaField!!.annotations.flatMap {
-                        it.getRepeatableValue()
-                    }
-                )
-            }
-        }
-
-        if (this is KMutableProperty<*>) {
-            found.addAll(this.setter.annotations)
-        }
-        return found
-    }
-
-    fun Iterable<Annotation>.mergeAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
-        for (annotation in this) {
-            val existed = scanned.any { it == annotation }
-            if (!existed) {
-                scanned.add(annotation)
-                annotation.annotationClass.annotations
-                    .filter {
-                        it.annotationClass.hasAnnotation<Inherited>()
-                    }
-                    .mergeAnnotations(scanned)
-            }
-        }
-        return scanned
-    }
-
-    fun KAnnotatedElement.allAnnotations(scanned: MutableList<Annotation> = mutableListOf()): List<Annotation> {
-        return intimateAnnotations().mergeAnnotations(scanned)
-    }
-
+    @Suppress("UNCHECKED_CAST")
     fun <A : Annotation> KAnnotatedElement.scanAnnotations(annotationClass: KClass<A>): List<A> {
-        val cacheKey = AnnotationCacheKey(this, annotationClass)
-        val annotations = cache.computeIfAbsent(cacheKey) { _ ->
-            allAnnotations().filter { it.annotationClass == annotationClass }
-        }
-        @Suppress("UNCHECKED_CAST")
-        return annotations as List<A>
+        return this.toIntimateAnnotationElement()
+            .mergedAnnotations
+            .filter { it.annotationClass == annotationClass } as List<A>
     }
 
     fun <A : Annotation> KAnnotatedElement.scanAnnotation(annotationClass: KClass<A>): A? {
