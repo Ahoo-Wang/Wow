@@ -13,23 +13,62 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
+import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.dsl.condition
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchConditionConverterTest {
+    private fun assertConvert(actual: Query, expected: Query) {
+        assertThat(actual._kind(), equalTo(Query.Kind.Bool))
+        val actualDeletedQuery = actual.bool().filter().first().term()
+        assertThat(actualDeletedQuery.field(), equalTo(StateAggregateRecords.DELETED))
+        assertThat(actualDeletedQuery.value().booleanValue(), equalTo(false))
+        val actualQuery = actual.bool().filter().last()
+        val actualGen = WowJsonpMapper.createBufferingGenerator()
+        actualQuery.serialize(actualGen, WowJsonpMapper)
+        val expectedGen = WowJsonpMapper.createBufferingGenerator()
+        expected.serialize(expectedGen, WowJsonpMapper)
+        assertThat(actualGen.jsonData.toJson().toString(), equalTo(expectedGen.jsonData.toJson().toString()))
+    }
+
     @Test
     fun `all condition to Query`() {
         val query = condition { }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
+        assertThat(
+            query.toString(),
+            equalTo(
+                term {
+                    it.field(StateAggregateRecords.DELETED)
+                        .value(false)
+                }.toString()
+            )
+        )
     }
 
     @Test
@@ -41,7 +80,16 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.filter { filterBuilder ->
+                    filterBuilder.ids {
+                        it.values("1")
+                    }
+                }
+            }
+        )
     }
 
     @Test
@@ -53,8 +101,16 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
-        assertThat(query.bool().should().isNotEmpty(), equalTo(true))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.should { shouldBuilder ->
+                    shouldBuilder.ids {
+                        it.values("1")
+                    }
+                }.minimumShouldMatch("1")
+            }
+        )
     }
 
     @Test
@@ -66,8 +122,16 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
-        assertThat(query.bool().mustNot().isNotEmpty(), equalTo(true))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.mustNot { builder ->
+                    builder.ids {
+                        it.values("1")
+                    }
+                }
+            }
+        )
     }
 
     @Test
@@ -77,7 +141,12 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Ids))
+        assertConvert(
+            query,
+            ids {
+                it.values("1")
+            }
+        )
     }
 
     @Test
@@ -87,7 +156,12 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Ids))
+        assertConvert(
+            query,
+            ids {
+                it.values("1", "2")
+            }
+        )
     }
 
     @Test
@@ -97,7 +171,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field(MessageRecords.TENANT_ID)
+                    .value(FieldValue.of("1"))
+            }
+        )
     }
 
     @Test
@@ -107,7 +187,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field(MessageRecords.OWNER_ID)
+                    .value(FieldValue.of("1"))
+            }
+        )
     }
 
     @Test
@@ -117,7 +203,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field("field")
+                    .value(FieldValue.of("value"))
+            }
+        )
     }
 
     @Test
@@ -127,7 +219,17 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.mustNot { builder ->
+                    builder.term {
+                        it.field("field")
+                            .value(FieldValue.of("value"))
+                    }
+                }
+            }
+        )
     }
 
     @Test
@@ -137,7 +239,15 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertConvert(
+            query,
+            range {
+                it.untyped {
+                    it.field("field")
+                        .gt(JsonData.of("value"))
+                }
+            }
+        )
     }
 
     @Test
@@ -147,7 +257,15 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertConvert(
+            query,
+            range {
+                it.untyped {
+                    it.field("field")
+                        .gte(JsonData.of("value"))
+                }
+            }
+        )
     }
 
     @Test
@@ -157,7 +275,15 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertConvert(
+            query,
+            range {
+                it.untyped {
+                    it.field("field")
+                        .lt(JsonData.of("value"))
+                }
+            }
+        )
     }
 
     @Test
@@ -167,7 +293,15 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertConvert(
+            query,
+            range {
+                it.untyped {
+                    it.field("field")
+                        .lte(JsonData.of("value"))
+                }
+            }
+        )
     }
 
     @Test
@@ -177,7 +311,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.MatchPhrase))
+        assertConvert(
+            query,
+            matchPhrase {
+                it.field("field")
+                    .query("value")
+            }
+        )
     }
 
     @Test
@@ -187,7 +327,17 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Terms))
+        assertConvert(
+            query,
+            terms {
+                it.field("field")
+                    .terms { builder ->
+                        listOf("value").map {
+                            FieldValue.of(it)
+                        }.toList().let { builder.value(it) }
+                    }
+            }
+        )
     }
 
     @Test
@@ -197,6 +347,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
+
         assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
@@ -207,7 +358,16 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertConvert(
+            query,
+            range {
+                it.untyped {
+                    it.field("field")
+                        .gte(JsonData.of(1))
+                        .lte(JsonData.of(2))
+                }
+            }
+        )
     }
 
     @Test
@@ -237,7 +397,14 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.TermsSet))
+        assertConvert(
+            query,
+            termsSet { builder ->
+                builder.field("field")
+                    .terms(listOf("value1", "value2"))
+                    .minimumShouldMatch("2")
+            }
+        )
     }
 
     @Test
@@ -247,7 +414,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Prefix))
+        assertConvert(
+            query,
+            prefix {
+                it.field("field")
+                    .value("value")
+            }
+        )
     }
 
     @Test
@@ -257,7 +430,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Wildcard))
+        assertConvert(
+            query,
+            wildcard {
+                it.field("field")
+                    .value("*value")
+            }
+        )
     }
 
     @Test
@@ -269,7 +448,22 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Nested))
+        assertConvert(
+            query,
+            nested {
+                it.path("field")
+                    .query(
+                        bool { builder ->
+                            builder.filter {
+                                it.term {
+                                    it.field("subField")
+                                        .value("value")
+                                }
+                            }
+                        }
+                    )
+            }
+        )
     }
 
     @Test
@@ -279,7 +473,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field("field")
+                    .value(FieldValue.NULL)
+            }
+        )
     }
 
     @Test
@@ -289,7 +489,17 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.mustNot { builder ->
+                    builder.term {
+                        it.field("field")
+                            .value(FieldValue.NULL)
+                    }
+                }
+            }
+        )
     }
 
     @Test
@@ -299,7 +509,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field("field")
+                    .value(FieldValue.TRUE)
+            }
+        )
     }
 
     @Test
@@ -309,7 +525,13 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertConvert(
+            query,
+            term {
+                it.field("field")
+                    .value(FieldValue.FALSE)
+            }
+        )
     }
 
     @Test
@@ -319,7 +541,12 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Exists))
+        assertConvert(
+            query,
+            exists {
+                it.field("field")
+            }
+        )
     }
 
     @Test
@@ -329,7 +556,16 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        assertConvert(
+            query,
+            bool { boolBuilder ->
+                boolBuilder.mustNot { builder ->
+                    builder.exists {
+                        it.field("field")
+                    }
+                }
+            }
+        )
     }
 
     @Test
@@ -339,7 +575,29 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Term))
+        assertThat(query.term().field(), equalTo(StateAggregateRecords.DELETED))
+        assertThat(query.term().value().booleanValue(), equalTo(true))
+    }
+
+    @Test
+    fun `not deleted condition to Query`() {
+        val query = condition {
+            deleted(false)
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertThat(query.term().field(), equalTo(StateAggregateRecords.DELETED))
+        assertThat(query.term().value().booleanValue(), equalTo(false))
+    }
+
+    @Test
+    fun `deleted condition to Query By ALL`() {
+        val query = condition {
+            deleted(DeletionState.ALL)
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
     }
 
     @Test
@@ -349,7 +607,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Range))
+        assertThat(query._kind(), equalTo(Query.Kind.Bool))
     }
 
     @Test
@@ -360,7 +618,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query, equalTo(rawQuery))
+        assertConvert(query, rawQuery)
     }
 
     @Test
@@ -370,7 +628,12 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
+        assertConvert(
+            query,
+            matchAll {
+                it
+            }
+        )
     }
 
     @Test
@@ -380,6 +643,11 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
+        assertConvert(
+            query,
+            matchAll {
+                it
+            }
+        )
     }
 }

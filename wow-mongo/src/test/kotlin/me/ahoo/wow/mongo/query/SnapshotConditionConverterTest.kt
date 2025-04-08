@@ -11,9 +11,10 @@ import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
 import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -27,7 +28,15 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.stream.Stream
 
-class MongoConverterTest {
+class SnapshotConditionConverterTest {
+
+    private fun assertConvert(actual: Bson, expected: Bson) {
+        val deletionBson = Filters.and(
+            Filters.eq(StateAggregateRecords.DELETED, false),
+            expected
+        )
+        assertThat(actual.toBsonDocument(), equalTo(deletionBson.toBsonDocument()))
+    }
 
     @Test
     fun toMongoFilterBetweenError() {
@@ -84,7 +93,7 @@ class MongoConverterTest {
             Filters.gte("field", OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()),
             Filters.lte("field", OffsetDateTime.now().with(LocalTime.MAX).toInstant().toEpochMilli())
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -100,7 +109,7 @@ class MongoConverterTest {
             Filters.gte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MIN).toInstant().toEpochMilli()),
             Filters.lte("field", OffsetDateTime.now(ZoneOffset.UTC).with(LocalTime.MAX).toInstant().toEpochMilli())
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -112,7 +121,7 @@ class MongoConverterTest {
             "field",
             OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -124,7 +133,7 @@ class MongoConverterTest {
             "field",
             OffsetDateTime.now().with(LocalTime.NOON).toInstant().toEpochMilli()
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -136,7 +145,7 @@ class MongoConverterTest {
             "field",
             OffsetDateTime.now().with(LocalTime.MIN).toInstant().toEpochMilli()
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -172,7 +181,7 @@ class MongoConverterTest {
                 OffsetDateTime.now().plusDays(1).with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -191,7 +200,7 @@ class MongoConverterTest {
                 dateTimeFormatter.format(OffsetDateTime.now().plusDays(1).with(LocalTime.MAX))
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -211,7 +220,7 @@ class MongoConverterTest {
                     .toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -231,7 +240,7 @@ class MongoConverterTest {
                     .with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -251,7 +260,7 @@ class MongoConverterTest {
                     .with(LocalTime.MAX).toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -270,7 +279,7 @@ class MongoConverterTest {
                     .toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -290,7 +299,7 @@ class MongoConverterTest {
                     .toInstant().toEpochMilli()
             )
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -305,7 +314,7 @@ class MongoConverterTest {
             ),
             Filters.lte("field", OffsetDateTime.now().with(LocalTime.MAX).toInstant().toEpochMilli())
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -317,7 +326,7 @@ class MongoConverterTest {
             "field",
             OffsetDateTime.now().minusDays(1).with(LocalTime.MIN).toInstant().toEpochMilli()
         )
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -326,7 +335,7 @@ class MongoConverterTest {
         val actual = Condition.raw(expected).let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -335,7 +344,7 @@ class MongoConverterTest {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
         val expected = Filters.eq("id", "id").toBsonDocument()
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @Test
@@ -343,8 +352,9 @@ class MongoConverterTest {
         val actual = Condition.raw(mapOf("id" to "id")).let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
+
         val expected = Filters.eq("id", "id").toBsonDocument()
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     data class RawObj(val id: String)
@@ -355,7 +365,7 @@ class MongoConverterTest {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
         val expected = Filters.eq("id", "id").toBsonDocument()
-        assertThat(actual, equalTo(expected))
+        assertConvert(actual, expected)
     }
 
     @ParameterizedTest
@@ -364,7 +374,11 @@ class MongoConverterTest {
         val actual = condition.let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
-        assertThat(actual, equalTo(expected.toBsonDocument()))
+        if (condition.operator == Operator.DELETED) {
+            assertThat(actual, equalTo(expected.toBsonDocument()))
+        } else {
+            assertConvert(actual, expected)
+        }
     }
 
     @ParameterizedTest

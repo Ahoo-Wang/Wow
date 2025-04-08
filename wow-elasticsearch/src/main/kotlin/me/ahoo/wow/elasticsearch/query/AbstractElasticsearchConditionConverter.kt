@@ -103,7 +103,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         return range {
             it.untyped {
                 it.field(condition.field)
-                    .gte(JsonData.of(condition.value))
+                    .gt(JsonData.of(condition.value))
             }
         }
     }
@@ -112,7 +112,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         return range {
             it.untyped {
                 it.field(condition.field)
-                    .lte(JsonData.of(condition.value))
+                    .lt(JsonData.of(condition.value))
             }
         }
     }
