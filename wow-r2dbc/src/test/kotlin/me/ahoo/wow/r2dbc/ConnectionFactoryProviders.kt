@@ -12,15 +12,14 @@
  */
 package me.ahoo.wow.r2dbc
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.r2dbc.proxy.ProxyConnectionFactory
 import io.r2dbc.proxy.support.QueryExecutionInfoFormatter
 import io.r2dbc.spi.ConnectionFactories
 import io.r2dbc.spi.ConnectionFactory
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 object ConnectionFactoryProviders {
-    private val log: Logger = LoggerFactory.getLogger(ConnectionFactoryProviders::class.java)
+    private val log = KotlinLogging.logger { }
 
     @JvmOverloads
     fun create(poolSize: Int = 32): ConnectionFactory {
@@ -31,8 +30,8 @@ object ConnectionFactoryProviders {
         val formatter = QueryExecutionInfoFormatter.showAll()
         return ProxyConnectionFactory.builder(connectionFactory)
             .onAfterQuery { execInfo ->
-                if (log.isDebugEnabled) {
-                    log.debug(formatter.format(execInfo))
+                log.debug {
+                    formatter.format(execInfo)
                 }
             }
             .build()

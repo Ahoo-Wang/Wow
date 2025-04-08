@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.server.scheduler
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.simba.core.MutexContendServiceFactory
 import me.ahoo.simba.schedule.AbstractScheduler
 import me.ahoo.simba.schedule.ScheduleConfig
@@ -20,7 +21,6 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.domain.FindNextRetry
-import org.slf4j.LoggerFactory
 import org.springframework.context.SmartLifecycle
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
@@ -39,21 +39,15 @@ class CompensationScheduler(
     ),
     SmartLifecycle {
     companion object {
-        private val log = LoggerFactory.getLogger(CompensationScheduler::class.java)
+        private val log = KotlinLogging.logger { }
         const val WORKER_NAME = "CompensationScheduler"
     }
 
     fun retry(limit: Int = 100): Mono<Long> {
         return findNextRetry.findNextRetry(limit)
             .flatMap {
-                if (log.isDebugEnabled) {
-                    log.debug(
-                        "retry - ExecutionFailed[{}] - {} - {} - {}",
-                        it.id,
-                        it.retryState,
-                        it.eventId,
-                        it.function
-                    )
+                log.debug {
+                    "retry - ExecutionFailed[${it.id}] - ${it.retryState} - ${it.eventId} - ${it.function}"
                 }
                 val commandMessage = PrepareCompensation(it.id).toCommandMessage()
                 commandGateway.send(commandMessage).thenReturn(commandMessage)
@@ -67,13 +61,13 @@ class CompensationScheduler(
         get() = WORKER_NAME
 
     override fun work() {
-        if (log.isInfoEnabled) {
-            log.info("Start retry - batchSize:[{}].", schedulerProperties.batchSize)
+        log.info {
+            "Start retry - batchSize:[${schedulerProperties.batchSize}]."
         }
         val count = retry(schedulerProperties.batchSize)
             .block()
-        if (log.isInfoEnabled) {
-            log.info("Complete retry - batchSize:[{}] - count:[{}].", schedulerProperties.batchSize, count)
+        log.info {
+            "Complete retry - batchSize:[${schedulerProperties.batchSize}] - count:[${count}]."
         }
     }
 

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.filter
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 
 fun interface Handler<T> {
@@ -26,26 +26,22 @@ fun interface ErrorHandler<T> {
 
 class LogErrorHandler<T> : ErrorHandler<T> {
     companion object {
-        private val log = LoggerFactory.getLogger(LogErrorHandler::class.java)
+        private val log = KotlinLogging.logger { }
     }
 
     override fun handle(context: T, throwable: Throwable): Mono<Void> {
-        if (log.isErrorEnabled) {
-            log.error(throwable.message, throwable)
-        }
+        log.error(throwable) { throwable.message }
         return Mono.error(throwable)
     }
 }
 
 class LogResumeErrorHandler<T> : ErrorHandler<T> {
     companion object {
-        private val log = LoggerFactory.getLogger(LogResumeErrorHandler::class.java)
+        private val log = KotlinLogging.logger { }
     }
 
     override fun handle(context: T, throwable: Throwable): Mono<Void> {
-        if (log.isErrorEnabled) {
-            log.error(throwable.message, throwable)
-        }
+        log.error(throwable) { throwable.message }
         return Mono.empty()
     }
 }

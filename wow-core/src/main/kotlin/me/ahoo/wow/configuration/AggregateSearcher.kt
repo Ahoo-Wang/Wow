@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.configuration
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
-import org.slf4j.LoggerFactory
 
-private val log = LoggerFactory.getLogger(AggregateSearcher::class.java)
+private val log = KotlinLogging.logger("me.ahoo.wow.configuration.AggregateSearcher")
 
 interface AggregateSearcher
 
@@ -53,11 +53,8 @@ fun WowMetadata.toTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
                         val aggregateType = Class.forName(aggregateEntry.value.type)
                         put(aggregateType, MaterializedNamedAggregate(contextName, aggregateName))
                     } catch (e: ClassNotFoundException) {
-                        if (log.isWarnEnabled) {
-                            log.warn(
-                                "Aggregate type[$aggregateTypeName] not found at current runtime, ignore the aggregate.",
-                                e,
-                            )
+                        log.warn(e) {
+                            "Aggregate type[$aggregateTypeName] not found at current runtime, ignore the aggregate."
                         }
                     }
                 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.server.webhook.weixin
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.api.annotation.OnStateEvent
 import me.ahoo.wow.api.annotation.Retry
@@ -39,7 +40,7 @@ class WeiXinWebHook(
     private val weiXinBotApi: WeiXinBotApi
 ) {
     companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(WeiXinWebHook::class.java)
+        private val log = KotlinLogging.logger {  }
     }
 
     @Retry(false)
@@ -90,8 +91,8 @@ class WeiXinWebHook(
     private fun sendMessage(event: DomainEvent<*>, state: ReadOnlyStateAggregate<IExecutionFailedState>): Mono<Void> {
         val currentEvent = event.name.toHookEvent()
         if (!hookProperties.events.contains(currentEvent)) {
-            if (log.isInfoEnabled) {
-                log.info("Skip send message. event: $currentEvent")
+            log.info {
+                "Skip send message. event: $currentEvent"
             }
             return Mono.empty()
         }
@@ -103,8 +104,8 @@ class WeiXinWebHook(
         return weiXinBotApi.sendMessage(sendMessage)
             .flatMap { result ->
                 if (!result.isSuccess()) {
-                    if (log.isErrorEnabled) {
-                        log.error("Send message failed. result: $result")
+                    log.error {
+                        "Send message failed. result: $result"
                     }
                 }
                 Mono.empty()

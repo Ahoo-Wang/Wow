@@ -13,16 +13,14 @@
 
 package me.ahoo.wow.messaging.function
 
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 
 object LogResumeErrorMessageHandler {
-    private val log = LoggerFactory.getLogger(LogResumeErrorMessageHandler::class.java)
+    private val log = KotlinLogging.logger { }
     fun <T : Any> handle(handled: Mono<T>): Mono<T> {
         return handled.onErrorResume {
-            if (log.isErrorEnabled) {
-                log.error(it.message, it)
-            }
+            log.error(it) { it.message }
             Mono.empty()
         }
     }

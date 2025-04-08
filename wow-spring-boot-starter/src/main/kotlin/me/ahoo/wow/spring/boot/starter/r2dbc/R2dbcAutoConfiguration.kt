@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.r2dbc
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.r2dbc.proxy.ProxyConnectionFactory
 import io.r2dbc.proxy.support.QueryExecutionInfoFormatter
 import io.r2dbc.spi.ConnectionFactories
@@ -21,15 +22,12 @@ import me.ahoo.wow.r2dbc.R2dbcEventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.r2dbc.eventstore.R2dbcEventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.r2dbc.snapshot.R2dbcSnapshotAutoConfiguration
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 
-val r2dbcQueryLogger: Logger = LoggerFactory.getLogger("me.ahoo.wow.r2dbc.R2dbcQueryLogger")
-
+val r2dbcQueryLogger = KotlinLogging.logger("me.ahoo.wow.r2dbc.R2dbcQueryLogger")
 internal fun createConnectionFactory(databaseAlias: String, url: String): ConnectionFactory {
     // Very important: https://github.com/r2dbc/r2dbc-pool/issues/129
     val connectionFactory = ConnectionFactories.get(
@@ -38,9 +36,7 @@ internal fun createConnectionFactory(databaseAlias: String, url: String): Connec
     val formatter = QueryExecutionInfoFormatter.showAll()
     return ProxyConnectionFactory.builder(connectionFactory)
         .onAfterQuery { execInfo ->
-            if (r2dbcQueryLogger.isDebugEnabled) {
-                r2dbcQueryLogger.debug("[$databaseAlias] ${formatter.format(execInfo)}")
-            }
+            r2dbcQueryLogger.debug { "[$databaseAlias] ${formatter.format(execInfo)}" }
         }
         .build()
 }

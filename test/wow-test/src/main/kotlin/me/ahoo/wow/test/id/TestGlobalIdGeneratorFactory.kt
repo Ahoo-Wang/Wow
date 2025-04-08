@@ -13,26 +13,26 @@
 
 package me.ahoo.wow.test.id
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.id.GlobalIdGeneratorFactory
-import org.slf4j.LoggerFactory
 
 @Order(ORDER_LAST)
 class TestGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
     companion object {
-        private val log = LoggerFactory.getLogger(TestGlobalIdGeneratorFactory::class.java)
+        private val log = KotlinLogging.logger { }
         private const val TEST_MACHINE_ID: Int = 1048575
     }
 
     override fun create(): CosIdGenerator {
         val idGenerator = Radix62CosIdGenerator(TEST_MACHINE_ID)
         val clockSyncCosIdGenerator = ClockSyncCosIdGenerator(idGenerator)
-        if (log.isInfoEnabled) {
-            log.info("Create - [$clockSyncCosIdGenerator].")
+        log.info {
+            "Create - [$clockSyncCosIdGenerator]."
         }
         return clockSyncCosIdGenerator
     }

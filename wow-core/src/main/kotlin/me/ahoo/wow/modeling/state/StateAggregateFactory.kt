@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.state
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
@@ -21,8 +22,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
 /**
@@ -41,7 +40,7 @@ interface StateAggregateFactory {
 }
 
 object ConstructorStateAggregateFactory : StateAggregateFactory {
-    private val log: Logger = LoggerFactory.getLogger(ConstructorStateAggregateFactory::class.java)
+    private val log = KotlinLogging.logger { }
 
     override fun <S : Any> create(
         metadata: StateAggregateMetadata<S>,
@@ -69,8 +68,8 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         eventTime: Long = 0,
         deleted: Boolean = false
     ): StateAggregate<S> {
-        if (log.isDebugEnabled) {
-            log.debug("Create {}.", aggregateId)
+        log.debug {
+            "Create $aggregateId."
         }
         val stateAggregate = SimpleStateAggregate(
             aggregateId = aggregateId,

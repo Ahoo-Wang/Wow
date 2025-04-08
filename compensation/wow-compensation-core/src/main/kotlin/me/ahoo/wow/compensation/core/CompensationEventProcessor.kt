@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.core
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
@@ -21,7 +22,6 @@ import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
-import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
 @EventProcessor
@@ -29,7 +29,7 @@ class CompensationEventProcessor(
     private val eventCompensateSupporter: EventCompensateSupporter
 ) {
     companion object {
-        private val log = LoggerFactory.getLogger(CompensationEventProcessor::class.java)
+        private val log = KotlinLogging.logger { }
     }
 
     @Retry(enabled = false)
@@ -37,12 +37,8 @@ class CompensationEventProcessor(
     fun onCompensationPrepared(compensationPrepared: CompensationPrepared, aggregateId: AggregateId): Mono<Void> {
         val isLocal = compensationPrepared.eventId.aggregateId.isLocal()
         if (!isLocal) {
-            if (log.isDebugEnabled) {
-                log.debug(
-                    "Skip compensationPrepared[Not Local Aggregate]:[{}] for aggregateId:[{}].",
-                    compensationPrepared,
-                    aggregateId
-                )
+            log.debug {
+                "Skip compensationPrepared[Not Local Aggregate]:[$compensationPrepared] for aggregateId:[$aggregateId]."
             }
             return Mono.empty()
         }
