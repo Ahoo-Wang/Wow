@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
@@ -24,25 +25,26 @@ import org.bson.Document
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
+
     override fun and(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "AND operator children cannot be empty."
         }
-        return Filters.and(condition.children.map { convert(it) })
+        return Filters.and(condition.children.map { internalConvert(it) })
     }
 
     override fun or(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "OR operator children cannot be empty."
         }
-        return Filters.or(condition.children.map { convert(it) })
+        return Filters.or(condition.children.map { internalConvert(it) })
     }
 
     override fun nor(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {
             "NOR operator children cannot be empty."
         }
-        return Filters.nor(condition.children.map { convert(it) })
+        return Filters.nor(condition.children.map { internalConvert(it) })
     }
 
     override fun id(condition: Condition): Bson {
@@ -157,7 +159,7 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
     override fun elemMatch(condition: Condition): Bson {
         return Filters.elemMatch(
             condition.field,
-            condition.children.first().let { convert(it) }
+            condition.children.first().let { internalConvert(it) }
         )
     }
 
@@ -182,7 +184,19 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
     }
 
     override fun deleted(condition: Condition): Bson {
-        return Filters.eq(StateAggregateRecords.DELETED, condition.value)
+        return when (condition.deletionState()) {
+            DeletionState.ACTIVE -> {
+                Filters.eq(StateAggregateRecords.DELETED, false)
+            }
+
+            DeletionState.DELETED -> {
+                Filters.eq(StateAggregateRecords.DELETED, true)
+            }
+
+            DeletionState.ALL -> {
+                Filters.empty()
+            }
+        }
     }
 
     override fun raw(condition: Condition): Bson {

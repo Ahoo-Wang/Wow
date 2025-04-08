@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("NoWildcardImports")
-
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
@@ -31,6 +29,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.query.converter.AbstractConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -40,20 +39,20 @@ import java.io.StringReader
 abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
     override fun and(condition: Condition): Query {
         return bool { builder ->
-            builder.filter(condition.children.map { convert(it) })
+            builder.filter(condition.children.map { internalConvert(it) })
         }
     }
 
     override fun or(condition: Condition): Query {
         return bool { builder ->
-            builder.should(condition.children.map { convert(it) })
+            builder.should(condition.children.map { internalConvert(it) })
                 .minimumShouldMatch("1")
         }
     }
 
     override fun nor(condition: Condition): Query {
         return bool { builder ->
-            builder.mustNot(condition.children.map { convert(it) })
+            builder.mustNot(condition.children.map { internalConvert(it) })
         }
     }
 
@@ -208,7 +207,7 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
             it.path(condition.field)
                 .query(
                     bool { builder ->
-                        builder.filter(condition.children.map { convert(it) })
+                        builder.filter(condition.children.map { internalConvert(it) })
                     }
                 )
         }
@@ -255,9 +254,26 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun deleted(condition: Condition): Query {
-        return term {
-            it.field(StateAggregateRecords.DELETED)
-                .value(FieldValue.of(condition.value))
+        return when (condition.deletionState()) {
+            DeletionState.ACTIVE -> {
+                term {
+                    it.field(StateAggregateRecords.DELETED)
+                        .value(false)
+                }
+            }
+
+            DeletionState.DELETED -> {
+                term {
+                    it.field(StateAggregateRecords.DELETED)
+                        .value(true)
+                }
+            }
+
+            DeletionState.ALL -> {
+                matchAll {
+                    it
+                }
+            }
         }
     }
 

@@ -20,6 +20,9 @@ import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 
 object EventStreamConditionConverter : AbstractMongoConditionConverter() {
+
+    override fun convert(condition: Condition): Bson = internalConvert(condition)
+
     override fun aggregateId(condition: Condition): Bson {
         return Filters.eq(MessageRecords.AGGREGATE_ID, condition.value)
     }

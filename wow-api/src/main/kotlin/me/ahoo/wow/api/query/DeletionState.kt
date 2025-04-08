@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.converter
+package me.ahoo.wow.api.query
 
-import me.ahoo.wow.api.query.Condition
-
-interface ConditionConverter<T> {
-
-    fun convert(condition: Condition): T
+enum class DeletionState {
+    ACTIVE,
+    DELETED,
+    ALL
 }

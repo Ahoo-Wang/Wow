@@ -30,7 +30,6 @@ interface SnapshotQueryFilter : QueryFilter<QueryContext<*, *>>
 
 @Order(ORDER_LAST)
 @FilterType(SnapshotQueryHandler::class)
-@Suppress("UNCHECKED_CAST")
 class TailSnapshotQueryFilter<S : Any>(private val queryServiceFactory: SnapshotQueryServiceFactory) :
     SnapshotQueryFilter {
     override fun filter(

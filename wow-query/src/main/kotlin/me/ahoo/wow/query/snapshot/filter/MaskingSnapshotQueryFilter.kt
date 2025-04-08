@@ -26,7 +26,6 @@ import me.ahoo.wow.query.mask.StateDynamicDocumentMasker
 import me.ahoo.wow.query.mask.tryMask
 import reactor.core.publisher.Mono
 
-@Suppress("UNCHECKED_CAST")
 @Order(ORDER_LAST, before = [TailSnapshotQueryFilter::class])
 @FilterType(SnapshotQueryHandler::class)
 class MaskingSnapshotQueryFilter(maskerRegistry: StateDataMaskerRegistry) : SnapshotQueryFilter,

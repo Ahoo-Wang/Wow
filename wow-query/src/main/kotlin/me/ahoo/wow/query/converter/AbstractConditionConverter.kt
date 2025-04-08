@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -22,6 +23,103 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
+    override fun convert(condition: Condition): T {
+        val convertedCondition = when (condition.operator) {
+            Operator.ALL -> Condition.ACTIVE
+            Operator.DELETED -> condition
+            Operator.AND -> {
+                if (!condition.children.any { it.operator == Operator.DELETED }) {
+                    Condition.ACTIVE.appendCondition(condition)
+                } else {
+                    condition
+                }
+            }
+
+            else -> {
+                Condition.ACTIVE.appendCondition(condition)
+            }
+        }
+        return internalConvert(convertedCondition)
+    }
+
+    @Suppress("CyclomaticComplexMethod")
+    protected fun internalConvert(condition: Condition): T {
+        return when (condition.operator) {
+            Operator.AND -> and(condition)
+            Operator.OR -> or(condition)
+            Operator.NOR -> nor(condition)
+            Operator.ID -> id(condition)
+            Operator.IDS -> ids(condition)
+            Operator.AGGREGATE_ID -> aggregateId(condition)
+            Operator.AGGREGATE_IDS -> aggregateIds(condition)
+            Operator.TENANT_ID -> tenantId(condition)
+            Operator.OWNER_ID -> ownerId(condition)
+            Operator.ALL -> all(condition)
+            Operator.EQ -> eq(condition)
+            Operator.NE -> ne(condition)
+            Operator.GT -> gt(condition)
+            Operator.LT -> lt(condition)
+            Operator.GTE -> gte(condition)
+            Operator.LTE -> lte(condition)
+            Operator.CONTAINS -> contains(condition)
+            Operator.IN -> isIn(condition)
+            Operator.NOT_IN -> notIn(condition)
+            Operator.BETWEEN -> between(condition)
+            Operator.ALL_IN -> allIn(condition)
+            Operator.STARTS_WITH -> startsWith(condition)
+            Operator.ENDS_WITH -> endsWith(condition)
+            Operator.ELEM_MATCH -> elemMatch(condition)
+            Operator.NULL -> isNull(condition)
+            Operator.NOT_NULL -> notNull(condition)
+            Operator.TRUE -> isTrue(condition)
+            Operator.FALSE -> isFalse(condition)
+            Operator.EXISTS -> exists(condition)
+            Operator.DELETED -> deleted(condition)
+            Operator.TODAY -> today(condition)
+            Operator.BEFORE_TODAY -> beforeToday(condition)
+            Operator.TOMORROW -> tomorrow(condition)
+            Operator.THIS_WEEK -> thisWeek(condition)
+            Operator.NEXT_WEEK -> nextWeek(condition)
+            Operator.LAST_WEEK -> lastWeek(condition)
+            Operator.THIS_MONTH -> thisMonth(condition)
+            Operator.LAST_MONTH -> lastMonth(condition)
+            Operator.RECENT_DAYS -> recentDays(condition)
+            Operator.EARLIER_DAYS -> earlierDays(condition)
+            Operator.RAW -> raw(condition)
+        }
+    }
+
+    abstract fun and(condition: Condition): T
+    abstract fun or(condition: Condition): T
+    abstract fun nor(condition: Condition): T
+    abstract fun id(condition: Condition): T
+    abstract fun aggregateId(condition: Condition): T
+    abstract fun aggregateIds(condition: Condition): T
+    abstract fun ids(condition: Condition): T
+    abstract fun tenantId(condition: Condition): T
+    abstract fun ownerId(condition: Condition): T
+    abstract fun all(condition: Condition): T
+    abstract fun eq(condition: Condition): T
+    abstract fun ne(condition: Condition): T
+    abstract fun gt(condition: Condition): T
+    abstract fun lt(condition: Condition): T
+    abstract fun gte(condition: Condition): T
+    abstract fun lte(condition: Condition): T
+    abstract fun contains(condition: Condition): T
+    abstract fun isIn(condition: Condition): T
+    abstract fun notIn(condition: Condition): T
+    abstract fun between(condition: Condition): T
+    abstract fun allIn(condition: Condition): T
+    abstract fun startsWith(condition: Condition): T
+    abstract fun endsWith(condition: Condition): T
+    abstract fun elemMatch(condition: Condition): T
+    abstract fun isNull(condition: Condition): T
+    abstract fun notNull(condition: Condition): T
+    abstract fun isTrue(condition: Condition): T
+    abstract fun isFalse(condition: Condition): T
+    abstract fun exists(condition: Condition): T
+    abstract fun deleted(condition: Condition): T
+    abstract fun raw(condition: Condition): T
 
     private fun now(condition: Condition): OffsetDateTime {
         val zoneId = condition.zoneId() ?: ZoneId.systemDefault()
@@ -36,7 +134,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         }
     }
 
-    override fun today(condition: Condition): T {
+    protected fun today(condition: Condition): T {
         val now = now(condition)
         val startOfDay = now.with(LocalTime.MIN)
         val endOfDay = now.with(LocalTime.MAX)
@@ -48,7 +146,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun beforeToday(condition: Condition): T {
+    protected fun beforeToday(condition: Condition): T {
         val time = when (val conditionValue = condition.value) {
             is Number -> LocalTime.ofSecondOfDay(conditionValue.toLong())
             is String -> LocalTime.parse(conditionValue)
@@ -63,7 +161,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         return lt(ltCondition)
     }
 
-    override fun tomorrow(condition: Condition): T {
+    protected fun tomorrow(condition: Condition): T {
         val now = now(condition)
         val startOfTomorrow = now.plusDays(1).with(LocalTime.MIN)
         val endOfTomorrow = now.plusDays(1).with(LocalTime.MAX)
@@ -75,7 +173,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun thisWeek(condition: Condition): T {
+    protected fun thisWeek(condition: Condition): T {
         val now = now(condition)
         val startOfWeek =
             now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).with(LocalTime.MIN)
@@ -88,7 +186,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun nextWeek(condition: Condition): T {
+    protected fun nextWeek(condition: Condition): T {
         val now = now(condition)
         val startOfNextWeek = now.plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .with(LocalTime.MIN)
@@ -101,7 +199,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun lastWeek(condition: Condition): T {
+    protected fun lastWeek(condition: Condition): T {
         val now = now(condition)
         val startOfLastWeek = now.minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .with(LocalTime.MIN)
@@ -114,7 +212,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun thisMonth(condition: Condition): T {
+    protected fun thisMonth(condition: Condition): T {
         val now = now(condition)
         val startOfMonth = now.withDayOfMonth(1).with(LocalTime.MIN)
         val endOfMonth = now.with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
@@ -126,7 +224,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun lastMonth(condition: Condition): T {
+    protected fun lastMonth(condition: Condition): T {
         val now = now(condition)
         val startOfLastMonth = now.minusMonths(1).withDayOfMonth(1).with(LocalTime.MIN)
         val endOfLastMonth = now.minusMonths(1).with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX)
@@ -138,7 +236,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun recentDays(condition: Condition): T {
+    protected fun recentDays(condition: Condition): T {
         val now = now(condition)
         val days = condition.value as Number
         val startOfRecentDays = now.minusDays(days.toLong() - 1).with(LocalTime.MIN)
@@ -151,7 +249,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         )
     }
 
-    override fun earlierDays(condition: Condition): T {
+    protected fun earlierDays(condition: Condition): T {
         val now = now(condition)
         val days = condition.value as Number
         val endOfEarlierDays = now.minusDays(days.toLong() - 1).with(LocalTime.MIN)
@@ -160,7 +258,12 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         return lt(ltCondition)
     }
 
-    fun timeRange(field: String, from: OffsetDateTime, to: OffsetDateTime, datePattern: DateTimeFormatter? = null): T {
+    protected fun timeRange(
+        field: String,
+        from: OffsetDateTime,
+        to: OffsetDateTime,
+        datePattern: DateTimeFormatter? = null
+    ): T {
         val fromDate: Any = toDate(from, datePattern)
         val toDate: Any = toDate(to, datePattern)
         val betweenCondition = Condition.between(field, fromDate, toDate)
