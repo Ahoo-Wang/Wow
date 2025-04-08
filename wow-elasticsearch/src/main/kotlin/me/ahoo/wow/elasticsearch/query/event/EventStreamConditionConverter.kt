@@ -22,6 +22,7 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 
 object EventStreamConditionConverter : AbstractElasticsearchConditionConverter() {
+    override fun convert(condition: Condition): Query = internalConvert(condition)
     override fun aggregateId(condition: Condition): Query {
         return term {
             it.field(MessageRecords.AGGREGATE_ID)

@@ -42,6 +42,22 @@ data class Condition(
         return and(this, append)
     }
 
+    fun deletionState(): DeletionState {
+        require(operator == Operator.DELETED) {
+            "Operator must be DELETED, but was $operator."
+        }
+        if (value is DeletionState) {
+            return value
+        }
+        if (value is Boolean) {
+            return if (value) DeletionState.DELETED else DeletionState.ACTIVE
+        }
+        require(value is String) {
+            "Value must be String, Boolean, or DeletionState, but was ${value::class.simpleName}."
+        }
+        return DeletionState.valueOf(value.uppercase())
+    }
+
     fun ignoreCase(): Boolean? {
         return options[IGNORE_CASE_OPTION_KEY] as? Boolean
     }
@@ -67,7 +83,7 @@ data class Condition(
     companion object {
         const val EMPTY_VALUE = ""
         val ALL = Condition(field = EMPTY_VALUE, operator = Operator.ALL, value = EMPTY_VALUE)
-
+        val ACTIVE = deleted(DeletionState.ACTIVE)
         const val IGNORE_CASE_OPTION_KEY = "ignoreCase"
         const val ZONE_ID_OPTION_KEY = "zoneId"
         const val DATE_PATTERN_OPTION_KEY = "datePattern"
@@ -126,7 +142,16 @@ data class Condition(
         fun aggregateIds(vararg value: String) = aggregateIds(value.asList())
         fun tenantId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.TENANT_ID, value = value)
         fun ownerId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.OWNER_ID, value = value)
-        fun deleted(value: Boolean) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
+        fun deleted(value: Boolean): Condition {
+            val deletionState = if (value) {
+                DeletionState.ACTIVE
+            } else {
+                DeletionState.DELETED
+            }
+            return deleted(deletionState)
+        }
+
+        fun deleted(value: DeletionState) = Condition(field = EMPTY_VALUE, operator = Operator.DELETED, value = value)
         fun today(field: String, datePattern: Any? = null) =
             Condition(field = field, operator = Operator.TODAY, options = datePatternOptions(datePattern))
 
