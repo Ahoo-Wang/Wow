@@ -22,9 +22,34 @@ class SimpleCommandBuilderRewriterRegistryTest {
             nullValue()
         )
     }
+
+    @Test
+    fun registerBlocked() {
+        val registry = SimpleCommandBuilderRewriterRegistry()
+        registry.register(MockBlockedCommandBuilderRewriter())
+        assertThat(
+            registry.getRewriter(MockCreateCommand::class.java),
+            instanceOf(BlockingCommandBuilderRewriter::class.java)
+        )
+        assertThat(
+            (registry.getRewriter(MockCreateCommand::class.java) as BlockingCommandBuilderRewriter).delegate,
+            instanceOf(MockBlockedCommandBuilderRewriter::class.java)
+        )
+    }
 }
 
 class MockCommandBuilderRewriter : CommandBuilderRewriter {
+    override val supportedCommandType: Class<MockCreateCommand>
+        get() = MockCreateCommand::class.java
+
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+        return Mono.just(commandBuilder)
+    }
+}
+
+class MockBlockedCommandBuilderRewriter : CommandBuilderRewriter {
+    override val blocked: Boolean
+        get() = true
     override val supportedCommandType: Class<MockCreateCommand>
         get() = MockCreateCommand::class.java
 

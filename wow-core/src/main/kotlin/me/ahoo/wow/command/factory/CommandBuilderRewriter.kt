@@ -14,7 +14,10 @@
 package me.ahoo.wow.command.factory
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -22,12 +25,25 @@ import java.util.concurrent.ConcurrentHashMap
  *
  */
 interface CommandBuilderRewriter {
+    val blocked: Boolean
+        get() = false
     val supportedCommandType: Class<*>
     fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder>
 }
 
+class BlockingCommandBuilderRewriter(
+    override val delegate: CommandBuilderRewriter,
+    private val scheduler: Scheduler = Schedulers.boundedElastic()
+) : Decorator<CommandBuilderRewriter>, CommandBuilderRewriter by delegate {
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
+        return Mono.defer {
+            delegate.rewrite(commandBuilder)
+        }.subscribeOn(scheduler)
+    }
+}
+
 interface CommandBuilderRewriterRegistry {
-    fun register(extractor: CommandBuilderRewriter)
+    fun register(rewriter: CommandBuilderRewriter)
     fun unregister(commandType: Class<*>)
     fun getRewriter(commandType: Class<*>): CommandBuilderRewriter?
 }
@@ -38,10 +54,15 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
     }
 
     private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter>()
-    override fun register(extractor: CommandBuilderRewriter) {
-        val previous = registrar.put(extractor.supportedCommandType, extractor)
+    override fun register(rewriter: CommandBuilderRewriter) {
+        val blockableRewriter = if (rewriter.blocked) {
+            BlockingCommandBuilderRewriter(rewriter)
+        } else {
+            rewriter
+        }
+        val previous = registrar.put(blockableRewriter.supportedCommandType, blockableRewriter)
         log.info {
-            "Register - supportedCommandType:[${extractor.supportedCommandType}] - previous:[$previous],current:[$extractor]."
+            "Register - supportedCommandType:[${blockableRewriter.supportedCommandType}] - previous:[$previous],current:[$blockableRewriter]."
         }
     }
 
