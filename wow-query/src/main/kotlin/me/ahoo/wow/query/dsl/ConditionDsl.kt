@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import kotlin.reflect.KCallable
 
 /**
@@ -138,7 +139,12 @@ class ConditionDsl : NestedFieldDsl() {
         condition(Condition.ownerId(value))
     }
 
+    @Deprecated(message = "Use deleted(DeletionState) instead.", replaceWith = ReplaceWith("deleted(DeletionState)"))
     fun deleted(value: Boolean) {
+        condition(Condition.deleted(value))
+    }
+
+    fun deleted(value: DeletionState) {
         condition(Condition.deleted(value))
     }
 

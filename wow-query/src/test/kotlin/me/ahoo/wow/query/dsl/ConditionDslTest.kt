@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.query.snapshot.nestedState
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -31,6 +33,7 @@ class ConditionDslTest {
     fun test() {
         val condition = condition {
             deleted(false)
+            deleted(DeletionState.ACTIVE)
             and {
                 tenantId("tenantId")
             }
@@ -102,6 +105,7 @@ class ConditionDslTest {
                 Condition.and(
                     listOf(
                         Condition.deleted(false),
+                        Condition.deleted(DeletionState.ACTIVE),
                         Condition.and(Condition.tenantId("tenantId")),
                         Condition.nor(Condition.all()),
                         Condition.id("id"),
@@ -266,6 +270,28 @@ class ConditionDslTest {
             all()
         }
         assertThat(condition, equalTo(Condition.all()))
+    }
+
+    @Test
+    fun deleted() {
+        val condition = condition {
+            deleted(DeletionState.DELETED)
+        }
+        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
+    }
+
+    @Test
+    fun deletedWithBool() {
+        val condition = condition {
+            deleted(true)
+        }
+        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
+    }
+
+    @Test
+    fun deletedWithString() {
+        val condition = Condition(operator = Operator.DELETED, value = "DELETED")
+        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
     }
 
     @Test

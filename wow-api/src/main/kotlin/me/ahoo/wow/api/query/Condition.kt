@@ -107,6 +107,7 @@ data class Condition(
         fun nor(vararg conditions: Condition) = Condition(EMPTY_VALUE, Operator.NOR, children = conditions.toList())
         fun nor(conditions: List<Condition>) = Condition(EMPTY_VALUE, Operator.NOR, children = conditions)
         fun all() = ALL
+        fun active() = ACTIVE
         fun eq(field: String, value: Any) = Condition(field, Operator.EQ, value)
         fun ne(field: String, value: Any) = Condition(field, Operator.NE, value)
         fun gt(field: String, value: Any) = Condition(field, Operator.GT, value)
@@ -144,9 +145,9 @@ data class Condition(
         fun ownerId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.OWNER_ID, value = value)
         fun deleted(value: Boolean): Condition {
             val deletionState = if (value) {
-                DeletionState.ACTIVE
-            } else {
                 DeletionState.DELETED
+            } else {
+                DeletionState.ACTIVE
             }
             return deleted(deletionState)
         }
