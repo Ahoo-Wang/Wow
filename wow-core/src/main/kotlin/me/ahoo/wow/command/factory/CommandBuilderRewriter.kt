@@ -14,19 +14,20 @@
 package me.ahoo.wow.command.factory
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.full.functions
 
 /**
  * CommandBuilderRewriter
  *
  */
 interface CommandBuilderRewriter {
-    val blocked: Boolean
-        get() = false
     val supportedCommandType: Class<*>
     fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder>
 }
@@ -54,8 +55,17 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
     }
 
     private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter>()
+
+    private fun CommandBuilderRewriter.isBlocked(): Boolean {
+        val rewriteFunction = javaClass.kotlin.functions.first {
+            it.name == CommandBuilderRewriter::rewrite.name &&
+                it.parameters[1].type.classifier == CommandBuilder::class
+        }
+        return rewriteFunction.scanAnnotation<Blocking>() != null
+    }
+
     override fun register(rewriter: CommandBuilderRewriter) {
-        val blockableRewriter = if (rewriter.blocked) {
+        val blockableRewriter = if (rewriter.isBlocked()) {
             BlockingCommandBuilderRewriter(rewriter)
         } else {
             rewriter
