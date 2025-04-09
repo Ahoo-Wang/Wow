@@ -30,7 +30,8 @@ object JsonSerializer : ObjectMapper() {
         // setSerializationInclusion(JsonInclude.Include.NON_NULL)
         disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         registerKotlinModule()
-        findAndRegisterModules()
+        val spiModules = findModules(this.javaClass.classLoader)
+        registerModules(spiModules)
     }
 }
 
