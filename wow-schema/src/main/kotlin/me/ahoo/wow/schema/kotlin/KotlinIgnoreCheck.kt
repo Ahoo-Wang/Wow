@@ -14,10 +14,16 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.FieldScope
+import com.github.victools.jsonschema.generator.MemberScope
+import com.github.victools.jsonschema.generator.MethodScope
 import java.util.function.Predicate
 
-object KotlinIgnoreCheck : Predicate<FieldScope> {
-    override fun test(member: FieldScope): Boolean {
+open class KotlinIgnoreCheck<M : MemberScope<*, *>> : Predicate<M> {
+    override fun test(member: M): Boolean {
         return member.rawMember.isSynthetic
     }
 }
+
+object KotlinFieldIgnoreCheck : KotlinIgnoreCheck<FieldScope>()
+
+object KotlinMethodIgnoreCheck : KotlinIgnoreCheck<MethodScope>()

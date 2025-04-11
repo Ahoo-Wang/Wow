@@ -23,7 +23,9 @@ class KotlinModule : Module {
         fieldConfigPart.withReadOnlyCheck(KotlinReadOnlyCheck)
         fieldConfigPart.withRequiredCheck(KotlinRequiredCheck)
         fieldConfigPart.withWriteOnlyCheck(KotlinWriteOnlyCheck)
-        fieldConfigPart.withIgnoreCheck(KotlinIgnoreCheck)
+        fieldConfigPart.withIgnoreCheck(KotlinFieldIgnoreCheck)
+        val methodConfigPart = builder.forMethods()
+        methodConfigPart.withIgnoreCheck(KotlinMethodIgnoreCheck)
         val generalConfigPart = builder.forTypesInGeneral()
         generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
     }
