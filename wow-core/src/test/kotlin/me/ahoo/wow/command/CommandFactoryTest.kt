@@ -16,6 +16,7 @@ import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class CommandFactoryTest {
@@ -114,5 +115,16 @@ internal class CommandFactoryTest {
         val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.ownerId, equalTo(command.ownerId))
+    }
+
+    @Test
+    fun anyCommand() {
+        Assertions.assertThrows(
+            IllegalArgumentException::class.java,
+            {
+                Any().toCommandMessage()
+            },
+            "The command[${Any().javaClass}] must be associated with a named aggregate!"
+        )
     }
 }
