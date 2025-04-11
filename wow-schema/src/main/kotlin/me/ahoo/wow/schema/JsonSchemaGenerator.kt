@@ -24,6 +24,7 @@ import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
+import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.serialization.JsonSerializer
 import java.lang.reflect.Type
@@ -36,6 +37,7 @@ class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
         val jakartaModule = JakartaValidationModule()
         val openApiModule: Module = Swagger2Module()
         val kotlinModule = KotlinModule()
+        val jodaMoneyModule = JodaMoneyModule()
         val wowModule = WowModule(options)
         val schemaGeneratorConfigBuilder = SchemaGeneratorConfigBuilder(
             JsonSerializer,
@@ -45,6 +47,7 @@ class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
             .with(jakartaModule)
             .with(openApiModule)
             .with(wowModule)
+            .with(jodaMoneyModule)
             .with(kotlinModule)
             .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
         schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())

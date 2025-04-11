@@ -11,18 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.joda.money
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
-    WOW_NAMING_STRATEGY;
+import com.github.victools.jsonschema.generator.Module
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 
-    companion object {
-        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE, WOW_NAMING_STRATEGY)
+class JodaMoneyModule : Module {
+    override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
+        val generalConfigPart = builder.forTypesInGeneral()
+        generalConfigPart.withCustomDefinitionProvider(CurrencyUnitDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(MoneyDefinitionProvider)
     }
 }
