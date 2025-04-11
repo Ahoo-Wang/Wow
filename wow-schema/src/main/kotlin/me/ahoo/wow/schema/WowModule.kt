@@ -20,11 +20,6 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
 import com.github.victools.jsonschema.generator.SchemaGeneratorGeneralConfigPart
 import me.ahoo.wow.schema.joda.money.CurrencyUnitDefinitionProvider
 import me.ahoo.wow.schema.joda.money.MoneyDefinitionProvider
-import me.ahoo.wow.schema.kotlin.KotlinCustomDefinitionProvider
-import me.ahoo.wow.schema.kotlin.KotlinNullableCheck
-import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck
-import me.ahoo.wow.schema.kotlin.KotlinRequiredCheck
-import me.ahoo.wow.schema.kotlin.KotlinWriteOnlyCheck
 import me.ahoo.wow.schema.typed.AggregateIdDefinitionProvider
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
@@ -41,7 +36,6 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         fieldConfigPart.withDescriptionResolver(DescriptionResolver)
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
-        kotlinNullable(fieldConfigPart, generalConfigPart)
         generalConfigPart.withCustomDefinitionProvider(AggregateIdDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(CommandDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)
@@ -60,20 +54,6 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         }
 
         configPart.withIgnoreCheck(IgnoreCommandRouteVariableCheck)
-    }
-
-    private fun kotlinNullable(
-        fieldConfigPart: SchemaGeneratorConfigPart<FieldScope>,
-        generalConfigPart: SchemaGeneratorGeneralConfigPart
-    ) {
-        if (options.contains(WowOption.KOTLIN).not()) {
-            return
-        }
-        fieldConfigPart.withNullableCheck(KotlinNullableCheck)
-        fieldConfigPart.withReadOnlyCheck(KotlinReadOnlyCheck)
-        fieldConfigPart.withRequiredCheck(KotlinRequiredCheck)
-        fieldConfigPart.withWriteOnlyCheck(KotlinWriteOnlyCheck)
-        generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
     }
 
     private fun wowNamingStrategy(generalConfigPart: SchemaGeneratorGeneralConfigPart) {

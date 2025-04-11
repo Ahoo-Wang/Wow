@@ -124,10 +124,10 @@ class JsonSchemaValidatorTest {
                 Arguments.of(
                     typeResolver.resolve(StateEvent::class.java, OrderState::class.java),
                     StateEventData(
-                        MockDomainEventStreams.generateEventStream(
+                        delegate = MockDomainEventStreams.generateEventStream(
                             MOCK_AGGREGATE_METADATA.aggregateId()
                         ),
-                        stateAggregate
+                        state = stateAggregate.state
                     )
                 )
             )
