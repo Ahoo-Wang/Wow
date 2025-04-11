@@ -58,7 +58,7 @@
 
 ```kotlin
 condition {
-    deleted(false)
+    deleted(DeletionState.ALL)
     and {
         tenantId("tenantId")
         all()
