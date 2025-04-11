@@ -18,5 +18,8 @@ interface TenantId {
 
     companion object {
         const val DEFAULT_TENANT_ID = "(0)"
+        fun String?.orDefaultTenantId(): String {
+            return this ?: DEFAULT_TENANT_ID
+        }
     }
 }

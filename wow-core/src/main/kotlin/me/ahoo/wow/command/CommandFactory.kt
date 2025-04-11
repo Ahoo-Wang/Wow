@@ -18,8 +18,8 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.OwnerId
-import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.TenantId.Companion.orDefaultTenantId
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.generateGlobalId
@@ -51,8 +51,8 @@ fun <C : Any> C.toCommandMessage(
         "The command[$javaClass] must be associated with a named aggregate!"
     }
     val commandAggregateId = metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
-    val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId ?: TenantId.DEFAULT_TENANT_ID
-    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId ?: OwnerId.DEFAULT_OWNER_ID
+    val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId.orDefaultTenantId()
+    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId.orDefaultOwnerId()
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
     val expectedAggregateVersion = if (metadata.isCreate) {
         Version.UNINITIALIZED_VERSION
