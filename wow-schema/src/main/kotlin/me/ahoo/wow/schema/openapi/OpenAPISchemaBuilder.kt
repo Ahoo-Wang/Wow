@@ -35,6 +35,7 @@ import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowModule
+import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.defaultConfig
 import java.lang.reflect.Type
 import java.util.function.Consumer
@@ -116,10 +117,12 @@ class OpenAPISchemaBuilder(
                 JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
             )
             val openApiModule: Module = Swagger2Module()
+            val kotlinModule = KotlinModule()
             val wowModule = WowModule()
             with(jacksonModule)
                 .with(jakartaModule)
                 .with(openApiModule)
+                .with(kotlinModule)
                 .with(wowModule)
                 .with(Option.PLAIN_DEFINITION_KEYS)
                 .with(Option.SIMPLIFIED_ENUMS)

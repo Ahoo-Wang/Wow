@@ -11,19 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.kotlin
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE,
-    WOW_NAMING_STRATEGY,
-    JODA_MONEY;
+import com.github.victools.jsonschema.generator.FieldScope
+import java.util.function.Predicate
 
-    companion object {
-        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE, WOW_NAMING_STRATEGY, JODA_MONEY)
+object KotlinIgnoreCheck : Predicate<FieldScope> {
+    override fun test(member: FieldScope): Boolean {
+        return member.rawMember.isSynthetic
     }
 }
