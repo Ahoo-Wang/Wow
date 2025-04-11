@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
@@ -93,6 +95,26 @@ internal class CommandFactoryTest {
         val commandMessage = command.toCommandMessage()
         assertThat(commandMessage.body, equalTo(command))
         assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
+        assertThat(commandMessage.aggregateId.tenantId, equalTo(TenantId.DEFAULT_TENANT_ID))
+        assertThat(commandMessage.ownerId, equalTo(OwnerId.DEFAULT_OWNER_ID))
+        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
+        assertThat(commandMessage.aggregateVersion, nullValue())
+        assertThat(
+            commandMessage.createTime.toDouble(),
+            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
+        )
+    }
+
+    @Test
+    fun createGivenTenantIdAndOwnerId() {
+        val command = MockNamedCommand(generateGlobalId())
+        val tenantId = "tenantId"
+        val ownerId = "ownerId"
+        val commandMessage = command.toCommandMessage(tenantId = tenantId, ownerId = ownerId)
+        assertThat(commandMessage.body, equalTo(command))
+        assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
+        assertThat(commandMessage.aggregateId.tenantId, equalTo(tenantId))
+        assertThat(commandMessage.ownerId, equalTo(ownerId))
         assertThat(commandMessage.aggregateId.id, equalTo(command.id))
         assertThat(commandMessage.aggregateVersion, nullValue())
         assertThat(
