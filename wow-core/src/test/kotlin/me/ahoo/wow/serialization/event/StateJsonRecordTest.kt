@@ -27,7 +27,7 @@ class StateJsonRecordTest {
         val state = MockState()
         val stateNode = state.toJsonString().toJsonNode<ObjectNode>()
         val stateJsonRecord = StateJsonRecord(stateNode)
-        assertThat(stateJsonRecord.toState<MockState>()).isEqualTo(state)
+        assertThat(stateJsonRecord.state<MockState>()).isEqualTo(state)
         assertThat(stateJsonRecord.actual).isEqualTo(stateNode)
     }
 
