@@ -20,8 +20,7 @@ import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.api.Assertions.assertThat
 import java.util.function.Consumer
 
 /**
@@ -63,7 +62,7 @@ interface ExpectStage<T : Any> {
 
     fun expectCommandStream(expected: Consumer<CommandStream>): ExpectStage<T> {
         return expectNoError().expect {
-            assertThat("Expect the command stream is not null.", it.commandStream, notNullValue())
+            assertThat(it.commandStream).describedAs { "Expect the command stream is not null." }.isNotNull
             expected.accept(it.commandStream!!)
         }
     }
@@ -87,7 +86,9 @@ interface ExpectStage<T : Any> {
      */
     fun <C : Any> expectCommand(expected: Consumer<CommandMessage<C>>): ExpectStage<T> {
         return expectCommandStream {
-            assertThat("Expect the command stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
+            assertThat(
+                it
+            ).describedAs { "Expect the command stream size to be greater than 1." }.hasSizeGreaterThanOrEqualTo(1)
             @Suppress("UNCHECKED_CAST")
             expected.accept(it.first() as CommandMessage<C>)
         }
@@ -101,7 +102,7 @@ interface ExpectStage<T : Any> {
 
     fun expectCommandCount(expected: Int): ExpectStage<T> {
         return expectCommandStream {
-            assertThat("Expect the command stream size.", it.size, equalTo(expected))
+            assertThat(it).describedAs { "Expect the command stream size." }.hasSize(expected)
         }
     }
 
@@ -109,20 +110,20 @@ interface ExpectStage<T : Any> {
         return expectCommandCount(expected.size).expectCommandStream {
             val itr = it.iterator()
             for (eventType in expected) {
-                assertThat(itr.next().body, instanceOf(eventType))
+                assertThat(itr.next().body).isInstanceOf(eventType)
             }
         }
     }
 
     fun expectNoError(): ExpectStage<T> {
         return expect {
-            assertThat("Expect no error", it.error, nullValue())
+            assertThat(it.error).describedAs { "Expect no error." }.isNull()
         }
     }
 
     fun expectError(): ExpectStage<T> {
         return expect {
-            assertThat("Expect an error.", it.error, notNullValue())
+            assertThat(it.error).describedAs { "Expect an error." }.isNotNull()
         }
     }
 
@@ -134,7 +135,9 @@ interface ExpectStage<T : Any> {
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<T> {
-        return expectError<E> { assertThat(it, instanceOf(expected)) }
+        return expectError<E> {
+            assertThat(it).isInstanceOf(expected)
+        }
     }
 
     /**
@@ -158,9 +161,9 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
 
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
-        assertThat("Expect the next command.", hasNext(), equalTo(true))
+        assertThat(hasNext()).describedAs { "Expect the next command." }.isEqualTo(true)
         val nextCommand = next()
-        assertThat("Expect the command body type.", nextCommand.body, instanceOf(commandType))
+        assertThat(nextCommand.body).describedAs { "Expect the command body type." }.isInstanceOf(commandType)
         return nextCommand as CommandMessage<C>
     }
 

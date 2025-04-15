@@ -28,8 +28,7 @@ import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class CartTest {
@@ -48,9 +47,9 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
+                assertThat(it.items).hasSize(1)
             }.expectStateAggregate {
-                assertThat(it.ownerId, equalTo(ownerId))
+                assertThat(it.ownerId).isEqualTo(ownerId)
             }
             .verify()
     }
@@ -68,7 +67,7 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
+                assertThat(it.items).hasSize(1)
             }
             .verify()
     }
@@ -93,7 +92,8 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
-                assertThat(it.items.first().quantity, equalTo(2))
+                assertThat(it.items).hasSize(1)
+                assertThat(it.items.first().quantity).isEqualTo(2)
             }
             .verify()
     }
@@ -110,10 +110,10 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
+                assertThat(it.items).hasSize(1)
             }
             .expectStateAggregate {
-                assertThat(it.version, equalTo(1))
+                assertThat(it.version).isEqualTo(1)
             }
             .verify()
     }
@@ -142,7 +142,7 @@ class CartTest {
             .`when`(addCartItem)
             .expectErrorType(IllegalArgumentException::class.java)
             .expectState {
-                assertThat(it.items, hasSize(MAX_CART_ITEM_SIZE))
+                assertThat(it.items).hasSize(MAX_CART_ITEM_SIZE)
             }
             .verify()
     }
@@ -166,7 +166,7 @@ class CartTest {
             .`when`(removeCartItem)
             .expectEventType(CartItemRemoved::class.java)
             .expectState {
-                assertThat(it.items, hasSize(0))
+                assertThat(it.items).isEmpty()
             }
             .verify()
     }
@@ -190,8 +190,8 @@ class CartTest {
             .`when`(changeQuantity)
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
-                assertThat(it.items.first().quantity, equalTo(changeQuantity.quantity))
+                assertThat(it.items).hasSize(1)
+                assertThat(it.items.first().quantity).isEqualTo(changeQuantity.quantity)
             }
             .verify()
     }
@@ -208,14 +208,14 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
+                assertThat(it.items).hasSize(1)
             }
             .verify()
             .then()
             .whenCommand(DefaultDeleteAggregate)
             .expectEventType(DefaultAggregateDeleted::class.java)
             .expectStateAggregate {
-                assertThat(it.deleted, equalTo(true))
+                assertThat(it.deleted).isTrue()
             }.verify()
             .then()
             .whenCommand(DefaultDeleteAggregate::class.java)
@@ -224,7 +224,7 @@ class CartTest {
             .then()
             .whenCommand(DefaultRecoverAggregate)
             .expectStateAggregate {
-                assertThat(it.deleted, equalTo(false))
+                assertThat(it.deleted).isFalse()
             }.verify()
             .then()
             .whenCommand(DefaultRecoverAggregate)

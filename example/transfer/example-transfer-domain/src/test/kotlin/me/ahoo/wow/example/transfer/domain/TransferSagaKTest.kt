@@ -20,8 +20,7 @@ import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 internal class TransferSagaKTest {
@@ -32,8 +31,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<Entry> {
-                assertThat(it.id, equalTo(event.to))
-                assertThat(it.amount, equalTo(event.amount))
+                assertThat(it.id).isEqualTo(event.to)
+                assertThat(it.amount).isEqualTo(event.amount)
             }
             .verify()
     }
@@ -44,8 +43,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<Confirm> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
+                assertThat(it.id).isEqualTo(event.sourceId)
+                assertThat(it.amount).isEqualTo(event.amount)
             }
             .verify()
     }
@@ -56,8 +55,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .`when`(event)
             .expectCommandBody<UnlockAmount> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
+                assertThat(it.id).isEqualTo(event.sourceId)
+                assertThat(it.amount).isEqualTo(event.amount)
             }
             .verify()
     }
