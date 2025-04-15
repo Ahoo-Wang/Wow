@@ -27,6 +27,6 @@ data class StateJsonRecord(override val actual: ObjectNode) : StateRecord {
     }
 }
 
-inline fun <reified T> StateRecord.toState(): T {
-    return toState(T::class.java)
+inline fun <reified S> StateRecord.state(): S {
+    return toState(S::class.java)
 }
