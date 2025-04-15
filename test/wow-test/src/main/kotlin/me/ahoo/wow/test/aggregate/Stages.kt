@@ -27,8 +27,7 @@ import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.api.Assertions.assertThat
 import java.util.function.Consumer
 
 interface GivenStage<S : Any> {
@@ -91,18 +90,15 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
         return expect {
-            val reason = buildString {
-                append("Expect the domain event stream is not null.")
-                it.error?.let { error ->
-                    appendLine()
-                    append(error.stackTraceToString())
+            assertThat(it.domainEventStream).describedAs {
+                buildString {
+                    append("Expect the domain event stream is not null.")
+                    it.error?.let { error ->
+                        appendLine()
+                        append(error.stackTraceToString())
+                    }
                 }
-            }
-            assertThat(
-                reason,
-                it.domainEventStream,
-                notNullValue()
-            )
+            }.isNotNull()
             expected.accept(it.domainEventStream!!)
         }
     }
@@ -118,7 +114,8 @@ interface ExpectStage<S : Any> {
      */
     fun <E : Any> expectEvent(expected: Consumer<DomainEvent<E>>): ExpectStage<S> {
         return expectEventStream {
-            assertThat("Expect the domain event stream size to be greater than 1.", it.size, greaterThanOrEqualTo(1))
+            assertThat(it).describedAs { "Expect the domain event stream size to be greater than 1." }
+                .hasSizeGreaterThanOrEqualTo(1)
             @Suppress("UNCHECKED_CAST")
             expected.accept(it.first() as DomainEvent<E>)
         }
@@ -135,7 +132,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventCount(expected: Int): ExpectStage<S> {
         return expectEventStream {
-            assertThat("Expect the domain event stream size.", it.size, equalTo(expected))
+            assertThat(it).describedAs { "Expect the domain event stream size." }.hasSize(expected)
         }
     }
 
@@ -146,20 +143,20 @@ interface ExpectStage<S : Any> {
         return expectEventCount(expected.size).expectEventStream {
             val itr = it.iterator()
             for (eventType in expected) {
-                assertThat(itr.next().body, instanceOf(eventType))
+                assertThat(itr.next().body).isInstanceOf(eventType)
             }
         }
     }
 
     fun expectNoError(): ExpectStage<S> {
         return expect {
-            assertThat("Expect no error", it.error, nullValue())
+            assertThat(it.error).describedAs { "Expect no error" }.isNull()
         }
     }
 
     fun expectError(): ExpectStage<S> {
         return expect {
-            assertThat("Expect an error.", it.error, notNullValue())
+            assertThat(it.error).describedAs { "Expect an error." }.isNotNull()
         }
     }
 
@@ -174,7 +171,9 @@ interface ExpectStage<S : Any> {
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<S> {
-        return expectError<E> { assertThat(it, instanceOf(expected)) }
+        return expectError<E> {
+            assertThat(it).isInstanceOf(expected)
+        }
     }
 
     /**
@@ -223,9 +222,9 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
 
     @Suppress("UNCHECKED_CAST")
     fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
-        assertThat("Expect the next command.", hasNext(), equalTo(true))
+        assertThat(hasNext()).describedAs { "Expect the next command." }.isTrue()
         val nextEvent = next()
-        assertThat("Expect the event body type.", nextEvent.body, instanceOf(eventType))
+        assertThat(nextEvent.body).describedAs { "Expect the event body type." }.isInstanceOf(eventType)
         return nextEvent as DomainEvent<E>
     }
 

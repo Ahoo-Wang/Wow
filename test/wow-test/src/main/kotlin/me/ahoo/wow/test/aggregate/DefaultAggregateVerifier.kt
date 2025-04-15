@@ -31,8 +31,7 @@ import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.test.validation.validate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.api.Assertions.assertThat
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
@@ -331,7 +330,7 @@ private fun <S : Any> verifyStateAggregateSerializable(stateAggregate: StateAggr
     }
     val serialized = stateAggregate.toJsonString()
     val deserialized = serialized.toObject<StateAggregate<S>>()
-    assertThat(deserialized, equalTo(stateAggregate))
+    assertThat(deserialized).isEqualTo(stateAggregate)
     return deserialized
 }
 

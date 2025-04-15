@@ -20,6 +20,7 @@ dependencies {
     api(platform(libs.cocache.bom))
     api(platform(libs.opentelemetry.bom))
     api(platform(libs.opentelemetry.instrumentation.bom))
+    api(platform(libs.assertj.bom))
     api(platform(libs.testcontainers.bom))
     constraints {
         api(libs.guava)
