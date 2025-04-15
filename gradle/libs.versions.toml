@@ -11,14 +11,15 @@ opentelemetry-instrumentation = "2.15.0"
 opentelemetry-semconv = "1.29.0-alpha"
 guava = "33.4.8-jre"
 kotlin-logging = "7.0.6"
-hamcrest = "3.0"
-mockk = "1.14.0"
-kotlin-compile-testing = "0.7.0"
 swagger = "2.2.30"
 springdoc = "2.8.6"
 jte = "3.2.0"
 jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.6"
+# testing
+hamcrest = "3.0"
+mockk = "1.14.0"
+kotlin-compile-testing = "0.7.0"
 # plugins
 test-retry = "1.6.2"
 detekt = "1.23.8"
@@ -34,7 +35,7 @@ simba-bom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
 coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 jsonschema-generator-bom = { module = "com.github.victools:jsonschema-generator-bom", version.ref = "jsonschema-generator" }
-json-schema-validator= { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-instrumentation-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry-instrumentation" }
 opentelemetry-semconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }
