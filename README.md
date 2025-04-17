@@ -142,108 +142,77 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 [Aggregate Test](./example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderTest.kt)
 
 ```kotlin
-internal class OrderTest {
+class CartTest {
+  @Test
+  fun addCartItem() {
+    val ownerId = generateGlobalId()
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
 
-    @Test
-    private fun createOrder() {
-        val tenantId = GlobalIdGenerator.generateAsString()
-        val customerId = GlobalIdGenerator.generateAsString()
+    aggregateVerifier<Cart, CartState>(ownerId)
+      .givenOwnerId(ownerId)
+      .whenCommand(addCartItem)
+      .expectNoError()
+      .expectEventType(CartItemAdded::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+      }.expectStateAggregate {
+        it.ownerId.assert().isEqualTo(ownerId)
+      }
+      .verify()
+  }
+  
+  @Test
+  fun addCartItemIfSameProduct() {
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
 
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
-        )
-        val orderItems = listOf(orderItem)
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
-            }
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
-            }
-        }
-        aggregateVerifier<Order, OrderState>(tenantId = tenantId)
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            .expectEventCount(1)
-            .expectEventType(OrderCreated::class.java)
-            .expectStateAggregate {
-                assertThat(it.aggregateId.tenantId, equalTo(tenantId))
-            }
-            .expectState {
-                assertThat(it.id, notNullValue())
-                assertThat(it.customerId, equalTo(customerId))
-                assertThat(it.address, equalTo(SHIPPING_ADDRESS))
-                assertThat(it.items, equalTo(orderItems))
-                assertThat(it.status, equalTo(OrderStatus.CREATED))
-            }
-            .verify()
-    }
+    aggregateVerifier<Cart, CartState>()
+      .given(
+        CartItemAdded(
+          added = CartItem(
+            productId = addCartItem.productId,
+            quantity = 1,
+          ),
+        ),
+      )
+      .`when`(addCartItem)
+      .expectNoError()
+      .expectEventType(CartQuantityChanged::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+        it.items.first().quantity.assert().isEqualTo(2)
+      }
+      .verify()
+  }
+  
+  @Test
+  fun removeCartItem() {
+    val removeCartItem = RemoveCartItem(
+      productIds = setOf("productId"),
+    )
+    val added = CartItem(
+      productId = "productId",
+      quantity = 1,
+    )
 
-    @Test
-    fun createOrderGivenEmptyItems() {
-        val customerId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Order, OrderState>()
-            .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
-            .given()
-            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
-            .expectErrorType(IllegalArgumentException::class.java)
-            .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
-                assertThat(it.initialized, equalTo(false))
-            }.verify()
-    }
-
-    /**
-     * 创建订单-库存不足
-     */
-    @Test
-    fun createOrderWhenInventoryShortage() {
-        val customerId = GlobalIdGenerator.generateAsString()
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
-        )
-        val orderItems = listOf(orderItem)
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.filter { it.productId == productId }
-                    /*
-                     * 模拟库存不足
-                     */
-                    .map { it.quantity - 1 }.first().toMono()
-            }
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
-            }
-        }
-
-        aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            /*
-             * 期望：库存不足异常.
-             */
-            .expectErrorType(InventoryShortageException::class.java)
-            .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
-                assertThat(it.initialized, equalTo(false))
-            }.verify()
-    }
+    aggregateVerifier<Cart, CartState>()
+      .given(
+        CartItemAdded(
+          added = added,
+        ),
+      )
+      .`when`(removeCartItem)
+      .expectEventType(CartItemRemoved::class.java)
+      .expectState {
+        it.items.assert().isEmpty()
+      }
+      .verify()
+  }
 }
 ```
 
@@ -254,35 +223,34 @@ internal class OrderTest {
 ```kotlin
 class CartSagaTest {
 
-    @Test
-    fun onOrderCreated() {
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
-        )
-        sagaVerifier<CartSaga>()
-            .`when`(
-                mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
-                    every {
-                        items
-                    } returns listOf(orderItem)
-                    every {
-                        fromCart
-                    } returns true
-                },
-            )
-            .expectCommandBody<RemoveCartItem> {
-                assertThat(it.id, equalTo("customerId"))
-                assertThat(it.productIds, hasSize(1))
-                assertThat(it.productIds.first(), equalTo(orderItem.productId))
-            }
-            .verify()
-    }
+  @Test
+  fun onOrderCreated() {
+    val ownerId = generateGlobalId()
+    val orderItem = OrderItem(
+      id = generateGlobalId(),
+      productId = generateGlobalId(),
+      price = BigDecimal.valueOf(10),
+      quantity = 10,
+    )
+    sagaVerifier<CartSaga>()
+      .whenEvent(
+        event = mockk<OrderCreated> {
+          every {
+            items
+          } returns listOf(orderItem)
+          every {
+            fromCart
+          } returns true
+        },
+        ownerId = ownerId
+      )
+      .expectCommand<RemoveCartItem> {
+        it.aggregateId.id.assert().isEqualTo(ownerId)
+        it.body.productIds.assert().hasSize(1)
+        it.body.productIds.assert().first().isEqualTo(orderItem.productId)
+      }
+      .verify()
+  }
 }
 ```
 

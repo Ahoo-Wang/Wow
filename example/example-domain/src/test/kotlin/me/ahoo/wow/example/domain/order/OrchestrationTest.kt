@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.domain.order
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.ChangeAddress
 import me.ahoo.wow.example.api.order.CreateOrder
@@ -23,13 +24,11 @@ import me.ahoo.wow.example.api.order.ShippingAddress
 import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.aggregate.GivenStage
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -40,10 +39,10 @@ class OrchestrationTest {
     @Suppress("LongMethod")
     @Test
     fun main() {
-        val tenantId = GlobalIdGenerator.generateAsString()
+        val tenantId = generateGlobalId()
 
         val orderItem = CreateOrder.Item(
-            productId = GlobalIdGenerator.generateAsString(),
+            productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
@@ -63,21 +62,21 @@ class OrchestrationTest {
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class.java)
             .expectStateAggregate {
-                assertThat(it.aggregateId.tenantId, equalTo(tenantId))
+                it.aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
             .expectState {
-                assertThat(it.id, notNullValue())
-                assertThat(it.address, equalTo(SHIPPING_ADDRESS))
-                assertThat(it.items, hasSize(1))
+                it.id.assert().isNotNull()
+                it.address.assert().isEqualTo(SHIPPING_ADDRESS)
+                it.items.assert().hasSize(1)
                 val item = it.items.first()
-                assertThat(item.productId, equalTo(orderItem.productId))
-                assertThat(item.price, equalTo(orderItem.price))
-                assertThat(item.quantity, equalTo(orderItem.quantity))
-                assertThat(it.status, equalTo(OrderStatus.CREATED))
+                item.productId.assert().isEqualTo(orderItem.productId)
+                item.price.assert().isEqualTo(orderItem.price)
+                item.quantity.assert().isEqualTo(orderItem.quantity)
+                it.status.assert().isEqualTo(OrderStatus.CREATED)
             }.expect {
-                assertThat(it.exchange.getCommandResult().size, equalTo(1))
+                it.exchange.getCommandResult().assert().hasSize(1)
                 val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
-                assertThat(result, equalTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong()))))
+                result.assert().isEqualTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong())))
             }
             .verify()
             .fork {
@@ -95,8 +94,8 @@ class OrchestrationTest {
         whenCommand(payOrder)
             .expectEventType(OrderPaid::class.java)
             .expectState {
-                assertThat(it.paidAmount, equalTo(it.totalAmount))
-                assertThat(it.status, equalTo(OrderStatus.PAID))
+                it.paidAmount.assert().isEqualTo(it.totalAmount)
+                it.status.assert().isEqualTo(OrderStatus.PAID)
             }
             .verify()
     }
@@ -115,7 +114,7 @@ class OrchestrationTest {
             .expectEventCount(1)
             .expectEventType(AddressChanged::class.java)
             .expectState {
-                assertThat(it.address, equalTo(changeAddress.shippingAddress))
+                it.address.assert().isEqualTo(changeAddress.shippingAddress)
             }
             .verify()
     }
