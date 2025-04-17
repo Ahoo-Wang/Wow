@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.cache.source
 
-import me.ahoo.wow.cache.CacheValueConfiguration
+import me.ahoo.cache.TtlConfiguration
+import me.ahoo.cache.api.annotation.CoCache
 import java.time.Duration
 
 data class LoadCacheSourceConfiguration(
     val timeout: Duration = Duration.ofSeconds(10),
-    override val ttl: Long? = null,
-    override val amplitude: Long = 0
-) : CacheValueConfiguration {
+    override val ttl: Long = CoCache.DEFAULT_TTL,
+    override val ttlAmplitude: Long = CoCache.DEFAULT_TTL_AMPLITUDE
+) : TtlConfiguration {
     companion object {
         val DEFAULT = LoadCacheSourceConfiguration()
     }
