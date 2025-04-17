@@ -18,9 +18,7 @@ import io.mockk.mockk
 import io.mockk.spyk
 import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -33,9 +31,10 @@ class QueryApiCacheSourceTest {
                 every { state } returns "test"
             }.toMono()
         }
-        assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration.DEFAULT))
+
+        assertThat(queryApiCacheSource.loadCacheSourceConfiguration).isEqualTo(LoadCacheSourceConfiguration.DEFAULT)
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue, equalTo(DefaultCacheValue.forever("test")))
+        assertThat(cacheValue).isEqualTo(DefaultCacheValue.forever("test"))
     }
 
     @Test
@@ -43,14 +42,16 @@ class QueryApiCacheSourceTest {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
             every {
                 loadCacheSourceConfiguration
-            } returns LoadCacheSourceConfiguration(ttl = 1000)
+            } returns LoadCacheSourceConfiguration(ttl = 1000, ttlAmplitude = 0)
             every { getById(any()) } returns mockk<MaterializedSnapshot<String>> {
                 every { state } returns "test"
             }.toMono()
         }
-        assertThat(queryApiCacheSource.loadCacheSourceConfiguration, equalTo(LoadCacheSourceConfiguration(ttl = 1000)))
+        assertThat(
+            queryApiCacheSource.loadCacheSourceConfiguration
+        ).isEqualTo(LoadCacheSourceConfiguration(ttl = 1000, ttlAmplitude = 0))
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue, equalTo(DefaultCacheValue.ttlAt("test", 1000)))
+        assertThat(cacheValue).isEqualTo(DefaultCacheValue.ttlAt("test", 1000))
     }
 
     @Test
@@ -60,6 +61,6 @@ class QueryApiCacheSourceTest {
         }
 
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue, nullValue())
+        assertThat(cacheValue).isNull()
     }
 }
