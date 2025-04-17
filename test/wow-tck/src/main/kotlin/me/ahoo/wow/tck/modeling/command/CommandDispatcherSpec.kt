@@ -14,6 +14,7 @@ package me.ahoo.wow.tck.modeling.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -58,8 +59,6 @@ import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.validation.TestValidator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -194,10 +193,7 @@ abstract class CommandDispatcherSpec {
                 )
             }
         }
-        assertThat(
-            creates.distinctBy { it.id }.size,
-            equalTo(aggregateCount),
-        )
+        creates.distinctBy { it.id }.size.assert().isEqualTo(aggregateCount)
         println("------------- CreateAggregate -------------")
         val createdDuration = creates.toFlux()
             .subscribeOn(Schedulers.single())
@@ -208,7 +204,7 @@ abstract class CommandDispatcherSpec {
                 commandGateway
                     .sendAndWaitForProcessed(it!!.toCommandMessage())
             }, Int.MAX_VALUE).doOnNext {
-                assertThat(it.succeeded, equalTo(true))
+                it.succeeded.assert().isTrue()
             }
             .timeout(Duration.ofMinutes(1))
             .then()
@@ -237,7 +233,7 @@ abstract class CommandDispatcherSpec {
                 commandGateway.sendAndWaitForProcessed(it.toCommandMessage())
             }, Int.MAX_VALUE)
             .doOnNext {
-                assertThat(it.succeeded, equalTo(true))
+                it.succeeded.assert().isTrue()
             }
             .timeout(Duration.ofSeconds(30))
             .then()

@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.messaging
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -72,7 +73,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 }
                 .test()
                 .consumeNextWith {
-                    assertThat(it.message.id, equalTo(message.id))
+                    it.message.id.assert().isEqualTo(message.id)
                 }
                 .thenCancel()
                 .verify()

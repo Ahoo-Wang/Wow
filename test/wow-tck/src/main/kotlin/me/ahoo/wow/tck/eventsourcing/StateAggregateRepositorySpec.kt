@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.toDomainEventStream
@@ -57,8 +58,8 @@ abstract class StateAggregateRepositorySpec {
         val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
-        MatcherAssert.assertThat(stateAggregate, Matchers.notNullValue())
-        MatcherAssert.assertThat(stateAggregate.aggregateId, Matchers.equalTo(aggregateId))
+        stateAggregate.assert().isNotNull()
+        stateAggregate.aggregateId.assert().isEqualTo(aggregateId)
         val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
         MatcherAssert.assertThat(stateAggregate.version, Matchers.equalTo(domainEventMessage.version))
         MatcherAssert.assertThat(

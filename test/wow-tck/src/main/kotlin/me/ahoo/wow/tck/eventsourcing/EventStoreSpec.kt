@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.DuplicateRequestIdException
@@ -29,7 +30,6 @@ import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.instanceOf
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -74,9 +74,9 @@ abstract class EventStoreSpec {
         eventStore.load(eventStream.aggregateId)
             .test()
             .expectNextMatches {
-                assertThat(it.aggregateId, equalTo(eventStream.aggregateId))
-                assertThat(it.version, equalTo(eventStream.version))
-                assertThat(it.size, equalTo(eventStream.size))
+                it.aggregateId.assert().isEqualTo(eventStream.aggregateId)
+                it.version.assert().isEqualTo(eventStream.version)
+                it.size.assert().isEqualTo(eventStream.size)
                 true
             }
             .verifyComplete()
@@ -94,24 +94,16 @@ abstract class EventStoreSpec {
         eventStore.append(conflictingStream)
             .test()
             .expectErrorMatches {
-                assertThat(
-                    it,
-                    instanceOf(
-                        DuplicateAggregateIdException::class.java,
-                    ),
-                )
+                it.assert().isInstanceOf(DuplicateAggregateIdException::class.java)
                 val conflictException = it as DuplicateAggregateIdException
-                assertThat(conflictException.eventStream, equalTo(conflictingStream))
+                conflictException.eventStream.assert().isEqualTo(conflictingStream)
                 true
             }
             .verify()
         eventStore.load(aggregateId)
             .test()
             .consumeNextWith {
-                assertThat(
-                    it.size,
-                    equalTo(eventStream.size),
-                )
+                it.size.assert().isEqualTo(eventStream.size)
             }
             .verifyComplete()
     }
@@ -147,14 +139,9 @@ abstract class EventStoreSpec {
         eventStore.append(conflictingStream)
             .test()
             .expectErrorMatches {
-                assertThat(
-                    it,
-                    instanceOf(
-                        EventVersionConflictException::class.java,
-                    ),
-                )
+                it.assert().isInstanceOf(EventVersionConflictException::class.java)
                 val conflictException = it as EventVersionConflictException
-                assertThat(conflictException.eventStream, equalTo(conflictingStream))
+                conflictException.eventStream.assert().isEqualTo(conflictingStream)
                 true
             }
             .verify()
@@ -180,24 +167,16 @@ abstract class EventStoreSpec {
         eventStore.append(conflictingStream)
             .test()
             .expectErrorMatches {
-                assertThat(
-                    it,
-                    instanceOf(
-                        DuplicateRequestIdException::class.java,
-                    ),
-                )
+                it.assert().isInstanceOf(DuplicateRequestIdException::class.java)
                 val duplicateRequestIdException = it as DuplicateRequestIdException
-                assertThat(duplicateRequestIdException.requestId, equalTo(conflictingStream.requestId))
+                duplicateRequestIdException.requestId.assert().isEqualTo(conflictingStream.requestId)
                 true
             }
             .verify()
         eventStore.load(aggregateId)
             .test()
             .consumeNextWith {
-                assertThat(
-                    it.size,
-                    equalTo(eventStream.size),
-                )
+                it.size.assert().isEqualTo(eventStream.size)
             }
             .verifyComplete()
     }
@@ -254,9 +233,9 @@ abstract class EventStoreSpec {
         eventStore.load(eventStream.aggregateId, headVersion)
             .test()
             .expectNextMatches { actualStream: DomainEventStream ->
-                assertThat(actualStream.aggregateId, equalTo(eventStream.aggregateId))
-                assertThat(actualStream.version, equalTo(1))
-                assertThat(actualStream.size, equalTo(10))
+                actualStream.aggregateId.assert().isEqualTo(eventStream.aggregateId)
+                actualStream.version.assert().isEqualTo(1)
+                actualStream.size.assert().isEqualTo(10)
                 true
             }
             .verifyComplete()
@@ -272,9 +251,9 @@ abstract class EventStoreSpec {
         eventStore.load(eventStream.aggregateId, 0, eventStream.createTime)
             .test()
             .expectNextMatches { actualStream: DomainEventStream ->
-                assertThat(actualStream.aggregateId, equalTo(eventStream.aggregateId))
-                assertThat(actualStream.version, equalTo(1))
-                assertThat(actualStream.size, equalTo(10))
+                actualStream.aggregateId.assert().isEqualTo(eventStream.aggregateId)
+                actualStream.version.assert().isEqualTo(1)
+                actualStream.size.assert().isEqualTo(10)
                 true
             }
             .verifyComplete()
