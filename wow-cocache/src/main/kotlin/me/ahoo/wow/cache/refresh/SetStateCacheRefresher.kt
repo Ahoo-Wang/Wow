@@ -14,10 +14,11 @@
 package me.ahoo.wow.cache.refresh
 
 import me.ahoo.cache.DefaultCacheValue
+import me.ahoo.cache.TtlConfiguration
 import me.ahoo.cache.api.Cache
+import me.ahoo.cache.api.annotation.CoCache
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.cache.CacheValueConfiguration
 import me.ahoo.wow.cache.StateToCacheDataConverter
 import me.ahoo.wow.event.StateDomainEventExchange
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
@@ -29,14 +30,14 @@ import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 open class SetStateCacheRefresher<K, S : Any, D>(
     namedAggregate: NamedAggregate,
     private val stateToCacheDataConverter: StateToCacheDataConverter<ReadOnlyStateAggregate<S>, D>,
-    override val ttl: Long? = null,
-    override val amplitude: Long = 0,
+    override val ttl: Long = CoCache.DEFAULT_TTL,
+    override val ttlAmplitude: Long = CoCache.DEFAULT_TTL_AMPLITUDE,
     val cache: Cache<K, D>,
     val keyConvert: (StateDomainEventExchange<S, Any>) -> K = { exchange ->
         @Suppress("UNCHECKED_CAST")
         exchange.message.aggregateId.id as K
     }
-) : CacheValueConfiguration, StateCacheRefresher<S, D, StateDomainEventExchange<S, Any>>(namedAggregate) {
+) : TtlConfiguration, StateCacheRefresher<S, D, StateDomainEventExchange<S, Any>>(namedAggregate) {
 
     override val functionKind: FunctionKind = FunctionKind.STATE_EVENT
 
@@ -52,12 +53,7 @@ open class SetStateCacheRefresher<K, S : Any, D>(
         }
         val key = keyConvert(exchange)
         val cacheData = stateToCacheDataConverter.stateToCacheData(exchange.state)
-        val ttl = ttl
-        val cacheValue = if (ttl == null) {
-            DefaultCacheValue.forever(cacheData)
-        } else {
-            DefaultCacheValue.ttlAt(cacheData, ttl, amplitude)
-        }
+        val cacheValue = DefaultCacheValue.ttlAt(cacheData, ttl, ttlAmplitude)
         cache.setCache(key, cacheValue)
     }
 }

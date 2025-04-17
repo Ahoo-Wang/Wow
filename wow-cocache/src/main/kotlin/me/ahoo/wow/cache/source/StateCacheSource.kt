@@ -33,7 +33,11 @@ interface StateCacheSource<K, S : Any, D : Any> : CacheSource<K, D> {
             }.toFuture()
             .get(loadCacheSourceConfiguration.timeout.toMillis(), TimeUnit.MILLISECONDS)
             ?: return null
-        val ttl = loadCacheSourceConfiguration.ttl ?: return DefaultCacheValue.forever(state)
-        return DefaultCacheValue.ttlAt(state, ttl, loadCacheSourceConfiguration.amplitude)
+
+        return DefaultCacheValue.ttlAt(
+            value = state,
+            ttl = loadCacheSourceConfiguration.ttl,
+            amplitude = loadCacheSourceConfiguration.ttlAmplitude
+        )
     }
 }
