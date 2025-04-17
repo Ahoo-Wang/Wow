@@ -19,8 +19,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.wow.test.assert.assert
 import org.junit.jupiter.api.Test
 
 /**
@@ -45,33 +44,33 @@ abstract class DomainEventStreamSpec {
     @Test
     fun aggregateId() {
         val domainEventStream = createDomainEventStream(testEvents, testAggregateId, 0)
-        assertThat(domainEventStream.aggregateId, equalTo(testAggregateId))
-        assertThat(domainEventStream.contextName, equalTo(testAggregateId.contextName))
-        assertThat(domainEventStream.aggregateName, equalTo(testAggregateId.aggregateName))
+        domainEventStream.aggregateId.assert().isEqualTo(testAggregateId)
+        domainEventStream.contextName.assert().isEqualTo(testAggregateId.contextName)
+        domainEventStream.aggregateName.assert().isEqualTo(testAggregateId.aggregateName)
     }
 
     @Test
     fun size() {
         val domainEventStream = createDomainEventStream(testEvents, testAggregateId, 0)
-        assertThat(domainEventStream.aggregateId, equalTo(testAggregateId))
-        assertThat(domainEventStream.size, equalTo(testEvents.size))
+        domainEventStream.aggregateId.assert().isEqualTo(testAggregateId)
+        domainEventStream.size.assert().isEqualTo(testEvents.size)
     }
 
     @Test
     fun version() {
         val domainEventStream = createDomainEventStream(testEvents, testAggregateId, 0)
-        assertThat(domainEventStream.aggregateId, equalTo(testAggregateId))
-        assertThat(domainEventStream.version, equalTo(1))
-        assertThat(domainEventStream.size, equalTo(2))
+        domainEventStream.aggregateId.assert().isEqualTo(testAggregateId)
+        domainEventStream.version.assert().isEqualTo(1)
+        domainEventStream.size.assert().isEqualTo(2)
     }
 
     @Test
     fun whenEquals() {
         val domainEventStream = createDomainEventStream(testEvents, testAggregateId, 0)
-        assertThat(domainEventStream, equalTo(domainEventStream))
-        assertThat(domainEventStream, not(Any()))
+        domainEventStream.assert().isEqualTo(domainEventStream)
+        domainEventStream.assert().isNotEqualTo(Any())
         val other = createDomainEventStream(testEvents, testAggregateId, 0)
-        assertThat(domainEventStream, not(other))
+        domainEventStream.assert().isNotEqualTo(other)
     }
 
     @Test
