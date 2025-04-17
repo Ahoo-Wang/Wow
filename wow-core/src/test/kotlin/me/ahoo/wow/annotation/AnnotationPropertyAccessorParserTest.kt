@@ -13,6 +13,7 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
+import me.ahoo.wow.test.assert.assert
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
@@ -21,8 +22,7 @@ import org.junit.jupiter.api.Test
 class AnnotationPropertyAccessorParserTest {
     @Test
     fun toStringGetter() {
-        val propertyGetter = Mock::stringField.toStringGetter()
-        assertThat(propertyGetter, notNullValue())
+        Mock::stringField.toStringGetter().assert().isNotNull()
     }
 
     @Test
