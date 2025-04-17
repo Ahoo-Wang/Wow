@@ -41,107 +41,102 @@ testImplementation 'me.ahoo.wow:wow-test'
 ## 测试聚合根
 
 ```kotlin
-internal class OrderTest {
+internal class CartTest {
 
     @Test
-    private fun createOrder() {
-        val tenantId = GlobalIdGenerator.generateAsString()
-        val customerId = GlobalIdGenerator.generateAsString()
-
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+    fun addCartItem() {
+        val ownerId = generateGlobalId()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
         )
-        val orderItems = listOf(orderItem)
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.filter { it.productId == productId }.map { it.quantity }.first().toMono()
-            }
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
-            }
-        }
-        aggregateVerifier<Order, OrderState>(tenantId = tenantId)
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            .expectEventCount(1)
-            .expectEventType(OrderCreated::class.java)
-            .expectStateAggregate {
-                assertThat(it.aggregateId.tenantId, equalTo(tenantId))
-            }
+
+        aggregateVerifier<Cart, CartState>(ownerId)
+            .givenOwnerId(ownerId)
+            .whenCommand(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.id, notNullValue())
-                assertThat(it.customerId, equalTo(customerId))
-                assertThat(it.address, equalTo(SHIPPING_ADDRESS))
-                assertThat(it.items, equalTo(orderItems))
-                assertThat(it.status, equalTo(OrderStatus.CREATED))
+                it.items.assert().hasSize(1)
+            }.expectStateAggregate {
+                it.ownerId.assert().isEqualTo(ownerId)
             }
             .verify()
     }
 
     @Test
-    fun createOrderGivenEmptyItems() {
-        val customerId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Order, OrderState>()
-            .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
-            .given()
-            .`when`(CreateOrder(customerId, listOf(), SHIPPING_ADDRESS, false))
-            .expectErrorType(IllegalArgumentException::class.java)
-            .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
-                assertThat(it.initialized, equalTo(false))
-            }.verify()
+    fun addCartItemIfSameProduct() {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+
+        aggregateVerifier<Cart, CartState>()
+            .given(
+                CartItemAdded(
+                    added = CartItem(
+                        productId = addCartItem.productId,
+                        quantity = 1,
+                    ),
+                ),
+            )
+            .`when`(addCartItem)
+            .expectNoError()
+            .expectEventType(CartQuantityChanged::class.java)
+            .expectState {
+                it.items.assert().hasSize(1)
+                it.items.first().quantity.assert().isEqualTo(2)
+            }
+            .verify()
     }
 
-    /**
-     * 创建订单-库存不足
-     */
     @Test
-    fun createOrderWhenInventoryShortage() {
-        val customerId = GlobalIdGenerator.generateAsString()
-        val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+    fun removeCartItem() {
+        val removeCartItem = RemoveCartItem(
+            productIds = setOf("productId"),
         )
-        val orderItems = listOf(orderItem)
-        val inventoryService = object : InventoryService {
-            override fun getInventory(productId: String): Mono<Int> {
-                return orderItems.filter { it.productId == productId }
-                    /*
-                     * 模拟库存不足
-                     */
-                    .map { it.quantity - 1 }.first().toMono()
-            }
-        }
-        val pricingService = object : PricingService {
-            override fun getProductPrice(productId: String): Mono<BigDecimal> {
-                return orderItems.filter { it.productId == productId }.map { it.price }.first().toMono()
-            }
-        }
+        val added = CartItem(
+            productId = "productId",
+            quantity = 1,
+        )
 
-        aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
-            .given()
-            .`when`(CreateOrder(customerId, orderItems, SHIPPING_ADDRESS, false))
-            /*
-             * 期望：库存不足异常.
-             */
-            .expectErrorType(InventoryShortageException::class.java)
-            .expectStateAggregate {
-                /*
-                 * 该聚合对象处于未初始化状态，即该聚合未创建成功.
-                 */
-                assertThat(it.initialized, equalTo(false))
-            }.verify()
+        aggregateVerifier<Cart, CartState>()
+            .given(
+                CartItemAdded(
+                    added = added,
+                ),
+            )
+            .`when`(removeCartItem)
+            .expectEventType(CartItemRemoved::class.java)
+            .expectState {
+                it.items.assert().isEmpty()
+            }
+            .verify()
+    }
+
+    @Test
+    fun changeQuantity() {
+        val changeQuantity = ChangeQuantity(
+            productId = "productId",
+            quantity = 2,
+        )
+        val added = CartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+        aggregateVerifier<Cart, CartState>()
+            .given(
+                CartItemAdded(
+                    added = added,
+                ),
+            )
+            .`when`(changeQuantity)
+            .expectEventType(CartQuantityChanged::class.java)
+            .expectState {
+                it.items.assert().hasSize(1)
+                it.items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
+            }
+            .verify()
     }
 }
 ```
@@ -153,18 +148,16 @@ class CartSagaTest {
 
     @Test
     fun onOrderCreated() {
+        val ownerId = generateGlobalId()
         val orderItem = OrderItem(
-            GlobalIdGenerator.generateAsString(),
-            GlobalIdGenerator.generateAsString(),
-            BigDecimal.valueOf(10),
-            10,
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
         )
         sagaVerifier<CartSaga>()
-            .`when`(
-                mockk<OrderCreated> {
-                    every {
-                        customerId
-                    } returns "customerId"
+            .whenEvent(
+                event = mockk<OrderCreated> {
                     every {
                         items
                     } returns listOf(orderItem)
@@ -172,11 +165,12 @@ class CartSagaTest {
                         fromCart
                     } returns true
                 },
+                ownerId = ownerId
             )
-            .expectCommandBody<RemoveCartItem> {
-                assertThat(it.id, equalTo("customerId"))
-                assertThat(it.productIds, hasSize(1))
-                assertThat(it.productIds.first(), equalTo(orderItem.productId))
+            .expectCommand<RemoveCartItem> {
+                it.aggregateId.id.assert().isEqualTo(ownerId)
+                it.body.productIds.assert().hasSize(1)
+                it.body.productIds.assert().first().isEqualTo(orderItem.productId)
             }
             .verify()
     }
