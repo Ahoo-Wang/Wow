@@ -15,6 +15,7 @@ package me.ahoo.wow.tck.command
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
@@ -42,7 +43,6 @@ import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
-import me.ahoo.wow.test.assert.assert
 import me.ahoo.wow.test.validation.TestValidator
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test

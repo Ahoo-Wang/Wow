@@ -1,5 +1,6 @@
 package me.ahoo.wow.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.staticAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
@@ -13,7 +14,6 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
-import me.ahoo.wow.test.assert.assert
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions

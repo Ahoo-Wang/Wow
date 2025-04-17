@@ -17,7 +17,7 @@ jte = "3.2.0"
 jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.6"
 # testing
-assertj = "3.27.3"
+fluent-assert = "0.0.3"
 hamcrest = "3.0"
 mockk = "1.14.0"
 kotlin-compile-testing = "0.7.0"
@@ -52,7 +52,7 @@ springdoc-openapi-starter-webflux-api = { module = "org.springdoc:springdoc-open
 springdoc-openapi-starter-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
 jte = { module = "gg.jte:jte", version.ref = "jte" }
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
-assertj-bom = { module = "org.assertj:assertj-bom", version.ref = "assertj" }
+fluent-assert-bom = { module = "me.ahoo.test:fluent-assert-bom", version.ref = "fluent-assert" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }

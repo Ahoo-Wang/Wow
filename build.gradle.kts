@@ -120,7 +120,7 @@ configure(libraryProjects) {
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("org.junit.jupiter:junit-jupiter-api")
         testImplementation("org.junit.jupiter:junit-jupiter-params")
-        testImplementation("org.assertj:assertj-core")
+        testImplementation("me.ahoo.test:fluent-assert-core")
         testImplementation("org.hamcrest:hamcrest")
         testImplementation("io.mockk:mockk") {
             exclude(group = "org.slf4j", module = "slf4j-api")
