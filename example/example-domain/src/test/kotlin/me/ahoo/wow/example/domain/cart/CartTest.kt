@@ -202,7 +202,6 @@ class CartTest {
             productId = "productId",
             quantity = 1,
         )
-
         aggregateVerifier<Cart, CartState>()
             .`when`(addCartItem)
             .expectNoError()
