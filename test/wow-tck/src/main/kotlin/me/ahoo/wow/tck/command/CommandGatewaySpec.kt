@@ -42,10 +42,8 @@ import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
+import me.ahoo.wow.test.assert.assert
 import me.ahoo.wow.test.validation.TestValidator
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.instanceOf
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -88,7 +86,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 Thread.sleep(5)
             }
         }
-        assertThat(waitStrategyRegistrar.contains(commandId), equalTo(false))
+        waitStrategyRegistrar.contains(commandId).assert().isFalse()
     }
 
     @Test
@@ -232,10 +230,10 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             sendAndWaitForSent(message)
                 .test()
                 .consumeErrorWith {
-                    assertThat(it, instanceOf(CommandResultException::class.java))
+                    it.assert().isInstanceOf(CommandResultException::class.java)
                     val commandResultException = it as CommandResultException
-                    assertThat(commandResultException.commandResult.errorCode, equalTo(ErrorCodes.DUPLICATE_REQUEST_ID))
-                    assertThat(commandResultException.cause, instanceOf(DuplicateRequestIdException::class.java))
+                    commandResultException.commandResult.errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
+                    commandResultException.cause.assert().isInstanceOf(DuplicateRequestIdException::class.java)
                 }
                 .verify()
         }
@@ -261,7 +259,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                     waitStrategyRegistrar.next(errorSignal)
                 }
                 .consumeNextWith {
-                    assertThat(it.errorCode, equalTo(errorSignal.errorCode))
+                    it.errorCode.assert().isEqualTo(errorSignal.errorCode)
                 }
                 .verifyComplete()
         }
