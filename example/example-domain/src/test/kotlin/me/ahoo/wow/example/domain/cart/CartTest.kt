@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.domain.cart
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
@@ -28,7 +29,6 @@ import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import me.ahoo.wow.test.assert.assert
 import org.junit.jupiter.api.Test
 
 class CartTest {

@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.event
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
@@ -19,7 +20,6 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import me.ahoo.wow.test.assert.assert
 import org.junit.jupiter.api.Test
 
 /**

@@ -2,12 +2,12 @@ package me.ahoo.wow.example.domain.cart
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import me.ahoo.wow.test.assert.assert
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

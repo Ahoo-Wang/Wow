@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.test.aggregate
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
@@ -31,7 +32,6 @@ import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.test.validation.validate
-import org.assertj.core.api.Assertions.assertThat
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
@@ -330,7 +330,7 @@ private fun <S : Any> verifyStateAggregateSerializable(stateAggregate: StateAggr
     }
     val serialized = stateAggregate.toJsonString()
     val deserialized = serialized.toObject<StateAggregate<S>>()
-    assertThat(deserialized).isEqualTo(stateAggregate)
+    deserialized.assert().isEqualTo(stateAggregate)
     return deserialized
 }
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.aggregate
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.OwnerId
@@ -27,7 +28,6 @@ import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
-import org.assertj.core.api.Assertions.assertThat
 import java.util.function.Consumer
 
 interface GivenStage<S : Any> {
@@ -90,7 +90,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
         return expect {
-            assertThat(it.domainEventStream).describedAs {
+            it.domainEventStream.assert().describedAs {
                 buildString {
                     append("Expect the domain event stream is not null.")
                     it.error?.let { error ->
@@ -114,7 +114,7 @@ interface ExpectStage<S : Any> {
      */
     fun <E : Any> expectEvent(expected: Consumer<DomainEvent<E>>): ExpectStage<S> {
         return expectEventStream {
-            assertThat(it).describedAs { "Expect the domain event stream size to be greater than 1." }
+            it.assert().describedAs { "Expect the domain event stream size to be greater than 1." }
                 .hasSizeGreaterThanOrEqualTo(1)
             @Suppress("UNCHECKED_CAST")
             expected.accept(it.first() as DomainEvent<E>)
@@ -132,7 +132,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventCount(expected: Int): ExpectStage<S> {
         return expectEventStream {
-            assertThat(it).describedAs { "Expect the domain event stream size." }.hasSize(expected)
+            it.assert().describedAs { "Expect the domain event stream size." }.hasSize(expected)
         }
     }
 
@@ -143,20 +143,20 @@ interface ExpectStage<S : Any> {
         return expectEventCount(expected.size).expectEventStream {
             val itr = it.iterator()
             for (eventType in expected) {
-                assertThat(itr.next().body).isInstanceOf(eventType)
+                itr.next().body.assert().isInstanceOf(eventType)
             }
         }
     }
 
     fun expectNoError(): ExpectStage<S> {
         return expect {
-            assertThat(it.error).describedAs { "Expect no error" }.isNull()
+            it.error.assert().describedAs { "Expect no error" }.isNull()
         }
     }
 
     fun expectError(): ExpectStage<S> {
         return expect {
-            assertThat(it.error).describedAs { "Expect an error." }.isNotNull()
+            it.error.assert().describedAs { "Expect an error." }.isNotNull()
         }
     }
 
@@ -172,7 +172,7 @@ interface ExpectStage<S : Any> {
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<S> {
         return expectError<E> {
-            assertThat(it).isInstanceOf(expected)
+            it.assert().isInstanceOf(expected)
         }
     }
 
@@ -222,9 +222,9 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
 
     @Suppress("UNCHECKED_CAST")
     fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
-        assertThat(hasNext()).describedAs { "Expect the next command." }.isTrue()
+        hasNext().assert().describedAs { "Expect the next command." }.isTrue()
         val nextEvent = next()
-        assertThat(nextEvent.body).describedAs { "Expect the event body type." }.isInstanceOf(eventType)
+        nextEvent.body.assert().describedAs { "Expect the event body type." }.isInstanceOf(eventType)
         return nextEvent as DomainEvent<E>
     }
 

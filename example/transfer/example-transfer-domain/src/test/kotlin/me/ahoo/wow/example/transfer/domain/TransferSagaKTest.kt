@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.transfer.domain
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.transfer.api.AmountEntered
 import me.ahoo.wow.example.transfer.api.Confirm
 import me.ahoo.wow.example.transfer.api.Entry
@@ -20,7 +21,6 @@ import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import me.ahoo.wow.test.assert.assert
 import org.junit.jupiter.api.Test
 
 internal class TransferSagaKTest {

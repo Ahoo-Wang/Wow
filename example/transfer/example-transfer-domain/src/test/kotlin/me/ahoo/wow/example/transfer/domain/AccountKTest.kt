@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.example.transfer.domain
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.transfer.api.AccountCreated
 import me.ahoo.wow.example.transfer.api.AccountFrozen
 import me.ahoo.wow.example.transfer.api.AccountUnfrozen
@@ -31,7 +32,6 @@ import me.ahoo.wow.example.transfer.api.UnfreezeAccount
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.aggregateVerifier
-import me.ahoo.wow.test.assert.assert
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
