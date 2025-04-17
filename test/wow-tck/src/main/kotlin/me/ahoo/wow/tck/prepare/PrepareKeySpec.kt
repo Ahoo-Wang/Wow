@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.tck.prepare
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -252,6 +251,6 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun getName() {
-        MatcherAssert.assertThat(prepareKey.name, Matchers.equalTo(name))
+        prepareKey.name.assert().isEqualTo(name)
     }
 }
