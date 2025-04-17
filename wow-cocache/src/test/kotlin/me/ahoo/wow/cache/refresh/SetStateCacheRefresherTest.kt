@@ -15,6 +15,7 @@ package me.ahoo.wow.cache.refresh
 
 import io.mockk.every
 import io.mockk.spyk
+import me.ahoo.cache.api.annotation.CoCache
 import me.ahoo.cache.client.MapClientSideCache
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.messaging.function.FunctionKind
@@ -24,10 +25,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.instanceOf
-import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -42,52 +40,52 @@ class SetStateCacheRefresherTest {
 
     @Test
     fun getFunctionKind() {
-        assertThat(stateCacheRefresher.functionKind, equalTo(FunctionKind.STATE_EVENT))
+        assertThat(stateCacheRefresher.functionKind).isEqualTo(FunctionKind.STATE_EVENT)
     }
 
     @Test
     fun getName() {
-        assertThat(stateCacheRefresher.name, equalTo(StateCacheRefresher<*, *, *>::invoke.name))
+        assertThat(stateCacheRefresher.name).isEqualTo(StateCacheRefresher<*, *, *>::invoke.name)
     }
 
     @Test
     fun getProcessor() {
-        assertThat(stateCacheRefresher.processor, equalTo(stateCacheRefresher))
+        assertThat(stateCacheRefresher.processor).isEqualTo(stateCacheRefresher)
     }
 
     @Test
     fun getSupportedTopics() {
-        assertThat(stateCacheRefresher.supportedTopics, equalTo(setOf(MOCK_AGGREGATE_METADATA.materialize())))
+        assertThat(stateCacheRefresher.supportedTopics).contains(MOCK_AGGREGATE_METADATA.materialize())
     }
 
     @Test
     fun getSupportedType() {
-        assertThat(stateCacheRefresher.supportedType, equalTo(Any::class.java))
+        assertThat(stateCacheRefresher.supportedType).isEqualTo(Any::class.java)
     }
 
     @Test
     fun getAnnotation() {
-        assertThat(stateCacheRefresher.getAnnotation(OnEvent::class.java), nullValue())
+        assertThat(stateCacheRefresher.getAnnotation(OnEvent::class.java)).isNull()
     }
 
     @Test
     fun getNamedAggregate() {
-        assertThat(stateCacheRefresher.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
+        assertThat(stateCacheRefresher.namedAggregate).isEqualTo(MOCK_AGGREGATE_METADATA)
     }
 
     @Test
     fun getCache() {
-        assertThat(stateCacheRefresher.cache, instanceOf(MapClientSideCache::class.java))
+        assertThat(stateCacheRefresher.cache).isInstanceOf(MapClientSideCache::class.java)
     }
 
     @Test
     fun getTtl() {
-        assertThat(stateCacheRefresher.ttl, nullValue())
+        assertThat(stateCacheRefresher.ttl).isEqualTo(CoCache.DEFAULT_TTL)
     }
 
     @Test
     fun getAmplitude() {
-        assertThat(stateCacheRefresher.amplitude, equalTo(0))
+        assertThat(stateCacheRefresher.ttlAmplitude).isEqualTo(CoCache.DEFAULT_TTL_AMPLITUDE)
     }
 
     @Test
