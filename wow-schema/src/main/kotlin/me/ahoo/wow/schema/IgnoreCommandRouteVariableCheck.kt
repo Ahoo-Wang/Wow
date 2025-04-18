@@ -22,12 +22,11 @@ import kotlin.reflect.jvm.kotlinProperty
 object IgnoreCommandRouteVariableCheck : Predicate<FieldScope> {
     override fun test(fieldScope: FieldScope): Boolean {
         val property = fieldScope.rawMember.kotlinProperty!!
-        if (property.scanAnnotation<CommandRoute.PathVariable>() != null) {
+        val pathVariable = property.scanAnnotation<CommandRoute.PathVariable>()
+        if (pathVariable != null && pathVariable.nestedPath.isEmpty()) {
             return true
         }
-        if (property.scanAnnotation<CommandRoute.HeaderVariable>() != null) {
-            return true
-        }
-        return false
+        val headerVariable = property.scanAnnotation<CommandRoute.HeaderVariable>()
+        return headerVariable != null && headerVariable.nestedPath.isEmpty()
     }
 }
