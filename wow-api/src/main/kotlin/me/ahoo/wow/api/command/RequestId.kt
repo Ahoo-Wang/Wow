@@ -14,8 +14,15 @@
 package me.ahoo.wow.api.command
 
 /**
- * Command idempotency ID.
+ * Represents a unique identifier for a request. This interface is part of the command handling mechanism, ensuring that each request can be uniquely identified.
+ *
+ * Implementations of this interface are expected to provide a `requestId` which should be unique and used to identify the specific request instance. This is particularly useful in scenarios
+ * where idempotency of requests needs to be guaranteed or when tracking and correlating requests across system boundaries.
  */
 interface RequestId {
+    /**
+     * Represents a unique identifier for a request. This identifier is crucial for ensuring that each request can be uniquely identified,
+     * which is particularly useful in scenarios where idempotency of requests needs to be guaranteed or when tracking and correlating requests across system boundaries.
+     */
     val requestId: String
 }

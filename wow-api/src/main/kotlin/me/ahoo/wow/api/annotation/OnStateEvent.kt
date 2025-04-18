@@ -18,9 +18,12 @@ import java.lang.annotation.Inherited
 const val DEFAULT_ON_STATE_EVENT_NAME = "onStateEvent"
 
 /**
- * On State Event.
+ * Marks a function as a handler for state events, indicating that the function should be invoked when a state event is emitted.
+ * This annotation is used in conjunction with the [OnMessage] annotation to specify the type of message and default function name.
  *
- * Local Context:
+ * The `value` parameter allows specifying one or more aggregate names to which this state event handler applies.
+ *
+ * Examples:
  *
  * ``` kotlin
  *    @OnStateEvent

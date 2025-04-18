@@ -15,6 +15,13 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
+/**
+ * Marks a class as an aggregate route, which is used to define the routing behavior for aggregate operations.
+ * The annotation can specify the resource name and the ownership policy for the aggregate.
+ *
+ * @param resourceName the name of the resource this aggregate route is associated with. Default is an empty string.
+ * @param owner the ownership policy that determines how the aggregate handles ownership. It can be one of [Owner.NEVER], [Owner.ALWAYS], or [Owner.AGGREGATE_ID].
+ */
 @Target(AnnotationTarget.CLASS)
 @Inherited
 @MustBeDocumented

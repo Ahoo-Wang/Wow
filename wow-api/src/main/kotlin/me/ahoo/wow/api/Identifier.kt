@@ -13,14 +13,16 @@
 package me.ahoo.wow.api
 
 /**
- * Identifier .
- *
- * @author ahoo wang
+ * Represents an identifiable entity with a unique identifier.
  */
 interface Identifier {
 
     /**
-     * id.
+     * Represents a unique identifier for the implementing entity.
+     *
+     * This identifier is crucial for distinguishing between different instances of the same type and
+     * is often used in operations that require a unique reference to a specific entity, such as database lookups,
+     * state management, and event handling.
      */
     val id: String
 }

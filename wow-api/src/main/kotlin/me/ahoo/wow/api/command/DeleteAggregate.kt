@@ -17,8 +17,10 @@ import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
 /**
- * @see me.ahoo.wow.api.event.AggregateDeleted
- * @see me.ahoo.wow.api.event.AggregateRecovered
+ * Represents a command to delete an aggregate. This interface is part of the command handling mechanism, ensuring that the deletion of an aggregate can be managed and tracked.
+ *
+ * Implementations of this interface are expected to provide the necessary logic to delete an aggregate, which may include removing the aggregate from the system, updating related entities
+ * , and ensuring that the operation is idempotent.
  */
 interface DeleteAggregate
 

@@ -13,6 +13,13 @@
 
 package me.ahoo.wow.api.event
 
+import me.ahoo.wow.api.annotation.Event
+
+/**
+ * Represents an event that is triggered when a deleted aggregate has been recovered.
+ *
+ */
+@Event
 interface AggregateRecovered
 
 object DefaultAggregateRecovered : AggregateRecovered

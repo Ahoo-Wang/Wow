@@ -15,9 +15,11 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * Value Object Tag.
+ * ValueObject annotation is used to mark a class or an annotation as a value object. A value object represents a domain concept that is defined by its data and does not have a distinct identity. This annotation can
+ *  be applied to classes and annotation classes.
  *
- * @author ahoo wang
+ * The `@ValueObject` annotation is intended to convey the design intent that the annotated class should be treated as a value object, which typically means it should be immutable and compared
+ *  based on its content rather than its identity.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
