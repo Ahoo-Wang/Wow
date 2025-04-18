@@ -18,7 +18,6 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import com.github.victools.jsonschema.generator.naming.DefaultSchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
@@ -36,9 +35,6 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
             it.getContextAlias().let { alias ->
                 return "$alias."
             }
-        }
-        if (name.startsWith("me.ahoo.wow.")) {
-            return Wow.WOW_PREFIX
         }
         return null
     }
