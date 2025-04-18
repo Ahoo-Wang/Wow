@@ -159,11 +159,23 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Iterator<CommandMessage<*>> by delegate,
     Decorator<Iterator<CommandMessage<*>>> {
 
+    fun skip(skip: Int) {
+        require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
+        repeat(skip) {
+            hasNext().assert()
+                .describedAs { "Not enough commands to skip $skip times. Current skip times: $it" }
+                .isTrue()
+            next()
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
-        hasNext().assert().describedAs { "Expect the next command." }.isEqualTo(true)
+        hasNext().assert().describedAs { "Expect there to be a next command." }.isTrue()
         val nextCommand = next()
-        nextCommand.body.assert().describedAs { "Expect the command body type." }.isInstanceOf(commandType)
+        nextCommand.body.assert()
+            .describedAs { "Expect the next command body to be an instance of ${commandType.simpleName}." }
+            .isInstanceOf(commandType)
         return nextCommand as CommandMessage<C>
     }
 

@@ -220,11 +220,23 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     Iterator<DomainEvent<*>> by delegate,
     Decorator<Iterator<DomainEvent<*>>> {
 
+    fun skip(skip: Int) {
+        require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
+        repeat(skip) {
+            hasNext().assert()
+                .describedAs { "Not enough events to skip $skip times. Current skip times: $it" }
+                .isTrue()
+            next()
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
-        hasNext().assert().describedAs { "Expect the next command." }.isTrue()
+        hasNext().assert().describedAs { "Expect there to be a next event." }.isTrue()
         val nextEvent = next()
-        nextEvent.body.assert().describedAs { "Expect the event body type." }.isInstanceOf(eventType)
+        nextEvent.body.assert()
+            .describedAs { "Expect the next event body to be an instance of ${eventType.simpleName}." }
+            .isInstanceOf(eventType)
         return nextEvent as DomainEvent<E>
     }
 
