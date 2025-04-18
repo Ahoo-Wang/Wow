@@ -1,5 +1,6 @@
 package me.ahoo.wow.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
@@ -13,14 +14,14 @@ class SortedByOrderKtTest {
     @Test
     fun sortAny() {
         val sortedList = listOf(Any(), Any()).sortedByOrder()
-        assertThat(sortedList, hasSize(2))
+        sortedList.assert().hasSize(2)
     }
 
     @Test
     fun sortOrderValue() {
         val sortedList = listOf(OrderLast, OrderFirst).sortedByOrder()
-        assertThat(sortedList, hasSize(2))
-        assertThat(sortedList, contains(OrderFirst, OrderLast))
+        sortedList.assert().hasSize(2)
+        sortedList.assert().contains(OrderFirst, OrderLast)
     }
 
     @Test
