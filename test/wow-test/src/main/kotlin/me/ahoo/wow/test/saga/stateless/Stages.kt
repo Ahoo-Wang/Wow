@@ -159,7 +159,7 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Iterator<CommandMessage<*>> by delegate,
     Decorator<Iterator<CommandMessage<*>>> {
 
-    fun skip(skip: Int) {
+    fun skip(skip: Int): CommandIterator {
         require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
         repeat(skip) {
             hasNext().assert()
@@ -167,6 +167,7 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
                 .isTrue()
             next()
         }
+        return this
     }
 
     @Suppress("UNCHECKED_CAST")
