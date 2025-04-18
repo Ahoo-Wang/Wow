@@ -18,8 +18,11 @@ import org.springframework.stereotype.Component
 @Component
 @me.ahoo.wow.api.annotation.StatelessSaga
 @Deprecated(
-    "Use StatelessSagaComponent instead.",
-    ReplaceWith("StatelessSagaComponent")
+    message = "Use StatelessSagaComponent instead.",
+    ReplaceWith(
+        expression = "StatelessSagaComponent",
+        imports = ["me.ahoo.wow.spring.stereotype.StatelessSagaComponent"]
+    )
 )
 annotation class StatelessSaga
 

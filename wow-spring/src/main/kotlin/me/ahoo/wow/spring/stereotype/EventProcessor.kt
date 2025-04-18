@@ -18,8 +18,11 @@ import org.springframework.stereotype.Component
 @Component
 @me.ahoo.wow.api.annotation.EventProcessor
 @Deprecated(
-    "Use EventProcessorComponent instead.",
-    ReplaceWith("EventProcessorComponent")
+    message = "Use EventProcessorComponent instead.",
+    replaceWith = ReplaceWith(
+        expression = "EventProcessorComponent",
+        imports = ["me.ahoo.wow.spring.stereotype.EventProcessorComponent"]
+    )
 )
 annotation class EventProcessor
 
