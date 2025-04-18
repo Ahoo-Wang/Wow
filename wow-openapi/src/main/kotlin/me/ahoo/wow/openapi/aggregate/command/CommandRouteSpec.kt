@@ -142,7 +142,7 @@ class CommandRouteSpec(
         }
 
     private fun VariableMetadata.variableSchema(): Schema<*> {
-        return field?.type?.let {
+        return variableType?.let {
             componentContext.schema(it)
         } ?: StringSchema()
     }
