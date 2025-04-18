@@ -2,10 +2,9 @@ package me.ahoo.wow.openapi.converter
 
 import io.swagger.v3.core.converter.ModelConverters
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.tck.mock.MockCommandAggregate
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class BoundedContextSchemaNameConverterTest {
@@ -13,24 +12,24 @@ class BoundedContextSchemaNameConverterTest {
     @Test
     fun resolveAggregate() {
         val schemas = ModelConverters.getInstance(true).read(MockCommandAggregate::class.java)
-        assertThat(schemas.containsKey("tck.mock_aggregate.MockCommandAggregate"), equalTo(true))
+        schemas.assert().containsKey("tck.mock_aggregate.MockCommandAggregate")
     }
 
     @Test
     fun resolveJavaLib() {
         val schemas = ModelConverters.getInstance(true).read(String::class.java)
-        assertThat(schemas.size, equalTo(0))
+        schemas.assert().hasSize(0)
     }
 
     @Test
     fun resolveJavaClass() {
         val schemas = ModelConverters.getInstance(true).read(CosIdGeneratorStat::class.java)
-        assertThat(schemas.containsKey("CosIdGeneratorStat"), equalTo(true))
+        schemas.assert().containsKey("CosIdGeneratorStat")
     }
 
     @Test
     fun resolveBatchResult() {
         val schemas = ModelConverters.getInstance(true).read(BatchResult::class.java)
-        assertThat(schemas.containsKey("wow.openapi.BatchResult"), equalTo(true))
+        schemas.assert().containsKey("wow.openapi.BatchResult")
     }
 }
