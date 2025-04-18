@@ -36,4 +36,10 @@ class CommandRouteMetadataTest {
         val nestedMockCommandRoute = commandRouteMetadata<NestedMockCommandRoute>()
         commandRouteMetadata.assert().isNotEqualTo(nestedMockCommandRoute)
     }
+
+    @Test
+    fun testHasCode() {
+        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
+        commandRouteMetadata.hashCode().assert().isEqualTo(commandRouteMetadata.commandMetadata.hashCode())
+    }
 }
