@@ -221,23 +221,33 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     Decorator<Iterator<DomainEvent<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
-        hasNext().assert().describedAs { "Expect the next command." }.isTrue()
+    fun <E : Any> nextEvent(eventType: Class<E>, skip: Int = 0): DomainEvent<E> {
+        require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
+        repeat(skip) {
+            hasNext().assert()
+                .describedAs { "Not enough events to skip $skip times. Current skip times: $it" }
+                .isTrue()
+            next()
+        }
+        hasNext().assert().describedAs { "Expect there to be a next command after skipping $skip events." }
+            .isEqualTo(true)
         val nextEvent = next()
-        nextEvent.body.assert().describedAs { "Expect the event body type." }.isInstanceOf(eventType)
+        nextEvent.body.assert()
+            .describedAs { "Expect the next event body to be an instance of ${eventType.simpleName}." }
+            .isInstanceOf(eventType)
         return nextEvent as DomainEvent<E>
     }
 
-    fun <E : Any> nextEventBody(eventType: Class<E>): E {
-        return nextEvent(eventType).body
+    fun <E : Any> nextEventBody(eventType: Class<E>, skip: Int = 0): E {
+        return nextEvent(eventType, skip).body
     }
 
-    inline fun <reified E : Any> nextEvent(): DomainEvent<E> {
-        return nextEvent(E::class.java)
+    inline fun <reified E : Any> nextEvent(skip: Int = 0): DomainEvent<E> {
+        return nextEvent(E::class.java, skip)
     }
 
-    inline fun <reified E : Any> nextEventBody(): E {
-        return nextEventBody(E::class.java)
+    inline fun <reified E : Any> nextEventBody(skip: Int = 0): E {
+        return nextEventBody(E::class.java, skip)
     }
 }
 

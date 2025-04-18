@@ -78,7 +78,9 @@ interface ExpectStage<T : Any> {
      * @see expectCommandCount
      */
     fun expectNoCommand(): ExpectStage<T> {
-        return expectCommandCount(0)
+        return expectCommandCount(0).expect {
+            it.commandStream.assert().describedAs { "Expect no commands to be generated." }.isEmpty()
+        }
     }
 
     /**
@@ -102,7 +104,8 @@ interface ExpectStage<T : Any> {
 
     fun expectCommandCount(expected: Int): ExpectStage<T> {
         return expectCommandStream {
-            it.assert().describedAs { "Expect the command stream size." }.hasSize(expected)
+            it.assert().describedAs { "Expect the command stream to have exactly $expected commands." }
+                .hasSize(expected)
         }
     }
 
@@ -110,7 +113,9 @@ interface ExpectStage<T : Any> {
         return expectCommandCount(expected.size).expectCommandStream {
             val itr = it.iterator()
             for (eventType in expected) {
-                itr.next().body.assert().isInstanceOf(eventType)
+                itr.next().body.assert()
+                    .describedAs { "Expect the command body to be an instance of ${eventType.simpleName}." }
+                    .isInstanceOf(eventType)
             }
         }
     }
@@ -160,22 +165,32 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Decorator<Iterator<CommandMessage<*>>> {
 
     @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
-        hasNext().assert().describedAs { "Expect the next command." }.isEqualTo(true)
+    fun <C : Any> nextCommand(commandType: Class<C>, skip: Int = 0): CommandMessage<C> {
+        require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
+        repeat(skip) {
+            hasNext().assert()
+                .describedAs { "Not enough commands to skip $skip times. Current skip times: $it" }
+                .isTrue()
+            next()
+        }
+        hasNext().assert().describedAs { "Expect there to be a next command after skipping $skip commands." }
+            .isEqualTo(true)
         val nextCommand = next()
-        nextCommand.body.assert().describedAs { "Expect the command body type." }.isInstanceOf(commandType)
+        nextCommand.body.assert()
+            .describedAs { "Expect the next command body to be an instance of ${commandType.simpleName}." }
+            .isInstanceOf(commandType)
         return nextCommand as CommandMessage<C>
     }
 
-    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
-        return nextCommand(commandType).body
+    fun <C : Any> nextCommandBody(commandType: Class<C>, skip: Int = 0): C {
+        return nextCommand(commandType, skip).body
     }
 
-    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
-        return nextCommand(C::class.java)
+    inline fun <reified C : Any> nextCommand(skip: Int = 0): CommandMessage<C> {
+        return nextCommand(C::class.java, skip)
     }
 
-    inline fun <reified C : Any> nextCommandBody(): C {
-        return nextCommandBody(C::class.java)
+    inline fun <reified C : Any> nextCommandBody(skip: Int = 0): C {
+        return nextCommandBody(C::class.java, skip)
     }
 }
