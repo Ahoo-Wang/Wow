@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DeleteAggregate
 import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.serialization.JsonSerializer
@@ -195,6 +196,17 @@ class CommandRouteMetadataParserTest {
         command.customer.id.assert().isEqualTo("customerId")
         command.customer.name.assert().isEqualTo("name")
     }
+
+    @Test
+    fun missedVariable() {
+        val commandRouteMetadata = commandRouteMetadata<MockCommandRouteMissedVariable>()
+        commandRouteMetadata.pathVariableMetadata.map { it.variableName }
+            .assert().contains("id", "name")
+        val namePathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "name" }
+        namePathVariable.field.assert().isNull()
+        namePathVariable.fieldPath.assert().contains("name")
+        namePathVariable.variableType.assert().isNull()
+    }
 }
 
 @CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)
@@ -226,7 +238,7 @@ data class NestedMockCommandRoute(
     @CommandRoute.PathVariable(name = "customerId", nestedPath = ["id"])
     @CommandRoute.PathVariable(name = "name", nestedPath = ["name"])
     val customer: Customer
-) {
+) : DeleteAggregate {
     data class Customer(val id: String, val name: String)
 }
 
@@ -240,3 +252,10 @@ data class NestedFieldMockCommandRoute(
 ) {
     data class Customer(val id: String, val name: String)
 }
+
+@CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)
+data class MockCommandRouteMissedVariable(
+    @CommandRoute.PathVariable
+    val id: String,
+    val name: String = "otherName",
+)
