@@ -17,6 +17,33 @@ import java.lang.annotation.Inherited
 
 const val DEFAULT_COMMAND_ACTION = "__{command_name}__"
 
+/**
+ * Marks a class or annotation as a command route, defining the action, method, and other properties for handling commands.
+ *
+ * @param action The name of the action or sub-resource. Defaults to [DEFAULT_COMMAND_ACTION].
+ * @param enabled Whether the command route is enabled. Defaults to `true`.
+ * @param method The HTTP method associated with the command. Defaults to [Method.DEFAULT].
+ * @param prefix A prefix to be added to the command path. Defaults to an empty string.
+ * @param appendIdPath Determines if the ID path should be appended. Defaults to [AppendPath.DEFAULT].
+ * @param appendTenantPath Determines if the tenant path should be appended. Defaults to [AppendPath.DEFAULT].
+ * @param appendOwnerPath Determines if the owner path should be appended. Defaults to [AppendPath.DEFAULT].
+ * @param summary A deprecated field for providing a summary. Use @Summary instead. Defaults to an empty string.
+ * @param description A deprecated field for providing a description. Use @Description instead. Defaults to an empty string.
+ *
+ * Example usage:
+ * ```kotlin
+ * @CommandRoute(
+ *     action = "create",
+ *     method = CommandRoute.Method.POST,
+ *     prefix = "/api/v1",
+ *     appendIdPath = CommandRoute.AppendPath.ALWAYS,
+ *     enabled = true
+ * )
+ * class CreateResourceCommand {
+ *     // Command implementation
+ * }
+ * ```
+ */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
