@@ -1,7 +1,6 @@
 package me.ahoo.wow.webflux.exception
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -20,7 +19,7 @@ class DefaultExceptionHandlerTest {
         DefaultRequestExceptionHandler.handle(request, IllegalArgumentException("error"))
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.BAD_REQUEST))
+                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
             }
             .verifyComplete()
     }
