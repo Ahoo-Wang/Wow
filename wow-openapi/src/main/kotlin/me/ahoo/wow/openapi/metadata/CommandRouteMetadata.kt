@@ -97,19 +97,22 @@ data class CommandRouteMetadata<C>(
 }
 
 /**
+ * Represents metadata for a variable, including its field, path, name, and whether it's required or bound.
+ *
+ * @property field The [Field] object representing the variable. Can be null.
+ * @property fieldPath A list of strings representing the path to the variable within a nested structure.
+ * @property variableName The name of the variable.
+ * @property required Indicates if the variable is required.
+ * @property bound Whether the command body field is bound. Defaults to true.
+ * @property fieldName Provides the name of the last field in the [fieldPath].
+ * @property variableType Dynamically determines the type of the variable based on the provided [field] and [fieldPath]. It returns `null` if the [field] is null or if the [fieldPath] cannot be resolved.
  *
  */
 data class VariableMetadata(
     val field: Field?,
     val fieldPath: List<String>,
-    /**
-     * variable name
-     */
     val variableName: String,
     val required: Boolean,
-    /**
-     * Whether the command body field is bound
-     */
     val bound: Boolean = true
 ) {
     val fieldName: String by lazy {
@@ -125,7 +128,7 @@ data class VariableMetadata(
         val nestedFieldPath = fieldPath.drop(1)
         for (path in nestedFieldPath) {
             currentField =
-                currentField?.type?.let { it as? Class<*> }?.declaredFields?.firstOrNull { it.name == path }
+                currentField?.type?.declaredFields?.firstOrNull { it.name == path }
         }
         return@lazy currentField?.genericType
     }
