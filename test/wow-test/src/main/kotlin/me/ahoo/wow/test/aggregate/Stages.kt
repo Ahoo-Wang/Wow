@@ -220,7 +220,7 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     Iterator<DomainEvent<*>> by delegate,
     Decorator<Iterator<DomainEvent<*>>> {
 
-    fun skip(skip: Int) {
+    fun skip(skip: Int): EventIterator {
         require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
         repeat(skip) {
             hasNext().assert()
@@ -228,6 +228,7 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
                 .isTrue()
             next()
         }
+        return this
     }
 
     @Suppress("UNCHECKED_CAST")
