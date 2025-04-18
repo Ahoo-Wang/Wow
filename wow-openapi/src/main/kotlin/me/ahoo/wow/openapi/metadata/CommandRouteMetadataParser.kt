@@ -34,6 +34,22 @@ import org.springframework.web.util.UriTemplate
 import kotlin.reflect.KProperty1
 import kotlin.reflect.jvm.javaField
 
+/**
+ * Parses the provided [type] into a [Metadata] object specifically for command routes.
+ *
+ * This object extends [CacheableMetadataParser] and thus benefits from caching mechanisms,
+ * which can improve performance when parsing the same type multiple times.
+ *
+ * @param type The class type to be parsed into metadata.
+ * @return A [Metadata] object representing the command route information of the provided type.
+ *
+ * Example usage:
+ * ```kotlin
+ * val myCommandType = MyCommand::class.java
+ * val metadata: Metadata = CommandRouteMetadataParser.parse(myCommandType)
+ * println(metadata) // Outputs the metadata, assuming it has a toString implementation
+ * ```
+ */
 object CommandRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandRouteMetadataVisitor(type)

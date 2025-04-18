@@ -21,6 +21,7 @@ import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toObject
 import java.lang.reflect.Field
+import java.lang.reflect.Type
 
 data class CommandRouteMetadata<C>(
     val enabled: Boolean,
@@ -95,6 +96,9 @@ data class CommandRouteMetadata<C>(
     }
 }
 
+/**
+ *
+ */
 data class VariableMetadata(
     val field: Field?,
     val fieldPath: List<String>,
@@ -110,5 +114,19 @@ data class VariableMetadata(
 ) {
     val fieldName: String by lazy {
         fieldPath.last()
+    }
+
+    val variableType: Type? by lazy {
+        this.field ?: return@lazy null
+        if (fieldPath.isEmpty()) {
+            return@lazy this.field.genericType
+        }
+        var currentField: Field? = this.field
+        val nestedFieldPath = fieldPath.drop(1)
+        for (path in nestedFieldPath) {
+            currentField =
+                currentField?.type?.let { it as? Class<*> }?.declaredFields?.firstOrNull { it.name == path }
+        }
+        return@lazy currentField?.genericType
     }
 }

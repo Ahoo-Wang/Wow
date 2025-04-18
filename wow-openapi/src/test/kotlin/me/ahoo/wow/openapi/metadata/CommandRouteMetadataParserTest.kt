@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.route
+package me.ahoo.wow.openapi.metadata
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -32,32 +32,34 @@ class CommandRouteMetadataParserTest {
     @Test
     fun toCommandRouteMetadata() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
-        assertThat(commandRouteMetadata.enabled, equalTo(true))
-        assertThat(commandRouteMetadata.action, equalTo("{id}/{name}"))
-        assertThat(commandRouteMetadata.method, equalTo(Https.Method.PATCH))
-        assertThat(commandRouteMetadata.prefix, equalTo(""))
-        assertThat(commandRouteMetadata.appendIdPath, equalTo(CommandRoute.AppendPath.DEFAULT))
+        commandRouteMetadata.enabled.assert().isTrue()
+        commandRouteMetadata.action.assert().isEqualTo("{id}/{name}")
+        commandRouteMetadata.prefix.assert().isEqualTo("")
+        commandRouteMetadata.appendIdPath.assert().isEqualTo(CommandRoute.AppendPath.DEFAULT)
         val idPathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "id" }
-        assertThat(idPathVariable.field, equalTo(MockCommandRouteNotRequired::id.javaField))
-        assertThat(idPathVariable.fieldName, equalTo("id"))
-        assertThat(idPathVariable.variableName, equalTo("id"))
-        assertThat(idPathVariable.required, equalTo(true))
+        idPathVariable.field.assert().isEqualTo(MockCommandRouteNotRequired::id.javaField)
+        idPathVariable.fieldName.assert().isEqualTo("id")
+        idPathVariable.variableName.assert().isEqualTo("id")
+        idPathVariable.required.assert().isTrue()
+        idPathVariable.variableType.assert().isEqualTo(String::class.java)
 
         val namePathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "name" }
-        assertThat(namePathVariable.fieldName, equalTo("customName"))
-        assertThat(namePathVariable.variableName, equalTo("name"))
-        assertThat(namePathVariable.required, equalTo(false))
+        namePathVariable.fieldName.assert().isEqualTo("customName")
+        namePathVariable.variableName.assert().isEqualTo("name")
+        namePathVariable.required.assert().isFalse()
+        namePathVariable.variableType.assert().isEqualTo(String::class.java)
 
         val headerVariable = commandRouteMetadata.headerVariableMetadata.first { it.variableName == "header" }
-        assertThat(headerVariable.fieldName, equalTo("header"))
-        assertThat(headerVariable.variableName, equalTo("header"))
-        assertThat(headerVariable.required, equalTo(false))
+        headerVariable.fieldName.assert().isEqualTo("header")
+        headerVariable.variableName.assert().isEqualTo("header")
+        headerVariable.required.assert().isFalse()
+        headerVariable.variableType.assert().isEqualTo(String::class.java)
     }
 
     @Test
     fun asDelete() {
         val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
-        assertThat(commandRouteMetadata.method, equalTo(Https.Method.DELETE))
+        commandRouteMetadata.method.assert().isEqualTo(Https.Method.DELETE)
     }
 
     @Test
@@ -77,9 +79,9 @@ class CommandRouteMetadataParserTest {
                 )[it]
             }
         )
-        assertThat(command.id, equalTo("id"))
-        assertThat(command.name, equalTo("name"))
-        assertThat(command.header, equalTo("header-value"))
+        command.id.assert().isEqualTo("id")
+        command.name.assert().isEqualTo("name")
+        command.header.assert().isEqualTo("header-value")
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             commandRouteMetadata.decode(
                 ObjectNode(JsonSerializer.nodeFactory),
@@ -112,9 +114,10 @@ class CommandRouteMetadataParserTest {
                 )[it]
             }
         )
-        assertThat(command.id, equalTo("id"))
-        assertThat(command.name, equalTo("name"))
-        assertThat(command.header, equalTo("header-value"))
+
+        command.id.assert().isEqualTo("id")
+        command.name.assert().isEqualTo("name")
+        command.header.assert().isEqualTo("header-value")
 
         val commandWithDefault = commandRouteMetadata.decode(
             ObjectNode(JsonSerializer.nodeFactory),
@@ -127,9 +130,9 @@ class CommandRouteMetadataParserTest {
                 null
             }
         )
-        assertThat(commandWithDefault.id, equalTo("id"))
-        assertThat(commandWithDefault.name, equalTo("otherName"))
-        assertThat(commandWithDefault.header, equalTo("header"))
+        commandWithDefault.id.assert().isEqualTo("id")
+        commandWithDefault.name.assert().isEqualTo("otherName")
+        commandWithDefault.header.assert().isEqualTo("header")
     }
 
     @Test
@@ -138,8 +141,14 @@ class CommandRouteMetadataParserTest {
         assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
-        assertThat(customerIdPathVariable.fieldName, equalTo("id"))
-        assertThat(customerIdPathVariable.fieldPath, equalTo(listOf("customer", "id")))
+        customerIdPathVariable.fieldName.assert().isEqualTo("id")
+        customerIdPathVariable.fieldPath.assert().contains("customer", "id")
+        customerIdPathVariable.variableType.assert().isEqualTo(String::class.java)
+
+        val customerNamePathVariable = commandRouteMetadata.pathVariableMetadata.first { it.variableName == "name" }
+        customerNamePathVariable.fieldName.assert().isEqualTo("name")
+        customerNamePathVariable.fieldPath.assert().contains("customer", "name")
+        customerNamePathVariable.variableType.assert().isEqualTo(String::class.java)
 
         val command = commandRouteMetadata.decode(
             ObjectNode(JsonSerializer.nodeFactory),
@@ -154,20 +163,20 @@ class CommandRouteMetadataParserTest {
                 null
             }
         )
-        assertThat(command.id, equalTo("id"))
-        assertThat(command.customer.id, equalTo("customerId"))
-        assertThat(command.customer.name, equalTo("name"))
+        command.id.assert().isEqualTo("id")
+        command.customer.id.assert().isEqualTo("customerId")
+        command.customer.name.assert().isEqualTo("name")
     }
 
     @Test
     fun decodeFieldNested() {
         NestedFieldMockCommandRoute::customer.toIntimateAnnotationElement()
         val commandRouteMetadata = commandRouteMetadata<NestedFieldMockCommandRoute>()
-        assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
+        commandRouteMetadata.action.assert().isEqualTo("{customerId}/{id}/{name}")
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
-        assertThat(customerIdPathVariable.fieldName, equalTo("id"))
-        assertThat(customerIdPathVariable.fieldPath, equalTo(listOf("customer", "id")))
+        customerIdPathVariable.fieldName.assert().isEqualTo("id")
+        customerIdPathVariable.fieldPath.assert().contains("customer", "id")
 
         val command = commandRouteMetadata.decode(
             ObjectNode(JsonSerializer.nodeFactory),
@@ -182,9 +191,9 @@ class CommandRouteMetadataParserTest {
                 null
             }
         )
-        assertThat(command.id, equalTo("id"))
-        assertThat(command.customer.id, equalTo("customerId"))
-        assertThat(command.customer.name, equalTo("name"))
+        command.id.assert().isEqualTo("id")
+        command.customer.id.assert().isEqualTo("customerId")
+        command.customer.name.assert().isEqualTo("name")
     }
 }
 
