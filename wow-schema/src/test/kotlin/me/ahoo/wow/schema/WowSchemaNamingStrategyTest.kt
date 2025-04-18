@@ -7,6 +7,7 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.TypeContextFactory
+import io.mockk.mockk
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -63,6 +64,12 @@ class WowSchemaNamingStrategyTest {
                     ),
                     "example.CartStateMaterializedSnapshotPagedList"
                 ),
+                Arguments.of(
+                    typeContext.resolve(
+                        arrayOf(mockk<CreateOrder>()).javaClass
+                    ),
+                    "example.order.CreateOrderObject[]"
+                )
             )
         }
     }
