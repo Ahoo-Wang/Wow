@@ -18,22 +18,25 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Pagination
 
 /**
+ * A DSL for constructing list queries.
+ *
+ * This class allows you to define a list query with conditions, projections, sorting, and a limit.
+ * The [build] method compiles the defined parameters into an [IListQuery] object.
+ *
+ * Example usage:
  * ```kotlin
- * listQuery {
- *     limit(1)
- *     sort {
- *         "field1".asc()
- *     }
+ * val query = listQuery {
  *     condition {
  *         "field1" eq "value1"
- *         "field2" eq "value2"
- *         and {
- *             "field3" eq "value3"
- *         }
- *         or {
- *             "field4" eq "value4"
- *         }
  *     }
+ *     projection {
+ *         include("field1", "field2")
+ *     }
+ *     sort {
+ *         "field1".asc()
+ *         "field2".desc()
+ *     }
+ *     limit(10)
  * }
  * ```
  */

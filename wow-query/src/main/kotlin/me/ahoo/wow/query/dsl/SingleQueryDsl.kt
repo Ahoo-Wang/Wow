@@ -16,6 +16,30 @@ package me.ahoo.wow.query.dsl
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.SingleQuery
 
+/**
+ * Represents a DSL for constructing a single query. This class extends [QueryableDsl] and is specifically
+ * designed to build instances of [ISingleQuery]. It allows for the fluent and type-safe construction of queries,
+ * including setting up projections, conditions, and sorting.
+ *
+ * Example usage:
+ * ```kotlin
+ * val query = singleQuery {
+ *     condition {
+ *         "name" eq "John Doe"
+ *     }
+ *     projection {
+ *         include("id", "name")
+ *     }
+ *     sort {
+ *         "name".asc()
+ *         "age".desc()
+ *     }
+ * }
+ * ```
+ *
+ * @see QueryableDsl
+ * @see ISingleQuery
+ */
 class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
 
     override fun build(): ISingleQuery {

@@ -16,14 +16,20 @@ package me.ahoo.wow.query.dsl
 import me.ahoo.wow.api.query.Sort
 
 /**
+ * A DSL for constructing a list of [Sort] objects, allowing for the definition of sorting criteria
+ * in a fluent and readable manner. This class extends [NestedFieldDsl], enabling the use of nested fields
+ * within the sorting context.
  *
- * ```kotlin
- * sort {
- *     "field1".asc()
- *     "field2".desc()
+ * Usage:
+ * ```
+ * val sorts = sort {
+ *     "name".asc()
+ *     "age".desc()
  * }
  * ```
  *
+ * @see NestedFieldDsl
+ * @see Sort
  */
 class SortDsl : NestedFieldDsl() {
 
