@@ -68,7 +68,7 @@ class WowSchemaNamingStrategyTest {
                     typeContext.resolve(
                         arrayOf(mockk<CreateOrder>()).javaClass
                     ),
-                    "example.order.CreateOrderObject[]"
+                    "example.order.CreateOrderArray"
                 )
             )
         }

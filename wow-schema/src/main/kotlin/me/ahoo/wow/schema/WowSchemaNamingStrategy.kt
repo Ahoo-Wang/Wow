@@ -45,6 +45,9 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
                 return it.name
             }
         }
+        if (this.isArray) {
+            return "Array"
+        }
         return simpleName
     }
 
