@@ -1,14 +1,13 @@
 package me.ahoo.wow.openapi
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class BatchResultTest {
     @Test
     fun test() {
         val batchResult = BatchResult("cursorId", 1)
-        assertThat(batchResult.afterId, equalTo("cursorId"))
-        assertThat(batchResult.size, equalTo(1))
+        batchResult.afterId.assert().isEqualTo("cursorId")
+        batchResult.size.assert().isEqualTo(1)
     }
 }
