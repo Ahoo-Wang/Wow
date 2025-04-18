@@ -31,7 +31,7 @@ class AccountTest {
                 .expectEventType(AccountCreated.class)
                 .expectEventIterator(eventIterator -> {
                     assertThat(eventIterator.hasNext(), equalTo(true));
-                    var eventBody = eventIterator.nextEventBody(AccountCreated.class);
+                    var eventBody = eventIterator.nextEventBody(AccountCreated.class, 0);
                     assertThat(eventBody.name(), equalTo("name"));
                     assertThat(eventBody.balance(), equalTo(100L));
                     assertThat(eventIterator.hasNext(), equalTo(false));
