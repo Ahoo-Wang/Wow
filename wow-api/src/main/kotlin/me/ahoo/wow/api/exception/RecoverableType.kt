@@ -13,19 +13,42 @@
 
 package me.ahoo.wow.api.exception
 
+import me.ahoo.wow.api.exception.RecoverableType.RECOVERABLE
+import me.ahoo.wow.api.exception.RecoverableType.UNKNOWN
+import me.ahoo.wow.api.exception.RecoverableType.UNRECOVERABLE
+
+/**
+ * Enumerates the types of recoverability for errors or operations, allowing for classification and handling based on whether an error is transient and can be resolved by retrying.
+ *
+ * The [RecoverableType] enum provides a way to categorize errors into three distinct categories: [RECOVERABLE], [UNRECOVERABLE], and [UNKNOWN].
+ * This categorization is essential for implementing robust error handling and retry mechanisms in applications,
+ * ensuring that temporary issues are retried while permanent or unknown issues are handled appropriately.
+ *
+ *  @see me.ahoo.wow.api.annotation.Retry
+ */
 enum class RecoverableType {
     /**
-     * The exception is recoverable.
+     * Represents an error type that indicates the operation or error can be retried.
+     *
+     * This enum value is used to classify errors in a way that allows for the implementation of retry logic. When an error
+     * is marked as [RECOVERABLE], it signifies that the error condition is temporary and might be resolved upon retrying the
+     * operation. This is particularly useful in scenarios where network issues, transient server errors, or other temporary
+     * conditions may cause an operation to fail, but with a high likelihood of success on subsequent attempts.
      */
     RECOVERABLE,
 
     /**
-     * The exception is not recoverable.
+     * Represents an error type that indicates the operation or error cannot be retried.
+     *
+     * This enum value is used to classify errors in a way that signifies the error condition is permanent and retrying the operation will not resolve the issue. It is particularly
+     *  useful for handling errors where the underlying problem is fundamental and cannot be resolved by simply retrying, such as invalid input, resource exhaustion, or other non-transient
+     *  issues.
      */
     UNRECOVERABLE,
 
     /**
-     * The exception is unknown.
+     * Represents an unknown type of recoverability for an error or operation.
+     * This is used when the recoverability of an error cannot be determined or is not specified.
      */
     UNKNOWN
 }

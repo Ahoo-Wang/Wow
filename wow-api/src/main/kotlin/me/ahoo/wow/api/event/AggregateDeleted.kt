@@ -13,6 +13,15 @@
 
 package me.ahoo.wow.api.event
 
+import me.ahoo.wow.api.annotation.Event
+
+/**
+ * Represents an event that is triggered when an aggregate is deleted.
+ *
+ * This event can be used to notify other components or services in the system that a specific aggregate has been deleted,
+ * allowing them to take any necessary actions, such as updating their state or performing cleanup operations.
+ */
+@Event
 interface AggregateDeleted
 
 object DefaultAggregateDeleted : AggregateDeleted
