@@ -13,4 +13,15 @@
 
 package me.ahoo.wow.query.dsl
 
+/**
+ * Represents the start of a range condition for a specific field.
+ *
+ * This class is used to define the starting point of a range in query conditions, typically
+ * for operations that require a 'between' clause. The `field` parameter specifies the name of the
+ * field on which the condition is applied, and `start` defines the starting value of the range.
+ *
+ * @param V The type of the value representing the start of the range.
+ * @property field The name of the field to which this range condition applies.
+ * @property start The value indicating the start of the range.
+ */
 data class BetweenStart<V>(val field: String, val start: V)

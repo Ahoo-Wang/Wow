@@ -18,36 +18,62 @@ import me.ahoo.wow.api.query.DeletionState
 import kotlin.reflect.KCallable
 
 /**
- * ``` kotlin
- * condition {
- *     "field1" eq "value1"
- *     "field2" ne "value2"
- *     "filed3" gt 1
- *     "field4" lt 1
- *     "field5" gte 1
- *     "field6" lte 1
- *     "field7" contains "value7"
- *     "field8" isIn listOf("value8")
- *     "field9" notIn listOf("value9")
- *     "field10" between (1 to 2)
- *     "field100" between 1 to 2
- *     "field11" all listOf("value11")
- *     "field12" startsWith "value12"
- *     "field13" elemMatch {
- *         "field14" eq "value14"
- *     }
- *     "field15".isNull()
- *     "field16".notNull()
+ * A DSL for building complex conditions in a fluent and readable manner. This class extends [NestedFieldDsl] to support
+ * nested field operations and provides a wide range of methods to construct various types of conditions.
+ *
+ * Example usage:
+ * ```kotlin
+ * val condition = ConditionDsl().apply {
+ *     "name" eq "John"
+ *     "age" gt 30
  *     and {
- *         "field3" eq "value3"
- *         "field4" eq "value4"
+ *         "status" eq "active"
+ *         "role" isIn listOf("admin", "user")
  *     }
  *     or {
- *         "field3" eq "value3"
- *         "field4" eq "value4"
+ *         "email" contains "@example.com"
+ *         "phone" isNull()
  *     }
  * }
  * ```
+ *
+ * Methods:
+ * - `condition(condition: Condition)`: Adds a condition to the list of conditions.
+ * - `String.nested(block: ConditionDsl.() -> Unit)`: Creates a nested condition block for the given field.
+ * - `KCallable<*>.nested(block: ConditionDsl.() -> Unit)`: Creates a nested condition block for the property represented by the KCallable.
+ * - `and(block: ConditionDsl.() -> Unit)`: Combines multiple conditions with a logical AND.
+ * - `or(block: ConditionDsl.() -> Unit)`: Combines multiple conditions with a logical OR.
+ * - `nor(block: ConditionDsl.() -> Unit)`: Combines multiple conditions with a logical NOR.
+ * - `all()`: Adds a condition that matches all documents.
+ * - `id(value: String)`: Adds a condition to match a specific ID.
+ * - `ids(value: List<String>)` and `ids(vararg value: String)`: Adds a condition to match multiple IDs.
+ * - `aggregateId(value: String)`, `aggregateIds(value: List<String>)`, and `aggregateIds(vararg value: String)`: Adds a condition to match aggregate IDs.
+ * - `tenantId(value: String)`: Adds a condition to match a specific tenant ID.
+ * - `ownerId(value: String)`: Adds a condition to match a specific owner ID.
+ * - `deleted(value: DeletionState)`: Adds a condition to match based on the deletion state.
+ * - `String.eq(value: Any)` and `KCallable<*>.eq(value: Any)`: Adds an equality condition.
+ * - `String.ne(value: Any)` and `KCallable<*>.ne(value: Any)`: Adds a not-equal condition.
+ * - `String.gt(value: Any)` and `KCallable<*>.gt(value: Any)`: Adds a greater-than condition.
+ * - `String.lt(value: Any)` and `KCallable<*>.lt(value: Any)`: Adds a less-than condition.
+ * - `String.gte(value: Any)` and `KCallable<*>.gte(value: Any)`: Adds a greater-than-or-equal condition.
+ * - `String.lte(value: Any)` and `KCallable<*>.lte(value: Any)`: Adds a less-than-or-equal condition.
+ * - `String.contains(value: String, ignoreCase: Boolean = false)` and `KCallable<*>.contains(value: String)`: Adds a condition to check if the field contains the specified value.
+ * - `String.isIn(value: List<Any>)` and `KCallable<*>.isIn(value: List<Any>)`: Adds a condition to check if the field is in the specified list.
+ * - `String.notIn(value: List<Any>)` and `KCallable<*>.notIn(value: List<Any>)`: Adds a condition to check if the field is not in the specified list.
+ * - `String.between(value: Pair<V, V>)` and `KCallable<*>.between(start: V)`: Adds a condition to check if the field is between two values.
+ * - `BetweenStart<V>.to(end: V)`: Completes the between condition with the end value.
+ * - `String.all(value: List<Any>)` and `KCallable<*>.all(value: List<Any>)`: Adds a condition to check if the field contains all the specified values.
+ * - `String.startsWith(value: String, ignoreCase: Boolean = false)` and `KCallable<*>.startsWith(value: String)`: Adds a condition to check if the field starts with the specified value.
+ * - `String.endsWith(value: String, ignoreCase: Boolean = false)` and `KCallable<*>.endsWith(value: String)`: Adds a condition to check if the field ends with the specified value.
+ * - `String.elemMatch(block: ConditionDsl.() -> Unit)` and `KCallable<*>.elemMatch(block: ConditionDsl.() -> Unit)`: Adds a condition to match elements in an array.
+ * - `String.isNull()` and `KCallable<*>.isNull()`: Adds a condition to check if the field is null.
+ * - `String.notNull()` and `KCallable<*>.notNull()`: Adds a condition to check if the field is not null.
+ * - `String.isTrue()` and `KCallable<*>.isTrue()`: Adds a condition to check if the field is true.
+ * - `String.isFalse()` and `KCallable<*>.isFalse()`: Adds a condition to check if the field is false.
+ * - `String.exists(exists: Boolean = true)` and `KCallable<*>.exists(exists: Boolean = true)`: Adds a condition to check if the field exists.
+ * - `String.today(datePattern: Any? = null)` and `KCallable<*>.today(datePattern: Any? = null)`: Adds a condition to check if the field is today.
+ * - `String.beforeToday(time: Any)`: Adds a condition to check if the field is before today at the specified time.
+ * - `String.tomorrow(datePattern: Any? = null)`: Adds a condition to check if the field is tomorrow.
  */
 class ConditionDsl : NestedFieldDsl() {
 

@@ -16,12 +16,22 @@ package me.ahoo.wow.query.dsl
 import me.ahoo.wow.api.query.Pagination
 
 /**
- * ``` kotlin
- * pagination {
- *     index(1)
- *     size(1)
+ * A DSL for constructing [Pagination] objects.
+ *
+ * This class provides a fluent API to configure and build [Pagination] instances, allowing
+ * the user to specify the index and size of the pagination. The `index` represents the current
+ * page number, and the `size` represents the number of items per page.
+ *
+ * Example usage:
+ * ```kotlin
+ * val pagination = pagination {
+ *     index(2)
+ *     size(15)
  * }
  * ```
+ * In this example, a [Pagination] object is created with an index (page number) of 2 and a size (items per page) of 15.
+ *
+ * @see Pagination
  */
 class PaginationDsl {
 

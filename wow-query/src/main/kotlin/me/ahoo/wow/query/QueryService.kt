@@ -23,6 +23,13 @@ import me.ahoo.wow.api.query.PagedList
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+/**
+ * Interface for performing various query operations on an aggregate.
+ *
+ * This service provides methods to execute single, list, and paged queries, as well as count operations,
+ * with support for both typed and dynamic (untyped) results.
+ *
+*/
 interface QueryService<R : Any> : NamedAggregateDecorator {
     fun single(singleQuery: ISingleQuery): Mono<R>
     fun dynamicSingle(singleQuery: ISingleQuery): Mono<DynamicDocument>

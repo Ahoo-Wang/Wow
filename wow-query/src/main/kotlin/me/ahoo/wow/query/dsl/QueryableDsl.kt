@@ -18,6 +18,13 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 
+/**
+ * Represents a DSL (Domain Specific Language) for constructing queryable objects. This abstract class allows
+ * for the fluent and type-safe construction of queries, including setting up projections, conditions, and sorting.
+ *
+ *
+ * @param Q The type of the queryable object that this DSL is constructing.
+ */
 abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
     protected var condition: Condition = Condition.all()

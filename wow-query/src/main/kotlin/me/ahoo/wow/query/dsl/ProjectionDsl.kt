@@ -15,6 +15,23 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.wow.api.query.Projection
 
+/**
+ * DSL for building a [Projection] that defines which fields to include or exclude in the query result.
+ *
+ * This class extends [NestedFieldDsl], allowing for nested field handling. It provides methods to specify
+ * fields to be included or excluded from the projection, and then build a [Projection] object.
+ *
+ * Example usage:
+ * ```kotlin
+ * val projection = projection {
+ *     include("name", "email")
+ *     exclude("password")
+ * }
+ * ```
+ *
+ * @see NestedFieldDsl
+ * @see Projection
+ */
 class ProjectionDsl : NestedFieldDsl() {
 
     private val include = mutableListOf<String>()
