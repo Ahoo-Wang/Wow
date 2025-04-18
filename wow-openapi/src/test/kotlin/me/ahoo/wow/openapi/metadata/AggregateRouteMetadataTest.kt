@@ -37,4 +37,10 @@ class AggregateRouteMetadataTest {
         val other = aggregateRouteMetadata<Order>()
         aggregateRouteMetadata.assert().isNotEqualTo(other)
     }
+
+    @Test
+    fun testHashCode() {
+        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
+        aggregateRouteMetadata.hashCode().assert().isEqualTo(aggregateRouteMetadata.aggregateMetadata.hashCode())
+    }
 }

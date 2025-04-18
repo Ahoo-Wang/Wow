@@ -177,7 +177,7 @@ class CommandRouteMetadataParserTest {
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
         customerIdPathVariable.fieldName.assert().isEqualTo("id")
         customerIdPathVariable.fieldPath.assert().contains("customer", "id")
-
+        customerIdPathVariable.variableType.assert().isEqualTo(String::class.java)
         val command = commandRouteMetadata.decode(
             ObjectNode(JsonSerializer.nodeFactory),
             {
