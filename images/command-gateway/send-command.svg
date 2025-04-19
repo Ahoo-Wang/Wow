@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="708px" preserveAspectRatio="none" style="width:1096px;height:708px;background:#FFFFFF;" version="1.1" viewBox="0 0 1096 708" width="1096px" zoomAndPan="magnify"><defs/><g><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" textLength="112" x="488" y="41.3125">Send Command</text><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" text-decoration="underline" textLength="132" x="478" y="57.8008">Sequence Diagram</text><rect fill="#FFFFFF" height="445.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="43.5" y="158.2422"/><rect fill="#FFFFFF" height="423.9473" style="stroke:#181818;stroke-width:1.0;" width="10" x="333.5" y="179.5527"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="495.5" y="208.8633"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="658" y="336.0605"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="827.5" y="521.8789"/><rect fill="#FFFFFF" height="445.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="986" y="158.2422"/><rect fill="none" height="342.3262" style="stroke:#000000;stroke-width:1.5;" width="1069" x="10" y="253.1738"/><rect fill="none" height="208.1289" style="stroke:#000000;stroke-width:1.5;" width="1049" x="20" y="380.3711"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="48" x2="48" y1="148.2422" y2="612.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="338.5" x2="338.5" y1="148.2422" y2="612.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="500" x2="500" y1="148.2422" y2="612.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="663" x2="663" y1="148.2422" y2="612.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="832" x2="832" y1="148.2422" y2="612.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="991" x2="991" y1="148.2422" y2="612.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="30" y="145.2891">User</text><ellipse cx="48.5" cy="80.2539" fill="#E2E2F0" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/><path d="M48.5,88.2539 L48.5,115.2539 M35.5,96.2539 L61.5,96.2539 M48.5,115.2539 L35.5,130.2539 M48.5,115.2539 L61.5,130.2539 " fill="none" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="30" y="625.0352">User</text><ellipse cx="48.5" cy="636.4883" fill="#E2E2F0" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/><path d="M48.5,644.4883 L48.5,671.4883 M35.5,652.4883 L61.5,652.4883 M48.5,671.4883 L35.5,686.4883 M48.5,671.4883 L61.5,686.4883 " fill="none" style="stroke:#181818;stroke-width:0.5;"/><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="142" x="267.5" y="116.7539"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="128" x="274.5" y="137.2891">CommandGateway</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="142" x="267.5" y="611.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="128" x="274.5" y="632.0352">CommandGateway</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="147" x="427" y="116.7539"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="133" x="434" y="137.2891">CommandValidator</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="147" x="427" y="611.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="133" x="434" y="632.0352">CommandValidator</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="158" x="584" y="116.7539"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="144" x="591" y="137.2891">IdempotencyChecker</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="158" x="584" y="611.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="144" x="591" y="632.0352">IdempotencyChecker</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="161" x="752" y="116.7539"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="147" x="759" y="137.2891">WaitStrategyRegistrar</text><rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="161" x="752" y="611.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="147" x="759" y="632.0352">WaitStrategyRegistrar</text><path d="M928,121.7539 L1054,121.7539 C1059,121.7539 1059,134.998 1059,134.998 C1059,134.998 1059,148.2422 1054,148.2422 L928,148.2422 C923,148.2422 923,134.998 923,134.998 C923,134.998 923,121.7539 928,121.7539 " fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/><path d="M1054,121.7539 C1049,121.7539 1049,134.998 1049,134.998 C1049,148.2422 1054,148.2422 1054,148.2422 " fill="none" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="116" x="928" y="140.2891">CommandQueue</text><path d="M928,611.5 L1054,611.5 C1059,611.5 1059,624.7441 1059,624.7441 C1059,624.7441 1059,637.9883 1054,637.9883 L928,637.9883 C923,637.9883 923,624.7441 923,624.7441 C923,624.7441 923,611.5 928,611.5 " fill="#E2E2F0" style="stroke:#181818;stroke-width:0.5;"/><path d="M1054,611.5 C1049,611.5 1049,624.7441 1049,624.7441 C1049,637.9883 1054,637.9883 1054,637.9883 " fill="none" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="116" x="928" y="630.0352">CommandQueue</text><rect fill="#FFFFFF" height="445.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="43.5" y="158.2422"/><rect fill="#FFFFFF" height="423.9473" style="stroke:#181818;stroke-width:1.0;" width="10" x="333.5" y="179.5527"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="495.5" y="208.8633"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="658" y="336.0605"/><rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="827.5" y="521.8789"/><rect fill="#FFFFFF" height="445.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="986" y="158.2422"/><polygon fill="#181818" points="321.5,175.5527,331.5,179.5527,321.5,183.5527,325.5,179.5527" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="53.5" x2="327.5" y1="179.5527" y2="179.5527"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="60.5" y="174.8105">[01]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="233" x="88.5" y="174.8105">sendAndWait(command,waitStrategy)</text><polygon fill="#181818" points="483.5,204.8633,493.5,208.8633,483.5,212.8633,487.5,208.8633" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="343.5" x2="489.5" y1="208.8633" y2="208.8633"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="350.5" y="204.1211">[02]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="105" x="378.5" y="204.1211">verify(command)</text><polygon fill="#181818" points="354.5,234.1738,344.5,238.1738,354.5,242.1738,350.5,238.1738" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="348.5" x2="499.5" y1="238.1738" y2="238.1738"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="360.5" y="233.4316">[03]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="75" x="388.5" y="233.4316">VerifyResult</text><path d="M10,253.1738 L72,253.1738 L72,260.4844 L62,270.4844 L10,270.4844 L10,253.1738 " fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/><rect fill="none" height="342.3262" style="stroke:#000000;stroke-width:1.5;" width="1069" x="10" y="253.1738"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="17" x="25" y="266.7422">alt</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="109" x="87" y="265.8086">[verification failed]</text><polygon fill="#181818" points="64.5,287.7949,54.5,291.7949,64.5,295.7949,60.5,291.7949" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="58.5" x2="332.5" y1="291.7949" y2="291.7949"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="70.5" y="287.0527">[04]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="35" x="98.5" y="287.0527">failed</text><line style="stroke:#000000;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="10" x2="1079" y1="300.7949" y2="300.7949"/><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="120" x="15" y="311.4297">[verification success]</text><polygon fill="#181818" points="646,332.0605,656,336.0605,646,340.0605,650,336.0605" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="343.5" x2="652" y1="336.0605" y2="336.0605"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="350.5" y="331.3184">[05]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="107" x="378.5" y="331.3184">check(command)</text><polygon fill="#181818" points="354.5,361.3711,344.5,365.3711,354.5,369.3711,350.5,365.3711" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="348.5" x2="662" y1="365.3711" y2="365.3711"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="360.5" y="360.6289">[06]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="78" x="388.5" y="360.6289">CheckResult</text><path d="M20,380.3711 L82,380.3711 L82,387.6816 L72,397.6816 L20,397.6816 L20,380.3711 " fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/><rect fill="none" height="208.1289" style="stroke:#000000;stroke-width:1.5;" width="1049" x="20" y="380.3711"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="17" x="35" y="393.9395">alt</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="76" x="97" y="393.0059">[check failed]</text><polygon fill="#181818" points="64.5,414.9922,54.5,418.9922,64.5,422.9922,60.5,418.9922" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="58.5" x2="332.5" y1="418.9922" y2="418.9922"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="70.5" y="414.25">[07]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="35" x="98.5" y="414.25">failed</text><line style="stroke:#000000;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="20" x2="1069" y1="427.9922" y2="427.9922"/><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="87" x="25" y="438.627">[check success]</text><polygon fill="#181818" points="974,459.2578,984,463.2578,974,467.2578,978,463.2578" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="343.5" x2="980" y1="463.2578" y2="463.2578"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="350.5" y="458.5156">[08]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="100" x="378.5" y="458.5156">emit(Command)</text><polygon fill="#181818" points="354.5,488.5684,344.5,492.5684,354.5,496.5684,350.5,492.5684" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="348.5" x2="985" y1="492.5684" y2="492.5684"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="360.5" y="487.8262">[09]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="173" x="388.5" y="487.8262">CommandResult is a Future</text><polygon fill="#181818" points="815.5,517.8789,825.5,521.8789,815.5,525.8789,819.5,521.8789" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="343.5" x2="821.5" y1="521.8789" y2="521.8789"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="350.5" y="517.1367">[10]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="235" x="378.5" y="517.1367">register(commandId,commandResult)</text><polygon fill="#181818" points="354.5,547.1895,344.5,551.1895,354.5,555.1895,350.5,551.1895" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="348.5" x2="831.5" y1="551.1895" y2="551.1895"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="360.5" y="546.4473">[11]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="4" x="388.5" y="546.4473"> </text><polygon fill="#181818" points="64.5,576.5,54.5,580.5,64.5,584.5,60.5,580.5" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="58.5" x2="332.5" y1="580.5" y2="580.5"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="70.5" y="575.7578">[12]</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="158" x="98.5" y="575.7578">Mono&lt;CommandResult&gt;</text><a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow" xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new" xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple"><text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing" text-decoration="underline" textLength="183" x="905" y="14.668">https://github.com/Ahoo-Wang/Wow</text></a><a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow" xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new" xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple"><text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing" text-decoration="underline" textLength="183" x="452.5" y="698.6563">https://github.com/Ahoo-Wang/Wow</text></a><!--MD5=[87c58d54ed9a8ec9528b9561bdb95694]
+@startuml
+
+!include layout.puml
+
+title
+Send Command
+__Sequence Diagram__
+end title
+
+actor User
+participant CommandGateway
+participant CommandValidator
+participant IdempotencyChecker
+participant WaitStrategyRegistrar
+queue CommandQueue
+
+CommandQueue++
+User ++
+
+autonumber "[00]"
+
+User -> CommandGateway ++: sendAndWait(command,waitStrategy)
+
+CommandGateway -> CommandValidator++: verify(command)
+CommandGateway <- - CommandValidator- -: VerifyResult
+alt verification failed
+    User <- - CommandGateway: failed
+else verification success
+    CommandGateway -> IdempotencyChecker++: check(command)
+    CommandGateway <- - IdempotencyChecker- -: CheckResult
+    alt check failed
+        User <- - CommandGateway: failed
+    else check success
+        CommandGateway -> CommandQueue: emit(Command)
+        CommandGateway <- - CommandQueue: CommandResult is a Future
+        CommandGateway -> WaitStrategyRegistrar++: register(commandId,commandResult)
+        CommandGateway <- - WaitStrategyRegistrar- -
+        User <- - CommandGateway: Mono<CommandResult>
+    end
+end
+@enduml
+
+@startuml
+
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title
+Send Command
+__Sequence Diagram__
+end title
+
+actor User
+participant CommandGateway
+participant CommandValidator
+participant IdempotencyChecker
+participant WaitStrategyRegistrar
+queue CommandQueue
+
+CommandQueue++
+User ++
+
+autonumber "[00]"
+
+User -> CommandGateway ++: sendAndWait(command,waitStrategy)
+
+CommandGateway -> CommandValidator++: verify(command)
+CommandGateway <- - CommandValidator- -: VerifyResult
+alt verification failed
+    User <- - CommandGateway: failed
+else verification success
+    CommandGateway -> IdempotencyChecker++: check(command)
+    CommandGateway <- - IdempotencyChecker- -: CheckResult
+    alt check failed
+        User <- - CommandGateway: failed
+    else check success
+        CommandGateway -> CommandQueue: emit(Command)
+        CommandGateway <- - CommandQueue: CommandResult is a Future
+        CommandGateway -> WaitStrategyRegistrar++: register(commandId,commandResult)
+        CommandGateway <- - WaitStrategyRegistrar- -
+        User <- - CommandGateway: Mono<CommandResult>
+    end
+end
+@enduml
+
+PlantUML version 1.2022.13(Sat Nov 19 21:22:17 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+--></g></svg>
