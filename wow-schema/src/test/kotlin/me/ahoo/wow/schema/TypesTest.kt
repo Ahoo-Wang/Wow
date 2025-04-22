@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -22,77 +23,76 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class TypesTest {
     @Test
     fun `isWowType should return true for AggregateId`() {
-        assertTrue(AggregateId::class.java.isWowType())
+        AggregateId::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for CommandMessage`() {
-        assertTrue(CommandMessage::class.java.isWowType())
+        CommandMessage::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for DomainEvent`() {
-        assertTrue(DomainEvent::class.java.isWowType())
+        DomainEvent::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for DomainEventStream`() {
-        assertTrue(DomainEventStream::class.java.isWowType())
+        DomainEventStream::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for Snapshot`() {
-        assertTrue(Snapshot::class.java.isWowType())
+        Snapshot::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for StateAggregate`() {
-        assertTrue(StateAggregate::class.java.isWowType())
+        StateAggregate::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return true for StateEvent`() {
-        assertTrue(StateEvent::class.java.isWowType())
+        StateEvent::class.java.isWowType().assert().isTrue()
     }
 
     @Test
     fun `isWowType should return false for String`() {
-        assertFalse(String::class.java.isWowType())
+        String::class.java.isWowType().assert().isFalse()
     }
 
     @Test
     fun `isWowType should return false for Int`() {
-        assertFalse(Int::class.java.isWowType())
+        Int::class.java.isWowType().assert().isFalse()
     }
 
     @Test
     fun `isWowType should return false for List`() {
-        assertFalse(List::class.java.isWowType())
+        List::class.java.isWowType().assert().isFalse()
     }
 
     @Test
     fun `isStdType should return true for String`() {
-        assertTrue(String::class.java.isStdType())
+        String::class.java.isStdType().assert().isTrue()
     }
 
     @Test
     fun `isStdType should return true for Int`() {
-        assertTrue(Int::class.java.isStdType())
+        Int::class.java.isStdType().assert().isTrue()
     }
 
     @Test
     fun `isStdType should return true for List`() {
-        assertTrue(List::class.java.isStdType())
+        List::class.java.isStdType().assert().isTrue()
     }
 
     @Test
     fun `isStdType should return false for AggregateId`() {
-        assertFalse(AggregateId::class.java.isStdType())
+        AggregateId::class.java.isStdType().assert().isFalse()
     }
 }

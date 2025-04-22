@@ -9,6 +9,7 @@ import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.TypeContextFactory
 import io.mockk.mockk
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
@@ -18,8 +19,6 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.schema.WowSchemaNamingStrategy.toSchemaName
 import me.ahoo.wow.serialization.JsonSerializer
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -78,6 +77,6 @@ class WowSchemaNamingStrategyTest {
     @MethodSource("parametersForToSchemaName")
     fun toSchemaName(type: ResolvedType, expectedSchemaName: String?) {
         val schemaName = type.toSchemaName()
-        assertThat(schemaName, equalTo(expectedSchemaName))
+        schemaName.assert().isEqualTo(expectedSchemaName)
     }
 }

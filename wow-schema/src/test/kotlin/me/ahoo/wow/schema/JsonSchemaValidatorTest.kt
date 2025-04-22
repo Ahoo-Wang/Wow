@@ -7,6 +7,7 @@ import com.networknt.schema.JsonSchemaFactory
 import com.networknt.schema.SchemaLocation
 import com.networknt.schema.SchemaValidatorsConfig
 import com.networknt.schema.SpecVersion.VersionFlag
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -31,8 +32,6 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.serialization.toPrettyJson
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -151,6 +150,6 @@ class JsonSchemaValidatorTest {
         val assertions = schema.validate(input, InputFormat.JSON) { executionContext ->
             executionContext.executionConfig.formatAssertionsEnabled = true
         }
-        assertThat(assertions.firstOrNull()?.error.orEmpty(), assertions.isEmpty(), equalTo(true))
+        assertions.assert().isEmpty()
     }
 }

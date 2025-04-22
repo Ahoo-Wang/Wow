@@ -1,5 +1,6 @@
 package me.ahoo.wow.schema
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
@@ -13,6 +14,7 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.CommandRoute
@@ -41,10 +43,6 @@ import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.joda.money.CurrencyUnit
 import org.joda.money.Money
 import org.junit.jupiter.api.Test
@@ -106,40 +104,40 @@ class JsonSchemaGeneratorTest {
     @MethodSource("parametersForGenerate")
     fun generate(interfaceType: Class<*>, implType: Class<*>) {
         val schema = jsonSchemaGenerator.generate(implType)
-        assertThat(schema, equalTo(WowSchemaLoader.load(interfaceType)))
+        schema.assert().isEqualTo(WowSchemaLoader.load(interfaceType))
     }
 
     @ParameterizedTest
     @MethodSource("parametersForGenerateTypeParameter")
     fun generateTypeParameter(interfaceType: Class<*>, typeParameter: Class<*>, resourceName: String) {
         val schema = jsonSchemaGenerator.generate(interfaceType, typeParameter)
-        assertThat(schema.toPrettyString(), equalTo(WowSchemaLoader.loadAsString(resourceName)))
+        schema.toPrettyString().assert().isEqualTo(WowSchemaLoader.loadAsString(resourceName))
     }
 
     @Test
     fun ignoreCommandPathRouteVariable() {
         val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
-        assertThat(schema.getProperties(), nullValue())
+        schema.getProperties().assert().isNull()
     }
 
     @Test
     fun ignoreCommandHeaderRouteVariable() {
         val schema = jsonSchemaGenerator.generate(Header::class.java).asJsonSchema()
-        assertThat(schema.getProperties(), nullValue())
+        schema.getProperties().assert().isNull()
     }
 
     @Test
     fun notIgnoreCommandPathRouteVariable() {
         val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
         val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
-        assertThat(schema.getProperties(), notNullValue())
+        schema.getProperties().assert().isNotNull()
     }
 
     @Test
     fun enum() {
         val jsonSchemaGenerator = JsonSchemaGenerator()
         val schema = jsonSchemaGenerator.generate(CommandStage::class.java).asJsonSchema()
-        assertThat(schema.getProperties(), nullValue())
+        schema.getProperties().assert().isNull()
     }
 
     @Test
@@ -166,8 +164,8 @@ class JsonSchemaGeneratorTest {
         val openAPISchemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
         val schema = openAPISchemaBuilder.createSchemaReference(CreateOrder::class.java).asJsonSchema()
         val componentsSchemas = openAPISchemaBuilder.collectDefinitions("components/schemas")
-        assertThat(schema.get(SchemaKeyword.TAG_REF), notNullValue())
-        assertThat(componentsSchemas.size(), equalTo(3))
+        schema.get<JsonNode>(SchemaKeyword.TAG_REF).assert().isNotNull()
+        componentsSchemas.assert().hasSize(3)
     }
 
     data class Patch(
@@ -192,17 +190,17 @@ class JsonSchemaGeneratorTest {
     fun kotlin() {
         val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
         val nullableFieldType = schema.get("properties").get("nullableField").get("type")
-        assertThat(nullableFieldType.isArray, equalTo(true))
-        assertThat(nullableFieldType.get(0).textValue(), equalTo("string"))
-        assertThat(nullableFieldType.get(1).textValue(), equalTo("null"))
+        nullableFieldType.isArray.assert().isTrue()
+        nullableFieldType.get(0).textValue().assert().isEqualTo("string")
+        nullableFieldType.get(1).textValue().assert().isEqualTo("null")
         val readOnlyField = schema.get("properties").get("readOnlyField")
-        assertThat(readOnlyField.get("readOnly").booleanValue(), equalTo(true))
+        readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
-        assertThat(readOnlyGetter.get("readOnly").booleanValue(), equalTo(true))
+        readOnlyGetter.get("readOnly").booleanValue().assert().isTrue
         val required = schema.get("required")
-        assertThat(required.isArray, equalTo(true))
-        assertThat(required.get(0).textValue(), equalTo("field"))
-        assertThat(required.get(1).textValue(), equalTo("nullableField"))
+        required.isArray.assert().isTrue()
+        required.get(0).textValue().assert().isEqualTo("field")
+        required.get(1).textValue().assert().isEqualTo("nullableField")
     }
 
     @Test
@@ -216,17 +214,17 @@ class JsonSchemaGeneratorTest {
         val schema = jsonSchemaGenerator.generate(SchemaData::class.java)
         val nullableFieldNode = schema.get("properties").get("nullableField")
         val nullableFieldType = nullableFieldNode.get("type")
-        assertThat(nullableFieldType.isArray, equalTo(true))
-        assertThat(nullableFieldType.get(0).textValue(), equalTo("string"))
-        assertThat(nullableFieldType.get(1).textValue(), equalTo("null"))
-        assertThat(nullableFieldNode.get("title").textValue(), equalTo("testSummary"))
-        assertThat(nullableFieldNode.get("description").textValue(), equalTo("testDescription"))
+        nullableFieldType.isArray.assert().isTrue()
+        nullableFieldType.get(0).textValue().assert().isEqualTo("string")
+        nullableFieldType.get(1).textValue().assert().isEqualTo("null")
+        nullableFieldNode.get("title").textValue().assert().isEqualTo("testSummary")
+        nullableFieldNode.get("description").textValue().assert().isEqualTo("testDescription")
         val readOnlyField = schema.get("properties").get("readOnlyField")
-        assertThat(readOnlyField.get("readOnly").booleanValue(), equalTo(true))
+        readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val required = schema.get("required")
-        assertThat(required.isArray, equalTo(true))
-        assertThat(required.get(0).textValue(), equalTo("nullableField"))
-        assertThat(required.get(1).textValue(), equalTo("requiredField"))
+        required.isArray.assert().isTrue()
+        required.get(0).textValue().assert().isEqualTo("nullableField")
+        required.get(1).textValue().assert().isEqualTo("requiredField")
     }
 
     @Suppress("UnusedPrivateProperty")
