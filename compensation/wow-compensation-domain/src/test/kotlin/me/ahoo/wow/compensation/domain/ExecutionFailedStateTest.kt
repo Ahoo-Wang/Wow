@@ -13,22 +13,22 @@
 
 package me.ahoo.wow.compensation.domain
 
-import me.ahoo.wow.id.GlobalIdGenerator
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 
 class ExecutionFailedStateTest {
     @Test
     fun ctor() {
-        val state = ExecutionFailedState(GlobalIdGenerator.generateAsString())
-        Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
+        val state = ExecutionFailedState(generateGlobalId())
+        assertThrownBy<UninitializedPropertyAccessException> {
             state.eventId
         }
-        Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
+        assertThrownBy<UninitializedPropertyAccessException> {
             state.function
         }
-        Assertions.assertThrows(UninitializedPropertyAccessException::class.java) {
-            state.error
+        assertThrownBy<UninitializedPropertyAccessException> {
+            state.eventId
         }
     }
 }

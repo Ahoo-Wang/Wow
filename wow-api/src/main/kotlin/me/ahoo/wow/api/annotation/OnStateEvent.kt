@@ -37,7 +37,7 @@ const val DEFAULT_ON_STATE_EVENT_NAME = "onStateEvent"
  * ``` kotlin
  *    @OnStateEvent
  *    fun onStateEvent(changed: Changed, stateRecord: StateRecord) {
- *      val state = stateRecord.toObject<StateData>()
+ *      val state = stateRecord.toState<StateData>()
  *         //...
  *     }
  * ```
