@@ -17,7 +17,7 @@ jte = "3.2.0"
 jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.6"
 # testing
-fluent-assert = "0.0.6"
+fluent-assert = "0.1.0"
 hamcrest = "3.0"
 mockk = "1.14.0"
 kotlin-compile-testing = "0.7.0"
