@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compensation.domain
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.ApplyRetrySpec
@@ -22,8 +23,6 @@ import me.ahoo.wow.compensation.api.ForcePrepareCompensation
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CommandSortTest {
@@ -31,19 +30,15 @@ class CommandSortTest {
     fun sort() {
         val aggregateMetadata = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
         val sortedCommands = aggregateMetadata.command.registeredCommands
-
-        assertThat(
-            sortedCommands,
-            contains(
-                CreateExecutionFailed::class.java,
-                PrepareCompensation::class.java,
-                ForcePrepareCompensation::class.java,
-                ApplyExecutionSuccess::class.java,
-                ApplyExecutionFailed::class.java,
-                ApplyRetrySpec::class.java,
-                ChangeFunction::class.java,
-                MarkRecoverable::class.java
-            )
+        sortedCommands.assert().contains(
+            CreateExecutionFailed::class.java,
+            PrepareCompensation::class.java,
+            ForcePrepareCompensation::class.java,
+            ApplyExecutionSuccess::class.java,
+            ApplyExecutionFailed::class.java,
+            ApplyRetrySpec::class.java,
+            ChangeFunction::class.java,
+            MarkRecoverable::class.java
         )
     }
 }
