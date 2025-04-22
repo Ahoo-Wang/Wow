@@ -26,7 +26,6 @@ import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
-import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.junit.jupiter.api.Test
@@ -55,7 +54,7 @@ class CartTest {
     }
 
     @Test
-    fun testGivenState() {
+    fun givenStateWhenAdd() {
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,
@@ -63,7 +62,7 @@ class CartTest {
 
         aggregateVerifier<Cart, CartState>()
             .givenState(CartState(generateGlobalId()), 1)
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
@@ -88,7 +87,7 @@ class CartTest {
                     ),
                 ),
             )
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
@@ -106,7 +105,7 @@ class CartTest {
         )
         aggregateVerifier<Cart, CartState>()
             .given()
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
@@ -139,7 +138,7 @@ class CartTest {
 
         aggregateVerifier<Cart, CartState>()
             .given(*events)
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectErrorType(IllegalArgumentException::class.java)
             .expectState {
                 it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
@@ -163,7 +162,7 @@ class CartTest {
                     added = added,
                 ),
             )
-            .`when`(removeCartItem)
+            .whenCommand(removeCartItem)
             .expectEventType(CartItemRemoved::class.java)
             .expectState {
                 it.items.assert().isEmpty()
@@ -187,7 +186,7 @@ class CartTest {
                     added = added,
                 ),
             )
-            .`when`(changeQuantity)
+            .whenCommand(changeQuantity)
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
                 it.items.assert().hasSize(1)
@@ -203,7 +202,7 @@ class CartTest {
             quantity = 1,
         )
         aggregateVerifier<Cart, CartState>()
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {

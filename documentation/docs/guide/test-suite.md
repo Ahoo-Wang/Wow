@@ -41,7 +41,7 @@ testImplementation 'me.ahoo.wow:wow-test'
 ## 测试聚合根
 
 ```kotlin
-internal class CartTest {
+class CartTest {
 
     @Test
     fun addCartItem() {
@@ -65,6 +65,24 @@ internal class CartTest {
     }
 
     @Test
+    fun givenStateWhenAdd() {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+
+        aggregateVerifier<Cart, CartState>()
+            .givenState(CartState(generateGlobalId()), 1)
+            .whenCommand(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                it.items.assert().hasSize(1)
+            }
+            .verify()
+    }
+
+    @Test
     fun addCartItemIfSameProduct() {
         val addCartItem = AddCartItem(
             productId = "productId",
@@ -80,12 +98,61 @@ internal class CartTest {
                     ),
                 ),
             )
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
                 it.items.assert().hasSize(1)
                 it.items.first().quantity.assert().isEqualTo(2)
+            }
+            .verify()
+    }
+
+    @Test
+    fun addCartItemIfUnCreated() {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+        aggregateVerifier<Cart, CartState>()
+            .given()
+            .whenCommand(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                it.items.assert().hasSize(1)
+            }
+            .expectStateAggregate {
+                it.version.assert().isEqualTo(1)
+            }
+            .verify()
+    }
+
+    @Test
+    fun addCartItemGivenMax() {
+        val events = buildList {
+            for (i in 0..99) {
+                add(
+                    CartItemAdded(
+                        added = CartItem(
+                            productId = "productId$i",
+                            quantity = 1,
+                        ),
+                    ),
+                )
+            }
+        }.toTypedArray()
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+
+        aggregateVerifier<Cart, CartState>()
+            .given(*events)
+            .whenCommand(addCartItem)
+            .expectErrorType(IllegalArgumentException::class.java)
+            .expectState {
+                it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
             }
             .verify()
     }
@@ -106,7 +173,7 @@ internal class CartTest {
                     added = added,
                 ),
             )
-            .`when`(removeCartItem)
+            .whenCommand(removeCartItem)
             .expectEventType(CartItemRemoved::class.java)
             .expectState {
                 it.items.assert().isEmpty()
@@ -130,7 +197,7 @@ internal class CartTest {
                     added = added,
                 ),
             )
-            .`when`(changeQuantity)
+            .whenCommand(changeQuantity)
             .expectEventType(CartQuantityChanged::class.java)
             .expectState {
                 it.items.assert().hasSize(1)
@@ -138,7 +205,43 @@ internal class CartTest {
             }
             .verify()
     }
+
+    @Test
+    fun onCreateThenDeleteThenRecover() {
+        val addCartItem = AddCartItem(
+            productId = "productId",
+            quantity = 1,
+        )
+        aggregateVerifier<Cart, CartState>()
+            .whenCommand(addCartItem)
+            .expectNoError()
+            .expectEventType(CartItemAdded::class.java)
+            .expectState {
+                it.items.assert().hasSize(1)
+            }
+            .verify()
+            .then()
+            .whenCommand(DefaultDeleteAggregate)
+            .expectEventType(DefaultAggregateDeleted::class.java)
+            .expectStateAggregate {
+                it.deleted.assert().isTrue()
+            }.verify()
+            .then()
+            .whenCommand(DefaultDeleteAggregate::class.java)
+            .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
+            .verify()
+            .then()
+            .whenCommand(DefaultRecoverAggregate)
+            .expectStateAggregate {
+                it.deleted.assert().isFalse()
+            }.verify()
+            .then()
+            .whenCommand(DefaultRecoverAggregate)
+            .expectErrorType(IllegalStateException::class.java)
+            .verify()
+    }
 }
+
 ```
 
 ## 测试 Saga

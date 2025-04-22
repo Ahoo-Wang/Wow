@@ -29,7 +29,7 @@ internal class TransferSagaKTest {
     fun onPrepared() {
         val event = Prepared("to", 1)
         sagaVerifier<TransferSaga>()
-            .`when`(event)
+            .whenEvent(event)
             .expectCommandBody<Entry> {
                 it.id.assert().isEqualTo(event.to)
                 it.amount.assert().isEqualTo(event.amount)
@@ -41,7 +41,7 @@ internal class TransferSagaKTest {
     fun onAmountEntered() {
         val event = AmountEntered("sourceId", 1)
         sagaVerifier<TransferSaga>()
-            .`when`(event)
+            .whenEvent(event)
             .expectCommandBody<Confirm> {
                 it.id.assert().isEqualTo(event.sourceId)
                 it.amount.assert().isEqualTo(event.amount)
@@ -53,7 +53,7 @@ internal class TransferSagaKTest {
     fun onEntryFailed() {
         val event = EntryFailed("sourceId", 1)
         sagaVerifier<TransferSaga>()
-            .`when`(event)
+            .whenEvent(event)
             .expectCommandBody<UnlockAmount> {
                 it.id.assert().isEqualTo(event.sourceId)
                 it.amount.assert().isEqualTo(event.amount)
