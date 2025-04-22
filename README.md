@@ -143,6 +143,7 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 
 ```kotlin
 class CartTest {
+
   @Test
   fun addCartItem() {
     val ownerId = generateGlobalId()
@@ -163,7 +164,25 @@ class CartTest {
       }
       .verify()
   }
-  
+
+  @Test
+  fun givenStateWhenAdd() {
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
+
+    aggregateVerifier<Cart, CartState>()
+      .givenState(CartState(generateGlobalId()), 1)
+      .whenCommand(addCartItem)
+      .expectNoError()
+      .expectEventType(CartItemAdded::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+      }
+      .verify()
+  }
+
   @Test
   fun addCartItemIfSameProduct() {
     val addCartItem = AddCartItem(
@@ -180,7 +199,7 @@ class CartTest {
           ),
         ),
       )
-      .`when`(addCartItem)
+      .whenCommand(addCartItem)
       .expectNoError()
       .expectEventType(CartQuantityChanged::class.java)
       .expectState {
@@ -189,7 +208,56 @@ class CartTest {
       }
       .verify()
   }
-  
+
+  @Test
+  fun addCartItemIfUnCreated() {
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
+    aggregateVerifier<Cart, CartState>()
+      .given()
+      .whenCommand(addCartItem)
+      .expectNoError()
+      .expectEventType(CartItemAdded::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+      }
+      .expectStateAggregate {
+        it.version.assert().isEqualTo(1)
+      }
+      .verify()
+  }
+
+  @Test
+  fun addCartItemGivenMax() {
+    val events = buildList {
+      for (i in 0..99) {
+        add(
+          CartItemAdded(
+            added = CartItem(
+              productId = "productId$i",
+              quantity = 1,
+            ),
+          ),
+        )
+      }
+    }.toTypedArray()
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
+
+    aggregateVerifier<Cart, CartState>()
+      .given(*events)
+      .whenCommand(addCartItem)
+      .expectErrorType(IllegalArgumentException::class.java)
+      .expectState {
+        it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
+      }
+      .verify()
+  }
+
   @Test
   fun removeCartItem() {
     val removeCartItem = RemoveCartItem(
@@ -206,11 +274,71 @@ class CartTest {
           added = added,
         ),
       )
-      .`when`(removeCartItem)
+      .whenCommand(removeCartItem)
       .expectEventType(CartItemRemoved::class.java)
       .expectState {
         it.items.assert().isEmpty()
       }
+      .verify()
+  }
+
+  @Test
+  fun changeQuantity() {
+    val changeQuantity = ChangeQuantity(
+      productId = "productId",
+      quantity = 2,
+    )
+    val added = CartItem(
+      productId = "productId",
+      quantity = 1,
+    )
+    aggregateVerifier<Cart, CartState>()
+      .given(
+        CartItemAdded(
+          added = added,
+        ),
+      )
+      .whenCommand(changeQuantity)
+      .expectEventType(CartQuantityChanged::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+        it.items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
+      }
+      .verify()
+  }
+
+  @Test
+  fun onCreateThenDeleteThenRecover() {
+    val addCartItem = AddCartItem(
+      productId = "productId",
+      quantity = 1,
+    )
+    aggregateVerifier<Cart, CartState>()
+      .whenCommand(addCartItem)
+      .expectNoError()
+      .expectEventType(CartItemAdded::class.java)
+      .expectState {
+        it.items.assert().hasSize(1)
+      }
+      .verify()
+      .then()
+      .whenCommand(DefaultDeleteAggregate)
+      .expectEventType(DefaultAggregateDeleted::class.java)
+      .expectStateAggregate {
+        it.deleted.assert().isTrue()
+      }.verify()
+      .then()
+      .whenCommand(DefaultDeleteAggregate::class.java)
+      .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
+      .verify()
+      .then()
+      .whenCommand(DefaultRecoverAggregate)
+      .expectStateAggregate {
+        it.deleted.assert().isFalse()
+      }.verify()
+      .then()
+      .whenCommand(DefaultRecoverAggregate)
+      .expectErrorType(IllegalStateException::class.java)
       .verify()
   }
 }
