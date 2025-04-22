@@ -16,7 +16,6 @@ package me.ahoo.wow.schema
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
-import com.github.victools.jsonschema.generator.naming.DefaultSchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
@@ -25,7 +24,6 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 
 object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
-    private val baseStrategy: SchemaDefinitionNamingStrategy = DefaultSchemaDefinitionNamingStrategy()
 
     fun Class<*>.resolveNamePrefix(): String? {
         this.namedAggregate()?.let {
@@ -69,13 +67,10 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
      * `me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.MaterializedSnapshot<me.ahoo.wow.example.domain.order.OrderState>>`
      *  >> `order.order.OrderStateMaterializedSnapshotPagedList`
      */
-    fun ResolvedType.toSchemaName(): String? {
+    fun ResolvedType.toSchemaName(): String {
         val flatTypes = flattenType()
         val namePrefix = flatTypes.firstNotNullOfOrNull {
             it.resolveNamePrefix()
-        }
-        if (namePrefix == null && !this.isInstanceOf(Map::class.java)) {
-            return null
         }
         return buildString {
             if (!namePrefix.isNullOrBlank()) {
@@ -88,6 +83,6 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
     }
 
     override fun getDefinitionNameForKey(key: DefinitionKey, generationContext: SchemaGenerationContext): String {
-        return key.type.toSchemaName() ?: baseStrategy.getDefinitionNameForKey(key, generationContext)
+        return key.type.toSchemaName()
     }
 }
