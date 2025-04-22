@@ -30,7 +30,7 @@ class CommandSortTest {
     fun sort() {
         val aggregateMetadata = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
         val sortedCommands = aggregateMetadata.command.registeredCommands
-        sortedCommands.assert().contains(
+        sortedCommands.assert().containsExactly(
             CreateExecutionFailed::class.java,
             PrepareCompensation::class.java,
             ForcePrepareCompensation::class.java,

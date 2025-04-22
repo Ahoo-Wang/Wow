@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.bi.expansion
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.expansion.StateExpansionScriptGenerator.Companion.toScriptGenerator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.util.*
 
@@ -33,17 +32,14 @@ class StateExpansionMetadataVisitorTest {
         val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
         val scriptGenerator = biAggregateMetadata.toScriptGenerator()
         val sql = scriptGenerator.toString()
-        assertThat(sql, equalTo(expectedBiAggregateScript))
-        assertThat(
-            scriptGenerator.targetTables,
-            containsInAnyOrder(
-                "bi_aggregate_state_last_root",
-                "bi_aggregate_state_last_root_items",
-                "bi_aggregate_state_last_root_set",
-                "bi_aggregate_state_last_root_like_list_item",
-                "bi_aggregate_state_last_root_nested_list",
-                "bi_aggregate_state_last_root_nested_list_list"
-            )
+        sql.assert().isEqualTo(expectedBiAggregateScript)
+        scriptGenerator.targetTables.assert().containsExactly(
+            "bi_aggregate_state_last_root",
+            "bi_aggregate_state_last_root_items",
+            "bi_aggregate_state_last_root_set",
+            "bi_aggregate_state_last_root_like_list_item",
+            "bi_aggregate_state_last_root_nested_list",
+            "bi_aggregate_state_last_root_nested_list_list"
         )
     }
 
@@ -52,41 +48,39 @@ class StateExpansionMetadataVisitorTest {
         val state = BIAggregateState(UUID.randomUUID().toString())
         val json = state.toJsonString()
         val stateObj = json.toObject<BIAggregateState>()
-        assertThat(stateObj.id, equalTo(state.id))
-        assertThat(stateObj.string, equalTo(state.string))
-        assertThat(stateObj.int, equalTo(state.int))
-        assertThat(stateObj.long, equalTo(state.long))
-        assertThat(stateObj.double, equalTo(state.double))
-        assertThat(stateObj.float, equalTo(state.float))
-        assertThat(stateObj.boolean, equalTo(state.boolean))
-        assertThat(stateObj.byte, equalTo(state.byte))
-        assertThat(stateObj.short, equalTo(state.short))
-        assertThat(stateObj.char, equalTo(state.char))
-        assertThat(stateObj.item, equalTo(state.item))
-        assertThat(stateObj.uuid, equalTo(state.uuid))
-        assertThat(stateObj.duration, equalTo(state.duration))
-        assertThat(stateObj.kotlinDuration, equalTo(state.kotlinDuration))
-        assertThat(stateObj.date, equalTo(state.date))
-        assertThat(stateObj.sqlDate, equalTo(state.sqlDate))
-        assertThat(stateObj.localDate, equalTo(state.localDate))
-        assertThat(stateObj.localDateTime, equalTo(state.localDateTime))
-        assertThat(stateObj.localTime, equalTo(state.localTime))
-        assertThat(stateObj.instant, equalTo(state.instant))
-        // assertThat(stateObj.zonedDateTime, equalTo(state.zonedDateTime))
-        // assertThat(stateObj.offsetDateTime, equalTo(state.offsetDateTime))
-        assertThat(stateObj.offsetTime, equalTo(state.offsetTime))
-        assertThat(stateObj.yearMonth, equalTo(state.yearMonth))
-        assertThat(stateObj.monthDay, equalTo(state.monthDay))
-        assertThat(stateObj.period, equalTo(state.period))
-        assertThat(stateObj.year, equalTo(state.year))
-        assertThat(stateObj.month, equalTo(state.month))
-        assertThat(stateObj.dayOfWeek, equalTo(state.dayOfWeek))
-        assertThat(stateObj.nested, equalTo(state.nested))
-        assertThat(stateObj.stringList, equalTo(state.stringList))
-        assertThat(stateObj.intArray, equalTo(state.intArray))
-        assertThat(stateObj.map, equalTo(state.map))
-        assertThat(stateObj.items, equalTo(state.items))
-        assertThat(stateObj.nestedList, equalTo(state.nestedList))
+        stateObj.id.assert().isEqualTo(state.id)
+        stateObj.string.assert().isEqualTo(state.string)
+        stateObj.int.assert().isEqualTo(state.int)
+        stateObj.long.assert().isEqualTo(state.long)
+        stateObj.double.assert().isEqualTo(state.double)
+        stateObj.float.assert().isEqualTo(state.float)
+        stateObj.boolean.assert().isEqualTo(state.boolean)
+        stateObj.byte.assert().isEqualTo(state.byte)
+        stateObj.short.assert().isEqualTo(state.short)
+        stateObj.char.assert().isEqualTo(state.char)
+        stateObj.item.assert().isEqualTo(state.item)
+        stateObj.uuid.assert().isEqualTo(state.uuid)
+        stateObj.duration.assert().isEqualTo(state.duration)
+        stateObj.kotlinDuration.assert().isEqualTo(state.kotlinDuration)
+        stateObj.date.assert().isEqualTo(state.date)
+        stateObj.sqlDate.assert().isEqualTo(state.sqlDate)
+        stateObj.localDate.assert().isEqualTo(state.localDate)
+        stateObj.localDateTime.assert().isEqualTo(state.localDateTime)
+        stateObj.localTime.assert().isEqualTo(state.localTime)
+        stateObj.instant.assert().isEqualTo(state.instant)
+        stateObj.offsetTime.assert().isEqualTo(state.offsetTime)
+        stateObj.yearMonth.assert().isEqualTo(state.yearMonth)
+        stateObj.monthDay.assert().isEqualTo(state.monthDay)
+        stateObj.period.assert().isEqualTo(state.period)
+        stateObj.year.assert().isEqualTo(state.year)
+        stateObj.month.assert().isEqualTo(state.month)
+        stateObj.dayOfWeek.assert().isEqualTo(state.dayOfWeek)
+        stateObj.nested.assert().isEqualTo(state.nested)
+        stateObj.stringList.assert().isEqualTo(state.stringList)
+        stateObj.intArray.assert().isEqualTo(state.intArray)
+        stateObj.map.assert().isEqualTo(state.map)
+        stateObj.items.assert().isEqualTo(state.items)
+        stateObj.nestedList.assert().isEqualTo(state.nestedList)
     }
 }
 
