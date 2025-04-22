@@ -73,9 +73,14 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
         val flatTypes = flattenType()
         val namePrefix = flatTypes.firstNotNullOfOrNull {
             it.resolveNamePrefix()
-        } ?: return null
+        }
+        if (namePrefix == null && !this.isInstanceOf(Map::class.java)) {
+            return null
+        }
         return buildString {
-            append(namePrefix)
+            if (!namePrefix.isNullOrBlank()) {
+                append(namePrefix)
+            }
             flatTypes.forEach {
                 append(it.toSchemaName())
             }

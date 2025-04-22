@@ -13,6 +13,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.configuration.BoundedContext
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.cart.CartState
@@ -68,6 +69,22 @@ class WowSchemaNamingStrategyTest {
                         arrayOf(mockk<CreateOrder>()).javaClass
                     ),
                     "example.order.CreateOrderArray"
+                ),
+                Arguments.of(
+                    typeContext.resolve(
+                        Map::class.java,
+                        String::class.java,
+                        Object::class.java
+                    ),
+                    "StringObjectMap"
+                ),
+                Arguments.of(
+                    typeContext.resolve(
+                        Map::class.java,
+                        String::class.java,
+                        BoundedContext::class.java
+                    ),
+                    "wow.configuration.StringBoundedContextMap"
                 )
             )
         }
