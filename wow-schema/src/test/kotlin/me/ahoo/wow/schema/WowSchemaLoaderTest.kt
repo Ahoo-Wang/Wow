@@ -1,6 +1,6 @@
 package me.ahoo.wow.schema
 
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class WowSchemaLoaderTest {
@@ -8,7 +8,7 @@ class WowSchemaLoaderTest {
     @Test
     fun loadAsStringNotFound() {
         val resourceName = "not_found.json"
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             WowSchemaLoader.loadAsString(resourceName)
         }
     }
