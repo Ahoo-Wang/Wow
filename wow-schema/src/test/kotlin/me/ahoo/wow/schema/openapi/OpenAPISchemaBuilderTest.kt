@@ -84,6 +84,7 @@ class OpenAPISchemaBuilderTest {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.generateSchema(Condition::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
+        componentsSchemas.assert().containsKey("StringObjectMap")
         componentsSchemas.assert().hasSize(3)
     }
 }
