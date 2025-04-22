@@ -59,9 +59,7 @@ object WowSchemaNamingStrategy : SchemaDefinitionNamingStrategy {
         }
 
         if (!this.typeBindings.isEmpty) {
-            for (i in this.typeParameters.size - 1 downTo 0) {
-                this.typeParameters[i].flattenType(result)
-            }
+            this.typeParameters.forEach { it.flattenType(result) }
         }
         result.add(this.erasedType)
         return result
