@@ -225,39 +225,39 @@ class DemoState(override val id: String) : Identifier {
 ```kotlin
 class DemoTest {
 
-    @Test
-    fun onCreate() {
-        val command = CreateDemo(
-            data = "data"
-        )
+  @Test
+  fun onCreate() {
+    val command = CreateDemo(
+      data = "data"
+    )
 
-        aggregateVerifier<Demo, DemoState>()
-            .`when`(command)
-            .expectNoError()
-            .expectEventType(DemoCreated::class.java)
-            .expectState {
-                assertThat(it.data, equalTo(command.data))
-            }
-            .verify()
-    }
+    aggregateVerifier<Demo, DemoState>()
+      .whenCommand(command)
+      .expectNoError()
+      .expectEventType(DemoCreated::class.java)
+      .expectState {
+        it.data.assert().isEqualTo(command.data)
+      }
+      .verify()
+  }
 
-    @Test
-    fun onUpdate() {
-        val command = UpdateDemo(
-            id = GlobalIdGenerator.generateAsString(),
-            data = "data"
-        )
+  @Test
+  fun onUpdate() {
+    val command = UpdateDemo(
+      id = generateGlobalId(),
+      data = "data"
+    )
 
-        aggregateVerifier<Demo, DemoState>()
-            .given(DemoCreated("old"))
-            .`when`(command)
-            .expectNoError()
-            .expectEventType(DemoUpdated::class.java)
-            .expectState {
-                assertThat(it.data, equalTo(command.data))
-            }
-            .verify()
-    }
+    aggregateVerifier<Demo, DemoState>()
+      .given(DemoCreated("old"))
+      .whenCommand(command)
+      .expectNoError()
+      .expectEventType(DemoUpdated::class.java)
+      .expectState {
+        it.data.assert().isEqualTo(command.data)
+      }
+      .verify()
+  }
 }
 ```
 

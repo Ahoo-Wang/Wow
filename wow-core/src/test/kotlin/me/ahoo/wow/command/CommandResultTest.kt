@@ -2,7 +2,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 class CommandResultTest {
     @Test
     fun throwableAsResult() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage()
+        val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val actual = IllegalStateException("test").toResult(
             command,
             processorName = "processorName"
