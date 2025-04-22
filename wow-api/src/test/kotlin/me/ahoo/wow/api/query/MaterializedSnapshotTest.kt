@@ -1,7 +1,6 @@
 package me.ahoo.wow.api.query
 
-import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.MatcherAssert.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class MaterializedSnapshotTest {
@@ -24,6 +23,6 @@ class MaterializedSnapshotTest {
             snapshotTime = 1,
             deleted = false
         )
-        assertThat(snapshot, notNullValue())
+        snapshot.assert().isNotNull()
     }
 }

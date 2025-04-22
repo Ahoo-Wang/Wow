@@ -13,16 +13,12 @@
 
 package me.ahoo.wow.api.command
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class DefaultDeleteAggregateTest {
     @Test
     fun isAssignableFrom() {
-        assertThat(
-            DeleteAggregate::class.java.isAssignableFrom(DefaultDeleteAggregate::class.java),
-            equalTo(true),
-        )
+        DeleteAggregate::class.java.isAssignableFrom(DefaultDeleteAggregate::class.java).assert().isTrue()
     }
 }
