@@ -2,6 +2,7 @@ package me.ahoo.wow.compensation.server.webhook
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.compensation.api.CompensationPrepared
@@ -59,7 +60,7 @@ class TemplateEngineTest {
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
-        assertThat(rendered, notNullValue())
+        rendered.assert().isNotNull()
     }
 
     @Test
@@ -73,7 +74,7 @@ class TemplateEngineTest {
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
-        assertThat(rendered, notNullValue())
+        rendered.assert().isNotNull()
     }
 
     @Test
@@ -85,7 +86,7 @@ class TemplateEngineTest {
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
-        assertThat(rendered, notNullValue())
+        rendered.assert().isNotNull()
     }
 
     @Test
@@ -97,7 +98,7 @@ class TemplateEngineTest {
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
-        assertThat(rendered, notNullValue())
+        rendered.assert().isNotNull()
     }
 
     @Test
@@ -109,7 +110,7 @@ class TemplateEngineTest {
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
-        assertThat(rendered, notNullValue())
+        rendered.assert().isNotNull()
     }
 
     @Test
@@ -117,6 +118,6 @@ class TemplateEngineTest {
         val emptyHostNav = stateAggregate.state.toNavAsMarkdown("")
         assertThat(emptyHostNav, equalTo("`${executionFailedState.id}`"))
         val hostNav = stateAggregate.state.toNavAsMarkdown(host)
-        assertThat(hostNav, equalTo("[${executionFailedState.id}](${host}/to-retry?id=${executionFailedState.id})"))
+        hostNav.assert().isEqualTo("[${executionFailedState.id}](${host}/to-retry?id=${executionFailedState.id})")
     }
 }

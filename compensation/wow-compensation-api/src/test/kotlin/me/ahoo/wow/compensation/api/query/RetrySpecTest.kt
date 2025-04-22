@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.compensation.api.query
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.materialize
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class RetrySpecTest {
@@ -28,7 +27,7 @@ class RetrySpecTest {
     fun materializeSelf() {
         val retrySpec = RetrySpec(1, 2, 3)
         val materialized = retrySpec.materialize()
-        assertThat(retrySpec, sameInstance(materialized))
+        retrySpec.assert().isEqualTo(materialized)
     }
 
     @Test
@@ -42,18 +41,18 @@ class RetrySpecTest {
                 get() = 3
         }
         val materialized = retrySpec.materialize()
-        assertThat(retrySpec, not(sameInstance(materialized)))
-        assertThat(materialized.maxRetries, equalTo(retrySpec.maxRetries))
-        assertThat(materialized.minBackoff, equalTo(retrySpec.minBackoff))
-        assertThat(materialized.executionTimeout, equalTo(retrySpec.executionTimeout))
+        retrySpec.assert().isNotEqualTo(materialized)
+        retrySpec.maxRetries.assert().isEqualTo(materialized.maxRetries)
+        retrySpec.minBackoff.assert().isEqualTo(materialized.minBackoff)
+        retrySpec.executionTimeout.assert().isEqualTo(materialized.executionTimeout)
     }
 
     @Test
     fun toSpec() {
         val retry = Retry()
         val retrySpec = retry.toSpec()
-        assertThat(retrySpec.maxRetries, equalTo(retry.maxRetries))
-        assertThat(retrySpec.minBackoff, equalTo(retry.minBackoff))
-        assertThat(retrySpec.executionTimeout, equalTo(retry.executionTimeout))
+        retrySpec.maxRetries.assert().isEqualTo(retry.maxRetries)
+        retry.minBackoff.assert().isEqualTo(retry.minBackoff)
+        retry.executionTimeout.assert().isEqualTo(retry.executionTimeout)
     }
 }

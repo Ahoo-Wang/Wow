@@ -1,12 +1,11 @@
 package me.ahoo.wow.compensation.server.failed
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.domain.ExecutionFailedStateProperties
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.snapshot.nestedState
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class SnapshotFindNextRetryTest {
@@ -50,6 +49,6 @@ class SnapshotFindNextRetryTest {
                 }
             }
         }
-        assertThat(nextCondition, equalTo(originalCondition))
+        nextCondition.assert().isEqualTo(originalCondition)
     }
 }
