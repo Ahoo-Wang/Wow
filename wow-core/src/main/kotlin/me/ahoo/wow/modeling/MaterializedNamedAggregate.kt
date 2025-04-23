@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.naming.getContextAlias
 import java.util.*
 
@@ -58,10 +59,18 @@ fun String.toNamedAggregate(contextName: String? = null): MaterializedNamedAggre
     return MaterializedNamedAggregate(contextName, this)
 }
 
+fun NamedBoundedContext.getContextAliasPrefix(): String {
+    val alias = getContextAlias()
+    if (alias.isBlank()) {
+        return alias
+    }
+    return "$alias$NAMED_AGGREGATE_DELIMITER"
+}
+
 fun NamedAggregate.toNamedAggregateString(): String {
     return "$contextName$NAMED_AGGREGATE_DELIMITER$aggregateName"
 }
 
 fun NamedAggregate.toStringWithAlias(): String {
-    return "${getContextAlias()}$NAMED_AGGREGATE_DELIMITER$aggregateName"
+    return "${getContextAliasPrefix()}$aggregateName"
 }
