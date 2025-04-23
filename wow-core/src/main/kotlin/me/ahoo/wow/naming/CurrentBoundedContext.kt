@@ -18,5 +18,4 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 object CurrentBoundedContext {
     @Volatile
     var context: NamedBoundedContext = MaterializedNamedBoundedContext("")
-
 }

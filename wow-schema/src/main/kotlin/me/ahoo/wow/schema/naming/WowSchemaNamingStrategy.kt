@@ -21,8 +21,8 @@ import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.naming.getContextAlias
 
 class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) : DefaultSchemaNamePrefixCapable, SchemaDefinitionNamingStrategy {
     companion object {
@@ -31,9 +31,7 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) : De
                 return "${it.toStringWithAlias()}."
             }
             namedBoundedContext()?.let {
-                it.getContextAlias().let { alias ->
-                    return "$alias."
-                }
+                return it.getContextAliasPrefix()
             }
             return null
         }

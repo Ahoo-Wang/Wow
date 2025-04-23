@@ -18,12 +18,14 @@ import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
+import me.ahoo.wow.modeling.getContextAliasPrefix
+import me.ahoo.wow.naming.CurrentBoundedContext
+import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.resolveNamePrefix
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 
 class BoundedContextSchemaNameConverter : ModelConverter {
     companion object {
-        const val STD_LIB_PREFIX = "java."
         fun AnnotatedType.getRawClass(): Class<*>? {
             val schemaType = this.type
             if (schemaType is Class<*>) {
@@ -53,10 +55,11 @@ class BoundedContextSchemaNameConverter : ModelConverter {
             return
         }
         val rawClass = type.getRawClass() ?: return
-        if (rawClass.name.startsWith(STD_LIB_PREFIX)) {
+
+        if (rawClass.isStdType()) {
             return
         }
-        val namePrefix = rawClass.resolveNamePrefix() ?: return
+        val namePrefix = rawClass.resolveNamePrefix() ?: CurrentBoundedContext.context.getContextAliasPrefix()
         type.name = namePrefix + rawClass.toSchemaName()
     }
 }
