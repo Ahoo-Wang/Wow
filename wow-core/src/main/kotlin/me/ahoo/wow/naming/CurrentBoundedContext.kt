@@ -17,13 +17,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 
 object CurrentBoundedContext {
     @Volatile
-    private var context: NamedBoundedContext = MaterializedNamedBoundedContext("")
+    var context: NamedBoundedContext = MaterializedNamedBoundedContext("")
 
-    fun setContext(current: NamedBoundedContext) {
-        this.context = current
-    }
-
-    fun getContext(): NamedBoundedContext {
-        return context
-    }
 }

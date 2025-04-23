@@ -14,6 +14,7 @@ package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.spring.SpringServiceProvider
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
@@ -50,6 +51,8 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     fun wowCurrentBoundedContext(applicationContext: ApplicationContext): NamedBoundedContext {
         val contextName =
             wowProperties.contextName ?: applicationContext.environment.getRequiredProperty(SPRING_APPLICATION_NAME)
-        return MaterializedNamedBoundedContext(contextName)
+        val currentContext = MaterializedNamedBoundedContext(contextName)
+        CurrentBoundedContext.context = currentContext
+        return currentContext
     }
 }
