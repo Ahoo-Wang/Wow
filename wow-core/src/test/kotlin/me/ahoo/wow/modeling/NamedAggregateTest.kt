@@ -13,19 +13,120 @@
 
 package me.ahoo.wow.modeling
 
-import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.Test
 
 internal class NamedAggregateTest {
-    private val namedTypedAggregate = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun materialize() {
-        assertThat(namedTypedAggregate.materialize(), sameInstance(namedTypedAggregate.materialize()))
-        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
-        assertThat(aggregateId.materialize(), sameInstance(aggregateId.materialize()))
+    fun `hashCode should be equal when same context and aggregateName`() {
+        val materialize = MaterializedNamedAggregate(generateGlobalId(), generateGlobalId())
+        val materialize2 = MaterializedNamedAggregate(materialize.contextName, materialize.aggregateName)
+        materialize.hashCode().assert().isEqualTo(materialize2.hashCode())
+    }
+
+    @Test
+    fun `materialize should be same instance`() {
+        val materialize = MaterializedNamedAggregate(generateGlobalId(), generateGlobalId())
+        materialize.materialize().assert().isSameAs(materialize.materialize())
+    }
+
+    @Test
+    fun `materialize should be same instance with different aggregateName`() {
+        val materialize = MaterializedNamedAggregate(generateGlobalId(), generateGlobalId())
+        val materialize2 = MaterializedNamedAggregate(materialize.contextName, generateGlobalId())
+        materialize2.assert().isNotEqualTo(materialize)
+    }
+
+    @Test
+    fun `materialize should be same instance with different contextName`() {
+        val materialize = MaterializedNamedAggregate(generateGlobalId(), generateGlobalId())
+        val materialize2 = MaterializedNamedAggregate(generateGlobalId(), materialize.aggregateName)
+        materialize2.assert().isNotEqualTo(materialize)
+    }
+
+    @Test
+    fun `toNamedAggregate should return correct MaterializedNamedAggregate when string contains delimiter`() {
+        // Arrange
+        val context = generateGlobalId()
+        val aggregateName = generateGlobalId()
+        val input = "$context${NAMED_AGGREGATE_DELIMITER}$aggregateName"
+
+        // Act
+        val result = input.toNamedAggregate()
+
+        // Assert
+        result.contextName.assert().isEqualTo(context)
+        result.aggregateName.assert().isEqualTo(aggregateName)
+    }
+
+    @Test
+    fun `toNamedAggregate should throw exception when string does not contain delimiter and contextName is null`() {
+        // Arrange
+        val input = "nameValue"
+
+        // Act & Assert
+        assertThrownBy<IllegalArgumentException> {
+            input.toNamedAggregate()
+        }
+    }
+
+    @Test
+    fun `toNamedAggregate should return correct MaterializedNamedAggregate when string does not contain delimiter and contextName is not null`() {
+        // Arrange
+        val context = generateGlobalId()
+        val aggregateName = generateGlobalId()
+
+        // Act
+        val result = aggregateName.toNamedAggregate(context)
+
+        // Assert
+        result.contextName.assert().isEqualTo(context)
+        result.aggregateName.assert().isEqualTo(aggregateName)
+    }
+
+    @Test
+    fun `getContextAliasPrefix should return empty string when alias is empty`() {
+        // Arrange
+        val namedBoundedContext = MaterializedNamedBoundedContext("")
+
+        // Act
+        val result = namedBoundedContext.getContextAliasPrefix()
+
+        // Assert
+        result.assert().isEmpty()
+    }
+
+    @Test
+    fun `getContextAliasPrefix should return alias with delimiter when alias is not blank`() {
+        // Arrange
+        val namedBoundedContext = MaterializedNamedBoundedContext(generateGlobalId())
+
+        // Act
+        val result = namedBoundedContext.getContextAliasPrefix()
+
+        // Assert
+        result.assert().isEqualTo("${namedBoundedContext.contextName}${NAMED_AGGREGATE_DELIMITER}")
+    }
+
+    @Test
+    fun toNamedAggregateString() {
+        val context = generateGlobalId()
+        val aggregateName = generateGlobalId()
+        val namedAggregate = MaterializedNamedAggregate(context, aggregateName)
+        namedAggregate.toNamedAggregateString().assert()
+            .isEqualTo("${context}${NAMED_AGGREGATE_DELIMITER}$aggregateName")
+    }
+
+    @Test
+    fun toStringWithAlias() {
+        val context = generateGlobalId()
+        val aggregateName = generateGlobalId()
+        val namedAggregate = MaterializedNamedAggregate(context, aggregateName)
+        namedAggregate.toNamedAggregateString().assert()
+            .isEqualTo("${context}${NAMED_AGGREGATE_DELIMITER}$aggregateName")
     }
 }
