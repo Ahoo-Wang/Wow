@@ -40,6 +40,7 @@ import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
+import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -145,7 +146,7 @@ class JsonSchemaGeneratorTest {
         val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
         val jakartaModule = JakartaValidationModule()
         val openApiModule: Module = Swagger2Module()
-        val wowModule = WowModule(setOf(WowOption.WOW_NAMING_STRATEGY))
+        val wowModule = WowModule()
         val schemaGeneratorConfigBuilder = SchemaGeneratorConfigBuilder(
             JsonSerializer,
             SchemaVersion.DRAFT_2020_12,
@@ -154,6 +155,7 @@ class JsonSchemaGeneratorTest {
             .with(jakartaModule)
             .with(openApiModule)
             .with(wowModule)
+            .with(SchemaNamingModule())
             .with(KotlinModule())
             .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
             .with(Option.DEFINITIONS_FOR_ALL_OBJECTS)

@@ -37,16 +37,19 @@ import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.defaultConfig
+import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
+import me.ahoo.wow.schema.naming.SchemaNamingModule
+import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.Companion.defaultConfig
 import java.lang.reflect.Type
 import java.util.function.Consumer
 
 class OpenAPISchemaBuilder(
     private val schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
     private val optionPreset: OptionPreset = OptionPreset.PLAIN_JSON,
-    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer,
+    override val defaultSchemaNamePrefix: String = "",
+    private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer(defaultSchemaNamePrefix),
     private val openapi31: Boolean = true
-) : InlineSchemaCapable {
+) : DefaultSchemaNamePrefixCapable, InlineSchemaCapable {
     companion object {
         const val DEFINITION_PATH = "components/schemas"
     }
@@ -104,45 +107,51 @@ class OpenAPISchemaBuilder(
         }
     }
 
-    object DefaultCustomizer :
-        Consumer<SchemaGeneratorConfigBuilder> {
+    class DefaultCustomizer(override val defaultSchemaNamePrefix: String = "") :
+        DefaultSchemaNamePrefixCapable, Consumer<SchemaGeneratorConfigBuilder> {
 
-        fun SchemaGeneratorConfigBuilder.defaultConfig(): SchemaGeneratorConfigBuilder {
-            val jacksonModule: Module = JacksonModule(
-                JacksonOption.RESPECT_JSONPROPERTY_ORDER,
-                JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
-                JacksonOption.INLINE_TRANSFORMED_SUBTYPES
-            )
-            val jakartaModule = JakartaValidationModule(
-                JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
-                JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
-            )
-            val openApiModule: Module = Swagger2Module()
-            val kotlinModule = KotlinModule()
-            val jodaMoneyModule = JodaMoneyModule()
-            val wowModule = WowModule()
-            with(jacksonModule)
-                .with(jakartaModule)
-                .with(openApiModule)
-                .with(kotlinModule)
-                .with(jodaMoneyModule)
-                .with(wowModule)
-                .with(Option.PLAIN_DEFINITION_KEYS)
-                .with(Option.SIMPLIFIED_ENUMS)
-                .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
-            return this
+        companion object {
+            fun SchemaGeneratorConfigBuilder.defaultConfig(
+                defaultSchemaNamePrefix: String
+            ): SchemaGeneratorConfigBuilder {
+                val jacksonModule: Module = JacksonModule(
+                    JacksonOption.RESPECT_JSONPROPERTY_ORDER,
+                    JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+                    JacksonOption.INLINE_TRANSFORMED_SUBTYPES
+                )
+                val jakartaModule = JakartaValidationModule(
+                    JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
+                    JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
+                )
+                val openApiModule: Module = Swagger2Module()
+                val kotlinModule = KotlinModule()
+                val jodaMoneyModule = JodaMoneyModule()
+                val wowModule = WowModule()
+                val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix)
+                with(jacksonModule)
+                    .with(jakartaModule)
+                    .with(openApiModule)
+                    .with(kotlinModule)
+                    .with(jodaMoneyModule)
+                    .with(wowModule)
+                    .with(schemaNamingModule)
+                    .with(Option.PLAIN_DEFINITION_KEYS)
+                    .with(Option.SIMPLIFIED_ENUMS)
+                    .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
+                return this
+            }
         }
 
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
-            configBuilder.defaultConfig()
+            configBuilder.defaultConfig(defaultSchemaNamePrefix)
                 .with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
         }
     }
 
-    object InlineCustomizer :
-        Consumer<SchemaGeneratorConfigBuilder> {
+    class InlineCustomizer(override val defaultSchemaNamePrefix: String = "") :
+        DefaultSchemaNamePrefixCapable, Consumer<SchemaGeneratorConfigBuilder> {
         override fun accept(configBuilder: SchemaGeneratorConfigBuilder) {
-            configBuilder.defaultConfig()
+            configBuilder.defaultConfig(defaultSchemaNamePrefix)
                 .with(Option.INLINE_ALL_SCHEMAS)
         }
     }

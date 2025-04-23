@@ -11,17 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.naming
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE;
+import me.ahoo.wow.api.naming.NamedBoundedContext
 
-    companion object {
-        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE)
+object CurrentBoundedContext {
+    @Volatile
+    private var context: NamedBoundedContext = MaterializedNamedBoundedContext("")
+
+    fun setContext(current: NamedBoundedContext) {
+        this.context = current
+    }
+
+    fun getContext(): NamedBoundedContext {
+        return context
     }
 }

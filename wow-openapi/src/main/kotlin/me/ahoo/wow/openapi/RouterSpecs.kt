@@ -34,7 +34,8 @@ class RouterSpecs(
     override val inline: Boolean = false
 ) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
 
-    override val componentContext: OpenAPIComponentContext = OpenAPIComponentContext.default(inline)
+    override val componentContext: OpenAPIComponentContext =
+        OpenAPIComponentContext.default(inline, defaultSchemaNamePrefix = "${currentContext.getContextAlias()}.")
 
     @Volatile
     private var built: Boolean = false

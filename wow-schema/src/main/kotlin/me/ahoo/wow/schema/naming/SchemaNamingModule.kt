@@ -11,17 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.naming
 
-enum class WowOption {
-    /**
-     *
-     * @see me.ahoo.wow.api.annotation.CommandRoute.PathVariable
-     * @see me.ahoo.wow.api.annotation.CommandRoute.HeaderVariable
-     */
-    IGNORE_COMMAND_ROUTE_VARIABLE;
+import com.github.victools.jsonschema.generator.Module
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 
-    companion object {
-        val ALL: Set<WowOption> = setOf(IGNORE_COMMAND_ROUTE_VARIABLE)
+class SchemaNamingModule(override val defaultSchemaNamePrefix: String = "") : DefaultSchemaNamePrefixCapable, Module {
+    override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
+        builder.forTypesInGeneral().withDefinitionNamingStrategy(WowSchemaNamingStrategy(defaultSchemaNamePrefix))
     }
 }

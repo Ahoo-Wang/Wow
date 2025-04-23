@@ -26,10 +26,15 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
+import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
+import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.serialization.JsonSerializer
 import java.lang.reflect.Type
 
-class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
+class JsonSchemaGenerator(
+    private val options: Set<WowOption> = WowOption.ALL,
+    override val defaultSchemaNamePrefix: String = ""
+) : DefaultSchemaNamePrefixCapable {
     private val schemaGenerator: SchemaGenerator
 
     init {
@@ -39,6 +44,7 @@ class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
         val kotlinModule = KotlinModule()
         val jodaMoneyModule = JodaMoneyModule()
         val wowModule = WowModule(options)
+        val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix)
         val schemaGeneratorConfigBuilder = SchemaGeneratorConfigBuilder(
             JsonSerializer,
             SchemaVersion.DRAFT_2020_12,
@@ -49,6 +55,7 @@ class JsonSchemaGenerator(private val options: Set<WowOption> = WowOption.ALL) {
             .with(wowModule)
             .with(jodaMoneyModule)
             .with(kotlinModule)
+            .with(schemaNamingModule)
             .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
         schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
     }
