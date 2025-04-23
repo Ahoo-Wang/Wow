@@ -17,7 +17,6 @@ import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
-import com.github.victools.jsonschema.generator.SchemaGeneratorGeneralConfigPart
 import me.ahoo.wow.schema.typed.AggregateIdDefinitionProvider
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
@@ -27,7 +26,10 @@ import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 
-class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
+class WowModule(
+    private val options: Set<WowOption> = WowOption.ALL
+) :
+    Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
         fieldConfigPart.withTitleResolver(SummaryTitleResolver)
@@ -42,7 +44,6 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
-        wowNamingStrategy(generalConfigPart)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {
@@ -51,12 +52,5 @@ class WowModule(private val options: Set<WowOption> = WowOption.ALL) : Module {
         }
 
         configPart.withIgnoreCheck(IgnoreCommandRouteVariableCheck)
-    }
-
-    private fun wowNamingStrategy(generalConfigPart: SchemaGeneratorGeneralConfigPart) {
-        if (options.contains(WowOption.WOW_NAMING_STRATEGY).not()) {
-            return
-        }
-        generalConfigPart.withDefinitionNamingStrategy(WowSchemaNamingStrategy)
     }
 }

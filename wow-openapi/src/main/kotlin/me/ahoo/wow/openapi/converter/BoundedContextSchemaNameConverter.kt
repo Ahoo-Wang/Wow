@@ -18,8 +18,8 @@ import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.schema.WowSchemaNamingStrategy.resolveNamePrefix
-import me.ahoo.wow.schema.WowSchemaNamingStrategy.toSchemaName
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.resolveNamePrefix
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 
 class BoundedContextSchemaNameConverter : ModelConverter {
     companion object {

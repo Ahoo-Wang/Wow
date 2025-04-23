@@ -46,7 +46,7 @@ class OpenAPISchemaBuilderTest {
     @Test
     fun buildInline() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(
-            customizer = OpenAPISchemaBuilder.InlineCustomizer
+            customizer = OpenAPISchemaBuilder.InlineCustomizer("")
         )
         openAPISchemaBuilder.inline.assert().isTrue()
         val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)

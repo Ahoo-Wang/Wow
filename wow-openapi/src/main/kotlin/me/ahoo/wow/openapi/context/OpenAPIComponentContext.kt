@@ -36,12 +36,13 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
 
         fun default(
             inline: Boolean = false,
-            schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12
+            schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
+            defaultSchemaNamePrefix: String = ""
         ): OpenAPIComponentContext {
             val customizer = if (inline) {
-                OpenAPISchemaBuilder.InlineCustomizer
+                OpenAPISchemaBuilder.InlineCustomizer(defaultSchemaNamePrefix)
             } else {
-                OpenAPISchemaBuilder.DefaultCustomizer
+                OpenAPISchemaBuilder.DefaultCustomizer(defaultSchemaNamePrefix)
             }
             return DefaultOpenAPIComponentContext(
                 OpenAPISchemaBuilder(
