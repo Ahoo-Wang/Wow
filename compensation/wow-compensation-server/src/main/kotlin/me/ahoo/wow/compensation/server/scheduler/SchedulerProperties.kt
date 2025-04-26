@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.compensation.server.scheduler
 
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.compensation.server.configuration.CompensationProperties
-import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
