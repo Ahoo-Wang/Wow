@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.metadata
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.naming.DescriptionCapable
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.api.naming.SummaryCapable
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
@@ -24,7 +25,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Type
 
 data class CommandRouteMetadata<C>(
-    val enabled: Boolean,
+    override val enabled: Boolean,
     val action: String,
     val method: String,
     val prefix: String = "",
@@ -39,7 +40,7 @@ data class CommandRouteMetadata<C>(
      */
     val pathVariableMetadata: Set<VariableMetadata> = setOf(),
     val headerVariableMetadata: Set<VariableMetadata> = setOf()
-) : me.ahoo.wow.metadata.Metadata, SummaryCapable, DescriptionCapable {
+) : me.ahoo.wow.metadata.Metadata, EnabledCapable, SummaryCapable, DescriptionCapable {
 
     private fun ObjectNode.injectVariables(
         variableMetadata: Set<VariableMetadata>,
