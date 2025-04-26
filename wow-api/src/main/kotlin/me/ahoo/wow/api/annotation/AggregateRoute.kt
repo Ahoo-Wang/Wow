@@ -27,6 +27,7 @@ import java.lang.annotation.Inherited
 @MustBeDocumented
 annotation class AggregateRoute(
     val resourceName: String = "",
+    val enabled: Boolean = true,
     val owner: Owner = Owner.NEVER
 ) {
 

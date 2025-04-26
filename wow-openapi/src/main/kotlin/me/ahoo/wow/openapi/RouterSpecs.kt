@@ -62,6 +62,9 @@ class RouterSpecs(
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
             val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
+            if (!aggregateRouteMetadata.enabled) {
+                return@forEach
+            }
             aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
                 aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
                     add(routeSpec)

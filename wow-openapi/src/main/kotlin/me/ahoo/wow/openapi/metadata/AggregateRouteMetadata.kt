@@ -14,13 +14,15 @@
 package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 
 data class AggregateRouteMetadata<C : Any>(
+    override val enabled: Boolean,
     val aggregateMetadata: AggregateMetadata<C, *>,
     val resourceName: String,
     val owner: AggregateRoute.Owner
-) : me.ahoo.wow.metadata.Metadata {
+) : EnabledCapable, me.ahoo.wow.metadata.Metadata {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
