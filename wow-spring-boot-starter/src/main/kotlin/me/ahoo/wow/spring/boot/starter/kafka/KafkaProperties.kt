@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.kafka
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.spring.boot.starter.EnabledCapable
+import me.ahoo.wow.api.naming.EnabledCapable
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer

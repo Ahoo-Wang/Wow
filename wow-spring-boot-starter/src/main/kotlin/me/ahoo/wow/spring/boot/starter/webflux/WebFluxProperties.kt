@@ -14,8 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 

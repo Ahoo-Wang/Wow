@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.BusType.Companion.KAFKA_NAME
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.boot.context.properties.bind.DefaultValue
