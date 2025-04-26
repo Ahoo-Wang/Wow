@@ -14,8 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.BusProperties
-import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.boot.context.properties.bind.DefaultValue

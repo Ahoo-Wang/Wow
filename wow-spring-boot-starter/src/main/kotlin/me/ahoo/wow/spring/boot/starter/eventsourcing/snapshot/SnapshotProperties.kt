@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
+import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.eventsourcing.snapshot.DEFAULT_VERSION_OFFSET
-import me.ahoo.wow.spring.boot.starter.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.springframework.boot.context.properties.ConfigurationProperties
