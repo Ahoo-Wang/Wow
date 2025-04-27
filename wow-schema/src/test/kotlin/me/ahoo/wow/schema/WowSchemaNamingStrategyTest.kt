@@ -34,6 +34,7 @@ class WowSchemaNamingStrategyTest {
         private const val defaultSchemaNamePrefix = "WowSchemaNamingStrategyTest."
         private val typeContext: TypeContext = TypeContextFactory.createDefaultTypeContext(generatorConfig)
 
+        @Suppress("LongMethod")
         @JvmStatic
         fun parametersForToSchemaName(): Stream<Arguments> {
             return Stream.of(
@@ -86,6 +87,18 @@ class WowSchemaNamingStrategyTest {
                         BoundedContext::class.java
                     ),
                     "wow.configuration.StringBoundedContextMap"
+                ),
+                Arguments.of(
+                    typeContext.resolve(
+                        Outer.Inner::class.java
+                    ),
+                    "wow.schema.OuterInner"
+                ),
+                Arguments.of(
+                    typeContext.resolve(
+                        Outer.StaticNested::class.java
+                    ),
+                    "wow.schema.OuterStaticNested"
                 )
             )
         }
@@ -97,4 +110,9 @@ class WowSchemaNamingStrategyTest {
         val schemaName = type.toSchemaName(defaultSchemaNamePrefix)
         schemaName.assert().isEqualTo(expectedSchemaName)
     }
+}
+
+class Outer {
+    inner class Inner // 非静态内部类
+    class StaticNested // 静态嵌套类
 }

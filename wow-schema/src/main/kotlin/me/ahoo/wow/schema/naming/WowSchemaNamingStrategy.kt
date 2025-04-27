@@ -24,7 +24,9 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.modeling.toStringWithAlias
 
-class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) : DefaultSchemaNamePrefixCapable, SchemaDefinitionNamingStrategy {
+class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
+    DefaultSchemaNamePrefixCapable,
+    SchemaDefinitionNamingStrategy {
     companion object {
         fun Class<*>.resolveNamePrefix(): String? {
             this.namedAggregate()?.let {
@@ -58,7 +60,11 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) : De
             if (!this.typeBindings.isEmpty) {
                 this.typeParameters.forEach { it.flattenType(result) }
             }
-            result.add(this.erasedType)
+            val erasedType = this.erasedType
+            if (erasedType.isMemberClass) {
+                result.add(erasedType.enclosingClass)
+            }
+            result.add(erasedType)
             return result
         }
 
