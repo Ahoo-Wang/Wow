@@ -61,10 +61,10 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
                 this.typeParameters.forEach { it.flattenType(result) }
             }
             val erasedType = this.erasedType
+            result.add(erasedType)
             if (erasedType.isMemberClass) {
                 result.add(erasedType.enclosingClass)
             }
-            result.add(erasedType)
             return result
         }
 

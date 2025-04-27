@@ -92,13 +92,13 @@ class WowSchemaNamingStrategyTest {
                     typeContext.resolve(
                         Outer.Inner::class.java
                     ),
-                    "wow.schema.OuterInner"
+                    "wow.schema.InnerOuter"
                 ),
                 Arguments.of(
                     typeContext.resolve(
                         Outer.StaticNested::class.java
                     ),
-                    "wow.schema.OuterStaticNested"
+                    "wow.schema.StaticNestedOuter"
                 )
             )
         }
