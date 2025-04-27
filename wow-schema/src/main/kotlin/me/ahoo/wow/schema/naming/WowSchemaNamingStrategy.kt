@@ -28,6 +28,7 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
     DefaultSchemaNamePrefixCapable,
     SchemaDefinitionNamingStrategy {
     companion object {
+        private const val ARRAY_SCHEMA_NAME = "Array"
         fun Class<*>.resolveNamePrefix(): String? {
             this.namedAggregate()?.let {
                 return "${it.toStringWithAlias()}."
@@ -45,9 +46,12 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
                 }
             }
             if (this.isArray) {
-                return "Array"
+                return ARRAY_SCHEMA_NAME
             }
-            return simpleName
+            if (!isMemberClass) {
+                return simpleName
+            }
+            return "${enclosingClass.toSchemaName()}.$simpleName"
         }
 
         fun ResolvedType.flattenType(result: MutableList<Class<*>> = mutableListOf()): List<Class<*>> {
@@ -60,11 +64,7 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
             if (!this.typeBindings.isEmpty) {
                 this.typeParameters.forEach { it.flattenType(result) }
             }
-            val erasedType = this.erasedType
-            result.add(erasedType)
-            if (erasedType.isMemberClass) {
-                result.add(erasedType.enclosingClass)
-            }
+            result.add(this.erasedType)
             return result
         }
 
