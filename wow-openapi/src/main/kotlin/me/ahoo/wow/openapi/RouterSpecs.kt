@@ -31,11 +31,10 @@ import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
     private val routes: MutableList<RouteSpec> = mutableListOf(),
-    override val inline: Boolean = false
-) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
-
+    override val inline: Boolean = false,
     override val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(inline, defaultSchemaNamePrefix = "${currentContext.getContextAlias()}.")
+) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
 
     @Volatile
     private var built: Boolean = false
