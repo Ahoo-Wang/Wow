@@ -58,9 +58,7 @@ abstract class AutoRegistrar<CM : Annotation>(
         log.info {
             "Stop ${componentType.simpleName}."
         }
-        if (!running.compareAndSet(true, false)) {
-            return
-        }
+        running.compareAndSet(true, false)
     }
 
     override fun isRunning(): Boolean {
