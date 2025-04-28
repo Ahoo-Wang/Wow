@@ -56,7 +56,7 @@ interface CommandBuilder : Identifier {
      */
     fun requestId(requestId: String?): CommandBuilder
 
-    fun requestIfIfAbsent(requestId: String): CommandBuilder {
+    fun requestIdIfAbsent(requestId: String): CommandBuilder {
         if (this.requestId == null) {
             requestId(requestId)
         }

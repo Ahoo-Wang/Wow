@@ -35,7 +35,7 @@ class MutableCommandBuilderTest {
         val newBody = Any()
         val commandBuilder = this.commandBuilder()
             .id("id")
-            .requestIfIfAbsent("requestId")
+            .requestIdIfAbsent("requestId")
             .aggregateId("aggregateId")
             .tenantIdIfAbsent("tenantId")
             .ownerId("ownerId")
@@ -59,7 +59,7 @@ class MutableCommandBuilderTest {
         assertThat(commandBuilder.header["key"], equalTo("value"))
         assertThat(commandBuilder.createTime, equalTo(1))
         assertThat(commandBuilder.header.isLocalFirst(), equalTo(true))
-        commandBuilder.requestIfIfAbsent("requestId2")
+        commandBuilder.requestIdIfAbsent("requestId2")
             .tenantIdIfAbsent("tenantId2")
 
         assertThat(commandBuilder.requestId, equalTo("requestId"))

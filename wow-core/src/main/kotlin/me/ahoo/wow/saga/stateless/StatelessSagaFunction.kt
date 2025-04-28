@@ -80,7 +80,7 @@ class StatelessSagaFunction(
         }
         val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
         commandBuilder
-            .requestIfIfAbsent("${domainEvent.id}-$index")
+            .requestIdIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
             .upstream(domainEvent)
         @Suppress("UNCHECKED_CAST")
