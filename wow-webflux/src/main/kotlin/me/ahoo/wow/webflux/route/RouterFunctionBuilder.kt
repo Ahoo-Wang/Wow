@@ -32,9 +32,6 @@ class RouterFunctionBuilder(
 ) {
 
     fun build(): RouterFunction<ServerResponse> {
-        check(routerSpecs.isNotEmpty()) {
-            "router is empty!"
-        }
         val routerFunctionBuilder = RouterFunctions.route()
         for (routeSpec in routerSpecs) {
             val acceptMediaTypes = MediaType.parseMediaTypes(routeSpec.accept).toTypedArray()

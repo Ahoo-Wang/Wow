@@ -33,7 +33,7 @@ class RouterSpecs(
     private val routes: MutableList<RouteSpec> = mutableListOf(),
     override val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix())
-) : OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
+) : OpenAPIComponentContextCapable, Iterable<RouteSpec> by routes {
 
     @Volatile
     private var built: Boolean = false
@@ -49,7 +49,7 @@ class RouterSpecs(
     private fun buildGlobalRouteSpec() {
         GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
             it.create(currentContext).forEach { routeSpec ->
-                add(routeSpec)
+                routes.add(routeSpec)
             }
         }
     }
@@ -65,7 +65,7 @@ class RouterSpecs(
             }
             aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
                 aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
-                    add(routeSpec)
+                    routes.add(routeSpec)
                 }
             }
         }
