@@ -20,21 +20,20 @@ import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
-import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
     private val routes: MutableList<RouteSpec> = mutableListOf(),
-    override val inline: Boolean = false,
     override val componentContext: OpenAPIComponentContext =
-        OpenAPIComponentContext.default(inline, defaultSchemaNamePrefix = "${currentContext.getContextAlias()}.")
-) : InlineSchemaCapable, OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
+        OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix())
+) : OpenAPIComponentContextCapable, MutableList<RouteSpec> by routes {
 
     @Volatile
     private var built: Boolean = false
