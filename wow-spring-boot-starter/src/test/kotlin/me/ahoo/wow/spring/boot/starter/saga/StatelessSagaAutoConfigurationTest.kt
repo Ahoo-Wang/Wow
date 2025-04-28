@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.example.domain.cart.CartSaga
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
@@ -43,6 +44,7 @@ internal class StatelessSagaAutoConfigurationTest {
             .withBean(CommandMessageFactory::class.java, { mockk() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withBean(CartSaga::class.java, { CartSaga() })
             .withUserConfiguration(
                 StatelessSagaAutoConfiguration::class.java,
             )
@@ -55,6 +57,10 @@ internal class StatelessSagaAutoConfigurationTest {
                     .hasSingleBean(StatelessSagaHandler::class.java)
                     .hasSingleBean(StatelessSagaDispatcher::class.java)
                     .hasSingleBean(StatelessSagaDispatcherLauncher::class.java)
+
+                val processorAutoRegistrar = context.getBean(StatelessSagaProcessorAutoRegistrar::class.java)
+                processorAutoRegistrar.start()
+                processorAutoRegistrar.stop()
             }
     }
 }
