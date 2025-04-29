@@ -48,10 +48,11 @@ class OpenAPISchemaBuilder(
     private val optionPreset: OptionPreset = OptionPreset.PLAIN_JSON,
     override val defaultSchemaNamePrefix: String = "",
     private val customizer: Consumer<SchemaGeneratorConfigBuilder> = DefaultCustomizer(defaultSchemaNamePrefix),
-    private val openapi31: Boolean = true
+    private val openapi31: Boolean = true,
+    private val definitionPath: String = DEFAULT_DEFINITION_PATH
 ) : DefaultSchemaNamePrefixCapable, InlineSchemaCapable {
     companion object {
-        const val DEFINITION_PATH = "components/schemas"
+        const val DEFAULT_DEFINITION_PATH = "components/schemas"
     }
 
     private val openAPIObjectMapper = ObjectMapperFactory.create(null, openapi31)
@@ -88,7 +89,7 @@ class OpenAPISchemaBuilder(
     }
 
     fun build(): Map<String, Schema<*>> {
-        val collectedDefs = schemaBuilder.collectDefinitions(DEFINITION_PATH)
+        val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
         for (schemaReference in schemaReferences) {
             schemaReference.merge()
         }
