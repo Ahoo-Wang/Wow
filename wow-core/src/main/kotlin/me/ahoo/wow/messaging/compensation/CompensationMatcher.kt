@@ -50,8 +50,14 @@ object CompensationMatcher {
     val Header.compensationId: String?
         get() = this[COMPENSATION_ID]
 
+    /**
+     * 是否是补偿消息
+     */
+    val Header.isCompensation: Boolean
+        get() = containsKey(COMPENSATION_ID)
+
     fun Header.match(function: FunctionInfo): Boolean {
-        if (!containsKey(COMPENSATION_ID)) {
+        if (!isCompensation) {
             return true
         }
         val context = this[COMPENSATION_CONTEXT]
