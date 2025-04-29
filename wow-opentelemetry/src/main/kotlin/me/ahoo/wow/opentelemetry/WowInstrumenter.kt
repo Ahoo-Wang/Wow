@@ -20,16 +20,18 @@ import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.traceId
 import me.ahoo.wow.serialization.MessageRecords
 
 object WowInstrumenter {
     private const val INSTRUMENTATION_NAME = "me.ahoo.wow"
-    val INSTRUMENTATION_VERSION: String = WowInstrumenter.javaClass.`package`.implementationVersion ?: "2.1.2"
+    val INSTRUMENTATION_VERSION: String = WowInstrumenter.javaClass.`package`.implementationVersion ?: "5.12.3"
     const val INSTRUMENTATION_NAME_PREFIX = "$INSTRUMENTATION_NAME-"
 
     private const val MESSAGE_PREFIX = Wow.WOW_PREFIX + "message."
     private val MESSAGE_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}${MessageRecords.ID}")
     private val REQUEST_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}request_id")
+    private val TRACE_ID_ATTRIBUTE_KEY = stringKey("${MESSAGE_PREFIX}trace_id")
 
     private const val AGGREGATE_PREFIX = Wow.WOW_PREFIX + "aggregate."
     private val AGGREGATE_CONTEXT_NAME_ATTRIBUTE_KEY = stringKey("${AGGREGATE_PREFIX}context_name")
@@ -55,6 +57,9 @@ object WowInstrumenter {
         }
         if (message is AggregateIdCapable) {
             appendAggregateIdAttributes(message.aggregateId)
+        }
+        message.header.traceId?.let {
+            put(TRACE_ID_ATTRIBUTE_KEY, it)
         }
     }
 }

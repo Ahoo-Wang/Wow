@@ -22,8 +22,9 @@ import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.withTraceId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.opentelemetry.eventprocessor.EventProcessorInstrumenter
@@ -56,9 +57,29 @@ class ExchangeTraceMonoTest {
     @Test
     fun traceEventProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
-            every { message.id } returns GlobalIdGenerator.generateAsString()
-
+            every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
+            every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
+            every { getEventFunction() } returns mockk {
+                every { qualifiedName } returns "traceEventProcessor"
+                every { getError() } returns null
+            }
+        }
+
+        ExchangeTraceMono(
+            parentContext = Context.current(),
+            instrumenter = EventProcessorInstrumenter.INSTRUMENTER,
+            request = exchange,
+            source = Mono.empty(),
+        ).test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun traceEventProcessorWithTraceId() {
+        val exchange = mockk<DomainEventExchange<Any>> {
+            every { message.id } returns generateGlobalId()
+            every { message.header } returns DefaultHeader.empty().withTraceId(generateGlobalId())
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
                 every { qualifiedName } returns "traceEventProcessor"
@@ -78,7 +99,7 @@ class ExchangeTraceMonoTest {
     @Test
     fun traceSagaProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
-            every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
@@ -100,7 +121,7 @@ class ExchangeTraceMonoTest {
     @Test
     fun traceProjectionProcessor() {
         val exchange = mockk<DomainEventExchange<Any>> {
-            every { message.id } returns GlobalIdGenerator.generateAsString()
+            every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
             every { getEventFunction() } returns mockk {
@@ -122,8 +143,8 @@ class ExchangeTraceMonoTest {
     @Test
     fun traceSnapshotProcessor() {
         val exchange = mockk<StateEventExchange<*>> {
-            every { message.id } returns GlobalIdGenerator.generateAsString()
-            every { message.requestId } returns GlobalIdGenerator.generateAsString()
+            every { message.id } returns generateGlobalId()
+            every { message.requestId } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
             every { message.aggregateName } returns TEST_NAMED_AGGREGATE.aggregateName
             every { message.aggregateId } returns TEST_NAMED_AGGREGATE.aggregateId()
