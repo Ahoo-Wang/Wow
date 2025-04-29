@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.messaging
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.TopicKindCapable
@@ -37,7 +38,7 @@ import java.time.Duration
  */
 abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> : TopicKindCapable {
     companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(MessageBusSpec::class.java)
+        private val log = KotlinLogging.logger { }
     }
 
     abstract val namedAggregate: NamedAggregate
@@ -116,7 +117,9 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                     val duration = sendLoop(messageBus = this)
                         .test()
                         .verifyComplete()
-                    log.info("[${this.javaClass.simpleName}] sendPerformance - duration:{}", duration)
+                    log.info {
+                        "[${this.javaClass.simpleName}] sendPerformance - duration:$duration"
+                    }
                 }
                 .test()
                 .thenCancel()
@@ -152,7 +155,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 .expectNextCount(maxCount)
                 .thenCancel()
                 .verify()
-            log.info("[${this.javaClass.simpleName}] receivePerformance - duration:{}", duration)
+            log.info { "[${this.javaClass.simpleName}] receivePerformance - duration:$duration" }
         }
     }
 }
