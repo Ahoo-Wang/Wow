@@ -81,10 +81,13 @@ class OpenAPISchemaBuilderTest {
 
     @Test
     fun condition() {
-        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        val definitionPath = "${'$'}defs"
+        val openAPISchemaBuilder = OpenAPISchemaBuilder(definitionPath = definitionPath)
         openAPISchemaBuilder.generateSchema(Condition::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
-        componentsSchemas.assert().containsKey("StringObjectMap")
-        componentsSchemas.assert().hasSize(3)
+        val conditionSchema = componentsSchemas["wow.api.query.Condition"]
+        val childrenItem = conditionSchema?.properties[Condition::children.name]?.items
+        childrenItem.assert().isNotNull()
+        childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
     }
 }
