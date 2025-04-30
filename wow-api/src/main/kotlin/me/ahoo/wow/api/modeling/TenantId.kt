@@ -13,11 +13,31 @@
 
 package me.ahoo.wow.api.modeling
 
+/**
+ * 定义一个包含租户ID的属性以及相关操作
+ * 租户ID用于在多租户环境中区分不同的租户
+ */
 interface TenantId {
+    /**
+     * 获取租户ID
+     */
     val tenantId: String
 
+    /**
+     * 伴生对象，包含默认租户ID和相关工具函数
+     */
     companion object {
+        /**
+         * 默认租户ID，用于在未指定租户时作为备用
+         */
         const val DEFAULT_TENANT_ID = "(0)"
+
+        /**
+         * 如果给定的字符串为空，则返回默认租户ID
+         *
+         * @param this 可能为空的字符串
+         * @return 如果给定字符串为空，则返回默认租户ID；否则返回原字符串
+         */
         fun String?.orDefaultTenantId(): String {
             return this ?: DEFAULT_TENANT_ID
         }
