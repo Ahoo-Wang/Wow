@@ -16,7 +16,11 @@ package me.ahoo.wow.id
 import me.ahoo.cosid.cosid.CosIdGenerator
 
 /**
- * Global Id Generator Factory
+ * 全局 ID 生成器工厂.
+ *
+ * 主要用于[me.ahoo.wow.api.messaging.Message.id]
+ *
+ * @see me.ahoo.wow.api.messaging.Message.id
  * @see me.ahoo.wow.api.annotation.Order
  */
 fun interface GlobalIdGeneratorFactory {
