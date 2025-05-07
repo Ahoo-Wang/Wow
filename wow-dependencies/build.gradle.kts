@@ -20,6 +20,7 @@ dependencies {
     api(platform(libs.cocache.bom))
     api(platform(libs.opentelemetry.bom))
     api(platform(libs.opentelemetry.instrumentation.bom))
+    api(platform(libs.springdoc.bom))
     api(platform(libs.fluent.assert.bom))
     api(platform(libs.testcontainers.bom))
     constraints {
@@ -27,9 +28,6 @@ dependencies {
         api(libs.kotlin.logging)
         api(libs.opentelemetry.semconv)
         api(libs.swagger)
-        api(libs.springdoc.starter.common)
-        api(libs.springdoc.openapi.starter.webflux.api)
-        api(libs.springdoc.openapi.starter.webflux.ui)
         api(libs.hamcrest)
         api(libs.mockk)
         api(libs.detekt.formatting)
