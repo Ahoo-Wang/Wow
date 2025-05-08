@@ -27,6 +27,7 @@ import me.ahoo.wow.serialization.event.FlatEventStreamRecord
 import me.ahoo.wow.serialization.event.toEventStreamRecord
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObjectNode
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -110,7 +111,7 @@ class R2dbcEventStore(
                     id = id,
                     rawAggregateId = aggregateId,
                     ownerId = ownerId,
-                    header = header.toJsonNode() as ObjectNode,
+                    header = header.toObjectNode(),
                     body = body.toJsonNode(),
                     commandId = commandId,
                     requestId = requestId,
