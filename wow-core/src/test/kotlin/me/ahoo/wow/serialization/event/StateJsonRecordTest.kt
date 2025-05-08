@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObjectNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -25,7 +24,7 @@ class StateJsonRecordTest {
     @Test
     fun toState() {
         val state = MockState()
-        val stateNode = state.toJsonString().toJsonNode<ObjectNode>()
+        val stateNode = state.toJsonString().toObjectNode()
         val stateJsonRecord = StateJsonRecord(stateNode)
         assertThat(stateJsonRecord.state<MockState>()).isEqualTo(state)
         assertThat(stateJsonRecord.actual).isEqualTo(stateNode)

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 object JsonSerializer : ObjectMapper() {
@@ -45,6 +46,10 @@ fun Any.toPrettyJson(): String {
 fun <T : JsonNode> String.toJsonNode(): T {
     @Suppress("UNCHECKED_CAST")
     return JsonSerializer.readTree(this) as T
+}
+
+fun String.toObjectNode(): ObjectNode {
+    return toJsonNode()
 }
 
 fun <T> String.toObject(objectType: JavaType): T {
