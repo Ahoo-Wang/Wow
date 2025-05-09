@@ -15,7 +15,6 @@
       "required" : [ "productId" ]
     }
   },
-  "title" : "AggregatedDomainEventStream",
   "type" : "object",
   "properties" : {
     "id" : {
