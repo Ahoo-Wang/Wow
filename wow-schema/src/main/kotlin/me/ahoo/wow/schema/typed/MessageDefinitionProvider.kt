@@ -46,7 +46,6 @@ abstract class MessageDefinitionProvider<M : Message<*, *>> :
         }
 
         val typedSchema = getTypedSchema().asJsonSchema()
-        typedSchema.remove(SchemaKeyword.TAG_TITLE)
         val bodyType = getBodyType(javaType)
         val propertiesNode = typedSchema.requiredGetProperties()
         val bodyTypeNode = propertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
