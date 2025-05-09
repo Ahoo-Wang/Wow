@@ -14,11 +14,10 @@
 package me.ahoo.wow.elasticsearch
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.google.common.io.Resources
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
 import org.springframework.core.io.ClassPathResource
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.document.Document
@@ -37,12 +36,12 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
     }
 
     private val eventStreamTemplate: JsonNode =
-        ClassPathResource("templates/$EVENT_STREAM_TEMPLATE_NAME.json").let {
-            Resources.toString(it.url, Charsets.UTF_8).toObject<JsonNode>()
+        ClassPathResource("templates/$EVENT_STREAM_TEMPLATE_NAME.json").inputStream.use {
+            JsonSerializer.readValue(it, JsonNode::class.java)
         }
     private val snapshotTemplate: JsonNode =
-        ClassPathResource("templates/$SNAPSHOT_TEMPLATE_NAME.json").let {
-            Resources.toString(it.url, Charsets.UTF_8).toObject<JsonNode>()
+        ClassPathResource("templates/$SNAPSHOT_TEMPLATE_NAME.json").inputStream.use {
+            JsonSerializer.readValue(it, JsonNode::class.java)
         }
 
     fun initEventStreamTemplate(): Mono<Boolean> {
@@ -74,7 +73,7 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
 
     fun initAll() {
         initEventStreamTemplate().subscribe(InitSubscriber("InitEventStreamTemplate"))
-        initSnapshotTemplate().subscribe(InitSubscriber("InitEventStreamTemplate"))
+        initSnapshotTemplate().subscribe(InitSubscriber("InitSnapshotTemplate"))
     }
 
     class InitSubscriber(override val name: String) : SafeSubscriber<Boolean>()
