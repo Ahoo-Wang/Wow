@@ -13,12 +13,6 @@
 
 name: Integration Test
 on:
-  push:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
-      - 'wow-example/**'
   pull_request:
     paths-ignore:
       - 'document/**'
