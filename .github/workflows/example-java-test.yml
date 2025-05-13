@@ -13,11 +13,6 @@
 
 name: Java compatibility Test
 on:
-  push:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
   pull_request:
     paths-ignore:
       - 'document/**'
