@@ -258,6 +258,17 @@ class JsonSchemaGeneratorTest {
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
     ) {
+        val getter: String
+            get() = ""
+
+        @get:JsonIgnore(false)
+        val getterJsonIgnoreFalse: String
+            get() = ""
+
+        @get:Schema(hidden = false)
+        val getterSchemaHiddenFalse: String
+            get() = ""
+
         @get:JsonIgnore
         val ignoreProperty: String
             get() = ""
