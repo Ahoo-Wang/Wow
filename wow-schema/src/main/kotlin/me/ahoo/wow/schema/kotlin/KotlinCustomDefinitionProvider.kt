@@ -14,11 +14,14 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
@@ -40,7 +43,10 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         }
 
         val kotlinGettersIfNonFields = javaType.erasedType.kotlin.memberProperties.filter {
-            it.visibility == KVisibility.PUBLIC && it.javaField == null
+            it.visibility == KVisibility.PUBLIC &&
+                it.javaField == null &&
+                it.scanAnnotation<JsonIgnore>()?.value != true &&
+                it.scanAnnotation<Schema>()?.hidden != true
         }
         if (kotlinGettersIfNonFields.isEmpty()) {
             return null

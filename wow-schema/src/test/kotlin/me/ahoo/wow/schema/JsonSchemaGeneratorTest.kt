@@ -1,5 +1,6 @@
 package me.ahoo.wow.schema
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
@@ -227,6 +228,8 @@ class JsonSchemaGeneratorTest {
         required.isArray.assert().isTrue()
         required.get(0).textValue().assert().isEqualTo("nullableField")
         required.get(1).textValue().assert().isEqualTo("requiredField")
+        schema.get("properties").get("ignoreProperty").assert().isNull()
+        schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
     }
 
     @Suppress("UnusedPrivateProperty")
@@ -254,7 +257,15 @@ class JsonSchemaGeneratorTest {
         val writeOnlyField: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
-    )
+    ) {
+        @get:JsonIgnore
+        val ignoreProperty: String
+            get() = ""
+
+        @get:Schema(hidden = true)
+        val ignoreSchemaProperty: String
+            get() = ""
+    }
 }
 
 @AggregateRoot
