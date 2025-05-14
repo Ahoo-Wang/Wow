@@ -116,6 +116,8 @@ class OpenAPISchemaBuilder(
                 defaultSchemaNamePrefix: String
             ): SchemaGeneratorConfigBuilder {
                 val jacksonModule: Module = JacksonModule(
+                    JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
+                    JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
                     JacksonOption.RESPECT_JSONPROPERTY_ORDER,
                     JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
                     JacksonOption.INLINE_TRANSFORMED_SUBTYPES
