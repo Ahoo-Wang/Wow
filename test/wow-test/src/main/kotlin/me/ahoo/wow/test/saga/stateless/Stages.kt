@@ -179,17 +179,25 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
         return this
     }
 
-    @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(commandType: KClass<C>): CommandMessage<C> {
+        return nextCommand(commandType.java)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
         hasNext().assert().describedAs { "Expect there to be a next command." }.isTrue()
         val nextCommand = next()
         nextCommand.body.assert()
             .describedAs { "Expect the next command body to be an instance of ${commandType.simpleName}." }
-            .isInstanceOf(commandType.java)
+            .isInstanceOf(commandType)
         return nextCommand as CommandMessage<C>
     }
 
     fun <C : Any> nextCommandBody(commandType: KClass<C>): C {
+        return nextCommand(commandType).body
+    }
+
+    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
         return nextCommand(commandType).body
     }
 
