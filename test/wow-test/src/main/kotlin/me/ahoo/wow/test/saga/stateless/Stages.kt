@@ -22,6 +22,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
 import java.util.function.Consumer
+import kotlin.reflect.KClass
 
 /**
  * Stateless Saga:
@@ -106,6 +107,10 @@ interface ExpectStage<T : Any> {
         }
     }
 
+    fun expectCommandType(vararg expected: KClass<*>): ExpectStage<T> {
+        return expectCommandType(*expected.map { it.java }.toTypedArray())
+    }
+
     fun expectCommandType(vararg expected: Class<*>): ExpectStage<T> {
         return expectCommandCount(expected.size).expectCommandStream {
             val itr = it.iterator()
@@ -132,6 +137,10 @@ interface ExpectStage<T : Any> {
             @Suppress("UNCHECKED_CAST")
             expected.accept(it.error as E)
         }
+    }
+
+    fun <E : Throwable> expectErrorType(expected: KClass<E>): ExpectStage<T> {
+        return expectErrorType(expected.java)
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<T> {
@@ -171,24 +180,24 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
+    fun <C : Any> nextCommand(commandType: KClass<C>): CommandMessage<C> {
         hasNext().assert().describedAs { "Expect there to be a next command." }.isTrue()
         val nextCommand = next()
         nextCommand.body.assert()
             .describedAs { "Expect the next command body to be an instance of ${commandType.simpleName}." }
-            .isInstanceOf(commandType)
+            .isInstanceOf(commandType.java)
         return nextCommand as CommandMessage<C>
     }
 
-    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
+    fun <C : Any> nextCommandBody(commandType: KClass<C>): C {
         return nextCommand(commandType).body
     }
 
     inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
-        return nextCommand(C::class.java)
+        return nextCommand(C::class)
     }
 
     inline fun <reified C : Any> nextCommandBody(): C {
-        return nextCommandBody(C::class.java)
+        return nextCommandBody(C::class)
     }
 }

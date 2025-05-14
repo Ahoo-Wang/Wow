@@ -29,6 +29,7 @@ import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
 import java.util.function.Consumer
+import kotlin.reflect.KClass
 
 interface GivenStage<S : Any> {
     fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S>
@@ -136,6 +137,10 @@ interface ExpectStage<S : Any> {
         }
     }
 
+    fun expectEventType(vararg expected: KClass<*>): ExpectStage<S> {
+        return expectEventType(*expected.map { it.java }.toTypedArray())
+    }
+
     /**
      * 期望事件类型. 严格按照事件生成顺序验证。
      */
@@ -168,6 +173,10 @@ interface ExpectStage<S : Any> {
             @Suppress("UNCHECKED_CAST")
             expected.accept(it.error as E)
         }
+    }
+
+    fun <E : Throwable> expectErrorType(expected: KClass<E>): ExpectStage<S> {
+        return expectErrorType(expected.java)
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<S> {
@@ -232,25 +241,25 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
+    fun <E : Any> nextEvent(eventType: KClass<E>): DomainEvent<E> {
         hasNext().assert().describedAs { "Expect there to be a next event." }.isTrue()
         val nextEvent = next()
         nextEvent.body.assert()
             .describedAs { "Expect the next event body to be an instance of ${eventType.simpleName}." }
-            .isInstanceOf(eventType)
+            .isInstanceOf(eventType.java)
         return nextEvent as DomainEvent<E>
     }
 
-    fun <E : Any> nextEventBody(eventType: Class<E>): E {
+    fun <E : Any> nextEventBody(eventType: KClass<E>): E {
         return nextEvent(eventType).body
     }
 
     inline fun <reified E : Any> nextEvent(): DomainEvent<E> {
-        return nextEvent(E::class.java)
+        return nextEvent(E::class)
     }
 
     inline fun <reified E : Any> nextEventBody(): E {
-        return nextEventBody(E::class.java)
+        return nextEventBody(E::class)
     }
 }
 
