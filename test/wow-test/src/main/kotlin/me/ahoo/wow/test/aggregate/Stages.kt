@@ -240,17 +240,25 @@ class EventIterator(override val delegate: Iterator<DomainEvent<*>>) :
         return this
     }
 
-    @Suppress("UNCHECKED_CAST")
     fun <E : Any> nextEvent(eventType: KClass<E>): DomainEvent<E> {
+        return nextEvent(eventType.java)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <E : Any> nextEvent(eventType: Class<E>): DomainEvent<E> {
         hasNext().assert().describedAs { "Expect there to be a next event." }.isTrue()
         val nextEvent = next()
         nextEvent.body.assert()
             .describedAs { "Expect the next event body to be an instance of ${eventType.simpleName}." }
-            .isInstanceOf(eventType.java)
+            .isInstanceOf(eventType)
         return nextEvent as DomainEvent<E>
     }
 
     fun <E : Any> nextEventBody(eventType: KClass<E>): E {
+        return nextEvent(eventType).body
+    }
+
+    fun <E : Any> nextEventBody(eventType: Class<E>): E {
         return nextEvent(eventType).body
     }
 

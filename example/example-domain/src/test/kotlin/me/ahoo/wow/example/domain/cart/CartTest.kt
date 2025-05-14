@@ -44,7 +44,7 @@ class CartTest {
             .givenOwnerId(ownerId)
             .whenCommand(addCartItem)
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(CartItemAdded::class)
             .expectState {
                 it.items.assert().hasSize(1)
             }.expectStateAggregate {
