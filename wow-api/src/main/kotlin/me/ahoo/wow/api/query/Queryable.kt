@@ -13,13 +13,20 @@
 
 package me.ahoo.wow.api.query
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 data class Sort(val field: String, val direction: Direction) {
     enum class Direction {
         ASC, DESC
     }
 }
 
-data class Pagination(val index: Int, val size: Int) {
+data class Pagination(
+    @field:Schema(defaultValue = "1")
+    val index: Int,
+    @field:Schema(defaultValue = "10")
+    val size: Int
+) {
     companion object {
         val DEFAULT = Pagination(1, 10)
         fun offset(index: Int, size: Int) = (index - 1) * size
@@ -28,7 +35,12 @@ data class Pagination(val index: Int, val size: Int) {
     fun offset() = offset(index, size)
 }
 
-data class Projection(val include: List<String> = emptyList(), val exclude: List<String> = emptyList()) {
+data class Projection(
+    @field:Schema(defaultValue = "[]")
+    val include: List<String> = emptyList(),
+    @field:Schema(defaultValue = "[]")
+    val exclude: List<String> = emptyList()
+) {
     companion object {
         val ALL = Projection()
     }

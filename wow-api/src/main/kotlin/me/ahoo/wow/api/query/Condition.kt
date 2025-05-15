@@ -13,17 +13,21 @@
 
 package me.ahoo.wow.api.query
 
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class Condition(
     val field: String = "",
+    @field:Schema(defaultValue = "ALL")
     val operator: Operator,
     val value: Any = EMPTY_VALUE,
     /**
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
+    @field:Schema(defaultValue = "[]")
     val children: List<Condition> = emptyList(),
+    @field:Schema(defaultValue = "{}")
     val options: Map<String, Any> = emptyMap()
 ) : RewritableCondition<Condition> {
     fun <V> valueAs(): V {

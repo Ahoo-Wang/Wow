@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.api.query
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 interface SortCapable {
+    @get:Schema(defaultValue = "[]")
     val sort: List<Sort>
 }
