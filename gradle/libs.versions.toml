@@ -46,7 +46,8 @@ ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", 
 kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
-swagger = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
+swagger-annotations= { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
+swagger-core = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-bom = { module = "org.springdoc:springdoc-openapi-bom", version.ref = "springdoc" }
 jte = { module = "gg.jte:jte", version.ref = "jte" }
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
