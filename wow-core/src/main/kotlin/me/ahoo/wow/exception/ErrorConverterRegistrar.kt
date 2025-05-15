@@ -14,16 +14,27 @@
 package me.ahoo.wow.exception
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.annotation.sortedByOrder
+import me.ahoo.wow.api.exception.ErrorInfo
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-object ErrorCodeMapping {
+object ErrorConverterRegistrar {
     private val log = KotlinLogging.logger {}
-    private val registrar = ConcurrentHashMap<Class<out Throwable>, String>()
+    private val registrar = ConcurrentHashMap<Class<out Throwable>, ErrorConverter<Throwable>>()
 
-    fun register(throwableClass: Class<out Throwable>, errorCode: String) {
-        val previous = registrar.put(throwableClass, errorCode)
+    init {
+        ServiceLoader.load(ErrorConverterFactory::class.java).sortedByOrder()
+            .forEach {
+                val errorConverter = it.create() as ErrorConverter<Throwable>
+                register(it.supportedType, errorConverter)
+            }
+    }
+
+    fun register(throwableClass: Class<out Throwable>, errorConverter: ErrorConverter<Throwable>) {
+        val previous = registrar.put(throwableClass, errorConverter)
         log.info {
-            "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$errorCode]."
+            "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$errorConverter]."
         }
     }
 
@@ -34,7 +45,12 @@ object ErrorCodeMapping {
         }
     }
 
-    fun getErrorCode(throwableClass: Class<out Throwable>): String? {
+    fun get(throwableClass: Class<out Throwable>): ErrorConverter<Throwable>? {
         return registrar[throwableClass]
     }
+}
+
+fun Throwable.toErrorInfo(): ErrorInfo {
+    val errorInfoConverter = ErrorConverterRegistrar.get(this.javaClass) ?: DefaultErrorConverter
+    return errorInfoConverter.convert(this)
 }
