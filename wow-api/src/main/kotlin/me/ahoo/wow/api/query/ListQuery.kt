@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.api.query
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 interface IListQuery : Queryable<IListQuery> {
+    @get:Schema(defaultValue = "10")
     val limit: Int
 }
 
