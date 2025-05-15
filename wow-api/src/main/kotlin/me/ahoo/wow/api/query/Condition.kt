@@ -18,7 +18,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class Condition(
-    val field: String = "",
+    val field: String = EMPTY_VALUE,
     @field:Schema(defaultValue = "ALL")
     val operator: Operator,
     val value: Any = EMPTY_VALUE,
