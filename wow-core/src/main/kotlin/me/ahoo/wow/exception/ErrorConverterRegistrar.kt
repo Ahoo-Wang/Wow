@@ -16,6 +16,7 @@ package me.ahoo.wow.exception
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -51,6 +52,9 @@ object ErrorConverterRegistrar {
 }
 
 fun Throwable.toErrorInfo(): ErrorInfo {
+    if (this is ErrorInfo) {
+        return this.materialize()
+    }
     val errorInfoConverter = ErrorConverterRegistrar.get(this.javaClass) ?: DefaultErrorConverter
     return errorInfoConverter.convert(this)
 }

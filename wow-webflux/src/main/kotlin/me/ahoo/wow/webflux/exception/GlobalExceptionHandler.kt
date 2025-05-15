@@ -25,10 +25,7 @@ import org.springframework.core.Ordered
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
-import org.springframework.web.method.annotation.HandlerMethodValidationException
-import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ServerWebExchange
-import org.springframework.web.server.ServerWebInputException
 import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
 
@@ -41,10 +38,7 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         }
 
         val errorInfo = when (ex) {
-            is HandlerMethodValidationException -> ex.toBindingErrorInfo()
             is BindingResult -> ex.toBindingErrorInfo()
-            is NoResourceFoundException -> ErrorInfo.of(ErrorCodes.NOT_FOUND, errorMsg = ex.message)
-            is ServerWebInputException -> ex.toInputErrorInfo()
             else -> ex.toErrorInfo()
         }
         val status = errorInfo.toHttpStatus()
@@ -67,24 +61,4 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
 fun BindingResult.toBindingErrorInfo(): ErrorInfo {
     val bindingErrors = fieldErrors.map { BindingError(it.field, it.defaultMessage.orEmpty()) }
     return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Field binding validation failed.", bindingErrors)
-}
-
-fun HandlerMethodValidationException.toBindingErrorInfo(): ErrorInfo {
-    val bindingErrors = parameterValidationResults.flatMap { parameterValidationResult ->
-        val name = parameterValidationResult.methodParameter.parameterName.orEmpty()
-        parameterValidationResult.resolvableErrors.map {
-            BindingError(name, it.defaultMessage.orEmpty())
-        }
-    }
-    return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Parameter binding validation failed.", bindingErrors)
-}
-
-fun ServerWebInputException.toInputErrorInfo(): ErrorInfo {
-    return ErrorInfo.of(
-        errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
-        errorMsg = this.message,
-        bindingErrors = listOf(
-            BindingError("body", this.cause?.message.orEmpty())
-        )
-    )
 }
