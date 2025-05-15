@@ -14,19 +14,24 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.toErrorInfo
 import org.junit.jupiter.api.Test
-import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import reactor.kotlin.test.test
+import org.springframework.web.server.ServerWebInputException
 
-class DefaultRequestExceptionHandlerTest {
+class ServerWebInputExceptionConverterTest {
     @Test
-    fun handle() {
-        val request = MockServerRequest.builder().build()
-        val ex = IllegalArgumentException()
-        DefaultRequestExceptionHandler.handle(request, ex)
-            .test()
-            .consumeNextWith {
-                it.statusCode().is4xxClientError.assert().isTrue()
-            }.verifyComplete()
+    fun convert() {
+        val error = ServerWebInputException(
+            "input decode error",
+            null,
+            IllegalArgumentException("iae")
+        )
+        val errorInfo = error.toErrorInfo()
+        errorInfo.errorCode.assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+        errorInfo.errorMsg.assert().isEqualTo(error.message)
+        errorInfo.bindingErrors.assert().isNotEmpty()
+            .first().isEqualTo(BindingError("body", "iae"))
     }
 }
