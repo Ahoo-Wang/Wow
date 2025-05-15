@@ -19,6 +19,7 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.ServerWebInputException
 import reactor.core.publisher.Mono
 
 interface RequestExceptionHandler {
@@ -37,6 +38,9 @@ object DefaultRequestExceptionHandler : RequestExceptionHandler {
         }
         if (throwable is CommandResultException) {
             return throwable.commandResult.toServerResponse()
+        }
+        if (throwable is ServerWebInputException) {
+            return throwable.toInputErrorInfo().toServerResponse()
         }
         return throwable.toErrorInfo().toServerResponse()
     }
