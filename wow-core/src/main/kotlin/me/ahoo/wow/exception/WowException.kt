@@ -16,9 +16,7 @@ package me.ahoo.wow.exception
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.exception.ErrorCodeMapping.getErrorCode
 import java.util.concurrent.TimeoutException
 
 open class WowException(
@@ -77,51 +75,4 @@ fun Retry?.recoverable(throwableClass: Class<out Throwable>): RecoverableType {
         return RecoverableType.UNRECOVERABLE
     }
     return throwableClass.recoverable
-}
-
-fun Throwable.getErrorCode(): String {
-    if (this is ErrorInfo) {
-        return this.errorCode
-    }
-    getErrorCode(this::class.java)?.let {
-        return it
-    }
-    return when (this) {
-        is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
-        is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
-        is TimeoutException -> ErrorCodes.REQUEST_TIMEOUT
-        else -> ErrorCodes.BAD_REQUEST
-    }
-}
-
-fun Throwable.getErrorMsg(): String {
-    return when (this) {
-        is ErrorInfo -> this.errorMsg
-        else -> message ?: ""
-    }
-}
-
-fun Throwable.toErrorInfo(): ErrorInfo {
-    return when (this) {
-        is ErrorInfo -> this.materialize()
-        else -> ErrorInfo.of(
-            errorCode = getErrorCode(),
-            errorMsg = getErrorMsg()
-        )
-    }
-}
-
-fun Throwable.toWowException(
-    errorCode: String = this.getErrorCode(),
-    errorMsg: String = this.getErrorMsg()
-): WowException {
-    return when (this) {
-        is WowException -> this
-        else -> WowException(
-            errorCode = errorCode,
-            errorMsg = errorMsg,
-            bindingErrors = emptyList(),
-            cause = this,
-        )
-    }
 }

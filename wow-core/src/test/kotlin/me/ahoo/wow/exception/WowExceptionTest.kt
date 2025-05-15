@@ -33,14 +33,6 @@ class WowExceptionTest {
         assertThat(actual.errorMsg, equalTo(throwable.message))
     }
 
-    @ParameterizedTest
-    @MethodSource("argsProvider")
-    fun toWowException(throwable: Throwable, errorCode: String) {
-        val actual = throwable.toWowException()
-        assertThat(actual.errorCode, equalTo(errorCode))
-        assertThat(actual.errorMsg, equalTo(throwable.message))
-    }
-
     @Test
     fun recoverable() {
         null.recoverable(TimeoutException::class.java).let {
