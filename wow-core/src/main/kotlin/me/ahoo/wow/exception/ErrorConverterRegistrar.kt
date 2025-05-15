@@ -55,6 +55,6 @@ fun Throwable.toErrorInfo(): ErrorInfo {
     if (this is ErrorInfo) {
         return this.materialize()
     }
-    val errorInfoConverter = ErrorConverterRegistrar.get(this.javaClass) ?: DefaultErrorConverter
-    return errorInfoConverter.convert(this)
+    val errorConverter = ErrorConverterRegistrar.get(this.javaClass) ?: DefaultErrorConverter
+    return errorConverter.convert(this)
 }
