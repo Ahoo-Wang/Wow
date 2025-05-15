@@ -14,7 +14,6 @@
 package me.ahoo.wow.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import java.lang.reflect.ParameterizedType
 import java.util.concurrent.TimeoutException
 
@@ -37,9 +36,6 @@ abstract class AbstractErrorConverterFactory<E : Throwable> : ErrorConverterFact
 
 object DefaultErrorConverter : ErrorConverter<Throwable> {
     override fun convert(error: Throwable): ErrorInfo {
-        if (error is ErrorInfo) {
-            return error.materialize()
-        }
         val errorCode = when (error) {
             is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
             is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
