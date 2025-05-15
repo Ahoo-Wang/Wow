@@ -29,9 +29,9 @@ object HandlerMethodValidationExceptionConverter : ErrorConverter<HandlerMethodV
             }
         }
         return ErrorInfo.of(
-            ErrorCodes.ILLEGAL_ARGUMENT,
+            errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
             errorMsg = "Parameter binding validation failed.",
-            bindingErrors
+            bindingErrors = bindingErrors
         )
     }
 }

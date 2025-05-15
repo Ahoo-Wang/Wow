@@ -14,19 +14,17 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.exception.toErrorInfo
 import org.junit.jupiter.api.Test
-import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import reactor.kotlin.test.test
+import org.springframework.web.reactive.resource.NoResourceFoundException
 
-class DefaultRequestExceptionHandlerTest {
+class NoResourceFoundExceptionConverterTest {
     @Test
-    fun handle() {
-        val request = MockServerRequest.builder().build()
-        val ex = IllegalArgumentException()
-        DefaultRequestExceptionHandler.handle(request, ex)
-            .test()
-            .consumeNextWith {
-                it.statusCode().is4xxClientError.assert().isTrue()
-            }.verifyComplete()
+    fun convert() {
+        val error = NoResourceFoundException("resourcePath")
+        val errorInfo = error.toErrorInfo()
+        errorInfo.errorCode.assert().isEqualTo(ErrorCodes.NOT_FOUND)
+        errorInfo.errorMsg.assert().isEqualTo(error.message)
     }
 }
