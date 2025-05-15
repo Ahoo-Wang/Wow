@@ -20,4 +20,12 @@ class TypeCapableTest {
         }
         notBlankTypeCapable.type.assert().isEqualTo("testType")
     }
+
+    @Test
+    fun `test PolymorphicTypeCapable`() {
+        val polymorphicTypeCapable = object : PolymorphicTypeCapable {
+            override val type: String = "testType"
+        }
+        polymorphicTypeCapable.type.assert().isEqualTo("testType")
+    }
 }
