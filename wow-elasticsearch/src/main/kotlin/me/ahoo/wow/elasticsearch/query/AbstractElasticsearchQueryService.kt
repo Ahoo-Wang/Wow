@@ -50,7 +50,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
             limit = 1,
             sort = singleQuery.sort
         )
-        return dynamicList(listQuery).single()
+        return dynamicList(listQuery).next()
     }
 
     override fun list(listQuery: IListQuery): Flux<R> {
