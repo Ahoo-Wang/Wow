@@ -24,6 +24,7 @@ import org.springframework.validation.method.ParameterValidationResult
 import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.reactive.resource.NoResourceFoundException
 import org.springframework.web.server.ServerWebExchange
+import org.springframework.web.server.ServerWebInputException
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.net.URI
@@ -182,6 +183,38 @@ class GlobalExceptionHandlerTest {
         verify {
             response.setStatusCode(HttpStatus.NOT_FOUND)
             response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND)
+            response.headers.contentType = MediaType.APPLICATION_JSON
+            response.writeWith(any())
+        }
+    }
+
+    @Test
+    fun handleServerWebInputException() {
+        val request = mockk<ServerHttpRequest> {
+            every { method } returns HttpMethod.GET
+            every { uri } returns URI.create("http://localhost:8080")
+        }
+
+        val response = mockk<ServerHttpResponse> {
+            every { setStatusCode(any()) } returns true
+            every { headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND) } returns Unit
+            every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
+            every { bufferFactory() } returns DefaultDataBufferFactory()
+            every { writeWith(any()) } returns Mono.empty()
+        }
+
+        val exchange = mockk<ServerWebExchange> {
+            every { getRequest() } returns request
+            every { getResponse() } returns response
+        }
+
+        GlobalExceptionHandler.handle(exchange, ServerWebInputException("error"))
+            .test()
+            .verifyComplete()
+
+        verify {
+            response.setStatusCode(HttpStatus.BAD_REQUEST)
+            response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.BAD_REQUEST)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
