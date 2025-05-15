@@ -1,5 +1,9 @@
 package me.ahoo.wow.models.common
 
-interface QuantityCapable {
-    val qty: Int
+interface NullableQuantityCapable {
+    val qty: Int?
+}
+
+interface QuantityCapable : NullableQuantityCapable {
+    override val qty: Int
 }

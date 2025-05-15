@@ -12,4 +12,12 @@ class QuantityCapableTest {
         }
         quantityCapable.qty.assert().isEqualTo(10)
     }
+
+    @Test
+    fun `test NullableQuantityCapable`() {
+        val quantityCapable = object : NullableQuantityCapable {
+            override val qty: Int? = null
+        }
+        quantityCapable.qty.assert().isNull()
+    }
 }
