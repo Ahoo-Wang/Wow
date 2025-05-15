@@ -15,6 +15,7 @@ package me.ahoo.wow.query.converter
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.query.converter.DeleteConditionGuard.guard
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -24,21 +25,7 @@ import java.time.temporal.TemporalAdjusters
 
 abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     override fun convert(condition: Condition): T {
-        val convertedCondition = when (condition.operator) {
-            Operator.ALL -> Condition.ACTIVE
-            Operator.DELETED -> condition
-            Operator.AND -> {
-                if (!condition.children.any { it.operator == Operator.DELETED }) {
-                    Condition.ACTIVE.appendCondition(condition)
-                } else {
-                    condition
-                }
-            }
-
-            else -> {
-                Condition.ACTIVE.appendCondition(condition)
-            }
-        }
+        val convertedCondition = condition.guard()
         return internalConvert(convertedCondition)
     }
 
