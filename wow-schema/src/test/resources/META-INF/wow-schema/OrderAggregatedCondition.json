@@ -1,0 +1,57 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "StringObjectMap" : {
+      "type" : "object"
+    },
+    "wow.api.query.Condition" : {
+      "type" : "object",
+      "properties" : {
+        "children" : {
+          "default" : "[]",
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/wow.api.query.Condition"
+          }
+        },
+        "field" : {
+          "type" : "string"
+        },
+        "operator" : {
+          "$ref" : "#/$defs/wow.api.query.Operator",
+          "default" : "ALL"
+        },
+        "options" : {
+          "$ref" : "#/$defs/StringObjectMap",
+          "default" : "{}"
+        },
+        "value" : { }
+      },
+      "required" : [ "operator" ]
+    },
+    "wow.api.query.Operator" : {
+      "type" : "string",
+      "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "RAW" ]
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "children" : {
+      "default" : "[]",
+      "type" : "array",
+      "items" : { }
+    },
+    "field" : {
+      "type" : "string",
+      "enum" : [ "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
+    },
+    "operator" : {
+      "default" : "ALL"
+    },
+    "options" : {
+      "default" : "{}"
+    },
+    "value" : { }
+  },
+  "required" : [ "operator" ]
+}
