@@ -17,13 +17,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import me.ahoo.wow.api.query.ConditionCapable
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.schema.JsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 
-object AggregatedListQueryDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
-    override val queryType: Class<*> = ListQuery::class.java
-    override val aggregatedType: Class<*> = AggregatedListQuery::class.java
+abstract class AggregatedConditionCapableDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
 
     override fun createCustomDefinition(
         rootSchema: JsonSchema,
@@ -36,4 +33,13 @@ object AggregatedListQueryDefinitionProvider : AbstractAggregatedQueryDefinition
         rootSchema.requiredGetProperties().set<ObjectNode>(ConditionCapable<*>::condition.name, aggregateConditionNode)
         return rootSchema.asCustomDefinition()
     }
+}
+
+object AggregatedListQueryDefinitionProvider : AggregatedConditionCapableDefinitionProvider() {
+    override val queryType: Class<*> = me.ahoo.wow.api.query.ListQuery::class.java
+    override val aggregatedType: Class<*> = AggregatedListQuery::class.java
+}
+object AggregatedPagedQueryDefinitionProvider : AggregatedConditionCapableDefinitionProvider() {
+    override val queryType: Class<*> = me.ahoo.wow.api.query.PagedQuery::class.java
+    override val aggregatedType: Class<*> = AggregatedPagedQuery::class.java
 }

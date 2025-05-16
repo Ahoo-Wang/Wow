@@ -30,6 +30,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.query.AggregatedCondition
 import me.ahoo.wow.schema.typed.query.AggregatedListQuery
+import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
 
 object QueryComponent {
 
@@ -63,33 +64,43 @@ object QueryComponent {
             }
         }
 
+        fun OpenAPIComponentContext.countQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(COUNT_QUERY_KEY) {
+                content(schema = conditionSchema())
+            }
+        }
+
         fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + ".CountQuery") {
                 content(schema = schema(AggregatedCondition::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 
-        fun OpenAPIComponentContext.countQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(COUNT_QUERY_KEY) {
-                content(schema = conditionSchema())
-            }
-        }
         fun OpenAPIComponentContext.listQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(LIST_QUERY_KEY) {
                 content(schema = listQuerySchema())
             }
         }
+
         fun OpenAPIComponentContext.aggregatedListQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(aggregateMetadata.toStringWithAlias() + ".ListQuery") {
-                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
+            return requestBody(aggregateMetadata.toStringWithAlias() + ".PagedQuery") {
+                content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 
         fun OpenAPIComponentContext.pagedQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(PAGED_QUERY_KEY) {
                 content(schema = pagedQuerySchema())
+            }
+        }
+
+        fun OpenAPIComponentContext.aggregatedPagedQueryRequestBody(
+            aggregateMetadata: AggregateMetadata<*, *>
+        ): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(aggregateMetadata.toStringWithAlias() + ".ListQuery") {
+                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
     }

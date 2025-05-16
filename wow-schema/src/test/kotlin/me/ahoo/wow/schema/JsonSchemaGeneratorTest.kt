@@ -47,6 +47,7 @@ import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.AggregatedFields
 import me.ahoo.wow.schema.typed.query.AggregatedCondition
 import me.ahoo.wow.schema.typed.query.AggregatedListQuery
+import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.joda.money.CurrencyUnit
@@ -116,6 +117,11 @@ class JsonSchemaGeneratorTest {
                     AggregatedListQuery::class.java,
                     Order::class.java,
                     "OrderAggregatedListQuery"
+                ),
+                Arguments.of(
+                    AggregatedPagedQuery::class.java,
+                    Order::class.java,
+                    "OrderAggregatedPagedQuery"
                 ),
             )
         }

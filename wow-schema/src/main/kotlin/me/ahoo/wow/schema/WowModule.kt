@@ -28,6 +28,7 @@ import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedConditionDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedListQueryDefinitionProvider
+import me.ahoo.wow.schema.typed.query.AggregatedPagedQueryDefinitionProvider
 
 class WowModule(
     private val options: Set<WowOption> = WowOption.ALL
@@ -47,6 +48,7 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(AggregatedFieldsDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedConditionDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedListQueryDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(AggregatedPagedQueryDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
