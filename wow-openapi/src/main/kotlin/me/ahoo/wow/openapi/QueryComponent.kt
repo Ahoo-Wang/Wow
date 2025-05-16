@@ -79,7 +79,9 @@ object QueryComponent {
                 content(schema = listQuerySchema())
             }
         }
-        fun OpenAPIComponentContext.aggregatedListQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
+        fun OpenAPIComponentContext.aggregatedListQueryRequestBody(
+            aggregateMetadata: AggregateMetadata<*, *>
+        ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + ".ListQuery") {
                 content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
             }
