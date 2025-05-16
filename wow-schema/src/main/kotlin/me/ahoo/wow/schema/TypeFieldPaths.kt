@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -124,11 +125,17 @@ object AggregatedFieldPaths {
             parentName = StateAggregateRecords.STATE,
             fields = listOf(
                 "",
+                MessageRecords.AGGREGATE_ID,
+                MessageRecords.TENANT_ID,
+                MessageRecords.OWNER_ID,
+                MessageRecords.VERSION,
                 StateAggregateRecords.EVENT_ID,
                 StateAggregateRecords.FIRST_OPERATOR,
                 StateAggregateRecords.OPERATOR,
                 StateAggregateRecords.FIRST_EVENT_TIME,
-                StateAggregateRecords.EVENT_TIME
+                StateAggregateRecords.EVENT_TIME,
+                StateAggregateRecords.DELETED,
+                StateAggregateRecords.STATE
             )
         )
     }
