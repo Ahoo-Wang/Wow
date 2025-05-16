@@ -36,12 +36,14 @@ import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
+import me.ahoo.wow.schema.typed.AggregatedCondition
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -97,6 +99,11 @@ class JsonSchemaGeneratorTest {
                     AggregatedDomainEventStream::class.java,
                     MockEmptyAggregate::class.java,
                     "EmptyAggregatedDomainEventStream"
+                ),
+                Arguments.of(
+                    AggregatedCondition::class.java,
+                    OrderState::class.java,
+                    "OrderAggregatedCondition"
                 ),
             )
         }

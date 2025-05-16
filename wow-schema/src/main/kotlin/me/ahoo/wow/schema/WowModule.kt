@@ -18,6 +18,7 @@ import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
 import me.ahoo.wow.schema.typed.AggregateIdDefinitionProvider
+import me.ahoo.wow.schema.typed.AggregatedConditionDefinitionProvider
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
@@ -41,6 +42,7 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedDomainEventStreamDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(AggregatedConditionDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
