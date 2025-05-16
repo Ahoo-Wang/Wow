@@ -85,7 +85,7 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 
@@ -99,7 +99,7 @@ object QueryComponent {
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
-                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
+                content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
     }
