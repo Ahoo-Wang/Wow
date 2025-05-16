@@ -18,20 +18,20 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.example.api.order.ShippingAddress
-import me.ahoo.wow.schema.StatePropertyPaths.allPropertyPaths
+import me.ahoo.wow.schema.StateFieldPaths.allFieldPaths
 import org.junit.jupiter.api.Test
 
 class StatePropertyPathsTest {
     @Test
     fun allPropertyPathsForCondition() {
-        Condition::class.allPropertyPaths().forEach {
+        Condition::class.allFieldPaths().forEach {
             println(it)
         }
     }
 
     @Test
     fun allPropertyPaths() {
-        DemoState::class.allPropertyPaths("state").forEach {
+        DemoState::class.allFieldPaths("state").forEach {
             println(it)
         }
     }

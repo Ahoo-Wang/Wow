@@ -36,15 +36,15 @@ import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
-import me.ahoo.wow.schema.typed.AggregatedCondition
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
+import me.ahoo.wow.schema.typed.AggregatedFields
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.joda.money.CurrencyUnit
@@ -101,9 +101,9 @@ class JsonSchemaGeneratorTest {
                     "EmptyAggregatedDomainEventStream"
                 ),
                 Arguments.of(
-                    AggregatedCondition::class.java,
-                    OrderState::class.java,
-                    "OrderAggregatedCondition"
+                    AggregatedFields::class.java,
+                    Order::class.java,
+                    "OrderAggregatedFields"
                 ),
             )
         }
