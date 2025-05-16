@@ -17,8 +17,10 @@ import me.ahoo.wow.configuration.BoundedContext
 import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
+import me.ahoo.wow.schema.typed.AggregatedFields
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -99,6 +101,13 @@ class WowSchemaNamingStrategyTest {
                         Outer.StaticNested::class.java
                     ),
                     "wow.schema.Outer.StaticNested"
+                ),
+                Arguments.of(
+                    typeContext.resolve(
+                        AggregatedFields::class.java,
+                        Order::class.java
+                    ),
+                    "example.OrderAggregatedFields"
                 )
             )
         }

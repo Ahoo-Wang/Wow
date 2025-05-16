@@ -21,9 +21,9 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.jvmErasure
 
 /**
- * Utility object to handle state property paths.
+ * Utility object to handle state field paths.
  */
-object StatePropertyPaths {
+object StateFieldPaths {
     /**
      * Delimiter used to join property names in the path.
      */
@@ -33,28 +33,28 @@ object StatePropertyPaths {
      * Retrieves all property paths for a given KClass.
      *
      * @param parentName The name of the parent property (used for nested properties).
-     * @param properties A list of initial properties to include in the result.
+     * @param fields A list of initial properties to include in the result.
      * @return A list of all property paths.
      */
-    fun KClass<*>.allPropertyPaths(parentName: String = "", properties: List<String> = emptyList()): List<String> {
-        val propertyPaths = mutableListOf<String>()
-        if (properties.isNotEmpty()) {
-            propertyPaths.addAll(properties)
+    fun KClass<*>.allFieldPaths(parentName: String = "", fields: List<String> = emptyList()): List<String> {
+        val fieldPaths = mutableListOf<String>()
+        if (fields.isNotEmpty()) {
+            fieldPaths.addAll(fields)
         }
         val resolved = mutableSetOf<KProperty1<*, *>>()
-        allPropertyPathsInternal(propertyPaths, resolved, parentName)
-        return propertyPaths
+        allFieldPathsInternal(fieldPaths, resolved, parentName)
+        return fieldPaths
     }
 
     /**
      * Internal method to recursively retrieve all property paths.
      *
-     * @param propertyPaths The list to store property paths.
+     * @param fieldPaths The list to store property paths.
      * @param resolved A set to keep track of resolved properties to avoid duplicates.
      * @param parentName The name of the parent property (used for nested properties).
      */
-    private fun KClass<*>.allPropertyPathsInternal(
-        propertyPaths: MutableList<String>,
+    private fun KClass<*>.allFieldPathsInternal(
+        fieldPaths: MutableList<String>,
         resolved: MutableSet<KProperty1<*, *>>,
         parentName: String
     ) {
@@ -65,11 +65,11 @@ object StatePropertyPaths {
                 return@forEach
             }
             resolved.add(property)
-            val fullName = property.resolvePropertyName(parentName)
-            propertyPaths.add(fullName)
+            val fullName = property.resolveFieldName(parentName)
+            fieldPaths.add(fullName)
             val nestedType = property.resolveNestedType() ?: return@forEach
-            nestedType.allPropertyPathsInternal(
-                propertyPaths = propertyPaths,
+            nestedType.allFieldPathsInternal(
+                fieldPaths = fieldPaths,
                 resolved = resolved,
                 parentName = fullName
             )
@@ -77,12 +77,12 @@ object StatePropertyPaths {
     }
 
     /**
-     * Resolves the full property name including the parent name.
+     * Resolves the full field name including the parent name.
      *
-     * @param parentName The name of the parent property.
-     * @return The full property name.
+     * @param parentName The name of the parent field.
+     * @return The full field name.
      */
-    private fun KProperty1<*, *>.resolvePropertyName(parentName: String): String {
+    private fun KProperty1<*, *>.resolveFieldName(parentName: String): String {
         if (parentName.isBlank()) {
             return name
         }

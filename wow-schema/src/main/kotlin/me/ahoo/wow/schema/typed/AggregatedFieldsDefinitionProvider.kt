@@ -14,20 +14,19 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
-import me.ahoo.wow.schema.StatePropertyPaths.allPropertyPaths
+import me.ahoo.wow.schema.StateFieldPaths.allFieldPaths
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
-object AggregatedConditionDefinitionProvider : CustomDefinitionProviderV2 {
-    private val type: Class<*> = AggregatedCondition::class.java
+object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
+    private val type: Class<*> = AggregatedFields::class.java
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
@@ -37,14 +36,23 @@ object AggregatedConditionDefinitionProvider : CustomDefinitionProviderV2 {
             return null
         }
 
-        val conditionNode = context.createStandardDefinition(context.typeContext.resolve(Condition::class.java), this)
         if (javaType.typeBindings.isEmpty) {
-            return CustomDefinition(conditionNode)
+            return null
         }
-        val stateAggregateType = javaType.typeBindings.getBoundType(0).erasedType.kotlin
-        val enumValues = stateAggregateType.allPropertyPaths(
+
+        val schemaVersion = context.generatorConfig.schemaVersion
+        val rootSchema = context.generatorConfig.createObjectNode().asJsonSchema(schemaVersion = schemaVersion)
+        val propertiesNode = rootSchema.set(
+            SchemaKeyword.TAG_PROPERTIES,
+            context.generatorConfig.createObjectNode()
+        ).requiredGetProperties()
+        val typeNode = propertiesNode.putObject(SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion))
+        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
+        val aggregateMetadata = commandAggregateType.aggregateMetadata<Any, Any>()
+        val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
+        val enumValues = stateAggregateType.allFieldPaths(
             parentName = StateAggregateRecords.STATE,
-            properties = listOf(
+            fields = listOf(
                 StateAggregateRecords.EVENT_ID,
                 StateAggregateRecords.FIRST_OPERATOR,
                 StateAggregateRecords.OPERATOR,
@@ -52,10 +60,8 @@ object AggregatedConditionDefinitionProvider : CustomDefinitionProviderV2 {
                 StateAggregateRecords.EVENT_TIME
             )
         )
-        val schemaVersion = context.generatorConfig.schemaVersion
-        val rootSchema = conditionNode.deepCopy().asJsonSchema(schemaVersion)
-        val fieldNode = rootSchema.requiredGetProperties().get(Condition::field.name) as ObjectNode
-        fieldNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
+        typeNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
+
         return rootSchema.asCustomDefinition()
     }
 }
