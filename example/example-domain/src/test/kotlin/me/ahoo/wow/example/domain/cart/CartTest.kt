@@ -64,7 +64,7 @@ class CartTest {
             .givenState(CartState(generateGlobalId()), 1)
             .whenCommand(addCartItem)
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(CartItemAdded::class)
             .expectState {
                 it.items.assert().hasSize(1)
             }
@@ -89,7 +89,7 @@ class CartTest {
             )
             .whenCommand(addCartItem)
             .expectNoError()
-            .expectEventType(CartQuantityChanged::class.java)
+            .expectEventType(CartQuantityChanged::class)
             .expectState {
                 it.items.assert().hasSize(1)
                 it.items.first().quantity.assert().isEqualTo(2)
@@ -107,7 +107,7 @@ class CartTest {
             .given()
             .whenCommand(addCartItem)
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(CartItemAdded::class)
             .expectState {
                 it.items.assert().hasSize(1)
             }
@@ -139,7 +139,7 @@ class CartTest {
         aggregateVerifier<Cart, CartState>()
             .given(*events)
             .whenCommand(addCartItem)
-            .expectErrorType(IllegalArgumentException::class.java)
+            .expectErrorType(IllegalArgumentException::class)
             .expectState {
                 it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
             }
@@ -163,7 +163,7 @@ class CartTest {
                 ),
             )
             .whenCommand(removeCartItem)
-            .expectEventType(CartItemRemoved::class.java)
+            .expectEventType(CartItemRemoved::class)
             .expectState {
                 it.items.assert().isEmpty()
             }
@@ -187,7 +187,7 @@ class CartTest {
                 ),
             )
             .whenCommand(changeQuantity)
-            .expectEventType(CartQuantityChanged::class.java)
+            .expectEventType(CartQuantityChanged::class)
             .expectState {
                 it.items.assert().hasSize(1)
                 it.items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
@@ -204,20 +204,20 @@ class CartTest {
         aggregateVerifier<Cart, CartState>()
             .whenCommand(addCartItem)
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(CartItemAdded::class)
             .expectState {
                 it.items.assert().hasSize(1)
             }
             .verify()
             .then()
             .whenCommand(DefaultDeleteAggregate)
-            .expectEventType(DefaultAggregateDeleted::class.java)
+            .expectEventType(DefaultAggregateDeleted::class)
             .expectStateAggregate {
                 it.deleted.assert().isTrue()
             }.verify()
             .then()
-            .whenCommand(DefaultDeleteAggregate::class.java)
-            .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
+            .whenCommand(DefaultDeleteAggregate::class)
+            .expectErrorType(IllegalAccessDeletedAggregateException::class)
             .verify()
             .then()
             .whenCommand(DefaultRecoverAggregate)
@@ -226,7 +226,7 @@ class CartTest {
             }.verify()
             .then()
             .whenCommand(DefaultRecoverAggregate)
-            .expectErrorType(IllegalStateException::class.java)
+            .expectErrorType(IllegalStateException::class)
             .verify()
     }
 }

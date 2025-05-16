@@ -60,7 +60,7 @@ class OrchestrationTest {
         aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
-            .expectEventType(OrderCreated::class.java)
+            .expectEventType(OrderCreated::class)
             .expectStateAggregate {
                 it.aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
@@ -92,7 +92,7 @@ class OrchestrationTest {
             it.stateAggregate.state.payable
         )
         whenCommand(payOrder)
-            .expectEventType(OrderPaid::class.java)
+            .expectEventType(OrderPaid::class)
             .expectState {
                 it.paidAmount.assert().isEqualTo(it.totalAmount)
                 it.status.assert().isEqualTo(OrderStatus.PAID)
@@ -110,9 +110,9 @@ class OrchestrationTest {
                 detail = "002"
             )
         )
-        whenCommand(changeAddress).expectNoError()
-            .expectEventCount(1)
-            .expectEventType(AddressChanged::class.java)
+        whenCommand(changeAddress)
+            .expectNoError()
+            .expectEventType(AddressChanged::class)
             .expectState {
                 it.address.assert().isEqualTo(changeAddress.shippingAddress)
             }

@@ -11,10 +11,10 @@ import java.math.BigDecimal
 
 class OrderSagaTest {
     private val orderItem = OrderItem(
-        generateGlobalId(),
-        generateGlobalId(),
-        BigDecimal.valueOf(10),
-        10,
+        id = generateGlobalId(),
+        productId = generateGlobalId(),
+        price = BigDecimal.valueOf(10),
+        quantity = 10,
     )
 
     @Test
