@@ -123,6 +123,7 @@ object AggregatedFieldPaths {
         return allFieldPaths(
             parentName = StateAggregateRecords.STATE,
             fields = listOf(
+                "",
                 StateAggregateRecords.EVENT_ID,
                 StateAggregateRecords.FIRST_OPERATOR,
                 StateAggregateRecords.OPERATOR,
