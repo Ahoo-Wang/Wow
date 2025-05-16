@@ -39,7 +39,13 @@ object AggregatedListQueryDefinitionProvider : AggregatedConditionCapableDefinit
     override val queryType: Class<*> = me.ahoo.wow.api.query.ListQuery::class.java
     override val aggregatedType: Class<*> = AggregatedListQuery::class.java
 }
+
 object AggregatedPagedQueryDefinitionProvider : AggregatedConditionCapableDefinitionProvider() {
     override val queryType: Class<*> = me.ahoo.wow.api.query.PagedQuery::class.java
     override val aggregatedType: Class<*> = AggregatedPagedQuery::class.java
+}
+
+object AggregatedSingleQueryDefinitionProvider : AggregatedConditionCapableDefinitionProvider() {
+    override val queryType: Class<*> = me.ahoo.wow.api.query.SingleQuery::class.java
+    override val aggregatedType: Class<*> = AggregatedSingleQuery::class.java
 }

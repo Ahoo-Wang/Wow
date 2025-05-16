@@ -18,31 +18,29 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
 import me.ahoo.wow.openapi.QueryComponent.Schema.conditionSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
-import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.query.AggregatedCondition
 import me.ahoo.wow.schema.typed.query.AggregatedListQuery
 import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
+import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
 
 object QueryComponent {
-
-    const val SINGLE_QUERY_KEY = Wow.WOW_PREFIX + "SingleQuery"
-    const val COUNT_QUERY_KEY = Wow.WOW_PREFIX + "CountQuery"
-    const val LIST_QUERY_KEY = Wow.WOW_PREFIX + "ListQuery"
-    const val PAGED_QUERY_KEY = Wow.WOW_PREFIX + "PagedQuery"
+    const val SINGLE_QUERY_SUFFIX = ".SingleQuery"
+    const val COUNT_QUERY_SUFFIX = ".CountQuery"
+    const val LIST_QUERY_SUFFIX = ".ListQuery"
+    const val PAGED_QUERY_SUFFIX = ".PagedQuery"
+    const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
+    const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
+    const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
 
     object Schema {
-        fun OpenAPIComponentContext.singleQuerySchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return schema(SingleQuery::class.java)
-        }
 
         fun OpenAPIComponentContext.conditionSchema(): io.swagger.v3.oas.models.media.Schema<*> {
             return schema(Condition::class.java)
@@ -58,9 +56,10 @@ object QueryComponent {
     }
 
     object RequestBody {
-        fun OpenAPIComponentContext.singleQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(SINGLE_QUERY_KEY) {
-                content(schema = singleQuerySchema())
+
+        fun OpenAPIComponentContext.aggregatedSingleQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(aggregateMetadata.toStringWithAlias() + SINGLE_QUERY_SUFFIX) {
+                content(schema = schema(AggregatedSingleQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 
@@ -71,7 +70,7 @@ object QueryComponent {
         }
 
         fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(aggregateMetadata.toStringWithAlias() + ".CountQuery") {
+            return requestBody(aggregateMetadata.toStringWithAlias() + COUNT_QUERY_SUFFIX) {
                 content(schema = schema(AggregatedCondition::class.java, aggregateMetadata.command.aggregateType))
             }
         }
@@ -85,7 +84,7 @@ object QueryComponent {
         fun OpenAPIComponentContext.aggregatedListQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(aggregateMetadata.toStringWithAlias() + ".PagedQuery") {
+            return requestBody(aggregateMetadata.toStringWithAlias() + LIST_QUERY_SUFFIX) {
                 content(schema = schema(AggregatedPagedQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
@@ -99,7 +98,7 @@ object QueryComponent {
         fun OpenAPIComponentContext.aggregatedPagedQueryRequestBody(
             aggregateMetadata: AggregateMetadata<*, *>
         ): io.swagger.v3.oas.models.parameters.RequestBody {
-            return requestBody(aggregateMetadata.toStringWithAlias() + ".ListQuery") {
+            return requestBody(aggregateMetadata.toStringWithAlias() + PAGED_QUERY_SUFFIX) {
                 content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }

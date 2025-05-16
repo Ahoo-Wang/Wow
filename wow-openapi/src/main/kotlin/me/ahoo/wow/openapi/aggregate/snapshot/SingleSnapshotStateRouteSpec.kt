@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.CommonComponent.Response.notFoundResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.singleQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
@@ -52,7 +52,7 @@ class SingleSnapshotStateRouteSpec(
 
     override val summary: String
         get() = "Single snapshot state"
-    override val requestBody: RequestBody = componentContext.singleQueryRequestBody()
+    override val requestBody: RequestBody = componentContext.aggregatedSingleQueryRequestBody(aggregateMetadata)
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
             .content(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
