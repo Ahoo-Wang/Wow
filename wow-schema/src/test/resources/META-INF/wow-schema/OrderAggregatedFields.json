@@ -2,7 +2,7 @@
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
   "properties" : {
     "type" : {
-      "enum" : [ "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
+      "enum" : [ "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
     }
   }
 }

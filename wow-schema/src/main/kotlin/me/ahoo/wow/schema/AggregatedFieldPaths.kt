@@ -17,17 +17,19 @@ import me.ahoo.wow.schema.Types.isStdType
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
+import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.jvmErasure
 
 /**
  * Utility object to handle state field paths.
  */
-object StateFieldPaths {
+object AggregatedFieldPaths {
     /**
      * Delimiter used to join property names in the path.
      */
     const val JOIN_DELIMITER = "."
+    const val MAX_DEPTH = 5
 
     /**
      * Retrieves all property paths for a given KClass.
@@ -36,13 +38,16 @@ object StateFieldPaths {
      * @param fields A list of initial properties to include in the result.
      * @return A list of all property paths.
      */
-    fun KClass<*>.allFieldPaths(parentName: String = "", fields: List<String> = emptyList()): List<String> {
+    fun KClass<*>.allFieldPaths(
+        parentName: String = "",
+        fields: List<String> = emptyList(),
+        maxDepth: Int = MAX_DEPTH
+    ): List<String> {
         val fieldPaths = mutableListOf<String>()
         if (fields.isNotEmpty()) {
             fieldPaths.addAll(fields)
         }
-        val resolved = mutableSetOf<KProperty1<*, *>>()
-        allFieldPathsInternal(fieldPaths, resolved, parentName)
+        allFieldPathsInternal(fieldPaths, parentName, 1, maxDepth)
         return fieldPaths
     }
 
@@ -55,23 +60,24 @@ object StateFieldPaths {
      */
     private fun KClass<*>.allFieldPathsInternal(
         fieldPaths: MutableList<String>,
-        resolved: MutableSet<KProperty1<*, *>>,
-        parentName: String
+        parentName: String,
+        depth: Int,
+        maxDepth: Int
     ) {
+        if (depth > MAX_DEPTH) {
+            return
+        }
         memberProperties.filter {
             it.visibility == KVisibility.PUBLIC
         }.forEach { property ->
-            if (resolved.contains(property)) {
-                return@forEach
-            }
-            resolved.add(property)
             val fullName = property.resolveFieldName(parentName)
             fieldPaths.add(fullName)
             val nestedType = property.resolveNestedType() ?: return@forEach
             nestedType.allFieldPathsInternal(
                 fieldPaths = fieldPaths,
-                resolved = resolved,
-                parentName = fullName
+                parentName = fullName,
+                depth = depth + 1,
+                maxDepth = maxDepth
             )
         }
     }
@@ -95,7 +101,12 @@ object StateFieldPaths {
      * @return The nested type if it's not a standard type, otherwise null.
      */
     private fun KProperty1<*, *>.resolveNestedType(): KClass<*>? {
-        val nestedType = returnType.jvmErasure
+        val returnKClass = returnType.jvmErasure
+        val nestedType = if (returnKClass.isSubclassOf(Collection::class) || returnKClass.java.isArray) {
+            returnType.arguments.firstOrNull()?.type?.jvmErasure ?: return null
+        } else {
+            returnType.jvmErasure
+        }
 
         if (nestedType.java.isStdType()) {
             return null

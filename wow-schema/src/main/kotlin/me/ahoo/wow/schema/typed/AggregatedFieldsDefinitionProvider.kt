@@ -19,10 +19,10 @@ import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.schema.AggregatedFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
-import me.ahoo.wow.schema.StateFieldPaths.allFieldPaths
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {

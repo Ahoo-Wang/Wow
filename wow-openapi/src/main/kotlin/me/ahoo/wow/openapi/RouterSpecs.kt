@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -63,6 +64,7 @@ class RouterSpecs(
             if (aggregateRouteMetadata.enabled.not()) {
                 return@forEach
             }
+            componentContext.schema(AggregatedFields::class.java, aggregateType)
             aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
                 aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
                     routes.add(routeSpec)
