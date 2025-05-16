@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.query.converter.ProjectionConverter
 import org.bson.conversions.Bson
 
