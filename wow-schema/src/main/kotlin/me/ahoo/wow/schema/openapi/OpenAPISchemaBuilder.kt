@@ -138,6 +138,7 @@ class OpenAPISchemaBuilder(
                     .with(jodaMoneyModule)
                     .with(wowModule)
                     .with(schemaNamingModule)
+                    .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
                     .with(Option.PLAIN_DEFINITION_KEYS)
                     .with(Option.SIMPLIFIED_ENUMS)
                     .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
