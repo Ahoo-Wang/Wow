@@ -11,18 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
-import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.ICondition
+import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.typed.AggregatedFields
 
-object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
-    private val type: Class<*> = AggregatedFields::class.java
+object AggregatedConditionDefinitionProvider : CustomDefinitionProviderV2 {
+    private val type: Class<*> = AggregatedCondition::class.java
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
@@ -31,21 +34,19 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
         if (!javaType.isInstanceOf(type)) {
             return null
         }
-
-        if (javaType.typeBindings.isEmpty) {
-            return null
-        }
-
         val schemaVersion = context.generatorConfig.schemaVersion
-        val rootNode = context.generatorConfig.createObjectNode()
-        rootNode.put(
-            SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion),
-            SchemaKeyword.TAG_TYPE_STRING.toPropertyName(schemaVersion)
-        )
+        val conditionType = context.typeContext.resolve(Condition::class.java)
+        val rootSchema = context.createStandardDefinition(conditionType, this).asJsonSchema(schemaVersion)
+        if (javaType.typeBindings.isEmpty) {
+            return rootSchema.asCustomDefinition()
+        }
         val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
-        val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
-        rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
 
-        return CustomDefinition(rootNode)
+        val aggregatedFieldsType =
+            context.typeContext.resolve(AggregatedFields::class.java, commandAggregateType)
+        val aggregatedFieldsNode = context.createDefinitionReference(aggregatedFieldsType)
+        rootSchema.requiredGetProperties().set<ObjectNode>(ICondition::field.name, aggregatedFieldsNode)
+
+        return rootSchema.asCustomDefinition()
     }
 }

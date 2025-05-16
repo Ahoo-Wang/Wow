@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.schema
 
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
@@ -24,7 +27,7 @@ import kotlin.reflect.jvm.jvmErasure
 /**
  * Utility object to handle state field paths.
  */
-object AggregatedFieldPaths {
+object TypeFieldPaths {
     /**
      * Delimiter used to join property names in the path.
      */
@@ -112,5 +115,26 @@ object AggregatedFieldPaths {
             return null
         }
         return nestedType
+    }
+}
+
+object AggregatedFieldPaths {
+    fun KClass<*>.stateAggregatedFieldPaths(): List<String> {
+        return allFieldPaths(
+            parentName = StateAggregateRecords.STATE,
+            fields = listOf(
+                StateAggregateRecords.EVENT_ID,
+                StateAggregateRecords.FIRST_OPERATOR,
+                StateAggregateRecords.OPERATOR,
+                StateAggregateRecords.FIRST_EVENT_TIME,
+                StateAggregateRecords.EVENT_TIME
+            )
+        )
+    }
+
+    fun KClass<*>.commandAggregatedFieldPaths(): List<String> {
+        val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
+        val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
+        return stateAggregateType.stateAggregatedFieldPaths()
     }
 }

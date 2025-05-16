@@ -19,7 +19,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.CommonComponent.Response.requestTimeoutResponse
 import me.ahoo.wow.openapi.CommonComponent.Response.tooManyRequestsResponse
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
@@ -51,7 +51,8 @@ class CountSnapshotRouteSpec(
 
     override val summary: String
         get() = "Count snapshot"
-    override val requestBody: RequestBody = componentContext.countQueryRequestBody()
+    override val requestBody: RequestBody =
+        componentContext.aggregatedCountQueryRequestBody(aggregateRouteMetadata.aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {
         addApiResponse(Https.Code.OK, componentContext.countQueryResponse())

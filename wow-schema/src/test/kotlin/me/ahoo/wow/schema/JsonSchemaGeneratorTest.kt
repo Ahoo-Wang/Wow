@@ -45,6 +45,7 @@ import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.AggregatedFields
+import me.ahoo.wow.schema.typed.query.AggregatedCondition
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.joda.money.CurrencyUnit
@@ -105,6 +106,11 @@ class JsonSchemaGeneratorTest {
                     Order::class.java,
                     "OrderAggregatedFields"
                 ),
+                Arguments.of(
+                    AggregatedCondition::class.java,
+                    Order::class.java,
+                    "OrderAggregatedCondition"
+                ),
             )
         }
     }
@@ -147,6 +153,16 @@ class JsonSchemaGeneratorTest {
         val jsonSchemaGenerator = JsonSchemaGenerator()
         val schema = jsonSchemaGenerator.generate(CommandStage::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
+    }
+
+    @Test
+    fun aggregatedCondition() {
+        val jsonSchemaGenerator = JsonSchemaGenerator()
+        val schema = jsonSchemaGenerator.generate(
+            AggregatedCondition::class.java,
+            Order::class.java
+        ).asJsonSchema()
+        schema.getProperties().assert().isNotNull()
     }
 
     @Test
