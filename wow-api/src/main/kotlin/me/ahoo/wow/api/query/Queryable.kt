@@ -44,8 +44,10 @@ data class Projection(
     companion object {
         val ALL = Projection()
     }
+}
 
-    fun isEmpty(): Boolean = include.isEmpty() && exclude.isEmpty()
+fun Projection.isEmpty(): Boolean {
+    return include.isEmpty() && exclude.isEmpty()
 }
 
 interface Queryable<Q : Queryable<Q>> : ConditionCapable<Q>, ProjectionCapable<Q>, SortCapable
