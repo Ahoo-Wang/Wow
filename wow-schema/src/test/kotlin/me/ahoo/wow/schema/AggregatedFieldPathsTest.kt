@@ -18,10 +18,10 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.example.api.order.ShippingAddress
-import me.ahoo.wow.schema.StateFieldPaths.allFieldPaths
+import me.ahoo.wow.schema.AggregatedFieldPaths.allFieldPaths
 import org.junit.jupiter.api.Test
 
-class StatePropertyPathsTest {
+class AggregatedFieldPathsTest {
     @Test
     fun allPropertyPathsForCondition() {
         Condition::class.allFieldPaths().forEach {
@@ -31,15 +31,16 @@ class StatePropertyPathsTest {
 
     @Test
     fun allPropertyPaths() {
-        DemoState::class.allFieldPaths("state").forEach {
+        DemoState::class.allFieldPaths(parentName = "state").forEach {
             println(it)
         }
     }
 
     class DemoState(override val id: String) : Identifier {
         var address: ShippingAddress = ShippingAddress("CN", "GD", "SZ", "YT", "YT")
+        var addresses: List<ShippingAddress> = emptyList()
+        var addressArray: Array<ShippingAddress> = emptyArray()
         var pagedQuery: PagedQuery = PagedQuery(Condition.all())
         var pagedList: PagedList<DemoState> = PagedList.empty()
-            private set
     }
 }
