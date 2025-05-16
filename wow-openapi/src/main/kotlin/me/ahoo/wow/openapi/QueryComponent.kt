@@ -29,6 +29,7 @@ import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.typed.query.AggregatedCondition
+import me.ahoo.wow.schema.typed.query.AggregatedListQuery
 
 object QueryComponent {
 
@@ -73,10 +74,14 @@ object QueryComponent {
                 content(schema = conditionSchema())
             }
         }
-
         fun OpenAPIComponentContext.listQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(LIST_QUERY_KEY) {
                 content(schema = listQuerySchema())
+            }
+        }
+        fun OpenAPIComponentContext.aggregatedListQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(aggregateMetadata.toStringWithAlias() + ".ListQuery") {
+                content(schema = schema(AggregatedListQuery::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 

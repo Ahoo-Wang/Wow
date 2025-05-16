@@ -13,6 +13,4 @@
 
 package me.ahoo.wow.schema.typed.query
 
-import me.ahoo.wow.api.query.ICondition
-
-interface AggregatedCondition<CommandAggregateType : Any> : ICondition<AggregatedCondition<CommandAggregateType>>
+interface AggregatedListQuery<CommandAggregateType : Any>

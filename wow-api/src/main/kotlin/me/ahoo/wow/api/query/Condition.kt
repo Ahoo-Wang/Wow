@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-interface ICondition {
+interface ICondition<C : ICondition<C>> {
     val field: String
 
     @get:Schema(defaultValue = "ALL")
@@ -28,7 +28,7 @@ interface ICondition {
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
     @get:Schema(defaultValue = "[]")
-    val children: List<Condition>
+    val children: List<C>
 
     @get:Schema(defaultValue = "{}")
     val options: Map<String, Any>
@@ -43,7 +43,7 @@ data class Condition(
      */
     override val children: List<Condition> = emptyList(),
     override val options: Map<String, Any> = emptyMap()
-) : ICondition, RewritableCondition<Condition> {
+) : ICondition<Condition>, RewritableCondition<Condition> {
     fun <V> valueAs(): V {
         @Suppress("UNCHECKED_CAST")
         return value as V

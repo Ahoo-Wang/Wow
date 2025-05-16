@@ -16,26 +16,24 @@ package me.ahoo.wow.schema.typed.query
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ICondition
+import me.ahoo.wow.api.query.ConditionCapable
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.schema.JsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.typed.AggregatedFields
 
-object AggregatedConditionDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
-    override val queryType: Class<*> = Condition::class.java
-    override val aggregatedType: Class<*> = AggregatedCondition::class.java
+object AggregatedListQueryDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
+    override val queryType: Class<*> = ListQuery::class.java
+    override val aggregatedType: Class<*> = AggregatedListQuery::class.java
 
     override fun createCustomDefinition(
         rootSchema: JsonSchema,
         commandAggregateType: Class<*>,
         context: SchemaGenerationContext
     ): CustomDefinition {
-        val aggregatedFieldsType =
-            context.typeContext.resolve(AggregatedFields::class.java, commandAggregateType)
-        val aggregatedFieldsNode = context.createDefinitionReference(aggregatedFieldsType)
-        val propertiesNode = rootSchema.requiredGetProperties()
-        propertiesNode.set<ObjectNode>(ICondition<*>::field.name, aggregatedFieldsNode)
+        val conditionType =
+            context.typeContext.resolve(AggregatedCondition::class.java, commandAggregateType)
+        val aggregateConditionNode = context.createDefinitionReference(conditionType)
+        rootSchema.requiredGetProperties().set<ObjectNode>(ConditionCapable<*>::condition.name, aggregateConditionNode)
         return rootSchema.asCustomDefinition()
     }
 }
