@@ -17,19 +17,33 @@ import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-data class Condition(
-    val field: String = EMPTY_VALUE,
-    @field:Schema(defaultValue = "ALL")
-    val operator: Operator,
-    val value: Any = EMPTY_VALUE,
+interface ICondition {
+    val field: String
+
+    @get:Schema(defaultValue = "ALL")
+    val operator: Operator
+    val value: Any
+
     /**
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
-    @field:Schema(defaultValue = "[]")
-    val children: List<Condition> = emptyList(),
-    @field:Schema(defaultValue = "{}")
-    val options: Map<String, Any> = emptyMap()
-) : RewritableCondition<Condition> {
+    @get:Schema(defaultValue = "[]")
+    val children: List<Condition>
+
+    @get:Schema(defaultValue = "{}")
+    val options: Map<String, Any>
+}
+
+data class Condition(
+    override val field: String = EMPTY_VALUE,
+    override val operator: Operator,
+    override val value: Any = EMPTY_VALUE,
+    /**
+     * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
+     */
+    override val children: List<Condition> = emptyList(),
+    override val options: Map<String, Any> = emptyMap()
+) : ICondition, RewritableCondition<Condition> {
     fun <V> valueAs(): V {
         @Suppress("UNCHECKED_CAST")
         return value as V
