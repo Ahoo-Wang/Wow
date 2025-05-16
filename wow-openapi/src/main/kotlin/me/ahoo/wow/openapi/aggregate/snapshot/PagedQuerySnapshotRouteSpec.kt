@@ -22,7 +22,7 @@ import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
@@ -52,7 +52,7 @@ class PagedQuerySnapshotRouteSpec(
 
     override val summary: String
         get() = "Paged Query snapshot"
-    override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
+    override val requestBody: RequestBody = componentContext.aggregatedPagedQueryRequestBody(aggregateMetadata)
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
             .content(
