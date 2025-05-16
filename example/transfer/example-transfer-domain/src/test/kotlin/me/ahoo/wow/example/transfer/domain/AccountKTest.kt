@@ -40,8 +40,8 @@ internal class AccountKTest {
     fun createAccount() {
         aggregateVerifier<Account, AccountState>()
             .given()
-            .`when`(CreateAccount("name", 100))
-            .expectEventType(AccountCreated::class.java)
+            .whenCommand(CreateAccount("name", 100))
+            .expectEventType(AccountCreated::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -53,8 +53,8 @@ internal class AccountKTest {
     fun prepare() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100))
-            .`when`(Prepare("name", 100))
-            .expectEventType(AmountLocked::class.java, Prepared::class.java)
+            .whenCommand(Prepare("name", 100))
+            .expectEventType(AmountLocked::class, Prepared::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(0)
@@ -66,7 +66,7 @@ internal class AccountKTest {
     fun prepareGivenFrozen() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(Prepare("name", 100))
+            .whenCommand(Prepare("name", 100))
             .expectError<IllegalStateException> {
                 assertThat(it).hasMessage("账号已冻结无法转账.")
             }
@@ -82,7 +82,7 @@ internal class AccountKTest {
     fun prepareGivenBalanceInsufficient() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100))
-            .`when`(Prepare("name", 200))
+            .whenCommand(Prepare("name", 200))
             .expectError<IllegalStateException> {
                 assertThat(it).hasMessage("账号余额不足.")
             }
@@ -98,8 +98,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(AmountEntered::class.java)
+            .whenCommand(Entry(aggregateId, "sourceId", 100))
+            .expectEventType(AmountEntered::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(200)
@@ -112,8 +112,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(EntryFailed::class.java)
+            .whenCommand(Entry(aggregateId, "sourceId", 100))
+            .expectEventType(EntryFailed::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -127,8 +127,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(Confirm(aggregateId, 100))
-            .expectEventType(Confirmed::class.java)
+            .whenCommand(Confirm(aggregateId, 100))
+            .expectEventType(Confirmed::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(0)
@@ -143,8 +143,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(UnlockAmount(aggregateId, 100))
-            .expectEventType(AmountUnlocked::class.java)
+            .whenCommand(UnlockAmount(aggregateId, 100))
+            .expectEventType(AmountUnlocked::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -159,8 +159,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100))
-            .`when`(FreezeAccount(""))
-            .expectEventType(AccountFrozen::class.java)
+            .whenCommand(FreezeAccount(""))
+            .expectEventType(AccountFrozen::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -175,7 +175,7 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(FreezeAccount(""))
+            .whenCommand(FreezeAccount(""))
             .expectError<IllegalStateException> {
                 assertThat(it).hasMessage("账号已冻结无需再次冻结.")
             }
@@ -193,7 +193,7 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(UnfreezeAccount(""))
+            .whenCommand(UnfreezeAccount(""))
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -208,7 +208,7 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountUnfrozen(""))
-            .`when`(UnfreezeAccount(""))
+            .whenCommand(UnfreezeAccount(""))
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(100)
@@ -223,8 +223,8 @@ internal class AccountKTest {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100L))
-            .`when`(LockAmount(10))
-            .expectEventType(AmountLocked::class.java)
+            .whenCommand(LockAmount(10))
+            .expectEventType(AmountLocked::class)
             .expectState {
                 it.name.assert().isEqualTo("name")
                 it.balanceAmount.assert().isEqualTo(90)
