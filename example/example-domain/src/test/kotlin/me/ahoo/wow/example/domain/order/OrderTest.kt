@@ -72,9 +72,8 @@ internal class OrderTest {
         return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
-            .expectEventCount(1)
-            .expectEventType(OrderCreated::class.java)
+            .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
+            .expectEventType(OrderCreated::class)
             .expectStateAggregate {
                 it.aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
@@ -135,8 +134,8 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
-            .expectErrorType(IllegalArgumentException::class.java)
+            .whenCommand(CreateOrder(orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
+            .expectErrorType(IllegalArgumentException::class)
             .expectStateAggregate {
                 it.initialized.assert().isFalse()
             }.verify()
@@ -150,8 +149,8 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
             .given()
-            .`when`(CreateOrder(listOf(), SHIPPING_ADDRESS, false))
-            .expectErrorType(CommandValidationException::class.java)
+            .whenCommand(CreateOrder(listOf(), SHIPPING_ADDRESS, false))
+            .expectErrorType(CommandValidationException::class)
             .expectStateAggregate {
                 /*
                  * 该聚合对象处于未初始化状态，即该聚合未创建成功.
@@ -189,11 +188,11 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
+            .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：库存不足异常.
              */
-            .expectErrorType(InventoryShortageException::class.java)
+            .expectErrorType(InventoryShortageException::class)
             .expectStateAggregate {
                 /*
                  * 该聚合对象处于未初始化状态，即该聚合未创建成功.
@@ -230,11 +229,11 @@ internal class OrderTest {
         aggregateVerifier<Order, OrderState>()
             .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
             .given()
-            .`when`(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
+            .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*
              * 期望：价格不一致异常.
              */
-            .expectErrorType(PriceInconsistencyException::class.java).verify()
+            .expectErrorType(PriceInconsistencyException::class).verify()
     }
 
     private fun mockPayOrder(): VerifiedStage<OrderState> {
@@ -251,7 +250,7 @@ internal class OrderTest {
             /*
              * 2. 当接收到命令
              */
-            .`when`(payOrder)
+            .whenCommand(payOrder)
             /*
              * 3.1 期望将会产生1个事件
              */
@@ -259,7 +258,7 @@ internal class OrderTest {
             /*
              * 3.2 期望将会产生一个 OrderPaid 事件 (3.1 可以不需要)
              */
-            .expectEventType(OrderPaid::class.java)
+            .expectEventType(OrderPaid::class)
             /*
              * 3.3 期望产生的事件状态
              */
@@ -302,9 +301,9 @@ internal class OrderTest {
         verifiedStage
             .then()
             .given()
-            .`when`(payOrder)
-            .expectErrorType(DomainEventException::class.java)
-            .expectEventType(OrderPayDuplicated::class.java)
+            .whenCommand(payOrder)
+            .expectErrorType(DomainEventException::class)
+            .expectEventType(OrderPayDuplicated::class)
             .expectEventBody<OrderPayDuplicated> {
                 it.paymentId.assert().isEqualTo(payOrder.paymentId)
             }
@@ -330,11 +329,11 @@ internal class OrderTest {
             /*
              * 2. 处理 PayOrder 命令
              */
-            .`when`(payOrder)
+            .whenCommand(payOrder)
             /*
              * 3.1 期望将会产生俩个事件分别是： OrderPaid、OrderOverPaid
              */
-            .expectEventType(OrderPaid::class.java, OrderOverPaid::class.java)
+            .expectEventType(OrderPaid::class, OrderOverPaid::class)
             /*
              * 3.2 期望产生的事件状态
              */
@@ -359,8 +358,8 @@ internal class OrderTest {
         val shipOrder = ShipOrder(verifiedStage.stateRoot.id)
         return verifiedStage
             .then().given()
-            .`when`(shipOrder)
-            .expectEventType(OrderShipped::class.java)
+            .whenCommand(shipOrder)
+            .expectEventType(OrderShipped::class)
             /*
              * 4. 期望当前聚合状态
              */
@@ -382,9 +381,9 @@ internal class OrderTest {
     fun receiptOrder() {
         val verifiedStage = mockShip()
         verifiedStage.then().given()
-            .`when`(ReceiptOrder(id = verifiedStage.stateRoot.id))
+            .whenCommand(ReceiptOrder(id = verifiedStage.stateRoot.id))
             .expectNoError()
-            .expectEventType(OrderReceived::class.java)
+            .expectEventType(OrderReceived::class)
             .expectState {
                 it.status.assert().isEqualTo(OrderStatus.RECEIVED)
             }
@@ -396,8 +395,8 @@ internal class OrderTest {
         val verifiedStage = mockCreateOrder()
         val shipOrder = ShipOrder(verifiedStage.stateRoot.id)
         verifiedStage.then().given()
-            .`when`(shipOrder)
-            .expectErrorType(IllegalStateException::class.java)
+            .whenCommand(shipOrder)
+            .expectErrorType(IllegalStateException::class)
             .expectState {
                 /*
                  * 验证聚合状态[未]发生变更.
@@ -415,8 +414,8 @@ internal class OrderTest {
             shippingAddress = ShippingAddress("上海市", "上海市", "浦东新区", "张江高科", ""),
         )
         verifiedStage.then().given()
-            .`when`(changeAddress)
-            .expectEventType(AddressChanged::class.java)
+            .whenCommand(changeAddress)
+            .expectEventType(AddressChanged::class)
             .expectState {
                 it.address.assert().isEqualTo(changeAddress.shippingAddress)
             }
@@ -425,8 +424,8 @@ internal class OrderTest {
 
     private fun mockDeleteOrder(): VerifiedStage<OrderState> {
         return mockCreateOrder().then().given()
-            .`when`(DefaultDeleteAggregate)
-            .expectEventType(AggregateDeleted::class.java)
+            .whenCommand(DefaultDeleteAggregate)
+            .expectEventType(AggregateDeleted::class)
             .expectStateAggregate {
                 it.deleted.assert().isTrue()
             }
@@ -442,8 +441,8 @@ internal class OrderTest {
     fun deleteGivenDeleted() {
         val verifiedStageAfterDelete = mockDeleteOrder()
         verifiedStageAfterDelete.then().given()
-            .`when`(DefaultDeleteAggregate)
-            .expectErrorType(IllegalAccessDeletedAggregateException::class.java)
+            .whenCommand(DefaultDeleteAggregate)
+            .expectErrorType(IllegalAccessDeletedAggregateException::class)
             .expectError<IllegalAccessDeletedAggregateException> {
                 assertThat(it.aggregateId, equalTo(verifiedStageAfterDelete.stateAggregate.aggregateId))
             }.expectStateAggregate {
