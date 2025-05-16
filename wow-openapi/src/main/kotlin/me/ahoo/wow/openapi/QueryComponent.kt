@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
 import me.ahoo.wow.openapi.QueryComponent.Schema.conditionSchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.listQuerySchema
@@ -27,6 +28,7 @@ import me.ahoo.wow.openapi.QueryComponent.Schema.pagedQuerySchema
 import me.ahoo.wow.openapi.QueryComponent.Schema.singleQuerySchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
+import me.ahoo.wow.schema.typed.query.AggregatedCondition
 
 object QueryComponent {
 
@@ -57,6 +59,12 @@ object QueryComponent {
         fun OpenAPIComponentContext.singleQueryRequestBody(): io.swagger.v3.oas.models.parameters.RequestBody {
             return requestBody(SINGLE_QUERY_KEY) {
                 content(schema = singleQuerySchema())
+            }
+        }
+
+        fun OpenAPIComponentContext.aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.parameters.RequestBody {
+            return requestBody(aggregateMetadata.toStringWithAlias() + ".CountQuery") {
+                content(schema = schema(AggregatedCondition::class.java, aggregateMetadata.command.aggregateType))
             }
         }
 

@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.typed.query
 
-interface AggregatedCondition<StateAggregateType : Any>
+import me.ahoo.wow.api.query.ICondition
+
+interface AggregatedCondition<CommandAggregateType : Any> : ICondition

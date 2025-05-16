@@ -18,7 +18,9 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.example.api.order.ShippingAddress
-import me.ahoo.wow.schema.AggregatedFieldPaths.allFieldPaths
+import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.schema.AggregatedFieldPaths.commandAggregatedFieldPaths
+import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import org.junit.jupiter.api.Test
 
 class AggregatedFieldPathsTest {
@@ -32,6 +34,13 @@ class AggregatedFieldPathsTest {
     @Test
     fun allPropertyPaths() {
         DemoState::class.allFieldPaths(parentName = "state").forEach {
+            println(it)
+        }
+    }
+
+    @Test
+    fun allCommandAggregatedFieldPaths() {
+        Order::class.commandAggregatedFieldPaths().forEach {
             println(it)
         }
     }

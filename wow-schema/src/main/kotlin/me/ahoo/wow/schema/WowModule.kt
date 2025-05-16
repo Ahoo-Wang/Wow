@@ -26,6 +26,7 @@ import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
+import me.ahoo.wow.schema.typed.query.AggregatedConditionDefinitionProvider
 
 class WowModule(
     private val options: Set<WowOption> = WowOption.ALL
@@ -43,6 +44,7 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(DomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedDomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedFieldsDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(AggregatedConditionDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateAggregateDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
