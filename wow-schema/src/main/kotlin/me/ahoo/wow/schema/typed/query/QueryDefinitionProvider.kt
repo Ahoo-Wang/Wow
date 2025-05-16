@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.schema.typed.query
 
-import me.ahoo.wow.api.query.ICondition
+import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 
-interface AggregatedCondition<CommandAggregateType : Any> : ICondition<AggregatedCondition<CommandAggregateType>>
+interface QueryDefinitionProvider : CustomDefinitionProviderV2 {
+    val queryType: Class<*>
+    val aggregatedType: Class<*>
+}

@@ -13,29 +13,34 @@
 
 package me.ahoo.wow.schema.typed.query
 
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.api.query.Condition
-import me.ahoo.wow.api.query.ICondition
 import me.ahoo.wow.schema.JsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.typed.AggregatedFields
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 
-object AggregatedConditionDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
-    override val queryType: Class<*> = Condition::class.java
-    override val aggregatedType: Class<*> = AggregatedCondition::class.java
+abstract class AbstractAggregatedQueryDefinitionProvider : QueryDefinitionProvider {
+    override fun provideCustomSchemaDefinition(
+        javaType: ResolvedType,
+        context: SchemaGenerationContext
+    ): CustomDefinition? {
+        if (!javaType.isInstanceOf(aggregatedType)) {
+            return null
+        }
+        val schemaVersion = context.generatorConfig.schemaVersion
+        val queryType = context.typeContext.resolve(queryType)
+        val rootSchema = context.createStandardDefinition(queryType, this).asJsonSchema(schemaVersion)
+        if (javaType.typeBindings.isEmpty) {
+            return rootSchema.asCustomDefinition()
+        }
+        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
+        return createCustomDefinition(rootSchema, commandAggregateType, context)
+    }
 
-    override fun createCustomDefinition(
+    abstract fun createCustomDefinition(
         rootSchema: JsonSchema,
         commandAggregateType: Class<*>,
         context: SchemaGenerationContext
-    ): CustomDefinition {
-        val aggregatedFieldsType =
-            context.typeContext.resolve(AggregatedFields::class.java, commandAggregateType)
-        val aggregatedFieldsNode = context.createDefinitionReference(aggregatedFieldsType)
-        val propertiesNode = rootSchema.requiredGetProperties()
-        propertiesNode.set<ObjectNode>(ICondition<*>::field.name, aggregatedFieldsNode)
-        return rootSchema.asCustomDefinition()
-    }
+    ): CustomDefinition
 }

@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
@@ -51,7 +51,7 @@ class ListQuerySnapshotRouteSpec(
 
     override val summary: String
         get() = "List Query snapshot"
-    override val requestBody: RequestBody = componentContext.listQueryRequestBody()
+    override val requestBody: RequestBody = componentContext.aggregatedListQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
