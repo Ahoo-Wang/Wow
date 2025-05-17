@@ -13,6 +13,26 @@
 
 package me.ahoo.wow.schema.typed.query
 
-import me.ahoo.wow.api.query.ICondition
+import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.Operator
+import me.ahoo.wow.schema.typed.AggregatedFields
 
-interface AggregatedCondition<CommandAggregateType : Any> : ICondition<AggregatedCondition<CommandAggregateType>>
+interface IAggregatedCondition<CommandAggregateType : Any> {
+    val field: AggregatedFields<CommandAggregateType>
+
+    @get:Schema(defaultValue = "ALL")
+    val operator: Operator
+    val value: Any
+
+    @get:Schema(defaultValue = "{}")
+    val options: Map<String, Any>
+}
+
+data class AggregatedCondition<CommandAggregateType : Any>(
+    override val field: AggregatedFields<CommandAggregateType>,
+    override val operator: Operator,
+    override val value: Any,
+    @get:Schema(defaultValue = "[]")
+    val children: List<AggregatedCondition<CommandAggregateType>>,
+    override val options: Map<String, Any> = emptyMap()
+) : IAggregatedCondition<CommandAggregateType>

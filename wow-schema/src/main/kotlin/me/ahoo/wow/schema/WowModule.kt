@@ -26,7 +26,6 @@ import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
 import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
-import me.ahoo.wow.schema.typed.query.AggregatedConditionDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedListQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedPagedQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQueryDefinitionProvider
@@ -47,7 +46,6 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(DomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedDomainEventStreamDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedFieldsDefinitionProvider)
-        generalConfigPart.withCustomDefinitionProvider(AggregatedConditionDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedListQueryDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedPagedQueryDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(AggregatedSingleQueryDefinitionProvider)

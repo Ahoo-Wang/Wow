@@ -32,10 +32,6 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
             return null
         }
 
-        if (javaType.typeBindings.isEmpty) {
-            return null
-        }
-
         val schemaVersion = context.generatorConfig.schemaVersion
         val rootNode = context.generatorConfig.createObjectNode()
         rootNode.put(
@@ -43,6 +39,9 @@ object AggregatedFieldsDefinitionProvider : CustomDefinitionProviderV2 {
             SchemaKeyword.TAG_TYPE_STRING.toPropertyName(schemaVersion)
         )
         val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
+        if (commandAggregateType == Any::class.java) {
+            return CustomDefinition(rootNode)
+        }
         val enumValues = commandAggregateType.kotlin.commandAggregatedFieldPaths()
         rootNode.putPOJO(SchemaKeyword.TAG_ENUM.toPropertyName(schemaVersion), enumValues)
 
