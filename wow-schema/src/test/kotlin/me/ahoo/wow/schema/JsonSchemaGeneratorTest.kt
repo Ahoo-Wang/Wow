@@ -183,6 +183,26 @@ class JsonSchemaGeneratorTest {
         schema.getProperties().assert().isNotNull()
     }
 
+//    @Test
+//    fun inlineConditionForObject() {
+//        val jsonSchemaGenerator = JsonSchemaGenerator()
+//        val schema = jsonSchemaGenerator.generate(
+//            InlineCondition::class.java
+//        ).asJsonSchema()
+//        schema.getProperties().assert().isNotNull()
+//    }
+//
+//
+//    @Test
+//    fun inlineConditionForOrder() {
+//        val jsonSchemaGenerator = JsonSchemaGenerator()
+//        val schema = jsonSchemaGenerator.generate(
+//            InlineCondition::class.java,
+//            Order::class.java
+//        ).asJsonSchema()
+//        schema.getProperties().assert().isNotNull()
+//    }
+
     @Test
     fun openAPI() {
         val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)

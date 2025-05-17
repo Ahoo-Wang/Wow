@@ -13,20 +13,32 @@
 
 package me.ahoo.wow.schema.typed.query
 
+import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import me.ahoo.wow.api.query.ConditionCapable
-import me.ahoo.wow.schema.JsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
+import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 
-abstract class AggregatedConditionCapableDefinitionProvider : AbstractAggregatedQueryDefinitionProvider() {
-
-    override fun createCustomDefinition(
-        rootSchema: JsonSchema,
-        commandAggregateType: Class<*>,
+abstract class AggregatedConditionCapableDefinitionProvider : CustomDefinitionProviderV2 {
+    abstract val queryType: Class<*>
+    abstract val aggregatedType: Class<*>
+    override fun provideCustomSchemaDefinition(
+        javaType: ResolvedType,
         context: SchemaGenerationContext
-    ): CustomDefinition {
+    ): CustomDefinition? {
+        if (!javaType.isInstanceOf(aggregatedType)) {
+            return null
+        }
+        val schemaVersion = context.generatorConfig.schemaVersion
+        val queryType = context.typeContext.resolve(queryType)
+        val rootSchema = context.createStandardDefinition(queryType, this).asJsonSchema(schemaVersion)
+        if (javaType.typeBindings.isEmpty) {
+            return rootSchema.asCustomDefinition()
+        }
+        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
         val conditionType =
             context.typeContext.resolve(AggregatedCondition::class.java, commandAggregateType)
         val aggregateConditionNode = context.createDefinitionReference(conditionType)
