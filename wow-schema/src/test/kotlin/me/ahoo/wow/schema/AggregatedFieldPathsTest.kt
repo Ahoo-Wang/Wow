@@ -54,6 +54,7 @@ class AggregatedFieldPathsTest {
         @JsonIgnore
         var addresses: List<ShippingAddress> = emptyList()
         var addressArray: Array<ShippingAddress> = emptyArray()
+
         @JsonIgnore(false)
         var pagedQuery: PagedQuery = PagedQuery(Condition.all())
         var pagedList: PagedList<DemoState> = PagedList.empty()
