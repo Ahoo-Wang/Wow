@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.schema
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
 import me.ahoo.wow.schema.Types.isStdType
@@ -72,7 +74,7 @@ object TypeFieldPaths {
             return
         }
         memberProperties.filter {
-            it.visibility == KVisibility.PUBLIC
+            it.visibility == KVisibility.PUBLIC && it.scanAnnotation<JsonIgnore>()?.value != true
         }.forEach { property ->
             val fullName = property.resolveFieldName(parentName)
             fieldPaths.add(fullName)
