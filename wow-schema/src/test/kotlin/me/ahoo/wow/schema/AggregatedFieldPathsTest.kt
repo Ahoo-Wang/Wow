@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.schema
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.PagedList
@@ -25,21 +27,22 @@ import org.junit.jupiter.api.Test
 
 class AggregatedFieldPathsTest {
     @Test
-    fun allPropertyPathsForCondition() {
+    fun allFieldPathsForCondition() {
         Condition::class.allFieldPaths().forEach {
             println(it)
         }
     }
 
     @Test
-    fun allPropertyPaths() {
-        DemoState::class.allFieldPaths(parentName = "state").forEach {
-            println(it)
-        }
+    fun allFieldPaths() {
+        val allFieldPaths = DemoState::class.allFieldPaths(parentName = "state")
+        allFieldPaths.assert().contains("state.address")
+        allFieldPaths.assert().doesNotContain("addresses")
+        allFieldPaths.assert().contains("state.pagedQuery")
     }
 
     @Test
-    fun allCommandAggregatedFieldPaths() {
+    fun commandAggregatedFieldPaths() {
         Order::class.commandAggregatedFieldPaths().forEach {
             println(it)
         }
@@ -47,8 +50,11 @@ class AggregatedFieldPathsTest {
 
     class DemoState(override val id: String) : Identifier {
         var address: ShippingAddress = ShippingAddress("CN", "GD", "SZ", "YT", "YT")
+
+        @JsonIgnore
         var addresses: List<ShippingAddress> = emptyList()
         var addressArray: Array<ShippingAddress> = emptyArray()
+        @JsonIgnore(false)
         var pagedQuery: PagedQuery = PagedQuery(Condition.all())
         var pagedList: PagedList<DemoState> = PagedList.empty()
     }
