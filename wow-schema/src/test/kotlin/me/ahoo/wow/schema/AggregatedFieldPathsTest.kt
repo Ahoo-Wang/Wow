@@ -48,7 +48,7 @@ class AggregatedFieldPathsTest {
 
     @Test
     fun allFieldPathsForPolymorphic() {
-        PolymorphicConfig.Custom::class.allFieldPaths().forEach {
+        PolymorphicConfig::class.allFieldPaths().forEach {
             println(it)
         }
     }
