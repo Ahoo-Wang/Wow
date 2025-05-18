@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonSubTypes
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.schema.TypeFieldPaths.allFieldPaths
@@ -23,6 +24,7 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.jvmErasure
@@ -48,8 +50,8 @@ object TypeFieldPaths {
         parentName: String = "",
         fields: List<String> = emptyList(),
         maxDepth: Int = MAX_DEPTH
-    ): List<String> {
-        val fieldPaths = mutableListOf<String>()
+    ): Set<String> {
+        val fieldPaths = linkedSetOf<String>()
         if (fields.isNotEmpty()) {
             fieldPaths.addAll(fields)
         }
@@ -65,7 +67,7 @@ object TypeFieldPaths {
      * @param parentName The name of the parent property (used for nested properties).
      */
     private fun KClass<*>.allFieldPathsInternal(
-        fieldPaths: MutableList<String>,
+        fieldPaths: LinkedHashSet<String>,
         parentName: String,
         depth: Int,
         maxDepth: Int
@@ -73,8 +75,25 @@ object TypeFieldPaths {
         if (depth > MAX_DEPTH) {
             return
         }
+        val jsonSubTypes = this.findAnnotation<JsonSubTypes>()
+        if (jsonSubTypes != null) {
+            for (jsonSubType in jsonSubTypes.value) {
+                val subType = jsonSubType.value
+                subType.allFieldPathsInternal(
+                    fieldPaths = fieldPaths,
+                    parentName = parentName,
+                    depth = depth + 1,
+                    maxDepth = maxDepth
+                )
+            }
+            return
+        }
+
         memberProperties.filter {
-            it.visibility == KVisibility.PUBLIC && it.scanAnnotation<JsonIgnore>()?.value != true
+            it.visibility == KVisibility.PUBLIC &&
+                // 排除静态属性
+                it.isConst.not() &&
+                it.scanAnnotation<JsonIgnore>()?.value != true
         }.forEach { property ->
             val fullName = property.resolveFieldName(parentName)
             fieldPaths.add(fullName)
@@ -122,7 +141,7 @@ object TypeFieldPaths {
 }
 
 object AggregatedFieldPaths {
-    fun KClass<*>.stateAggregatedFieldPaths(): List<String> {
+    fun KClass<*>.stateAggregatedFieldPaths(): Set<String> {
         return allFieldPaths(
             parentName = StateAggregateRecords.STATE,
             fields = listOf(
@@ -142,7 +161,7 @@ object AggregatedFieldPaths {
         )
     }
 
-    fun KClass<*>.commandAggregatedFieldPaths(): List<String> {
+    fun KClass<*>.commandAggregatedFieldPaths(): Set<String> {
         val aggregateMetadata = this.java.aggregateMetadata<Any, Any>()
         val stateAggregateType = aggregateMetadata.state.aggregateType.kotlin
         return stateAggregateType.stateAggregatedFieldPaths()

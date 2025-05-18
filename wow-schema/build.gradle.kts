@@ -12,6 +12,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-joda-money")
     testImplementation(libs.json.schema.validator)
     testImplementation("io.swagger.core.v3:swagger-core-jakarta")
+    testImplementation(project(":wow-models"))
     testImplementation(project(":wow-tck"))
     testImplementation(project(":example-api"))
     testImplementation(project(":example-domain"))
