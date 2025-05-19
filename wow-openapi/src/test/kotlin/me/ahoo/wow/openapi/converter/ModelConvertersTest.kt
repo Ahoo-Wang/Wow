@@ -5,7 +5,6 @@ import io.swagger.v3.core.converter.ModelConverters
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
-import me.ahoo.wow.api.query.IPagedList
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.openapi.context.CurrentOpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -55,10 +54,5 @@ class ModelConvertersTest {
         schemas.assert().containsKey("wow.openapi.DataList")
     }
 }
-
-data class DataPagedList(
-    override val total: Long,
-    override val list: List<Data>
-) : IPagedList<Data>
 
 data class Data(override val id: String) : Identifier
