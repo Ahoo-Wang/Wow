@@ -38,14 +38,6 @@ class RouterSpecs(
 
     @Volatile
     private var built: Boolean = false
-    private val openAPI = OpenAPI().apply {
-        specVersion(SpecVersion.V31)
-        info = Info()
-            .title(currentContext.getContextAlias())
-            .description(currentContext.contextName)
-        paths = Paths()
-        components = Components()
-    }
 
     private fun buildGlobalRouteSpec() {
         GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
@@ -73,7 +65,25 @@ class RouterSpecs(
         }
     }
 
-    private fun mergeComponentContext() {
+    fun mergeOpenAPI(openAPI: OpenAPI) {
+        openAPI.apply {
+            specVersion(SpecVersion.V31)
+            info = Info()
+                .title(currentContext.getContextAlias())
+                .description(currentContext.contextName)
+            if (paths == null) {
+                paths = Paths()
+            }
+            if (components == null) {
+                components = Components()
+            }
+        }
+        val groupedPathRoutes = routes.groupBy {
+            it.path
+        }
+        for ((path, routeSpecs) in groupedPathRoutes) {
+            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
+        }
         componentContext.finish()
         componentContext.schemas.forEach { (name, schema) ->
             openAPI.components.addSchemas(name, schema)
@@ -92,11 +102,6 @@ class RouterSpecs(
         }
     }
 
-    fun openAPI(): OpenAPI {
-        build()
-        return openAPI
-    }
-
     fun build(): RouterSpecs {
         if (built) {
             return this
@@ -104,13 +109,6 @@ class RouterSpecs(
         built = true
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
-        val groupedPathRoutes = routes.groupBy {
-            it.path
-        }
-        for ((path, routeSpecs) in groupedPathRoutes) {
-            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
-        }
-        mergeComponentContext()
         return this
     }
 }

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot.starter.openapi
 
-import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.RouterSpecs
@@ -54,7 +53,7 @@ class OpenAPIAutoConfiguration {
     }
 
     @Bean
-    fun openAPI(routerSpecs: RouterSpecs): OpenAPI {
-        return routerSpecs.openAPI()
+    fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
+        return WowOpenApiCustomizer(routerSpecs)
     }
 }
