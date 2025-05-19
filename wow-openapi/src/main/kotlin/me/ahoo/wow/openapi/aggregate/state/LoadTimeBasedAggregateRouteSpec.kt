@@ -50,7 +50,7 @@ class LoadTimeBasedAggregateRouteSpec(
         get() = "state/time/{${MessageRecords.CREATE_TIME}}"
 
     override val summary: String
-        get() = "Load time based state aggregate"
+        get() = "Load Time Based State Aggregate"
 
     override val parameters: List<Parameter>
         get() = super.parameters + componentContext.createTimePathParameter()

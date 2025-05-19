@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -31,7 +32,7 @@ class CountEventStreamRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -47,8 +48,9 @@ class CountEventStreamRouteSpec(
     override val appendPathSuffix: String
         get() = "event/count"
 
-    override val summary: String
+    override val operationSummary: String
         get() = "Count Event Stream"
+
     override val requestBody: RequestBody = componentContext.countQueryRequestBody()
 
     override val responses: ApiResponses = ApiResponses().apply {

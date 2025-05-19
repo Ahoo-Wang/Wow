@@ -50,7 +50,7 @@ class LoadVersionedAggregateRouteSpec(
         get() = "state/{${MessageRecords.VERSION}}"
 
     override val summary: String
-        get() = "Load versioned state aggregate"
+        get() = "Load Versioned State Aggregate"
 
     override val parameters: List<Parameter>
         get() = super.parameters + componentContext.versionPathParameter()

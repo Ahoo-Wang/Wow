@@ -25,6 +25,7 @@ import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryReques
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -34,7 +35,7 @@ class PagedQuerySnapshotStateRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -50,8 +51,8 @@ class PagedQuerySnapshotStateRouteSpec(
     override val appendPathSuffix: String
         get() = "snapshot/paged/state"
 
-    override val summary: String
-        get() = "Paged Query snapshot state"
+    override val operationSummary: String
+        get() = "Paged Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedPagedQueryRequestBody(aggregateMetadata)
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())

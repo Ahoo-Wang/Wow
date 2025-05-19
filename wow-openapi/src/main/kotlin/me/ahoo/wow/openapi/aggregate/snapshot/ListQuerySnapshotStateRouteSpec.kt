@@ -24,6 +24,7 @@ import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequest
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -33,7 +34,7 @@ class ListQuerySnapshotStateRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -49,8 +50,8 @@ class ListQuerySnapshotStateRouteSpec(
     override val appendPathSuffix: String
         get() = "snapshot/list/state"
 
-    override val summary: String
-        get() = "List Query snapshot state"
+    override val operationSummary: String
+        get() = "List Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedListQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {

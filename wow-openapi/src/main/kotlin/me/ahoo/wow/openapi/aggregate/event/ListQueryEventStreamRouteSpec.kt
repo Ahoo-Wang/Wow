@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.QueryComponent.Response.loadEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -31,7 +32,7 @@ class ListQueryEventStreamRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -46,7 +47,7 @@ class ListQueryEventStreamRouteSpec(
     override val appendPathSuffix: String
         get() = "event/list"
 
-    override val summary: String
+    override val operationSummary: String
         get() = "List Query Event Stream"
     override val requestBody: RequestBody = componentContext.listQueryRequestBody()
 

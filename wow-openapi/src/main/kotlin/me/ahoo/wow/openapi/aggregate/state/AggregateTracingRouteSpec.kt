@@ -49,7 +49,7 @@ class AggregateTracingRouteSpec(
     override val appendPathSuffix: String
         get() = "state/tracing"
     override val summary: String
-        get() = "Get aggregate tracing"
+        get() = "Get Aggregate Tracing"
     override val requestBody: RequestBody? = null
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder()
