@@ -8,6 +8,7 @@ import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.models.tree.Leaf
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -89,5 +90,25 @@ class OpenAPISchemaBuilderTest {
         val childrenItem = conditionSchema?.properties[Condition::children.name]?.items
         childrenItem.assert().isNotNull()
         childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
+    }
+
+    @Test
+    fun leafCategory() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        openAPISchemaBuilder.generateSchema(LeafCategory::class.java)
+        val componentsSchemas = openAPISchemaBuilder.build()
+        val schema = componentsSchemas["wow.schema.LeafCategory"]
+        val childrenItem = schema?.properties[LeafCategory::children.name]?.items
+        childrenItem.assert().isNotNull()
+    }
+}
+data class LeafCategory(
+    override val children: List<LeafCategory>,
+    override val sortId: Int,
+    override val code: String,
+    override val name: String
+) : Leaf<LeafCategory> {
+    override fun withChildren(children: List<LeafCategory>): LeafCategory {
+        return this.copy(children = children)
     }
 }

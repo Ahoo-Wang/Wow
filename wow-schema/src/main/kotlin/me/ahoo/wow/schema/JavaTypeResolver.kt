@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JavaType
 
 object JavaTypeResolver {
     private val cachedTypeResolver: TypeResolver = TypeResolver()
+
     fun JavaType.toResolvedType(typeResolver: TypeResolver = cachedTypeResolver): ResolvedType {
         if (this.bindings.isEmpty) {
             return typeResolver.resolve(this.rawClass)

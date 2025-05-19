@@ -34,6 +34,7 @@ import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaType
 
 object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
+    private val cachedTypes = mutableSetOf<ResolvedType>()
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
@@ -51,6 +52,10 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         if (kotlinGettersIfNonFields.isEmpty()) {
             return null
         }
+        if (cachedTypes.contains(javaType)) {
+            return null
+        }
+        cachedTypes.add(javaType)
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
         rootSchema.ensureProperties()
         val propertiesNode: ObjectNode = rootSchema.requiredGetProperties()
