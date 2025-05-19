@@ -26,6 +26,7 @@ import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryReque
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -35,7 +36,7 @@ class SingleSnapshotRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -51,8 +52,8 @@ class SingleSnapshotRouteSpec(
     override val appendPathSuffix: String
         get() = "snapshot/single"
 
-    override val summary: String
-        get() = "Single snapshot"
+    override val operationSummary: String
+        get() = "Single Snapshot"
     override val requestBody: RequestBody = componentContext.aggregatedSingleQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {

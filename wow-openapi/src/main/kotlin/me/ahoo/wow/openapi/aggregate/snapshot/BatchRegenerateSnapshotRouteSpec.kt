@@ -35,7 +35,7 @@ class BatchRegenerateSnapshotRouteSpec(
             .resourceName("snapshot")
             .operation("batch_regenerate").build()
     override val summary: String
-        get() = "Batch regenerate aggregate snapshot"
+        get() = "Batch Regenerate Aggregate Snapshot"
 
     override val method: String
         get() = Https.Method.PUT

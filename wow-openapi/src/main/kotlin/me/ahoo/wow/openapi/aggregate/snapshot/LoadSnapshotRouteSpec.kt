@@ -51,7 +51,7 @@ class LoadSnapshotRouteSpec(
         get() = "snapshot"
 
     override val summary: String
-        get() = "Get snapshot"
+        get() = "Get Snapshot"
 
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())

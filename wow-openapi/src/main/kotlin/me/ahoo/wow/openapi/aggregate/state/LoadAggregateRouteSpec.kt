@@ -47,7 +47,7 @@ class LoadAggregateRouteSpec(
         get() = "state"
 
     override val summary: String
-        get() = "Load state aggregate"
+        get() = "Load State Aggregate"
 
     override val requestBody: RequestBody? = null
     override val responses: ApiResponses = componentContext.loadAggregateResponses(summary, aggregateMetadata)

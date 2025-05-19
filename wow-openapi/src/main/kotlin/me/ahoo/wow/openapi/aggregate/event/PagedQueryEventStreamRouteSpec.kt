@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.QueryComponent.Response.pagedListEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -31,7 +32,7 @@ class PagedQueryEventStreamRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : AggregateRouteSpec {
+) : TenantOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -46,8 +47,9 @@ class PagedQueryEventStreamRouteSpec(
     override val appendPathSuffix: String
         get() = "event/paged"
 
-    override val summary: String
+    override val operationSummary: String
         get() = "Paged Query Event Stream"
+
     override val requestBody: RequestBody = componentContext.pagedQueryRequestBody()
     override val responses: ApiResponses = ApiResponses().apply {
         addApiResponse(Https.Code.OK, componentContext.pagedListEventStreamResponse(aggregateMetadata))
