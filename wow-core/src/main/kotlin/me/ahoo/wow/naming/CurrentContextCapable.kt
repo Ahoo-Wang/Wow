@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.naming.NamedBoundedContext
-
-object CurrentBoundedContext : CurrentContextCapable<NamedBoundedContext> {
-    @Volatile
-    override var current: NamedBoundedContext = MaterializedNamedBoundedContext("")
+interface CurrentContextCapable<CONTEXT> {
+    val current: CONTEXT
 }
