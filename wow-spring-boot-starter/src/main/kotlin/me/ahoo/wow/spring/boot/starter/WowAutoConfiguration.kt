@@ -52,7 +52,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         val contextName =
             wowProperties.contextName ?: applicationContext.environment.getRequiredProperty(SPRING_APPLICATION_NAME)
         val currentContext = MaterializedNamedBoundedContext(contextName)
-        CurrentBoundedContext.context = currentContext
+        CurrentBoundedContext.current = currentContext
         return currentContext
     }
 }

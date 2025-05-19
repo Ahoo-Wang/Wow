@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.openapi.context
 
-object CurrentOpenAPIComponentContext {
+import me.ahoo.wow.naming.CurrentContextCapable
+
+object CurrentOpenAPIComponentContext : CurrentContextCapable<OpenAPIComponentContext?> {
     @Volatile
-    var current: OpenAPIComponentContext? = null
+    override var current: OpenAPIComponentContext? = null
 }

@@ -35,7 +35,7 @@ class BoundedContextSchemaNameConverter : ModelConverter {
             if (rawClass.isStdType()) {
                 return
             }
-            val namePrefix = rawClass.resolveNamePrefix() ?: CurrentBoundedContext.context.getContextAliasPrefix()
+            val namePrefix = rawClass.resolveNamePrefix() ?: CurrentBoundedContext.current.getContextAliasPrefix()
             name = namePrefix + rawClass.toSchemaName()
         }
 
@@ -45,7 +45,7 @@ class BoundedContextSchemaNameConverter : ModelConverter {
         }
 
         fun AnnotatedType.resolveName(resolvedType: ResolvedType) {
-            name = resolvedType.toSchemaName(CurrentBoundedContext.context.getContextAliasPrefix())
+            name = resolvedType.toSchemaName(CurrentBoundedContext.current.getContextAliasPrefix())
         }
 
         fun AnnotatedType.resolveName() {
