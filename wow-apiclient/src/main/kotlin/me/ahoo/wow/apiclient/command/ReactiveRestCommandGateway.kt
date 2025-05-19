@@ -14,6 +14,7 @@
 package me.ahoo.wow.apiclient.command
 
 import me.ahoo.coapi.api.CoApi
+import me.ahoo.coapi.api.LoadBalanced
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono
 import java.net.URI
 
 @CoApi
+@LoadBalanced
 interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<CommandResult>>, Mono<CommandResult>> {
 
     @PostExchange
