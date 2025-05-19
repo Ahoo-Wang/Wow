@@ -45,6 +45,9 @@ class BoundedContextSchemaNameConverter : ModelConverter {
         }
 
         fun AnnotatedType.resolveName(resolvedType: ResolvedType) {
+            if (resolvedType.typeBindings.isEmpty) {
+                return resolveName(resolvedType.erasedType)
+            }
             name = resolvedType.toSchemaName(CurrentBoundedContext.current.getContextAliasPrefix())
         }
 
