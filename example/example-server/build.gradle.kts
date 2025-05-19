@@ -75,6 +75,7 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-mongo")
 //    implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     implementation("me.ahoo.coapi:coapi-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
