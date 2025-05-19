@@ -55,7 +55,6 @@ class WowSchemaConverter : ModelConverter {
                 schema = current.schema(resolvedType)
             }
         }
-        current.finish()
         if (schema != null) {
             schema.name = annotatedType.name
         }
