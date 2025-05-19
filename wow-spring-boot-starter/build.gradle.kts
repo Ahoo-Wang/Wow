@@ -56,6 +56,7 @@ dependencies {
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
     "openapiSupportImplementation"(project(":wow-openapi"))
+    "openapiSupportImplementation"("org.springdoc:springdoc-openapi-starter-common")
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
