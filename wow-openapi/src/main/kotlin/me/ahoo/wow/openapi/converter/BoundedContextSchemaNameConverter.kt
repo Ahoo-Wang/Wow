@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.converter
 
+import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.databind.JavaType
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
@@ -20,21 +21,48 @@ import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.CurrentBoundedContext
+import me.ahoo.wow.schema.JavaTypeResolver.toResolvedType
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.resolveNamePrefix
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 
 class BoundedContextSchemaNameConverter : ModelConverter {
     companion object {
-        fun AnnotatedType.getRawClass(): Class<*>? {
-            val schemaType = this.type
-            if (schemaType is Class<*>) {
-                return schemaType
+        fun AnnotatedType.resolveName(rawClass: Class<*>) {
+            if (name.isNullOrBlank().not()) {
+                return
             }
-            if (schemaType is JavaType) {
-                return schemaType.rawClass
+            if (rawClass.isStdType()) {
+                return
             }
-            return null
+            val namePrefix = rawClass.resolveNamePrefix() ?: CurrentBoundedContext.context.getContextAliasPrefix()
+            name = namePrefix + rawClass.toSchemaName()
+        }
+
+        fun AnnotatedType.resolveName(javaType: JavaType) {
+            val resolvedType = javaType.toResolvedType()
+            resolveName(resolvedType)
+        }
+
+        fun AnnotatedType.resolveName(resolvedType: ResolvedType) {
+            name = resolvedType.toSchemaName(CurrentBoundedContext.context.getContextAliasPrefix())
+        }
+
+        fun AnnotatedType.resolveName() {
+            val schemaType = type
+            when (schemaType) {
+                is Class<*> -> {
+                    resolveName(schemaType)
+                }
+
+                is JavaType -> {
+                    resolveName(schemaType)
+                }
+
+                else -> {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -43,23 +71,10 @@ class BoundedContextSchemaNameConverter : ModelConverter {
         context: ModelConverterContext,
         chain: Iterator<ModelConverter>
     ): Schema<*>? {
-        resolveName(type)
+        type.resolveName()
         if (chain.hasNext()) {
             return chain.next().resolve(type, context, chain)
         }
         return null
-    }
-
-    private fun resolveName(type: AnnotatedType) {
-        if (type.name.isNullOrBlank().not()) {
-            return
-        }
-        val rawClass = type.getRawClass() ?: return
-
-        if (rawClass.isStdType()) {
-            return
-        }
-        val namePrefix = rawClass.resolveNamePrefix() ?: CurrentBoundedContext.context.getContextAliasPrefix()
-        type.name = namePrefix + rawClass.toSchemaName()
     }
 }
