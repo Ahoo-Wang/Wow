@@ -27,23 +27,31 @@ object ErrorConverterRegistrar {
     init {
         ServiceLoader.load(ErrorConverterFactory::class.java).sortedByOrder()
             .forEach {
-                val errorConverter = it.create() as ErrorConverter<Throwable>
-                register(it.supportedType, errorConverter)
+                register(it)
             }
     }
 
-    fun register(throwableClass: Class<out Throwable>, errorConverter: ErrorConverter<Throwable>) {
+    fun register(factory: ErrorConverterFactory<out Throwable>): ErrorConverter<Throwable>? {
+        return register(factory.supportedType, factory.create() as ErrorConverter<Throwable>)
+    }
+
+    fun register(
+        throwableClass: Class<out Throwable>,
+        errorConverter: ErrorConverter<Throwable>
+    ): ErrorConverter<Throwable>? {
         val previous = registrar.put(throwableClass, errorConverter)
         log.info {
             "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$errorConverter]."
         }
+        return previous
     }
 
-    fun unregister(throwableClass: Class<out Throwable>) {
+    fun unregister(throwableClass: Class<out Throwable>): ErrorConverter<Throwable>? {
         val removed = registrar.remove(throwableClass)
         log.info {
             "Unregister - throwableClass:[$throwableClass] - removed:[$removed]."
         }
+        return removed
     }
 
     fun get(throwableClass: Class<out Throwable>): ErrorConverter<Throwable>? {

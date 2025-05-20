@@ -1,5 +1,6 @@
 package me.ahoo.wow.exception
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import org.hamcrest.MatcherAssert.*
 import org.hamcrest.Matchers.*
@@ -9,10 +10,12 @@ class ErrorInfoConverterRegistrarTest {
 
     @Test
     fun register() {
-        val errorInfo = CustomException().toErrorInfo()
-        assertThat(errorInfo.errorCode, equalTo("CUSTOM_EXCEPTION"))
-        ErrorConverterRegistrar.unregister(CustomException::class.java)
+        CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
+        ErrorConverterRegistrar.unregister(CustomException::class.java).assert()
+            .isEqualTo(CustomExceptionErrorConverter)
         assertThat(CustomException().toErrorInfo().errorCode, equalTo(ErrorCodes.BAD_REQUEST))
+        ErrorConverterRegistrar.register(CustomExceptionErrorConverterFactory()).assert().isNull()
+        CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
     }
 }
 
