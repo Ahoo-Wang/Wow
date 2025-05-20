@@ -14,6 +14,10 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.exception.DefaultErrorConverter
+import me.ahoo.wow.exception.ErrorConverter
+import me.ahoo.wow.exception.ErrorConverterFactory
+import me.ahoo.wow.exception.ErrorConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
 import org.assertj.core.api.AssertionsForInterfaceTypes
@@ -28,11 +32,22 @@ internal class WowAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
+            .withBean(ErrorConverterFactory::class.java, {
+                return@withBean object : ErrorConverterFactory<Throwable> {
+                    override val supportedType: Class<Throwable>
+                        get() = Throwable::class.java
+
+                    override fun create(): ErrorConverter<Throwable> {
+                        return DefaultErrorConverter
+                    }
+                }
+            })
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(WowProperties::class.java)
                     .hasSingleBean(ServiceProvider::class.java)
                     .hasSingleBean(NamedBoundedContext::class.java)
+                    .hasSingleBean(ErrorConverterRegistrar::class.java)
             }
     }
 

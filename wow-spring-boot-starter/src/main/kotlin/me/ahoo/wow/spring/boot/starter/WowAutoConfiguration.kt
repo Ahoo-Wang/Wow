@@ -12,11 +12,15 @@
  */
 package me.ahoo.wow.spring.boot.starter
 
+import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.exception.ErrorConverterFactory
+import me.ahoo.wow.exception.ErrorConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.spring.SpringServiceProvider
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -54,5 +58,15 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         val currentContext = MaterializedNamedBoundedContext(contextName)
         CurrentBoundedContext.current = currentContext
         return currentContext
+    }
+
+    @Bean
+    fun errorConverterRegistrar(
+        errorConverterFactoryProvider: ObjectProvider<ErrorConverterFactory<*>>
+    ): ErrorConverterRegistrar {
+        errorConverterFactoryProvider.sortedByOrder().forEach {
+            ErrorConverterRegistrar.register(it)
+        }
+        return ErrorConverterRegistrar
     }
 }
