@@ -72,28 +72,28 @@ class AggregatedFieldPathsTest {
         var pagedQuery: PagedQuery = PagedQuery(Condition.all())
         var pagedList: PagedList<DemoState> = PagedList.empty()
     }
+}
 
-    @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.EXISTING_PROPERTY,
-        property = TypeCapable.TYPE
-    )
-    @JsonSubTypes(
-        JsonSubTypes.Type(value = PolymorphicConfig.Default::class, name = PolymorphicConfig.Default.TYPE),
-        JsonSubTypes.Type(value = PolymorphicConfig.Custom::class, name = PolymorphicConfig.Custom.TYPE),
-    )
-    interface PolymorphicConfig : PolymorphicTypeCapable {
-        object Default : PolymorphicConfig {
-            const val TYPE = "default"
-            override val type: String = TYPE
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = TypeCapable.TYPE
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = PolymorphicConfig.Default::class, name = PolymorphicConfig.Default.TYPE),
+    JsonSubTypes.Type(value = PolymorphicConfig.Custom::class, name = PolymorphicConfig.Custom.TYPE),
+)
+interface PolymorphicConfig : PolymorphicTypeCapable {
+    object Default : PolymorphicConfig {
+        const val TYPE = "default"
+        override val type: String = TYPE
+    }
+
+    data class Custom(val value: String) : PolymorphicConfig {
+        companion object {
+            const val TYPE = "custom"
         }
 
-        data class Custom(val value: String) : PolymorphicConfig {
-            companion object {
-                const val TYPE = "custom"
-            }
-
-            override val type: String = TYPE
-        }
+        override val type: String = TYPE
     }
 }
