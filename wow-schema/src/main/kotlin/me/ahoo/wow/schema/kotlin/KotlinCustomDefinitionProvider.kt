@@ -58,7 +58,7 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         cachedTypes.add(javaType)
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
         rootSchema.ensureProperties()
-        val propertiesNode: ObjectNode = rootSchema.requiredGetProperties()
+        val propertiesNode: ObjectNode = rootSchema.getProperties() ?: return rootSchema.asCustomDefinition()
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
                 val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
