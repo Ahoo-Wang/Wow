@@ -266,6 +266,12 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
+    fun schemaPolymorphic() {
+        val schema = jsonSchemaGenerator.generate(PolymorphicConfig::class.java)
+        schema.get("anyOf").assert().isNotNull()
+    }
+
+    @Test
     fun javaType() {
         val jsonSchemaGenerator = JsonSchemaGenerator()
         jsonSchemaGenerator.generate(CosIdGeneratorStat::class.java)
