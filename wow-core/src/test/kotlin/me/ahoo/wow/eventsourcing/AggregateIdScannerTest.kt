@@ -13,19 +13,17 @@
 
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
-import reactor.core.publisher.Flux
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-interface AggregateIdScanner {
-    companion object {
-        const val FIRST_ID = "(0)"
-        const val LAST_ID = "~"
+class AggregateIdScannerTest {
+    @Test
+    fun firstId() {
+        AggregateIdScanner.FIRST_ID.assert().isEqualTo("(0)")
     }
 
-    fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String = FIRST_ID,
-        limit: Int = 10
-    ): Flux<AggregateId>
+    @Test
+    fun lastId() {
+        AggregateIdScanner.LAST_ID.assert().isEqualTo("~")
+    }
 }
