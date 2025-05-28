@@ -13,20 +13,23 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.annotations.tags.Tag
+import io.swagger.v3.core.util.AnnotationsUtils
 import io.swagger.v3.oas.annotations.tags.Tags
+import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import kotlin.jvm.optionals.getOrDefault
+import io.swagger.v3.oas.annotations.tags.Tag as AnnotationTag
 
 object Tags {
-    fun Class<*>.toTags(): Set<String> {
-        val tags = mutableSetOf<String>()
+    fun Class<*>.toTags(): Set<Tag> {
+        val annotationTags = mutableSetOf<AnnotationTag>()
 
-        kotlin.scanAnnotation<Tag>()?.let {
-            tags.add(it.name)
+        kotlin.scanAnnotation<AnnotationTag>()?.let {
+            annotationTags.add(it)
         }
         kotlin.scanAnnotation<Tags>()?.let { values ->
-            tags.addAll(values.value.map { it.name })
+            annotationTags.addAll(values.value)
         }
-        return tags
+        return AnnotationsUtils.getTags(annotationTags.toTypedArray(), false).getOrDefault(emptySet())
     }
 }

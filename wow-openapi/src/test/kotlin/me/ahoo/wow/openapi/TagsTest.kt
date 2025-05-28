@@ -5,13 +5,24 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.Tags.toTags
 import org.junit.jupiter.api.Test
 
-@Tag(name = "test")
-@Tag(name = "test2")
 class TagsTest {
 
     @Test
-    fun asTags() {
-        val tags = TagsTest::class.java.toTags()
-        tags.assert().contains("test", "test2")
+    fun singleToTags() {
+        val tags = SingleTag::class.java.toTags()
+        tags.map { it.name }.assert().contains("test")
+    }
+
+    @Test
+    fun multiToTags() {
+        val tags = MultiTag::class.java.toTags()
+        tags.map { it.name }.assert().contains("test", "test2")
     }
 }
+
+@Tag(name = "test")
+@Tag(name = "test2")
+interface MultiTag
+
+@Tag(name = "test")
+interface SingleTag

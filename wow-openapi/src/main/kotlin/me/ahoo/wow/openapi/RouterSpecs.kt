@@ -84,6 +84,9 @@ class RouterSpecs(
         for ((path, routeSpecs) in groupedPathRoutes) {
             openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
         }
+        routes.flatMap { it.tags }.distinctBy { it.name }.forEach {
+            openAPI.addTagsItem(it)
+        }
         componentContext.finish()
         componentContext.schemas.forEach { (name, schema) ->
             openAPI.components.addSchemas(name, schema)

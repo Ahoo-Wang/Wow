@@ -19,6 +19,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
+import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
@@ -111,9 +112,9 @@ class CommandRouteSpec(
         get() = commandRouteMetadata.summary.ifBlank { commandRouteMetadata.commandMetadata.name }
     override val description: String
         get() = commandRouteMetadata.description
-    override val tags: List<String>
+    override val tags: List<Tag>
         get() {
-            val tags = mutableListOf<String>()
+            val tags = mutableListOf<Tag>()
             tags.addAll(super.tags)
             commandRouteMetadata.commandMetadata.commandType.toTags().let {
                 tags.addAll(it)

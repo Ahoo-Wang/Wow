@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponses
+import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.DescriptionCapable
@@ -32,8 +33,8 @@ interface RouteSpec : Identifier, SummaryCapable, DescriptionCapable {
     val method: String
     override val description: String
         get() = ""
-    val tags: List<String>
-        get() = listOf(Wow.WOW)
+    val tags: List<Tag>
+        get() = listOf(Tag().name(Wow.WOW).description("Wow framework internal interface"))
     val accept: List<String>
         get() = listOf(Https.MediaType.APPLICATION_JSON)
     val parameters: List<Parameter>
@@ -47,7 +48,7 @@ fun RouteSpec.toOperation(): Operation {
     operation.operationId = id
     operation.summary = summary
     operation.description = description
-    operation.tags = tags
+    operation.tags = tags.map { it.name }
     operation.requestBody = requestBody
     operation.parameters = parameters
     operation.responses = responses
