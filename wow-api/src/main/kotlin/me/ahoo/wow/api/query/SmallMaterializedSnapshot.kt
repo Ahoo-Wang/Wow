@@ -26,7 +26,7 @@ import me.ahoo.wow.api.naming.Materialized
  * @param firstEventTime The timestamp of the first event, used to record when the state was first changed.
  * @param state The current state, with a generic type.
  */
-data class SlimMaterializedSnapshot<S : Any>(
+data class SmallMaterializedSnapshot<S : Any>(
     override val version: Int,
     override val firstEventTime: Long,
     override val state: S
@@ -41,8 +41,8 @@ data class SlimMaterializedSnapshot<S : Any>(
  * @param materialize A function that transforms the original state into a new state.
  * @return Returns a transformed simplified materialized snapshot.
  */
-fun <S : Any, D : Any> MaterializedSnapshot<S>.toSlim(materialize: (S) -> D): SlimMaterializedSnapshot<D> {
-    return SlimMaterializedSnapshot(
+fun <S : Any, D : Any> MaterializedSnapshot<S>.toSmall(materialize: (S) -> D): SmallMaterializedSnapshot<D> {
+    return SmallMaterializedSnapshot(
         version = version,
         firstEventTime = firstEventTime,
         state = materialize(state)
