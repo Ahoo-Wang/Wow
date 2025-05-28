@@ -15,8 +15,6 @@ package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.FirstEventTimeCapable
-import me.ahoo.wow.api.modeling.StateCapable
-import me.ahoo.wow.api.naming.Materialized
 
 /**
  * Represents a simplified materialized snapshot with generic state.
@@ -30,7 +28,7 @@ data class SmallMaterializedSnapshot<S : Any>(
     override val version: Int,
     override val firstEventTime: Long,
     override val state: S
-) : Version, Materialized, FirstEventTimeCapable, StateCapable<S>
+) : Version, FirstEventTimeCapable, IMaterializedSnapshot<S>
 
 /**
  * Converts a materialized snapshot into a simplified snapshot form.
