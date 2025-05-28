@@ -16,6 +16,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.DeletedCapable
+import me.ahoo.wow.api.modeling.EventIdCapable
 import me.ahoo.wow.api.modeling.EventTimeCapable
 import me.ahoo.wow.api.modeling.FirstEventTimeCapable
 import me.ahoo.wow.api.modeling.FirstOperatorCapable
@@ -32,6 +33,7 @@ interface ReadOnlyStateAggregate<S : Any> :
     OperatorCapable,
     FirstEventTimeCapable,
     EventTimeCapable,
+    EventIdCapable,
     DeletedCapable {
     override val aggregateId: AggregateId
 
@@ -42,8 +44,4 @@ interface ReadOnlyStateAggregate<S : Any> :
 
     val expectedNextVersion: Int
         get() = version + 1
-
-    //region DomainEventStream State
-    val eventId: String
-    //endregion
 }
