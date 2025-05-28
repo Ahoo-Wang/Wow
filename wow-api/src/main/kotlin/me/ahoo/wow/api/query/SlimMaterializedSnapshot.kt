@@ -20,22 +20,11 @@ import me.ahoo.wow.api.naming.Materialized
 
 /**
  * Represents a simplified materialized snapshot with generic state.
- * A materialized snapshot is a point-in-time representation of an object's state, including its ownership, version, state, and time-related information.
- * This class implements several interfaces to provide information about ownership ID, version, materialization, event time, state, and deletion status.
+ * This data class implements multiple interfaces to provide version, materialization, first event time, and state information.
  *
- * @param version The version number of the snapshot, indicating the sequence or revision of the snapshot.
- * @param firstEventTime The timestamp of the first event, marking when the first change occurred to the state.
- * @param eventTime The timestamp of the last event, indicating the last time the state was updated.
- * @param state The state object, with generic type S, representing the specific state of the snapshot.
- * @param deleted A boolean flag indicating whether the snapshot is considered deleted.
- *
- * The class inherits from several interfaces to ensure the snapshot can provide necessary information in a standardized way:
- * - Version provides version information.
- * - Materialized indicates that the snapshot is a materialized representation of the state.
- * - FirstEventTimeCapable allows querying the timestamp of the first event.
- * - EventTimeCapable allows querying the timestamp of the last event.
- * - StateCapable provides access to the state object.
- * - DeletedCapable indicates whether the snapshot is deleted.
+ * @param version The version of the snapshot, used to indicate the version of the state.
+ * @param firstEventTime The timestamp of the first event, used to record when the state was first changed.
+ * @param state The current state, with a generic type.
  */
 data class SlimMaterializedSnapshot<S : Any>(
     override val version: Int,
@@ -43,6 +32,15 @@ data class SlimMaterializedSnapshot<S : Any>(
     override val state: S
 ) : Version, Materialized, FirstEventTimeCapable, StateCapable<S>
 
+/**
+ * Converts a materialized snapshot into a simplified snapshot form.
+ * This function is used to transform a full snapshot into a simplified snapshot with transformed state.
+ *
+ * @param S The state type of the original snapshot.
+ * @param D The state type of the transformed snapshot.
+ * @param materialize A function that transforms the original state into a new state.
+ * @return Returns a transformed simplified materialized snapshot.
+ */
 fun <S : Any, D : Any> MaterializedSnapshot<S>.toSlim(materialize: (S) -> D): SlimMaterializedSnapshot<D> {
     return SlimMaterializedSnapshot(
         version = version,

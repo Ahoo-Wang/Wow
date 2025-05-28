@@ -12,13 +12,12 @@
  */
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.modeling.SnapshotTimeCapable
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
-interface Snapshot<S : Any> : ReadOnlyStateAggregate<S> {
-    val snapshotTime: Long
-}
+interface Snapshot<S : Any> : ReadOnlyStateAggregate<S>, SnapshotTimeCapable
 
 data class SimpleSnapshot<S : Any>(
     override val delegate: ReadOnlyStateAggregate<S>,
