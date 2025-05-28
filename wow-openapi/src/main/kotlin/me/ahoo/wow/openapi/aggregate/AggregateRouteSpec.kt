@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.aggregate
 
 import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -41,10 +42,10 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
     val aggregateRouteMetadata: AggregateRouteMetadata<*>
     val aggregateMetadata: AggregateMetadata<*, *>
         get() = aggregateRouteMetadata.aggregateMetadata
-    override val tags: List<String>
+    override val tags: List<Tag>
         get() {
-            val tags = mutableListOf<String>()
-            tags.add(aggregateMetadata.toStringWithAlias())
+            val tags = mutableListOf<Tag>()
+            tags.add(Tag().name(aggregateMetadata.toStringWithAlias()))
             aggregateMetadata.command.aggregateType.toTags().let {
                 tags.addAll(it)
             }
