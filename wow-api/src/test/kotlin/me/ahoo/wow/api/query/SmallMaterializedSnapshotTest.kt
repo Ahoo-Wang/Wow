@@ -3,7 +3,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
-class SlimMaterializedSnapshotTest {
+class SmallMaterializedSnapshotTest {
     val snapshot = MaterializedSnapshot(
         contextName = "contextName",
         aggregateName = "aggregateName",
@@ -22,8 +22,8 @@ class SlimMaterializedSnapshotTest {
     )
 
     @Test
-    fun toSlim() {
-        val slimSnapshot = snapshot.toSlim { it }
+    fun toSmall() {
+        val slimSnapshot = snapshot.toSmall { it }
         slimSnapshot.version.assert().isEqualTo(snapshot.version)
         slimSnapshot.firstEventTime.assert().isEqualTo(snapshot.firstEventTime)
         slimSnapshot.state.assert().isEqualTo(snapshot.state)
