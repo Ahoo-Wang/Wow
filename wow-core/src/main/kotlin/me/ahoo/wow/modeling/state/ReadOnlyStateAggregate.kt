@@ -15,12 +15,25 @@ package me.ahoo.wow.modeling.state
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.api.modeling.DeletedCapable
+import me.ahoo.wow.api.modeling.EventTimeCapable
+import me.ahoo.wow.api.modeling.FirstEventTimeCapable
+import me.ahoo.wow.api.modeling.FirstOperatorCapable
+import me.ahoo.wow.api.modeling.OperatorCapable
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.StateCapable
 
-interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, OwnerId, Version {
+interface ReadOnlyStateAggregate<S : Any> :
+    AggregateIdCapable,
+    StateCapable<S>,
+    OwnerId,
+    Version,
+    FirstOperatorCapable,
+    OperatorCapable,
+    FirstEventTimeCapable,
+    EventTimeCapable,
+    DeletedCapable {
     override val aggregateId: AggregateId
-
-    val state: S
 
     /**
      * 用于生成领域事件版本号.
@@ -30,16 +43,7 @@ interface ReadOnlyStateAggregate<S : Any> : AggregateIdCapable, OwnerId, Version
     val expectedNextVersion: Int
         get() = version + 1
 
-    /**
-     * 状态聚合是否已删除
-     */
-    val deleted: Boolean
-
     //region DomainEventStream State
     val eventId: String
-    val firstOperator: String
-    val operator: String
-    val firstEventTime: Long
-    val eventTime: Long
     //endregion
 }

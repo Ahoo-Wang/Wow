@@ -14,8 +14,14 @@
 package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.modeling.DeletedCapable
+import me.ahoo.wow.api.modeling.EventTimeCapable
+import me.ahoo.wow.api.modeling.FirstEventTimeCapable
+import me.ahoo.wow.api.modeling.FirstOperatorCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.OperatorCapable
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.StateCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
 
@@ -27,11 +33,21 @@ data class MaterializedSnapshot<S : Any>(
     val aggregateId: String,
     override val version: Int,
     val eventId: String,
-    val firstOperator: String,
-    val operator: String,
-    val firstEventTime: Long,
-    val eventTime: Long,
-    val state: S,
+    override val firstOperator: String,
+    override val operator: String,
+    override val firstEventTime: Long,
+    override val eventTime: Long,
+    override val state: S,
     val snapshotTime: Long,
-    val deleted: Boolean
-) : NamedAggregate, TenantId, OwnerId, Version, Materialized
+    override val deleted: Boolean
+) : NamedAggregate,
+    TenantId,
+    OwnerId,
+    Version,
+    Materialized,
+    FirstOperatorCapable,
+    OperatorCapable,
+    FirstEventTimeCapable,
+    EventTimeCapable,
+    StateCapable<S>,
+    DeletedCapable
