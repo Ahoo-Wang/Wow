@@ -22,7 +22,6 @@ import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfig
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
-import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.TypeContextFactory
@@ -33,13 +32,13 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder.DefaultCustomizer.Companion.defaultConfig
+import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
 import java.lang.reflect.Type
 import java.util.function.Consumer
 
@@ -69,7 +68,7 @@ class OpenAPISchemaBuilder(
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
 
-    private fun JsonNode.toSchema(): Schema<*> {
+    fun JsonNode.toSchema(): Schema<*> {
         return openAPIObjectMapper.treeToValue(this, Schema::class.java)
     }
 
@@ -98,17 +97,9 @@ class OpenAPISchemaBuilder(
         }
     }
 
-    data class SchemaReference(val type: ResolvedType, val schema: Schema<*>, val node: ObjectNode) {
+    inner class SchemaReference(val type: ResolvedType, val schema: Schema<*>, val node: ObjectNode) {
         fun merge() {
-            val schemaRef = node.get(SchemaKeyword.TAG_REF.toPropertyName())?.textValue()
-            if (schemaRef != null) {
-                schema.`$ref` = schemaRef
-            }
-            val itemsArrayRef =
-                node.get(SchemaKeyword.TAG_ITEMS.toPropertyName())?.get(SchemaKeyword.TAG_REF.toPropertyName())
-                    ?.textValue() ?: return
-            val itemsSchema = schema.items ?: return
-            itemsSchema.`$ref` = itemsArrayRef
+            node.toSchema().mergeTo(schema)
         }
     }
 
