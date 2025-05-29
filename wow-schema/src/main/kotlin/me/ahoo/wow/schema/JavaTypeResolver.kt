@@ -21,6 +21,9 @@ object JavaTypeResolver {
     private val cachedTypeResolver: TypeResolver = TypeResolver()
 
     fun JavaType.toResolvedType(typeResolver: TypeResolver = cachedTypeResolver): ResolvedType {
+        if (this.isArrayType) {
+            return typeResolver.arrayType(this.contentType.toResolvedType())
+        }
         if (this.bindings.isEmpty) {
             return typeResolver.resolve(this.rawClass)
         }
