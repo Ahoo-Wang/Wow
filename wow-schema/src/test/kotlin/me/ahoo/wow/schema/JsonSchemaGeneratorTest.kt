@@ -1,5 +1,6 @@
 package me.ahoo.wow.schema
 
+import com.fasterxml.classmate.TypeResolver
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.victools.jsonschema.generator.Module
@@ -275,6 +276,14 @@ class JsonSchemaGeneratorTest {
     fun javaType() {
         val jsonSchemaGenerator = JsonSchemaGenerator()
         jsonSchemaGenerator.generate(CosIdGeneratorStat::class.java)
+    }
+
+    @Test
+    fun arrayType() {
+        val jsonSchemaGenerator = JsonSchemaGenerator()
+        val arrayType = TypeResolver().arrayType(SchemaData::class.java)
+        val arrayTypeSchema = jsonSchemaGenerator.generate(arrayType)
+        arrayTypeSchema.get("type").asText().assert().isEqualTo("array")
     }
 
     @Test
