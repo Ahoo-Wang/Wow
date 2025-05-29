@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.api
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 /**
  * Version .
  *
@@ -25,11 +27,13 @@ interface Version {
 
     val version: Int
 
+    @get:Schema(hidden = true)
     val initialized: Boolean
         get() {
             return version > UNINITIALIZED_VERSION
         }
 
+    @get:Schema(hidden = true)
     val isInitialVersion: Boolean
         get() {
             return version == INITIAL_VERSION
