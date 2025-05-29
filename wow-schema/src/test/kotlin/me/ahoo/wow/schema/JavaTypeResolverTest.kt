@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema
 
+import com.fasterxml.classmate.types.ResolvedArrayType
 import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.JavaTypeResolver.toResolvedType
@@ -35,5 +36,25 @@ class JavaTypeResolverTest {
         ).toResolvedType()
         resolvedType.erasedType.assert().isEqualTo(List::class.java)
         resolvedType.typeParameters.assert().hasSize(1)
+    }
+
+    @Test
+    fun mapToResolvedType() {
+        val resolvedType = TypeFactory.defaultInstance().constructMapLikeType(
+            Map::class.java,
+            String::class.java,
+            String::class.java
+        ).toResolvedType()
+        resolvedType.erasedType.assert().isEqualTo(Map::class.java)
+        resolvedType.typeParameters.assert().hasSize(2)
+    }
+
+    @Test
+    fun arrayToResolvedType() {
+        val resolvedType = TypeFactory.defaultInstance().constructArrayType(String::class.java)
+            .toResolvedType() as ResolvedArrayType
+        resolvedType.isArray.assert().isTrue()
+        resolvedType.arrayElementType.erasedType.assert().isEqualTo(String::class.java)
+        resolvedType.typeParameters.assert().isEmpty()
     }
 }
