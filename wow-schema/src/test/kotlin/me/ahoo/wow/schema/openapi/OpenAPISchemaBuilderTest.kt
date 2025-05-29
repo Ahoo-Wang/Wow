@@ -1,5 +1,6 @@
 package me.ahoo.wow.schema.openapi
 
+import com.fasterxml.classmate.TypeResolver
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -9,6 +10,7 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.models.tree.Leaf
+import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -101,7 +103,18 @@ class OpenAPISchemaBuilderTest {
         val childrenItem = schema?.properties[LeafCategory::children.name]?.items
         childrenItem.assert().isNotNull()
     }
+
+    @Test
+    fun arrayType() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        val arrayType = TypeResolver().arrayType(SchemaData::class.java)
+        val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)
+        val componentsSchemas = openAPISchemaBuilder.build()
+        val schema = componentsSchemas["wow.schema.JsonSchemaGeneratorTest.SchemaData"]
+        arrayTypeSchema.types.assert().contains("array")
+    }
 }
+
 data class LeafCategory(
     override val children: List<LeafCategory>,
     override val sortId: Int,

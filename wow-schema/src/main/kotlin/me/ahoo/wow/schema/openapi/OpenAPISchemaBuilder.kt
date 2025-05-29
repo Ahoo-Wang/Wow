@@ -99,12 +99,16 @@ class OpenAPISchemaBuilder(
     }
 
     data class SchemaReference(val type: ResolvedType, val schema: Schema<*>, val node: ObjectNode) {
-
         fun merge() {
             val schemaRef = node.get(SchemaKeyword.TAG_REF.toPropertyName())?.textValue()
             if (schemaRef != null) {
                 schema.`$ref` = schemaRef
             }
+            val itemsArrayRef =
+                node.get(SchemaKeyword.TAG_ITEMS.toPropertyName())?.get(SchemaKeyword.TAG_REF.toPropertyName())
+                    ?.textValue() ?: return
+            val itemsSchema = schema.items ?: return
+            itemsSchema.`$ref` = itemsArrayRef
         }
     }
 
