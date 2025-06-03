@@ -71,23 +71,23 @@ class ElasticsearchSnapshotRepository(
     ): Flux<AggregateId> {
         return elasticsearchClient.search({
             it.index(namedAggregate.toSnapshotIndexName())
-                .query {
-                    it.range {
-                        it.term {
-                            it.field(MessageRecords.AGGREGATE_ID)
+                .query { queryBuilder ->
+                    queryBuilder.range { rangeQueryBuilder ->
+                        rangeQueryBuilder.term { termRangeQueryBuilder ->
+                            termRangeQueryBuilder.field(MessageRecords.AGGREGATE_ID)
                                 .gt(afterId)
                         }
                     }
                 }
-                .source {
-                    it.filter {
-                        it.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
+                .source { sourceBuilder ->
+                    sourceBuilder.filter { sourceFilterBuilder ->
+                        sourceFilterBuilder.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
                     }
                 }
                 .size(limit)
-                .sort {
-                    it.field {
-                        it.field(MessageRecords.AGGREGATE_ID).order(SortOrder.Asc)
+                .sort { sortOptionsBuilder ->
+                    sortOptionsBuilder.field { fieldSortBuilder ->
+                        fieldSortBuilder.field(MessageRecords.AGGREGATE_ID).order(SortOrder.Asc)
                     }
                 }
         }, Map::class.java).flatMapIterable<AggregateId> {

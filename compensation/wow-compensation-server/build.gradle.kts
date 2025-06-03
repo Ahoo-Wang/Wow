@@ -96,6 +96,8 @@ dependencies {
     testImplementation("io.mockk:mockk") {
         exclude(group = "org.slf4j", module = "slf4j-api")
     }
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 tasks.withType<Test> {
