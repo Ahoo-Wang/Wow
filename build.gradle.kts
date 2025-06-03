@@ -115,17 +115,19 @@ configure(libraryProjects) {
     }
     dependencies {
         api(platform(dependenciesProject))
+        testImplementation(platform(rootProject.libs.junit.bom))
         detektPlugins(platform(dependenciesProject))
         implementation("org.slf4j:slf4j-api")
+        testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
-        testImplementation("org.junit.jupiter:junit-jupiter-api")
-        testImplementation("org.junit.jupiter:junit-jupiter-params")
         testImplementation("me.ahoo.test:fluent-assert-core")
         testImplementation("org.hamcrest:hamcrest")
         testImplementation("io.mockk:mockk") {
             exclude(group = "org.slf4j", module = "slf4j-api")
         }
-        testImplementation("io.micrometer:micrometer-core")
+        testImplementation("org.junit.jupiter:junit-jupiter-api")
+        testImplementation("org.junit.jupiter:junit-jupiter-params")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }
