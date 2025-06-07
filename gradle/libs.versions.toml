@@ -17,7 +17,7 @@ jte = "3.2.1"
 jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.7"
 # testing
-junit = "5.13.0"
+junit = "5.13.1"
 fluent-assert = "0.1.2"
 hamcrest = "3.0"
 mockk = "1.14.2"
