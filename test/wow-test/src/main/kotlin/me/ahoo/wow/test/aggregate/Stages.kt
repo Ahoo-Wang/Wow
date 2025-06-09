@@ -30,12 +30,15 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.naming.annotation.toName
 import java.util.function.Consumer
 import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.defaultType
 
 interface GivenStage<S : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): GivenStage<S>
-    fun <SERVICE : Any> inject(service: SERVICE): GivenStage<S> {
-        return inject(service = service, serviceName = service.javaClass.toName())
-    }
+    fun <SERVICE : Any> inject(
+        service: SERVICE,
+        serviceName: String = service.javaClass.toName(),
+        serviceType: KType = service.javaClass.kotlin.defaultType
+    ): GivenStage<S>
 
     fun givenOwnerId(ownerId: String): GivenStage<S>
 
