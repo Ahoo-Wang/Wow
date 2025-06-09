@@ -46,7 +46,7 @@ class SimpleServiceProvider : ServiceProvider {
         }
         return typedServices.values.firstOrNull {
             val instanceType = it.javaClass.kotlin.defaultType
-            serviceType.isSubtypeOf(instanceType)
+            instanceType.isSubtypeOf(serviceType)
         } as S?
     }
 
