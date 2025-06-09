@@ -20,6 +20,8 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.filter.ErrorAccessor
 import me.ahoo.wow.ioc.ServiceProvider
 import reactor.core.publisher.Mono
+import kotlin.reflect.KType
+import kotlin.reflect.jvm.jvmErasure
 
 const val ERROR_KEY = "__ERROR__"
 const val SERVICE_PROVIDER_KEY = "__SERVICE_PROVIDER__"
@@ -102,8 +104,9 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         setAttribute(COMMAND_RESULT_KEY, newCommandResult)
     }
 
-    fun <T : Any> extractObject(type: Class<T>): T? {
-        return extractDeclared(type) ?: getServiceProvider()?.getService(type)
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> extractObject(type: KType): T? {
+        return extractDeclared(type.jvmErasure.java as Class<T>) ?: getServiceProvider()?.getService(type)
     }
 
     @Suppress("ReturnCount")
@@ -129,9 +132,5 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
         }
 
         return null
-    }
-
-    fun <T : Any> extractRequiredObject(type: Class<T>): T {
-        return requireNotNull(extractObject(type)) { "Type[$type] not found." }
     }
 }
