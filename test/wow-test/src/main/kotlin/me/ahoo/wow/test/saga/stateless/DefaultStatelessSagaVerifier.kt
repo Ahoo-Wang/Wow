@@ -36,6 +36,7 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
 import java.lang.reflect.Constructor
 import java.util.function.Consumer
+import kotlin.reflect.KType
 
 internal class DefaultWhenStage<T : Any>(
     private val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>>,
@@ -61,8 +62,8 @@ internal class DefaultWhenStage<T : Any>(
         )
     }
 
-    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): WhenStage<T> {
-        serviceProvider.register(serviceName, service)
+    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): WhenStage<T> {
+        serviceProvider.register(serviceName, serviceType, service)
         return this
     }
 

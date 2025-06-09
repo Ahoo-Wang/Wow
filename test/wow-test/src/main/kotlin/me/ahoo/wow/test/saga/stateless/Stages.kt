@@ -23,6 +23,8 @@ import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
 import java.util.function.Consumer
 import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.defaultType
 
 /**
  * Stateless Saga:
@@ -30,11 +32,12 @@ import kotlin.reflect.KClass
  * 2. expect commands
  */
 interface WhenStage<T : Any> {
-    fun <SERVICE : Any> inject(service: SERVICE, serviceName: String): WhenStage<T>
+    fun <SERVICE : Any> inject(
+        service: SERVICE,
+        serviceName: String = service.javaClass.toName(),
+        serviceType: KType = service.javaClass.kotlin.defaultType
+    ): WhenStage<T>
 
-    fun <SERVICE : Any> inject(service: SERVICE): WhenStage<T> {
-        return inject(service, service.javaClass.toName())
-    }
 
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
 
