@@ -13,6 +13,7 @@
 package me.ahoo.wow.infra.accessor.constructor
 
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.getRequiredService
 import java.lang.reflect.Constructor
 
 interface ObjectFactory<T : Any> {

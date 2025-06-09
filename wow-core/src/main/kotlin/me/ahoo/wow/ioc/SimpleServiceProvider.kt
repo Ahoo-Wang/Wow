@@ -34,10 +34,6 @@ class SimpleServiceProvider : ServiceProvider {
         register(serviceName, service.javaClass.kotlin.defaultType, service)
     }
 
-    override fun <S : Any> register(serviceType: Class<S>, service: S) {
-        register(serviceType.kotlin.defaultType, service)
-    }
-
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceType: KType): S? {
         val service = typedServices[serviceType] as S?
@@ -48,10 +44,6 @@ class SimpleServiceProvider : ServiceProvider {
             val instanceType = it.javaClass.kotlin.defaultType
             instanceType.isSubtypeOf(serviceType)
         } as S?
-    }
-
-    override fun <S : Any> getService(serviceType: Class<S>): S? {
-        return getService(serviceType.kotlin.defaultType)
     }
 
     @Suppress("UNCHECKED_CAST")

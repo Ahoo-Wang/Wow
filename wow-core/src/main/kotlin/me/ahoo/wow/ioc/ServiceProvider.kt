@@ -14,6 +14,8 @@ package me.ahoo.wow.ioc
 
 import me.ahoo.wow.naming.annotation.toName
 import kotlin.reflect.KType
+import kotlin.reflect.full.defaultType
+import kotlin.reflect.typeOf
 
 /**
  * ServiceProvider .
@@ -31,22 +33,32 @@ interface ServiceProvider {
         val serviceName = service.javaClass.toName()
         register(serviceName, service)
     }
-    fun <S : Any> register(serviceType: Class<S>, service: S)
-    fun <S : Any> getService(serviceType: Class<S>): S?
-    fun <S : Any> getService(serviceName: String): S?
-    fun <S : Any> getRequiredService(serviceType: Class<S>): S {
-        return requireNotNull(getService(serviceType)) { "ServiceType[$serviceType] not found." }
-    }
 
-    fun <S : Any> getRequiredService(serviceName: String): S {
-        return requireNotNull(getService(serviceName)) { "ServiceName[$serviceName] not found." }
-    }
+    fun <S : Any> getService(serviceName: String): S?
 }
 
 inline fun <reified S : Any> ServiceProvider.getService(): S? {
-    return getService(S::class.java)
+    return getService(typeOf<S>())
+}
+
+fun <S : Any> ServiceProvider.getRequiredService(serviceName: String): S {
+    return requireNotNull(getService(serviceName)) {
+        "Service[$serviceName] not found."
+    }
+}
+
+fun <S : Any> ServiceProvider.getRequiredService(serviceType: KType): S {
+    return requireNotNull(getService(serviceType)) {
+        "Service[$serviceType] not found."
+    }
+}
+
+fun <S : Any> ServiceProvider.getRequiredService(serviceType: Class<S>): S {
+    return getRequiredService(serviceType.kotlin.defaultType)
 }
 
 inline fun <reified S : Any> ServiceProvider.getRequiredService(): S {
-    return getRequiredService(S::class.java)
+    return requireNotNull(getService()) {
+        "Service[${S::class}] not found."
+    }
 }
