@@ -17,6 +17,9 @@ import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.config.ConfigurableBeanFactory
+import org.springframework.core.ResolvableType
+import kotlin.reflect.KType
+import kotlin.reflect.jvm.javaType
 
 class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
     ServiceProvider,
@@ -26,8 +29,21 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
         register(service)
     }
 
-    override fun <S : Any> register(serviceName: String, service: S) {
+    override fun register(serviceName: String, serviceType: KType, service: Any) {
+        register(serviceName, service)
+    }
+
+    override fun register(serviceType: KType, service: Any) {
+        register(service)
+    }
+
+    override fun register(serviceName: String, service: Any) {
         delegate.registerSingleton(serviceName, service)
+    }
+
+    override fun <S : Any> getService(serviceType: KType): S? {
+        val resolvableType = ResolvableType.forType(serviceType.javaType)
+        return delegate.getBeanProvider<S>(resolvableType).getIfAvailable { null }
     }
 
     @Suppress("UNCHECKED_CAST")
