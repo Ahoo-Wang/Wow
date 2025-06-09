@@ -13,33 +13,50 @@
 package me.ahoo.wow.ioc
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KType
+import kotlin.reflect.full.defaultType
+import kotlin.reflect.full.isSubtypeOf
 
 class SimpleServiceProvider : ServiceProvider {
-    private val typedServices: ConcurrentHashMap<Class<*>, Any> = ConcurrentHashMap<Class<*>, Any>()
+    private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
     private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
 
+    override fun register(serviceName: String, serviceType: KType, service: Any) {
+        typedServices[serviceType] = service
+        namedServices[serviceName] = service
+    }
+
+    override fun register(serviceType: KType, service: Any) {
+        typedServices[serviceType] = service
+    }
+
+    override fun register(serviceName: String, service: Any) {
+        register(serviceName, service.javaClass.kotlin.defaultType, service)
+    }
+
+    override fun <S : Any> register(serviceType: Class<S>, service: S) {
+        register(serviceType.kotlin.defaultType, service)
+    }
+
     @Suppress("UNCHECKED_CAST")
-    override fun <S : Any> getService(serviceType: Class<S>): S? {
+    override fun <S : Any> getService(serviceType: KType): S? {
         val service = typedServices[serviceType] as S?
         if (service != null) {
             return service
         }
-        return typedServices.values.firstOrNull { serviceType.isInstance(it) } as S?
+        return typedServices.values.firstOrNull {
+            val instanceType = it.javaClass.kotlin.defaultType
+            serviceType.isSubtypeOf(instanceType)
+        } as S?
+    }
+
+    override fun <S : Any> getService(serviceType: Class<S>): S? {
+        return getService(serviceType.kotlin.defaultType)
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceName: String): S? {
         return namedServices[serviceName] as S?
-    }
-
-    override fun <S : Any> register(serviceType: Class<S>, service: S) {
-        typedServices[serviceType] = service
-    }
-
-    override fun <S : Any> register(serviceName: String, service: S) {
-        namedServices[serviceName] = service
-        val serviceType = service.javaClass
-        register(serviceType, service)
     }
 
     fun copy(): SimpleServiceProvider {

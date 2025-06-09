@@ -9,6 +9,7 @@ dependencies {
     api("com.google.guava:guava")
     api("com.fasterxml.jackson.core:jackson-databind")
     api("io.github.oshai:kotlin-logging-jvm")
+    api(kotlin("reflect"))
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     testImplementation(project(":wow-tck"))

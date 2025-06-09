@@ -13,6 +13,7 @@
 package me.ahoo.wow.ioc
 
 import me.ahoo.wow.naming.annotation.toName
+import kotlin.reflect.KType
 
 /**
  * ServiceProvider .
@@ -20,13 +21,17 @@ import me.ahoo.wow.naming.annotation.toName
  * @author ahoo wang
  */
 interface ServiceProvider {
+    fun register(serviceName: String, serviceType: KType, service: Any)
+    fun register(serviceType: KType, service: Any)
+    fun register(serviceName: String, service: Any)
+
+    fun <S : Any> getService(serviceType: KType): S?
+
     fun <S : Any> register(service: S) {
         val serviceName = service.javaClass.toName()
         register(serviceName, service)
     }
-
     fun <S : Any> register(serviceType: Class<S>, service: S)
-    fun <S : Any> register(serviceName: String, service: S)
     fun <S : Any> getService(serviceType: Class<S>): S?
     fun <S : Any> getService(serviceName: String): S?
     fun <S : Any> getRequiredService(serviceType: Class<S>): S {
