@@ -38,7 +38,6 @@ interface WhenStage<T : Any> {
         serviceType: KType = service.javaClass.kotlin.defaultType
     ): WhenStage<T>
 
-
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
 
     fun functionName(functionName: String): WhenStage<T> {
