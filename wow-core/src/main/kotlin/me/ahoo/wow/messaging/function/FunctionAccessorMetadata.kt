@@ -23,7 +23,7 @@ import me.ahoo.wow.infra.accessor.function.FunctionAccessor
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.messaging.handler.MessageExchange
 import kotlin.reflect.KParameter
-import kotlin.reflect.jvm.jvmErasure
+import kotlin.reflect.KType
 
 enum class FirstParameterKind {
     MESSAGE_EXCHANGE,
@@ -32,8 +32,8 @@ enum class FirstParameterKind {
 }
 
 data class InjectParameter(val parameter: KParameter) {
-    val javaType: Class<*> by lazy {
-        parameter.type.jvmErasure.java
+    val type: KType by lazy {
+        parameter.type
     }
     val name by lazy {
         parameter.scanAnnotation<Name>()?.value.orEmpty()

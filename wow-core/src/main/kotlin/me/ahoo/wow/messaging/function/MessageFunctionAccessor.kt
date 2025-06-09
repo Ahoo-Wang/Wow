@@ -42,7 +42,7 @@ data class InjectableMessageFunctionAccessor<P : Any, in M : MessageExchange<*, 
             if (injectParameter.name.isNotBlank()) {
                 args[i + 1] = exchange.getServiceProvider()?.getService(injectParameter.name)
             } else {
-                args[i + 1] = exchange.extractObject(injectParameter.javaType)
+                args[i + 1] = exchange.extractObject(injectParameter.type)
             }
         }
         return metadata.accessor.invoke(processor, args)
