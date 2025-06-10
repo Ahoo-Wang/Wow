@@ -34,6 +34,13 @@ interface ServiceProvider {
     fun <S : Any> getService(serviceName: String): S?
 }
 
+inline fun <reified S : Any> ServiceProvider.register(
+    service: Any,
+    serviceName: String = service.javaClass.toName()
+) {
+    register(service, serviceName, typeOf<S>())
+}
+
 inline fun <reified S : Any> ServiceProvider.getService(): S? {
     return getService(typeOf<S>())
 }
