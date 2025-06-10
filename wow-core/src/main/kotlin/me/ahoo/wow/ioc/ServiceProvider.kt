@@ -55,7 +55,5 @@ fun <S : Any> ServiceProvider.getRequiredService(serviceType: Class<S>): S {
 }
 
 inline fun <reified S : Any> ServiceProvider.getRequiredService(): S {
-    return requireNotNull(getService()) {
-        "Service[${S::class}] not found."
-    }
+    return getRequiredService(typeOf<S>())
 }
