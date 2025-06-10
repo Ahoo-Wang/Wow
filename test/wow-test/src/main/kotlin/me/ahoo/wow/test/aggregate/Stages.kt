@@ -38,7 +38,14 @@ interface GivenStage<S : Any> {
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
         serviceType: KType = service.javaClass.kotlin.defaultType
-    ): GivenStage<S>
+    ): GivenStage<S> {
+        inject {
+            register(service, serviceName, serviceType)
+        }
+        return this
+    }
+
+    fun inject(inject: ServiceProvider.() -> Unit): GivenStage<S>
 
     fun givenOwnerId(ownerId: String): GivenStage<S>
 

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
@@ -36,8 +37,14 @@ interface WhenStage<T : Any> {
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
         serviceType: KType = service.javaClass.kotlin.defaultType
-    ): WhenStage<T>
+    ): WhenStage<T> {
+        inject {
+            register(service, serviceName, serviceType)
+        }
+        return this
+    }
 
+    fun inject(inject: ServiceProvider.() -> Unit): WhenStage<T>
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
 
     fun functionName(functionName: String): WhenStage<T> {

@@ -37,7 +37,6 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.util.function.Consumer
-import kotlin.reflect.KType
 
 internal class DefaultGivenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
@@ -48,8 +47,8 @@ internal class DefaultGivenStage<C : Any, S : Any>(
 ) : GivenStage<S> {
     private var ownerId: String = OwnerId.DEFAULT_OWNER_ID
 
-    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): GivenStage<S> {
-        serviceProvider.register(service, serviceName, serviceType)
+    override fun inject(inject: ServiceProvider.() -> Unit): GivenStage<S> {
+        inject(serviceProvider)
         return this
     }
 
@@ -240,8 +239,8 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
 ) : VerifiedStage<S>, GivenStage<S> {
     private var ownerId: String = verifiedResult.stateAggregate.ownerId
 
-    override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): GivenStage<S> {
-        serviceProvider.register(service, serviceName, serviceType)
+    override fun inject(inject: ServiceProvider.() -> Unit): GivenStage<S> {
+        inject(serviceProvider)
         return this
     }
 
