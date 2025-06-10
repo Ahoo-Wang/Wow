@@ -16,7 +16,7 @@ class SimpleServiceProviderTest {
     @Test
     fun getService() {
         val serviceProvider = SimpleServiceProvider()
-        serviceProvider.register(this)
+        serviceProvider.register<SimpleServiceProviderTest>(this)
         serviceProvider.getRequiredService<SimpleServiceProviderTest>().assert().isSameAs(this)
         serviceProvider.getRequiredService<SimpleServiceProviderTest>(SERVICE_NAME).assert().isSameAs(this)
 
