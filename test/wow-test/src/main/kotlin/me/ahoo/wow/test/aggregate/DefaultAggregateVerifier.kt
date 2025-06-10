@@ -49,7 +49,7 @@ internal class DefaultGivenStage<C : Any, S : Any>(
     private var ownerId: String = OwnerId.DEFAULT_OWNER_ID
 
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): GivenStage<S> {
-        serviceProvider.register(serviceName, serviceType, service)
+        serviceProvider.register(service, serviceName, serviceType)
         return this
     }
 
@@ -241,7 +241,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     private var ownerId: String = verifiedResult.stateAggregate.ownerId
 
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): GivenStage<S> {
-        serviceProvider.register(serviceName, serviceType, service)
+        serviceProvider.register(service, serviceName, serviceType)
         return this
     }
 

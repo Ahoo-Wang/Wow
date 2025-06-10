@@ -21,17 +21,9 @@ class SimpleServiceProvider : ServiceProvider {
     private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
     private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
 
-    override fun register(serviceName: String, serviceType: KType, service: Any) {
+    override fun register(service: Any, serviceName: String, serviceType: KType) {
         typedServices[serviceType] = service
         namedServices[serviceName] = service
-    }
-
-    override fun register(serviceType: KType, service: Any) {
-        typedServices[serviceType] = service
-    }
-
-    override fun register(serviceName: String, service: Any) {
-        register(serviceName, service.javaClass.kotlin.defaultType, service)
     }
 
     @Suppress("UNCHECKED_CAST")

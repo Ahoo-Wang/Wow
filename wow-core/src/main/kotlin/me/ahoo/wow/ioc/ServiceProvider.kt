@@ -23,16 +23,13 @@ import kotlin.reflect.typeOf
  * @author ahoo wang
  */
 interface ServiceProvider {
-    fun register(serviceName: String, serviceType: KType, service: Any)
-    fun register(serviceType: KType, service: Any)
-    fun register(serviceName: String, service: Any)
+    fun register(
+        service: Any,
+        serviceName: String = service.javaClass.toName(),
+        serviceType: KType = service.javaClass.kotlin.defaultType
+    )
 
     fun <S : Any> getService(serviceType: KType): S?
-
-    fun <S : Any> register(service: S) {
-        val serviceName = service.javaClass.toName()
-        register(serviceName, service)
-    }
 
     fun <S : Any> getService(serviceName: String): S?
 }
