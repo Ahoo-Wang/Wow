@@ -15,7 +15,7 @@ class SpringServiceProviderTest {
         val beanFactory = DefaultListableBeanFactory()
         val serviceProvider = SpringServiceProvider(beanFactory)
         serviceProvider.getService<SpringServiceProviderTest>().assert().isNull()
-        serviceProvider.register(typeOf<SpringServiceProviderTest>(), this)
+        serviceProvider.register(this, serviceType = typeOf<SpringServiceProviderTest>())
         serviceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
         serviceProvider.getOriginalDelegate().assert().isSameAs(beanFactory)
     }

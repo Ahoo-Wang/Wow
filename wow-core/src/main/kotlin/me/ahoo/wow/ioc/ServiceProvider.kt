@@ -23,16 +23,13 @@ import kotlin.reflect.typeOf
  * @author ahoo wang
  */
 interface ServiceProvider {
-    fun register(serviceName: String, serviceType: KType, service: Any)
-    fun register(serviceType: KType, service: Any)
-    fun register(serviceName: String, service: Any)
+    fun register(
+        service: Any,
+        serviceName: String = service.javaClass.toName(),
+        serviceType: KType = service.javaClass.kotlin.defaultType
+    )
 
     fun <S : Any> getService(serviceType: KType): S?
-
-    fun <S : Any> register(service: S) {
-        val serviceName = service.javaClass.toName()
-        register(serviceName, service)
-    }
 
     fun <S : Any> getService(serviceName: String): S?
 }
@@ -58,7 +55,5 @@ fun <S : Any> ServiceProvider.getRequiredService(serviceType: Class<S>): S {
 }
 
 inline fun <reified S : Any> ServiceProvider.getRequiredService(): S {
-    return requireNotNull(getService()) {
-        "Service[${S::class}] not found."
-    }
+    return getRequiredService(typeOf<S>())
 }

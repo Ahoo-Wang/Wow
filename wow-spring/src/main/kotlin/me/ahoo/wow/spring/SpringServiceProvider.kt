@@ -24,15 +24,7 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
     ServiceProvider,
     Decorator<ConfigurableBeanFactory> {
 
-    override fun register(serviceName: String, serviceType: KType, service: Any) {
-        register(serviceName, service)
-    }
-
-    override fun register(serviceType: KType, service: Any) {
-        register(service)
-    }
-
-    override fun register(serviceName: String, service: Any) {
+    override fun register(service: Any, serviceName: String, serviceType: KType) {
         delegate.registerSingleton(serviceName, service)
     }
 

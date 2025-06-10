@@ -63,7 +63,7 @@ internal class DefaultWhenStage<T : Any>(
     }
 
     override fun <SERVICE : Any> inject(service: SERVICE, serviceName: String, serviceType: KType): WhenStage<T> {
-        serviceProvider.register(serviceName, serviceType, service)
+        serviceProvider.register(service, serviceName, serviceType)
         return this
     }
 
