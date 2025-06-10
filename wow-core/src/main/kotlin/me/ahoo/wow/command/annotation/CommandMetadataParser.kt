@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command.annotation
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateVersionGetterIfAnnotated
@@ -60,10 +59,6 @@ object CommandMetadataParser : CacheableMetadataParser() {
 }
 
 internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C> {
-    companion object {
-        private val log = KotlinLogging.logger {}
-    }
-
     private val commandName: String = commandType.toName()
     private val isCreate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private val isVoid = commandType.isAnnotationPresent(VoidCommand::class.java)
@@ -128,12 +123,6 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
     }
 
     fun toMetadata(): CommandMetadata<C> {
-        if (aggregateIdGetter == null && !isCreate) {
-            log.warn {
-                "Command[$commandType] does not define an aggregate ID field and is not a create aggregate command."
-            }
-        }
-
         if (tenantIdGetter == null && namedAggregateGetter is MetadataNamedAggregateGetter) {
             val metadataNamedAggregateGetter = namedAggregateGetter as MetadataNamedAggregateGetter
             val tenantId = MetadataSearcher.requiredAggregate(metadataNamedAggregateGetter.namedAggregate).tenantId
