@@ -31,12 +31,14 @@ import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.ForcePrepareCompensation
 import me.ahoo.wow.compensation.api.FunctionChanged
+import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.MarkRecoverable
 import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpecApplied
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.ioc.register
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.test.aggregate.whenCommand
@@ -104,8 +106,10 @@ class ExecutionFailedTest {
         )
 
         aggregateVerifier<ExecutionFailed, ExecutionFailedState>()
-            .inject(DefaultNextRetryAtCalculatorTest.testRetrySpec)
-            .inject(DefaultNextRetryAtCalculator)
+            .inject {
+                register<IRetrySpec>(DefaultNextRetryAtCalculatorTest.testRetrySpec)
+                register<NextRetryAtCalculator>(DefaultNextRetryAtCalculator)
+            }
             .whenCommand(createExecutionFailed)
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
