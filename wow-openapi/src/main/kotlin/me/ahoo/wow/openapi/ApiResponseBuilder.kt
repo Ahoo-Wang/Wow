@@ -30,18 +30,18 @@ class ApiResponseBuilder {
         return this
     }
 
-    fun header(name: String, header: Header): ApiResponseBuilder {
-        apiResponse.addHeaderObject(name, header)
+    fun header(headerName: String, header: Header): ApiResponseBuilder {
+        apiResponse.addHeaderObject(headerName, header)
         return this
     }
 
-    fun content(name: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): ApiResponseBuilder {
-        apiResponse.content.addMediaType(name, mediaType)
+    fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): ApiResponseBuilder {
+        apiResponse.content.addMediaType(mediaTypeName, mediaType)
         return this
     }
 
-    fun content(name: String = DEFAULT_MEDIA_TYPE_NAME, schema: Schema<*>): ApiResponseBuilder {
-        apiResponse.content.addMediaType(name, MediaType().schema(schema))
+    fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, schema: Schema<*>): ApiResponseBuilder {
+        apiResponse.content.addMediaType(mediaTypeName, MediaType().schema(schema))
         return this
     }
 

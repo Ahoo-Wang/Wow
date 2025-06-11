@@ -214,7 +214,7 @@ object CommandComponent {
                             .title("error")
                             .description("This value is returned when the task fails to be executed")
                     )
-                content(name = Https.MediaType.TEXT_EVENT_STREAM, schema = textEventStreamSchema)
+                content(mediaTypeName = Https.MediaType.TEXT_EVENT_STREAM, schema = textEventStreamSchema)
             }
 
         fun OpenAPIComponentContext.badRequestCommandResponse(): ApiResponse =
