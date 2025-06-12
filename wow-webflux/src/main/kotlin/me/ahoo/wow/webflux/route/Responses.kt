@@ -19,7 +19,6 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.isSse
@@ -51,7 +50,7 @@ fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
 
 fun Mono<*>.toServerResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     return flatMap {
         if (it is ErrorInfo) {
@@ -68,7 +67,7 @@ fun Mono<*>.toServerResponse(
 
 fun <T : Any> Flux<T>.toServerResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     if (!request.isSse()) {
         return this.collectList().toServerResponse(request, exceptionHandler)
@@ -82,7 +81,7 @@ fun <T : Any> Flux<T>.toServerResponse(
 
 fun Flux<CommandResult>.toCommandResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     if (!request.isSse()) {
         return this.next().toServerResponse(request, exceptionHandler)
@@ -101,7 +100,7 @@ fun Flux<CommandResult>.toCommandResponse(
 
 fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     val eventStream = this.errorResume(request, exceptionHandler)
     return ServerResponse.ok()
@@ -112,7 +111,7 @@ fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
 
 fun Flux<ServerSentEvent<String>>.errorResume(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Flux<ServerSentEvent<String>> {
     return onErrorResume {
         val errorInfo = it.toErrorInfo()
