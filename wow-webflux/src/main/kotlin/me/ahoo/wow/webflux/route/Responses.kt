@@ -30,7 +30,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
@@ -75,7 +74,7 @@ fun Flux<CommandResult>.toCommandResponse(
         return this.next().toServerResponse(request, exceptionHandler)
     }
 
-    val serverSentEventStream = this.toFlux().map {
+    val serverSentEventStream = this.map {
         ServerSentEvent.builder<String>()
             .id(it.id)
             .event(it.stage.name)
