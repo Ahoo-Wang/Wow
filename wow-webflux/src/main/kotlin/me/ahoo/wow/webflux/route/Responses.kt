@@ -19,7 +19,6 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.isSse
@@ -51,7 +50,7 @@ fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
 
 fun Mono<*>.toServerResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     return flatMap {
         if (it is ErrorInfo) {
@@ -66,9 +65,23 @@ fun Mono<*>.toServerResponse(
     }
 }
 
+fun <T : Any> Flux<T>.toServerResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler
+): Mono<ServerResponse> {
+    if (!request.isSse()) {
+        return this.collectList().toServerResponse(request, exceptionHandler)
+    }
+    return this.map {
+        ServerSentEvent.builder<String>()
+            .data(it.toJsonString())
+            .build()
+    }.toEventStreamResponse(request, exceptionHandler)
+}
+
 fun Flux<CommandResult>.toCommandResponse(
     request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+    exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
     if (!request.isSse()) {
         return this.next().toServerResponse(request, exceptionHandler)
@@ -80,20 +93,34 @@ fun Flux<CommandResult>.toCommandResponse(
             .event(it.stage.name)
             .data(it.toJsonString())
             .build()
-    }.onErrorResume {
+    }.errorResume(request, exceptionHandler)
+
+    return serverSentEventStream.toEventStreamResponse(request, exceptionHandler)
+}
+
+fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler
+): Mono<ServerResponse> {
+    val eventStream = this.errorResume(request, exceptionHandler)
+    return ServerResponse.ok()
+        .contentType(MediaType.TEXT_EVENT_STREAM)
+        .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
+        .body(eventStream, ServerSentEvent::class.java)
+}
+
+fun Flux<ServerSentEvent<String>>.errorResume(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler
+): Flux<ServerSentEvent<String>> {
+    return onErrorResume {
         val errorInfo = it.toErrorInfo()
-        ServerSentEvent.builder<String>()
+        val serverSendEventMono = ServerSentEvent.builder<String>()
             .id(generateGlobalId())
             .event(errorInfo.errorCode)
             .data(errorInfo.errorMsg)
             .build().toMono()
-    }
 
-    return ServerResponse.ok()
-        .contentType(MediaType.TEXT_EVENT_STREAM)
-        .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
-        .body(serverSentEventStream, ServerSentEvent::class.java)
-        .onErrorResume {
-            exceptionHandler.handle(request, it)
-        }
+        exceptionHandler.handle(request, it).then(serverSendEventMono)
+    }
 }

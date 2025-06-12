@@ -45,6 +45,12 @@ class ApiResponseBuilder {
         return this
     }
 
+    fun listContent(schema: Schema<*>): ApiResponseBuilder {
+        apiResponse.content.addMediaType(Https.MediaType.APPLICATION_JSON, MediaType().schema(schema))
+        apiResponse.content.addMediaType(Https.MediaType.TEXT_EVENT_STREAM, MediaType().schema(schema))
+        return this
+    }
+
     fun build(): ApiResponse {
         return apiResponse
     }

@@ -46,7 +46,8 @@ class ListQueryEventStreamRouteSpec(
 
     override val appendPathSuffix: String
         get() = "event/list"
-
+    override val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
     override val operationSummary: String
         get() = "List Query Event Stream"
     override val requestBody: RequestBody = componentContext.listQueryRequestBody()

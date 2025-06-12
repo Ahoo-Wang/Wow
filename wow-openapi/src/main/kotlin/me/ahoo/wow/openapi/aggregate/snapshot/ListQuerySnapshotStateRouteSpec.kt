@@ -49,14 +49,15 @@ class ListQuerySnapshotStateRouteSpec(
 
     override val appendPathSuffix: String
         get() = "snapshot/list/state"
-
+    override val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
     override val operationSummary: String
         get() = "List Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedListQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-            .content(schema = componentContext.arraySchema(aggregateMetadata.state.aggregateType))
+            .listContent(schema = componentContext.arraySchema(aggregateMetadata.state.aggregateType))
             .build()
             .let {
                 addApiResponse(Https.Code.OK, it)

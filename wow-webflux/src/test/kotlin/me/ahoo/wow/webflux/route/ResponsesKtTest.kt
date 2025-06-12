@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
@@ -23,8 +24,6 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -45,9 +44,9 @@ class ResponsesKtTest {
     fun toResponseEntity() {
         val responseEntity = IllegalArgumentException()
             .toResponseEntity()
-        assertThat(responseEntity.statusCode, equalTo(HttpStatus.BAD_REQUEST))
-        assertThat(responseEntity.headers.contentType, equalTo(MediaType.APPLICATION_JSON))
-        assertThat(responseEntity.headers.getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.ILLEGAL_ARGUMENT))
+        responseEntity.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        responseEntity.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+        responseEntity.headers.getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
     }
 
     @Test
@@ -57,9 +56,9 @@ class ResponsesKtTest {
             .toServerResponse()
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.BAD_REQUEST))
-                assertThat(it.headers().contentType, equalTo(MediaType.APPLICATION_JSON))
-                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.ILLEGAL_ARGUMENT))
+                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
     }
@@ -79,9 +78,9 @@ class ResponsesKtTest {
             .toServerResponse(MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
-                assertThat(it.headers().contentType, equalTo(MediaType.APPLICATION_JSON))
-                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.SUCCEEDED))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }
@@ -103,9 +102,9 @@ class ResponsesKtTest {
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
-                assertThat(it.headers().contentType, equalTo(MediaType.APPLICATION_JSON))
-                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorCodes.SUCCEEDED))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }
@@ -180,7 +179,13 @@ class ResponsesKtTest {
         val mockRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
-
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
         CommandResult(
             id = generateGlobalId(),
             stage = CommandStage.SENT,
@@ -195,9 +200,59 @@ class ResponsesKtTest {
             .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
-                assertThat(it.headers().contentType, equalTo(MediaType.TEXT_EVENT_STREAM))
-                assertThat(it.headers().getFirst(WOW_ERROR_CODE), equalTo(ErrorInfo.SUCCEEDED))
+                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `verify list query sse headers`() {
+        val mockRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
+        listOf(generateGlobalId())
+            .toFlux()
+            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
+            .test()
+            .consumeNextWith {
+                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `verify list query sse error`() {
+        val mockRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
+        IllegalArgumentException().toFlux<String>()
+            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
+            .test()
+            .consumeNextWith {
+                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
+                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }

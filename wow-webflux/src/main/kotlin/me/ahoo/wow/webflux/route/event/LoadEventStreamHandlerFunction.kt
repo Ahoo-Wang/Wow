@@ -49,7 +49,6 @@ class LoadEventStreamHandlerFunction(
             limit(limit)
         }
         return eventStreamQueryHandler.dynamicList(aggregateMetadata, listQuery)
-            .collectList()
             .toServerResponse(request, exceptionHandler)
     }
 }
