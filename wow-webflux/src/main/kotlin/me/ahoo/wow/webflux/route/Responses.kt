@@ -94,27 +94,34 @@ fun Flux<CommandResult>.toCommandResponse(
             .event(it.stage.name)
             .data(it.toJsonString())
             .build()
-    }.onErrorResume {
-        val errorInfo = it.toErrorInfo()
-        ServerSentEvent.builder<String>()
-            .id(generateGlobalId())
-            .event(errorInfo.errorCode)
-            .data(errorInfo.errorMsg)
-            .build().toMono()
-    }
+    }.errorResume(request, exceptionHandler)
 
     return serverSentEventStream.toEventStreamResponse(request, exceptionHandler)
 }
 
-fun <DATA> Flux<ServerSentEvent<DATA>>.toEventStreamResponse(
+fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
 ): Mono<ServerResponse> {
+    val eventStream = this.errorResume(request, exceptionHandler)
     return ServerResponse.ok()
         .contentType(MediaType.TEXT_EVENT_STREAM)
         .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
-        .body(this, ServerSentEvent::class.java)
-        .onErrorResume {
-            exceptionHandler.handle(request, it)
-        }
+        .body(eventStream, ServerSentEvent::class.java)
+}
+
+fun Flux<ServerSentEvent<String>>.errorResume(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+): Flux<ServerSentEvent<String>> {
+    return onErrorResume {
+        val errorInfo = it.toErrorInfo()
+        val serverSendEventMono = ServerSentEvent.builder<String>()
+            .id(generateGlobalId())
+            .event(errorInfo.errorCode)
+            .data(errorInfo.errorMsg)
+            .build().toMono()
+
+        exceptionHandler.handle(request, it).then(serverSendEventMono)
+    }
 }
