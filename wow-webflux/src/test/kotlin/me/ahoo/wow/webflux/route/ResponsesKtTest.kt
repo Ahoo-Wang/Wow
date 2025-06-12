@@ -179,7 +179,13 @@ class ResponsesKtTest {
         val mockRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
-
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
         CommandResult(
             id = generateGlobalId(),
             stage = CommandStage.SENT,
@@ -194,6 +200,7 @@ class ResponsesKtTest {
             .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
+                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
                 it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
@@ -206,11 +213,19 @@ class ResponsesKtTest {
         val mockRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
         listOf(generateGlobalId())
             .toFlux()
             .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
+                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
                 it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
