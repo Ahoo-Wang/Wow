@@ -66,6 +66,20 @@ fun Mono<*>.toServerResponse(
     }
 }
 
+fun <T : Any> Flux<T>.toServerResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+): Mono<ServerResponse> {
+    if (!request.isSse()) {
+        return this.collectList().toServerResponse(request, exceptionHandler)
+    }
+    return this.map {
+        ServerSentEvent.builder<String>()
+            .data(it.toJsonString())
+            .build()
+    }.toEventStreamResponse(request, exceptionHandler)
+}
+
 fun Flux<CommandResult>.toCommandResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
@@ -89,10 +103,17 @@ fun Flux<CommandResult>.toCommandResponse(
             .build().toMono()
     }
 
+    return serverSentEventStream.toEventStreamResponse(request, exceptionHandler)
+}
+
+fun <DATA> Flux<ServerSentEvent<DATA>>.toEventStreamResponse(
+    request: ServerRequest,
+    exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
+): Mono<ServerResponse> {
     return ServerResponse.ok()
         .contentType(MediaType.TEXT_EVENT_STREAM)
         .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
-        .body(serverSentEventStream, ServerSentEvent::class.java)
+        .body(this, ServerSentEvent::class.java)
         .onErrorResume {
             exceptionHandler.handle(request, it)
         }

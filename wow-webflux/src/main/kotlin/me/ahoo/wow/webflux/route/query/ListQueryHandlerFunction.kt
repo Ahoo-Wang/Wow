@@ -37,13 +37,11 @@ class ListQueryHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(ListQuery::class.java)
-            .flatMap {
+            .flatMapMany {
                 val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
                 val result = queryHandler.dynamicList(aggregateMetadata, query)
                 rewriteResult(result)
-                    .collectList()
-                    .writeRawRequest(request)
-            }.toServerResponse(request, exceptionHandler)
+            }.toServerResponse(request, exceptionHandler).writeRawRequest(request)
     }
 }
 

@@ -125,7 +125,7 @@ object QueryComponent {
 
         fun OpenAPIComponentContext.loadEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
             return ApiResponseBuilder().withErrorCodeHeader(this)
-                .content(
+                .listContent(
                     schema = arraySchema(
                         AggregatedDomainEventStream::class.java,
                         aggregateMetadata.command.aggregateType
