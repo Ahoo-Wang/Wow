@@ -34,6 +34,7 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.util.concurrent.TimeoutException
@@ -98,6 +99,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
+            .toFlux()
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
@@ -130,6 +132,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
+            .toFlux()
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
             .flatMap {
                 it.writeTo(serverWebExchange, responseContext)
@@ -160,6 +163,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
+            .toFlux()
             .doOnNext {
                 throw TimeoutException()
             }
@@ -187,6 +191,7 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
+            .toFlux()
             .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
