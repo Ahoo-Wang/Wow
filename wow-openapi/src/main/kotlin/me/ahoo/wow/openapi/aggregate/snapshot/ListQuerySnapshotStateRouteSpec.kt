@@ -49,7 +49,8 @@ class ListQuerySnapshotStateRouteSpec(
 
     override val appendPathSuffix: String
         get() = "snapshot/list/state"
-
+    override val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
     override val operationSummary: String
         get() = "List Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedListQueryRequestBody(aggregateMetadata)

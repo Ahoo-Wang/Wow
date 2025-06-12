@@ -42,6 +42,8 @@ class LoadEventStreamRouteSpec(
             .operation("load").build()
     override val method: String
         get() = Https.Method.GET
+    override val accept: List<String>
+        get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
     override val appendOwnerPath: Boolean
         get() = false
     override val appendIdPath: Boolean
