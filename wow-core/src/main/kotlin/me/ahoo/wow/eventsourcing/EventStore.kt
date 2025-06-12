@@ -51,7 +51,7 @@ interface EventStore {
     fun load(
         aggregateId: AggregateId,
         headVersion: Int = DEFAULT_HEAD_VERSION,
-        tailVersion: Int = Int.MAX_VALUE
+        tailVersion: Int = DEFAULT_TAIL_VERSION
     ): Flux<DomainEventStream>
 
     /**
@@ -61,5 +61,6 @@ interface EventStore {
 
     companion object {
         const val DEFAULT_HEAD_VERSION: Int = 1
+        const val DEFAULT_TAIL_VERSION: Int = Int.MAX_VALUE - 1
     }
 }
