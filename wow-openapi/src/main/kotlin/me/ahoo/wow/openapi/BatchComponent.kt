@@ -52,7 +52,7 @@ object BatchComponent {
         fun OpenAPIComponentContext.tailVersionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = PathVariable.TAIL_VERSION
-                schema = IntegerSchema().description("The tail version of the aggregate.").example(Int.MAX_VALUE)
+                schema = IntegerSchema().description("The tail version of the aggregate.").example(EventStore.DEFAULT_TAIL_VERSION)
                 `in`(ParameterIn.PATH.toString())
             }
 
@@ -67,7 +67,7 @@ object BatchComponent {
         fun OpenAPIComponentContext.batchLimitPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = PathVariable.BATCH_LIMIT
-                schema = IntegerSchema().description("The size of batch.").example(Int.MAX_VALUE)
+                schema = IntegerSchema().description("The size of batch.").example(EventStore.DEFAULT_TAIL_VERSION)
                 `in`(ParameterIn.PATH.toString())
             }
     }

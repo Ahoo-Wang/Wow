@@ -19,6 +19,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.CommonComponent.Schema.errorInfoSchema
@@ -67,7 +68,7 @@ object CommonComponent {
         fun OpenAPIComponentContext.versionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.VERSION
-                schema = IntegerSchema().description("aggregate version").example(Int.MAX_VALUE)
+                schema = IntegerSchema().description("aggregate version").example(EventStore.DEFAULT_TAIL_VERSION)
                 `in`(ParameterIn.PATH.toString())
             }
 
