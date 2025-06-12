@@ -23,14 +23,13 @@ import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.isSse
-import org.reactivestreams.Publisher
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
@@ -67,15 +66,15 @@ fun Mono<*>.toServerResponse(
     }
 }
 
-fun Publisher<CommandResult>.toCommandResponse(
+fun Flux<CommandResult>.toCommandResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler = DefaultRequestExceptionHandler
 ): Mono<ServerResponse> {
     if (!request.isSse()) {
-        return this.toMono().toServerResponse(request, exceptionHandler)
+        return this.next().toServerResponse(request, exceptionHandler)
     }
 
-    val serverSentEventStream = this.toFlux().map {
+    val serverSentEventStream = this.map {
         ServerSentEvent.builder<String>()
             .id(it.id)
             .event(it.stage.name)
