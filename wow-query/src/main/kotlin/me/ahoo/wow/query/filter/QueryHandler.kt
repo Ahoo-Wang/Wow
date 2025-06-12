@@ -31,7 +31,7 @@ interface QueryHandler<R : Any> : Handler<QueryContext<*, *>> {
     fun single(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<R>
     fun dynamicSingle(namedAggregate: NamedAggregate, singleQuery: ISingleQuery): Mono<DynamicDocument>
     fun list(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<R>
-    fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument>
+    fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument>
     fun paged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<R>>
     fun dynamicPaged(namedAggregate: NamedAggregate, pagedQuery: IPagedQuery): Mono<PagedList<DynamicDocument>>
     fun count(namedAggregate: NamedAggregate, condition: Condition): Mono<Long>
@@ -77,11 +77,11 @@ abstract class AbstractQueryHandler<R : Any>(
             )
     }
 
-    override fun list(namedAggregate: NamedAggregate, query: IListQuery): Flux<R> {
+    override fun list(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<R> {
         val context = DefaultQueryContext<IListQuery, Flux<R>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.LIST
-        ).setQuery(query)
+        ).setQuery(listQuery)
         return handle(context)
             .thenMany(
                 Flux.defer {
@@ -90,11 +90,11 @@ abstract class AbstractQueryHandler<R : Any>(
             )
     }
 
-    override fun dynamicList(namedAggregate: NamedAggregate, query: IListQuery): Flux<DynamicDocument> {
+    override fun dynamicList(namedAggregate: NamedAggregate, listQuery: IListQuery): Flux<DynamicDocument> {
         val context = DefaultQueryContext<IListQuery, Flux<DynamicDocument>>(
             namedAggregate = namedAggregate,
             queryType = QueryType.DYNAMIC_LIST
-        ).setQuery(query)
+        ).setQuery(listQuery)
         return handle(context)
             .thenMany(
                 Flux.defer {
