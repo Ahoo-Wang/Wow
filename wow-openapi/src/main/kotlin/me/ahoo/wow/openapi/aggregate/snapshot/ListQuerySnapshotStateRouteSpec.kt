@@ -57,7 +57,7 @@ class ListQuerySnapshotStateRouteSpec(
 
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
-            .listContent(schema = componentContext.schema(aggregateMetadata.state.aggregateType))
+            .listContent(componentContext, aggregateMetadata.state.aggregateType)
             .build()
             .let {
                 addApiResponse(Https.Code.OK, it)

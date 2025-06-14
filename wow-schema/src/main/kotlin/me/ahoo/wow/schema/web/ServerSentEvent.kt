@@ -13,11 +13,23 @@
 
 package me.ahoo.wow.schema.web
 
-import java.time.Duration
+interface IServerSentEvent<DATA> {
+    val id: String?
+    val event: String?
+    val data: DATA?
+    val retry: Int?
+}
 
 data class ServerSentEvent<DATA>(
-    val id: String? = null,
-    val event: String? = null,
-    val data: DATA? = null,
-    val retry: Duration? = null
-)
+    override val id: String? = null,
+    override val event: String? = null,
+    override val data: DATA? = null,
+    override val retry: Int? = null
+) : IServerSentEvent<DATA>
+
+data class ServerSentEventNonNullData<DATA>(
+    override val id: String? = null,
+    override val event: String? = null,
+    override val data: DATA,
+    override val retry: Int? = null
+) : IServerSentEvent<DATA>
