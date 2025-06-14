@@ -23,12 +23,13 @@ import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
+import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
+import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
-import me.ahoo.wow.serialization.JsonSerializer
 import java.lang.reflect.Type
 
 class JsonSchemaGenerator(
@@ -38,25 +39,37 @@ class JsonSchemaGenerator(
     private val schemaGenerator: SchemaGenerator
 
     init {
-        val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
-        val jakartaModule = JakartaValidationModule()
+        val jacksonModule: Module = JacksonModule(
+            JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
+            JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
+            JacksonOption.RESPECT_JSONPROPERTY_ORDER,
+            JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+            JacksonOption.INLINE_TRANSFORMED_SUBTYPES
+        )
+        val jakartaModule = JakartaValidationModule(
+            JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
+            JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
+        )
         val openApiModule: Module = Swagger2Module()
         val kotlinModule = KotlinModule()
         val jodaMoneyModule = JodaMoneyModule()
         val wowModule = WowModule(options)
         val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix)
         val schemaGeneratorConfigBuilder = SchemaGeneratorConfigBuilder(
-            JsonSerializer,
+            ObjectMapperFactory.create(null, true),
             SchemaVersion.DRAFT_2020_12,
             OptionPreset.PLAIN_JSON
         ).with(jacksonModule)
             .with(jakartaModule)
             .with(openApiModule)
-            .with(wowModule)
-            .with(jodaMoneyModule)
             .with(kotlinModule)
+            .with(jodaMoneyModule)
+            .with(wowModule)
             .with(schemaNamingModule)
             .with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
+            .with(Option.PLAIN_DEFINITION_KEYS)
+            .with(Option.SIMPLIFIED_ENUMS)
+            .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
         schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
     }
 

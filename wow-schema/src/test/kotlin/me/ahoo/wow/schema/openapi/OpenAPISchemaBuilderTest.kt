@@ -14,6 +14,7 @@ import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
+import org.springframework.http.codec.ServerSentEvent
 
 class OpenAPISchemaBuilderTest {
 
@@ -69,6 +70,18 @@ class OpenAPISchemaBuilderTest {
             )
         )
         orderStateSnapshotPagedListSchema.`$ref`.assert().isNull()
+        val componentsSchemas = openAPISchemaBuilder.build()
+        componentsSchemas.assert().isEmpty()
+    }
+
+    @Test
+    fun serverSentEvent() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder(
+            customizer = OpenAPISchemaBuilder.InlineCustomizer("")
+        )
+        openAPISchemaBuilder.inline.assert().isTrue()
+        val schema = openAPISchemaBuilder.generateSchema(ServerSentEvent::class.java)
+
         val componentsSchemas = openAPISchemaBuilder.build()
         componentsSchemas.assert().isEmpty()
     }
