@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.headers.Header
+import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
@@ -46,8 +47,9 @@ class ApiResponseBuilder {
     }
 
     fun listContent(schema: Schema<*>): ApiResponseBuilder {
-        apiResponse.content.addMediaType(Https.MediaType.APPLICATION_JSON, MediaType().schema(schema))
-        apiResponse.content.addMediaType(Https.MediaType.TEXT_EVENT_STREAM, MediaType().schema(schema))
+        val arraySchema = ArraySchema().items(schema)
+        apiResponse.content.addMediaType(Https.MediaType.APPLICATION_JSON, MediaType().schema(arraySchema))
+        apiResponse.content.addMediaType(Https.MediaType.TEXT_EVENT_STREAM, MediaType().schema(arraySchema))
         return this
     }
 

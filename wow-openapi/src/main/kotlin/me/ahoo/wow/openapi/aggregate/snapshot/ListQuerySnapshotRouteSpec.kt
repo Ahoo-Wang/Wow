@@ -58,7 +58,7 @@ class ListQuerySnapshotRouteSpec(
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
             .listContent(
-                schema = componentContext.arraySchema(
+                schema = componentContext.schema(
                     MaterializedSnapshot::class.java,
                     aggregateMetadata.state.aggregateType
                 )
