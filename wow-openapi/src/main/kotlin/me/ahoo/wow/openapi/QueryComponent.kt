@@ -126,10 +126,9 @@ object QueryComponent {
         fun OpenAPIComponentContext.loadEventStreamResponse(aggregateMetadata: AggregateMetadata<*, *>): io.swagger.v3.oas.models.responses.ApiResponse {
             return ApiResponseBuilder().withErrorCodeHeader(this)
                 .listContent(
-                    schema = schema(
-                        AggregatedDomainEventStream::class.java,
-                        aggregateMetadata.command.aggregateType
-                    )
+                    this,
+                    AggregatedDomainEventStream::class.java,
+                    aggregateMetadata.command.aggregateType
                 ).build()
         }
     }

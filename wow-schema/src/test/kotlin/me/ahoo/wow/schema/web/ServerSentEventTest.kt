@@ -15,16 +15,26 @@ package me.ahoo.wow.schema.web
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import java.time.Duration
 
 class ServerSentEventTest {
 
     @Test
-    fun `should create ServerSentEvent`() {
-        val serverSentEvent = ServerSentEvent(id = "1", event = "event", data = "data", retry = Duration.ofSeconds(1))
+    fun `should create ServerSentEventData`() {
+        val serverSentEvent =
+            ServerSentEvent(id = "1", event = "event", data = "data", retry = 1000)
         serverSentEvent.id.assert().isEqualTo("1")
         serverSentEvent.event.assert().isEqualTo("event")
         serverSentEvent.data.assert().isEqualTo("data")
-        serverSentEvent.retry.assert().isEqualTo(Duration.ofSeconds(1))
+        serverSentEvent.retry.assert().isEqualTo(1000)
+    }
+
+    @Test
+    fun `should create ServerSentEventNonNullData`() {
+        val serverSentEvent =
+            ServerSentEventNonNullData(id = "1", event = "event", data = "data", retry = 1000)
+        serverSentEvent.id.assert().isEqualTo("1")
+        serverSentEvent.event.assert().isEqualTo("event")
+        serverSentEvent.data.assert().isEqualTo("data")
+        serverSentEvent.retry.assert().isEqualTo(1000)
     }
 }

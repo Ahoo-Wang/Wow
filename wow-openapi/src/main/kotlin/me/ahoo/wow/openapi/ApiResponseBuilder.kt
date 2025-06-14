@@ -14,11 +14,13 @@
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.headers.Header
-import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.responses.ApiResponse
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.schema.web.ServerSentEventNonNullData
+import java.lang.reflect.Type
 
 class ApiResponseBuilder {
     companion object {
@@ -46,10 +48,21 @@ class ApiResponseBuilder {
         return this
     }
 
-    fun listContent(schema: Schema<*>): ApiResponseBuilder {
-        val arraySchema = ArraySchema().items(schema)
-        apiResponse.content.addMediaType(Https.MediaType.APPLICATION_JSON, MediaType().schema(arraySchema))
-        apiResponse.content.addMediaType(Https.MediaType.TEXT_EVENT_STREAM, MediaType().schema(arraySchema))
+    fun listContent(
+        context: OpenAPIComponentContext,
+        mainTargetType: Type,
+        vararg typeParameters: Type
+    ): ApiResponseBuilder {
+        val resolvedType = context.resolveType(mainTargetType, *typeParameters)
+        apiResponse.content.addMediaType(
+            Https.MediaType.APPLICATION_JSON,
+            MediaType().schema(context.arraySchema(resolvedType))
+        )
+        val serverSentEventType = context.resolveType(ServerSentEventNonNullData::class.java, resolvedType)
+        apiResponse.content.addMediaType(
+            Https.MediaType.TEXT_EVENT_STREAM,
+            MediaType().schema(context.arraySchema(serverSentEventType))
+        )
         return this
     }
 
