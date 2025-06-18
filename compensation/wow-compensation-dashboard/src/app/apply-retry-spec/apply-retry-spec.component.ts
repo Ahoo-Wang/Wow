@@ -38,20 +38,28 @@ import {NzInputNumberModule} from "ng-zorro-antd/input-number";
   templateUrl: './apply-retry-spec.component.html',
   styleUrl: './apply-retry-spec.component.scss'
 })
-export class ApplyRetrySpecComponent {
+export class ApplyRetrySpecComponent implements OnInit {
   @Input({required: true}) id!: string;
   @Input({required: true}) retrySpec!: RetrySpec;
   @Output() afterApply: EventEmitter<boolean> = new EventEmitter<boolean>();
-  validateForm = this.formBuilder.group({
-    maxRetries: [this.retrySpec.maxRetries, [Validators.required]],
-    minBackoff: [this.retrySpec.minBackoff, [Validators.required]],
-    executionTimeout: [this.retrySpec.executionTimeout, [Validators.required]]
-  });
+  validateForm!: FormGroup<{
+    maxRetries: FormControl<number>;
+    minBackoff: FormControl<number>;
+    executionTimeout: FormControl<number>;
+  }>
 
   constructor(private compensationClient: CompensationClient,
               private formBuilder: NonNullableFormBuilder,
               private message: NzMessageService) {
 
+  }
+
+  ngOnInit() {
+    this.validateForm = this.formBuilder.group({
+      maxRetries: [this.retrySpec.maxRetries, [Validators.required]],
+      minBackoff: [this.retrySpec.minBackoff, [Validators.required]],
+      executionTimeout: [this.retrySpec.executionTimeout, [Validators.required]]
+    });
   }
 
   applyRetrySpec() {
