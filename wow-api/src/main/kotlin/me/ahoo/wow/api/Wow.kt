@@ -21,4 +21,5 @@ package me.ahoo.wow.api
 object Wow {
     const val WOW: String = "wow"
     const val WOW_PREFIX: String = "$WOW."
+    val VERSION: String = Wow.javaClass.`package`.implementationVersion ?: "5.19.2"
 }

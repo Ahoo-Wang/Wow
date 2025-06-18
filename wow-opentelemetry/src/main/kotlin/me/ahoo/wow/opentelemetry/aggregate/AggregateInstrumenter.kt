@@ -16,10 +16,10 @@ package me.ahoo.wow.opentelemetry.aggregate
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_VERSION
 import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object AggregateInstrumenter {
@@ -30,7 +30,7 @@ object AggregateInstrumenter {
             INSTRUMENTATION_NAME,
             AggregateSpanNameExtractor,
         ).addAttributesExtractor(ExchangeAttributesExtractor())
-            .setInstrumentationVersion(INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 

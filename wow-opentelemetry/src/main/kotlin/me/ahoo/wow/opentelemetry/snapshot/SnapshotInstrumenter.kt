@@ -16,9 +16,9 @@ package me.ahoo.wow.opentelemetry.snapshot
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.opentelemetry.ExchangeAttributesExtractor
-import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
@@ -30,7 +30,7 @@ object SnapshotInstrumenter {
             INSTRUMENTATION_NAME,
             SnapshotSpanNameExtractor,
         ).addAttributesExtractor(ExchangeAttributesExtractor())
-            .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 

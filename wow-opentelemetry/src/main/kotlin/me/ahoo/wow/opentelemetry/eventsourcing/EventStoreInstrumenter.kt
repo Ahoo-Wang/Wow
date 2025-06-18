@@ -16,12 +16,12 @@ package me.ahoo.wow.opentelemetry.eventsourcing
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.opentelemetry.AggregateIdAttributesExtractor
 import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_VERSION
 
 object EventStoreInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}eventStore"
@@ -31,7 +31,7 @@ object EventStoreInstrumenter {
             INSTRUMENTATION_NAME,
             EventStoreAppendSpanNameExtractor,
         ).addAttributesExtractor(MessageAttributesExtractor())
-            .setInstrumentationVersion(INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
 
     val LOAD_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
@@ -40,7 +40,7 @@ object EventStoreInstrumenter {
             INSTRUMENTATION_NAME,
             EventStoreLoadSpanNameExtractor,
         ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
 }
 

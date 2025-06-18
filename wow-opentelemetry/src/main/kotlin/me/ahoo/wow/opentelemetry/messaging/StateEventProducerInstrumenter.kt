@@ -16,9 +16,9 @@ package me.ahoo.wow.opentelemetry.messaging
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.opentelemetry.MessageAttributesExtractor
-import me.ahoo.wow.opentelemetry.WowInstrumenter
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 
 object StateEventProducerInstrumenter {
@@ -29,7 +29,7 @@ object StateEventProducerInstrumenter {
             INSTRUMENTATION_NAME,
             StateEventProducerProducerSpanNameExtractor,
         ).addAttributesExtractor(MessageAttributesExtractor())
-            .setInstrumentationVersion(WowInstrumenter.INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildProducerInstrumenter(MessageTextMapSetter())
 }
 
