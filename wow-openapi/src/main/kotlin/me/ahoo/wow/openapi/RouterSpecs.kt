@@ -68,9 +68,13 @@ class RouterSpecs(
     fun mergeOpenAPI(openAPI: OpenAPI) {
         openAPI.apply {
             specVersion(SpecVersion.V31)
-            info = Info()
-                .title(currentContext.getContextAlias())
-                .description(currentContext.contextName)
+            if (info == null) {
+                info(
+                    Info()
+                        .title(currentContext.getContextAlias())
+                        .description(currentContext.contextName)
+                )
+            }
             if (paths == null) {
                 paths = Paths()
             }
