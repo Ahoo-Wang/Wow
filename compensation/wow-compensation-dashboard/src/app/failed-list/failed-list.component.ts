@@ -116,10 +116,6 @@ export class FailedListComponent implements OnInit {
     return this.controlToCondition(control, value => Conditions.eq(field, value))
   }
 
-  controlToContainsCondition(control: FormControl<string>, field: string): Condition | null {
-    return this.controlToCondition(control, value => Conditions.contains(field, value))
-  }
-
   buildCondition() {
     let conditions: Condition[] = []
     let idCondition = this.controlToCondition(this.validateForm.controls.id, value => Conditions.id(value))
@@ -248,6 +244,7 @@ export class FailedListComponent implements OnInit {
   }
 
   editRetrySpec(id: string, retrySpec: RetrySpec) {
+    debugger
     const editRetrySpecModal = this.drawerService.create<ApplyRetrySpecComponent, {
       id: string,
       retrySpec: RetrySpec
