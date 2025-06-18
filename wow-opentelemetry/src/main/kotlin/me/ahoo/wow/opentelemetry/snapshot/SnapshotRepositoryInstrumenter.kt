@@ -16,10 +16,10 @@ package me.ahoo.wow.opentelemetry.snapshot
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.opentelemetry.AggregateIdAttributesExtractor
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
-import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_VERSION
 
 object SnapshotRepositoryInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}snapshotRepository"
@@ -29,7 +29,7 @@ object SnapshotRepositoryInstrumenter {
             INSTRUMENTATION_NAME,
             SnapshotRepositorySaveSpanNameExtractor,
         ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
 
     val LOAD_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
@@ -38,7 +38,7 @@ object SnapshotRepositoryInstrumenter {
             INSTRUMENTATION_NAME,
             SnapshotRepositoryLoadSpanNameExtractor,
         ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(INSTRUMENTATION_VERSION)
+            .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
 }
 
