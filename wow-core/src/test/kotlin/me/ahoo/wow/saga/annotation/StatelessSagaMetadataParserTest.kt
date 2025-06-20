@@ -11,9 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.saga.stateful
+package me.ahoo.wow.saga.annotation
 
-/**
- * TODO : StatefulSaga is StateMachine
- */
-interface StatefulSaga
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+
+class StatelessSagaMetadataParserTest {
+
+    @Test
+    fun statelessSagaMetadata() {
+        val metadata = statelessSagaMetadata<TestStatelessSaga>()
+        metadata.name.assert().isEqualTo("TestStatelessSaga")
+        metadata.processorType.assert().isEqualTo(TestStatelessSaga::class.java)
+        metadata.functionRegistry.assert().isEmpty()
+    }
+}
+
+class TestStatelessSaga
