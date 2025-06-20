@@ -65,20 +65,37 @@ class RouterSpecs(
         }
     }
 
+    private fun serviceVersion(): String? {
+        val firstLocalAggregateType = MetadataSearcher.namedAggregateType.filter {
+            it.key.isSameBoundedContext(currentContext)
+        }.map {
+            it.value
+        }.firstOrNull() ?: return null
+        return firstLocalAggregateType.`package`.implementationVersion
+    }
+
+    private fun OpenAPI.ensureInfo() {
+        val info = this.info ?: Info()
+        if (info.title.isNullOrBlank() || info.title == "OpenAPI definition") {
+            info.title = currentContext.getContextAlias()
+        }
+        if (info.description.isNullOrBlank()) {
+            info.description = currentContext.contextName
+        }
+        serviceVersion()?.let {
+            info.version = it
+        }
+        this.info = info
+    }
+
     fun mergeOpenAPI(openAPI: OpenAPI) {
         openAPI.apply {
             specVersion(SpecVersion.V31)
-            if (info == null) {
-                info(
-                    Info()
-                        .title(currentContext.getContextAlias())
-                        .description(currentContext.contextName)
-                )
-            }
-            if (paths == null) {
+            ensureInfo()
+            paths?.let {
                 paths = Paths()
             }
-            if (components == null) {
+            components?.let {
                 components = Components()
             }
         }
