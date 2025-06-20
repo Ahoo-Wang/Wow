@@ -66,10 +66,6 @@ class JsonSchemaGeneratorTest {
         .schemaVersion(SchemaVersion.DRAFT_2020_12)
         .optionPreset(OptionPreset.PLAIN_JSON)
         .customizer {
-            it.with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
-                .with(Option.PLAIN_DEFINITION_KEYS)
-                .with(Option.SIMPLIFIED_ENUMS)
-                .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
         }
         .build()
 

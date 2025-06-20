@@ -38,6 +38,7 @@ class SchemaGeneratorBuilderTest {
             .jodaMoneyModule(null)
             .wowModule(WowModule())
             .schemaNamingModule(SchemaNamingModule(""))
+            .options(listOf())
             .customizer { }
             .build().assert().isNotNull()
     }

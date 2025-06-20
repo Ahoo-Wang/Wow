@@ -39,6 +39,15 @@ class SchemaGeneratorBuilder {
             }
             return this
         }
+
+        private fun SchemaGeneratorConfigBuilder.withOptions(
+            options: List<Option>
+        ): SchemaGeneratorConfigBuilder {
+            options.forEach {
+                this.with(it)
+            }
+            return this
+        }
     }
 
     private var openapi31: Boolean = true
@@ -64,13 +73,14 @@ class SchemaGeneratorBuilder {
     private var jodaMoneyModule: JodaMoneyModule? = JodaMoneyModule()
     private var wowModule: WowModule? = WowModule()
     private var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule("")
-
+    private var options: List<Option> = listOf(
+        Option.EXTRA_OPEN_API_FORMAT_VALUES,
+        Option.PLAIN_DEFINITION_KEYS,
+        Option.SIMPLIFIED_ENUMS,
+        Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES
+    )
     private var customizer: Consumer<SchemaGeneratorConfigBuilder>? = Consumer {
-        it.with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
-            .with(Option.PLAIN_DEFINITION_KEYS)
-            .with(Option.SIMPLIFIED_ENUMS)
-            .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
-            .with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+        it.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
     }
 
     fun openapi31(openapi31: Boolean): SchemaGeneratorBuilder {
@@ -123,6 +133,11 @@ class SchemaGeneratorBuilder {
         return this
     }
 
+    fun options(options: List<Option>): SchemaGeneratorBuilder {
+        this.options = options
+        return this
+    }
+
     fun customizer(customizer: Consumer<SchemaGeneratorConfigBuilder>): SchemaGeneratorBuilder {
         this.customizer = customizer
         return this
@@ -138,6 +153,7 @@ class SchemaGeneratorBuilder {
             .withModule(jodaMoneyModule)
             .withModule(wowModule)
             .withModule(schemaNamingModule)
+            .withOptions(options)
         customizer?.accept(configBuilder)
         return SchemaGenerator(configBuilder.build())
     }
