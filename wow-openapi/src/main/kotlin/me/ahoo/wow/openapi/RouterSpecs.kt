@@ -76,6 +76,10 @@ class RouterSpecs(
         return firstLocalAggregateType.`package`.implementationVersion
     }
 
+    private fun description(): String? {
+        return MetadataSearcher.metadata.contexts[currentContext.contextName]?.description
+    }
+
     private fun OpenAPI.ensureInfo() {
         val info = this.info ?: Info()
         if (info.title.isNullOrBlank() || info.title == DEFAULT_OPENAPI_INFO_TITLE) {
@@ -83,6 +87,9 @@ class RouterSpecs(
         }
         serviceVersion()?.let {
             info.version = it
+        }
+        if (info.description.isNullOrBlank()) {
+            info.description = description()
         }
         this.info = info
     }
