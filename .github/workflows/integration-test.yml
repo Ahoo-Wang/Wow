@@ -353,6 +353,25 @@ jobs:
       - name: Test Wow-Webflux
         run: ./gradlew wow-webflux:clean wow-webflux:check --stacktrace
 
+  wow-cosec-test:
+    name: Wow CoSec Test
+    needs: [ wow-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test Wow-CoSec
+        run: ./gradlew wow-cosec:clean wow-cosec:check --stacktrace
+
   wow-spring-boot-starter-test:
     name: Wow Spring-Boot-Starter Test
     needs: [ wow-spring-test ]
