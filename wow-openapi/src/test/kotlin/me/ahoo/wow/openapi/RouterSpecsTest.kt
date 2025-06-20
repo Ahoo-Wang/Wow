@@ -5,16 +5,21 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.api.ExampleService
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
 import org.junit.jupiter.api.Test
 
 class RouterSpecsTest {
-    val materializedNamedBoundedContext = MaterializedNamedBoundedContext("test")
+    val materializedNamedBoundedContext = MaterializedNamedBoundedContext(ExampleService.SERVICE_NAME)
 
     @Test
-    fun build() {
+    fun mergeIfNotFoundContextName() {
+        val openAPI = OpenAPI()
+        val materializedNamedBoundedContext = MaterializedNamedBoundedContext(generateGlobalId())
         val routerSpecs = RouterSpecs(materializedNamedBoundedContext).build()
+        routerSpecs.mergeOpenAPI(openAPI)
         routerSpecs.assert().isNotEmpty()
     }
 
