@@ -37,6 +37,7 @@ include(":wow-bi")
 include(":wow-query")
 include(":wow-models")
 include(":wow-schema")
+include(":wow-cosec")
 
 //region test
 include(":wow-test")
@@ -79,4 +80,3 @@ project(":example-transfer-domain").projectDir = file("example/transfer/example-
 include("example-transfer-server")
 project(":example-transfer-server").projectDir = file("example/transfer/example-transfer-server")
 //endregion
-

@@ -14,7 +14,7 @@
 package me.ahoo.wow.messaging.propagation
 
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
@@ -30,7 +30,7 @@ class CommandRequestHeaderPropagatorTest {
     fun inject() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
@@ -42,7 +42,7 @@ class CommandRequestHeaderPropagatorTest {
     fun injectIfNull() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
         assertThat(injectedHeader.userAgent, equalTo(null))
@@ -54,7 +54,7 @@ class CommandRequestHeaderPropagatorTest {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "false")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
@@ -68,7 +68,7 @@ class CommandRequestHeaderPropagatorTest {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "true")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
-            MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
+            MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)

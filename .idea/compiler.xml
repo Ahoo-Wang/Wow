@@ -93,6 +93,9 @@
       <module name="Wow.wow-core" options="-parameters" />
       <module name="Wow.wow-core.main" options="-parameters" />
       <module name="Wow.wow-core.test" options="-parameters" />
+      <module name="Wow.wow-cosec" options="-parameters" />
+      <module name="Wow.wow-cosec.main" options="-parameters" />
+      <module name="Wow.wow-cosec.test" options="-parameters" />
       <module name="Wow.wow-elasticsearch" options="-parameters" />
       <module name="Wow.wow-elasticsearch.main" options="-parameters" />
       <module name="Wow.wow-elasticsearch.test" options="-parameters" />
