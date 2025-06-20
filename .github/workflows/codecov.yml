@@ -68,6 +68,7 @@ jobs:
             wow-elasticsearch/build/test-results/**/*.xml
             wow-spring/build/test-results/**/*.xml
             wow-webflux/build/test-results/**/*.xml
+            wow-cosec/build/test-results/**/*.xml
             wow-spring-boot-starter/build/test-results/**/*.xml
             wow-opentelemetry/build/test-results/**/*.xml
             wow-query/build/test-results/**/*.xml
