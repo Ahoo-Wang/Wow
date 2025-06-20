@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.context
 
 import com.fasterxml.classmate.ResolvedType
+import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaVersion
 import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.Schema
@@ -22,6 +23,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.RequestBodyBuilder
+import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.openapi.InlineSchemaCapable
 import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
@@ -39,15 +41,16 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
             schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
             defaultSchemaNamePrefix: String = ""
         ): OpenAPIComponentContext {
-            val customizer = if (inline) {
-                OpenAPISchemaBuilder.InlineCustomizer(defaultSchemaNamePrefix)
-            } else {
-                OpenAPISchemaBuilder.DefaultCustomizer(defaultSchemaNamePrefix)
+            val schemaGeneratorBuilder = SchemaGeneratorBuilder().schemaVersion(schemaVersion)
+            if (inline) {
+                schemaGeneratorBuilder.customizer {
+                    it.with(Option.INLINE_ALL_SCHEMAS)
+                }
             }
             return DefaultOpenAPIComponentContext(
                 OpenAPISchemaBuilder(
-                    schemaVersion = schemaVersion,
-                    customizer = customizer
+                    defaultSchemaNamePrefix = defaultSchemaNamePrefix,
+                    schemaGeneratorBuilder = schemaGeneratorBuilder
                 )
             )
         }
