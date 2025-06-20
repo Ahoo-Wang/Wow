@@ -25,6 +25,7 @@ annotation class BoundedContext(
      */
     val name: String,
     val alias: String = "",
+    val description: String = "",
     val scopes: Array<String> = [],
     val packageScopes: Array<KClass<*>> = [],
     val aggregates: Array<Aggregate> = []

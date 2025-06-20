@@ -20,8 +20,9 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 
 @BoundedContext(
-    ExampleService.SERVICE_NAME,
-    ExampleService.SERVICE_ALIAS,
+    name = ExampleService.SERVICE_NAME,
+    alias = ExampleService.SERVICE_ALIAS,
+    description = "Wow Example Context",
     aggregates = [
         BoundedContext.Aggregate(ORDER_AGGREGATE_NAME, packageScopes = [CreateOrder::class]),
         BoundedContext.Aggregate(
@@ -36,6 +37,4 @@ object ExampleService {
     const val SERVICE_ALIAS = "example"
     const val ORDER_AGGREGATE_NAME = "order"
     const val CART_AGGREGATE_NAME = "cart"
-
-    const val CUSTOMER_ORDER_PREFIX = "customer/{customerId}"
 }
