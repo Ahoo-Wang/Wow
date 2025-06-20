@@ -6,6 +6,7 @@ import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
 import org.junit.jupiter.api.Test
 
 class RouterSpecsTest {
@@ -29,6 +30,16 @@ class RouterSpecsTest {
     @Test
     fun mergeOpenAPIWithInfo() {
         val info = Info()
+        val openAPI = OpenAPI().info(info)
+        RouterSpecs(materializedNamedBoundedContext).build()
+            .mergeOpenAPI(openAPI)
+        openAPI.info.assert().isSameAs(info)
+        openAPI.components.schemas.assert().isNotEmpty()
+    }
+
+    @Test
+    fun mergeOpenAPIWithInfoDefault() {
+        val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE)
         val openAPI = OpenAPI().info(info)
         RouterSpecs(materializedNamedBoundedContext).build()
             .mergeOpenAPI(openAPI)
