@@ -44,7 +44,7 @@ class RouterSpecsTest {
 
     @Test
     fun mergeOpenAPIWithInfoDefault() {
-        val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE)
+        val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE).description("hello")
         val openAPI = OpenAPI().info(info)
         RouterSpecs(materializedNamedBoundedContext).build()
             .mergeOpenAPI(openAPI)
