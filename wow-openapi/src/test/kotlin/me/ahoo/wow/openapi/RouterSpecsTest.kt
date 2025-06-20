@@ -53,6 +53,16 @@ class RouterSpecsTest {
     }
 
     @Test
+    fun mergeOpenAPIWithInfoTitle() {
+        val info = Info().title(generateGlobalId())
+        val openAPI = OpenAPI().info(info)
+        RouterSpecs(materializedNamedBoundedContext).build()
+            .mergeOpenAPI(openAPI)
+        openAPI.info.assert().isSameAs(info)
+        openAPI.components.schemas.assert().isNotEmpty()
+    }
+
+    @Test
     fun mergeOpenAPIWithNotNull() {
         val info = Info()
         val paths = Paths()
