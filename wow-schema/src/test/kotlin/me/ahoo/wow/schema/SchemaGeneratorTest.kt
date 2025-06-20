@@ -61,7 +61,17 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 class JsonSchemaGeneratorTest {
-    private val jsonSchemaGenerator = JsonSchemaGenerator()
+    private val jsonSchemaGenerator = SchemaGeneratorBuilder()
+        .openapi31(true)
+        .schemaVersion(SchemaVersion.DRAFT_2020_12)
+        .optionPreset(OptionPreset.PLAIN_JSON)
+        .customizer {
+            it.with(Option.EXTRA_OPEN_API_FORMAT_VALUES)
+                .with(Option.PLAIN_DEFINITION_KEYS)
+                .with(Option.SIMPLIFIED_ENUMS)
+                .with(Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES)
+        }
+        .build()
 
     companion object {
         @JvmStatic
@@ -137,47 +147,47 @@ class JsonSchemaGeneratorTest {
     @ParameterizedTest
     @MethodSource("parametersForGenerate")
     fun generate(interfaceType: Class<*>, implType: Class<*>) {
-        val schema = jsonSchemaGenerator.generate(implType)
+        val schema = jsonSchemaGenerator.generateSchema(implType)
         schema.assert().isEqualTo(WowSchemaLoader.load(interfaceType))
     }
 
     @ParameterizedTest
     @MethodSource("parametersForGenerateTypeParameter")
     fun generateTypeParameter(interfaceType: Class<*>, typeParameter: Class<*>, resourceName: String) {
-        val schema = jsonSchemaGenerator.generate(interfaceType, typeParameter)
+        val schema = jsonSchemaGenerator.generateSchema(interfaceType, typeParameter)
         schema.toPrettyString().assert().isEqualTo(WowSchemaLoader.loadAsString(resourceName))
     }
 
     @Test
     fun ignoreCommandPathRouteVariable() {
-        val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
+        val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
     fun ignoreCommandHeaderRouteVariable() {
-        val schema = jsonSchemaGenerator.generate(Header::class.java).asJsonSchema()
+        val schema = jsonSchemaGenerator.generateSchema(Header::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
     fun notIgnoreCommandPathRouteVariable() {
-        val jsonSchemaGenerator = JsonSchemaGenerator(setOf())
-        val schema = jsonSchemaGenerator.generate(Patch::class.java).asJsonSchema()
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
+        val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
         schema.getProperties().assert().isNotNull()
     }
 
     @Test
     fun enum() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
-        val schema = jsonSchemaGenerator.generate(CommandStage::class.java).asJsonSchema()
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
+        val schema = jsonSchemaGenerator.generateSchema(CommandStage::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
     fun aggregatedCondition() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
-        val schema = jsonSchemaGenerator.generate(
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
+        val schema = jsonSchemaGenerator.generateSchema(
             AggregatedCondition::class.java,
             Order::class.java
         ).asJsonSchema()
@@ -186,8 +196,8 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun aggregatedConditionForAny() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
-        val schema = jsonSchemaGenerator.generate(
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
+        val schema = jsonSchemaGenerator.generateSchema(
             AggregatedCondition::class.java
         ).asJsonSchema()
         schema.getProperties().assert().isNotNull()
@@ -195,8 +205,8 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun aggregatedListQueryForAny() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
-        val schema = jsonSchemaGenerator.generate(
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
+        val schema = jsonSchemaGenerator.generateSchema(
             AggregatedListQuery::class.java
         ).asJsonSchema()
         schema.getProperties().assert().isNotNull()
@@ -251,7 +261,7 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun kotlin() {
-        val schema = jsonSchemaGenerator.generate(KotlinData::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(KotlinData::class.java)
         val nullableFieldType = schema.get("properties").get("nullableField").get("type")
         nullableFieldType.isArray.assert().isTrue()
         nullableFieldType.get(0).textValue().assert().isEqualTo("string")
@@ -268,27 +278,27 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun schemaPolymorphic() {
-        val schema = jsonSchemaGenerator.generate(PolymorphicConfig::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(PolymorphicConfig::class.java)
         schema.get("anyOf").assert().isNotNull()
     }
 
     @Test
     fun javaType() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
-        jsonSchemaGenerator.generate(CosIdGeneratorStat::class.java)
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
+        jsonSchemaGenerator.generateSchema(CosIdGeneratorStat::class.java)
     }
 
     @Test
     fun arrayType() {
-        val jsonSchemaGenerator = JsonSchemaGenerator()
+        val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val arrayType = TypeResolver().arrayType(SchemaData::class.java)
-        val arrayTypeSchema = jsonSchemaGenerator.generate(arrayType)
+        val arrayTypeSchema = jsonSchemaGenerator.generateSchema(arrayType)
         arrayTypeSchema.get("type").asText().assert().isEqualTo("array")
     }
 
     @Test
     fun schema() {
-        val schema = jsonSchemaGenerator.generate(SchemaData::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(SchemaData::class.java)
         val nullableFieldNode = schema.get("properties").get("nullableField")
         val nullableFieldType = nullableFieldNode.get("type")
         nullableFieldType.isArray.assert().isTrue()

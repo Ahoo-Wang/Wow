@@ -41,7 +41,9 @@ import java.util.stream.Stream
 
 class JsonSchemaValidatorTest {
 
-    private val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))
+    private val jsonSchemaGenerator = SchemaGeneratorBuilder().wowModule(
+        WowModule(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))
+    ).build()
 
     companion object {
         private val typeResolver = TypeResolver()
@@ -139,7 +141,7 @@ class JsonSchemaValidatorTest {
         val jsonSchemaFactory = JsonSchemaFactory.getInstance(VersionFlag.V202012) { builder ->
             builder.schemaLoaders {
                 it.schemas {
-                    jsonSchemaGenerator.generate(type).toPrettyString()
+                    jsonSchemaGenerator.generateSchema(type).toPrettyString()
                 }
             }
         }
