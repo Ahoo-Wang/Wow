@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.configuration
 
+import me.ahoo.wow.api.naming.DescriptionCapable
 import me.ahoo.wow.serialization.toJsonString
 
 data class WowMetadata(
@@ -44,12 +45,13 @@ data class WowMetadata(
 
 data class BoundedContext(
     val alias: String? = null,
+    override val description: String = "",
     override val scopes: Set<String> = linkedSetOf(),
     /**
      * `aggregateName` -> `Aggregate`
      */
     val aggregates: Map<String, Aggregate> = emptyMap()
-) : NamingScopes, Merge<BoundedContext> {
+) : NamingScopes, Merge<BoundedContext>, DescriptionCapable {
     override fun merge(other: BoundedContext): BoundedContext {
         if (alias.isNullOrBlank().not() && other.alias.isNullOrBlank().not()) {
             check(alias == other.alias) {
@@ -57,9 +59,15 @@ data class BoundedContext(
             }
         }
         val mergedAlias = firstNotBlank(alias, other.alias)
+        val mergedDescription = firstNotBlank(description, other.description).orEmpty()
         val mergedScopes = scopes.plus(other.scopes)
         val mergedAggregates = aggregates.merge(other.aggregates)
-        return BoundedContext(alias = mergedAlias, scopes = mergedScopes, aggregates = mergedAggregates)
+        return BoundedContext(
+            alias = mergedAlias,
+            description = mergedDescription,
+            scopes = mergedScopes,
+            aggregates = mergedAggregates
+        )
     }
 }
 

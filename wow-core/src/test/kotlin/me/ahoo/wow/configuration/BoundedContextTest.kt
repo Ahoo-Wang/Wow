@@ -1,5 +1,6 @@
 package me.ahoo.wow.configuration
 
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -7,17 +8,34 @@ class BoundedContextTest {
 
     @Test
     fun merge() {
-        BoundedContext().merge(BoundedContext())
+        val mergedContext = BoundedContext().merge(BoundedContext())
+        mergedContext.alias.assert().isNull()
+        mergedContext.description.assert().isEmpty()
     }
 
     @Test
     fun mergeEmpty() {
-        BoundedContext("").merge(BoundedContext(""))
+        val mergedContext = BoundedContext("").merge(BoundedContext(""))
+        mergedContext.alias.assert().isEmpty()
+        mergedContext.description.assert().isEmpty()
     }
 
     @Test
-    fun mergeEmptyNull() {
-        BoundedContext("").merge(BoundedContext())
+    fun mergeIfFirstNotEmpty() {
+        val alias = "alias"
+        val description = "desc"
+        val mergedContext = BoundedContext(alias, description).merge(BoundedContext())
+        mergedContext.alias.assert().isEqualTo(alias)
+        mergedContext.description.assert().isEqualTo(description)
+    }
+
+    @Test
+    fun mergeIfSecondNotEmpty() {
+        val alias = "alias"
+        val description = "desc"
+        val mergedContext = BoundedContext().merge(BoundedContext(alias, description))
+        mergedContext.alias.assert().isEqualTo(alias)
+        mergedContext.description.assert().isEqualTo(description)
     }
 
     @Test
