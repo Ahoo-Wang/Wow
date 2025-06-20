@@ -1,6 +1,7 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.TypeResolver
+import com.github.victools.jsonschema.generator.Option
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -11,6 +12,7 @@ import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.models.tree.Leaf
 import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
+import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
@@ -50,7 +52,9 @@ class OpenAPISchemaBuilderTest {
     @Test
     fun buildInline() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(
-            customizer = OpenAPISchemaBuilder.InlineCustomizer("")
+            schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer {
+                it.with(Option.INLINE_ALL_SCHEMAS)
+            }
         )
         openAPISchemaBuilder.inline.assert().isTrue()
         val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)
@@ -77,7 +81,9 @@ class OpenAPISchemaBuilderTest {
     @Test
     fun serverSentEvent() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(
-            customizer = OpenAPISchemaBuilder.InlineCustomizer("")
+            schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer {
+                it.with(Option.INLINE_ALL_SCHEMAS)
+            }
         )
         openAPISchemaBuilder.inline.assert().isTrue()
         val schema = openAPISchemaBuilder.generateSchema(ServerSentEvent::class.java)

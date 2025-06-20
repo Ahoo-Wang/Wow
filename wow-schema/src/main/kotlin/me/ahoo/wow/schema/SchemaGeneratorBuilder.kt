@@ -18,6 +18,8 @@ import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
+import com.github.victools.jsonschema.generator.TypeContext
+import com.github.victools.jsonschema.generator.impl.TypeContextFactory
 import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
@@ -50,38 +52,55 @@ class SchemaGeneratorBuilder {
         }
     }
 
-    private var openapi31: Boolean = true
-    private var schemaVersion: SchemaVersion = SchemaVersion.DRAFT_7
-    private var optionPreset: OptionPreset = OptionPreset.PLAIN_JSON
+    var openapi31: Boolean = true
+        private set
+    var schemaVersion: SchemaVersion = SchemaVersion.DRAFT_7
+        private set
+    var optionPreset: OptionPreset = OptionPreset.PLAIN_JSON
+        private set
 
-    private var jacksonModule: JacksonModule? = JacksonModule(
+    var jacksonModule: JacksonModule? = JacksonModule(
         JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
         JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
         JacksonOption.RESPECT_JSONPROPERTY_ORDER,
         JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
         JacksonOption.INLINE_TRANSFORMED_SUBTYPES
     )
-    private var jakartaValidationModule: JakartaValidationModule? = JakartaValidationModule(
+        private set
+    var jakartaValidationModule: JakartaValidationModule? = JakartaValidationModule(
         JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
         JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
     )
+        private set
 
-    private var swagger2Module: Swagger2Module? = Swagger2Module()
-
-    private var kotlinModule: KotlinModule? = KotlinModule()
-
-    private var jodaMoneyModule: JodaMoneyModule? = JodaMoneyModule()
-    private var wowModule: WowModule? = WowModule()
-    private var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule("")
-    private var options: List<Option> = listOf(
+    var swagger2Module: Swagger2Module? = Swagger2Module()
+        private set
+    var kotlinModule: KotlinModule? = KotlinModule()
+        private set
+    var jodaMoneyModule: JodaMoneyModule? = JodaMoneyModule()
+        private set
+    var wowModule: WowModule? = WowModule()
+        private set
+    var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule("")
+        private set
+    var options: List<Option> = listOf(
         Option.EXTRA_OPEN_API_FORMAT_VALUES,
         Option.PLAIN_DEFINITION_KEYS,
         Option.SIMPLIFIED_ENUMS,
         Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES
     )
-    private var customizer: Consumer<SchemaGeneratorConfigBuilder>? = Consumer {
+        private set
+    var customizer: Consumer<SchemaGeneratorConfigBuilder>? = Consumer {
         it.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
     }
+        private set
+    var typeContext: TypeContext? = null
+        private set
+
+    val requiredTypeContent: TypeContext
+        get() = checkNotNull(typeContext) {
+            "typeContext is null, please call SchemaGeneratorBuilder.build() first."
+        }
 
     fun openapi31(openapi31: Boolean): SchemaGeneratorBuilder {
         this.openapi31 = openapi31
@@ -155,6 +174,8 @@ class SchemaGeneratorBuilder {
             .withModule(schemaNamingModule)
             .withOptions(options)
         customizer?.accept(configBuilder)
-        return SchemaGenerator(configBuilder.build())
+        val config = configBuilder.build()
+        typeContext = TypeContextFactory.createDefaultTypeContext(config)
+        return SchemaGenerator(configBuilder.build(), typeContext)
     }
 }
