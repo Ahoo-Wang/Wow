@@ -35,6 +35,9 @@ class RouterSpecs(
     override val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix())
 ) : OpenAPIComponentContextCapable, Iterable<RouteSpec> by routes {
+    companion object {
+        const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
+    }
 
     @Volatile
     private var built: Boolean = false
@@ -76,7 +79,7 @@ class RouterSpecs(
 
     private fun OpenAPI.ensureInfo() {
         val info = this.info ?: Info()
-        if (info.title.isNullOrBlank() || info.title == "OpenAPI definition") {
+        if (info.title.isNullOrBlank() || info.title == DEFAULT_OPENAPI_INFO_TITLE) {
             info.title = currentContext.getContextAlias()
         }
         if (info.description.isNullOrBlank()) {
@@ -92,10 +95,10 @@ class RouterSpecs(
         openAPI.apply {
             specVersion(SpecVersion.V31)
             ensureInfo()
-            paths?.let {
+            if (paths == null) {
                 paths = Paths()
             }
-            components?.let {
+            if (components == null) {
                 components = Components()
             }
         }
