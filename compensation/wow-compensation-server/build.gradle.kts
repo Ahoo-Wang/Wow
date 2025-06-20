@@ -70,6 +70,7 @@ dependencies {
     implementation(project(":wow-compensation-domain"))
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-webflux"))
+    implementation(project(":wow-cosec"))
     implementation(project(":wow-spring-boot-starter"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-mongo"))
