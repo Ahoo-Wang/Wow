@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-apiclient"))
     implementation(project(":wow-webflux"))
+    implementation(project(":wow-cosec"))
     implementation(project(":wow-spring-boot-starter"))
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
