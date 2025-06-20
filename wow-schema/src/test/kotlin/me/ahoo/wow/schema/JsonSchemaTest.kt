@@ -12,11 +12,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
 class JsonSchemaTest {
-    private val jsonSchemaGenerator = JsonSchemaGenerator(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))
+    private val jsonSchemaGenerator = SchemaGeneratorBuilder().schemaVersion(
+        SchemaVersion.DRAFT_2020_12
+    ).wowModule(WowModule(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))).build()
 
     @Test
     fun get() {
-        val schema = jsonSchemaGenerator.generate(CreateOrder::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(CreateOrder::class.java)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
     }
@@ -24,7 +26,7 @@ class JsonSchemaTest {
     @Test
     fun serverSentEvent() {
         val resolvedType = TypeResolver().resolve(ServerSentEvent::class.java)
-        val schema = jsonSchemaGenerator.generate(resolvedType)
+        val schema = jsonSchemaGenerator.generateSchema(resolvedType)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
     }
@@ -33,7 +35,7 @@ class JsonSchemaTest {
     fun serverSentEventData() {
         val resolvedType =
             TypeResolver().resolve(ServerSentEvent::class.java, AggregatedFieldPathsTest.DemoState::class.java)
-        val schema = jsonSchemaGenerator.generate(resolvedType)
+        val schema = jsonSchemaGenerator.generateSchema(resolvedType)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
     }

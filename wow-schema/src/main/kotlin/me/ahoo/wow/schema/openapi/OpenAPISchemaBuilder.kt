@@ -69,7 +69,7 @@ class OpenAPISchemaBuilder(
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
 
     fun JsonNode.toSchema(): Schema<*> {
-        return openAPIObjectMapper.treeToValue(this, Schema::class.java)
+        return schemaGenerator.config.objectMapper.treeToValue(this, Schema::class.java)
     }
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
