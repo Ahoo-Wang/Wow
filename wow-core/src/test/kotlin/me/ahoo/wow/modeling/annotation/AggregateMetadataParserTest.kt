@@ -61,6 +61,13 @@ internal class AggregateMetadataParserTest {
     }
 
     @Test
+    fun parseMockStateAggregateWithoutRedundantCtorCommand() {
+        assertThrownBy<IllegalStateException> {
+            aggregateMetadata<MockStateAggregateWithoutRedundantCtorCommand, MockStateAggregateWithoutRedundantCtorState>()
+        }
+    }
+
+    @Test
     fun parseMountAggregate() {
         val aggregateMetadata = aggregateMetadata<MockMountAggregate, MockMountAggregate>()
         aggregateMetadata.command.mountedCommands.assert().hasSize(1)

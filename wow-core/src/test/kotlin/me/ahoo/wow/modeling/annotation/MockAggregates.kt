@@ -103,3 +103,6 @@ class MockMultipleAfterCommandAggregate(val id: String) {
 
 class MockStateAggregateWithoutCtorCommand(private val state: MockStateAggregateWithoutCtorState)
 class MockStateAggregateWithoutCtorState
+
+class MockStateAggregateWithoutRedundantCtorCommand(private val state: MockStateAggregateWithoutRedundantCtorState)
+class MockStateAggregateWithoutRedundantCtorState(val id: String, val tenantId: String, val ownerId: String)

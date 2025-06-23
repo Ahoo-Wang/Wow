@@ -57,6 +57,9 @@
         },
         "MockStateAggregateWithoutCtorCommand": {
           "type": "me.ahoo.wow.modeling.annotation.MockStateAggregateWithoutCtorCommand"
+        },
+        "MockStateAggregateWithoutRedundantCtorCommand": {
+          "type": "me.ahoo.wow.modeling.annotation.MockStateAggregateWithoutRedundantCtorCommand"
         }
       }
     }
