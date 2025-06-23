@@ -17,8 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -141,9 +141,11 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         operator: String = "",
         firstEventTime: Long = 0,
         eventTime: Long = 0,
-        deleted: Boolean = false
+        deleted: Boolean = false,
+        aggregateId: String = "",
+        tenantId: String = TenantId.DEFAULT_TENANT_ID
     ): StateAggregate<S> {
-        val aggregateId = aggregateId(requireNotNull(this.state.aggregateIdAccessor)[state])
+        val aggregateId = extractAggregateId(state, aggregateId, tenantId)
         return this.state.toStateAggregate(
             aggregateId = aggregateId,
             state = state,

@@ -12,9 +12,12 @@
  */
 package me.ahoo.wow.modeling.matedata
 
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.metadata.Metadata
+import me.ahoo.wow.modeling.aggregateId
 
 /**
  * StateAggregateMetadata .
@@ -33,6 +36,22 @@ data class AggregateMetadata<C : Any, S : Any>(
      */
     val isAggregationPattern: Boolean
         get() = command.aggregateType != state.aggregateType
+
+    private fun extractAggregateId(state: S, aggregateId: String): String {
+        val accessor = this.state.aggregateIdAccessor
+        if (accessor != null) {
+            return accessor[state]
+        }
+        require(aggregateId.isNotBlank()) {
+            "aggregateIdAccessor and aggregateId cannot both be null or blank."
+        }
+        return aggregateId
+    }
+
+    fun extractAggregateId(state: S, aggregateId: String, tenantId: String = TenantId.DEFAULT_TENANT_ID): AggregateId {
+        val aggregateIdStr = extractAggregateId(state, aggregateId)
+        return aggregateId(id = aggregateIdStr, tenantId = tenantId)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
