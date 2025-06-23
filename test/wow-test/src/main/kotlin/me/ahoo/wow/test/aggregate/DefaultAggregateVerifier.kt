@@ -21,7 +21,6 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -71,17 +70,12 @@ internal class DefaultGivenStage<C : Any, S : Any>(
     }
 
     override fun givenState(state: S, version: Int): WhenStage<S> {
-        val aggregateIdStr = metadata.state.aggregateIdAccessor?.get(state)
-        val givenAggregateId = if (aggregateIdStr.isNullOrBlank()) {
-            aggregateId
-        } else {
-            metadata.aggregateId(aggregateIdStr)
-        }
-        val stateAggregate = metadata.state.toStateAggregate(
-            aggregateId = givenAggregateId,
+        val stateAggregate = metadata.toStateAggregate(
             state = state,
             version = version,
-            ownerId = ownerId
+            ownerId = ownerId,
+            aggregateId = aggregateId.id,
+            tenantId = aggregateId.tenantId
         )
         return givenState(stateAggregate)
     }
@@ -281,7 +275,9 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         val stateAggregate = metadata.toStateAggregate(
             state = state,
             version = version,
-            ownerId = ownerId
+            ownerId = ownerId,
+            aggregateId = verifiedResult.stateAggregate.aggregateId.id,
+            tenantId = verifiedResult.stateAggregate.aggregateId.tenantId
         )
         return givenState(stateAggregate)
     }
