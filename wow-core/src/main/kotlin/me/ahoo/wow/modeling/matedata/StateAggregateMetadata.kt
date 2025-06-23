@@ -27,7 +27,7 @@ data class StateAggregateMetadata<S : Any>(
      */
     override val aggregateType: Class<S>,
     val constructorAccessor: ConstructorAccessor<S>,
-    val aggregateIdAccessor: PropertyGetter<S, String>,
+    val aggregateIdAccessor: PropertyGetter<S, String>?,
     val sourcingFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<S, Void>>
 ) : TypedAggregate<S>, Metadata {
 

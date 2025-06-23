@@ -17,7 +17,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.SimpleStateEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -43,7 +43,7 @@ abstract class SnapshotStrategySpec {
     fun onEvent() {
         val aggregateId = aggregateMetadata.aggregateId()
         val createdEventStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString())
+            MockAggregateCreated(generateGlobalId())
                 .toDomainEventStream(GivenInitializationCommand(aggregateId), 0)
         val state = MockStateAggregate(createdEventStream.aggregateId.id)
         val stateEvent = createdEventStream.toStateEvent(state)

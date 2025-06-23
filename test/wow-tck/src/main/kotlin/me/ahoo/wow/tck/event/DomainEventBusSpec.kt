@@ -19,7 +19,7 @@ import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.messaging.MessageBusSpec
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -32,9 +32,9 @@ abstract class DomainEventBusSpec : MessageBusSpec<DomainEventStream, EventStrea
 
     override fun createMessage(): DomainEventStream {
         return MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregate.aggregateId(GlobalIdGenerator.generateAsString()),
+            aggregateId = namedAggregate.aggregateId(generateGlobalId()),
             eventCount = 1,
-            createdEventSupplier = { MockAggregateCreated(GlobalIdGenerator.generateAsString()) },
+            createdEventSupplier = { MockAggregateCreated(generateGlobalId()) },
         )
     }
 }

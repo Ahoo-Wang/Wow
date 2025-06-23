@@ -1,9 +1,7 @@
 package me.ahoo.wow.modeling.matedata
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.instanceOf
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class SimpleNamedAggregateGetterTest {
@@ -13,14 +11,14 @@ class SimpleNamedAggregateGetterTest {
         val aggregateNameGetter = StaticPropertyGetter<Any, String>("test")
         val getter = SimpleNamedAggregateGetter("test", aggregateNameGetter)
         val namedAggregate = getter.getNamedAggregate(Any())
-        assertThat(namedAggregate.contextName, equalTo("test"))
-        assertThat(namedAggregate.aggregateName, equalTo("test"))
+        namedAggregate.contextName.assert().isEqualTo("test")
+        namedAggregate.aggregateName.assert().isEqualTo("test")
     }
 
     @Test
     fun toNamedAggregateGetter() {
         val getter = StaticPropertyGetter<Any, String>("test")
             .toNamedAggregateGetter(Any::class.java)
-        assertThat(getter, instanceOf(SimpleNamedAggregateGetter::class.java))
+        getter.assert().isInstanceOf(NamedAggregateGetter::class.java)
     }
 }

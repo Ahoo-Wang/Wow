@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.modeling.state
 
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -26,8 +26,8 @@ class StateAggregatesTest {
     private val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun asStateAggregate() {
-        val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
+    fun toStateAggregate() {
+        val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(
             state = state,
             version = 1,
@@ -49,8 +49,8 @@ class StateAggregatesTest {
     }
 
     @Test
-    fun asStateAggregateGivenAggregateId() {
-        val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
+    fun toStateAggregateGivenAggregateId() {
+        val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.state.toStateAggregate(
             aggregateId = aggregateMetadata.aggregateId(state.id),
             state = state,
@@ -73,8 +73,8 @@ class StateAggregatesTest {
     }
 
     @Test
-    fun asStateAggregateGivenReadOnly() {
-        val state = MockStateAggregate(GlobalIdGenerator.generateAsString())
+    fun toStateAggregateGivenReadOnly() {
+        val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.state.toStateAggregate(
             aggregateId = aggregateMetadata.aggregateId(state.id),
             state = state,

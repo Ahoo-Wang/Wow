@@ -33,7 +33,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
@@ -171,8 +171,8 @@ abstract class CommandDispatcherSpec {
 
     private fun warmUp() {
         val mockCreateAggregate = MockCreateAggregate(
-            id = GlobalIdGenerator.generateAsString(),
-            data = GlobalIdGenerator.generateAsString(),
+            id = generateGlobalId(),
+            data = generateGlobalId(),
         )
         commandGateway
             .sendAndWaitForProcessed(mockCreateAggregate.toCommandMessage())
@@ -187,8 +187,8 @@ abstract class CommandDispatcherSpec {
             repeat(aggregateCount) {
                 add(
                     MockCreateAggregate(
-                        id = GlobalIdGenerator.generateAsString(),
-                        data = GlobalIdGenerator.generateAsString(),
+                        id = generateGlobalId(),
+                        data = generateGlobalId(),
                     ),
                 )
             }
@@ -223,7 +223,7 @@ abstract class CommandDispatcherSpec {
                 add(
                     MockChangeAggregate(
                         randomCreate.id,
-                        GlobalIdGenerator.generateAsString(),
+                        generateGlobalId(),
                     ),
                 )
             }
