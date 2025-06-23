@@ -11,6 +11,12 @@
           "scopes": [
             "me.ahoo.wow.tck"
           ]
+        },
+        "modeling_command_aggregate_with_tenant_id": {
+          "type": "me.ahoo.wow.tck.modeling.state.MockCommandAggregateWithTenantId"
+        },
+        "modeling_command_aggregate_without_ctor_parameters": {
+          "type": "me.ahoo.wow.tck.modeling.state.MockCommandAggregateWithoutCtorParameters"
         }
       }
     }

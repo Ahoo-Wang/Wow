@@ -64,14 +64,14 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
     init {
         try {
             constructor = stateAggregateType.kotlin.constructors.first {
-                (it.parameters.count() == 1 || it.parameters.count() == 2) &&
+                (it.parameters.count() <= 2) &&
                     it.parameters.all { parameter ->
                         parameter.type.javaType == String::class.java
                     }
             }.javaConstructor as Constructor<S>
-        } catch (e: NoSuchElementException) {
+        } catch (_: NoSuchElementException) {
             throw IllegalStateException(
-                "Failed to parse StateAggregate[$stateAggregateType] metadata: Not defined Constructor[ctor(id) or ctor(id,tenantId)].",
+                "Failed to parse StateAggregate[${stateAggregateType.name}] metadata: Missing valid constructor. Expected one of [ctor(), ctor(id), or ctor(id, tenantId)] with String parameters only.",
             )
         }
     }
@@ -116,7 +116,7 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
         return StateAggregateMetadata(
             aggregateType = stateAggregateType,
             constructorAccessor = DefaultConstructorAccessor(constructor),
-            aggregateIdAccessor = requireNotNull(aggregateIdGetter),
+            aggregateIdAccessor = aggregateIdGetter,
             sourcingFunctionRegistry = sourcingFunctionRegistry,
         )
     }

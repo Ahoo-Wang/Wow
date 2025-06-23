@@ -17,7 +17,6 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
@@ -48,13 +47,13 @@ abstract class SnapshotRepositorySpec {
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
-                aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
+                aggregateMetadata.aggregateId(generateGlobalId()),
             )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
-        val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
-        val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        val aggregateCreated = MockAggregateCreated(generateGlobalId())
+        val changed = MockAggregateChanged(generateGlobalId())
         val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
             upstream = command,
             aggregateVersion = stateAggregate.version,
@@ -92,7 +91,7 @@ abstract class SnapshotRepositorySpec {
     @Test
     fun getVersion() {
         val snapshotRepository = createSnapshotRepository().metrizable()
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         snapshotRepository.getVersion(aggregateId)
             .test()
             .expectNext(Version.UNINITIALIZED_VERSION)
@@ -103,7 +102,7 @@ abstract class SnapshotRepositorySpec {
     fun loadWhenNotFound() {
         val snapshotRepository = createSnapshotRepository().metrizable()
 
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         snapshotRepository.load<MockStateAggregate>(aggregateId)
             .test()
             .expectNextCount(0)
@@ -113,7 +112,7 @@ abstract class SnapshotRepositorySpec {
     @Test
     fun save() {
         val snapshotRepository = createSnapshotRepository().metrizable()
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
@@ -128,13 +127,13 @@ abstract class SnapshotRepositorySpec {
         val stateAggregate =
             stateAggregateFactory.create(
                 aggregateMetadata.state,
-                aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString()),
+                aggregateMetadata.aggregateId(generateGlobalId()),
             )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
         assertThat(stateAggregate, notNullValue())
 
-        val aggregateCreated = MockAggregateCreated(GlobalIdGenerator.generateAsString())
-        val changed = MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        val aggregateCreated = MockAggregateCreated(generateGlobalId())
+        val changed = MockAggregateChanged(generateGlobalId())
         val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
             upstream = command,
             aggregateVersion = stateAggregate.version,

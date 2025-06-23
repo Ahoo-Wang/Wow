@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
@@ -51,10 +51,10 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun load() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
 
         val command = GivenInitializationCommand(aggregateId)
-        val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        val stateChanged = MockAggregateChanged(generateGlobalId())
         val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
@@ -75,10 +75,10 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun loadByEventTime() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
 
         val command = GivenInitializationCommand(aggregateId)
-        val stateChanged = MockAggregateChanged(GlobalIdGenerator.generateAsString())
+        val stateChanged = MockAggregateChanged(generateGlobalId())
         val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
@@ -101,7 +101,7 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun loadWhenNotFound() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .consumeNextWith {
@@ -113,7 +113,7 @@ abstract class StateAggregateRepositorySpec {
     @Test
     fun loadWhenAggregateTypeNull() {
         val aggregateRepository = createStateAggregateRepository(TEST_AGGREGATE_FACTORY, TEST_EVENT_STORE)
-        val aggregateId = "test.test".toNamedAggregate().aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = "test.test".toNamedAggregate().aggregateId(generateGlobalId())
         Assertions.assertThrows(IllegalStateException::class.java) {
             aggregateRepository.load<MockStateAggregate>(aggregateId)
         }
@@ -134,7 +134,7 @@ abstract class StateAggregateRepositorySpec {
             }
         val aggregateRepository = createStateAggregateRepository(stateAggregateFactory, TEST_EVENT_STORE)
 
-        val aggregateId = aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
         aggregateRepository.load(aggregateId, aggregateMetadata.state)
             .test()
             .assertNext { stateAggregate: StateAggregate<MockStateAggregate> ->

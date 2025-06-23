@@ -1,9 +1,8 @@
 package me.ahoo.wow.modeling.matedata
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.annotation.MockAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class AggregateMetadataTest {
@@ -12,12 +11,10 @@ class AggregateMetadataTest {
     fun testEquals() {
         val aggregateMetadata =
             aggregateMetadata<MockAggregate, MockAggregate>()
-
-        assertThat(aggregateMetadata.equals(aggregateMetadata), equalTo(true))
-        assertThat(aggregateMetadata.equals(this), equalTo(false))
-
+        aggregateMetadata.equals(aggregateMetadata).assert().isTrue()
+        aggregateMetadata.equals(this).assert().isFalse()
         val aggregateMetadata2 =
             aggregateMetadata<MockAggregate, MockAggregate>()
-        assertThat(aggregateMetadata.equals(aggregateMetadata2), equalTo(true))
+        aggregateMetadata2.equals(aggregateMetadata).assert().isTrue()
     }
 }

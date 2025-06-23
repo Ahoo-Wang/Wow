@@ -14,7 +14,7 @@
 package me.ahoo.wow.tck.prepare
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
@@ -39,7 +39,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun prepare() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
         prepareKey.prepare(key, value)
             .test()
@@ -85,7 +85,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun reprepare() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
         prepareKey.prepare(key, value)
             .test()
@@ -128,10 +128,10 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun reprepareNewKey() {
-        val oldKey = GlobalIdGenerator.generateAsString()
+        val oldKey = generateGlobalId()
         val oldValue = generateValue()
 
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
 
         prepareKey.prepare(oldKey, oldValue)
@@ -157,10 +157,10 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun reprepareNewKeyNotFoundKey() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
 
-        val notFoundKey = GlobalIdGenerator.generateAsString()
+        val notFoundKey = generateGlobalId()
         prepareKey.reprepare(notFoundKey, value, key, value)
             .test()
             .expectError(IllegalStateException::class.java)
@@ -173,7 +173,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun reprepareNewKeyEqKey() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
         assertThrows<IllegalArgumentException> {
             prepareKey.reprepare(key, value, key, value)
@@ -182,7 +182,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun prepareWithTtlAt() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val expireAfter = Duration.ofSeconds(2)
         val ttlAt = System.currentTimeMillis() + expireAfter.toMillis()
         val preparedValue = generateValue().toTtlAt(ttlAt)
@@ -208,7 +208,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun rollback() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
         prepareKey.prepare(key, value)
             .test()
@@ -235,7 +235,7 @@ abstract class PrepareKeySpec<V : Any> {
 
     @Test
     fun usingPrepare() {
-        val key = GlobalIdGenerator.generateAsString()
+        val key = generateGlobalId()
         val value = generateValue()
         prepareKey.usingPrepare(key, value) {
             require(it)

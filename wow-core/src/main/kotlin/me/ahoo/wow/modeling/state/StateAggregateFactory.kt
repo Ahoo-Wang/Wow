@@ -93,10 +93,14 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
     }
 
     private fun <S : Any> StateAggregateMetadata<S>.constructState(aggregateId: AggregateId): S {
-        if (constructorAccessor.constructor.parameterCount == 1) {
-            return constructorAccessor.invoke(arrayOf(aggregateId.id))
+        return when (constructorAccessor.constructor.parameterCount) {
+            0 -> constructorAccessor.invoke(arrayOf())
+            1 -> constructorAccessor.invoke(arrayOf(aggregateId.id))
+            2 -> constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
+            else -> {
+                throw IllegalArgumentException("Unsupported constructor parameters.")
+            }
         }
-        return constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
     }
 
     @JvmStatic
@@ -139,7 +143,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         eventTime: Long = 0,
         deleted: Boolean = false
     ): StateAggregate<S> {
-        val aggregateId = aggregateId(this.state.aggregateIdAccessor[state])
+        val aggregateId = aggregateId(requireNotNull(this.state.aggregateIdAccessor)[state])
         return this.state.toStateAggregate(
             aggregateId = aggregateId,
             state = state,

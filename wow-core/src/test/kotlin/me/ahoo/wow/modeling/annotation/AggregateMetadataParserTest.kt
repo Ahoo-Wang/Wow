@@ -12,11 +12,10 @@
  */
 package me.ahoo.wow.modeling.annotation
 
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 /**
@@ -29,81 +28,65 @@ internal class AggregateMetadataParserTest {
     fun parse() {
         val aggregateMetadata =
             aggregateMetadata<MockAggregate, MockAggregate>()
-        assertThat(aggregateMetadata, notNullValue())
-        assertThat(
-            aggregateMetadata.state.aggregateType,
-            equalTo(
-                MockAggregate::class.java,
-            ),
-        )
-        assertThat(aggregateMetadata.isAggregationPattern, equalTo(false))
+        aggregateMetadata.state.aggregateType.assert().isEqualTo(MockAggregate::class.java)
+        aggregateMetadata.isAggregationPattern.assert().isFalse()
     }
 
     @Test
     fun parseCombined() {
         val aggregateMetadata = aggregateMetadata<MockCommandAggregate, me.ahoo.wow.tck.mock.MockStateAggregate>()
-        assertThat(aggregateMetadata, notNullValue())
-        assertThat(
-            aggregateMetadata.command.aggregateType,
-            equalTo(
-                MockCommandAggregate::class.java,
-            ),
-        )
-        assertThat(
-            aggregateMetadata.state.aggregateType,
-            equalTo(
-                MockStateAggregate::class.java,
-            ),
-        )
-        assertThat(aggregateMetadata.isAggregationPattern, equalTo(true))
+        aggregateMetadata.command.aggregateType.assert().isEqualTo(MockCommandAggregate::class.java)
+        aggregateMetadata.state.aggregateType.assert().isEqualTo(MockStateAggregate::class.java)
+        aggregateMetadata.isAggregationPattern.assert().isTrue()
     }
 
     @Test
     fun parseWhenWithAggregateId() {
         val aggregateMetadata = aggregateMetadata<MockAggregateWithAggregateId, MockAggregateWithAggregateId>()
-        assertThat(aggregateMetadata, notNullValue())
-        assertThat(
-            aggregateMetadata.state.aggregateType,
-            equalTo(
-                MockAggregateWithAggregateId::class.java,
-            ),
-        )
+        aggregateMetadata.state.aggregateType.assert().isEqualTo(MockAggregateWithAggregateId::class.java)
     }
 
     @Test
-    fun parseWhenWithoutConstructor() {
-        Assertions.assertThrows(IllegalStateException::class.java) {
-            aggregateMetadata<MockAggregateWithoutConstructor, MockAggregateWithoutConstructor>()
+    fun parseMockCommandAggregateWithoutConstructor() {
+        assertThrownBy<IllegalStateException> {
+            aggregateMetadata<MockCommandAggregateWithoutConstructor, MockCommandAggregateWithoutConstructor>()
         }
+    }
+
+    @Test
+    fun parseMockStateAggregateWithoutCtorCommand() {
+        val aggregateMetadata =
+            aggregateMetadata<MockStateAggregateWithoutCtorCommand, MockStateAggregateWithoutCtorState>()
+        aggregateMetadata.state.aggregateType.assert().isEqualTo(MockStateAggregateWithoutCtorState::class.java)
     }
 
     @Test
     fun parseMountAggregate() {
         val aggregateMetadata = aggregateMetadata<MockMountAggregate, MockMountAggregate>()
-        assertThat(aggregateMetadata.command.mountedCommands, hasSize(1))
+        aggregateMetadata.command.mountedCommands.assert().hasSize(1)
         val mountCommand = aggregateMetadata.command.mountedCommands.first()
-        assertThat(mountCommand, equalTo(MockMountCommand::class.java))
+        mountCommand.assert().isEqualTo(MockMountCommand::class.java)
     }
 
     @Test
     fun parseAfterCommandAggregate() {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(3))
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[0].order.value, equalTo(ORDER_FIRST))
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[1].order.value, equalTo(0))
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry[2].order.value, equalTo(ORDER_LAST))
+        aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(3)
+        aggregateMetadata.command.afterCommandFunctionRegistry[0].order.value.assert().isEqualTo(ORDER_FIRST)
+        aggregateMetadata.command.afterCommandFunctionRegistry[1].order.value.assert().isEqualTo(0)
+        aggregateMetadata.command.afterCommandFunctionRegistry[2].order.value.assert().isEqualTo(ORDER_LAST)
     }
 
     @Test
     fun parseDefaultAfterCommandAggregate() {
         val aggregateMetadata = aggregateMetadata<MockDefaultAfterCommandAggregate, MockDefaultAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(1))
+        aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(1)
     }
 
     @Test
     fun parseMockMultipleAfterCommandAggregate() {
         val aggregateMetadata =
             aggregateMetadata<MockMultipleAfterCommandAggregate, MockMultipleAfterCommandAggregate>()
-        assertThat(aggregateMetadata.command.afterCommandFunctionRegistry.size, equalTo(2))
+        aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(2)
     }
 }

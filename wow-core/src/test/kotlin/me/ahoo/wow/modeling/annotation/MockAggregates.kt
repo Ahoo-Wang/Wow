@@ -24,7 +24,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 
 class MockAggregate(val id: String)
 
-class MockAggregateWithoutConstructor
+class MockCommandAggregateWithoutConstructor
 
 class MockAggregateWithAggregateId(@AggregateId val id: String)
 
@@ -100,3 +100,6 @@ class MockMultipleAfterCommandAggregate(val id: String) {
         return CmdAfter
     }
 }
+
+class MockStateAggregateWithoutCtorCommand(private val state: MockStateAggregateWithoutCtorState)
+class MockStateAggregateWithoutCtorState

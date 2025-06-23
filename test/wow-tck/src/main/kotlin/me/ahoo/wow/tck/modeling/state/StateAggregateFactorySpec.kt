@@ -62,6 +62,14 @@ abstract class StateAggregateFactorySpec {
             it.state.tenantId.assert().isEqualTo(it.aggregateId.tenantId)
         }
     }
+
+    @Test
+    fun createWithoutCtorParameters() {
+        val aggregateMetadata =
+            aggregateMetadata<MockCommandAggregateWithoutCtorParameters, MockStateAggregateWithoutCtorParameters>()
+        createStateAggregate(aggregateMetadata) {
+        }
+    }
 }
 
 class MockCommandAggregateWithTenantId(val state: MockStateAggregateWithTenantId)
@@ -70,3 +78,6 @@ data class MockStateAggregateWithTenantId(
     override val id: String,
     override val tenantId: String
 ) : Identifier, TenantId
+
+class MockCommandAggregateWithoutCtorParameters(private val state: MockStateAggregateWithoutCtorParameters)
+class MockStateAggregateWithoutCtorParameters

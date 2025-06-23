@@ -22,7 +22,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
@@ -112,7 +112,7 @@ abstract class EventStoreSpec {
     fun appendEventStreamWhenEventVersionConflict() {
         val aggregateId = namedAggregate.aggregateId()
         val eventStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString())
+            MockAggregateCreated(generateGlobalId())
                 .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION,
@@ -122,7 +122,7 @@ abstract class EventStoreSpec {
             .verifyComplete()
 
         val changeStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString())
+            MockAggregateCreated(generateGlobalId())
                 .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION + 1,
@@ -131,7 +131,7 @@ abstract class EventStoreSpec {
             .test()
             .verifyComplete()
         val conflictingStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString())
+            MockAggregateCreated(generateGlobalId())
                 .toDomainEventStream(
                     GivenInitializationCommand(aggregateId),
                     Version.UNINITIALIZED_VERSION + 1,
@@ -149,10 +149,10 @@ abstract class EventStoreSpec {
 
     @Test
     open fun appendEventStreamWhenDuplicateRequestIdException() {
-        val requestId = GlobalIdGenerator.generateAsString()
+        val requestId = generateGlobalId()
         val aggregateId = namedAggregate.aggregateId()
         val eventStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
+            MockAggregateCreated(generateGlobalId()).toDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
                 Version.UNINITIALIZED_VERSION,
             )
@@ -160,7 +160,7 @@ abstract class EventStoreSpec {
             .test()
             .verifyComplete()
         val conflictingStream =
-            MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
+            MockAggregateCreated(generateGlobalId()).toDomainEventStream(
                 GivenInitializationCommand(aggregateId, requestId = requestId),
                 Version.UNINITIALIZED_VERSION + 1,
             )

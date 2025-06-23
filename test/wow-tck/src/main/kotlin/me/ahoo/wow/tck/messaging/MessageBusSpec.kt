@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -64,7 +64,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
             receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .writeReceiverGroup(generateGlobalId())
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()
@@ -86,7 +86,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val onReady = Sinks.empty<Void>()
             receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .writeReceiverGroup(generateGlobalId())
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = Flux.range(0, 10)
@@ -111,7 +111,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val onReady = Sinks.empty<Void>()
             receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .writeReceiverGroup(generateGlobalId())
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val duration = sendLoop(messageBus = this)
@@ -142,7 +142,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             val maxCount: Long = 1000
             val onReady = Sinks.empty<Void>()
             val duration = receive(setOf(namedAggregate))
-                .writeReceiverGroup(GlobalIdGenerator.generateAsString())
+                .writeReceiverGroup(generateGlobalId())
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = sendLoop(messageBus = this, maxCount = maxCount.toInt())

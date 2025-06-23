@@ -20,7 +20,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
@@ -70,8 +70,8 @@ abstract class ProjectionDispatcherSpec {
             )
         projectionDispatcher.run()
 
-        val eventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString()).toDomainEventStream(
-            upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(GlobalIdGenerator.generateAsString())),
+        val eventStream = MockAggregateCreated(generateGlobalId()).toDomainEventStream(
+            upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(generateGlobalId())),
             aggregateVersion = 1,
         )
         domainEventBus.send(eventStream).block()
