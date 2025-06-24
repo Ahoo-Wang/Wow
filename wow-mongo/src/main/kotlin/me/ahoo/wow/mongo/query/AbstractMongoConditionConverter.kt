@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.converter.AbstractConditionConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonString
@@ -25,6 +26,19 @@ import org.bson.Document
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
+    protected abstract val fieldConverter: FieldConverter
+    protected open fun convertCondition(condition: Condition): Condition {
+        val convertedField = fieldConverter.convert(condition.field)
+        if (convertedField == condition.field) {
+            return condition
+        }
+        return condition.copy(field = convertedField)
+    }
+
+    override fun convert(condition: Condition): Bson {
+        val convertedCondition = convertCondition(condition)
+        return super.convert(convertedCondition)
+    }
 
     override fun and(condition: Condition): Bson {
         require(condition.children.isNotEmpty()) {

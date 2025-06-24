@@ -16,12 +16,16 @@ package me.ahoo.wow.mongo.query.event
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
 
 object EventStreamConditionConverter : AbstractMongoConditionConverter() {
-
-    override fun convert(condition: Condition): Bson = internalConvert(condition)
+    override val fieldConverter: FieldConverter = EventStreamFieldConverter
+    override fun convert(condition: Condition): Bson {
+        val convertedCondition = convertCondition(condition)
+        return internalConvert(convertedCondition)
+    }
 
     override fun aggregateId(condition: Condition): Bson {
         return Filters.eq(MessageRecords.AGGREGATE_ID, condition.value)

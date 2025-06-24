@@ -15,11 +15,20 @@ package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
+    @Test
+    fun id() {
+        val condition = condition { MessageRecords.ID.eq("test") }
+        val actual = EventStreamConditionConverter.convert(condition)
+        val expected = Filters.eq(Documents.ID_FIELD, condition.valueAs<String>())
+        actual.assert().isEqualTo(expected)
+    }
+
     @Test
     fun aggregateId() {
         val condition = condition { aggregateId("aggregateId") }
