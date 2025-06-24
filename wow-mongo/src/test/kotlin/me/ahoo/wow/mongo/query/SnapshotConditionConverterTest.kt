@@ -1,10 +1,12 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 import org.hamcrest.MatcherAssert.*
@@ -29,7 +31,7 @@ class SnapshotConditionConverterTest {
             Filters.eq(StateAggregateRecords.DELETED, false),
             expected
         )
-        assertThat(actual.toBsonDocument(), equalTo(deletionBson.toBsonDocument()))
+        actual.toBsonDocument().assert().isEqualTo(deletionBson.toBsonDocument())
     }
 
     @Test
@@ -380,6 +382,7 @@ class SnapshotConditionConverterTest {
         @JvmStatic
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
+                Arguments.of(Condition.eq(MessageRecords.AGGREGATE_ID, "1"), Filters.eq(Documents.ID_FIELD, "1")),
                 Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.ownerId("ownerId"), Filters.eq("ownerId", "ownerId")),

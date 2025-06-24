@@ -15,9 +15,11 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.mongo.query.AbstractMongoConditionConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import org.bson.conversions.Bson
 
 object SnapshotConditionConverter : AbstractMongoConditionConverter() {
+    override val fieldConverter: FieldConverter = SnapshotFieldConverter
     override fun aggregateId(condition: Condition): Bson {
         return id(condition)
     }
