@@ -16,11 +16,13 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.isEmpty
-import me.ahoo.wow.query.converter.ProjectionConverter
+import me.ahoo.wow.query.converter.AbstractProjectionConverter
+import me.ahoo.wow.query.converter.FieldConverter
 import org.bson.conversions.Bson
 
-object MongoProjectionConverter : ProjectionConverter<Bson?> {
-    override fun convert(projection: Projection): Bson? {
+class MongoProjectionConverter(override val fieldConverter: FieldConverter) : AbstractProjectionConverter<Bson?>() {
+
+    override fun internalConvert(projection: Projection): Bson? {
         if (projection.isEmpty()) return null
         if (projection.include.isNotEmpty() && projection.exclude.isNotEmpty()) {
             return Projections.fields(Projections.include(projection.include), Projections.exclude(projection.exclude))
@@ -29,9 +31,5 @@ object MongoProjectionConverter : ProjectionConverter<Bson?> {
             return Projections.include(projection.include)
         }
         return Projections.exclude(projection.exclude)
-    }
-
-    fun Projection.toMongoProjection(): Bson? {
-        return convert(this)
     }
 }

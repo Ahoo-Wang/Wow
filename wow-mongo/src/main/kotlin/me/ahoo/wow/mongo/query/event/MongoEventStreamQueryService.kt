@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
+import me.ahoo.wow.mongo.query.MongoProjectionConverter
+import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.serialization.toObject
@@ -32,6 +34,8 @@ class MongoEventStreamQueryService(
     override val converter: ConditionConverter<Bson> = EventStreamConditionConverter
 ) : AbstractMongoQueryService<DomainEventStream>(), EventStreamQueryService {
 
+    override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(EventStreamFieldConverter)
+    override val sortConverter: MongoSortConverter = MongoSortConverter(EventStreamFieldConverter)
     override fun toTypedResult(document: Document): DomainEventStream {
         return document.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
     }

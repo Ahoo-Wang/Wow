@@ -11,25 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query
+package me.ahoo.wow.query.converter
 
-import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.converter.AbstractSortConverter
-import me.ahoo.wow.query.converter.FieldConverter
-import org.bson.conversions.Bson
 
-class MongoSortConverter(override val fieldConverter: FieldConverter) : AbstractSortConverter<Bson?>() {
+abstract class AbstractSortConverter<T> : SortConverter<T> {
 
-    override fun internalConvert(sort: List<Sort>): Bson? {
-        if (sort.isEmpty()) return null
-        return sort.map {
-            when (it.direction) {
-                Sort.Direction.ASC -> Sorts.ascending(it.field)
-                Sort.Direction.DESC -> Sorts.descending(it.field)
-            }
-        }.toList().let {
-            Sorts.orderBy(it)
+    protected abstract val fieldConverter: FieldConverter
+
+    override fun convert(sort: List<Sort>): T {
+        if (sort.isEmpty()) {
+            return internalConvert(sort)
         }
+        val converted = sort.map {
+            it.copy(field = fieldConverter.convert(it.field))
+        }
+        return internalConvert(converted)
     }
+
+    protected abstract fun internalConvert(sort: List<Sort>): T
 }

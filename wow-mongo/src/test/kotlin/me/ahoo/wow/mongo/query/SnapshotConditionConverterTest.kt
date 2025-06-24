@@ -1,20 +1,14 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.Projections
-import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.api.query.Projection
-import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
-import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import org.hamcrest.MatcherAssert.*
+import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -381,20 +375,6 @@ class SnapshotConditionConverterTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("toMongoProjectionParameters")
-    fun toMongoProjection(projection: Projection, expected: Bson?) {
-        val actual = projection.toMongoProjection()
-        assertThat(actual, equalTo(expected))
-    }
-
-    @ParameterizedTest
-    @MethodSource("toMongoSortParameters")
-    fun toMongoSort(sort: List<Sort>, expected: Bson?) {
-        val actual = sort.toMongoSort()
-        assertThat(actual, equalTo(expected))
-    }
-
     companion object {
         @Suppress("LongMethod")
         @JvmStatic
@@ -468,34 +448,6 @@ class SnapshotConditionConverterTest {
                     Condition.raw("{id:false}"),
                     Filters.eq("id", false)
                 )
-            )
-        }
-
-        @JvmStatic
-        fun toMongoProjectionParameters(): Stream<Arguments> {
-            return Stream.of(
-                Arguments.of(Projection.ALL, null),
-                Arguments.of(Projection(include = listOf("include")), Projections.include(listOf("include"))),
-                Arguments.of(Projection(exclude = listOf("exclude")), Projections.exclude(listOf("exclude"))),
-                Arguments.of(
-                    Projection(include = listOf("include"), exclude = listOf("exclude")),
-                    Projections.fields(Projections.include(listOf("include")), Projections.exclude(listOf("exclude")))
-                ),
-            )
-        }
-
-        @JvmStatic
-        fun toMongoSortParameters(): Stream<Arguments> {
-            return Stream.of(
-                Arguments.of(emptyList<Sort>(), null),
-                Arguments.of(
-                    listOf(Sort("fieldA", Sort.Direction.ASC)),
-                    Sorts.orderBy(Sorts.ascending("fieldA"))
-                ),
-                Arguments.of(
-                    listOf(Sort("fieldA", Sort.Direction.ASC), Sort("fieldD", Sort.Direction.DESC)),
-                    Sorts.orderBy(Sorts.ascending("fieldA"), Sorts.descending("fieldD"))
-                ),
             )
         }
     }

@@ -11,25 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query
+package me.ahoo.wow.mongo.query.event
 
-import com.mongodb.client.model.Sorts
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.converter.AbstractSortConverter
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.converter.FieldConverter
-import org.bson.conversions.Bson
+import me.ahoo.wow.serialization.MessageRecords
 
-class MongoSortConverter(override val fieldConverter: FieldConverter) : AbstractSortConverter<Bson?>() {
-
-    override fun internalConvert(sort: List<Sort>): Bson? {
-        if (sort.isEmpty()) return null
-        return sort.map {
-            when (it.direction) {
-                Sort.Direction.ASC -> Sorts.ascending(it.field)
-                Sort.Direction.DESC -> Sorts.descending(it.field)
-            }
-        }.toList().let {
-            Sorts.orderBy(it)
+object EventStreamFieldConverter : FieldConverter {
+    override fun convert(field: String): String {
+        if (field == MessageRecords.ID) {
+            return Documents.ID_FIELD
         }
+        return field
     }
 }
