@@ -12,7 +12,7 @@ import {NzButtonModule} from 'ng-zorro-antd/button';
 import {NzPopconfirmDirective} from "ng-zorro-antd/popconfirm";
 import {NzDrawerComponent, NzDrawerContentDirective, NzDrawerModule, NzDrawerService} from "ng-zorro-antd/drawer";
 import {NzTypographyComponent} from "ng-zorro-antd/typography";
-import {initialPagedQuery, PagedQuery} from "../api/PagedQuery";
+import {initialSnapshotPagedQuery, PagedQuery} from "../api/PagedQuery";
 import {PagedList} from "../api/PagedList";
 import {NzCountdownComponent} from "ng-zorro-antd/statistic";
 import {ErrorComponent} from "../error/error.component";
@@ -68,7 +68,7 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
   styleUrls: ['./failed-list.component.scss']
 })
 export class FailedListComponent implements OnInit {
-  pagedQuery: PagedQuery = initialPagedQuery;
+  pagedQuery: PagedQuery = initialSnapshotPagedQuery;
   pagedList: PagedList<ExecutionFailedState> = {total: 0, list: []};
   @Input({required: true}) category: FindCategory = FindCategory.TO_RETRY;
   loading = false;
@@ -186,13 +186,13 @@ export class FailedListComponent implements OnInit {
         return {field: sort.key, direction: direction}
       });
     if (sort.length == 0) {
-      sort = initialPagedQuery.sort
+      sort = initialSnapshotPagedQuery.sort
     }
     this.pagedQuery = {
       projection: Projections.all(),
       sort: sort,
       pagination: {index: params.pageIndex, size: params.pageSize},
-      condition: initialPagedQuery.condition
+      condition: initialSnapshotPagedQuery.condition
     }
     this.load()
   }

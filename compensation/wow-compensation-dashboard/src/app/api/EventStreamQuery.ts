@@ -6,7 +6,7 @@ export const MAX_VERSION = 666666666;
 
 function eventStreamVersionedNextQuery(aggregateId: string, endVersion: number = MAX_VERSION, limit: number = 0): ListQuery {
   return {
-    projection: {include: ["_id", "id", VERSION, "createTime", "body.id", "body.name"], exclude: []},
+    projection: {include: ["id", VERSION, "createTime", "body.id", "body.name"], exclude: []},
     condition: Conditions.and(
       [
         Conditions.aggregateId(aggregateId),

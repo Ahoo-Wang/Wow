@@ -12,7 +12,7 @@
  */
 
 
-import {Condition, Conditions, Pagination, Projection, Projections, Sort, SortDirection} from "./Query";
+import {Condition, Projection, Sort} from "./Query";
 
 export interface ListQuery {
   projection: Projection
@@ -20,10 +20,3 @@ export interface ListQuery {
   sort: Sort[];
   limit: number;
 }
-
-export const initialListQuery: ListQuery = {
-  projection: Projections.all(),
-  condition: Conditions.all(),
-  sort: [{field: "_id", direction: SortDirection.DESC}],
-  limit: 10,
-};

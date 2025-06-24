@@ -21,9 +21,9 @@ export interface PagedQuery {
   pagination: Pagination;
 }
 
-export const initialPagedQuery: PagedQuery = {
+export const initialSnapshotPagedQuery: PagedQuery = {
   projection: Projections.all(),
   condition: Conditions.all(),
-  sort: [{field: "firstEventTime", direction: SortDirection.DESC}],
+  sort: [{field: "aggregateId", direction: SortDirection.DESC}],
   pagination: {index: 1, size: 10},
 };
