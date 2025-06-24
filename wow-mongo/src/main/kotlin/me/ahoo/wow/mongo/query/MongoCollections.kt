@@ -16,19 +16,19 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
-import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
 import org.bson.conversions.Bson
 
 fun MongoCollection<Document>.findDocument(
     converter: ConditionConverter<Bson>,
-    queryable: Queryable<*>
+    queryable: Queryable<*>,
+    projectionConverter: MongoProjectionConverter,
+    sortConverter: MongoSortConverter
 ): FindPublisher<Document> {
-    val projectionBson = queryable.projection.toMongoProjection()
+    val projectionBson = projectionConverter.convert(queryable.projection)
     val filter = converter.convert(queryable.condition)
-    val sort = queryable.sort.toMongoSort()
+    val sort = sortConverter.convert(queryable.sort)
     return find(filter)
         .projection(projectionBson)
         .sort(sort)

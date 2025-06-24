@@ -14,10 +14,9 @@
 package me.ahoo.wow.mongo.query.event
 
 import com.mongodb.client.model.Filters
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
@@ -26,7 +25,7 @@ class EventStreamConditionConverterTest {
         val condition = condition { aggregateId("aggregateId") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.eq(MessageRecords.AGGREGATE_ID, condition.valueAs<String>())
-        assertThat(actual, equalTo(expected))
+        actual.assert().isEqualTo(expected)
     }
 
     @Test
@@ -34,6 +33,6 @@ class EventStreamConditionConverterTest {
         val condition = condition { aggregateIds("aggregateIds") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.`in`(MessageRecords.AGGREGATE_ID, condition.valueAs<Iterable<String>>())
-        assertThat(actual, equalTo(expected))
+        actual.assert().isEqualTo(expected)
     }
 }

@@ -1,14 +1,13 @@
 package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.type.TypeFactory
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -48,19 +47,19 @@ class DocumentsKtTest {
     @Test
     fun toDynamicDocument() {
         val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
-        assertThat(dynamicDocument.getNestedDocument("state").getValue<String>("id"), equalTo(aggregateId))
+        dynamicDocument.getNestedDocument("state").getValue<String>("id").assert().isEqualTo(aggregateId)
     }
 
     @Test
     fun toSnapshot() {
         val snapshot = snapshotDocument.toSnapshot<MockStateAggregate>()
-        assertThat(snapshot.aggregateId.id, equalTo(aggregateId))
+        snapshot.aggregateId.id.assert().isEqualTo(aggregateId)
     }
 
     @Test
     fun toSnapshotState() {
         val state = snapshotDocument.toSnapshotState<MockStateAggregate>()
-        assertThat(state.id, equalTo(aggregateId))
+        state.id.assert().isEqualTo(aggregateId)
     }
 
     @Test
@@ -68,7 +67,7 @@ class DocumentsKtTest {
         Mono.just(snapshotDocument)
             .toSnapshot<MockStateAggregate>()
             .test().consumeNextWith {
-                assertThat(it.aggregateId.id, equalTo(aggregateId))
+                it.aggregateId.id.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 
@@ -77,7 +76,7 @@ class DocumentsKtTest {
         Mono.just(snapshotDocument)
             .toSnapshotState<MockStateAggregate>()
             .test().consumeNextWith {
-                assertThat(it.id, equalTo(aggregateId))
+                it.id.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 
@@ -86,7 +85,7 @@ class DocumentsKtTest {
         Flux.just(snapshotDocument)
             .toSnapshot<MockStateAggregate>()
             .test().consumeNextWith {
-                assertThat(it.aggregateId.id, equalTo(aggregateId))
+                it.aggregateId.id.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 
@@ -95,14 +94,14 @@ class DocumentsKtTest {
         Flux.just(snapshotDocument)
             .toSnapshotState<MockStateAggregate>()
             .test().consumeNextWith {
-                assertThat(it.id, equalTo(aggregateId))
+                it.id.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 
     @Test
     fun toMaterializedSnapshot() {
         val materializedSnapshot = snapshotDocument.toMaterializedSnapshot<MockStateAggregate>(snapshotType)
-        assertThat(materializedSnapshot.aggregateId, equalTo(aggregateId))
+        materializedSnapshot.aggregateId.assert().isEqualTo(aggregateId)
     }
 
     @Test
@@ -111,7 +110,7 @@ class DocumentsKtTest {
             .toMaterializedSnapshot<MockStateAggregate>(snapshotType)
             .test()
             .consumeNextWith {
-                assertThat(it.aggregateId, equalTo(aggregateId))
+                it.aggregateId.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 
@@ -121,7 +120,7 @@ class DocumentsKtTest {
             .toMaterializedSnapshot<MockStateAggregate>(snapshotType)
             .test()
             .consumeNextWith {
-                assertThat(it.aggregateId, equalTo(aggregateId))
+                it.aggregateId.assert().isEqualTo(aggregateId)
             }.verifyComplete()
     }
 }

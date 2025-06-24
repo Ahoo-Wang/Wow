@@ -22,8 +22,6 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.mongo.query.MongoProjectionConverter.toMongoProjection
-import me.ahoo.wow.mongo.query.MongoSortConverter.toMongoSort
 import me.ahoo.wow.query.QueryService
 import me.ahoo.wow.query.converter.ConditionConverter
 import org.bson.Document
@@ -36,12 +34,13 @@ import reactor.kotlin.core.publisher.toMono
 abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
     abstract val collection: MongoCollection<Document>
     abstract val converter: ConditionConverter<Bson>
-
+    abstract val projectionConverter: MongoProjectionConverter
+    abstract val sortConverter: MongoSortConverter
     abstract fun toTypedResult(document: Document): R
     abstract fun toDynamicDocument(document: Document): DynamicDocument
 
     protected fun findDocument(queryable: Queryable<*>): FindPublisher<Document> {
-        return collection.findDocument(converter, queryable)
+        return collection.findDocument(converter, queryable, projectionConverter, sortConverter)
     }
 
     private fun singleDocument(singleQuery: ISingleQuery): Mono<Document> {
@@ -85,9 +84,9 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         pagedQuery: IPagedQuery,
         documentMapper: (Document) -> T
     ): Mono<PagedList<T>> {
-        val projectionBson = pagedQuery.projection.toMongoProjection()
+        val projectionBson = projectionConverter.convert(pagedQuery.projection)
         val filter = converter.convert(pagedQuery.condition)
-        val sort = pagedQuery.sort.toMongoSort()
+        val sort = sortConverter.convert(pagedQuery.sort)
 
         val totalPublisher = collection.countDocuments(filter).toMono()
         val listPublisher = collection.find(filter)
