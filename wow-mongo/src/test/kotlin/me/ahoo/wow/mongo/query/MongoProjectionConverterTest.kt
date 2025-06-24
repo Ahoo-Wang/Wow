@@ -76,8 +76,8 @@ class MongoProjectionConverterTest {
             return Stream.of(
                 Arguments.of(Projection.ALL, null),
                 Arguments.of(
-                    Projection(include = listOf(MessageRecords.ID)),
-                    Projections.include(listOf(Documents.ID_FIELD))
+                    Projection(include = listOf(MessageRecords.ID, "field1")),
+                    Projections.include(listOf(Documents.ID_FIELD, "field1"))
                 ),
                 Arguments.of(
                     Projection(exclude = listOf(MessageRecords.ID)),
