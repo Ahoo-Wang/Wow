@@ -27,12 +27,13 @@ internal class MonoCommandWaitNotifierTest {
 
     @Test
     fun notifyAndForgetWrapNotInjectWaitStrategy() {
+        val commandExchange = SimpleServerCommandExchange(MockCreateCommand("").toCommandMessage())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
             .thenNotifyAndForget(
                 commandWaitNotifier,
                 CommandStage.SENT,
-                SimpleServerCommandExchange(MockCreateCommand("").toCommandMessage()),
+                commandExchange,
             )
             .test()
             .verifyComplete()
