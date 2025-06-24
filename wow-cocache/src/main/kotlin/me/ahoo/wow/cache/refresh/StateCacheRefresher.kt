@@ -45,7 +45,7 @@ abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
     }
 
     override fun invoke(exchange: M): Mono<Void> {
-        return Mono.fromRunnable<Void?> {
+        return Mono.fromRunnable<Void> {
             if (log.isDebugEnabled) {
                 log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.message.aggregateId)
             }
