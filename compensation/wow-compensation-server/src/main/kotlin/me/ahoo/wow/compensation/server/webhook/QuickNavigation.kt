@@ -55,6 +55,6 @@ object QuickNavigation {
             return "`${this.id}`"
         }
         val nav = this.toIdNav(host)
-        return "[${this.id}](${nav})"
+        return "[${this.id}]($nav)"
     }
 }

@@ -54,6 +54,16 @@ allprojects {
         mavenLocal()
         mavenCentral()
     }
+    apply<DetektPlugin>()
+    configure<DetektExtension> {
+        config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
+        buildUponDefaultConfig = true
+        autoCorrect = true
+    }
+    dependencies {
+        detektPlugins(dependenciesProject)
+        detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
+    }
     tasks.withType<Jar> {
         manifest {
             attributes["Implementation-Title"] = project.name
@@ -71,12 +81,6 @@ configure(bomProjects) {
 }
 
 configure(libraryProjects) {
-    apply<DetektPlugin>()
-    configure<DetektExtension> {
-        config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
-        buildUponDefaultConfig = true
-        autoCorrect = true
-    }
     apply<DokkaPlugin>()
     apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
@@ -116,7 +120,6 @@ configure(libraryProjects) {
     dependencies {
         api(platform(dependenciesProject))
         testImplementation(platform(rootProject.libs.junit.bom))
-        detektPlugins(platform(dependenciesProject))
         implementation("org.slf4j:slf4j-api")
         testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
@@ -129,7 +132,6 @@ configure(libraryProjects) {
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
-        detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }
 }
 

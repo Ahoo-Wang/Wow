@@ -40,7 +40,7 @@ class WeiXinWebHook(
     private val weiXinBotApi: WeiXinBotApi
 ) {
     companion object {
-        private val log = KotlinLogging.logger {  }
+        private val log = KotlinLogging.logger { }
     }
 
     @Retry(false)

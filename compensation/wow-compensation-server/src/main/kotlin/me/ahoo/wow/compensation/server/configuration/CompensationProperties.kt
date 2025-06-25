@@ -31,5 +31,4 @@ data class CompensationProperties(
     companion object {
         const val PREFIX = me.ahoo.wow.spring.boot.starter.compensation.CompensationProperties.PREFIX
     }
-
 }

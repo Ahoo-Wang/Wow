@@ -32,7 +32,6 @@ data class WeiXinSendMessage(
     )
 }
 
-
 data class WeiXinSendResult(
     val errcode: Int,
     val errmsg: String

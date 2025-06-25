@@ -39,7 +39,7 @@ class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<Any>, Mono
         get() = Any::class.java
 
     override fun <M> supportMessage(message: M): Boolean
-            where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
         return supportedTopics.any {
             it.isSameAggregateName(message)
         }

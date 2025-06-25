@@ -27,5 +27,4 @@ class MountedCommandRewriter : CommandBuilderRewriter {
     override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
         return Mono.empty()
     }
-
 }

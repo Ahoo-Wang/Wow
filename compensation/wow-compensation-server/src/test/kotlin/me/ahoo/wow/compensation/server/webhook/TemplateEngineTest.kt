@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test
 class TemplateEngineTest {
     private val executionFailedAggregate = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
     private val executionFailedState = ExecutionFailedState(GlobalIdGenerator.generateAsString())
-    private val stateAggregate = mockk<ReadOnlyStateAggregate<IExecutionFailedState>>() {
+    private val stateAggregate = mockk<ReadOnlyStateAggregate<IExecutionFailedState>> {
         every { state } returns executionFailedState
     }
     private val host = "http://localhost:8080"
@@ -56,7 +56,6 @@ class TemplateEngineTest {
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<ExecutionFailedCreated>> {
             every { name } returns ExecutionFailedCreated::class.java.toName()
             every { body } returns eventBody
-
         }
 
         val rendered = TemplateEngine.renderOnEvent(domainEvent, stateAggregate, host)
@@ -118,6 +117,6 @@ class TemplateEngineTest {
         val emptyHostNav = stateAggregate.state.toNavAsMarkdown("")
         assertThat(emptyHostNav, equalTo("`${executionFailedState.id}`"))
         val hostNav = stateAggregate.state.toNavAsMarkdown(host)
-        hostNav.assert().isEqualTo("[${executionFailedState.id}](${host}/to-retry?id=${executionFailedState.id})")
+        hostNav.assert().isEqualTo("[${executionFailedState.id}]($host/to-retry?id=${executionFailedState.id})")
     }
 }

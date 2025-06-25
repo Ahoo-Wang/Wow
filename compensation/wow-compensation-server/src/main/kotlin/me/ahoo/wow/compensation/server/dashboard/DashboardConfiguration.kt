@@ -54,5 +54,4 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
             .contentType(org.springframework.http.MediaType.TEXT_HTML)
             .body(homePageContent)
     }
-
 }

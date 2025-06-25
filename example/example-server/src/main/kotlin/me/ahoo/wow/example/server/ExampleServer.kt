@@ -23,7 +23,7 @@ import me.ahoo.wow.example.domain.ExampleBoundedContext
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class,CartQuerySyncClient::class])
+@EnableCoApi(clients = [ReactiveRestCommandGateway::class, CartQueryClient::class, CartQuerySyncClient::class])
 @BoundedContext(name = ExampleService.SERVICE_NAME)
 @SpringBootApplication(
     scanBasePackageClasses = [ExampleBoundedContext::class, ExampleServer::class],
