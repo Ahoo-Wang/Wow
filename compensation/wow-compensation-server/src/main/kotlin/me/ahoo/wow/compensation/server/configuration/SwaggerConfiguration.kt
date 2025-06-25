@@ -30,7 +30,9 @@ class SwaggerConfiguration {
     companion object {
         val API_INFO: Info = Info()
             .title("Wow Compensation Service")
-            .description("A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.")
+            .description(
+                "A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing."
+            )
             .contact(Contact().name("Ahoo Wang").url("https://github.com/Ahoo-Wang/Wow"))
             .license(License().url("https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE").name("Apache 2.0"))
             .version(Wow.VERSION)

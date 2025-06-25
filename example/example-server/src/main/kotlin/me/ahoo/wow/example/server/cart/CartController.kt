@@ -42,7 +42,6 @@ class CartController(
     @GetExchange("/cart/me")
     fun me(): Mono<CartData> {
         return singleQuery {
-
         }.queryState(cartQueryClient)
     }
 
@@ -50,7 +49,6 @@ class CartController(
     fun meSync(): Mono<CartData?> {
         return Mono.fromCallable {
             singleQuery {
-
             }.queryState(cartQuerySyncClient)
         }.subscribeOn(Schedulers.boundedElastic())
     }
@@ -71,6 +69,9 @@ class CartController(
             productId = "productId",
             quantity = 1
         )
-        return commandGateway.sendAndWaitStream(addCartItem.toCommandMessage(ownerId = userId), waitStrategy = WaitingFor.snapshot())
+        return commandGateway.sendAndWaitStream(
+            addCartItem.toCommandMessage(ownerId = userId),
+            waitStrategy = WaitingFor.snapshot()
+        )
     }
 }

@@ -67,7 +67,7 @@ class CompensationScheduler(
         val count = retry(schedulerProperties.batchSize)
             .block()
         log.info {
-            "Complete retry - batchSize:[${schedulerProperties.batchSize}] - count:[${count}]."
+            "Complete retry - batchSize:[${schedulerProperties.batchSize}] - count:[$count]."
         }
     }
 

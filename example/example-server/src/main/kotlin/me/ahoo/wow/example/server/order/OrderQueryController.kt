@@ -16,8 +16,8 @@ package me.ahoo.wow.example.server.order
 import io.swagger.v3.oas.annotations.OpenAPIDefinition
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.query.snapshot.toState
 import org.springframework.web.bind.annotation.GetMapping
