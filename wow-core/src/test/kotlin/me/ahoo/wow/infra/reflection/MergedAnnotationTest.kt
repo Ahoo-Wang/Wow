@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.infra.reflection
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.primaryConstructor
@@ -26,25 +25,25 @@ class MergedAnnotationTest {
     @Test
     fun getElement() {
         val mergedAnnotation = MockClass::class.toMergedAnnotation()
-        assertThat(mergedAnnotation.element, equalTo(MockClass::class))
+        mergedAnnotation.element.assert().isEqualTo(MockClass::class)
     }
 
     @Test
     fun getInheritedAnnotations() {
         val mergedAnnotation = MockClass::class.toMergedAnnotation()
-        assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
+        mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
     fun getInheritedAnnotationsIfProperty() {
         val mergedAnnotation = MockClass::property.toMergedAnnotation()
-        assertThat(mergedAnnotation.mergedAnnotations.first(), equalTo(MockAnnotation()))
+        mergedAnnotation.mergedAnnotations.first().assert().isEqualTo(MockAnnotation())
     }
 
     @Test
     fun getInheritedAnnotationsIfCtor() {
         val mergedAnnotation = MockClass::class.primaryConstructor!!.parameters.first().toMergedAnnotation()
-        assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
+        mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
@@ -53,7 +52,7 @@ class MergedAnnotationTest {
             it.name == "interfaceFunction" &&
                 it.parameters.last().type.classifier == String::class
         }.toMergedAnnotation()
-        assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
+        mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
@@ -62,7 +61,7 @@ class MergedAnnotationTest {
             it.name == "interfaceFunction" &&
                 it.parameters.size == 3
         }.toMergedAnnotation()
-        assertThat(mergedAnnotation.mergedAnnotations.isEmpty(), equalTo(true))
+        mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     interface MockInterface {

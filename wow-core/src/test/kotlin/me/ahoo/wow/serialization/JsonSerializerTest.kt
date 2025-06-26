@@ -14,6 +14,7 @@
 package me.ahoo.wow.serialization
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -38,8 +39,6 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import java.time.Clock
 
@@ -48,9 +47,8 @@ internal class JsonSerializerTest {
     fun aggregateId() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val output = aggregateId.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<AggregateId>()
-        assertThat(input, equalTo(aggregateId))
+        input.assert().isEqualTo(aggregateId)
     }
 
     @Test
@@ -59,9 +57,8 @@ internal class JsonSerializerTest {
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage(tenantId = generateGlobalId(), ownerId = generateGlobalId())
         val output = command.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<CommandMessage<*>>()
-        assertThat(input, equalTo(command))
+        input.assert().isEqualTo(command)
     }
 
     @Test
@@ -74,9 +71,8 @@ internal class JsonSerializerTest {
         )
 
         val output = eventStream.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<DomainEventStream>()
-        assertThat(input, equalTo(eventStream))
+        input.assert().isEqualTo(eventStream)
     }
 
     @Test
@@ -90,9 +86,8 @@ internal class JsonSerializerTest {
         ).first()
 
         val output = domainEvent.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<DomainEvent<*>>()
-        assertThat(input, equalTo(domainEvent))
+        input.assert().isEqualTo(domainEvent)
     }
 
     @Test
@@ -109,20 +104,20 @@ internal class JsonSerializerTest {
             mockEventJson.toObjectNode().toDomainEventRecord().toMutableDomainEventRecord()
         mutableDomainEventRecord.bodyType = "NotFoundClass"
         val failedDomainEvent = mutableDomainEventRecord.actual.toJsonString().toObject<DomainEvent<Any>>()
-        assertThat(failedDomainEvent, instanceOf(JsonDomainEvent::class.java))
+        failedDomainEvent.assert().isInstanceOf(JsonDomainEvent::class.java)
         val failedJsonDomainEvent = failedDomainEvent as JsonDomainEvent
-        assertThat(failedJsonDomainEvent.id, equalTo(mockEvent.id))
-        assertThat(failedJsonDomainEvent.aggregateId, equalTo(mockEvent.aggregateId))
-        assertThat(failedJsonDomainEvent.ownerId, equalTo(mockEvent.ownerId))
-        assertThat(failedJsonDomainEvent.bodyType, equalTo(mutableDomainEventRecord.bodyType))
-        assertThat(failedJsonDomainEvent.revision, equalTo(mutableDomainEventRecord.revision))
+        failedJsonDomainEvent.id.assert().isEqualTo(mockEvent.id)
+        failedJsonDomainEvent.aggregateId.assert().isEqualTo(mockEvent.aggregateId)
+        failedJsonDomainEvent.ownerId.assert().isEqualTo(mockEvent.ownerId)
+        failedJsonDomainEvent.bodyType.assert().isEqualTo(mutableDomainEventRecord.bodyType)
+        failedJsonDomainEvent.revision.assert().isEqualTo(mutableDomainEventRecord.revision)
         val failedDomainEventJson = failedDomainEvent.toJsonString()
         val failedDomainEventRecord =
             failedDomainEventJson.toJsonNode<ObjectNode>().toDomainEventRecord().toMutableDomainEventRecord()
-        assertThat(failedDomainEventRecord.bodyType, equalTo(failedJsonDomainEvent.bodyType))
+        failedDomainEventRecord.bodyType.assert().isEqualTo(failedJsonDomainEvent.bodyType)
         failedDomainEventRecord.bodyType = MockAggregateCreated::class.java.name
         val mockEvent2 = failedDomainEventRecord.toDomainEvent()
-        assertThat(mockEvent2, equalTo(mockEvent))
+        mockEvent2.assert().isEqualTo(mockEvent)
     }
 
     @Test
@@ -135,9 +130,8 @@ internal class JsonSerializerTest {
         val stateAggregate = ConstructorStateAggregateFactory.create(aggregateMetadata.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> = SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
         val output = snapshot.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<Snapshot<*>>()
-        assertThat(input, equalTo(snapshot))
+        input.assert().isEqualTo(snapshot)
     }
 
     @Test
@@ -151,9 +145,8 @@ internal class JsonSerializerTest {
         val stateRoot = MockStateAggregate(eventStream.aggregateId.id)
         val stateEvent = eventStream.toStateEvent(stateRoot)
         val output = stateEvent.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<StateEvent<*>>()
-        assertThat(input, equalTo(stateEvent))
+        input.assert().isEqualTo(stateEvent)
     }
 
     @Test
@@ -163,22 +156,21 @@ internal class JsonSerializerTest {
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
             eventCount = 1,
         )
-        val stateRoot = mapOf<String, String>("id" to generateGlobalId())
+        val stateRoot = mapOf("id" to generateGlobalId())
         val stateEvent = eventStream.toStateEvent(stateRoot)
         val output = stateEvent.toJsonString()
-        assertThat(output, notNullValue())
         val input = output.toObject<StateEvent<*>>()
-        assertThat(input.state, instanceOf(StateJsonRecord::class.java))
+        input.state.assert().isInstanceOf(StateJsonRecord::class.java)
     }
 
     @Test
     fun deepCody() {
         val mutableData = MutableData(generateGlobalId())
         val deepCopied = mutableData.deepCody()
-        assertThat(mutableData, equalTo(deepCopied))
+        mutableData.assert().isEqualTo(deepCopied)
         mutableData.id = generateGlobalId()
         deepCopied.id = generateGlobalId()
-        assertThat(mutableData, not(deepCopied))
+        mutableData.assert().isNotEqualTo(deepCopied)
     }
 }
 

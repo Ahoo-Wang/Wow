@@ -1,9 +1,8 @@
 package me.ahoo.wow.infra.accessor.property
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.toPropertyGetter
 import me.ahoo.wow.infra.accessor.property.PropertyDescriptor.toPropertySetter
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class PropertyDescriptorTest {
@@ -13,25 +12,25 @@ class PropertyDescriptorTest {
     @Test
     fun toStaticPropertyGetter() {
         val propertyGetter = "value".toPropertyGetter<Any?, String>()
-        assertThat(propertyGetter, instanceOf(StaticPropertyGetter::class.java))
-        assertThat(propertyGetter[null], equalTo("value"))
+        propertyGetter.assert().isInstanceOf(StaticPropertyGetter::class.java)
+        propertyGetter[null].assert().isEqualTo("value")
     }
 
     @Test
     fun toPropertyGetter() {
         val propertyGetter = PropertyDescriptorTest::data.toPropertyGetter()
-        assertThat(propertyGetter, instanceOf(SimplePropertyGetter::class.java))
+        propertyGetter.assert().isInstanceOf(SimplePropertyGetter::class.java)
         val instance = PropertyDescriptorTest()
-        assertThat(propertyGetter[instance], equalTo("value"))
+        propertyGetter[instance].assert().isEqualTo("value")
     }
 
     @Test
     fun toPropertySetter() {
         val propertySetter = PropertyDescriptorTest::data.toPropertySetter()
-        assertThat(propertySetter, instanceOf(SimplePropertySetter::class.java))
+        propertySetter.assert().isInstanceOf(SimplePropertySetter::class.java)
         val instance = PropertyDescriptorTest()
         val newValue = "newValue"
         propertySetter[instance] = newValue
-        assertThat(instance.data, equalTo(newValue))
+        instance.data.assert().isEqualTo(newValue)
     }
 }

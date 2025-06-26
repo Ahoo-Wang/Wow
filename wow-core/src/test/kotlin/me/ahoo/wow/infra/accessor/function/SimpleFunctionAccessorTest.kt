@@ -12,10 +12,9 @@
  */
 package me.ahoo.wow.infra.accessor.function
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
@@ -27,7 +26,7 @@ internal class SimpleFunctionAccessorTest {
     fun invoke() {
         val methodAccessor = SimpleFunctionAccessor<MockMethod, Unit>(MockMethod.INVOKE_FUNCTION)
         methodAccessor.invoke(MockMethod())
-        assertThat(methodAccessor.method.declaringClass, equalTo(MockMethod::class.java))
+        methodAccessor.method.declaringClass.assert().isEqualTo(MockMethod::class.java)
     }
 
     @Test

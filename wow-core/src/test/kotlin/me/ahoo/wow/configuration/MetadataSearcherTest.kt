@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.configuration
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.naming.toNamedBoundedContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -25,17 +24,17 @@ internal class MetadataSearcherTest {
     @Test
     fun getMetadata() {
         val metadata = MetadataSearcher.metadata
-        assertThat(metadata, notNullValue())
+        metadata.assert().isNotNull()
     }
 
     @Test
     fun getContextAlias() {
-        assertThat(MOCK_AGGREGATE_METADATA.getContextAlias(), equalTo("tck"))
+        MOCK_AGGREGATE_METADATA.getContextAlias().assert().isEqualTo("tck")
     }
 
     @Test
     fun getContextAliasIfNofFound() {
-        assertThat("not-found".toNamedBoundedContext().getContextAlias(), equalTo("not-found"))
+        "not-found".toNamedBoundedContext().getContextAlias().assert().isEqualTo("not-found")
     }
 
     @Test

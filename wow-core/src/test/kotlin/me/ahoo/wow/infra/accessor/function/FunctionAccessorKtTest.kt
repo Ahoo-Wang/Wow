@@ -1,27 +1,20 @@
 package me.ahoo.wow.infra.accessor.function
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class FunctionAccessorKtTest {
 
     @Test
     fun getDeclaringClass() {
-        assertThat(
-            FunctionAccessorKtTest::getDeclaringClass.declaringClass.java,
-            sameInstance(FunctionAccessorKtTest::class.java)
+        FunctionAccessorKtTest::getDeclaringClass.declaringClass.java.assert().isSameAs(
+            FunctionAccessorKtTest::class.java
         )
-
-        assertThat(
-            FunctionAccessorKtTest::extensionFunction.declaringClass.java,
-            sameInstance(FunctionAccessorKtTest::class.java)
+        FunctionAccessorKtTest::extensionFunction.declaringClass.java.assert().isSameAs(
+            FunctionAccessorKtTest::class.java
         )
-
-        assertThat(
-            ::independentFunction.declaringClass.java.name,
-            equalTo("me.ahoo.wow.infra.accessor.function.FunctionAccessorKtTestKt")
+        ::independentFunction.declaringClass.java.name.assert().isEqualTo(
+            "me.ahoo.wow.infra.accessor.function.FunctionAccessorKtTestKt"
         )
     }
 }
