@@ -23,9 +23,11 @@ class SimpleCommandBuilderRewriterRegistryTest {
         registry.getRewriter(
             MockCreateCommand::class.java
         ).assert().isInstanceOf(BlockingCommandBuilderRewriter::class.java)
-        (registry.getRewriter(
-            MockCreateCommand::class.java
-        ) as BlockingCommandBuilderRewriter).delegate.assert().isInstanceOf(
+        (
+            registry.getRewriter(
+                MockCreateCommand::class.java
+            ) as BlockingCommandBuilderRewriter
+            ).delegate.assert().isInstanceOf(
             MockBlockingCommandBuilderRewriter::class.java
         )
     }

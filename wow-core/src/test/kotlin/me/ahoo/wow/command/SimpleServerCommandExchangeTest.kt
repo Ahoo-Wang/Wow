@@ -1,11 +1,10 @@
 package me.ahoo.wow.command
 
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.generateGlobalId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class SimpleServerCommandExchangeTest {
@@ -14,15 +13,15 @@ class SimpleServerCommandExchangeTest {
     fun set() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
-        assertThat(commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor(), notNullValue())
-        assertThat(commandExchange.setEventStream(mockk()).getEventStream(), notNullValue())
+        commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor().assert().isNotNull()
+        commandExchange.setEventStream(mockk()).getEventStream().assert().isNotNull()
     }
 
     @Test
     fun extractDeclaredCommand() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
-        assertThat(commandExchange.extractDeclared(CommandMessage::class.java), notNullValue())
+        commandExchange.extractDeclared(CommandMessage::class.java).assert().isNotNull()
     }
 
     @Test
@@ -30,7 +29,7 @@ class SimpleServerCommandExchangeTest {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
             .setEventStream(mockk())
-        assertThat(commandExchange.extractDeclared(DomainEventStream::class.java), notNullValue())
+        commandExchange.extractDeclared(DomainEventStream::class.java).assert().isNotNull()
     }
 
     @Test
@@ -40,6 +39,6 @@ class SimpleServerCommandExchangeTest {
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.setError(IllegalArgumentException())
 
-        assertThat(commandExchange.extractDeclared(RuntimeException::class.java), notNullValue())
+        commandExchange.extractDeclared(RuntimeException::class.java).assert().isNotNull()
     }
 }

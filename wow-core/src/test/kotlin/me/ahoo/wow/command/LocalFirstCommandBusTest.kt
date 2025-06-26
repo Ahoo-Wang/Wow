@@ -1,5 +1,6 @@
 package me.ahoo.wow.command
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -9,8 +10,6 @@ import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.tck.command.CommandBusSpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
@@ -38,7 +37,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                 }
                 .test()
                 .consumeNextWith {
-                    assertThat(it.message.id, equalTo(message.id))
+                    it.message.id.assert().isEqualTo(message.id)
                 }
                 .thenCancel()
                 .verify()
@@ -61,8 +60,8 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
                 }
                 .test()
                 .consumeNextWith {
-                    assertThat(it.message.id, equalTo(message.id))
-                    assertThat(it.message.isVoid, equalTo(true))
+                    it.message.id.assert().isEqualTo(message.id)
+                    it.message.isVoid.assert().isTrue()
                 }
                 .thenCancel()
                 .verify()

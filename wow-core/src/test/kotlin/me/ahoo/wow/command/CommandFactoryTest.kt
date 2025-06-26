@@ -12,12 +12,12 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.id.generateGlobalId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.data.Offset
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -27,82 +27,65 @@ internal class CommandFactoryTest {
     fun create() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
     fun createFromBuilder() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.commandBuilder().toCommandMessage<MockCommandWithExpectedAggregateVersion>()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
     fun createWithInheritNamedAggregate() {
         val command = MockCommandWithInheritNamedAggregate(generateGlobalId(), "test", "test")
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(commandMessage.contextName, equalTo(command.contextName))
-        assertThat(commandMessage.aggregateName, equalTo(command.aggregateName))
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.contextName.assert().isEqualTo(command.contextName)
+        commandMessage.aggregateName.assert().isEqualTo(command.aggregateName)
     }
 
     @Test
     fun asCommand() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
     fun createGivenCreateAggregate() {
         val command = MockCreateCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.isCreate, equalTo(true))
-        assertThat(commandMessage.aggregateVersion, equalTo(0))
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.isCreate.assert().isEqualTo(true)
+        commandMessage.aggregateVersion.assert().isEqualTo(0)
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
     fun createGivenNamed() {
         val command = MockNamedCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
-        assertThat(commandMessage.aggregateId.tenantId, equalTo(TenantId.DEFAULT_TENANT_ID))
-        assertThat(commandMessage.ownerId, equalTo(OwnerId.DEFAULT_OWNER_ID))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.name.assert().isEqualTo(NAMED_COMMAND)
+        commandMessage.aggregateId.tenantId.assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
+        commandMessage.ownerId.assert().isEqualTo(OwnerId.DEFAULT_OWNER_ID)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
@@ -111,32 +94,29 @@ internal class CommandFactoryTest {
         val tenantId = "tenantId"
         val ownerId = "ownerId"
         val commandMessage = command.toCommandMessage(tenantId = tenantId, ownerId = ownerId)
-        assertThat(commandMessage.body, equalTo(command))
-        assertThat(commandMessage.name, equalTo(NAMED_COMMAND))
-        assertThat(commandMessage.aggregateId.tenantId, equalTo(tenantId))
-        assertThat(commandMessage.ownerId, equalTo(ownerId))
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateVersion, nullValue())
-        assertThat(
-            commandMessage.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.name.assert().isEqualTo(NAMED_COMMAND)
+        commandMessage.aggregateId.tenantId.assert().isEqualTo(tenantId)
+        commandMessage.ownerId.assert().isEqualTo(ownerId)
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateVersion.assert().isNull()
+        commandMessage.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
     fun createTenantCommand() {
         val command = MockTenantIdCommand(generateGlobalId(), generateGlobalId())
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.aggregateId.tenantId, equalTo(command.tenantId))
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.aggregateId.tenantId.assert().isEqualTo(command.tenantId)
     }
 
     @Test
     fun createOwnerCommand() {
         val command = MockOwnerIdCommand(generateGlobalId(), generateGlobalId())
         val commandMessage = command.toCommandMessage()
-        assertThat(commandMessage.aggregateId.id, equalTo(command.id))
-        assertThat(commandMessage.ownerId, equalTo(command.ownerId))
+        commandMessage.aggregateId.id.assert().isEqualTo(command.id)
+        commandMessage.ownerId.assert().isEqualTo(command.ownerId)
     }
 
     @Test
