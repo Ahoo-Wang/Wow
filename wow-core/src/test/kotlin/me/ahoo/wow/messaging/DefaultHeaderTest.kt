@@ -67,7 +67,7 @@ internal class DefaultHeaderTest {
         values[KEY] = VALUE
         val header = values.toHeader()
         header.size.assert().isEqualTo(1)
-        header.isEmpty().assert().isTrue()
+        header.isEmpty().assert().isFalse()
         header[KEY].assert().isEqualTo(VALUE)
     }
 
