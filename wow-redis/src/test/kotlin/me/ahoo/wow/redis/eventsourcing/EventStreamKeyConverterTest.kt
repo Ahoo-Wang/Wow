@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.redis.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class EventStreamKeyConverterTest {
@@ -27,18 +26,18 @@ class EventStreamKeyConverterTest {
     @Test
     fun toKeyPrefix() {
         val actual = aggregateId.toKeyPrefix()
-        assertThat(actual, equalTo("tck.mock_aggregate:es:"))
+        actual.assert().isEqualTo("tck.mock_aggregate:es:")
     }
 
     @Test
     fun toAggregateIdKey() {
         val actual = aggregateId.toKey()
-        assertThat(actual, equalTo("{id@tenantId}"))
+        actual.assert().isEqualTo("{id@tenantId}")
     }
 
     @Test
     fun converter() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
-        assertThat(actual, equalTo("tck.mock_aggregate:es:{id@tenantId}"))
+        actual.assert().isEqualTo("tck.mock_aggregate:es:{id@tenantId}")
     }
 }
