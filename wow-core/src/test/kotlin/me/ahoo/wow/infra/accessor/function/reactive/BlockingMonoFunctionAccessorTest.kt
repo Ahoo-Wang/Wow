@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Blocking
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -30,14 +29,14 @@ class BlockingMonoFunctionAccessorTest {
             blockingMonoMethodAccessor.invoke(BlockingMethod())
                 .test()
                 .consumeNextWith {
-                    assertThat(it, startsWith("boundedElastic"))
+                    it.assert().startsWith("boundedElastic")
                 }.verifyComplete()
         }
 
         blockingMonoMethodAccessor.invoke(BlockingMethod())
             .test()
             .consumeNextWith {
-                assertThat(it, not(startsWith("boundedElastic")))
+                it.assert().doesNotStartWith("boundedElastic")
             }.verifyComplete()
     }
 }

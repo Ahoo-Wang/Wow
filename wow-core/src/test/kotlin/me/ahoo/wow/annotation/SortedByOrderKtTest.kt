@@ -4,8 +4,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.javaMethod
 
@@ -21,28 +19,28 @@ class SortedByOrderKtTest {
     fun sortOrderValue() {
         val sortedList = listOf(OrderLast, OrderFirst).sortedByOrder()
         sortedList.assert().hasSize(2)
-        sortedList.assert().contains(OrderFirst, OrderLast)
+        sortedList.assert().containsSequence(OrderFirst, OrderLast)
     }
 
     @Test
     fun sortOrderBefore() {
         val sortedList = listOf(Undefined, Before).sortedByOrder()
-        assertThat(sortedList, hasSize(2))
-        assertThat(sortedList, contains(Before, Undefined))
+        sortedList.assert().hasSize(2)
+        sortedList.assert().containsSequence(Before, Undefined)
     }
 
     @Test
     fun sortOrderAfter() {
         val sortedList = listOf(After, Undefined).sortedByOrder()
-        assertThat(sortedList, hasSize(2))
-        assertThat(sortedList, contains(Undefined, After))
+        sortedList.assert().hasSize(2)
+        sortedList.assert().containsSequence(Undefined, After)
     }
 
     @Test
     fun sortByOrder() {
         val sortedList = listOf(OrderLast, OrderFirst, Before, After, Undefined).sortedByOrder()
-        assertThat(sortedList, hasSize(5))
-        assertThat(sortedList, contains(Before, OrderFirst, OrderLast, Undefined, After))
+        sortedList.assert().hasSize(5)
+        sortedList.assert().containsSequence(Before, OrderFirst, OrderLast, Undefined, After)
     }
 
     @Test
@@ -54,16 +52,13 @@ class SortedByOrderKtTest {
             After::class.java,
             Undefined::class.java
         ).sortedByOrder()
-        assertThat(sortedList, hasSize(5))
-        assertThat(
-            sortedList,
-            contains(
-                Before::class.java,
-                OrderFirst::class.java,
-                OrderLast::class.java,
-                Undefined::class.java,
-                After::class.java
-            )
+        sortedList.assert().hasSize(5)
+        sortedList.assert().containsSequence(
+            Before::class.java,
+            OrderFirst::class.java,
+            OrderLast::class.java,
+            Undefined::class.java,
+            After::class.java
         )
     }
 
@@ -76,16 +71,13 @@ class SortedByOrderKtTest {
             After::class,
             Undefined::class
         ).sortedByOrder()
-        assertThat(sortedList, hasSize(5))
-        assertThat(
-            sortedList,
-            contains(
-                Before::class,
-                OrderFirst::class,
-                OrderLast::class,
-                Undefined::class,
-                After::class
-            )
+        sortedList.assert().hasSize(5)
+        sortedList.assert().containsSequence(
+            Before::class,
+            OrderFirst::class,
+            OrderLast::class,
+            Undefined::class,
+            After::class
         )
     }
 
@@ -96,13 +88,10 @@ class SortedByOrderKtTest {
             OrderMethods::orderFirst.javaMethod!!,
             OrderMethods::orderLast.javaMethod!!
         ).sortedByOrder()
-        assertThat(
-            sortedList,
-            contains(
-                OrderMethods::orderFirst.javaMethod,
-                OrderMethods::orderDefault.javaMethod,
-                OrderMethods::orderLast.javaMethod
-            )
+        sortedList.assert().containsSequence(
+            OrderMethods::orderFirst.javaMethod,
+            OrderMethods::orderDefault.javaMethod,
+            OrderMethods::orderLast.javaMethod
         )
     }
 }

@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.configuration
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions.*
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 internal class AggregateTest {
@@ -25,8 +23,8 @@ internal class AggregateTest {
         val current = Aggregate(linkedSetOf("1", "2"), null)
         val other = Aggregate(linkedSetOf("1", "3"), "")
         val merged = current.merge(other)
-        assertThat(merged.scopes, hasItems("1", "2", "3"))
-        assertThat(merged.type, equalTo(""))
+        merged.scopes.assert().contains("1", "2", "3")
+        merged.type.assert().isBlank()
     }
 
     @Test
@@ -45,7 +43,7 @@ internal class AggregateTest {
 
     @Test
     fun mergeIfConflict() {
-        assertThrows(IllegalStateException::class.java) {
+        assertThrownBy<IllegalStateException> {
             Aggregate(type = "Conflict").merge(Aggregate(type = "other"))
         }
     }

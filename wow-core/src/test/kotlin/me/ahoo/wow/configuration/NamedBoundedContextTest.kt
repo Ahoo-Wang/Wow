@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.configuration
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class NamedBoundedContextTest {
@@ -27,6 +26,6 @@ internal class NamedBoundedContextTest {
         val otherAggregates = mapOf("a1" to Aggregate(linkedSetOf("2"), "a1"))
         val other = BoundedContext(scopes = linkedSetOf("1", "3"), aggregates = otherAggregates)
         val merged = current.merge(other)
-        assertThat(merged.scopes, hasItems("1", "2", "3"))
+        merged.scopes.assert().contains("1", "2", "3")
     }
 }

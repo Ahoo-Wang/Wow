@@ -12,8 +12,7 @@
  */
 package me.ahoo.wow.infra.accessor.constructor
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Constructor
@@ -22,7 +21,7 @@ internal class DefaultConstructorAccessorTest {
     @Test
     fun constructor() {
         val constructorAccessor = DefaultConstructorAccessor(MockConstructor.CTOR)
-        assertThat(constructorAccessor.invoke(), notNullValue())
+        constructorAccessor.invoke().assert().isNotNull()
     }
 
     @Test

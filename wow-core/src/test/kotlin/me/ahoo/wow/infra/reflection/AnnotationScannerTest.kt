@@ -1,11 +1,8 @@
 package me.ahoo.wow.infra.reflection
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class AnnotationScannerTest {
@@ -13,25 +10,25 @@ class AnnotationScannerTest {
     @Test
     fun scanPropertyAnnotation() {
         val propertyAnnotation = Data::property.scanAnnotation<MockAnnotation>()
-        assertThat(propertyAnnotation, notNullValue())
-        assertThat(propertyAnnotation!!.annotationClass, equalTo(MockAnnotation::class))
+        propertyAnnotation.assert().isNotNull()
+        propertyAnnotation!!.annotationClass.assert().isEqualTo(MockAnnotation::class)
         val propertyAnnotation2 = Data::property.scanAnnotation<MockAnnotation>()
-        assertThat(propertyAnnotation2, notNullValue())
-        assertThat(propertyAnnotation2!!.annotationClass, equalTo(MockAnnotation::class))
+        propertyAnnotation2.assert().isNotNull()
+        propertyAnnotation2!!.annotationClass.assert().isEqualTo(MockAnnotation::class)
     }
 
     @Test
     fun scanAnnotationNotFound() {
         val propertyAnnotation = Data::class.scanAnnotation<MockAnnotation>()
-        assertThat(propertyAnnotation, nullValue())
+        propertyAnnotation.assert().isNull()
         val propertyAnnotation2 = Data::class.scanAnnotation<MockAnnotation>()
-        assertThat(propertyAnnotation, nullValue())
+        propertyAnnotation2.assert().isNull()
     }
 
     @Test
     fun scanFunctionAnnotation() {
         val commandAnnotation = MockClass::onCommand.scanAnnotation<OnCommand>()
-        assertThat(commandAnnotation, equalTo(OnCommand()))
+        commandAnnotation.assert().isEqualTo(OnCommand())
     }
 
     interface MockInterface {
