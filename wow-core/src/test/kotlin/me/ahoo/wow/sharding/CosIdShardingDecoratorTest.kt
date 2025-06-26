@@ -14,10 +14,9 @@
 package me.ahoo.wow.sharding
 
 import me.ahoo.cosid.sharding.ModCycle
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 
@@ -39,6 +38,6 @@ internal class CosIdShardingDecoratorTest {
     )
     fun sharding(aggregateId: String, shardingValue: Int) {
         val actual = sharding.sharding(namedAggregate.aggregateId(aggregateId))
-        assertThat(actual, equalTo("sharding_${shardingValue % divisor}"))
+        actual.assert().isEqualTo("sharding_${shardingValue % divisor}")
     }
 }

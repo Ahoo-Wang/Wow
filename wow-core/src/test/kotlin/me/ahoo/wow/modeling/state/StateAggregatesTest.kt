@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.modeling.state
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class StateAggregatesTest {
@@ -38,14 +37,14 @@ class StateAggregatesTest {
             eventTime = 1,
             deleted = false
         )
-        assertThat(stateAggregate.aggregateId.id, equalTo(state.id))
-        assertThat(stateAggregate.state, equalTo(state))
-        assertThat(stateAggregate.version, equalTo(1))
-        assertThat(stateAggregate.eventId, equalTo("eventId"))
-        assertThat(stateAggregate.firstOperator, equalTo("firstOperator"))
-        assertThat(stateAggregate.operator, equalTo("operator"))
-        assertThat(stateAggregate.firstEventTime, equalTo(1))
-        assertThat(stateAggregate.deleted, equalTo(false))
+        stateAggregate.aggregateId.id.assert().isEqualTo(state.id)
+        stateAggregate.state.assert().isEqualTo(state)
+        stateAggregate.version.assert().isEqualTo(1)
+        stateAggregate.eventId.assert().isEqualTo("eventId")
+        stateAggregate.firstOperator.assert().isEqualTo("firstOperator")
+        stateAggregate.operator.assert().isEqualTo("operator")
+        stateAggregate.firstEventTime.assert().isEqualTo(1)
+        stateAggregate.deleted.assert().isEqualTo(false)
     }
 
     @Test
@@ -62,14 +61,14 @@ class StateAggregatesTest {
             eventTime = 1,
             deleted = false
         )
-        assertThat(stateAggregate.aggregateId.id, equalTo(state.id))
-        assertThat(stateAggregate.state, equalTo(state))
-        assertThat(stateAggregate.version, equalTo(1))
-        assertThat(stateAggregate.eventId, equalTo("eventId"))
-        assertThat(stateAggregate.firstOperator, equalTo("firstOperator"))
-        assertThat(stateAggregate.operator, equalTo("operator"))
-        assertThat(stateAggregate.firstEventTime, equalTo(1))
-        assertThat(stateAggregate.deleted, equalTo(false))
+        stateAggregate.aggregateId.id.assert().isEqualTo(state.id)
+        stateAggregate.state.assert().isEqualTo(state)
+        stateAggregate.version.assert().isEqualTo(1)
+        stateAggregate.eventId.assert().isEqualTo("eventId")
+        stateAggregate.firstOperator.assert().isEqualTo("firstOperator")
+        stateAggregate.operator.assert().isEqualTo("operator")
+        stateAggregate.firstEventTime.assert().isEqualTo(1)
+        stateAggregate.deleted.assert().isEqualTo(false)
     }
 
     @Test
@@ -88,13 +87,13 @@ class StateAggregatesTest {
         )
         val readOnlyStateAggregate = stateAggregate as ReadOnlyStateAggregate<MockStateAggregate>
         val fromReadyOnly = readOnlyStateAggregate.toStateAggregate()
-        assertThat(fromReadyOnly.aggregateId, equalTo(stateAggregate.aggregateId))
-        assertThat(fromReadyOnly.state, equalTo(stateAggregate.state))
-        assertThat(fromReadyOnly.version, equalTo(stateAggregate.version))
-        assertThat(fromReadyOnly.eventId, equalTo(stateAggregate.eventId))
-        assertThat(fromReadyOnly.firstOperator, equalTo(stateAggregate.firstOperator))
-        assertThat(fromReadyOnly.operator, equalTo(stateAggregate.operator))
-        assertThat(fromReadyOnly.firstEventTime, equalTo(stateAggregate.firstEventTime))
-        assertThat(fromReadyOnly.deleted, equalTo(stateAggregate.deleted))
+        fromReadyOnly.aggregateId.assert().isEqualTo(stateAggregate.aggregateId)
+        fromReadyOnly.state.assert().isEqualTo(stateAggregate.state)
+        fromReadyOnly.version.assert().isEqualTo(stateAggregate.version)
+        fromReadyOnly.eventId.assert().isEqualTo(stateAggregate.eventId)
+        fromReadyOnly.firstOperator.assert().isEqualTo(stateAggregate.firstOperator)
+        fromReadyOnly.operator.assert().isEqualTo(stateAggregate.operator)
+        fromReadyOnly.firstEventTime.assert().isEqualTo(stateAggregate.firstEventTime)
+        fromReadyOnly.deleted.assert().isEqualTo(stateAggregate.deleted)
     }
 }
