@@ -2,6 +2,7 @@ package me.ahoo.wow.saga.stateless
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.command.CommandMessage
@@ -15,9 +16,6 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -36,9 +34,9 @@ class StatelessSagaFunctionTest {
             every { supportedTopics } returns emptySet()
         }
         val statelessSagaFunction = StatelessSagaFunction(delegate, mockk(), mockk())
-        assertThat(statelessSagaFunction.delegate, CoreMatchers.equalTo(delegate))
+        statelessSagaFunction.delegate.assert().isEqualTo(delegate)
         val retry = statelessSagaFunction.getAnnotation(Retry::class.java)
-        assertThat(retry, nullValue())
+        retry.assert().isNull()
     }
 
     @Test
@@ -65,7 +63,7 @@ class StatelessSagaFunctionTest {
             .`when`(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
-                assertThat(it.requestId, equalTo(it.id))
+                it.requestId.assert().isEqualTo(it.id)
             }
             .verify()
     }
@@ -76,7 +74,7 @@ class StatelessSagaFunctionTest {
             .`when`(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
-                assertThat(it.requestId, not(it.id))
+                it.requestId.assert().isNotEqualTo(it.id)
             }
             .verify()
     }

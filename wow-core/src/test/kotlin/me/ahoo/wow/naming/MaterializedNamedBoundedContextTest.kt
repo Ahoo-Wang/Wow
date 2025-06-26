@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.naming
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.configuration.BoundedContext
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class MaterializedNamedBoundedContextTest {
@@ -23,38 +22,38 @@ internal class MaterializedNamedBoundedContextTest {
     @Test
     fun isSameBoundedContext() {
         val context = "test-context".toNamedBoundedContext()
-        assertThat(context.contextName, equalTo("test-context"))
-        assertThat(context.isSameBoundedContext("test-context".toNamedBoundedContext()), equalTo(true))
+        context.contextName.assert().isEqualTo("test-context")
+        context.isSameBoundedContext("test-context".toNamedBoundedContext()).assert().isEqualTo(true)
     }
 
     @Test
     fun notSameBoundedContext() {
         val actual = "test-context".toNamedBoundedContext()
             .isSameBoundedContext("test-context-other".toNamedBoundedContext())
-        assertThat(actual, equalTo(false))
+        actual.assert().isEqualTo(false)
     }
 
     @Test
     fun getContextAlias() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias()
-        assertThat(actual, equalTo("test-context"))
+        actual.assert().isEqualTo("test-context")
     }
 
     @Test
     fun getContextAliasIfNull() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext())
-        assertThat(actual, equalTo("test-context"))
+        actual.assert().isEqualTo("test-context")
     }
 
     @Test
     fun getContextAliasIfEmpty() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext(""))
-        assertThat(actual, equalTo("test-context"))
+        actual.assert().isEqualTo("test-context")
     }
 
     @Test
     fun getContextAliasIfNotEmpty() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext("alias"))
-        assertThat(actual, equalTo("alias"))
+        actual.assert().isEqualTo("alias")
     }
 }
