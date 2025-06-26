@@ -1,9 +1,8 @@
 package me.ahoo.wow.models.tree
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.models.tree.TreeCoded.Companion.parentCode
 import me.ahoo.wow.models.tree.Trees.toTree
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class TreesTest {
@@ -17,14 +16,14 @@ class TreesTest {
         val l3 = FlatCategory("l3", "l1-l2-l3", 0)
 
         val tree = listOf(l1, l11, l111, l2, l3).toTree(LeafCategory.ROOT, FlatCategory::toLeaf)
-        assertThat(tree.children.size, equalTo(3))
-        assertThat(tree.children.first().children.first().code, equalTo(l2.code))
-        assertThat(tree.children.first().children.first().children.first().code, equalTo(l3.code))
+        tree.children.size.assert().isEqualTo(3)
+        tree.children.first().children.first().code.assert().isEqualTo(l2.code)
+        tree.children.first().children.first().children.first().code.assert().isEqualTo(l3.code)
     }
 
     @Test
     fun parentCode() {
-        assertThat(ROOT_CODE.parentCode(), equalTo(ROOT_CODE))
-        assertThat("l1-l2-l3".parentCode(), equalTo("l1-l2"))
+        ROOT_CODE.parentCode().assert().isEqualTo(ROOT_CODE)
+        "l1-l2-l3".parentCode().assert().isEqualTo("l1-l2")
     }
 }
