@@ -3,10 +3,9 @@ package me.ahoo.wow.webflux.exception
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
 import org.springframework.http.HttpMethod
@@ -26,7 +25,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     fun getOrder() {
-        assertThat(GlobalExceptionHandler.order, equalTo(-2))
+        GlobalExceptionHandler.order.assert().isEqualTo(-2)
     }
 
     @Test

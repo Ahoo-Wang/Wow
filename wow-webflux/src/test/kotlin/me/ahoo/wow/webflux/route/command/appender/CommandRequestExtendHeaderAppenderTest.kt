@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.webflux.route.command.appender
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
@@ -32,7 +31,7 @@ class CommandRequestExtendHeaderAppenderTest {
             .build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestExtendHeaderAppender.append(request, commandHeader)
-        assertThat(commandHeader[headerKey], equalTo(value))
+        commandHeader[headerKey].assert().isEqualTo(value)
     }
 
     @Test
@@ -41,6 +40,6 @@ class CommandRequestExtendHeaderAppenderTest {
             .build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestExtendHeaderAppender.append(request, commandHeader)
-        assertThat(commandHeader.isEmpty(), equalTo(true))
+        commandHeader.assert().isEmpty()
     }
 }

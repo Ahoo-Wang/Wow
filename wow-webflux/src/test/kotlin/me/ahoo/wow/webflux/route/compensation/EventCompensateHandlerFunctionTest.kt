@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.compensation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -30,8 +31,6 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -76,7 +75,7 @@ class EventCompensateHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
     }
 }

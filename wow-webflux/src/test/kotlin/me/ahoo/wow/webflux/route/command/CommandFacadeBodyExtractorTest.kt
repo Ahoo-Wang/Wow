@@ -3,6 +3,7 @@ package me.ahoo.wow.webflux.route.command
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -13,8 +14,6 @@ import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
 import org.springframework.http.HttpHeaders
@@ -58,12 +57,9 @@ class CommandFacadeBodyExtractorTest {
         commandBodyExtractor.extract(inputMessage, context)
             .test()
             .consumeNextWith {
-                assertThat(it.t1, isA(MockCreateAggregate::class.java))
-                assertThat(
-                    it.t2,
-                    equalTo(
-                        aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
-                    )
+                it.t1.assert().isInstanceOf(MockCreateAggregate::class.java)
+                it.t2.assert().isEqualTo(
+                    aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
                 )
             }
             .verifyComplete()
@@ -95,8 +91,8 @@ class CommandFacadeBodyExtractorTest {
         commandBodyExtractor.extract(inputMessage, context)
             .test()
             .consumeNextWith {
-                assertThat(it.t1, isA(DefaultDeleteAggregate::class.java))
-                assertThat(it.t2, equalTo(aggregateMetadata.command.aggregateType.aggregateRouteMetadata()))
+                it.t1.assert().isInstanceOf(DefaultDeleteAggregate::class.java)
+                it.t2.assert().isEqualTo(aggregateMetadata.command.aggregateType.aggregateRouteMetadata())
             }
             .verifyComplete()
     }
@@ -137,12 +133,9 @@ class CommandFacadeBodyExtractorTest {
         commandBodyExtractor.extract(inputMessage, context)
             .test()
             .consumeNextWith {
-                assertThat(it.t1, isA(MockCreateAggregate::class.java))
-                assertThat(
-                    it.t2,
-                    equalTo(
-                        aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
-                    )
+                it.t1.assert().isInstanceOf(MockCreateAggregate::class.java)
+                it.t2.assert().isEqualTo(
+                    aggregateMetadata<MockCommandAggregate, MockStateAggregate>().command.aggregateType.aggregateRouteMetadata()
                 )
             }
             .verifyComplete()

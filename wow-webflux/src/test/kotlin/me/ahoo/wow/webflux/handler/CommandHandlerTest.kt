@@ -1,6 +1,7 @@
 package me.ahoo.wow.webflux.handler
 
 import com.sun.security.auth.UserPrincipal
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -14,8 +15,6 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.route.command.CommandHandler
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -118,7 +117,7 @@ class CommandHandlerTest {
             MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
             .consumeNextWith {
-                assertThat(it.stage, equalTo(CommandStage.SENT))
+                it.stage.assert().isEqualTo(CommandStage.SENT)
             }
             .verifyTimeout(Duration.ofMillis(200))
     }

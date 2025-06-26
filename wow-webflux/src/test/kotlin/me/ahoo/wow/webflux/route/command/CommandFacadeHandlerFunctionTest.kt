@@ -3,6 +3,7 @@ package me.ahoo.wow.webflux.route.command
 import com.sun.security.auth.UserPrincipal
 import io.mockk.spyk
 import io.mockk.verify
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
@@ -18,8 +19,6 @@ import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -63,7 +62,7 @@ class CommandFacadeHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
 
         verify {

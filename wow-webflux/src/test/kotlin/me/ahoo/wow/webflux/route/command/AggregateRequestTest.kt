@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.webflux.route.command
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
@@ -29,21 +28,21 @@ class AggregateRequestTest {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
 
-        assertThat(request.getOwnerId(), equalTo(ownerId))
+        request.getOwnerId().assert().isEqualTo(ownerId)
     }
 
     @Test
     fun getOwnerIdFromHeader() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().header(CommandComponent.Header.OWNER_ID, ownerId).build()
-        assertThat(request.getOwnerId(), equalTo(ownerId))
+        request.getOwnerId().assert().isEqualTo(ownerId)
     }
 
     @Test
     fun getAggregateIdWithOwnerIdFromPathVariable() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().build()
-        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId), equalTo(ownerId))
+        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId).assert().isEqualTo(ownerId)
     }
 
     @Test
@@ -52,40 +51,41 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
             .build()
-        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, null), equalTo(aggregateId))
+
+        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, null).assert().isEqualTo(aggregateId)
     }
 
     @Test
     fun getAggregateIdWithOwner() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
-        assertThat(request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID), equalTo(ownerId))
+        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo(ownerId)
     }
 
     @Test
     fun getCommandStage() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name).build()
-        assertThat(request.getCommandStage(), equalTo(CommandStage.SENT))
+        request.getCommandStage().assert().isEqualTo(CommandStage.SENT)
     }
 
     @Test
     fun getCommandStageIfNull() {
         val request = MockServerRequest.builder().build()
-        assertThat(request.getCommandStage(), equalTo(CommandStage.PROCESSED))
+        request.getCommandStage().assert().isEqualTo(CommandStage.PROCESSED)
     }
 
     @Test
     fun getWaitContext() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_CONTEXT, "test").build()
-        assertThat(request.getWaitContext(), equalTo("test"))
+        request.getWaitContext().assert().isEqualTo("test")
     }
 
     @Test
     fun getWaitProcessor() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_PROCESSOR, "test").build()
-        assertThat(request.getWaitProcessor(), equalTo("test"))
+        request.getWaitProcessor().assert().isEqualTo("test")
     }
 }

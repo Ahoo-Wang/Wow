@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.example.api.cart.AddCartItem
@@ -16,8 +17,6 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -37,7 +36,7 @@ class AggregateTracingHandlerFunctionTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                assertThat(it.items, hasSize(1))
+                it.items.assert().hasSize(1)
             }
             .verify()
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
@@ -60,7 +59,7 @@ class AggregateTracingHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
     }
 }

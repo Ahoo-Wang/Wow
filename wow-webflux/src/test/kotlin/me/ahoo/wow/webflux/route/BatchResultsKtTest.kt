@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
@@ -61,9 +60,8 @@ class BatchResultsKtTest {
         flux.toBatchResult(afterId)
             .test()
             .consumeNextWith {
-                assertThat(it.afterId, equalTo("id1"))
-                assertThat(it.errorCode, equalTo("BatchTaskError"))
-                assertThat(it.afterId, equalTo("id1"))
+                it.afterId.assert().isEqualTo("id1")
+                it.errorCode.assert().isEqualTo("BatchTaskError")
             }
             .verifyComplete()
     }
