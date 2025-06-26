@@ -4,9 +4,8 @@ import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.messaging.MessageDispatcher
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class MessageDispatcherLauncherTest {
@@ -23,13 +22,13 @@ class MessageDispatcherLauncherTest {
         verify(exactly = 1) {
             messageDispatcher.run()
         }
-        assertThat(messageDispatcherLauncher.isRunning, equalTo(true))
+        messageDispatcherLauncher.isRunning.assert().isTrue()
         messageDispatcherLauncher.stop()
         messageDispatcherLauncher.stop()
         verify(exactly = 1) {
             messageDispatcher.close()
         }
-        assertThat(messageDispatcherLauncher.isRunning, equalTo(false))
+        messageDispatcherLauncher.isRunning.assert().isFalse()
         confirmVerified(messageDispatcher)
     }
 }

@@ -13,8 +13,6 @@ import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.models.tree.Leaf
 import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
@@ -95,7 +93,7 @@ class OpenAPISchemaBuilderTest {
     @Test
     fun buildIn() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
-        assertThat(openAPISchemaBuilder.inline, equalTo(false))
+        openAPISchemaBuilder.inline.assert().isFalse()
         openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
         componentsSchemas.assert().hasSize(6)

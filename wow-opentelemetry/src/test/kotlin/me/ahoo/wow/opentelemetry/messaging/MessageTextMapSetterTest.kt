@@ -1,11 +1,10 @@
 package me.ahoo.wow.opentelemetry.messaging
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class MessageTextMapSetterTest {
@@ -26,7 +25,7 @@ class MessageTextMapSetterTest {
         ).toCommandMessage()
 
         MessageTextMapSetter<CommandMessage<*>>().set(command, key, value)
-        assertThat(command.header[key], equalTo(value))
+        command.header[key].assert().isEqualTo(value)
     }
 
     @Test
@@ -37,6 +36,6 @@ class MessageTextMapSetterTest {
         ).toCommandMessage().withReadOnly()
 
         MessageTextMapSetter<CommandMessage<*>>().set(command, key, value)
-        assertThat(command.header[key], nullValue())
+        command.header[key].assert().isNull()
     }
 }

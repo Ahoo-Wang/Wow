@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.query
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
@@ -28,8 +29,6 @@ import me.ahoo.wow.query.event.count
 import me.ahoo.wow.query.event.dynamicQuery
 import me.ahoo.wow.query.event.query
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -54,7 +53,7 @@ abstract class EventStreamQueryServiceSpec {
     fun createFromCache() {
         val queryService1 = eventStreamQueryServiceFactory.create(namedAggregate)
         val queryService2 = eventStreamQueryServiceFactory.create(namedAggregate)
-        assertThat(queryService1, sameInstance(queryService2))
+        queryService1.assert().isSameAs(queryService2)
     }
 
     @Test
