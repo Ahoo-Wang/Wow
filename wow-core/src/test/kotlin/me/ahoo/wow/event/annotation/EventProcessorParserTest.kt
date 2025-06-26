@@ -14,10 +14,9 @@
 
 package me.ahoo.wow.event.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class EventProcessorParserTest {
@@ -25,11 +24,12 @@ internal class EventProcessorParserTest {
     @Test
     fun eventProcessorMetadata() {
         val eventProcessorMetadata = eventProcessorMetadata<MockEventProcessor>()
-        assertThat(eventProcessorMetadata.contextName, equalTo("wow.event"))
-        assertThat(eventProcessorMetadata.processorType, equalTo(MockEventProcessor::class.java))
-        assertThat(
-            eventProcessorMetadata.functionRegistry.map { it.supportedType }.toSet(),
-            hasItems(MockAggregateCreated::class.java, MockAggregateChanged::class.java),
+        eventProcessorMetadata.contextName.assert().isEqualTo("wow.event")
+        eventProcessorMetadata.processorType.assert().isEqualTo(MockEventProcessor::class.java)
+
+        eventProcessorMetadata.functionRegistry.map { it.supportedType }.toSet().assert().containsExactly(
+            MockAggregateCreated::class.java,
+            MockAggregateChanged::class.java
         )
     }
 }

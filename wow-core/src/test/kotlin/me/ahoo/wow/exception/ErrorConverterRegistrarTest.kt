@@ -2,8 +2,6 @@ package me.ahoo.wow.exception
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class ErrorInfoConverterRegistrarTest {
@@ -13,7 +11,7 @@ class ErrorInfoConverterRegistrarTest {
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
         ErrorConverterRegistrar.unregister(CustomException::class.java).assert()
             .isEqualTo(CustomExceptionErrorConverter)
-        assertThat(CustomException().toErrorInfo().errorCode, equalTo(ErrorCodes.BAD_REQUEST))
+        CustomException().toErrorInfo().errorCode.assert().isEqualTo(ErrorCodes.BAD_REQUEST)
         ErrorConverterRegistrar.register(CustomExceptionErrorConverterFactory()).assert().isNull()
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
     }

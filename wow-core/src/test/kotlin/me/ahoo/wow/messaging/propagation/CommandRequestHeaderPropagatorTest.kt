@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.propagation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -21,8 +22,6 @@ import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companio
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withRemoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withUserAgent
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CommandRequestHeaderPropagatorTest {
@@ -34,8 +33,8 @@ class CommandRequestHeaderPropagatorTest {
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(injectedHeader.userAgent, equalTo(upstreamMessage.header.userAgent))
-        assertThat(injectedHeader.remoteIp, equalTo(upstreamMessage.header.remoteIp))
+        injectedHeader.userAgent.assert().isEqualTo(upstreamMessage.header.userAgent)
+        injectedHeader.remoteIp.assert().isEqualTo(upstreamMessage.header.remoteIp)
     }
 
     @Test
@@ -45,8 +44,8 @@ class CommandRequestHeaderPropagatorTest {
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(injectedHeader.userAgent, equalTo(null))
-        assertThat(injectedHeader.remoteIp, equalTo(null))
+        injectedHeader.userAgent.assert().isNull()
+        injectedHeader.remoteIp.assert().isNull()
     }
 
     @Test
@@ -58,8 +57,8 @@ class CommandRequestHeaderPropagatorTest {
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(injectedHeader.userAgent, equalTo(null))
-        assertThat(injectedHeader.remoteIp, equalTo(null))
+        injectedHeader.userAgent.assert().isNull()
+        injectedHeader.remoteIp.assert().isNull()
         System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)
     }
 
@@ -72,8 +71,8 @@ class CommandRequestHeaderPropagatorTest {
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
         CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(injectedHeader.userAgent, equalTo(upstreamMessage.header.userAgent))
-        assertThat(injectedHeader.remoteIp, equalTo(upstreamMessage.header.remoteIp))
+        injectedHeader.userAgent.assert().isEqualTo(upstreamMessage.header.userAgent)
+        injectedHeader.remoteIp.assert().isEqualTo(upstreamMessage.header.remoteIp)
         System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)
     }
 }

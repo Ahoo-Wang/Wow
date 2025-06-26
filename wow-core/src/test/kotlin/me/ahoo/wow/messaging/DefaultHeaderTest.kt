@@ -13,8 +13,7 @@
 package me.ahoo.wow.messaging
 
 import me.ahoo.cosid.test.MockIdGenerator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -23,21 +22,21 @@ internal class DefaultHeaderTest {
     fun asHeader() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
-        assertThat(header, notNullValue())
+        header.assert().isNotNull()
     }
 
     @Test
     fun size() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
-        assertThat(header.size, equalTo(0))
+        header.assert().isEmpty()
     }
 
     @Test
     fun isEmpty() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
-        assertThat(header.isEmpty(), equalTo(true))
+        header.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
@@ -45,13 +44,10 @@ internal class DefaultHeaderTest {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
-        assertThat(header.size, equalTo(1))
-        assertThat(header.isEmpty(), not(true))
-        assertThat(header.containsKey(KEY), equalTo(true))
-        assertThat(
-            header.containsKey(MockIdGenerator.INSTANCE.generateAsString()),
-            equalTo(false),
-        )
+        header.size.assert().isEqualTo(1)
+        header.isEmpty().assert().isFalse()
+        header.containsKey(KEY).assert().isEqualTo(true)
+        header.containsKey(MockIdGenerator.INSTANCE.generateAsString()).assert().isFalse()
     }
 
     @Test
@@ -59,13 +55,10 @@ internal class DefaultHeaderTest {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
-        assertThat(header.size, equalTo(1))
-        assertThat(header.isEmpty(), not(true))
-        assertThat(header.containsValue(VALUE), equalTo(true))
-        assertThat(
-            header.containsValue(MockIdGenerator.INSTANCE.generateAsString()),
-            equalTo(false),
-        )
+        header.size.assert().isEqualTo(1)
+        header.isEmpty().assert().isFalse()
+        header.containsValue(VALUE).assert().isEqualTo(true)
+        header.containsValue(MockIdGenerator.INSTANCE.generateAsString()).assert().isFalse()
     }
 
     @Test
@@ -73,46 +66,46 @@ internal class DefaultHeaderTest {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
-        assertThat(header.size, equalTo(1))
-        assertThat(header.isEmpty(), not(true))
-        assertThat(header[KEY], equalTo(VALUE))
+        header.size.assert().isEqualTo(1)
+        header.isEmpty().assert().isTrue()
+        header[KEY].assert().isEqualTo(VALUE)
     }
 
     @Test
     fun keySet() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
-        assertThat(header.keys, equalTo(emptySet<Any>()))
+        header.keys.assert().isEmpty()
     }
 
     @Test
     fun values() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
-        assertThat(header.values.isEmpty(), equalTo(values.values.isEmpty()))
+        header.values.assert().isEmpty()
     }
 
     @Test
     fun entrySet() {
-        assertThat(DefaultHeader.empty(), aMapWithSize(0))
+        DefaultHeader.empty().entries.assert().isEmpty()
     }
 
     @Test
     fun testEquals() {
-        assertThat(DefaultHeader.empty(), equalTo(DefaultHeader.empty()))
-        assertThat(DefaultHeader.empty(), not(Any()))
+        DefaultHeader.empty().assert().isEqualTo(DefaultHeader.empty())
+        DefaultHeader.empty().assert().isNotEqualTo(Any())
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = DefaultHeader(values)
         var otherHeader = DefaultHeader(HashMap())
-        assertThat(header, not(otherHeader))
+        header.assert().isNotEqualTo(otherHeader)
         otherHeader = DefaultHeader(values)
-        assertThat(header, equalTo(otherHeader))
+        header.assert().isEqualTo(otherHeader)
     }
 
     @Test
     fun testHashCode() {
-        assertThat(DefaultHeader.empty().hashCode(), equalTo(0))
+        DefaultHeader.empty().hashCode().assert().isEqualTo(0)
     }
 
     @Test
@@ -125,14 +118,14 @@ internal class DefaultHeaderTest {
         val additionalSource = HashMap<String, String>()
         additionalSource[additionalKey] = additionalValue
         val mergedHeader = header.with(additionalSource)
-        assertThat(mergedHeader[KEY], equalTo(VALUE))
-        assertThat(mergedHeader[additionalKey], equalTo(additionalValue))
+        mergedHeader[KEY].assert().isEqualTo(VALUE)
+        mergedHeader[additionalKey].assert().isEqualTo(additionalValue)
     }
 
     @Test
     fun mergeWithWhenEmpty() {
         val mergedHeader = DefaultHeader.empty().with(HashMap())
-        assertThat(mergedHeader, equalTo(DefaultHeader.empty()))
+        mergedHeader.assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
@@ -140,8 +133,8 @@ internal class DefaultHeaderTest {
         val additionalSource = HashMap<String, String>()
         additionalSource[KEY] = VALUE
         val mergedHeader = DefaultHeader.empty().with(additionalSource)
-        assertThat(mergedHeader, not(DefaultHeader.empty()))
-        assertThat(mergedHeader[KEY], equalTo(VALUE))
+        mergedHeader.assert().isNotEqualTo(DefaultHeader.empty())
+        mergedHeader[KEY].assert().isEqualTo(VALUE)
     }
 
     @Test
@@ -153,13 +146,13 @@ internal class DefaultHeaderTest {
     @Test
     fun empty() {
         val header = DefaultHeader.empty()
-        assertThat(header.isReadOnly, equalTo(false))
+        header.isReadOnly.assert().isEqualTo(false)
     }
 
     @Test
     fun withReadonly() {
         val header = DefaultHeader.empty().withReadOnly()
-        assertThat(header.isReadOnly, equalTo(true))
+        header.isReadOnly.assert().isEqualTo(true)
         Assertions.assertThrows(UnsupportedOperationException::class.java) {
             header[KEY] = VALUE
         }

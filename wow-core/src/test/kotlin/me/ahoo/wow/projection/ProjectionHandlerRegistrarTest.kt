@@ -15,12 +15,11 @@ package me.ahoo.wow.projection
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ProjectionProcessorRegistrarTest {
@@ -30,25 +29,20 @@ internal class ProjectionProcessorRegistrarTest {
         val handlerRegistrar = ProjectionFunctionRegistrar()
         val mockProjector = MockProjector()
         handlerRegistrar.registerProcessor(mockProjector)
-        assertThat(handlerRegistrar.functions, hasSize(2))
+        handlerRegistrar.functions.assert().hasSize(2)
         val messageMockAggregateCreated = mockk<DomainEvent<MockAggregateCreated>> {
             every { body } returns MockAggregateCreated("data")
             every { contextName } returns requiredNamedAggregate<MockAggregateCreated>().contextName
             every { aggregateName } returns requiredNamedAggregate<MockAggregateCreated>().aggregateName
         }
-        assertThat(
-            handlerRegistrar.supportedFunctions(messageMockAggregateCreated).toSet(),
-            hasSize(1),
-        )
+        handlerRegistrar.supportedFunctions(messageMockAggregateCreated).toSet().assert().hasSize(1)
+
         val messageMockAggregateChanged = mockk<DomainEvent<MockAggregateChanged>> {
             every { body } returns MockAggregateChanged("data")
             every { contextName } returns requiredNamedAggregate<MockAggregateChanged>().contextName
             every { aggregateName } returns requiredNamedAggregate<MockAggregateChanged>().aggregateName
         }
-        assertThat(
-            handlerRegistrar.supportedFunctions(messageMockAggregateChanged).toSet(),
-            hasSize(1),
-        )
+        handlerRegistrar.supportedFunctions(messageMockAggregateChanged).toSet().assert().hasSize(1)
     }
 }
 

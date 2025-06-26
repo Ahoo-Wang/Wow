@@ -14,6 +14,7 @@ package me.ahoo.wow.messaging.function
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.command.ServerCommandExchange
@@ -27,8 +28,6 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.kotlinFunction
 
@@ -43,44 +42,22 @@ internal class MethodMessageFunctionTest {
             .toMessageFunction<MockCommandAggregate, ServerCommandExchange<*>, MockAggregateCreated>(
                 MockCommandAggregate((MockStateAggregate(GlobalIdGenerator.generateAsString()))),
             )
-        assertThat(messageFunction, notNullValue())
         val serverCommandExchange = mockk<ServerCommandExchange<MockCreateAggregate>> {
             every { message } returns MockCreateAggregate("id", "data").toCommandMessage()
         }
         messageFunction(serverCommandExchange)
         val created = messageFunction.handle(serverCommandExchange)
-        assertThat(created.data, equalTo("data"))
-
-        assertThat(
-            messageFunction,
-            instanceOf(
-                SimpleMessageFunctionAccessor::class.java,
-            ),
-        )
-        assertThat(
-            messageFunction.supportedType,
-            equalTo(
-                MockCreateAggregate::class.java,
-            ),
-        )
-        assertThat(
-            messageFunction.supportedTopics,
-            equalTo(
-                emptySet(),
-            ),
-        )
-        assertThat(
-            messageFunction.processorName,
-            equalTo(
-                "MockCommandAggregate"
-            ),
-        )
-        assertThat(messageFunction.name, equalTo("onCommand"))
-        assertThat(messageFunction.qualifiedName, equalTo("MockCommandAggregate.onCommand(MockCreateAggregate)"))
+        created.data.assert().isEqualTo("data")
+        messageFunction.assert().isInstanceOf(SimpleMessageFunctionAccessor::class.java)
+        messageFunction.supportedType.assert().isEqualTo(MockCreateAggregate::class.java)
+        messageFunction.supportedTopics.isEmpty()
+        messageFunction.processorName.assert().isEqualTo("MockCommandAggregate")
+        messageFunction.name.assert().isEqualTo("onCommand")
+        messageFunction.qualifiedName.assert().isEqualTo("MockCommandAggregate.onCommand(MockCreateAggregate)")
         val retry = messageFunction.getAnnotation(Retry::class.java)
-        assertThat(retry, nullValue())
+        retry.assert().isNull()
         val onCommand = messageFunction.getAnnotation(OnCommand::class.java)
-        assertThat(onCommand, notNullValue())
+        onCommand.assert().isNotNull()
     }
 
     @Test
@@ -89,22 +66,20 @@ internal class MethodMessageFunctionTest {
             .toMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
                 MockWithInjectableFunction(),
             )
+        messageFunction.assert().isNotNull()
 
-        assertThat(messageFunction, notNullValue())
-        assertThat(
-            messageFunction,
-            instanceOf(
+        messageFunction.assert()
+            .isInstanceOf(
                 InjectableMessageFunctionAccessor::class.java,
-            ),
+            )
+
+        messageFunction.supportedType.assert().isEqualTo(
+
+            MockEventBody::class.java,
         )
-        assertThat(
-            messageFunction.supportedType,
-            equalTo(
-                MockEventBody::class.java,
-            ),
-        )
+
         val retry = messageFunction.getAnnotation(Retry::class.java)
-        assertThat(retry, nullValue())
+        retry.assert().isNull()
     }
 
     @Test
@@ -113,31 +88,27 @@ internal class MethodMessageFunctionTest {
             .toMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
                 MockFunction(),
             )
+        messageFunction.assert().isNotNull()
 
-        assertThat(messageFunction, notNullValue())
-        assertThat(
-            messageFunction,
-            instanceOf(
+        messageFunction.assert()
+            .isInstanceOf(
                 SimpleMessageFunctionAccessor::class.java,
-            ),
-        )
-        assertThat(
-            messageFunction.supportedType,
-            equalTo(
+            )
+
+        messageFunction.supportedType
+            .assert().isEqualTo(
                 MockEventBody::class.java,
-            ),
+            )
+
+        messageFunction.metadata.accessor.assert().isInstanceOf(
+            MonoFunctionAccessor::class.java
         )
-        assertThat(
-            messageFunction.metadata.accessor,
-            instanceOf(
-                MonoFunctionAccessor::class.java,
-            ),
-        )
+
         val retry = messageFunction.getAnnotation(Retry::class.java)
-        assertThat(retry, notNullValue())
-        assertThat(retry!!.enabled, equalTo(true))
-        assertThat(retry.maxRetries, equalTo(Retry.DEFAULT_MAX_RETRIES))
-        assertThat(retry.minBackoff, equalTo(Retry.DEFAULT_MIN_BACKOFF))
-        assertThat(retry.executionTimeout, equalTo(Retry.DEFAULT_EXECUTION_TIMEOUT))
+        retry.assert().isNotNull()
+        retry!!.enabled.assert().isEqualTo(true)
+        retry.maxRetries.assert().isEqualTo(Retry.DEFAULT_MAX_RETRIES)
+        retry.minBackoff.assert().isEqualTo(Retry.DEFAULT_MIN_BACKOFF)
+        retry.executionTimeout.assert().isEqualTo(Retry.DEFAULT_EXECUTION_TIMEOUT)
     }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.projection.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.toDomainEventStream
@@ -22,8 +23,6 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ProjectionProcessorMetadataParserTest {
@@ -31,14 +30,13 @@ internal class ProjectionProcessorMetadataParserTest {
     @Test
     fun projectorMetadata() {
         val metadata = projectionProcessorMetadata<MockProjector>()
-        assertThat(metadata.processorType, equalTo(MockProjector::class.java))
-        assertThat(metadata.contextName, equalTo("wow"))
-        assertThat(metadata.name, equalTo("MockProjector"))
-        assertThat(metadata.functionRegistry.size, equalTo(3))
-        assertThat(
-            metadata.functionRegistry.map { it.supportedType }.toSet(),
-            hasItems(MockAggregateCreated::class.java, MockAggregateChanged::class.java),
-        )
+        metadata.processorType.assert().isEqualTo(MockProjector::class.java)
+        metadata.contextName.assert().isEqualTo("wow")
+        metadata.name.assert().isEqualTo("MockProjector")
+        metadata.functionRegistry.size.assert().isEqualTo(3)
+
+        metadata.functionRegistry.map { it.supportedType }.toSet().assert()
+            .containsExactly(MockAggregateCreated::class.java, MockAggregateChanged::class.java)
     }
 
     @Test
@@ -54,7 +52,7 @@ internal class ProjectionProcessorMetadataParserTest {
         eventHandlerRegistry.first {
             it.supportedType == created.body.javaClass
         }.invoke(SimpleDomainEventExchange(created)).block()
-        assertThat(mockProjector.data, equalTo(createdState))
+        mockProjector.data.assert().isEqualTo(createdState)
     }
 }
 
