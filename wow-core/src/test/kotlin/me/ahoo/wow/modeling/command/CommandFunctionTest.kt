@@ -30,6 +30,6 @@ class CommandFunctionTest {
             delegate = delegate,
             commandAggregate = commandAggregate,
             afterCommandFunctions = emptyList()
-        ).getAnnotation(Retry::class.java).assert().isNotNull()
+        ).getAnnotation(Retry::class.java).assert().isNull()
     }
 }

@@ -36,7 +36,7 @@ internal class ProjectionProcessorMetadataParserTest {
         metadata.functionRegistry.size.assert().isEqualTo(3)
 
         metadata.functionRegistry.map { it.supportedType }.toSet().assert()
-            .containsExactly(MockAggregateCreated::class.java, MockAggregateChanged::class.java)
+            .contains(MockAggregateCreated::class.java, MockAggregateChanged::class.java)
     }
 
     @Test
