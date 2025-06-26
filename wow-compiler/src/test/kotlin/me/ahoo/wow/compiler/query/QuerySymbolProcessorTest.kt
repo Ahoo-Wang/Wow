@@ -5,7 +5,6 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.kspSourcesDir
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compiler.compileTest
-import org.hamcrest.CoreMatchers.equalTo
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -51,7 +50,7 @@ class QuerySymbolProcessorTest {
                     const val ID = "id"
                     const val STATE = "state"
                 }
-                    """.trimIndent()
+                """.trimIndent()
             )
         }
     }
@@ -93,7 +92,7 @@ class QuerySymbolProcessorTest {
                     object MockJavaCompilerAggregateProperties {
                         const val ID = "id"
                     }
-                    """.trimIndent()
+                """.trimIndent()
             )
         }
     }
