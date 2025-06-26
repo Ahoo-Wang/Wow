@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.query.context
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
-import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -26,7 +25,7 @@ class ContextsTest {
     @Test
     fun writeRawRequest() {
         Mono.deferContextual {
-            MatcherAssert.assertThat(it.getRawRequest<ContextsTest>(), CoreMatchers.equalTo(this))
+            it.getRawRequest<ContextsTest>().assert().isEqualTo(this)
             Mono.empty<Void>()
         }.writeRawRequest(this)
             .test()

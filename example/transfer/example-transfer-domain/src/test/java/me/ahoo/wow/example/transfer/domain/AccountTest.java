@@ -18,8 +18,7 @@ import me.ahoo.wow.example.transfer.api.CreateAccount;
 import org.junit.jupiter.api.Test;
 
 import static me.ahoo.wow.test.AggregateVerifier.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.Assertions.*;
 
 class AccountTest {
 
@@ -30,15 +29,15 @@ class AccountTest {
                 .when(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)
                 .expectEventIterator(eventIterator -> {
-                    assertThat(eventIterator.hasNext(), equalTo(true));
+                    assertThat(eventIterator.hasNext()).isTrue();
                     var eventBody = eventIterator.nextEventBody(AccountCreated.class);
-                    assertThat(eventBody.name(), equalTo("name"));
-                    assertThat(eventBody.balance(), equalTo(100L));
-                    assertThat(eventIterator.hasNext(), equalTo(false));
+                    assertThat(eventBody.name()).isEqualTo("name");
+                    assertThat(eventBody.balance()).isEqualTo(100L);
+                    assertThat(eventIterator.hasNext()).isFalse();
                 })
                 .expectState(account -> {
-                    assertThat(account.getName(), equalTo("name"));
-                    assertThat(account.getBalanceAmount(), equalTo(100L));
+                    assertThat(account.getName()).isEqualTo("name");
+                    assertThat(account.getBalanceAmount()).isEqualTo(100L);
                 })
                 .verify();
     }

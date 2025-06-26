@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class AppendPrefixNamingConverterTest {
@@ -25,9 +24,9 @@ internal class AppendPrefixNamingConverterTest {
 
     @Test
     fun convert() {
-        assertThat(CONVERTER.prefix, equalTo(PREFIX))
+        CONVERTER.prefix.assert().isEqualTo(PREFIX)
         val phrase = "wow"
         val actual = CONVERTER.convert(phrase)
-        assertThat(actual, equalTo("${PREFIX}$phrase"))
+        actual.assert().isEqualTo("${PREFIX}$phrase")
     }
 }

@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class KebabCaseStrategyTest {
@@ -27,12 +26,12 @@ internal class KebabCaseStrategyTest {
     @Test
     fun segment() {
         val actual = KebabCaseStrategy.segment(PHRASE)
-        assertThat(actual, equalTo(WORDS))
+        actual.assert().isEqualTo(WORDS)
     }
 
     @Test
     fun transform() {
         val actual = KebabCaseStrategy.transform(WORDS)
-        assertThat(actual, equalTo(PHRASE))
+        actual.assert().isEqualTo(PHRASE)
     }
 }

@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class CompositeNamingConverterTest {
@@ -28,13 +27,13 @@ internal class CompositeNamingConverterTest {
     fun convert() {
         val phrase = PREFIX + PascalCaseStrategyTest.PHRASE
         val actual = CONVERTER.convert(phrase)
-        assertThat(actual, equalTo(SnakeCaseStrategyTest.PHRASE))
+        actual.assert().isEqualTo(SnakeCaseStrategyTest.PHRASE)
     }
 
     @Test
     fun convertWhenMismatch() {
         val phrase = "prefix" + PascalCaseStrategyTest.PHRASE
         val actual = CONVERTER.convert(phrase)
-        assertThat(actual, equalTo("prefix_wow_is_great"))
+        actual.assert().isEqualTo("prefix_wow_is_great")
     }
 }

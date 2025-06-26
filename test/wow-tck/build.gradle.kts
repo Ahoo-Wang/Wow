@@ -5,7 +5,6 @@ dependencies {
     api(project(":wow-query"))
     api("io.projectreactor:reactor-test")
     api("me.ahoo.cosid:cosid-test")
-    api("org.hamcrest:hamcrest")
     api(project(":wow-test"))
     implementation("org.junit.jupiter:junit-jupiter-api")
     implementation("com.fasterxml.jackson.core:jackson-databind")

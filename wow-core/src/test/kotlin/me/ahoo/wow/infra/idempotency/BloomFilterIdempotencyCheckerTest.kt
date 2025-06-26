@@ -14,8 +14,7 @@ package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.time.Duration
 
@@ -28,7 +27,7 @@ class BloomFilterIdempotencyCheckerTest {
 
     @Test
     fun check() {
-        MatcherAssert.assertThat(idempotencyChecker.check("hi").block(), Matchers.equalTo(true))
-        MatcherAssert.assertThat(idempotencyChecker.check("hi").block(), Matchers.equalTo(false))
+        idempotencyChecker.check("hi").block().assert().isTrue()
+        idempotencyChecker.check("hi").block().assert().isFalse()
     }
 }

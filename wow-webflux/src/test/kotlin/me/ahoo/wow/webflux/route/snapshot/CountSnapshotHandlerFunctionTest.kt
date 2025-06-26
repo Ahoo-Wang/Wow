@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec
@@ -8,8 +9,6 @@ import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -39,7 +38,7 @@ class CountSnapshotHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                MatcherAssert.assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.OK))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
     }
 }

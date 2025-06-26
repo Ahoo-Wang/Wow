@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class PascalCaseStrategyTest {
@@ -27,12 +26,12 @@ internal class PascalCaseStrategyTest {
     @Test
     fun segment() {
         val actual = PascalCaseStrategy.segment(PHRASE)
-        assertThat(actual, equalTo(WORDS))
+        actual.assert().isEqualTo(WORDS)
     }
 
     @Test
     fun transform() {
         val actual = PascalCaseStrategy.transform(WORDS)
-        assertThat(actual, equalTo(PHRASE))
+        actual.assert().isEqualTo(PHRASE)
     }
 }

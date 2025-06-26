@@ -15,14 +15,13 @@ package me.ahoo.wow.example.transfer.domain;
 
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.assertj.core.api.Assertions.*;
 
 class TransferBoundedContextTest {
 
     @Test
     void ctor() {
         var boundedContext = new TransferBoundedContext();
-        assertThat(boundedContext, notNullValue());
+        assertThat(boundedContext).isNotNull();
     }
 }

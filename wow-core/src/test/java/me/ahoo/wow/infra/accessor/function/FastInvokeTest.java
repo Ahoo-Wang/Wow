@@ -20,8 +20,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 class FastInvokeTest {
 
@@ -49,7 +48,7 @@ class FastInvokeTest {
         String[] args = {"1", "2", "3"};
         Object[] invokeArgs = {args};
         Object result = FastInvoke.invoke(method, this, invokeArgs);
-        assertThat(result, equalTo(args));
+        assertThat(result).isEqualTo(args);
     }
 
     @Test
@@ -57,6 +56,6 @@ class FastInvokeTest {
         Constructor<Ctor> ctor = Ctor.class.getDeclaredConstructor(String.class);
         ctor.trySetAccessible();
         Ctor instance = FastInvoke.newInstance(ctor, new Object[]{"1"});
-        assertThat(instance.getId(), equalTo("1"));
+        assertThat(instance.getId()).isEqualTo("1");
     }
 }

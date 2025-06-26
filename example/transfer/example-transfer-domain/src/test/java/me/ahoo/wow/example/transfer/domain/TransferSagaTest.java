@@ -18,8 +18,7 @@ import me.ahoo.wow.example.transfer.api.Prepared;
 import org.junit.jupiter.api.Test;
 
 import static me.ahoo.wow.test.SagaVerifier.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.Assertions.*;
 
 public class TransferSagaTest {
 
@@ -29,8 +28,8 @@ public class TransferSagaTest {
         sagaVerifier(TransferSaga.class)
                 .when(event)
                 .expectCommandBody((Entry entry) -> {
-                    assertThat(entry.id(), equalTo(event.to()));
-                    assertThat(entry.amount(), equalTo(event.amount()));
+                    assertThat(entry.id()).isEqualTo(event.to());
+                    assertThat(entry.amount()).isEqualTo(event.amount());
                 })
                 .verify();
     }

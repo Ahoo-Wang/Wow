@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.id
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.notNullValue
 import org.junit.jupiter.api.Test
 
 internal class AggregateIdGeneratorRegistrarTest {
@@ -24,7 +23,7 @@ internal class AggregateIdGeneratorRegistrarTest {
     fun generateId() {
         val namedAggregate = MaterializedNamedAggregate("test", "test")
         val id = namedAggregate.generateId()
-        assertThat(id, notNullValue())
-        assertThat(AggregateIdGeneratorRegistrar[namedAggregate], notNullValue())
+        id.assert().isNotNull()
+        AggregateIdGeneratorRegistrar[namedAggregate].assert().isNotNull
     }
 }

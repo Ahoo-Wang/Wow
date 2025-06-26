@@ -29,7 +29,6 @@ dependencies {
         api(libs.opentelemetry.semconv)
         api(libs.swagger.annotations)
         api(libs.swagger.core)
-        api(libs.hamcrest)
         api(libs.mockk)
         api(libs.detekt.formatting)
     }
