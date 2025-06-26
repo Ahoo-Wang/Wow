@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class PaginationDslTest {
@@ -25,8 +24,7 @@ class PaginationDslTest {
             index(1)
             size(1)
         }
-
-        assertThat(pagination.index, equalTo(1))
-        assertThat(pagination.size, equalTo(1))
+        pagination.index.assert().isOne()
+        pagination.size.assert().isOne()
     }
 }

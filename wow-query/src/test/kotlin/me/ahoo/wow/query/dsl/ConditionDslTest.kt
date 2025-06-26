@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.query.snapshot.nestedState
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -99,71 +98,68 @@ class ConditionDslTest {
                 "field30" eq "value30"
             }
         }
-        assertThat(
-            condition,
-            equalTo(
-                Condition.and(
-                    listOf(
-                        Condition.deleted(false),
-                        Condition.deleted(DeletionState.ACTIVE),
-                        Condition.and(Condition.tenantId("tenantId")),
-                        Condition.nor(Condition.all()),
-                        Condition.id("id"),
-                        Condition.ids("id", "id2"),
-                        Condition.aggregateId("id"),
-                        Condition.aggregateIds("id", "id2"),
-                        Condition.eq("field1", "value1"),
-                        Condition.ne("field2", "value2"),
-                        Condition.gt("filed3", 1),
-                        Condition.lt("field4", 1),
-                        Condition.gte("field5", 1),
-                        Condition.lte("field6", 1),
-                        Condition.contains("field7", "value7"),
-                        Condition.contains("field7", "value7", false),
-                        Condition.contains("field7", "value7", true),
-                        Condition.isIn("field8", listOf("value8")),
-                        Condition.notIn("field9", listOf("value9")),
-                        Condition.between("field10", 1, 2),
-                        Condition.between("field100", 1, 2),
-                        Condition.all("field11", listOf("value11")),
-                        Condition.startsWith("field12", "value12"),
-                        Condition.startsWith("field12", "value12", false),
-                        Condition.startsWith("field12", "value12", true),
-                        Condition.endsWith("field12", "value12"),
-                        Condition.endsWith("field12", "value12", false),
-                        Condition.endsWith("field12", "value12", true),
-                        Condition.elemMatch("field13", Condition.eq("field14", "value14")),
-                        Condition.isNull("field15"),
-                        Condition.notNull("field16"),
-                        Condition.isTrue("field17"),
-                        Condition.isFalse("field18"),
-                        Condition.and(
-                            listOf(
-                                Condition.eq("field3", "value3"),
-                                Condition.eq("field4", "value4")
-                            )
-                        ),
-                        Condition.or(
-                            listOf(
-                                Condition.eq("field3", "value3"),
-                                Condition.eq("field4", "value4")
-                            )
-                        ),
-                        Condition.today("field19"),
-                        Condition.beforeToday("field20", LocalTime.of(17, 0)),
-                        Condition.tomorrow("field20"),
-                        Condition.thisWeek("field21"),
-                        Condition.nextWeek("field22"),
-                        Condition.lastWeek("field23"),
-                        Condition.thisMonth("field24"),
-                        Condition.lastMonth("field25"),
-                        Condition.recentDays("field26", 1),
-                        Condition.raw("1=1"),
-                        Condition.eq("state.field27", "value27"),
-                        Condition.eq("state.field28", "value28"),
-                        Condition.eq("state.child.field29", "value29"),
-                        Condition.eq("field30", "value30"),
-                    )
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.deleted(false),
+                    Condition.deleted(DeletionState.ACTIVE),
+                    Condition.and(Condition.tenantId("tenantId")),
+                    Condition.nor(Condition.all()),
+                    Condition.id("id"),
+                    Condition.ids("id", "id2"),
+                    Condition.aggregateId("id"),
+                    Condition.aggregateIds("id", "id2"),
+                    Condition.eq("field1", "value1"),
+                    Condition.ne("field2", "value2"),
+                    Condition.gt("filed3", 1),
+                    Condition.lt("field4", 1),
+                    Condition.gte("field5", 1),
+                    Condition.lte("field6", 1),
+                    Condition.contains("field7", "value7"),
+                    Condition.contains("field7", "value7", false),
+                    Condition.contains("field7", "value7", true),
+                    Condition.isIn("field8", listOf("value8")),
+                    Condition.notIn("field9", listOf("value9")),
+                    Condition.between("field10", 1, 2),
+                    Condition.between("field100", 1, 2),
+                    Condition.all("field11", listOf("value11")),
+                    Condition.startsWith("field12", "value12"),
+                    Condition.startsWith("field12", "value12", false),
+                    Condition.startsWith("field12", "value12", true),
+                    Condition.endsWith("field12", "value12"),
+                    Condition.endsWith("field12", "value12", false),
+                    Condition.endsWith("field12", "value12", true),
+                    Condition.elemMatch("field13", Condition.eq("field14", "value14")),
+                    Condition.isNull("field15"),
+                    Condition.notNull("field16"),
+                    Condition.isTrue("field17"),
+                    Condition.isFalse("field18"),
+                    Condition.and(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
+                        )
+                    ),
+                    Condition.or(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
+                        )
+                    ),
+                    Condition.today("field19"),
+                    Condition.beforeToday("field20", LocalTime.of(17, 0)),
+                    Condition.tomorrow("field20"),
+                    Condition.thisWeek("field21"),
+                    Condition.nextWeek("field22"),
+                    Condition.lastWeek("field23"),
+                    Condition.thisMonth("field24"),
+                    Condition.lastMonth("field25"),
+                    Condition.recentDays("field26", 1),
+                    Condition.raw("1=1"),
+                    Condition.eq("state.field27", "value27"),
+                    Condition.eq("state.field28", "value28"),
+                    Condition.eq("state.child.field29", "value29"),
+                    Condition.eq("field30", "value30"),
                 )
             )
         )
@@ -176,7 +172,7 @@ class ConditionDslTest {
                 QueryModel::id eq "value"
             }
         }
-        assertThat(condition, equalTo(Condition.eq("id.id", "value")))
+        condition.assert().isEqualTo(Condition.eq("id.id", "value"))
     }
 
     @Test
@@ -193,17 +189,15 @@ class ConditionDslTest {
                 }
             }
         }
-        assertThat(
-            condition,
-            equalTo(
-                Condition.and(
-                    listOf(
-                        Condition.eq("state.field3", "value3"),
-                        Condition.eq("state.field4", "value4"),
-                        Condition.and(
-                            Condition.eq("state.field5", "value5"),
-                            Condition.eq("field6", "value6")
-                        )
+
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.eq("state.field3", "value3"),
+                    Condition.eq("state.field4", "value4"),
+                    Condition.and(
+                        Condition.eq("state.field5", "value5"),
+                        Condition.eq("field6", "value6")
                     )
                 )
             )
@@ -216,7 +210,7 @@ class ConditionDslTest {
             and {
             }
         }
-        assertThat(condition, equalTo(Condition.all()))
+        condition.assert().isEqualTo(Condition.all())
     }
 
     @Test
@@ -228,14 +222,11 @@ class ConditionDslTest {
                 "field4" eq "value4"
             }
         }
-        assertThat(
-            condition,
-            equalTo(
-                Condition.or(
-                    listOf(
-                        Condition.eq("state.field3", "value3"),
-                        Condition.eq("state.field4", "value4")
-                    )
+        condition.assert().isEqualTo(
+            Condition.or(
+                listOf(
+                    Condition.eq("state.field3", "value3"),
+                    Condition.eq("state.field4", "value4")
                 )
             )
         )
@@ -247,12 +238,7 @@ class ConditionDslTest {
             nor {
             }
         }
-        assertThat(
-            condition,
-            equalTo(
-                Condition.ALL
-            )
-        )
+        condition.assert().isEqualTo(Condition.ALL)
     }
 
     @Test
@@ -261,7 +247,7 @@ class ConditionDslTest {
             or {
             }
         }
-        assertThat(condition, equalTo(Condition.all()))
+        condition.assert().isEqualTo(Condition.ALL)
     }
 
     @Test
@@ -269,7 +255,7 @@ class ConditionDslTest {
         val condition = condition {
             all()
         }
-        assertThat(condition, equalTo(Condition.all()))
+        condition.assert().isEqualTo(Condition.ALL)
     }
 
     @Test
@@ -277,7 +263,7 @@ class ConditionDslTest {
         val condition = condition {
             deleted(DeletionState.DELETED)
         }
-        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
+        condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
     }
 
     @Test
@@ -285,13 +271,13 @@ class ConditionDslTest {
         val condition = condition {
             deleted(true)
         }
-        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
+        condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
     }
 
     @Test
     fun deletedWithString() {
         val condition = Condition(operator = Operator.DELETED, value = "DELETED")
-        assertThat(condition.deletionState(), equalTo(DeletionState.DELETED))
+        condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
     }
 
     @Test
@@ -299,7 +285,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id eq "value"
         }
-        assertThat(condition, equalTo(Condition.eq("id", "value")))
+        condition.assert().isEqualTo(Condition.eq("id", "value"))
     }
 
     @Test
@@ -307,7 +293,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id ne "value"
         }
-        assertThat(condition, equalTo(Condition.ne("id", "value")))
+        condition.assert().isEqualTo(Condition.ne("id", "value"))
     }
 
     @Test
@@ -315,7 +301,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id gt 1
         }
-        assertThat(condition, equalTo(Condition.gt("id", 1)))
+        condition.assert().isEqualTo(Condition.gt("id", 1))
     }
 
     @Test
@@ -323,7 +309,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id lt 1
         }
-        assertThat(condition, equalTo(Condition.lt("id", 1)))
+        condition.assert().isEqualTo(Condition.lt("id", 1))
     }
 
     @Test
@@ -331,7 +317,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id gte 1
         }
-        assertThat(condition, equalTo(Condition.gte("id", 1)))
+        condition.assert().isEqualTo(Condition.gte("id", 1))
     }
 
     @Test
@@ -339,7 +325,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id lte 1
         }
-        assertThat(condition, equalTo(Condition.lte("id", 1)))
+        condition.assert().isEqualTo(Condition.lte("id", 1))
     }
 
     @Test
@@ -347,7 +333,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id contains "value1"
         }
-        assertThat(condition, equalTo(Condition.contains("id", "value1")))
+        condition.assert().isEqualTo(Condition.contains("id", "value1"))
     }
 
     @Test
@@ -355,7 +341,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id isIn listOf("value1")
         }
-        assertThat(condition, equalTo(Condition.isIn("id", listOf("value1"))))
+        condition.assert().isEqualTo(Condition.isIn("id", listOf("value1")))
     }
 
     @Test
@@ -363,7 +349,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id notIn listOf("value1")
         }
-        assertThat(condition, equalTo(Condition.notIn("id", listOf("value1"))))
+        condition.assert().isEqualTo(Condition.notIn("id", listOf("value1")))
     }
 
     @Test
@@ -371,7 +357,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id between 1 to 2
         }
-        assertThat(condition, equalTo(Condition.between("id", 1, 2)))
+        condition.assert().isEqualTo(Condition.between("id", 1, 2))
     }
 
     @Test
@@ -379,7 +365,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id all listOf("value1")
         }
-        assertThat(condition, equalTo(Condition.all("id", listOf("value1"))))
+        condition.assert().isEqualTo(Condition.all("id", listOf("value1")))
     }
 
     @Test
@@ -387,7 +373,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id contains "value1"
         }
-        assertThat(condition, equalTo(Condition.contains("id", "value1")))
+        condition.assert().isEqualTo(Condition.contains("id", "value1"))
     }
 
     @Test
@@ -395,7 +381,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id startsWith "value1"
         }
-        assertThat(condition, equalTo(Condition.startsWith("id", "value1")))
+        condition.assert().isEqualTo(Condition.startsWith("id", "value1"))
     }
 
     @Test
@@ -403,7 +389,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id endsWith "value1"
         }
-        assertThat(condition, equalTo(Condition.endsWith("id", "value1")))
+        condition.assert().isEqualTo(Condition.endsWith("id", "value1"))
     }
 
     @Test
@@ -413,13 +399,10 @@ class ConditionDslTest {
                 "field2" eq "value2"
             }
         }
-        assertThat(
-            condition,
-            equalTo(
-                Condition.elemMatch(
-                    "id",
-                    Condition.eq("field2", "value2")
-                )
+        condition.assert().isEqualTo(
+            Condition.elemMatch(
+                "id",
+                Condition.eq("field2", "value2")
             )
         )
     }
@@ -429,7 +412,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.isNull()
         }
-        assertThat(condition, equalTo(Condition.isNull("id")))
+        condition.assert().isEqualTo(Condition.isNull("id"))
     }
 
     @Test
@@ -437,7 +420,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.notNull()
         }
-        assertThat(condition, equalTo(Condition.notNull("id")))
+        condition.assert().isEqualTo(Condition.notNull("id"))
     }
 
     @Test
@@ -445,7 +428,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.isTrue()
         }
-        assertThat(condition, equalTo(Condition.isTrue("id")))
+        condition.assert().isEqualTo(Condition.isTrue("id"))
     }
 
     @Test
@@ -453,7 +436,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.isFalse()
         }
-        assertThat(condition, equalTo(Condition.isFalse("id")))
+        condition.assert().isEqualTo(Condition.isFalse("id"))
     }
 
     @Test
@@ -461,7 +444,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.exists()
         }
-        assertThat(condition, equalTo(Condition.exists("id")))
+        condition.assert().isEqualTo(Condition.exists("id"))
     }
 
     @Test
@@ -469,7 +452,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.exists(false)
         }
-        assertThat(condition, equalTo(Condition.exists("id", false)))
+        condition.assert().isEqualTo(Condition.exists("id", false))
     }
 
     @Test
@@ -477,7 +460,7 @@ class ConditionDslTest {
         val condition = condition {
             tenantId("tenantId")
         }
-        assertThat(condition, equalTo(Condition.tenantId("tenantId")))
+        condition.assert().isEqualTo(Condition.tenantId("tenantId"))
     }
 
     @Test
@@ -485,7 +468,7 @@ class ConditionDslTest {
         val condition = condition {
             ownerId("ownerId")
         }
-        assertThat(condition, equalTo(Condition.ownerId("ownerId")))
+        condition.assert().isEqualTo(Condition.ownerId("ownerId"))
     }
 
     @Test
@@ -493,7 +476,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.today("yyyy-MM-dd")
         }
-        assertThat(condition, equalTo(Condition.today("id", "yyyy-MM-dd")))
+        condition.assert().isEqualTo(Condition.today("id", "yyyy-MM-dd"))
     }
 
     @Test
@@ -501,7 +484,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.tomorrow()
         }
-        assertThat(condition, equalTo(Condition.tomorrow("id")))
+        condition.assert().isEqualTo(Condition.tomorrow("id"))
     }
 
     @Test
@@ -509,7 +492,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.thisWeek()
         }
-        assertThat(condition, equalTo(Condition.thisWeek("id")))
+        condition.assert().isEqualTo(Condition.thisWeek("id"))
     }
 
     @Test
@@ -517,7 +500,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.nextWeek()
         }
-        assertThat(condition, equalTo(Condition.nextWeek("id")))
+        condition.assert().isEqualTo(Condition.nextWeek("id"))
     }
 
     @Test
@@ -525,7 +508,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.lastWeek()
         }
-        assertThat(condition, equalTo(Condition.lastWeek("id")))
+        condition.assert().isEqualTo(Condition.lastWeek("id"))
     }
 
     @Test
@@ -533,7 +516,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.thisMonth()
         }
-        assertThat(condition, equalTo(Condition.thisMonth("id")))
+        condition.assert().isEqualTo(Condition.thisMonth("id"))
     }
 
     @Test
@@ -541,7 +524,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.lastMonth()
         }
-        assertThat(condition, equalTo(Condition.lastMonth("id")))
+        condition.assert().isEqualTo(Condition.lastMonth("id"))
     }
 
     @Test
@@ -549,7 +532,7 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id recentDays 1
         }
-        assertThat(condition, equalTo(Condition.recentDays("id", 1)))
+        condition.assert().isEqualTo(Condition.recentDays("id", 1))
     }
 
     @Test
@@ -557,13 +540,13 @@ class ConditionDslTest {
         val condition = condition {
             QueryModel::id.name.earlierDays(1)
         }
-        assertThat(condition, equalTo(Condition.earlierDays("id", 1)))
+        condition.assert().isEqualTo(Condition.earlierDays("id", 1))
     }
 
     @ParameterizedTest
     @MethodSource("buildParameters")
     fun build(condition: Condition, expected: Condition) {
-        assertThat(condition, equalTo(expected))
+        condition.assert().isEqualTo(expected)
     }
 
     companion object {
