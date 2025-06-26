@@ -16,15 +16,13 @@ package me.ahoo.wow.openapi.metadata
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
 import me.ahoo.wow.infra.reflection.IntimateAnnotationElement.Companion.toIntimateAnnotationElement
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.serialization.JsonSerializer
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import kotlin.reflect.jvm.javaField
 
@@ -83,7 +81,7 @@ class CommandRouteMetadataParserTest {
         command.id.assert().isEqualTo("id")
         command.name.assert().isEqualTo("name")
         command.header.assert().isEqualTo("header-value")
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             commandRouteMetadata.decode(
                 ObjectNode(JsonSerializer.nodeFactory),
                 {
@@ -139,7 +137,7 @@ class CommandRouteMetadataParserTest {
     @Test
     fun decodeNested() {
         val commandRouteMetadata = commandRouteMetadata<NestedMockCommandRoute>()
-        assertThat(commandRouteMetadata.action, equalTo("{customerId}/{id}/{name}"))
+        commandRouteMetadata.action.assert().isEqualTo("{customerId}/{id}/{name}")
         val customerIdPathVariable =
             commandRouteMetadata.pathVariableMetadata.first { it.variableName == "customerId" }
         customerIdPathVariable.fieldName.assert().isEqualTo("id")

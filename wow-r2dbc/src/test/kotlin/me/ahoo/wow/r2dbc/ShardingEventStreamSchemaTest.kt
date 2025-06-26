@@ -14,11 +14,10 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.cosid.sharding.ModCycle
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.sharding.CosIdShardingDecorator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ShardingEventStreamSchemaTest {
@@ -31,25 +30,19 @@ internal class ShardingEventStreamSchemaTest {
 
     @Test
     fun load() {
-        assertThat(
-            eventStreamSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")),
-            equalTo(
-                "select * from test_event_stream_1 where aggregate_id=? and version between ? and ? order by version"
-            ),
+        eventStreamSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")).assert().isEqualTo(
+            "select * from test_event_stream_1 where aggregate_id=? and version between ? and ? order by version"
         )
     }
 
     @Test
     fun append() {
-        assertThat(
-            eventStreamSchema.append(namedAggregate.aggregateId("0TEC7cEx0001002")),
-            equalTo(
-                """
+        eventStreamSchema.append(namedAggregate.aggregateId("0TEC7cEx0001002")).assert().isEqualTo(
+            """
         insert into test_event_stream_2 (id,aggregate_id,tenant_id,owner_id,request_id,command_id,version,header,body,size,create_time) 
         values
         (?,?,?,?,?,?,?,?,?,?,?)
-    """.trim(),
-            ),
+    """.trim()
         )
     }
 }

@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.r2dbc
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleSnapshotSchemaTest {
@@ -25,32 +24,27 @@ internal class SimpleSnapshotSchemaTest {
 
     @Test
     fun load() {
-        assertThat(
-            streamSchema.load(namedAggregate.aggregateId("")),
-            equalTo("select * from test_snapshot where aggregate_id=? order by version desc limit 1"),
+        streamSchema.load(namedAggregate.aggregateId("")).assert().isEqualTo(
+            "select * from test_snapshot where aggregate_id=? order by version desc limit 1"
         )
     }
 
     @Test
     fun loadVersion() {
-        assertThat(
-            streamSchema.loadByVersion(namedAggregate.aggregateId("")),
-            equalTo("select * from test_snapshot where aggregate_id=? and version=?"),
+        streamSchema.loadByVersion(namedAggregate.aggregateId("")).assert().isEqualTo(
+            "select * from test_snapshot where aggregate_id=? and version=?"
         )
     }
 
     @Test
     fun save() {
-        assertThat(
-            streamSchema.save(namedAggregate.aggregateId("")),
-            equalTo(
-                """
+        streamSchema.save(namedAggregate.aggregateId("")).assert().isEqualTo(
+            """
      replace into test_snapshot
      (aggregate_id,tenant_id,owner_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
      values 
      (?,?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim(),
-            ),
         )
     }
 }
