@@ -41,8 +41,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -78,13 +76,13 @@ internal class OrderTest {
                 it.aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
             .expectState {
-                assertThat(it.id, notNullValue())
+                it.id.assert().isNotNull()
                 it.assert().isNotNull()
                 it.address.assert().isEqualTo(SHIPPING_ADDRESS)
                 verifyItems(it.items, orderItems)
                 it.status.assert().isEqualTo(OrderStatus.CREATED)
             }.expect {
-                assertThat(it.exchange.getCommandResult().size, equalTo(1))
+                it.exchange.getCommandResult().size.assert().isOne()
                 it.exchange.getCommandResult().assert().hasSize(1)
                 val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
                 result.assert().isEqualTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong())))
@@ -93,7 +91,7 @@ internal class OrderTest {
     }
 
     fun verifyItems(orderItems: List<OrderItem>, createOrderItems: List<CreateOrder.Item>) {
-        assertThat(orderItems, hasSize(createOrderItems.size))
+        orderItems.assert().hasSize(createOrderItems.size)
         orderItems.forEachIndexed { index, orderItem ->
             val createOrderItem = createOrderItems[index]
             orderItem.productId.assert().isEqualTo(createOrderItem.productId)
@@ -444,7 +442,7 @@ internal class OrderTest {
             .whenCommand(DefaultDeleteAggregate)
             .expectErrorType(IllegalAccessDeletedAggregateException::class)
             .expectError<IllegalAccessDeletedAggregateException> {
-                assertThat(it.aggregateId, equalTo(verifiedStageAfterDelete.stateAggregate.aggregateId))
+                it.aggregateId.assert().isEqualTo(verifiedStageAfterDelete.stateAggregate.aggregateId)
             }.expectStateAggregate {
                 it.deleted.assert().isTrue()
             }

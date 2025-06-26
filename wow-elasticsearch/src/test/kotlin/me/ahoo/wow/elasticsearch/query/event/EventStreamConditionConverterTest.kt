@@ -16,10 +16,9 @@ package me.ahoo.wow.elasticsearch.query.event
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
@@ -31,7 +30,7 @@ class EventStreamConditionConverterTest {
             it.field(MessageRecords.AGGREGATE_ID)
                 .value(FieldValue.of(condition.value))
         }
-        assertThat(actual.term().field(), equalTo(expected.term().field()))
+        actual.term().field().assert().isEqualTo(expected.term().field())
     }
 
     @Test
@@ -46,6 +45,6 @@ class EventStreamConditionConverterTest {
                     }.toList().let { builder.value(it) }
                 }
         }
-        assertThat(actual.terms().field(), equalTo(expected.terms().field()))
+        actual.terms().field().assert().isEqualTo(expected.terms().field())
     }
 }

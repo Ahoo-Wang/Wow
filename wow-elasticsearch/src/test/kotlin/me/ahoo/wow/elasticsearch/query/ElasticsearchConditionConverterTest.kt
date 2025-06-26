@@ -28,6 +28,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.json.JsonData
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
@@ -36,23 +37,21 @@ import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ElasticsearchConditionConverterTest {
     private fun assertConvert(actual: Query, expected: Query) {
-        assertThat(actual._kind(), equalTo(Query.Kind.Bool))
+        actual._kind().assert().isEqualTo(Query.Kind.Bool)
         val actualDeletedQuery = actual.bool().filter().first().term()
-        assertThat(actualDeletedQuery.field(), equalTo(StateAggregateRecords.DELETED))
-        assertThat(actualDeletedQuery.value().booleanValue(), equalTo(false))
+        actualDeletedQuery.field().assert().isEqualTo(StateAggregateRecords.DELETED)
+        actualDeletedQuery.value().booleanValue().assert().isFalse()
         val actualQuery = actual.bool().filter().last()
         val actualGen = WowJsonpMapper.createBufferingGenerator()
         actualQuery.serialize(actualGen, WowJsonpMapper)
         val expectedGen = WowJsonpMapper.createBufferingGenerator()
         expected.serialize(expectedGen, WowJsonpMapper)
-        assertThat(actualGen.jsonData.toJson().toString(), equalTo(expectedGen.jsonData.toJson().toString()))
+        actualGen.jsonData.toJson().toString().assert().isEqualTo(expectedGen.jsonData.toJson().toString())
     }
 
     @Test
@@ -60,15 +59,11 @@ class ElasticsearchConditionConverterTest {
         val query = condition { }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(
-            query.toString(),
-            equalTo(
-                term {
-                    it.field(StateAggregateRecords.DELETED)
-                        .value(false)
-                }.toString()
-            )
-        )
+        query.toString().assert().isEqualTo(term {
+            it.field(StateAggregateRecords.DELETED)
+                .value(false)
+        }.toString())
+
     }
 
     @Test
@@ -347,8 +342,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        query._kind().assert().isEqualTo(Query.Kind.Bool)
     }
 
     @Test
@@ -377,7 +371,7 @@ class ElasticsearchConditionConverterTest {
                 SnapshotConditionConverter.convert(it)
             }
         }
-        assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
+        exception.message.assert().isEqualTo("BETWEEN operator value must be a array with 2 elements.")
     }
 
     @Test
@@ -387,7 +381,7 @@ class ElasticsearchConditionConverterTest {
                 SnapshotConditionConverter.convert(it)
             }
         }
-        assertThat(exception.message, equalTo("BETWEEN operator value must be a array with 2 elements."))
+        exception.message.assert().isEqualTo("BETWEEN operator value must be a array with 2 elements.")
     }
 
     @Test
@@ -575,8 +569,8 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query.term().field(), equalTo(StateAggregateRecords.DELETED))
-        assertThat(query.term().value().booleanValue(), equalTo(true))
+        query.term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
+        query.term().value().booleanValue().assert().isTrue()
     }
 
     @Test
@@ -586,8 +580,8 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query.term().field(), equalTo(StateAggregateRecords.DELETED))
-        assertThat(query.term().value().booleanValue(), equalTo(false))
+        query.term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
+        query.term().value().booleanValue().assert().isFalse()
     }
 
     @Test
@@ -597,7 +591,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.MatchAll))
+        query._kind().assert().isEqualTo(Query.Kind.MatchAll)
     }
 
     @Test
@@ -607,7 +601,7 @@ class ElasticsearchConditionConverterTest {
         }.let {
             SnapshotConditionConverter.convert(it)
         }
-        assertThat(query._kind(), equalTo(Query.Kind.Bool))
+        query._kind().assert().isEqualTo(Query.Kind.Bool)
     }
 
     @Test
