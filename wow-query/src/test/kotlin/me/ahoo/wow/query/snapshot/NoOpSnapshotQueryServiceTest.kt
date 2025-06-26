@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -27,7 +26,7 @@ class NoOpSnapshotQueryServiceTest {
 
     @Test
     fun aggregate() {
-        assertThat(queryService.namedAggregate, equalTo("test.test".toNamedAggregate()))
+        queryService.namedAggregate.assert().isEqualTo("test.test".toNamedAggregate())
     }
 
     @Test
@@ -83,7 +82,7 @@ class NoOpSnapshotQueryServiceTest {
         }.query(queryService)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(0))
+                it.total.assert().isZero()
             }
             .verifyComplete()
     }
@@ -97,7 +96,7 @@ class NoOpSnapshotQueryServiceTest {
         }.dynamicQuery(queryService)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(0))
+                it.total.assert().isZero()
             }
             .verifyComplete()
     }

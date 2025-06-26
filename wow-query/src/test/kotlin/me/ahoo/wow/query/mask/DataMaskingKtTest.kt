@@ -13,11 +13,9 @@
 
 package me.ahoo.wow.query.mask
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class DataMaskingKtTest {
@@ -40,7 +38,7 @@ class DataMaskingKtTest {
             deleted = false
         )
         val masked = snapshot.tryMask()
-        assertThat(masked, sameInstance(snapshot))
+        masked.assert().isSameAs(snapshot)
     }
 
     @Test
@@ -61,7 +59,7 @@ class DataMaskingKtTest {
             deleted = false
         )
         val masked = snapshot.tryMask()
-        assertThat(masked.state.pwd, equalTo("******"))
+        masked.state.pwd.assert().isEqualTo("******")
     }
 
     @Test
@@ -83,7 +81,7 @@ class DataMaskingKtTest {
         )
         val pagedList = PagedList(1, listOf(snapshot))
         val masked = pagedList.tryMask()
-        assertThat(masked, sameInstance(pagedList))
+        masked.assert().isSameAs(pagedList)
     }
 
     @Test
@@ -105,21 +103,21 @@ class DataMaskingKtTest {
         )
         val pagedList = PagedList(1, listOf(snapshot))
         val masked = pagedList.tryMask()
-        assertThat(masked.list.first().state.pwd, equalTo("******"))
+        masked.list.first().state.pwd.assert().isEqualTo("******")
     }
 
     @Test
     fun tryMaskState() {
         val state = MockMaskingData("pwd")
         val masked = state.tryMask()
-        assertThat(masked.pwd, equalTo("******"))
+        masked.pwd.assert().isEqualTo("******")
     }
 
     @Test
     fun tryMaskAnyState() {
         val source = Any()
         val masked = source.tryMask()
-        assertThat(masked, sameInstance(source))
+        masked.assert().isSameAs(source)
     }
 
     data class MockMaskingData(val pwd: String) : DataMasking<MockMaskingData> {

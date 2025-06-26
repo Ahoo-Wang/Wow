@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.filter.DefaultQueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class CountSnapshotQueryContextTest {
@@ -35,13 +34,10 @@ class CountSnapshotQueryContextTest {
         context.asRewritableQuery().rewriteQuery {
             it.appendTenantId("tenantId")
         }
-        assertThat(
-            context.getQuery(),
-            equalTo(
-                condition {
-                    tenantId("tenantId")
-                }
-            )
+        context.getQuery().assert().isEqualTo(
+            condition {
+                tenantId("tenantId")
+            }
         )
     }
 }
