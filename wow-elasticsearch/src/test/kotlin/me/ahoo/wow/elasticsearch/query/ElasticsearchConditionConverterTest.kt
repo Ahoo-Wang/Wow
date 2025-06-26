@@ -59,11 +59,12 @@ class ElasticsearchConditionConverterTest {
         val query = condition { }.let {
             SnapshotConditionConverter.convert(it)
         }
-        query.toString().assert().isEqualTo(term {
-            it.field(StateAggregateRecords.DELETED)
-                .value(false)
-        }.toString())
-
+        query.toString().assert().isEqualTo(
+            term {
+                it.field(StateAggregateRecords.DELETED)
+                    .value(false)
+            }.toString()
+        )
     }
 
     @Test
