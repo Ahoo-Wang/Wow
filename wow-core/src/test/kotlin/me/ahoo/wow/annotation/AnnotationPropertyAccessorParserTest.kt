@@ -14,8 +14,6 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -35,7 +33,7 @@ class AnnotationPropertyAccessorParserTest {
     @Test
     fun toIntGetter() {
         val propertyGetter = Mock::intField.toIntGetter()
-        assertThat(propertyGetter, notNullValue())
+        propertyGetter.assert().isNotNull()
     }
 
     @Test
@@ -48,55 +46,55 @@ class AnnotationPropertyAccessorParserTest {
     @Test
     fun toAggregateNameGetterIfAnnotated() {
         val propertyGetter = Mock::aggregateName.toAggregateNameGetterIfAnnotated()
-        assertThat(propertyGetter, notNullValue())
+        propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toAggregateNameGetterIfUnAnnotated() {
         val propertyGetter = Mock::aggregateId.toAggregateNameGetterIfAnnotated()
-        assertThat(propertyGetter, nullValue())
+        propertyGetter.assert().isNull()
     }
 
     @Test
     fun toAggregateIdGetterIfAnnotated() {
         val propertyGetter = Mock::aggregateId.toAggregateIdGetterIfAnnotated()
-        assertThat(propertyGetter, notNullValue())
+        propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toAggregateIdGetterIfUnAnnotated() {
         val propertyGetter = Mock::aggregateName.toAggregateIdGetterIfAnnotated()
-        assertThat(propertyGetter, nullValue())
+        propertyGetter.assert().isNull()
     }
 
     @Test
     fun toStaticAggregateIdGetterIfAnnotated() {
         val propertyGetter = staticAggregateIdGetterIfAnnotated<Mock>()
-        assertThat(propertyGetter, notNullValue())
+                propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toTenantIdGetterIfAnnotated() {
         val propertyGetter = Mock::tenantId.toTenantIdGetterIfAnnotated()
-        assertThat(propertyGetter, notNullValue())
+                propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toTenantIdGetterIfUnAnnotated() {
         val propertyGetter = Mock::aggregateId.toTenantIdGetterIfAnnotated()
-        assertThat(propertyGetter, nullValue())
+        propertyGetter.assert().isNull()
     }
 
     @Test
     fun toAggregateVersionGetterIfAnnotated() {
         val propertyGetter = Mock::aggregateVersion.toAggregateVersionGetterIfAnnotated()
-        assertThat(propertyGetter, notNullValue())
+                propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toAggregateVersionGetterIfUnAnnotated() {
         val propertyGetter = Mock::aggregateId.toAggregateVersionGetterIfAnnotated()
-        assertThat(propertyGetter, nullValue())
+        propertyGetter.assert().isNull()
     }
 
     @StaticTenantId
