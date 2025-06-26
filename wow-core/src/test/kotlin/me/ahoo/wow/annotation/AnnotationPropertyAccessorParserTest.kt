@@ -70,13 +70,13 @@ class AnnotationPropertyAccessorParserTest {
     @Test
     fun toStaticAggregateIdGetterIfAnnotated() {
         val propertyGetter = staticAggregateIdGetterIfAnnotated<Mock>()
-                propertyGetter.assert().isNotNull()
+        propertyGetter.assert().isNotNull()
     }
 
     @Test
     fun toTenantIdGetterIfAnnotated() {
         val propertyGetter = Mock::tenantId.toTenantIdGetterIfAnnotated()
-                propertyGetter.assert().isNotNull()
+        propertyGetter.assert().isNotNull()
     }
 
     @Test
@@ -88,7 +88,7 @@ class AnnotationPropertyAccessorParserTest {
     @Test
     fun toAggregateVersionGetterIfAnnotated() {
         val propertyGetter = Mock::aggregateVersion.toAggregateVersionGetterIfAnnotated()
-                propertyGetter.assert().isNotNull()
+        propertyGetter.assert().isNotNull()
     }
 
     @Test

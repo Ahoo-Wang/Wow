@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.filter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.handler.ExchangeFilter
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -34,8 +33,8 @@ internal class ExchangeFilterChainBuilderTest {
             .addFilter(MockFirstFilter())
             .build() as SimpleFilterChain
 
-        assertThat(chain.current, instanceOf(MockFirstFilter::class.java))
-        assertThat((chain.next as SimpleFilterChain).current, instanceOf(MockLastFilter::class.java))
+        chain.current.assert().isInstanceOf(MockFirstFilter::class.java)
+        (chain.next as SimpleFilterChain).current.assert().isInstanceOf(MockLastFilter::class.java)
         val exchange: ServerCommandExchange<Any> = object : ServerCommandExchange<Any> {
             override val attributes: MutableMap<String, Any>
                 get() = mutableMapOf()
