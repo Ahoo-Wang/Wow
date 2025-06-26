@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.models.tree.test
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.aggregate.Category
 import me.ahoo.wow.models.tree.aggregate.CategoryState
@@ -26,8 +27,6 @@ import me.ahoo.wow.models.tree.command.MoveCategory
 import me.ahoo.wow.models.tree.command.UpdateCategory
 import me.ahoo.wow.test.aggregate.`when`
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CategoryTest {
@@ -42,14 +41,14 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
             .expectEventBody<CategoryCreated> {
-                assertThat(it.name, equalTo(command.name))
-                assertThat(it.level, equalTo(1))
-                assertThat(it.sortId, equalTo(0))
+                it.name.assert().isEqualTo(command.name)
+                it.level.assert().isOne()
+                it.sortId.assert().isZero()
             }
             .expect {
-                assertThat(it.exchange.getCommandResult().size, equalTo(1))
+                it.exchange.getCommandResult().assert().hasSize(1)
                 val result = it.exchange.getCommandResult<String>(Flat::code.name)
-                assertThat(result, notNullValue())
+                result.assert().isNotNull()
             }
             .verify()
     }
@@ -72,10 +71,10 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
             .expectEventBody<CategoryCreated> {
-                assertThat(it.name, equalTo("name"))
-                assertThat(l1Category.isDirectChild(it), equalTo(true))
-                assertThat(it.level, equalTo(2))
-                assertThat(it.sortId, equalTo(l2Category.sortId + 1))
+                it.name.assert().isEqualTo("name")
+                l1Category.isDirectChild(it).assert().isTrue()
+                it.level.assert().isEqualTo(2)
+                it.sortId.assert().isEqualTo(l2Category.sortId + 1)
             }
             .verify()
     }
@@ -101,10 +100,10 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryDeleted::class.java)
             .expectEventBody<CategoryDeleted> {
-                assertThat(it.code, equalTo(category.code))
+                it.code.assert().isEqualTo(category.code)
             }
             .expectState {
-                assertThat(it.children, emptyIterable())
+                it.children.assert().isEmpty()
             }
             .verify()
     }
@@ -139,8 +138,8 @@ class CategoryTest {
             .`when`(command)
             .expectEventType(CategoryUpdated::class.java)
             .expectEventBody<CategoryUpdated> {
-                assertThat(it.name, equalTo(command.name))
-                assertThat(it.code, equalTo(command.code))
+                it.name.assert().isEqualTo(command.name)
+                it.code.assert().isEqualTo(command.code)
             }
             .verify()
     }
@@ -166,10 +165,10 @@ class CategoryTest {
             .`when`(command)
             .expectEventType(CategoryMoved::class.java)
             .expectEventBody<CategoryMoved> {
-                assertThat(it.codes, containsInAnyOrder("l11", "l1"))
+                it.codes.assert().contains("l11", "l1")
             }
             .expectState {
-                assertThat(it.children.map { it.code }, containsInAnyOrder("l11", "l1"))
+                it.children.map { it.code }.assert().contains("l11", "l1")
             }
             .verify()
     }
