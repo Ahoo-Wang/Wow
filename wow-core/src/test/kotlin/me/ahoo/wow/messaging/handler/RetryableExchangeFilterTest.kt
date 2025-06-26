@@ -15,12 +15,11 @@ package me.ahoo.wow.messaging.handler
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.filter.FilterChain
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
@@ -63,7 +62,7 @@ internal class RetryableExchangeFilterTest {
         retryableFilter.filter(exchange, chain)
             .test()
             .consumeErrorWith {
-                assertThat(Exceptions.isRetryExhausted(it), equalTo(true))
+                Exceptions.isRetryExhausted(it).assert().isTrue()
             }
             .verify()
     }

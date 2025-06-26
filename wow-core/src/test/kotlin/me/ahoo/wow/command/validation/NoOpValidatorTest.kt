@@ -1,10 +1,9 @@
 package me.ahoo.wow.command.validation
 
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.command.MockCreateCommand
 import me.ahoo.wow.id.GlobalIdGenerator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 class NoOpValidatorTest {
@@ -12,7 +11,7 @@ class NoOpValidatorTest {
     @Test
     fun validate() {
         val actual = NoOpValidator.validate(MockCreateCommand(GlobalIdGenerator.generateAsString()))
-        assertThat(actual, empty())
+        actual.assert().isEmpty()
     }
 
     @Test
@@ -23,7 +22,7 @@ class NoOpValidatorTest {
             ),
             "",
         )
-        assertThat(actual, empty())
+        actual.assert().isEmpty()
     }
 
     @Test
@@ -33,26 +32,26 @@ class NoOpValidatorTest {
             "",
             MockCreateCommand(GlobalIdGenerator.generateAsString()),
         )
-        assertThat(actual, empty())
+        actual.assert().isEmpty()
     }
 
     @Test
     fun getConstraintsForClass() {
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.getConstraintsForClass(MockCreateCommand::class.java)
         }
     }
 
     @Test
     fun unwrap() {
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.unwrap(MockCreateCommand::class.java)
         }
     }
 
     @Test
     fun forExecutables() {
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.forExecutables()
         }
     }

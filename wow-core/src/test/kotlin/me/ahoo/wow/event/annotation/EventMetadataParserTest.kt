@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.event.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DEFAULT_REVISION
 import me.ahoo.wow.event.MockNamedAndRevisedEvent
 import me.ahoo.wow.event.MockNamedEmptyEvent
@@ -19,75 +20,53 @@ import me.ahoo.wow.event.MockNamedEvent
 import me.ahoo.wow.event.NAMED_EVENT
 import me.ahoo.wow.event.REVISED_EVENT
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class EventMetadataParserTest {
     @Test
     fun parse() {
         val eventMetadata = eventMetadata<MockAggregateCreated>()
-        assertThat(eventMetadata, notNullValue())
-        assertThat(
-            eventMetadata.eventType,
-            equalTo(
-                MockAggregateCreated::class.java,
-            ),
-        )
-        assertThat(eventMetadata.revision, equalTo(DEFAULT_REVISION))
-        assertThat(eventMetadata.hashCode(), not(equalTo(0)))
-        assertThat(eventMetadata.toString(), notNullValue())
+        eventMetadata.assert().isNotNull()
+        eventMetadata.eventType.assert().isEqualTo(MockAggregateCreated::class.java)
+        eventMetadata.revision.assert().isEqualTo(DEFAULT_REVISION)
+        eventMetadata.hashCode().assert().isNotEqualTo(0)
+        eventMetadata.toString().assert().isNotNull()
     }
 
     @Test
     fun parseWhenNamed() {
         val eventMetadata = eventMetadata<MockNamedEvent>()
-        assertThat(eventMetadata, notNullValue())
-        assertThat(
-            eventMetadata.eventType,
-            equalTo(
-                MockNamedEvent::class.java,
-            ),
-        )
-        assertThat(eventMetadata.name, equalTo(NAMED_EVENT))
-        assertThat(eventMetadata.revision, equalTo(DEFAULT_REVISION))
+        eventMetadata.assert().isNotNull()
+        eventMetadata.eventType.assert().isEqualTo(MockNamedEvent::class.java)
+        eventMetadata.name.assert().isEqualTo(NAMED_EVENT)
+        eventMetadata.revision.assert().isEqualTo(DEFAULT_REVISION)
     }
 
     @Test
     fun parseWhenNamedEmpty() {
         val eventMetadata = eventMetadata<MockNamedEmptyEvent>()
-        assertThat(eventMetadata, notNullValue())
-        assertThat(
-            eventMetadata.eventType,
-            equalTo(
-                MockNamedEmptyEvent::class.java,
-            ),
-        )
-        assertThat(eventMetadata.revision, equalTo(DEFAULT_REVISION))
+        eventMetadata.assert().isNotNull()
+        eventMetadata.eventType.assert().isEqualTo(MockNamedEmptyEvent::class.java)
+        eventMetadata.revision.assert().isEqualTo(DEFAULT_REVISION)
     }
 
     @Test
     fun parseWhenNamedAndRevised() {
         val eventMetadata = eventMetadata<MockNamedAndRevisedEvent>()
-        assertThat(eventMetadata, notNullValue())
-        assertThat(
-            eventMetadata.eventType,
-            equalTo(
-                MockNamedAndRevisedEvent::class.java,
-            ),
-        )
-        assertThat(eventMetadata.name, equalTo(NAMED_EVENT))
-        assertThat(eventMetadata.revision, equalTo(REVISED_EVENT))
+        eventMetadata.assert().isNotNull()
+        eventMetadata.eventType.assert().isEqualTo(MockNamedAndRevisedEvent::class.java)
+        eventMetadata.name.assert().isEqualTo(NAMED_EVENT)
+        eventMetadata.revision.assert().isEqualTo(REVISED_EVENT)
     }
 
     @Test
     fun eq() {
         val eventMetadata = eventMetadata<MockAggregateCreated>()
-        assertThat(eventMetadata, equalTo(eventMetadata))
-        assertThat(eventMetadata, not(equalTo(Any())))
+        eventMetadata.assert().isEqualTo(eventMetadata)
+        eventMetadata.assert().isNotEqualTo(Any())
         val eventMetadata2 = eventMetadata<MockNamedAndRevisedEvent>()
-        assertThat(eventMetadata, not(equalTo(eventMetadata2)))
+        eventMetadata.assert().isNotEqualTo(eventMetadata2)
         val eventMetadata3 = eventMetadata<MockAggregateCreated>()
-        assertThat(eventMetadata, equalTo(eventMetadata3))
+        eventMetadata.assert().isEqualTo(eventMetadata3)
     }
 }

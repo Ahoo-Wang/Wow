@@ -1,7 +1,6 @@
 package me.ahoo.wow.event
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class DomainEventStreamFactoryKtTest {
@@ -9,18 +8,18 @@ class DomainEventStreamFactoryKtTest {
     @Test
     fun flatEventList() {
         val flat = listOf(1, 2).flatEvent().toList()
-        assertThat(flat.size, equalTo(2))
+        flat.size.assert().isEqualTo(2)
     }
 
     @Test
     fun flatEventArray() {
         val flat = arrayOf(1, 2).flatEvent().toList()
-        assertThat(flat.size, equalTo(2))
+        flat.size.assert().isEqualTo(2)
     }
 
     @Test
     fun flatEventOther() {
         val flat = Any().flatEvent().toList()
-        assertThat(flat.size, equalTo(1))
+        flat.size.assert().isEqualTo(1)
     }
 }

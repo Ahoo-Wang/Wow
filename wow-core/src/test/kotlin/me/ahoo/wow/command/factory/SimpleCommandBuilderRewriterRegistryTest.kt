@@ -1,8 +1,7 @@
 package me.ahoo.wow.command.factory
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.MockCreateCommand
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
@@ -12,28 +11,22 @@ class SimpleCommandBuilderRewriterRegistryTest {
     fun register() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockCommandBuilderRewriter())
-        assertThat(
-            registry.getRewriter(MockCreateCommand::class.java),
-            notNullValue()
-        )
+        registry.getRewriter(MockCreateCommand::class.java).assert().isNotNull()
         registry.unregister(MockCreateCommand::class.java)
-        assertThat(
-            registry.getRewriter(MockCreateCommand::class.java),
-            nullValue()
-        )
+        registry.getRewriter(MockCreateCommand::class.java).assert().isNull()
     }
 
     @Test
     fun registerBlocked() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockBlockingCommandBuilderRewriter())
-        assertThat(
-            registry.getRewriter(MockCreateCommand::class.java),
-            instanceOf(BlockingCommandBuilderRewriter::class.java)
-        )
-        assertThat(
-            (registry.getRewriter(MockCreateCommand::class.java) as BlockingCommandBuilderRewriter).delegate,
-            instanceOf(MockBlockingCommandBuilderRewriter::class.java)
+        registry.getRewriter(
+            MockCreateCommand::class.java
+        ).assert().isInstanceOf(BlockingCommandBuilderRewriter::class.java)
+        (registry.getRewriter(
+            MockCreateCommand::class.java
+        ) as BlockingCommandBuilderRewriter).delegate.assert().isInstanceOf(
+            MockBlockingCommandBuilderRewriter::class.java
         )
     }
 }
