@@ -15,10 +15,9 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.tck.container.MongoLauncher
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
@@ -50,7 +49,7 @@ abstract class SchemaInitializerSpec {
             database.getCollection(collectionName).drop().toMono().block()
             initAggregateSchema(database, namedAggregate)
             database.listCollectionNames().toFlux().collectList().block()!!.let {
-                assertThat(it, hasItem(collectionName))
+                it.assert().contains(collectionName)
             }
             database.getCollection(collectionName).drop().toMono().block()
         }

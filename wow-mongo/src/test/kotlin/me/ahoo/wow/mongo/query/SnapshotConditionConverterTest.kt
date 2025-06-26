@@ -2,6 +2,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.mongo.Documents
@@ -9,9 +10,6 @@ import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -36,13 +34,13 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun toMongoFilterBetweenError() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition("id", Operator.BETWEEN, listOf<Int>())
                 .let {
                     SnapshotConditionConverter.convert(it)
                 }
         }
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition("id", Operator.BETWEEN, listOf(1))
                 .let {
                     SnapshotConditionConverter.convert(it)
@@ -52,7 +50,7 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun toMongoFilterAndError() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.AND, "")
                 .let {
                     SnapshotConditionConverter.convert(it)
@@ -62,7 +60,7 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun toMongoFilterOrError() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.OR, "")
                 .let {
                     SnapshotConditionConverter.convert(it)
@@ -72,7 +70,7 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun toMongoFilterNorError() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.NOR, "")
                 .let {
                     SnapshotConditionConverter.convert(it)
@@ -146,7 +144,7 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun beforeTodayWrongValue() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition.beforeToday("field", Any()).let {
                 SnapshotConditionConverter.convert(it)
             }
@@ -155,7 +153,7 @@ class SnapshotConditionConverterTest {
 
     @Test
     fun beforeTodayDateTimeFormatter() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             Condition.beforeToday("field", 0, Any()).let {
                 SnapshotConditionConverter.convert(it)
             }
@@ -371,7 +369,7 @@ class SnapshotConditionConverterTest {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
         if (condition.operator == Operator.DELETED) {
-            assertThat(actual, equalTo(expected.toBsonDocument()))
+            actual.assert().isEqualTo(expected.toBsonDocument())
         } else {
             assertConvert(actual, expected)
         }
