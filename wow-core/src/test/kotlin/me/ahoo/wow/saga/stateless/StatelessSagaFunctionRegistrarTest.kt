@@ -2,6 +2,7 @@ package me.ahoo.wow.saga.stateless
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.api.event.DomainEvent
@@ -11,8 +12,6 @@ import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.SagaVerifier
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class StatelessSagaFunctionRegistrarTest {
@@ -29,7 +28,7 @@ class StatelessSagaFunctionRegistrarTest {
             SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
         )
         functionRegistrar.registerProcessor(MockSaga())
-        assertThat(functionRegistrar.supportedFunctions(message).toSet(), hasSize(1))
+        functionRegistrar.supportedFunctions(message).toSet().assert().hasSize(1)
     }
 }
 

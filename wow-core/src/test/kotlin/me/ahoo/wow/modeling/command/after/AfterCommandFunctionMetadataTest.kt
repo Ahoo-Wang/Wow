@@ -1,5 +1,6 @@
 package me.ahoo.wow.modeling.command.after
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
@@ -8,8 +9,6 @@ import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.MockDefaultAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.UpdateCmd
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunctionMetadata
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class AfterCommandFunctionMetadataTest {
@@ -19,18 +18,18 @@ class AfterCommandFunctionMetadataTest {
 
     @Test
     fun getInclude() {
-        assertThat(afterCommandFunctionMetadata.include, containsInAnyOrder(CreateCmd::class.java))
+        afterCommandFunctionMetadata.include.assert().containsExactly(CreateCmd::class.java)
     }
 
     @Test
     fun getExclude() {
-        assertThat(afterCommandFunctionMetadata.exclude, containsInAnyOrder(UpdateCmd::class.java))
+        afterCommandFunctionMetadata.exclude.assert().containsExactly(UpdateCmd::class.java)
     }
 
     @Test
     fun supportCommand() {
-        assertThat(afterCommandFunctionMetadata.supportCommand(CreateCmd::class.java), equalTo(true))
-        assertThat(afterCommandFunctionMetadata.supportCommand(UpdateCmd::class.java), equalTo(false))
+        afterCommandFunctionMetadata.supportCommand(CreateCmd::class.java).assert().isEqualTo(true)
+        afterCommandFunctionMetadata.supportCommand(UpdateCmd::class.java).assert().isEqualTo(false)
     }
 
     @Test
@@ -38,17 +37,17 @@ class AfterCommandFunctionMetadataTest {
         val funMetadata = MockDefaultAfterCommandAggregate::afterCommand
             .toMonoFunctionMetadata<MockDefaultAfterCommandAggregate, Any>()
             .toAfterCommandFunctionMetadata()
-        assertThat(funMetadata.supportCommand(CreateCmd::class.java), equalTo(true))
+        funMetadata.supportCommand(CreateCmd::class.java).assert().isEqualTo(true)
     }
 
     @Test
     fun getFunction() {
-        assertThat(afterCommandFunctionMetadata.function.functionKind, equalTo(FunctionKind.COMMAND))
+        afterCommandFunctionMetadata.function.functionKind.assert().isEqualTo(FunctionKind.COMMAND)
     }
 
     @Test
     fun getOrder() {
-        assertThat(afterCommandFunctionMetadata.order.value, equalTo(0))
+        afterCommandFunctionMetadata.order.value.assert().isEqualTo(0)
     }
 
     @Test
@@ -56,6 +55,6 @@ class AfterCommandFunctionMetadataTest {
         val funMetadata = MockAfterCommandAggregate::firstAfterCommand
             .toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
             .toAfterCommandFunctionMetadata()
-        assertThat(funMetadata.order.value, equalTo(ORDER_FIRST))
+        funMetadata.order.value.assert().isEqualTo(ORDER_FIRST)
     }
 }
