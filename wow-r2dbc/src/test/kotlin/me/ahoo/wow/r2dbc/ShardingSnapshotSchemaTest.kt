@@ -14,11 +14,10 @@
 package me.ahoo.wow.r2dbc
 
 import me.ahoo.cosid.sharding.ModCycle
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.sharding.CosIdShardingDecorator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class ShardingSnapshotSchemaTest {
@@ -30,32 +29,27 @@ internal class ShardingSnapshotSchemaTest {
 
     @Test
     fun load() {
-        assertThat(
-            snapshotSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")),
-            equalTo("select * from test_snapshot_1 where aggregate_id=? order by version desc limit 1"),
+        snapshotSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")).assert().isEqualTo(
+            "select * from test_snapshot_1 where aggregate_id=? order by version desc limit 1"
         )
     }
 
     @Test
     fun loadVersion() {
-        assertThat(
-            snapshotSchema.loadByVersion(namedAggregate.aggregateId("0TEC7cEx0001002")),
-            equalTo("select * from test_snapshot_2 where aggregate_id=? and version=?"),
+        snapshotSchema.loadByVersion(namedAggregate.aggregateId("0TEC7cEx0001002")).assert().isEqualTo(
+            "select * from test_snapshot_2 where aggregate_id=? and version=?"
         )
     }
 
     @Test
     fun save() {
-        assertThat(
-            snapshotSchema.save(namedAggregate.aggregateId("0TEC7cEx0001003")),
-            equalTo(
-                """
+        snapshotSchema.save(namedAggregate.aggregateId("0TEC7cEx0001003")).assert().isEqualTo(
+            """
      replace into test_snapshot_3
      (aggregate_id,tenant_id,owner_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
      values 
      (?,?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim(),
-            ),
         )
     }
 }
