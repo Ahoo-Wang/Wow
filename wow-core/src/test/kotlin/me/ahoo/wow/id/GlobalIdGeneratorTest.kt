@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.id
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class GlobalIdGeneratorTest {
@@ -22,9 +21,8 @@ internal class GlobalIdGeneratorTest {
     @Test
     fun generate() {
         val id1 = generateGlobalId()
-        assertThat(id1, notNullValue())
+        id1.assert().isNotNull()
         val id2 = generateGlobalId()
-        assertThat(id2, notNullValue())
-        assertThat(id1, lessThan(id2))
+        id1.assert().isLessThan(id2)
     }
 }

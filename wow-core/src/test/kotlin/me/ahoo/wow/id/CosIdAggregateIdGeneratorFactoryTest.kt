@@ -4,9 +4,8 @@ import io.mockk.mockk
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.toNamedAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CosIdAggregateIdGeneratorFactoryTest {
@@ -18,12 +17,12 @@ class CosIdAggregateIdGeneratorFactoryTest {
         val injectIdGenerator = mockk<CosIdGenerator>()
         idProvider.set("test", injectIdGenerator)
         val idGenerator = CosIdAggregateIdGeneratorFactory(idProvider).create(namedAggregate)
-        assertThat(idGenerator, sameInstance(injectIdGenerator))
+        idGenerator.assert().isSameAs(injectIdGenerator)
     }
 
     @Test
     fun createIfNull() {
         val idGenerator = CosIdAggregateIdGeneratorFactory().create(namedAggregate) as ClockSyncCosIdGenerator
-        assertThat(idGenerator.machineId, equalTo(GlobalIdGenerator.machineId))
+        idGenerator.machineId.assert().isEqualTo(GlobalIdGenerator.machineId)
     }
 }

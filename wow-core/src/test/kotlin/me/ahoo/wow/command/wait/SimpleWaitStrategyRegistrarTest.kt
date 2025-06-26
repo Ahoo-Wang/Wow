@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleWaitStrategyRegistrarTest {
@@ -28,9 +27,9 @@ internal class SimpleWaitStrategyRegistrarTest {
         val commandId = GlobalIdGenerator.generateAsString()
         val waitStrategy = WaitingFor.processed()
         var registerResult = registrar.register(commandId, waitStrategy)
-        assertThat(registerResult, nullValue())
+        registerResult.assert().isNull()
         registerResult = registrar.register(commandId, waitStrategy)
-        assertThat(registerResult, equalTo(waitStrategy))
+        registerResult.assert().isEqualTo(waitStrategy)
     }
 
     @Test
@@ -39,11 +38,11 @@ internal class SimpleWaitStrategyRegistrarTest {
         val commandId = GlobalIdGenerator.generateAsString()
         val waitStrategy = WaitingFor.processed()
         var registerResult = registrar.unregister(commandId)
-        assertThat(registerResult, nullValue())
+        registerResult.assert().isNull()
         registerResult = registrar.register(commandId, waitStrategy)
-        assertThat(registerResult, nullValue())
+        registerResult.assert().isNull()
         val unregisterResult = registrar.unregister(commandId)
-        assertThat(unregisterResult, equalTo(waitStrategy))
+        unregisterResult.assert().isEqualTo(waitStrategy)
     }
 
     @Test
@@ -51,11 +50,11 @@ internal class SimpleWaitStrategyRegistrarTest {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
         var containsResult = registrar.contains(commandId)
-        assertThat(containsResult, equalTo(false))
+        containsResult.assert().isFalse()
         val waitStrategy = WaitingFor.processed()
         registrar.register(commandId, waitStrategy)
         containsResult = registrar.contains(commandId)
-        assertThat(containsResult, equalTo(true))
+        containsResult.assert().isTrue()
     }
 
     @Test
@@ -70,14 +69,14 @@ internal class SimpleWaitStrategyRegistrarTest {
             function = COMMAND_GATEWAY_FUNCTION
         )
         var nextResult = registrar.next(waitSignal)
-        assertThat(nextResult, equalTo(false))
+        nextResult.assert().isFalse()
         val waitStrategy = WaitingFor.processed()
         waitStrategy.waiting().subscribe()
         registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)
-        assertThat(nextResult, equalTo(true))
+        nextResult.assert().isTrue()
         registrar.unregister(commandId)
         val containsResult = registrar.contains(commandId)
-        assertThat(containsResult, equalTo(false))
+        containsResult.assert().isFalse()
     }
 }
