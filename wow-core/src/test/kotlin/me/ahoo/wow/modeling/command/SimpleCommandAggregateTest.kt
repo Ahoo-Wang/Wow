@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.command
 
 import com.google.common.base.Preconditions
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
@@ -34,9 +35,6 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -61,13 +59,13 @@ internal class SimpleCommandAggregateTest {
         commandAggregate.process(
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
-        assertThat(mockCommandAggregate.state(), equalTo(create.state))
-        assertThat(simpleStateAggregate.version, equalTo(1))
-        assertThat(simpleStateAggregate.toString(), notNullValue())
+        mockCommandAggregate.state().assert().isEqualTo(create.state)
+        simpleStateAggregate.version.assert().isEqualTo(1)
+        simpleStateAggregate.toString().assert().isNotNull()
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .consumeNextWith {
-                assertThat(it.version, equalTo(1))
+                it.version.assert().isEqualTo(1)
             }.verifyComplete()
     }
 
@@ -90,8 +88,8 @@ internal class SimpleCommandAggregateTest {
         commandAggregate.process(
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
-        assertThat(mockCommandAggregate.state(), equalTo(changeState.state))
-        assertThat(simpleStateAggregate.version, equalTo(2))
+        mockCommandAggregate.state().assert().isEqualTo(changeState.state)
+        simpleStateAggregate.version.assert().isEqualTo(2)
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .expectNextCount(2)
@@ -117,18 +115,13 @@ internal class SimpleCommandAggregateTest {
                 .block()
         } catch (exception: CommandExpectVersionConflictException) {
             thrown = true
-            assertThat(exception.command, equalTo(commandMessage))
-            assertThat(
-                exception.expectVersion,
-                equalTo(
-                    commandMessage.aggregateVersion!!,
-                ),
-            )
-            assertThat(exception.actualVersion, equalTo(0))
+            exception.command.assert().isEqualTo(commandMessage)
+            exception.expectVersion.assert().isEqualTo(commandMessage.aggregateVersion)
+            exception.actualVersion.assert().isEqualTo(0)
         }
-        assertThat(thrown, equalTo(true))
-        assertThat(mockCommandAggregate.state(), CoreMatchers.nullValue())
-        assertThat(simpleStateAggregate.version, equalTo(0))
+        thrown.assert().isEqualTo(true)
+        mockCommandAggregate.state().assert().isNull()
+        simpleStateAggregate.version.assert().isEqualTo(0)
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .expectNextCount(0)
@@ -148,9 +141,9 @@ internal class SimpleCommandAggregateTest {
         val create = Create(mockCommandAggregate.id(), "create")
         val createCommand = create.toCommandMessage(generateGlobalId(), ownerId = generateGlobalId())
         commandAggregate.process(SimpleServerCommandExchange(createCommand)).block()
-        assertThat(mockCommandAggregate.state(), equalTo(create.state))
-        assertThat(simpleStateAggregate.version, equalTo(1))
-        assertThat(simpleStateAggregate.ownerId, equalTo(createCommand.ownerId))
+        mockCommandAggregate.state().assert().isEqualTo(create.state)
+        simpleStateAggregate.version.assert().isEqualTo(1)
+        simpleStateAggregate.ownerId.assert().isEqualTo(createCommand.ownerId)
 
         val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
         val commandMessage = changeState.toCommandMessage(generateGlobalId(), ownerId = generateGlobalId())
@@ -182,8 +175,8 @@ internal class SimpleCommandAggregateTest {
             SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
         ).block()
 
-        assertThat(mockCommandAggregate.otherState(), equalTo(changeState.otherState))
-        assertThat(simpleStateAggregate.version, equalTo(2))
+        mockCommandAggregate.otherState().assert().isEqualTo(changeState.otherState)
+        simpleStateAggregate.version.assert().isEqualTo(2)
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .expectNextCount(2)
