@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.tck.eventsourcing.snapshot
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
@@ -27,8 +28,6 @@ import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
@@ -50,7 +49,7 @@ abstract class SnapshotRepositorySpec {
                 aggregateMetadata.aggregateId(generateGlobalId()),
             )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
-        assertThat(stateAggregate, notNullValue())
+        stateAggregate.assert().isNotNull()
 
         val aggregateCreated = MockAggregateCreated(generateGlobalId())
         val changed = MockAggregateChanged(generateGlobalId())
@@ -72,18 +71,9 @@ abstract class SnapshotRepositorySpec {
         snapshotRepository.load<MockStateAggregate>(stateAggregate.aggregateId)
             .test()
             .consumeNextWith {
-                assertThat(
-                    it.aggregateId,
-                    equalTo(stateAggregate.aggregateId),
-                )
-                assertThat(
-                    it.version,
-                    equalTo(stateAggregate.version),
-                )
-                assertThat(
-                    it.state.data,
-                    equalTo(stateAggregate.state.data),
-                )
+                it.aggregateId.assert().isEqualTo(stateAggregate.aggregateId)
+                it.version.assert().isEqualTo(stateAggregate.version)
+                it.state.data.assert().isEqualTo(stateAggregate.state.data)
             }
             .verifyComplete()
     }
@@ -130,8 +120,7 @@ abstract class SnapshotRepositorySpec {
                 aggregateMetadata.aggregateId(generateGlobalId()),
             )
         val command = GivenInitializationCommand(stateAggregate.aggregateId)
-        assertThat(stateAggregate, notNullValue())
-
+        stateAggregate.assert().isNotNull()
         val aggregateCreated = MockAggregateCreated(generateGlobalId())
         val changed = MockAggregateChanged(generateGlobalId())
         val eventStream = listOf(aggregateCreated, changed).toDomainEventStream(
@@ -159,18 +148,9 @@ abstract class SnapshotRepositorySpec {
         snapshotRepository.load<MockStateAggregate>(stateAggregate.aggregateId)
             .test()
             .consumeNextWith {
-                assertThat(
-                    it.aggregateId,
-                    equalTo(stateAggregate.aggregateId),
-                )
-                assertThat(
-                    it.version,
-                    equalTo(stateAggregate.version),
-                )
-                assertThat(
-                    it.state.data,
-                    equalTo(stateAggregate.state.data),
-                )
+                it.aggregateId.assert().isEqualTo(stateAggregate.aggregateId)
+                it.version.assert().isEqualTo(stateAggregate.version)
+                it.state.data.assert().isEqualTo(stateAggregate.state.data)
             }
             .verifyComplete()
     }

@@ -23,8 +23,6 @@ import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.metrizable
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import reactor.core.publisher.Flux
@@ -52,7 +50,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     open fun verify(block: BUS.() -> Unit) {
         createMessageBus().metrizable().use { bus ->
             if (bus.getOriginalDelegate() is TopicKindCapable) {
-                assertThat((bus.getOriginalDelegate() as TopicKindCapable).topicKind, equalTo(topicKind))
+                (bus.getOriginalDelegate() as TopicKindCapable).topicKind.assert().isEqualTo(topicKind)
             }
             block(bus)
         }
