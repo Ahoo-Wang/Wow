@@ -25,10 +25,6 @@ style:
   WildcardImport:
     excludeImports:
       - java.util.*
-      - org.hamcrest.Matchers.*
-      - org.hamcrest.MatcherAssert.*
-      - org.junit.jupiter.api.Assertions.*
-      - co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.*
 naming:
   MemberNameEqualsClassName:
     active: false
@@ -44,7 +40,7 @@ performance:
     active: false
 formatting:
   NoWildcardImports:
-    packagesToUseImportOnDemandProperty: "java.util.*,org.hamcrest.Matchers.*,org.hamcrest.MatcherAssert.*,org.junit.jupiter.api.Assertions.*"
+    packagesToUseImportOnDemandProperty: "java.util.*"
   MaximumLineLength:
     active: false
   Filename:

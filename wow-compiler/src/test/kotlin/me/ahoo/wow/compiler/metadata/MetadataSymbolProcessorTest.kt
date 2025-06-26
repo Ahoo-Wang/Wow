@@ -16,12 +16,11 @@ package me.ahoo.wow.compiler.metadata
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.kspSourcesDir
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compiler.compileTest
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.configuration.WowMetadata
 import me.ahoo.wow.serialization.toObject
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -55,7 +54,7 @@ class MetadataSymbolProcessorTest {
                 WOW_METADATA_RESOURCE_NAME
             ).readText()
             val metadata = metadataContent.toObject<WowMetadata>()
-            assertThat(metadata.contexts.containsKey("mock"), equalTo(true))
+            metadata.contexts.assert().containsKey("mock")
         }
     }
 
@@ -76,7 +75,7 @@ class MetadataSymbolProcessorTest {
                 WOW_METADATA_RESOURCE_NAME
             ).readText()
             val metadata = metadataContent.toObject<WowMetadata>()
-            assertThat(metadata.contexts.containsKey("mock_java"), equalTo(true))
+            metadata.contexts.assert().containsKey("mock_java")
         }
     }
 
@@ -97,7 +96,7 @@ class MetadataSymbolProcessorTest {
                 WOW_METADATA_RESOURCE_NAME
             ).readText()
             val metadata = metadataContent.toObject<WowMetadata>()
-            assertThat(metadata.contexts.containsKey("example-service"), equalTo(true))
+            metadata.contexts.assert().containsKey("example-service")
         }
     }
 }

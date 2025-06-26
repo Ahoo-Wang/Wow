@@ -23,8 +23,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.naming.annotation.toName
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class TemplateEngineTest {
@@ -115,7 +113,7 @@ class TemplateEngineTest {
     @Test
     fun toNavAsMarkdown() {
         val emptyHostNav = stateAggregate.state.toNavAsMarkdown("")
-        assertThat(emptyHostNav, equalTo("`${executionFailedState.id}`"))
+        emptyHostNav.assert().isEqualTo("`${executionFailedState.id}`")
         val hostNav = stateAggregate.state.toNavAsMarkdown(host)
         hostNav.assert().isEqualTo("[${executionFailedState.id}]($host/to-retry?id=${executionFailedState.id})")
     }

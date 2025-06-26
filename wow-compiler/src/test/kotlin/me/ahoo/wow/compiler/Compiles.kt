@@ -17,9 +17,8 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.configureKsp
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compiler.SourceFiles.toSourceFile
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import java.io.File
 
@@ -39,6 +38,6 @@ fun compileTest(
         }
     }
     val result = kotlinCompilation.compile()
-    assertThat(result.messages, result.exitCode, `is`(KotlinCompilation.ExitCode.OK))
+    result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
     consumer(kotlinCompilation, result)
 }

@@ -3,9 +3,9 @@ package me.ahoo.wow.compiler.query
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.kspSourcesDir
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.compiler.compileTest
 import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -41,11 +41,8 @@ class QuerySymbolProcessorTest {
                 navFileContentLines.size
             )
             val navFileContentWithoutGenerated = navFileContentLinesWithoutGenerated.joinToString("\n").trimIndent()
-
-            assertThat(
-                navFileContentWithoutGenerated,
-                equalTo(
-                    """
+            navFileContentWithoutGenerated.assert().isEqualTo(
+                """
                 package me.ahoo.wow.compiler
                 
                 import javax.annotation.processing.Generated
@@ -55,7 +52,6 @@ class QuerySymbolProcessorTest {
                     const val STATE = "state"
                 }
                     """.trimIndent()
-                )
             )
         }
     }
@@ -88,11 +84,8 @@ class QuerySymbolProcessorTest {
                 navFileContentLines.size
             )
             val navFileContentWithoutGenerated = navFileContentLinesWithoutGenerated.joinToString("\n").trimIndent()
-
-            assertThat(
-                navFileContentWithoutGenerated,
-                equalTo(
-                    """
+            navFileContentWithoutGenerated.assert().isEqualTo(
+                """
                     package me.ahoo.wow.compiler
                     
                     import javax.annotation.processing.Generated
@@ -101,7 +94,6 @@ class QuerySymbolProcessorTest {
                         const val ID = "id"
                     }
                     """.trimIndent()
-                )
             )
         }
     }
