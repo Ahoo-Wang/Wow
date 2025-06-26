@@ -1,8 +1,7 @@
 package me.ahoo.wow.event
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class DomainEventStreamTest {
@@ -19,7 +18,7 @@ class DomainEventStreamTest {
         }
 
         val ignoreSourcing = eventStream.ignoreSourcing()
-        assertThat(ignoreSourcing, equalTo(false))
+        ignoreSourcing.assert().isFalse()
     }
 
     @Test
@@ -33,7 +32,7 @@ class DomainEventStreamTest {
             SimpleDomainEventStream(requestId = generateGlobalId(), body = listOf(it))
         }
         val ignoreSourcing = eventStream.ignoreSourcing()
-        assertThat(ignoreSourcing, equalTo(false))
+        ignoreSourcing.assert().isFalse()
     }
 
     @Test
@@ -50,6 +49,6 @@ class DomainEventStreamTest {
             SimpleDomainEventStream(requestId = generateGlobalId(), body = listOf(it))
         }
         val ignoreSourcing = eventStream.ignoreSourcing()
-        assertThat(ignoreSourcing, equalTo(true))
+        ignoreSourcing.assert().isTrue()
     }
 }

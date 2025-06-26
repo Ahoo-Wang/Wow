@@ -14,12 +14,11 @@ package me.ahoo.wow.messaging.function
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 internal class SimpleMessageFunctionRegistrarTest {
@@ -37,22 +36,22 @@ internal class SimpleMessageFunctionRegistrarTest {
         registrar.register(function)
 
         var actual: Set<MessageFunction<*, *, *>?> = registrar.supportedFunctions(message).toSet()
-        assertThat(actual.size, equalTo(1))
-        assertThat(actual, hasItem(function))
+        actual.size.assert().isEqualTo(1)
+        actual.assert().contains(function)
 
         // 重复注册相同 handler
         registrar.register(function)
         actual = registrar.supportedFunctions(message).toSet()
-        assertThat(actual.size, equalTo(1))
-        assertThat(actual, hasItem(function))
+        actual.size.assert().isEqualTo(1)
+        actual.assert().contains(function)
 
         val anotherHandler = MockAnotherFunction::onEvent
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         registrar.register(anotherHandler)
         actual = registrar.supportedFunctions(message).toSet()
-        assertThat(actual.size, equalTo(2))
-        assertThat(actual, hasItems(function, anotherHandler))
+        actual.size.assert().isEqualTo(2)
+        actual.assert().contains(function, anotherHandler)
     }
 
     @Test
@@ -64,6 +63,6 @@ internal class SimpleMessageFunctionRegistrarTest {
         registrar.register(handler)
         registrar.unregister(handler)
         val actual = registrar.supportedFunctions(message).toSet()
-        assertThat(actual, empty())
+        actual.assert().isEmpty()
     }
 }

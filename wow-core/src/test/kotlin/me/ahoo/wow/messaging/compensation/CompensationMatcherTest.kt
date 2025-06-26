@@ -1,5 +1,6 @@
 package me.ahoo.wow.messaging.compensation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.toCommandMessage
@@ -9,8 +10,6 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CompensationMatcherTest {
@@ -31,15 +30,15 @@ class CompensationMatcherTest {
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
         ).toCommandMessage().withCompensation(target)
-        assertThat(command.header.compensationId, equalTo(target.id))
-        assertThat(command.header[COMPENSATION_CONTEXT], equalTo(contextName))
-        assertThat(command.header[COMPENSATION_PROCESSOR], equalTo(processorName))
-        assertThat(command.match(function), equalTo(true))
+        command.header.compensationId.assert().isEqualTo(target.id)
+        command.header[COMPENSATION_CONTEXT].assert().isEqualTo(contextName)
+        command.header[COMPENSATION_PROCESSOR].assert().isEqualTo(processorName)
+        command.match(function).assert().isEqualTo(true)
     }
 
     @Test
     fun matchIfNull() {
-        assertThat(DefaultHeader.empty().match(function), equalTo(true))
+        DefaultHeader.empty().match(function).assert().isEqualTo(true)
     }
 
     @Test
@@ -47,6 +46,6 @@ class CompensationMatcherTest {
         val header = DefaultHeader.empty()
         header[COMPENSATION_ID] = GlobalIdGenerator.generateAsString()
         header[COMPENSATION_CONTEXT] = contextName
-        assertThat(header.match(function), equalTo(false))
+        header.match(function).assert().isEqualTo(false))
     }
 }

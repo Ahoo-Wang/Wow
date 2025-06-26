@@ -1,7 +1,6 @@
 package me.ahoo.wow.exception
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -14,6 +13,6 @@ class PreconditionsTest {
                 "error message"
             }
         }
-        assertThat(exception.errorCode, equalTo("errorCode"))
+        exception.errorCode.assert().isEqualTo("errorCode")
     }
 }

@@ -2,6 +2,7 @@ package me.ahoo.wow.messaging.propagation
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.GlobalIdGenerator
@@ -11,8 +12,6 @@ import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.traceI
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.upstreamId
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.upstreamName
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class TraceMessagePropagatorTest {
@@ -24,10 +23,10 @@ class TraceMessagePropagatorTest {
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
                 .toCommandMessage()
         TraceMessagePropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(upstreamMessage.header.traceId, equalTo(upstreamMessage.id))
-        assertThat(injectedHeader.traceId, equalTo(upstreamMessage.header.traceId))
-        assertThat(injectedHeader.upstreamId, equalTo(upstreamMessage.id))
-        assertThat(injectedHeader.upstreamName, equalTo(upstreamMessage.name))
+        upstreamMessage.header.traceId.assert().isEqualTo(upstreamMessage.id)
+        injectedHeader.traceId.assert().isEqualTo(upstreamMessage.header.traceId)
+        injectedHeader.upstreamId.assert().isEqualTo(upstreamMessage.id)
+        injectedHeader.upstreamName.assert().isEqualTo(upstreamMessage.name)
     }
 
     @Test
@@ -38,6 +37,6 @@ class TraceMessagePropagatorTest {
             every { header } returns DefaultHeader.empty()
         }
         TraceMessagePropagator().inject(injectedHeader, upstreamMessage)
-        assertThat(injectedHeader.upstreamName, nullValue())
+        injectedHeader.upstreamName.assert().isNull()
     }
 }
