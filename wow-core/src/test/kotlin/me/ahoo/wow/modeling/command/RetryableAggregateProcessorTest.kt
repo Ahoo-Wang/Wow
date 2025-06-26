@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -32,8 +33,6 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockChangeAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -78,7 +77,7 @@ internal class RetryableAggregateProcessorTest {
         )
             .test()
             .consumeErrorWith {
-                assertThat(it, instanceOf(DuplicateAggregateIdException::class.java))
+                it.assert().isInstanceOf(DuplicateAggregateIdException::class.java)
             }
             .verify()
 

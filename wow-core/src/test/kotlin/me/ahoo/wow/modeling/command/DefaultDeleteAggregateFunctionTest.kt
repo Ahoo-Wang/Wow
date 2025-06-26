@@ -2,9 +2,8 @@ package me.ahoo.wow.modeling.command
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Retry
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class DefaultDeleteAggregateFunctionTest {
@@ -16,12 +15,9 @@ class DefaultDeleteAggregateFunctionTest {
             every { aggregateName } returns "aggregate"
             every { commandRoot } returns "root"
         }
-        assertThat(
-            DefaultDeleteAggregateFunction(
-                commandAggregate = commandAggregate,
-                afterCommandFunctions = emptyList()
-            ).getAnnotation(Retry::class.java),
-            nullValue()
-        )
+        DefaultDeleteAggregateFunction(
+            commandAggregate = commandAggregate,
+            afterCommandFunctions = emptyList()
+        ).getAnnotation(Retry::class.java).assert().isNull()
     }
 }

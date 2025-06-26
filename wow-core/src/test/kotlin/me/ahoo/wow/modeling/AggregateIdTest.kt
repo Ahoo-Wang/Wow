@@ -12,13 +12,12 @@
  */
 package me.ahoo.wow.modeling
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.StaticTenantId
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -27,42 +26,42 @@ internal class AggregateIdTest {
 
     @Test
     fun equalTo() {
-        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val unCreatedAggregateId = aggregateId.copy()
-        assertThat(aggregateId, equalTo(unCreatedAggregateId))
-        assertThat(aggregateId.hashCode(), equalTo(unCreatedAggregateId.hashCode()))
-        assertThat(aggregateId.toString(), equalTo(unCreatedAggregateId.toString()))
+        aggregateId.assert().isEqualTo(unCreatedAggregateId)
+        aggregateId.hashCode().assert().isEqualTo(unCreatedAggregateId.hashCode())
+        aggregateId.toString().assert().isEqualTo(unCreatedAggregateId.toString())
     }
 
     @Test
     fun equalToDiffId() {
         val aggregateId = namedTypedAggregate.aggregateId()
-        val unCreatedAggregateId = aggregateId.copy(id = GlobalIdGenerator.generateAsString())
-        assertThat(aggregateId, not(unCreatedAggregateId))
-        assertThat(aggregateId.hashCode(), not(unCreatedAggregateId.hashCode()))
+        val unCreatedAggregateId = aggregateId.copy(id = generateGlobalId())
+        aggregateId.assert().isNotEqualTo(unCreatedAggregateId)
+        aggregateId.hashCode().assert().isNotEqualTo(unCreatedAggregateId.hashCode())
     }
 
     @Test
     fun compareTo() {
-        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
-        val aggregateId2 = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
-        assertThat(aggregateId2, greaterThan(aggregateId))
+        val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
+        val aggregateId2 = namedTypedAggregate.aggregateId(generateGlobalId())
+        aggregateId2.assert().isGreaterThan(aggregateId)
     }
 
     @Test
     fun sort() {
-        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
-        val aggregateId2 = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
+        val aggregateId2 = namedTypedAggregate.aggregateId(generateGlobalId())
         val sorted = listOf(aggregateId2, aggregateId).asSequence().sorted().toList()
-        assertThat(sorted[0], equalTo(aggregateId))
-        assertThat(sorted[1], equalTo(aggregateId2))
+        sorted[0].assert().isEqualTo(aggregateId)
+        sorted[1].assert().isEqualTo(aggregateId2)
     }
 
     @Test
     fun compareToWhenNotAggregateName() {
-        val aggregateId = namedTypedAggregate.aggregateId(GlobalIdGenerator.generateAsString())
+        val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val aggregateId2 = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
-            .aggregateId(GlobalIdGenerator.generateAsString())
+            .aggregateId(generateGlobalId())
         Assertions.assertThrows(IllegalArgumentException::class.java) {
             aggregateId2.compareTo(aggregateId)
         }
@@ -71,7 +70,7 @@ internal class AggregateIdTest {
     @Test
     fun withStaticAggregate() {
         val aggregateId = aggregateMetadata<MockStaticAggregate, MockStaticAggregate>().aggregateId()
-        assertThat(aggregateId.tenantId, equalTo("static-tenant-id"))
+        aggregateId.tenantId.assert().isEqualTo("static-tenant-id")
     }
 }
 
