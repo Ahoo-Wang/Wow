@@ -1,30 +1,29 @@
 package me.ahoo.wow.redis.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.isWrapped
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class RedisWrappedKeyTest {
 
     @Test
     fun isWrapped() {
-        assertThat("".isWrapped(), equalTo(false))
-        assertThat("{key}".isWrapped(), equalTo(true))
+        "".isWrapped().assert().isFalse()
+        "{key}".isWrapped().assert().isTrue()
     }
 
     @Test
     fun wrap() {
-        assertThat("".wrap(), equalTo("{}"))
-        assertThat("key".wrap(), equalTo("{key}"))
+        "".wrap().assert().isEqualTo("{}")
+        "key".wrap().assert().isEqualTo("{key}")
     }
 
     @Test
     fun unwrap() {
-        assertThat("".unwrap(), equalTo(""))
-        assertThat("key".unwrap(), equalTo("key"))
-        assertThat("{key}".unwrap(), equalTo("key"))
+        "".unwrap().assert().isEqualTo("")
+        "key".unwrap().assert().isEqualTo("key")
+        "{key}".unwrap().assert().isEqualTo("key")
     }
 }
