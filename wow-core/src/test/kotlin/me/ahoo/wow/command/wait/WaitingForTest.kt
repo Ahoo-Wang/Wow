@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.id.generateGlobalId
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -28,8 +27,8 @@ internal class WaitingForTest {
     @Test
     fun processed() {
         val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
-        assertThat(waitStrategy.cancelled, equalTo(false))
-        assertThat(waitStrategy.terminated, equalTo(false))
+        waitStrategy.cancelled.assert().isEqualTo(false)
+        waitStrategy.terminated.assert().isEqualTo(false)
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = "commandId",
@@ -40,7 +39,7 @@ internal class WaitingForTest {
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(waitSignal)
-                assertThat(waitStrategy.terminated, equalTo(true))
+                waitStrategy.terminated.assert().isEqualTo(true)
             }
             .expectNext(waitSignal)
             .verifyComplete()
@@ -61,8 +60,8 @@ internal class WaitingForTest {
                 waitStrategy.next(waitSignal)
             }
             .verifyTimeout(Duration.ofMillis(100))
-        assertThat(waitStrategy.terminated, equalTo(false))
-        assertThat(waitStrategy.cancelled, equalTo(true))
+        waitStrategy.terminated.assert().isEqualTo(false)
+        waitStrategy.cancelled.assert().isEqualTo(true)
     }
 
     @Test
@@ -87,7 +86,7 @@ internal class WaitingForTest {
                 waitStrategy.next(waitSignal)
             }
             .consumeNextWith {
-                assertThat(it.commandId, equalTo(waitSignal.commandId))
+                it.commandId.assert().isEqualTo(waitSignal.commandId)
             }
             .verifyComplete()
     }

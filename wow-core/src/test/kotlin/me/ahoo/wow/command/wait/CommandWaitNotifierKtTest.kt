@@ -1,13 +1,12 @@
 package me.ahoo.wow.command.wait
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class CommandWaitNotifierKtTest {
 
     @Test
     fun isLocalCommandIfBlank() {
-        assertThat(isLocalCommand(""), equalTo(false))
+        isLocalCommand("").assert().isFalse()
     }
 }

@@ -1,7 +1,6 @@
 package me.ahoo.wow.command.wait
 
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -12,13 +11,13 @@ class CommandStageTest {
     @ParameterizedTest
     @MethodSource("shouldNotifyArgsProvider")
     fun shouldNotify(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
-        assertThat(commandStage.shouldNotify(processingStage), equalTo(expected))
+        commandStage.shouldNotify(processingStage).assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("isAfterArgsProvider")
     fun isAfter(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
-        assertThat(commandStage.isAfter(processingStage), equalTo(expected))
+        commandStage.shouldNotify(processingStage).assert().isEqualTo(expected)
     }
 
     companion object {

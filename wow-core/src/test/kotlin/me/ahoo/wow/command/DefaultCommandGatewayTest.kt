@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
@@ -24,8 +25,6 @@ import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.tck.command.CommandGatewaySpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
 import me.ahoo.wow.test.validation.TestValidator
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
@@ -56,7 +55,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .verify()
         }
         Thread.sleep(5)
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -70,7 +69,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .verify()
         }
         Thread.sleep(5)
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -91,7 +90,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             .expectError(CommandResultException::class.java)
             .verify()
         Thread.sleep(5)
-        assertThat(waitStrategyRegistrar.contains(message.commandId), equalTo(false))
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
     }
 
     class MockCommandBody : CommandValidator {
