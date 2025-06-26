@@ -15,12 +15,11 @@ package me.ahoo.wow.query.snapshot
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -41,7 +40,7 @@ class SnapshotStatesKtTest {
     fun dyToState() {
         val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         snapshot.toMono().toStateDocument().test().consumeNextWith {
-            assertThat(it.getValue<String>("id"), equalTo("id"))
+            it.getValue<String>("id").assert().isEqualTo("id")
         }.verifyComplete()
     }
 
@@ -57,7 +56,7 @@ class SnapshotStatesKtTest {
     fun dyFluxToState() {
         val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         Flux.just(snapshot).toStateDocument().test().consumeNextWith {
-            assertThat(it.getValue<String>("id"), equalTo("id"))
+            it.getValue<String>("id").assert().isEqualTo("id")
         }.verifyComplete()
     }
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.snapshot.filter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
@@ -36,8 +37,6 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.MaskingSnapshotQueryFilterTest.DataMaskable.Companion.MASKED_PWD
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -67,7 +66,7 @@ class MaskingSnapshotQueryFilterTest {
             .test()
             .consumeNextWith {
                 val state = it.state as DataMaskable
-                assertThat(state.pwd, equalTo(MASKED_PWD))
+                state.pwd.assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -78,7 +77,7 @@ class MaskingSnapshotQueryFilterTest {
         queryHandler.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
+                it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -90,7 +89,7 @@ class MaskingSnapshotQueryFilterTest {
             .test()
             .consumeNextWith {
                 val state = it.state as DataMaskable
-                assertThat(state.pwd, equalTo(MASKED_PWD))
+                state.pwd.assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -101,7 +100,7 @@ class MaskingSnapshotQueryFilterTest {
         queryHandler.dynamicList(MockSnapshotQueryService.namedAggregate, query)
             .test()
             .consumeNextWith {
-                assertThat(it.getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
+                it.getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -112,9 +111,9 @@ class MaskingSnapshotQueryFilterTest {
         queryHandler.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(1))
+                it.total.assert().isOne()
                 val state = it.list.first().state as DataMaskable
-                assertThat(state.pwd, equalTo(MASKED_PWD))
+                state.pwd.assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -125,8 +124,8 @@ class MaskingSnapshotQueryFilterTest {
         queryHandler.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(1))
-                assertThat(it.list.first().getNestedDocument("state").getValue("pwd"), equalTo(MASKED_PWD))
+                it.total.assert().isOne()
+                it.list.first().getNestedDocument("state").getValue<String>("pwd").assert().isEqualTo(MASKED_PWD)
             }
             .verifyComplete()
     }
@@ -136,7 +135,7 @@ class MaskingSnapshotQueryFilterTest {
         queryHandler.count(MockSnapshotQueryService.namedAggregate, Condition.ALL)
             .test()
             .consumeNextWith {
-                assertThat(it, equalTo(1L))
+                it.assert().isOne()
             }
             .verifyComplete()
     }
