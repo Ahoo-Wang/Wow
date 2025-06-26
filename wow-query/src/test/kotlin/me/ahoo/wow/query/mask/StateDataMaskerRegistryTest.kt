@@ -13,12 +13,10 @@
 
 package me.ahoo.wow.query.mask
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class StateDataMaskerRegistryTest {
@@ -30,12 +28,12 @@ class StateDataMaskerRegistryTest {
         stateDataMaskerRegistry.unregister(masker)
         stateDataMaskerRegistry.register(masker)
         val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
-        assertThat(aggregateDataMasker.maskers.size, equalTo(1))
-        assertThat(aggregateDataMasker.maskers.first(), sameInstance(masker))
+        aggregateDataMasker.maskers.size.assert().isOne()
+        aggregateDataMasker.maskers.first().assert().isSameAs(masker)
         stateDataMaskerRegistry.register(masker)
         val aggregateDataMasker2 =
             stateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
-        assertThat(aggregateDataMasker2.maskers.size, equalTo(2))
+        aggregateDataMasker2.maskers.assert().hasSize(2)
         stateDataMaskerRegistry.unregister(masker)
         stateDataMaskerRegistry.unregister(masker)
     }
@@ -45,6 +43,6 @@ class StateDataMaskerRegistryTest {
         val stateDataMaskerRegistry = StateDataMaskerRegistry()
         val namedAggregate = "${generateGlobalId()}.${generateGlobalId()}".toNamedAggregate()
         val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(namedAggregate)
-        assertThat(aggregateDataMasker.maskers.isEmpty(), equalTo(true))
+        aggregateDataMasker.maskers.assert().isEmpty()
     }
 }

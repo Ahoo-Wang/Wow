@@ -22,7 +22,6 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -75,7 +74,7 @@ class DefaultSnapshotQueryHandlerTest {
         queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(0))
+                it.total.assert().isZero()
             }
             .verifyComplete()
     }

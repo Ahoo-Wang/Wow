@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class SortDslTest {
@@ -26,13 +25,10 @@ class SortDslTest {
             "field1".asc()
             "field2".desc()
         }
-        assertThat(
-            sort,
-            equalTo(
-                listOf(
-                    Sort("field1", Sort.Direction.ASC),
-                    Sort("field2", Sort.Direction.DESC)
-                )
+        sort.assert().isEqualTo(
+            listOf(
+                Sort("field1", Sort.Direction.ASC),
+                Sort("field2", Sort.Direction.DESC)
             )
         )
     }

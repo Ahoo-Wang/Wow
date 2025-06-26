@@ -13,14 +13,12 @@
 
 package me.ahoo.wow.query.mask
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class DefaultAggregateDataMaskerTest {
@@ -31,7 +29,7 @@ class DefaultAggregateDataMaskerTest {
             .addMasker(mockStateDataMasker)
         val dynamicDocument = mutableMapOf<String, Any>().toDynamicDocument()
         aggregateDataMasker.mask(dynamicDocument)
-        assertThat(dynamicDocument.getValue(MockStateDataMasker.KEY), equalTo(MockStateDataMasker.VALUE))
+        dynamicDocument.getValue<String>(MockStateDataMasker.KEY).assert().isEqualTo(MockStateDataMasker.VALUE)
         assert(aggregateDataMasker.maskers.size == 1)
         val aggregateDataMasker2 = aggregateDataMasker.removeMasker(mockStateDataMasker)
         assert(aggregateDataMasker2.maskers.isEmpty())
@@ -42,7 +40,7 @@ class DefaultAggregateDataMaskerTest {
         val pagedList = PagedList(0, emptyList<DynamicDocument>())
         val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
-        assertThat(maskedPagedList, sameInstance(pagedList))
+        maskedPagedList.assert().isSameAs(pagedList)
     }
 
     @Test
@@ -50,7 +48,7 @@ class DefaultAggregateDataMaskerTest {
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
         val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
-        assertThat(maskedPagedList, sameInstance(pagedList))
+        maskedPagedList.assert().isSameAs(pagedList)
     }
 
     @Test
@@ -60,7 +58,7 @@ class DefaultAggregateDataMaskerTest {
             .addMasker(mockStateDataMasker)
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
         val maskedPagedList = aggregateDataMasker.mask(pagedList)
-        assertThat(maskedPagedList.list[0].getValue(MockStateDataMasker.KEY), equalTo(MockStateDataMasker.VALUE))
+        maskedPagedList.list[0].getValue<String>(MockStateDataMasker.KEY).assert().isEqualTo(MockStateDataMasker.VALUE)
     }
 }
 

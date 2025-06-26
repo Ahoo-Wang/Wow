@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.event.filter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.query.dsl.condition
@@ -21,8 +22,6 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -75,7 +74,7 @@ class DefaultEventStreamQueryHandlerTest {
         queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(0))
+                it.total.assert().isZero()
             }
             .verifyComplete()
     }
@@ -86,7 +85,7 @@ class DefaultEventStreamQueryHandlerTest {
         queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
             .consumeNextWith {
-                assertThat(it.total, equalTo(0))
+                it.total.assert().isZero()
             }
             .verifyComplete()
     }
@@ -99,7 +98,7 @@ class DefaultEventStreamQueryHandlerTest {
         queryHandler.count(MOCK_AGGREGATE_METADATA, condition)
             .test()
             .consumeNextWith {
-                assertThat(it, equalTo(0))
+                it.assert().isZero()
             }
             .verifyComplete()
     }

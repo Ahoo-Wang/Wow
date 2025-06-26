@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Sort
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 
 class SingleQueryDslTest {
@@ -31,11 +30,7 @@ class SingleQueryDslTest {
                 "field1" eq "value1"
             }
         }
-
-        assertThat(query.sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
-        assertThat(
-            query.condition,
-            equalTo(Condition.eq("field1", "value1"))
-        )
+        query.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        query.condition.assert().isEqualTo(Condition.eq("field1", "value1"))
     }
 }

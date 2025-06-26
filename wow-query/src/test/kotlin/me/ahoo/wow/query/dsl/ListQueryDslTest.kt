@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class ListQueryDslTest {
@@ -41,25 +40,22 @@ class ListQueryDslTest {
             }
             projection { }
         }
-        assertThat(query.projection, equalTo(Projection.ALL))
-        assertThat(query.limit, equalTo(1))
-        assertThat(query.sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
-        assertThat(
-            query.condition,
-            equalTo(
-                Condition.and(
-                    listOf(
-                        Condition.eq("field1", "value1"),
-                        Condition.eq("field2", "value2"),
-                        Condition.and(
-                            listOf(
-                                Condition.eq("field3", "value3")
-                            )
-                        ),
-                        Condition.or(
-                            listOf(
-                                Condition.eq("field4", "value4")
-                            )
+        query.projection.assert().isEqualTo(Projection.ALL)
+        query.limit.assert().isOne()
+        query.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        query.condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.eq("field1", "value1"),
+                    Condition.eq("field2", "value2"),
+                    Condition.and(
+                        listOf(
+                            Condition.eq("field3", "value3")
+                        )
+                    ),
+                    Condition.or(
+                        listOf(
+                            Condition.eq("field4", "value4")
                         )
                     )
                 )

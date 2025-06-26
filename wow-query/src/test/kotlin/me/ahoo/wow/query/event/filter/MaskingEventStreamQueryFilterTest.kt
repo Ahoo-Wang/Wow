@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.event.filter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DynamicDocument
@@ -37,8 +38,6 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -67,7 +66,7 @@ class MaskingEventStreamQueryFilterTest {
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test()
             .consumeNextWith {
-                assertThat(it.containsKey(MessageRecords.CONTEXT_NAME), equalTo(false))
+                it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
             }
             .verifyComplete()
     }
