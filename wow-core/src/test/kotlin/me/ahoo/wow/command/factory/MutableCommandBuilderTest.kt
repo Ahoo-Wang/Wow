@@ -1,33 +1,27 @@
 package me.ahoo.wow.command.factory
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.isLocalFirst
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.CoreMatchers.nullValue
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import org.assertj.core.data.Offset
 import org.junit.jupiter.api.Test
 
 class MutableCommandBuilderTest {
     @Test
     fun default() {
         val commandBuilder = this.commandBuilder()
-        assertThat(commandBuilder.body, sameInstance(this))
-        assertThat(commandBuilder.id, notNullValue())
-        assertThat(commandBuilder.requestId, nullValue())
-        assertThat(commandBuilder.aggregateId, nullValue())
-        assertThat(commandBuilder.tenantId, nullValue())
-        assertThat(commandBuilder.ownerId, nullValue())
-        assertThat(commandBuilder.aggregateVersion, nullValue())
-        assertThat(commandBuilder.namedAggregate, nullValue())
-        assertThat(commandBuilder.header, equalTo(DefaultHeader.empty()))
-        assertThat(
-            commandBuilder.createTime.toDouble(),
-            closeTo(System.currentTimeMillis().toDouble(), 5000.toDouble())
-        )
+        commandBuilder.body.assert().isSameAs(this)
+        commandBuilder.id.assert().isNotNull()
+        commandBuilder.requestId.assert().isNull()
+        commandBuilder.aggregateId.assert().isNull()
+        commandBuilder.tenantId.assert().isNull()
+        commandBuilder.ownerId.assert().isNull()
+        commandBuilder.aggregateVersion.assert().isNull()
+        commandBuilder.namedAggregate.assert().isNull()
+        commandBuilder.header.assert().isEqualTo(DefaultHeader.empty())
+        commandBuilder.createTime.assert().isCloseTo(System.currentTimeMillis(), Offset.offset(5000))
     }
 
     @Test
@@ -49,24 +43,24 @@ class MutableCommandBuilderTest {
             .createTime(1)
             .body(newBody)
 
-        assertThat(commandBuilder.id, equalTo("id"))
-        assertThat(commandBuilder.requestId, equalTo("requestId"))
-        assertThat(commandBuilder.aggregateId, equalTo("aggregateId"))
-        assertThat(commandBuilder.tenantId, equalTo("tenantId"))
-        assertThat(commandBuilder.ownerId, equalTo("ownerId"))
-        assertThat(commandBuilder.aggregateVersion, equalTo(1))
-        assertThat(commandBuilder.namedAggregate, equalTo(MOCK_AGGREGATE_METADATA))
-        assertThat(commandBuilder.header["key"], equalTo("value"))
-        assertThat(commandBuilder.createTime, equalTo(1))
-        assertThat(commandBuilder.header.isLocalFirst(), equalTo(true))
+        commandBuilder.id.assert().isEqualTo("id")
+        commandBuilder.requestId.assert().isEqualTo("requestId")
+        commandBuilder.aggregateId.assert().isEqualTo("aggregateId")
+        commandBuilder.tenantId.assert().isEqualTo("tenantId")
+        commandBuilder.ownerId.assert().isEqualTo("ownerId")
+        commandBuilder.aggregateVersion.assert().isEqualTo(1)
+        commandBuilder.namedAggregate.assert().isEqualTo(MOCK_AGGREGATE_METADATA)
+        commandBuilder.header["key"].assert().isEqualTo("value")
+        commandBuilder.createTime.assert().isEqualTo(1)
+        commandBuilder.header.isLocalFirst().assert().isEqualTo(true)
         commandBuilder.requestIdIfAbsent("requestId2")
             .tenantIdIfAbsent("tenantId2")
 
-        assertThat(commandBuilder.requestId, equalTo("requestId"))
-        assertThat(commandBuilder.tenantId, equalTo("tenantId"))
-        assertThat(commandBuilder.bodyAs(), sameInstance(newBody))
+        commandBuilder.requestId.assert().isEqualTo("requestId")
+        commandBuilder.tenantId.assert().isEqualTo("tenantId")
+        commandBuilder.bodyAs<Any>().assert().isSameAs(newBody)
 
         commandBuilder.header(DefaultHeader.empty())
-        assertThat(commandBuilder.header, equalTo(DefaultHeader.empty()))
+        commandBuilder.header.assert().isEqualTo(DefaultHeader.empty())
     }
 }
