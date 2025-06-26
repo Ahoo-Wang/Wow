@@ -46,6 +46,6 @@ class CompensationMatcherTest {
         val header = DefaultHeader.empty()
         header[COMPENSATION_ID] = GlobalIdGenerator.generateAsString()
         header[COMPENSATION_CONTEXT] = contextName
-        header.match(function).assert().isEqualTo(false))
+        header.match(function).assert().isEqualTo(false)
     }
 }
