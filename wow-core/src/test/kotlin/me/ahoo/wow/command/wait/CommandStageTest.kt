@@ -17,7 +17,7 @@ class CommandStageTest {
     @ParameterizedTest
     @MethodSource("isAfterArgsProvider")
     fun isAfter(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
-        commandStage.shouldNotify(processingStage).assert().isEqualTo(expected)
+        commandStage.isAfter(processingStage).assert().isEqualTo(expected)
     }
 
     companion object {
