@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
@@ -24,8 +25,6 @@ import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -62,7 +61,7 @@ class LoadVersionedAggregateHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                MatcherAssert.assertThat(it.statusCode(), Matchers.equalTo(HttpStatus.NOT_FOUND))
+                it.statusCode().assert().isEqualTo(HttpStatus.NOT_FOUND)
             }.verifyComplete()
     }
 }

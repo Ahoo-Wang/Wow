@@ -25,6 +25,7 @@ style:
   WildcardImport:
     excludeImports:
       - java.util.*
+      - org.assertj.core.api.Assertions.*
 naming:
   MemberNameEqualsClassName:
     active: false
@@ -40,7 +41,7 @@ performance:
     active: false
 formatting:
   NoWildcardImports:
-    packagesToUseImportOnDemandProperty: "java.util.*"
+    packagesToUseImportOnDemandProperty: "java.util.*,org.assertj.core.api.Assertions.*"
   MaximumLineLength:
     active: false
   Filename:

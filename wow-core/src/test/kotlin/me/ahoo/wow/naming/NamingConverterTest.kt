@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.naming
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class NamingConverterTest {
     @Test
     fun convert() {
         val actual = NamingConverter.PASCAL_TO_SNAKE.convert(PascalCaseStrategyTest.PHRASE)
-        assertThat(actual, equalTo(SnakeCaseStrategyTest.PHRASE))
+        actual.assert().isEqualTo(SnakeCaseStrategyTest.PHRASE)
     }
 }

@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.infra.accessor.constructor
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.ioc.SimpleServiceProvider
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.hamcrest.Matchers.notNullValue
 import org.junit.jupiter.api.Test
 
 internal class InjectableObjectFactoryTest {
@@ -25,7 +23,7 @@ internal class InjectableObjectFactoryTest {
     fun newInstance() {
         val injectableObjectFactory =
             InjectableObjectFactory(MockServiceWithoutParameter::class.java.getConstructor(), SimpleServiceProvider())
-        assertThat(injectableObjectFactory.newInstance(), notNullValue())
+        injectableObjectFactory.newInstance().assert().isNotNull()
     }
 
     @Test
@@ -40,8 +38,8 @@ internal class InjectableObjectFactoryTest {
                 serviceProvider,
             )
         val mockServiceWithInject = injectableObjectFactory.newInstance()
-        assertThat(mockServiceWithInject, notNullValue())
-        assertThat(mockServiceWithInject.injectService, equalTo(injectService))
+        mockServiceWithInject.assert().isNotNull()
+        mockServiceWithInject.injectService.assert().isEqualTo(injectService)
     }
 }
 

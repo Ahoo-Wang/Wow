@@ -19,7 +19,6 @@ json-schema-validator = "1.5.7"
 # testing
 junit = "5.13.2"
 fluent-assert = "0.2.0"
-hamcrest = "3.0"
 mockk = "1.14.4"
 kotlin-compile-testing = "0.7.1"
 # plugins
@@ -54,7 +53,6 @@ jte = { module = "gg.jte:jte", version.ref = "jte" }
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 fluent-assert-bom = { module = "me.ahoo.test:fluent-assert-bom", version.ref = "fluent-assert" }
-hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 [plugins]

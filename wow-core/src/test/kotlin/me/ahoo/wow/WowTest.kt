@@ -13,16 +13,15 @@
 
 package me.ahoo.wow
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 
 internal class WowTest {
 
     @Test
     fun test() {
-        assertThat(Wow.WOW, equalTo("wow"))
-        assertThat(Wow.WOW_PREFIX, equalTo("wow."))
+        Wow.WOW.assert().isEqualTo("wow")
+        Wow.WOW_PREFIX.assert().isEqualTo("wow.")
     }
 }

@@ -13,9 +13,8 @@
 
 package me.ahoo.wow
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 
 class VersionTest {
@@ -26,7 +25,7 @@ class VersionTest {
             override val version: Int
                 get() = Version.UNINITIALIZED_VERSION
         }
-        assertThat(version.initialized, equalTo(false))
+        version.initialized.assert().isFalse()
     }
 
     @Test
@@ -35,6 +34,6 @@ class VersionTest {
             override val version: Int
                 get() = Version.INITIAL_VERSION
         }
-        assertThat(version.initialized, equalTo(true))
+        version.initialized.assert().isTrue()
     }
 }

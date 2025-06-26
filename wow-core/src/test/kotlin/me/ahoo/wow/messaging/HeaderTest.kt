@@ -12,20 +12,18 @@
  */
 package me.ahoo.wow.messaging
 
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.aMapWithSize
-import org.hamcrest.Matchers.equalTo
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 internal class HeaderTest {
     @Test
     fun ofWhenNull() {
-        assertThat(null.toHeader(), equalTo(DefaultHeader.empty()))
+        null.toHeader().assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
     fun ofWhenEmpty() {
-        assertThat(HashMap<String, String>().toHeader(), equalTo(DefaultHeader.empty()))
+        HashMap<String, String>().toHeader().assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
@@ -33,13 +31,13 @@ internal class HeaderTest {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
         val header = DefaultHeader(values)
-        assertThat(header.toHeader(), equalTo(header))
+        header.toHeader().assert().isEqualTo(header)
     }
 
     @Test
     fun ofWhenNotEmpty() {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
-        assertThat(values.toHeader(), aMapWithSize(1))
+        values.toHeader().assert().hasSize(1)
     }
 }

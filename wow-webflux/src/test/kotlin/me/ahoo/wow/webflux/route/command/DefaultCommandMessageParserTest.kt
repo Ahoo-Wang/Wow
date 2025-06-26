@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -24,8 +25,6 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
-import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
@@ -87,7 +86,7 @@ class DefaultCommandMessageParserTest {
             request
         ).test()
             .consumeNextWith {
-                MatcherAssert.assertThat(it.header[headerKey], CoreMatchers.equalTo(value))
+                it.header[headerKey].assert().isEqualTo(value)
             }
             .verifyComplete()
     }

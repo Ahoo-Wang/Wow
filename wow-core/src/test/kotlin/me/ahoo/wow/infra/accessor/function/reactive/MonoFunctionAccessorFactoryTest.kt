@@ -14,8 +14,7 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import org.hamcrest.MatcherAssert
-import org.hamcrest.Matchers
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
@@ -29,12 +28,7 @@ internal class MonoFunctionAccessorFactoryTest {
             "onCommand",
             ChangeStateReturnMono::class.java,
         ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
-        MatcherAssert.assertThat(
-            methodAccessor,
-            Matchers.instanceOf(
-                SimpleMonoFunctionAccessor::class.java,
-            ),
-        )
+        methodAccessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
     }
 
     @Test
@@ -44,12 +38,7 @@ internal class MonoFunctionAccessorFactoryTest {
                 "onCommand",
                 ChangeStateReturnFlux::class.java,
             ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
-        MatcherAssert.assertThat(
-            methodAccessor,
-            Matchers.instanceOf(
-                FluxMonoFunctionAccessor::class.java,
-            ),
-        )
+        methodAccessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
     }
 
     @Test
@@ -59,12 +48,7 @@ internal class MonoFunctionAccessorFactoryTest {
                 "onCommand",
                 ChangeStateReturnPublisher::class.java,
             ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
-        MatcherAssert.assertThat(
-            methodAccessor,
-            Matchers.instanceOf(
-                PublisherMonoFunctionAccessor::class.java,
-            ),
-        )
+        methodAccessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
     }
 
     @Test
@@ -74,12 +58,7 @@ internal class MonoFunctionAccessorFactoryTest {
                 "onCommand",
                 ChangeStateReturnSync::class.java,
             ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
-        MatcherAssert.assertThat(
-            methodAccessor,
-            Matchers.instanceOf(
-                SyncMonoFunctionAccessor::class.java,
-            ),
-        )
+        methodAccessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
     }
 
     @Suppress("FunctionOnlyReturningConstant")

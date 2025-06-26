@@ -124,7 +124,6 @@ configure(libraryProjects) {
         testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("me.ahoo.test:fluent-assert-core")
-        testImplementation("org.hamcrest:hamcrest")
         testImplementation("io.mockk:mockk") {
             exclude(group = "org.slf4j", module = "slf4j-api")
         }
