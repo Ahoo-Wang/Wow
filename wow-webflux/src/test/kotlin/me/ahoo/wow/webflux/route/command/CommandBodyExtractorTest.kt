@@ -3,11 +3,10 @@ package me.ahoo.wow.webflux.route.command
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
 import org.springframework.http.HttpHeaders
@@ -46,7 +45,7 @@ class CommandBodyExtractorTest {
         commandBodyExtractor.extract(inputMessage, context)
             .test()
             .consumeNextWith {
-                assertThat(it, isA(DefaultDeleteAggregate::class.java))
+                it.assert().isInstanceOf(DefaultDeleteAggregate::class.java)
             }
             .verifyComplete()
     }
@@ -74,7 +73,7 @@ class CommandBodyExtractorTest {
         commandBodyExtractor.extract(inputMessage, context)
             .test()
             .consumeNextWith {
-                assertThat(it, isA(DefaultDeleteAggregate::class.java))
+                it.assert().isInstanceOf(DefaultDeleteAggregate::class.java)
             }
             .verifyComplete()
     }

@@ -13,11 +13,10 @@
 
 package me.ahoo.wow.webflux.route.command.appender
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender.X_FORWARDED_FOR
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import java.net.InetSocketAddress
@@ -34,7 +33,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
-        assertThat(commandHeader.remoteIp, equalTo(hostName))
+        commandHeader.remoteIp.assert().isEqualTo(hostName)
     }
 
     @Test
@@ -44,7 +43,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
-        assertThat(commandHeader.remoteIp, equalTo(hostName))
+        commandHeader.remoteIp.assert().isEqualTo(hostName)
     }
 
     @Test
@@ -57,6 +56,6 @@ class CommandRequestRemoteIpHeaderAppenderTest {
         val commandHeader = DefaultHeader.empty()
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
-        assertThat(commandHeader.remoteIp, equalTo(hostName))
+        commandHeader.remoteIp.assert().isEqualTo(hostName)
     }
 }

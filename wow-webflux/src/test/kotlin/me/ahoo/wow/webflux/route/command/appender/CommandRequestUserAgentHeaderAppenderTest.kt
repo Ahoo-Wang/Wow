@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.webflux.route.command.appender
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -31,16 +30,14 @@ class CommandRequestUserAgentHeaderAppenderTest {
         val commandHeader = DefaultHeader.empty()
         CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
 
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
+        commandHeader.userAgent.assert().isEqualTo(userAgent)
     }
 
     @Test
     fun appendIfNull() {
-        val userAgent = null
         val request = MockServerRequest.builder().build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestUserAgentHeaderAppender.append(request, commandHeader)
-
-        assertThat(commandHeader.userAgent, equalTo(userAgent))
+        commandHeader.userAgent.assert().isNull()
     }
 }

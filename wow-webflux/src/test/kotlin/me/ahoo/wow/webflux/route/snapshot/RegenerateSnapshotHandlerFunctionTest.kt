@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.generateGlobalId
@@ -20,8 +21,6 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -46,7 +45,7 @@ class RegenerateSnapshotHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.NOT_FOUND))
+                it.statusCode().assert().isEqualTo(HttpStatus.NOT_FOUND)
             }.verifyComplete()
     }
 }

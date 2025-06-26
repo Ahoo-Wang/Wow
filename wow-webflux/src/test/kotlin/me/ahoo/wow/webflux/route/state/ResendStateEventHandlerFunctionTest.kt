@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -23,8 +24,6 @@ import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunction
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -53,7 +52,7 @@ class ResendStateEventHandlerFunctionTest {
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
-                assertThat(it.statusCode(), equalTo(HttpStatus.OK))
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
     }
 }

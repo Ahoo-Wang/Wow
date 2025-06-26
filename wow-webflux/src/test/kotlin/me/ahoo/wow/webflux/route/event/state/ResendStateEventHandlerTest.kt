@@ -1,5 +1,6 @@
 package me.ahoo.wow.webflux.route.event.state
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.event.toDomainEventStream
@@ -15,8 +16,6 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
@@ -55,7 +54,7 @@ class ResendStateEventHandlerTest {
         handlerFunction.handle("(0)", 10)
             .test()
             .consumeNextWith {
-                assertThat(it.size, equalTo(1))
+                it.size.assert().isOne()
             }.verifyComplete()
     }
 }
