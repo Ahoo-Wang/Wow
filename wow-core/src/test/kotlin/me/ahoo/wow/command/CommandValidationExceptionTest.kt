@@ -17,12 +17,11 @@ import io.mockk.every
 import io.mockk.mockk
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.Path
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.command.CommandValidationException.Companion.toBindingErrors
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.id.GlobalIdGenerator
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class CommandValidationExceptionTest {
@@ -34,8 +33,8 @@ class CommandValidationExceptionTest {
             every { message } returns "name is blank"
         }
         val bindingErrors = setOf(constraintViolation).toBindingErrors()
-        assertThat(bindingErrors.first().name, equalTo(constraintViolation.propertyPath.toString()))
-        assertThat(bindingErrors.first().msg, equalTo(constraintViolation.message))
+        bindingErrors.first().name.assert().isEqualTo(constraintViolation.propertyPath.toString())
+        bindingErrors.first().msg.assert().isEqualTo(constraintViolation.message)
     }
 
     @Test
@@ -50,25 +49,20 @@ class CommandValidationExceptionTest {
 
         val exception =
             CommandValidationException(command, bindingErrors = listOf(BindingError("name", "name is blank")))
-        assertThat(exception.errorCode, equalTo(COMMAND_VALIDATION))
-        assertThat(exception.message, equalTo("name is blank"))
-        assertThat(exception.errorMsg, equalTo("name is blank"))
-        assertThat(
-            exception.bindingErrors.first().name,
-            equalTo(constraintViolation.propertyPath.toString())
-        )
-        assertThat(
-            exception.bindingErrors.first().msg,
-            equalTo(constraintViolation.message)
-        )
+        exception.errorCode.assert().isEqualTo(COMMAND_VALIDATION)
+        exception.message.assert().isEqualTo("name is blank")
+        exception.errorMsg.assert().isEqualTo("name is blank")
+
+        exception.bindingErrors.first().name.assert().isEqualTo(constraintViolation.propertyPath.toString())
+        exception.bindingErrors.first().msg.assert().isEqualTo(constraintViolation.message)
     }
 
     @Test
     fun testIfEmpty() {
         val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
         val exception = CommandValidationException(command)
-        assertThat(exception.errorCode, equalTo(COMMAND_VALIDATION))
-        assertThat(exception.message, equalTo("Command validation failed."))
-        assertThat(exception.errorMsg, equalTo("Command validation failed."))
+        exception.errorCode.assert().isEqualTo(COMMAND_VALIDATION)
+        exception.message.assert().isEqualTo("Command validation failed.")
+        exception.errorMsg.assert().isEqualTo("Command validation failed.")
     }
 }

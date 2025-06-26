@@ -2,8 +2,7 @@ package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class CommandResultExceptionTest {
@@ -16,8 +15,8 @@ class CommandResultExceptionTest {
             every { bindingErrors } returns emptyList()
         }
         val commandResultException = CommandResultException(commandResult)
-        assertThat(commandResultException.errorCode, equalTo(commandResult.errorCode))
-        assertThat(commandResultException.errorMsg, equalTo(commandResult.errorMsg))
-        assertThat(commandResultException.bindingErrors, equalTo(commandResult.bindingErrors))
+        commandResultException.errorCode.assert().isEqualTo(commandResult.errorCode)
+        commandResultException.errorMsg.assert().isEqualTo(commandResult.errorMsg)
+        commandResultException.bindingErrors.assert().isEqualTo(commandResult.bindingErrors)
     }
 }

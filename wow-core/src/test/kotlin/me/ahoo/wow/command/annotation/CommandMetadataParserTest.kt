@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.command.annotation
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.MockCommandWithAllowCreate
 import me.ahoo.wow.command.MockCommandWithDefaultNamedId
@@ -23,8 +24,6 @@ import me.ahoo.wow.command.MockInheritStaticCommand
 import me.ahoo.wow.command.MockNamedCommand
 import me.ahoo.wow.command.MockStaticCommand
 import me.ahoo.wow.command.NAMED_COMMAND
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 /**
@@ -42,101 +41,76 @@ internal class CommandMetadataParserTest {
     @Test
     fun parseWithDefaultNamedId() {
         val metadata = commandMetadata<MockCommandWithDefaultNamedId>()
-        assertThat(metadata.isCreate, equalTo(false))
-        assertThat(metadata.staticTenantId, nullValue())
-        assertThat(metadata.aggregateIdGetter, notNullValue())
+        metadata.isCreate.assert().isEqualTo(false)
+        metadata.staticTenantId.assert().isNull()
+        metadata.aggregateIdGetter.assert().isNotNull()
     }
 
     @Test
     fun parseWithAllowCreate() {
         val metadata = commandMetadata<MockCommandWithAllowCreate>()
-        assertThat(metadata.allowCreate, equalTo(true))
-        assertThat(metadata.aggregateIdGetter, notNullValue())
+        metadata.allowCreate.assert().isEqualTo(true)
+        metadata.aggregateIdGetter.assert().isNotNull()
     }
 
     @Test
     fun parseWithoutTargetAggregateId() {
         val metadata = commandMetadata<MockCommandWithoutTargetAggregateId>()
-        assertThat(metadata.isCreate, equalTo(false))
-        assertThat(metadata.aggregateIdGetter, nullValue())
+        metadata.isCreate.assert().isEqualTo(false)
+        metadata.aggregateIdGetter.assert().isNull()
     }
 
     @Test
     fun parseWithVersion() {
         val metadata = commandMetadata<MockCommandWithExpectedAggregateVersion>()
-        assertThat(metadata, notNullValue())
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockCommandWithExpectedAggregateVersion::class.java,
-            ),
-        )
-        assertThat(metadata.isCreate, equalTo(false))
-        assertThat(metadata.aggregateIdGetter, notNullValue())
-        assertThat(metadata.aggregateVersionGetter, notNullValue())
+        metadata.assert().isNotNull()
+        metadata.commandType.assert().isEqualTo(MockCommandWithExpectedAggregateVersion::class.java,)
+        metadata.isCreate.assert().isEqualTo(false)
+        metadata.aggregateIdGetter.assert().isNotNull()
+        metadata.aggregateVersionGetter.assert().isNotNull()
         val command = MockCommandWithExpectedAggregateVersion("1", 1)
-        assertThat(metadata.aggregateIdGetter!![command], equalTo("1"))
-        assertThat(metadata.aggregateVersionGetter, notNullValue())
-        assertThat(metadata.aggregateVersionGetter!![command], equalTo(1))
+        metadata.aggregateIdGetter!![command].assert().isEqualTo("1")
+        metadata.aggregateVersionGetter.assert().isNotNull()
+        metadata.aggregateVersionGetter!![command].assert().isEqualTo(1)
     }
 
     @Test
     fun parseWithCreateAggregate() {
         val metadata = commandMetadata<MockCreateCommand>()
-        assertThat(metadata, notNullValue())
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockCreateCommand::class.java,
-            ),
-        )
-        assertThat(metadata.isCreate, equalTo(true))
-        assertThat(metadata.aggregateIdGetter, notNullValue())
-        assertThat(metadata.aggregateVersionGetter, equalTo(null))
+        metadata.assert().isNotNull()
+        metadata.commandType.assert().isEqualTo(MockCreateCommand::class.java,)
+        metadata.isCreate.assert().isEqualTo(true)
+        metadata.aggregateIdGetter.assert().isNotNull()
+        metadata.aggregateVersionGetter.assert().isEqualTo(null)
     }
 
     @Test
     fun parseWithCommandName() {
         val metadata = commandMetadata<MockNamedCommand>()
-        assertThat(metadata, notNullValue())
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockNamedCommand::class.java,
-            ),
-        )
-        assertThat(metadata.name, equalTo(NAMED_COMMAND))
-        assertThat(metadata.isCreate, equalTo(false))
-        assertThat(metadata.aggregateIdGetter, notNullValue())
-        assertThat(metadata.aggregateVersionGetter, equalTo(null))
+        metadata.assert().isNotNull()
+        metadata.commandType.assert().isEqualTo(MockNamedCommand::class.java,)
+        metadata.name.assert().isEqualTo(NAMED_COMMAND)
+        metadata.isCreate.assert().isEqualTo(false)
+        metadata.aggregateIdGetter.assert().isNotNull()
+        metadata.aggregateVersionGetter.assert().isEqualTo(null)
     }
 
     @Test
     fun parseWithStatic() {
         val metadata = commandMetadata<MockStaticCommand>()
-        assertThat(metadata, notNullValue())
-        assertThat(metadata.staticTenantId, equalTo(TenantId.DEFAULT_TENANT_ID))
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockStaticCommand::class.java,
-            ),
-        )
-        assertThat(metadata.aggregateIdGetter!![MockStaticCommand()], equalTo("staticAggregateId"))
-        assertThat(metadata.tenantIdGetter!![MockStaticCommand()], equalTo(TenantId.DEFAULT_TENANT_ID))
+        metadata.assert().isNotNull()
+        metadata.staticTenantId.assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
+        metadata.commandType.assert().isEqualTo(MockStaticCommand::class.java,)
+        metadata.aggregateIdGetter!![MockStaticCommand()].assert().isEqualTo("staticAggregateId")
+        metadata.tenantIdGetter!![MockStaticCommand()].assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
     }
 
     @Test
     fun parseWithInheritStatic() {
         val metadata = commandMetadata<MockInheritStaticCommand>()
-        assertThat(metadata, notNullValue())
-        assertThat(
-            metadata.commandType,
-            equalTo(
-                MockInheritStaticCommand::class.java,
-            ),
-        )
-        assertThat(metadata.aggregateIdGetter!![MockInheritStaticCommand()], equalTo("staticAggregateId"))
-        assertThat(metadata.tenantIdGetter!![MockInheritStaticCommand()], equalTo(TenantId.DEFAULT_TENANT_ID))
+        metadata.assert().isNotNull()
+        metadata.commandType.assert().isEqualTo(MockInheritStaticCommand::class.java,)
+        metadata.aggregateIdGetter!![MockInheritStaticCommand()].assert().isEqualTo("staticAggregateId")
+        metadata.tenantIdGetter!![MockInheritStaticCommand()].assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
     }
 }
