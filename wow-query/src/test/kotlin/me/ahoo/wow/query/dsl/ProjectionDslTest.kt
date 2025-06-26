@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.query.snapshot.nestedState
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class ProjectionDslTest {
@@ -27,13 +26,10 @@ class ProjectionDslTest {
             include("field1")
             exclude("field2")
         }
-        assertThat(
-            projection,
-            equalTo(
-                Projection(
-                    include = listOf("field1"),
-                    exclude = listOf("field2")
-                )
+        projection.assert().isEqualTo(
+            Projection(
+                include = listOf("field1"),
+                exclude = listOf("field2")
             )
         )
     }
@@ -45,13 +41,10 @@ class ProjectionDslTest {
             include("field1")
             exclude("field2")
         }
-        assertThat(
-            projection,
-            equalTo(
-                Projection(
-                    include = listOf("state.field1"),
-                    exclude = listOf("state.field2")
-                )
+        projection.assert().isEqualTo(
+            Projection(
+                include = listOf("state.field1"),
+                exclude = listOf("state.field2")
             )
         )
     }

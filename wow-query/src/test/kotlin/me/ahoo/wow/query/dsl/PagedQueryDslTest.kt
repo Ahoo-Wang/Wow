@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.Sort
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 
 class PagedQueryDslTest {
@@ -60,41 +59,37 @@ class PagedQueryDslTest {
                 }
             }
         }
-
-        assertThat(pagedQuery.pagination.index, equalTo(1))
-        assertThat(pagedQuery.pagination.size, equalTo(10))
-        assertThat(pagedQuery.sort, equalTo(listOf(Sort("field1", Sort.Direction.ASC))))
-        assertThat(
-            pagedQuery.condition,
-            equalTo(
-                Condition.and(
-                    listOf(
-                        Condition.eq("field1", "value1"),
-                        Condition.ne("field2", "value2"),
-                        Condition.gt("filed3", 1),
-                        Condition.lt("field4", 1),
-                        Condition.gte("field5", 1),
-                        Condition.lte("field6", 1),
-                        Condition.contains("field7", "value7"),
-                        Condition.isIn("field8", listOf("value8")),
-                        Condition.notIn("field9", listOf("value9")),
-                        Condition.between("field10", 1, 2),
-                        Condition.all("field11", listOf("value11")),
-                        Condition.startsWith("field12", "value12"),
-                        Condition.elemMatch("field13", Condition.eq("field14", "value14")),
-                        Condition.isNull("field15"),
-                        Condition.notNull("field16"),
-                        Condition.and(
-                            listOf(
-                                Condition.eq("field3", "value3"),
-                                Condition.eq("field4", "value4")
-                            )
-                        ),
-                        Condition.or(
-                            listOf(
-                                Condition.eq("field3", "value3"),
-                                Condition.eq("field4", "value4")
-                            )
+        pagedQuery.pagination.index.assert().isOne()
+        pagedQuery.pagination.size.assert().isEqualTo(10)
+        pagedQuery.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
+        pagedQuery.condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.eq("field1", "value1"),
+                    Condition.ne("field2", "value2"),
+                    Condition.gt("filed3", 1),
+                    Condition.lt("field4", 1),
+                    Condition.gte("field5", 1),
+                    Condition.lte("field6", 1),
+                    Condition.contains("field7", "value7"),
+                    Condition.isIn("field8", listOf("value8")),
+                    Condition.notIn("field9", listOf("value9")),
+                    Condition.between("field10", 1, 2),
+                    Condition.all("field11", listOf("value11")),
+                    Condition.startsWith("field12", "value12"),
+                    Condition.elemMatch("field13", Condition.eq("field14", "value14")),
+                    Condition.isNull("field15"),
+                    Condition.notNull("field16"),
+                    Condition.and(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
+                        )
+                    ),
+                    Condition.or(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
                         )
                     )
                 )
