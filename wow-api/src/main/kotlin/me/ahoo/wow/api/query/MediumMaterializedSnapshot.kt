@@ -48,7 +48,7 @@ data class MediumMaterializedSnapshot<S : Any>(
     override val firstEventTime: Long,
     override val eventTime: Long,
     override val state: S
-) : IMaterializedSnapshot<S>,
+) : IMaterializedSnapshot<MediumMaterializedSnapshot<S>, S>,
     TenantId,
     OwnerId,
     Version,
@@ -56,7 +56,11 @@ data class MediumMaterializedSnapshot<S : Any>(
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable
+    EventTimeCapable {
+    override fun withState(state: S): MediumMaterializedSnapshot<S> {
+        return copy(state = state)
+    }
+}
 
 fun <S : Any, D : Any> MaterializedSnapshot<S>.toMedium(materialize: (S) -> D): MediumMaterializedSnapshot<D> {
     return MediumMaterializedSnapshot(
