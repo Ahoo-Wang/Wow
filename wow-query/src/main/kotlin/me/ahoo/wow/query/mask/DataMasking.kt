@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.query.mask
 
-import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.IMaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 
 interface DataMasking<SOURCE : DataMasking<SOURCE>> : DataMasker {
@@ -28,16 +28,17 @@ fun <S : Any> S.tryMask(): S {
     return this
 }
 
-fun <S : Any> MaterializedSnapshot<S>.tryMask(): MaterializedSnapshot<S> {
+fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S> SOURCE.tryMask(): SOURCE {
     val state = this.state
-    if (state is DataMasking<*>) {
-        @Suppress("UNCHECKED_CAST")
-        return this.copy(state = state.mask() as S)
+    if (state !is DataMasking<*>) {
+        return this
     }
-    return this
+    @Suppress("UNCHECKED_CAST")
+    val maskedState = state.mask() as S
+    return this.withState(maskedState)
 }
 
-fun <T : Any> PagedList<MaterializedSnapshot<T>>.tryMask(): PagedList<MaterializedSnapshot<T>> {
+fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S> PagedList<SOURCE>.tryMask(): PagedList<SOURCE> {
     if (list.isEmpty()) {
         return this
     }
