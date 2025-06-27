@@ -27,7 +27,10 @@ import me.ahoo.wow.api.modeling.StateCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
 
-interface IMaterializedSnapshot<S : Any> : Materialized, StateCapable<S>
+interface IMaterializedSnapshot<SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> : Materialized, StateCapable<S> {
+
+    fun withState(state: S): SOURCE
+}
 
 data class MaterializedSnapshot<S : Any>(
     override val contextName: String,
@@ -44,7 +47,7 @@ data class MaterializedSnapshot<S : Any>(
     override val state: S,
     override val snapshotTime: Long,
     override val deleted: Boolean
-) : IMaterializedSnapshot<S>,
+) : IMaterializedSnapshot<MaterializedSnapshot<S>, S>,
     NamedAggregate,
     TenantId,
     OwnerId,
@@ -55,4 +58,8 @@ data class MaterializedSnapshot<S : Any>(
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
-    DeletedCapable
+    DeletedCapable {
+    override fun withState(state: S): MaterializedSnapshot<S> {
+        return copy(state = state)
+    }
+}

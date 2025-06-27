@@ -28,7 +28,11 @@ data class SmallMaterializedSnapshot<S : Any>(
     override val version: Int,
     override val firstEventTime: Long,
     override val state: S
-) : Version, FirstEventTimeCapable, IMaterializedSnapshot<S>
+) : Version, FirstEventTimeCapable, IMaterializedSnapshot<SmallMaterializedSnapshot<S>, S> {
+    override fun withState(state: S): SmallMaterializedSnapshot<S> {
+        return copy(state = state)
+    }
+}
 
 /**
  * Converts a materialized snapshot into a simplified snapshot form.
