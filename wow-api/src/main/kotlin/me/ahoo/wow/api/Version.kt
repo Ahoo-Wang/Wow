@@ -13,7 +13,6 @@
 package me.ahoo.wow.api
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import io.swagger.v3.oas.annotations.media.Schema
 
 /**
  * Version .
@@ -28,14 +27,12 @@ interface Version {
 
     val version: Int
 
-    @get:Schema(hidden = true)
     @get:JsonIgnore
     val initialized: Boolean
         get() {
             return version > UNINITIALIZED_VERSION
         }
 
-    @get:Schema(hidden = true)
     @get:JsonIgnore
     val isInitialVersion: Boolean
         get() {

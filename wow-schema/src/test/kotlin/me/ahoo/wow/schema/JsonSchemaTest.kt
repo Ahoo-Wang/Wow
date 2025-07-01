@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.query.SmallMaterializedSnapshot
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.serialization.toObject
@@ -46,5 +48,18 @@ class JsonSchemaTest {
         assertThrownBy<IllegalArgumentException> {
             emptySchema.requiredGetProperties()
         }
+    }
+
+    @Test
+    fun smallMaterializedSnapshot() {
+        val schema = jsonSchemaGenerator.generateSchema(
+            SmallMaterializedSnapshot::class.java,
+            String::class.java
+        )
+        val jsonSchema = schema.asJsonSchema(SchemaVersion.DRAFT_2020_12)
+        jsonSchema.getProperties().assert().isNotNull()
+        jsonSchema.getProperties()!!.get(Version::version.name).assert().isNotNull()
+        jsonSchema.getProperties()!!.get(Version::initialized.name).assert().isNull()
+        jsonSchema.getProperties()!!.get(Version::isInitialVersion.name).assert().isNull()
     }
 }
