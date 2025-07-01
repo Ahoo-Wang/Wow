@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 interface ICondition<C : ICondition<C>> {
+
     val field: String
 
     @get:Schema(defaultValue = "ALL")
@@ -35,13 +37,17 @@ interface ICondition<C : ICondition<C>> {
 }
 
 data class Condition(
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val field: String = EMPTY_VALUE,
     override val operator: Operator,
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val value: Any = EMPTY_VALUE,
     /**
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val children: List<Condition> = emptyList(),
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val options: Map<String, Any> = emptyMap()
 ) : ICondition<Condition>, RewritableCondition<Condition> {
     fun <V> valueAs(): V {
