@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 
 data class Sort(val field: String, val direction: Direction) {
@@ -37,8 +38,10 @@ data class Pagination(
 
 data class Projection(
     @field:Schema(defaultValue = "[]")
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val include: List<String> = emptyList(),
     @field:Schema(defaultValue = "[]")
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val exclude: List<String> = emptyList()
 ) {
     companion object {
