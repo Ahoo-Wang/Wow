@@ -3,7 +3,7 @@
 spring-boot = "3.5.3"
 cosid = "2.13.1"
 simba = "2.9.5"
-coapi = "1.12.5"
+coapi = "1.12.6"
 cocache = "3.10.2"
 testcontainers = "1.21.3"
 opentelemetry = "1.51.0"
