@@ -57,7 +57,7 @@
       </nz-form-item>
     </div>
     <div nz-col [nzSpan]="6">
-      <div style="margin-top: 24px">
+      <nz-space-compact style="margin-top: 24px">
         <button nz-button nzType="primary" (click)="load()" [nzLoading]="loading">
           <span nz-icon nzType="search"></span>
           Search
@@ -67,7 +67,7 @@
           <span nz-icon nzType="rest"></span>
           Reset
         </button>
-      </div>
+      </nz-space-compact>
     </div>
   </div>
 </form>
@@ -175,7 +175,7 @@
         </nz-select>
       </td>
       <td nzRight>
-        <nz-button-group>
+        <nz-space-compact>
           <button nz-button (click)="openErrorInfo(item)" nzSize="small"
                   nz-popover [nzPopoverOverlayStyle]="{width: '50vw'}"
                   [nzPopoverTitle]="item.error.errorCode" [nzPopoverContent]="item.error.errorMsg">
@@ -204,7 +204,7 @@
               F-Retry
             </button>
           </ng-template>
-        </nz-button-group>
+        </nz-space-compact>
       </td>
     </tr>
     <ng-template [ngIf]="expandSet.has(item.id)">

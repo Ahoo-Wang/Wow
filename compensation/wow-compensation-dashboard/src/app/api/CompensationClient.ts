@@ -12,7 +12,7 @@
  */
 import {Injectable} from "@angular/core";
 import {environment} from "../../environments/environment";
-import {HttpClient} from "@angular/common/http";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {Observable} from "rxjs";
 import {ExecutionFailedState} from "./ExecutionFailedState";
 import {CommandResult, Stage} from "./CommandResult";
@@ -27,7 +27,6 @@ import {Conditions, Operator, Projections} from "./Query";
 import {ListQuery} from "./ListQuery";
 import {eventStreamVersionedPagedQuery, MAX_VERSION} from "./EventStreamQuery";
 import {DeviceIdStoreService} from "../service/device-id-store.service";
-import {HttpHeaders} from "@angular/common/module.d-CnjH8Dlt";
 
 const AppId= 'wow-compensation-dashboard';
 

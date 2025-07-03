@@ -43,14 +43,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 10
+          run_install: false
+
       - name: Set up NodeJs 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
 
       - name: Install Packages
         working-directory: compensation/wow-compensation-dashboard
-        run: npm install && npm install -g @angular/cli
+        run: pnpm install && pnpm install -g @angular/cli
 
       - name: Build Dashboard-UI
         working-directory: compensation/wow-compensation-dashboard
