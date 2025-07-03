@@ -13,3 +13,10 @@ gradle-app.setting
 # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
 # gradle/wrapper/gradle-wrapper.properties
 
+# 忽略 .DS_Store 文件
+.DS_Store
+
+# 其他忽略规则（如果已有其他内容，请保留）
+/.vscode/
+/jte-classes/
+/.kotlin/
