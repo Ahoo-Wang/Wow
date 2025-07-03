@@ -39,7 +39,6 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
   imports: [
     NzTableModule,
     NzCellFixedDirective,
-    NgForOf,
     NzButtonModule,
     NzPopconfirmDirective,
     DatePipe,
@@ -48,7 +47,6 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
     NzTypographyComponent,
     NzCountdownComponent,
     ErrorComponent,
-    NgIf,
     FailedHistoryComponent,
     NzIconModule,
     NzDrawerModule,
@@ -63,7 +61,7 @@ import {NzFlexModule} from 'ng-zorro-antd/flex';
     NzFormItemComponent,
     NzFormLabelComponent,
     NzRowDirective,
-    ReactiveFormsModule, NzDividerModule, NzPopoverDirective, NzSpaceModule, NzFlexModule
+    ReactiveFormsModule, NzDividerModule, NzPopoverDirective, NzSpaceModule, NzFlexModule, NgForOf, NgIf
   ],
   styleUrls: ['./failed-list.component.scss']
 })
@@ -244,7 +242,6 @@ export class FailedListComponent implements OnInit {
   }
 
   editRetrySpec(id: string, retrySpec: RetrySpec) {
-    debugger
     const editRetrySpecModal = this.drawerService.create<ApplyRetrySpecComponent, {
       id: string,
       retrySpec: RetrySpec

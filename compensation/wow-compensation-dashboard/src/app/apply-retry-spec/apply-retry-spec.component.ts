@@ -19,7 +19,7 @@ import {
 import {NzColDirective} from "ng-zorro-antd/grid";
 import {NzInputModule} from 'ng-zorro-antd/input';
 import {NzButtonModule} from "ng-zorro-antd/button";
-import {NzInputNumberModule} from "ng-zorro-antd/input-number";
+import {NzInputNumberComponent} from "ng-zorro-antd/input-number";
 
 @Component({
   selector: 'app-apply-retry-spec',
@@ -33,7 +33,7 @@ import {NzInputNumberModule} from "ng-zorro-antd/input-number";
     NzFormControlComponent,
     NzButtonModule,
     FormsModule,
-    NzInputNumberModule
+    NzInputNumberComponent
   ],
   templateUrl: './apply-retry-spec.component.html',
   styleUrl: './apply-retry-spec.component.scss'
