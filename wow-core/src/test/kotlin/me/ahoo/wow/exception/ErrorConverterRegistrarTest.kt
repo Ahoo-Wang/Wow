@@ -2,6 +2,10 @@ package me.ahoo.wow.exception
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.CommandResultException
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 
 class ErrorInfoConverterRegistrarTest {
@@ -14,6 +18,22 @@ class ErrorInfoConverterRegistrarTest {
         CustomException().toErrorInfo().errorCode.assert().isEqualTo(ErrorCodes.BAD_REQUEST)
         ErrorConverterRegistrar.register(CustomExceptionErrorConverterFactory()).assert().isNull()
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
+    }
+
+    @Test
+    fun commandResultExceptionToErrorInfo() {
+        val commandResult = CommandResult(
+            id = generateGlobalId(),
+            stage = CommandStage.SENT,
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            requestId = generateGlobalId(),
+            commandId = generateGlobalId(),
+            contextName = "contextName",
+            processorName = "processorName",
+            errorCode = ErrorCodes.NOT_FOUND
+        )
+        CommandResultException(commandResult).toErrorInfo().assert().isEqualTo(commandResult)
     }
 }
 

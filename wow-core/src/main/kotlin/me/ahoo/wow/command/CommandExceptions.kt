@@ -16,6 +16,7 @@ package me.ahoo.wow.command
 import jakarta.validation.ConstraintViolation
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfoCapable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
@@ -41,7 +42,11 @@ class CommandResultException(val commandResult: CommandResult, cause: Throwable?
         errorMsg = commandResult.errorMsg,
         cause = cause,
         bindingErrors = commandResult.bindingErrors
-    )
+    ),
+    ErrorInfoCapable {
+    override val errorInfo: ErrorInfo
+        get() = commandResult
+}
 
 class CommandValidationException(
     val command: Any,

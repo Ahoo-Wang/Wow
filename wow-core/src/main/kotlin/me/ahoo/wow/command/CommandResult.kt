@@ -21,6 +21,7 @@ import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.NullableAggregateVersionCapable
 import me.ahoo.wow.command.wait.SignalTimeCapable
@@ -52,7 +53,8 @@ data class CommandResult(
     ProcessorInfo,
     CommandResultCapable,
     SignalTimeCapable,
-    NullableAggregateVersionCapable
+    NullableAggregateVersionCapable,
+    Materialized
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
