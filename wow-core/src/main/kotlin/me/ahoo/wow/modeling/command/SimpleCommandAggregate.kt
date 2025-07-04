@@ -51,6 +51,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         exchange.setFunction(processorFunction)
+        exchange.setAggregateVersion(version)
         val message = exchange.message
         val commandType = message.body.javaClass
         return Mono.defer {
@@ -96,6 +97,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 /**
                  * 持久化事件存储,完成持久化领域事件意味着命令已经完成.
                  */
+                exchange.setAggregateVersion(eventStream.version)
                 commandState.onStore(eventStore, eventStream).doOnNext { commandState = it }
                     .doOnError { commandState = CommandState.EXPIRED }.thenReturn(eventStream)
             }

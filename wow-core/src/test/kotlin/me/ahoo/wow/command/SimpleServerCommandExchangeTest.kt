@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Test
 class SimpleServerCommandExchangeTest {
 
     @Test
-    fun set() {
+    fun main() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor().assert().isNotNull()
         commandExchange.setEventStream(mockk()).getEventStream().assert().isNotNull()
+        commandExchange.getAggregateVersion().assert().isNull()
+        commandExchange.setAggregateVersion(1).getAggregateVersion().assert().isEqualTo(1)
     }
 
     @Test

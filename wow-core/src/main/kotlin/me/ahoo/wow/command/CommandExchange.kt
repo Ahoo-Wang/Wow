@@ -43,6 +43,7 @@ class SimpleClientCommandExchange<C : Any>(
 const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
 const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
+const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
 
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
 
@@ -68,6 +69,14 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
 
     fun getEventStream(): DomainEventStream? {
         return getAttribute(EVENT_STREAM_KEY)
+    }
+
+    fun setAggregateVersion(aggregateVersion: Int): ServerCommandExchange<C> {
+        return setAttribute(AGGREGATE_VERSION_KEY, aggregateVersion)
+    }
+
+    override fun getAggregateVersion(): Int? {
+        return getAttribute(AGGREGATE_VERSION_KEY)
     }
 
     override fun getError(): Throwable? {

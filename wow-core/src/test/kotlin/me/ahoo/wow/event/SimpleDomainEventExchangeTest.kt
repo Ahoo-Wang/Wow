@@ -1,5 +1,6 @@
 package me.ahoo.wow.event
 
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
@@ -9,14 +10,19 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
-class ExchangeEventFunctionKtTest {
+class SimpleDomainEventExchangeTest {
 
     @Test
-    fun setEventFunction() {
-        val exchange = SimpleDomainEventExchange(mockk<DomainEvent<Any>>())
+    fun main() {
+        val exchange = SimpleDomainEventExchange(
+            mockk<DomainEvent<Any>> {
+                every { version } returns 1
+            }
+        )
         val mockEventFunction = MockEventFunction()
         exchange.setFunction(mockEventFunction).getEventFunction().assert().isNotNull()
         exchange.getFunction().assert().isNotNull()
+        exchange.getAggregateVersion().assert().isOne()
     }
 
     class MockEventFunction : MessageFunction<Any, DomainEventExchange<*>, Mono<Void>> {
