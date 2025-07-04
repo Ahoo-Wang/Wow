@@ -28,16 +28,20 @@ interface SignalTimeCapable {
     val signalTime: Long
 }
 
+interface NullableAggregateVersionCapable {
+    val aggregateVersion: Int?
+}
+
 interface WaitSignal :
     Identifier,
     CommandId,
+    NullableAggregateVersionCapable,
     ErrorInfo,
     SignalTimeCapable,
     CommandResultCapable,
     FunctionInfoCapable<FunctionInfoData> {
     val stage: CommandStage
     val isLastProjection: Boolean
-
     fun copyResult(result: Map<String, Any>): WaitSignal
 }
 
@@ -46,6 +50,7 @@ data class SimpleWaitSignal(
     override val commandId: String,
     override val stage: CommandStage,
     override val function: FunctionInfoData,
+    override val aggregateVersion: Int? = null,
     override val isLastProjection: Boolean = false,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
@@ -59,6 +64,7 @@ data class SimpleWaitSignal(
             commandId: String,
             stage: CommandStage,
             isLastProjection: Boolean = false,
+            aggregateVersion: Int? = null,
             errorCode: String = ErrorCodes.SUCCEEDED,
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
             bindingErrors: List<BindingError> = emptyList(),
@@ -70,6 +76,7 @@ data class SimpleWaitSignal(
                 commandId = commandId,
                 stage = stage,
                 function = this.materialize(),
+                aggregateVersion = aggregateVersion,
                 isLastProjection = isLastProjection,
                 errorCode = errorCode,
                 errorMsg = errorMsg,
