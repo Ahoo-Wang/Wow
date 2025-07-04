@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.handler
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionInfo
@@ -83,6 +84,13 @@ interface MessageExchange<SOURCE : MessageExchange<SOURCE, M>, out M : Message<*
 
     fun getServiceProvider(): ServiceProvider? {
         return getAttribute(SERVICE_PROVIDER_KEY)
+    }
+
+    fun getAggregateVersion(): Int? {
+        if (message is Version) {
+            return (message as Version).version
+        }
+        return null
     }
 
     override fun getCommandResult(): Map<String, Any> {
