@@ -16,6 +16,7 @@ package me.ahoo.wow.exception
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.materialize
 import me.ahoo.wow.api.exception.ErrorInfoCapable
+import java.io.FileNotFoundException
 import java.lang.reflect.ParameterizedType
 import java.util.concurrent.TimeoutException
 
@@ -48,6 +49,7 @@ object DefaultErrorConverter : ErrorConverter<Throwable> {
             is IllegalArgumentException -> ErrorCodes.ILLEGAL_ARGUMENT
             is IllegalStateException -> ErrorCodes.ILLEGAL_STATE
             is TimeoutException -> ErrorCodes.REQUEST_TIMEOUT
+            is FileNotFoundException -> ErrorCodes.NOT_FOUND
             else -> ErrorCodes.BAD_REQUEST
         }
         return ErrorInfo.of(errorCode, error.message)

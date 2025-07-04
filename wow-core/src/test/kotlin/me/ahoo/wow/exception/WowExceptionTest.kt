@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.io.FileNotFoundException
 import java.util.concurrent.TimeoutException
 import java.util.stream.Stream
 
@@ -53,6 +54,7 @@ class WowExceptionTest {
                 Arguments.arguments(IllegalStateException("test"), ErrorCodes.ILLEGAL_STATE),
                 Arguments.arguments(TimeoutException("test"), ErrorCodes.REQUEST_TIMEOUT),
                 Arguments.arguments(Exception("test"), ErrorCodes.BAD_REQUEST),
+                Arguments.arguments(FileNotFoundException("test"), ErrorCodes.NOT_FOUND),
             )
         }
     }
