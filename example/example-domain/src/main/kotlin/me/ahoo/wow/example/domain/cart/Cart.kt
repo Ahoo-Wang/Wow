@@ -67,10 +67,11 @@ class Cart(private val state: CartState) {
     }
 
     fun onCommand(command: ChangeQuantity): CartQuantityChanged {
+        val item = state.items.firstOrNull {
+            it.productId == command.productId
+        } ?: throw IllegalArgumentException("商品[${command.productId}]不存在.")
         return CartQuantityChanged(
-            changed = state.items.first {
-                it.productId == command.productId
-            }.copy(quantity = command.quantity),
+            changed = item.copy(quantity = command.quantity),
         )
     }
 }

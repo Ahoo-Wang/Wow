@@ -19,7 +19,6 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.toCommandResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest

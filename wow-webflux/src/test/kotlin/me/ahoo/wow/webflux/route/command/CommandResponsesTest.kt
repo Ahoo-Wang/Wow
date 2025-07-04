@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route
+package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
 import io.mockk.mockk
@@ -19,8 +19,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
@@ -36,34 +34,12 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import java.util.concurrent.TimeoutException
 
-class ResponsesKtTest {
-
+class CommandResponsesTest {
     @Test
-    fun toResponseEntity() {
-        val responseEntity = IllegalArgumentException()
-            .toResponseEntity()
-        responseEntity.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        responseEntity.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-        responseEntity.headers.getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
-    }
-
-    @Test
-    fun toServerResponse() {
-        IllegalArgumentException()
-            .toErrorInfo()
-            .toServerResponse()
-            .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
-                it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun commandResultToServerResponse() {
+    fun toCommandResponse() {
+        val serverRequest = MockServerRequest.builder().build()
         CommandResult(
             id = generateGlobalId(),
             stage = CommandStage.SENT,
@@ -74,7 +50,8 @@ class ResponsesKtTest {
             contextName = "contextName",
             processorName = "processorName",
         ).toMono()
-            .toServerResponse(MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
+            .toFlux()
+            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -85,8 +62,8 @@ class ResponsesKtTest {
     }
 
     @Test
-    fun `verify list query sse headers`() {
-        val mockRequest = MockServerRequest.builder()
+    fun toStreamCommandResponse() {
+        val serverRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
         val serverHttpRequest = MockServerHttpRequest.put("").build()
@@ -96,21 +73,61 @@ class ResponsesKtTest {
                 messageWriters()
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
-        listOf(generateGlobalId())
+        CommandResult(
+            id = generateGlobalId(),
+            stage = CommandStage.SENT,
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            requestId = generateGlobalId(),
+            commandId = generateGlobalId(),
+            contextName = "contextName",
+            processorName = "processorName",
+        ).toMono()
             .toFlux()
-            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
-            .test()
-            .consumeNextWith {
-                it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
-                it.statusCode().assert().isEqualTo(HttpStatus.OK)
-                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .flatMap {
+                it.writeTo(serverWebExchange, responseContext)
             }
+            .test()
             .verifyComplete()
     }
 
     @Test
-    fun `verify list query sse error`() {
+    fun toStreamCommandResponseTimeout() {
+        val serverRequest = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val serverHttpRequest = MockServerHttpRequest.put("").build()
+        val serverWebExchange = MockServerWebExchange.builder(serverHttpRequest).build()
+        val responseContext = mockk<ServerResponse.Context> {
+            every {
+                messageWriters()
+            } returns listOf(ServerSentEventHttpMessageWriter())
+        }
+        CommandResult(
+            id = generateGlobalId(),
+            stage = CommandStage.SENT,
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            requestId = generateGlobalId(),
+            commandId = generateGlobalId(),
+            contextName = "contextName",
+            processorName = "processorName",
+        ).toMono()
+            .toFlux()
+            .doOnNext {
+                throw TimeoutException()
+            }
+            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .flatMap {
+                it.writeTo(serverWebExchange, responseContext)
+            }
+            .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `verify sse headers`() {
         val mockRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
@@ -121,8 +138,18 @@ class ResponsesKtTest {
                 messageWriters()
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
-        IllegalArgumentException().toFlux<String>()
-            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
+        CommandResult(
+            id = generateGlobalId(),
+            stage = CommandStage.SENT,
+            aggregateId = generateGlobalId(),
+            tenantId = generateGlobalId(),
+            requestId = generateGlobalId(),
+            commandId = generateGlobalId(),
+            contextName = "contextName",
+            processorName = "processorName",
+        ).toMono()
+            .toFlux()
+            .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
             .test()
             .consumeNextWith {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
