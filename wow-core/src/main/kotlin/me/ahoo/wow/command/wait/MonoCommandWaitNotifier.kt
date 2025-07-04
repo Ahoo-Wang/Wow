@@ -104,6 +104,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             id = messageExchange.message.id,
             commandId = messageExchange.message.commandId,
             stage = processingStage,
+            aggregateVersion = messageExchange.getAggregateVersion(),
             isLastProjection = isLastProjection,
             errorCode = error.errorCode,
             errorMsg = error.errorMsg,

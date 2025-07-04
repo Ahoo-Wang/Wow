@@ -22,6 +22,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.NullableAggregateVersionCapable
 import me.ahoo.wow.command.wait.SignalTimeCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
@@ -31,6 +32,7 @@ import me.ahoo.wow.id.generateGlobalId
 data class CommandResult(
     val stage: CommandStage,
     val aggregateId: String,
+    override val aggregateVersion: Int? = null,
     override val id: String,
     override val contextName: String,
     override val processorName: String,
@@ -42,13 +44,22 @@ data class CommandResult(
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
     override val signalTime: Long = System.currentTimeMillis()
-) : Identifier, CommandId, TenantId, RequestId, ErrorInfo, ProcessorInfo, CommandResultCapable, SignalTimeCapable
+) : Identifier,
+    CommandId,
+    TenantId,
+    RequestId,
+    ErrorInfo,
+    ProcessorInfo,
+    CommandResultCapable,
+    SignalTimeCapable,
+    NullableAggregateVersionCapable
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         id = this.id,
         stage = this.stage,
         aggregateId = commandMessage.aggregateId.id,
+        aggregateVersion = aggregateVersion,
         contextName = function.contextName,
         processorName = function.processorName,
         tenantId = commandMessage.aggregateId.tenantId,
