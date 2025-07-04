@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.exception
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -26,13 +27,16 @@ interface RequestExceptionHandler {
 
 object DefaultRequestExceptionHandler : RequestExceptionHandler {
     private val log = KotlinLogging.logger {}
-    private fun ServerRequest.formatRequest(): String {
+    fun ServerRequest.formatRequest(): String {
         return "HTTP ${method()} ${uri()}"
     }
 
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
         log.warn(throwable) {
             request.formatRequest()
+        }
+        if (throwable is CommandResultException) {
+            return throwable.commandResult.toServerResponse()
         }
         return throwable.toErrorInfo().toServerResponse()
     }

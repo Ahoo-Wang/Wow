@@ -14,7 +14,6 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
@@ -77,25 +76,6 @@ fun <T : Any> Flux<T>.toServerResponse(
             .data(it.toJsonString())
             .build()
     }.toEventStreamResponse(request, exceptionHandler)
-}
-
-fun Flux<CommandResult>.toCommandResponse(
-    request: ServerRequest,
-    exceptionHandler: RequestExceptionHandler
-): Mono<ServerResponse> {
-    if (!request.isSse()) {
-        return this.next().toServerResponse(request, exceptionHandler)
-    }
-
-    val serverSentEventStream = this.map {
-        ServerSentEvent.builder<String>()
-            .id(it.id)
-            .event(it.stage.name)
-            .data(it.toJsonString())
-            .build()
-    }.errorResume(request, exceptionHandler)
-
-    return serverSentEventStream.toEventStreamResponse(request, exceptionHandler)
 }
 
 fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
