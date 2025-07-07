@@ -36,6 +36,9 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         log.warn(ex) {
             exchange.request.formatRequest()
         }
+        if (exchange.response.isCommitted) {
+            return Mono.empty()
+        }
 
         val errorInfo = when (ex) {
             is BindingResult -> ex.toBindingErrorInfo()
@@ -44,9 +47,8 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         val status = errorInfo.toHttpStatus()
         val response = exchange.response
         response.statusCode = status
-        if (response.trySetHeader(CommonComponent.Header.WOW_ERROR_CODE, errorInfo.errorCode)) {
-            response.headers.contentType = MediaType.APPLICATION_JSON
-        }
+        response.headers.contentType = MediaType.APPLICATION_JSON
+        response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, errorInfo.errorCode)
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 
