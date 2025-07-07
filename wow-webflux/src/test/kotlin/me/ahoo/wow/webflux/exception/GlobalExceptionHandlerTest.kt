@@ -61,6 +61,38 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    fun handleReadOnlyHeaders() {
+        val request = mockk<ServerHttpRequest> {
+            every { method } returns HttpMethod.GET
+            every { uri } returns URI.create("http://localhost:8080")
+        }
+
+        val response = mockk<ServerHttpResponse> {
+            every { setStatusCode(any()) } returns true
+            every {
+                headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            } throws UnsupportedOperationException()
+            every { bufferFactory() } returns DefaultDataBufferFactory()
+            every { writeWith(any()) } returns Mono.empty()
+        }
+
+        val exchange = mockk<ServerWebExchange> {
+            every { getRequest() } returns request
+            every { getResponse() } returns response
+        }
+
+        GlobalExceptionHandler.handle(exchange, IllegalArgumentException("error"))
+            .test()
+            .verifyComplete()
+
+        verify {
+            response.setStatusCode(HttpStatus.BAD_REQUEST)
+            response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.writeWith(any())
+        }
+    }
+
+    @Test
     fun handleIfBindingError() {
         val request = mockk<ServerHttpRequest> {
             every { method } returns HttpMethod.GET
