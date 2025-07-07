@@ -69,10 +69,7 @@ class GlobalExceptionHandlerTest {
         }
 
         val response = mockk<ServerHttpResponse> {
-            every { setStatusCode(any()) } returns true
             every { isCommitted } returns true
-            every { bufferFactory() } returns DefaultDataBufferFactory()
-            every { writeWith(any()) } returns Mono.empty()
         }
 
         val exchange = mockk<ServerWebExchange> {
@@ -83,11 +80,6 @@ class GlobalExceptionHandlerTest {
         GlobalExceptionHandler.handle(exchange, IllegalArgumentException("error"))
             .test()
             .verifyComplete()
-
-        verify {
-            response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.writeWith(any())
-        }
     }
 
     @Test
