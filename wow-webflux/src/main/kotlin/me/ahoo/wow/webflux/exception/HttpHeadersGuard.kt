@@ -14,6 +14,14 @@
 package me.ahoo.wow.webflux.exception
 
 import org.springframework.http.HttpHeaders
+import org.springframework.http.server.reactive.ServerHttpResponse
+
+fun ServerHttpResponse.trySetHeader(key: String, value: String): Boolean {
+    if (this.isCommitted) {
+        return false
+    }
+    return this.headers.trySet(key, value)
+}
 
 fun HttpHeaders.trySet(key: String, value: String): Boolean {
     try {

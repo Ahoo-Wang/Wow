@@ -18,8 +18,22 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import org.springframework.mock.http.server.reactive.MockServerHttpResponse
 
 class HttpHeadersGuardTest {
+
+    @Test
+    fun trySetHeader() {
+        val response = MockServerHttpResponse()
+        response.trySetHeader(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT).assert().isTrue()
+        response.headers.getFirst(CommonComponent.Header.WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+        response.isCommitted.assert().isFalse()
+        response.setComplete().block()
+        response.isCommitted.assert().isTrue()
+        response.trySetHeader(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.NOT_FOUND).assert().isFalse()
+        response.headers.getFirst(CommonComponent.Header.WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
     @Test
     fun trySet() {
         val httpHeaders = HttpHeaders()
