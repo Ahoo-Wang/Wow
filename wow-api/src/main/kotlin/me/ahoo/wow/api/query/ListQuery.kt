@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 
 interface IListQuery : Queryable<IListQuery> {
@@ -24,7 +23,6 @@ interface IListQuery : Queryable<IListQuery> {
 data class ListQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
     override val limit: Int = Pagination.DEFAULT.size
 ) : IListQuery {

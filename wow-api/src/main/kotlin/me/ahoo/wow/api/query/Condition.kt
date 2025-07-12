@@ -20,34 +20,35 @@ import java.time.format.DateTimeFormatter
 
 interface ICondition<C : ICondition<C>> {
 
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val field: String
 
     @get:Schema(defaultValue = "ALL")
     val operator: Operator
+
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val value: Any
 
     /**
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
     @get:Schema(defaultValue = "[]")
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val children: List<C>
 
     @get:Schema(defaultValue = "{}")
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val options: Map<String, Any>
 }
 
 data class Condition(
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val field: String = EMPTY_VALUE,
-    override val operator: Operator,
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val operator: Operator = Operator.ALL,
     override val value: Any = EMPTY_VALUE,
     /**
      * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
      */
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val children: List<Condition> = emptyList(),
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val options: Map<String, Any> = emptyMap()
 ) : ICondition<Condition>, RewritableCondition<Condition> {
     fun <V> valueAs(): V {
