@@ -13,4 +13,13 @@
 
 package me.ahoo.wow.schema.typed
 
-interface AggregatedFields<CommandAggregateType : Any>
+interface AggregatedFields<CommandAggregateType : Any> {
+    companion object {
+        val EMPTY = object : AggregatedFields<Any> {}
+
+        @Suppress("UNCHECKED_CAST")
+        fun <CommandAggregateType : Any> empty(): AggregatedFields<CommandAggregateType> {
+            return EMPTY as AggregatedFields<CommandAggregateType>
+        }
+    }
+}

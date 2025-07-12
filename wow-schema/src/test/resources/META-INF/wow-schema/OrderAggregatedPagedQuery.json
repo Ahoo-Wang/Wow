@@ -27,8 +27,7 @@
           "default" : "{}"
         },
         "value" : { }
-      },
-      "required" : [ "children", "field", "operator", "value" ]
+      }
     },
     "wow.api.query.Condition" : {
       "type" : "object",

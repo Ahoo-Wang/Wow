@@ -23,6 +23,5 @@
       "default" : "{}"
     },
     "value" : { }
-  },
-  "required" : [ "children", "field", "operator", "value" ]
+  }
 }
