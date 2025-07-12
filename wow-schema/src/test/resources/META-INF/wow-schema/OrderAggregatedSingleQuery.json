@@ -52,8 +52,7 @@
           "default" : "{}"
         },
         "value" : { }
-      },
-      "required" : [ "operator" ]
+      }
     },
     "wow.api.query.Operator" : {
       "type" : "string",
