@@ -13,14 +13,11 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonInclude
-
 interface ISingleQuery : Queryable<ISingleQuery>
 
 data class SingleQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
 ) : ISingleQuery {
     override fun withCondition(newCondition: Condition): ISingleQuery {

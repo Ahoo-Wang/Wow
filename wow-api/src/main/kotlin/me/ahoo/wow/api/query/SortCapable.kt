@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.api.query
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 
 interface SortCapable {
     @get:Schema(defaultValue = "[]")
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val sort: List<Sort>
 }

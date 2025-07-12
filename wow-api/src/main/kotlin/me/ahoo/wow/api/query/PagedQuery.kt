@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.api.query
 
-import com.fasterxml.jackson.annotation.JsonInclude
-
 interface IPagedQuery : Queryable<IPagedQuery> {
     val pagination: Pagination
 }
@@ -22,7 +20,6 @@ interface IPagedQuery : Queryable<IPagedQuery> {
 data class PagedQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
-    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
     override val pagination: Pagination = Pagination.DEFAULT
 ) : IPagedQuery {
