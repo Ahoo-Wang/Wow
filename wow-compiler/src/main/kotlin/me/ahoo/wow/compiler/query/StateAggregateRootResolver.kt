@@ -13,26 +13,25 @@
 
 package me.ahoo.wow.compiler.query
 
-import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveDependencies
+import me.ahoo.wow.compiler.GeneratedFile
 import me.ahoo.wow.compiler.query.PropertyNav.Companion.NAV_DELIMITER
 import me.ahoo.wow.compiler.query.PropertyNav.Companion.PROPERTY_DELIMITER
-import me.ahoo.wow.compiler.query.StateAggregateRootPropertyNavigationFile.Companion.FILE_SUFFIX
-import me.ahoo.wow.compiler.query.StateAggregateRootPropertyNavigationFile.Companion.GENERATOR_NAME
 import me.ahoo.wow.naming.NamingConverter.Companion.pascalToSnake
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import javax.annotation.processing.Generated
 
 object StateAggregateRootResolver {
+    const val GENERATOR_NAME = "me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider"
+    const val FILE_SUFFIX = "Properties"
 
     @Suppress("TooGenericExceptionCaught", "TooGenericExceptionThrown")
-    fun KSClassDeclaration.resolveStateAggregateRoot(): StateAggregateRootPropertyNavigationFile {
+    fun KSClassDeclaration.resolveStateAggregateRoot(): GeneratedFile {
         val aggregateRootMetadata = this.resolveAggregateRootMetadata()
         val stateAggregateDeclaration = aggregateRootMetadata.state
 
@@ -53,7 +52,12 @@ object StateAggregateRootResolver {
         codeGenerator.appendLine("}")
         val dependencies =
             Dependencies(aggregating = true, sources = aggregateRootMetadata.resolveDependencies().toTypedArray())
-        return StateAggregateRootPropertyNavigationFile(dependencies, packageName, fileName, codeGenerator.toString())
+        return GeneratedFile(
+            dependencies = dependencies,
+            packageName = packageName,
+            name = fileName,
+            code = codeGenerator.toString()
+        )
     }
 
     private fun String.toPropertyNav(parent: PropertyNav? = null): PropertyNav {
@@ -98,18 +102,6 @@ object StateAggregateRootResolver {
         }
         return !SIMPLE_TYPE_MAPPING.contains(typeName)
     }
-
-    fun StateAggregateRootPropertyNavigationFile.writeFile(codeGenerator: CodeGenerator) {
-        val file = codeGenerator
-            .createNewFile(
-                dependencies = this.dependencies,
-                packageName = this.packageName,
-                fileName = this.fileName,
-                extensionName = this.extensionName,
-            )
-        file.write(this.code.toByteArray())
-        file.close()
-    }
 }
 
 data class PropertyNav(val property: String, val nav: String) {
@@ -120,29 +112,5 @@ data class PropertyNav(val property: String, val nav: String) {
     companion object {
         const val PROPERTY_DELIMITER = "__"
         const val NAV_DELIMITER = "."
-    }
-}
-
-/**
- *
- * ``` kt
- * @Generated("wow-compiler", date = "2024-04-25 12:05:55")
- * object AggregateNameProperties {
- *     const val PROPERTY = "property"
- *     const val PROPERTY__PROPERTY = "property. child"
- * }
- * ```
- */
-@Generated("wow-compiler", date = "2024-04-25 12:05:55")
-data class StateAggregateRootPropertyNavigationFile(
-    val dependencies: Dependencies,
-    val packageName: String,
-    val fileName: String,
-    val code: String,
-    val extensionName: String = "kt"
-) {
-    companion object {
-        const val FILE_SUFFIX = "Properties"
-        const val GENERATOR_NAME = "me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider"
     }
 }

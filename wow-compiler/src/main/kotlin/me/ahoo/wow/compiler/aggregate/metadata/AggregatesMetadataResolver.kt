@@ -13,18 +13,20 @@
 
 package me.ahoo.wow.compiler.aggregate.metadata
 
-import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveDependencies
+import me.ahoo.wow.compiler.GeneratedFile
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 object AggregatesMetadataResolver {
+    const val FILE_NAME = "AggregatesMetadata"
+    const val GENERATOR_NAME = "me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver"
     fun KSClassDeclaration.resolveNamedAggregates(
         commandAggregates: List<KSClassDeclaration>
-    ): AggregatesMetadataFile? {
+    ): GeneratedFile? {
         val packageName = packageName.asString()
         val aggregateMetadata = commandAggregates.filter {
             it.packageName.asString().startsWith(packageName)
@@ -48,9 +50,9 @@ object AggregatesMetadataResolver {
         codeGenerator.appendLine()
         val generatedDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         codeGenerator.appendLine(
-            "@Generated(\"${AggregatesMetadataFile.Companion.GENERATOR_NAME}\", date = \"$generatedDate\")"
+            "@Generated(\"${GENERATOR_NAME}\", date = \"$generatedDate\")"
         )
-        codeGenerator.appendLine("object ${AggregatesMetadataFile.Companion.FILE_NAME} {")
+        codeGenerator.appendLine("object $FILE_NAME {")
         aggregateMetadata.forEach {
             codeGenerator.appendLine(
                 "    val ${it.command.simpleName.asString()}AggregateMetadata = aggregateMetadata<${it.command.simpleName.asString()}, ${it.state.simpleName.asString()}>()"
@@ -65,35 +67,11 @@ object AggregatesMetadataResolver {
                     it.resolveDependencies()
                 }.toTypedArray()
             )
-        return AggregatesMetadataFile(
+        return GeneratedFile(
             dependencies = dependencies,
             packageName = packageName,
             code = codeGenerator.toString(),
+            name = FILE_NAME
         )
-    }
-
-    fun AggregatesMetadataFile.writeFile(codeGenerator: CodeGenerator) {
-        val file = codeGenerator
-            .createNewFile(
-                dependencies = this.dependencies,
-                packageName = this.packageName,
-                fileName = AggregatesMetadataFile.Companion.FILE_NAME,
-                extensionName = this.extensionName,
-            )
-        file.write(this.code.toByteArray())
-        file.close()
-    }
-}
-
-data class AggregatesMetadataFile(
-    val dependencies: Dependencies,
-    val packageName: String,
-    val code: String,
-    val extensionName: String = "kt"
-) {
-
-    companion object {
-        const val FILE_NAME = "AggregatesMetadata"
-        const val GENERATOR_NAME = "me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver"
     }
 }

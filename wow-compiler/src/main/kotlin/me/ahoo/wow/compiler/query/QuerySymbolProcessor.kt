@@ -21,7 +21,6 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.compiler.AggregateRootResolver.AGGREGATE_ROOT_NAME
 import me.ahoo.wow.compiler.query.StateAggregateRootResolver.resolveStateAggregateRoot
-import me.ahoo.wow.compiler.query.StateAggregateRootResolver.writeFile
 
 class QuerySymbolProcessor(environment: SymbolProcessorEnvironment) :
     SymbolProcessor {
