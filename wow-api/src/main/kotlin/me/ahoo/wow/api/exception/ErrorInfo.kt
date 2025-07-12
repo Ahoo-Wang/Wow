@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.exception
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.SUCCEEDED
 import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.Named
@@ -47,6 +48,7 @@ interface ErrorInfo {
      * Each [BindingError] contains information about the error, including its name and a message describing the issue.
      * This property returns an empty list if no binding errors are present.
      */
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val bindingErrors: List<BindingError> get() = emptyList()
 
     /**
