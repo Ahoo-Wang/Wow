@@ -13,3 +13,4 @@
 
 me.ahoo.wow.compiler.metadata.MetadataSymbolProcessorProvider
 me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider
+me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataSymbolProcessorProvider

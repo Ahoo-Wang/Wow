@@ -17,6 +17,7 @@ import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFile
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.naming.Named
@@ -49,6 +50,17 @@ object AggregateRootResolver {
         }
 
         return AggregateRootMetadata(this.toName(), this, stateAggregateDeclaration)
+    }
+
+    fun AggregateRootMetadata.resolveDependencies(): List<KSFile> {
+        return buildList {
+            command.containingFile?.let {
+                add(it)
+            }
+            state.containingFile?.let {
+                add(it)
+            }
+        }.distinct()
     }
 }
 
