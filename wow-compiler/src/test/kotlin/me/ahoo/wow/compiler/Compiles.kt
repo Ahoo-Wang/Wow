@@ -36,6 +36,7 @@ fun compileTest(
             incremental = true
             symbolProcessorProviders += symbolProcessorProvider
         }
+        jvmTarget = "17"
     }
     val result = kotlinCompilation.compile()
     result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)

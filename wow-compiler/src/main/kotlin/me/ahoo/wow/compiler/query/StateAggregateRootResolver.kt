@@ -17,10 +17,9 @@ import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import me.ahoo.wow.compiler.AggregateRootMetadata
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
+import me.ahoo.wow.compiler.AggregateRootResolver.resolveDependencies
 import me.ahoo.wow.compiler.query.PropertyNav.Companion.NAV_DELIMITER
 import me.ahoo.wow.compiler.query.PropertyNav.Companion.PROPERTY_DELIMITER
 import me.ahoo.wow.compiler.query.StateAggregateRootPropertyNavigationFile.Companion.FILE_SUFFIX
@@ -36,8 +35,7 @@ object StateAggregateRootResolver {
     fun KSClassDeclaration.resolveStateAggregateRoot(): StateAggregateRootPropertyNavigationFile {
         val aggregateRootMetadata = this.resolveAggregateRootMetadata()
         val stateAggregateDeclaration = aggregateRootMetadata.state
-        val dependencies =
-            Dependencies(aggregating = true, sources = aggregateRootMetadata.resolveDependencies().toTypedArray())
+
         val packageName = stateAggregateDeclaration.packageName.asString()
         val fileName = stateAggregateDeclaration.simpleName.asString() + FILE_SUFFIX
         val codeGenerator = StringBuilder()
@@ -53,18 +51,9 @@ object StateAggregateRootResolver {
             it.resolvePropertyNavigationCode(codeGenerator, added)
         }
         codeGenerator.appendLine("}")
+        val dependencies =
+            Dependencies(aggregating = true, sources = aggregateRootMetadata.resolveDependencies().toTypedArray())
         return StateAggregateRootPropertyNavigationFile(dependencies, packageName, fileName, codeGenerator.toString())
-    }
-
-    private fun AggregateRootMetadata.resolveDependencies(): List<KSFile> {
-        return buildList {
-            command.containingFile?.let {
-                add(it)
-            }
-            state.containingFile?.let {
-                add(it)
-            }
-        }.distinct()
     }
 
     private fun String.toPropertyNav(parent: PropertyNav? = null): PropertyNav {

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.query
+package me.ahoo.wow.compiler.aggregate.metadata
 
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
@@ -20,33 +20,32 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.compiler.AggregateRootResolver.AGGREGATE_ROOT_NAME
-import me.ahoo.wow.compiler.query.StateAggregateRootResolver.resolveStateAggregateRoot
-import me.ahoo.wow.compiler.query.StateAggregateRootResolver.writeFile
+import me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver.resolveNamedAggregates
+import me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver.writeFile
+import me.ahoo.wow.compiler.metadata.MetadataSymbolProcessor.Companion.BOUNDED_CONTEXT_NAME
 
-class QuerySymbolProcessor(environment: SymbolProcessorEnvironment) :
+class AggregatesMetadataProcessor(environment: SymbolProcessorEnvironment) :
     SymbolProcessor {
 
     private val logger = environment.logger
     private val codeGenerator = environment.codeGenerator
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        logger.info("QuerySymbolProcessor - process[$this]")
-        resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT_NAME)
+        logger.info("NamedAggregatesSymbolProcessor - process[$this]")
+        val boundedContextClassDeclaration = resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT_NAME)
             .filterIsInstance<KSClassDeclaration>()
             .filter {
                 it.validate()
             }
-            .forEach {
-                it.resolveStateAggregateRoot().writeFile(codeGenerator)
+            .firstOrNull() ?: return emptyList()
+
+        val aggregateClassDeclarations = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT_NAME)
+            .filterIsInstance<KSClassDeclaration>()
+            .filter {
+                it.validate()
             }
+            .toList()
+        boundedContextClassDeclaration.resolveNamedAggregates(aggregateClassDeclarations)?.writeFile(codeGenerator)
 
         return emptyList()
-    }
-
-    override fun finish() {
-        logger.info("QuerySymbolProcessor - finish[$this]")
-    }
-
-    override fun onError() {
-        logger.info("QuerySymbolProcessor - onError[$this]")
     }
 }
