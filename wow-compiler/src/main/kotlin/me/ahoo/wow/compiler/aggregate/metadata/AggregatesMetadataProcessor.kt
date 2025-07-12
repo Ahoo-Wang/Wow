@@ -21,7 +21,6 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.compiler.AggregateRootResolver.AGGREGATE_ROOT_NAME
 import me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver.resolveNamedAggregates
-import me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataResolver.writeFile
 import me.ahoo.wow.compiler.metadata.MetadataSymbolProcessor.Companion.BOUNDED_CONTEXT_NAME
 
 class AggregatesMetadataProcessor(environment: SymbolProcessorEnvironment) :
