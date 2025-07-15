@@ -17,7 +17,7 @@ class WaitingForProjected(
     override val contextName: String,
     override val processorName: String = "",
     override val functionName: String = ""
-) : WaitingForAfterProcessed() {
+) : WaitingForFunction() {
     override val stage: CommandStage
         get() = CommandStage.PROJECTED
 
