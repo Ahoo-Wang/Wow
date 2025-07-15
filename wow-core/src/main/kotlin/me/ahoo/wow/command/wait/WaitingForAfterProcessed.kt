@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.messaging.function.FunctionNameCapable
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import reactor.core.publisher.Mono
 
-abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
+abstract class WaitingForAfterProcessed : AbstractWaitingFor(), ProcessorInfo, FunctionNameCapable {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
@@ -36,7 +38,13 @@ abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
         if (processorName.isBlank()) {
             return true
         }
-        return signal.function.processorName == processorName
+        if (processorName != signal.function.processorName) {
+            return false
+        }
+        if (functionName.isBlank()) {
+            return true
+        }
+        return signal.function.name == functionName
     }
 
     override fun waitingLast(): Mono<WaitSignal> {

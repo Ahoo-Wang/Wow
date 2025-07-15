@@ -117,9 +117,7 @@ class DefaultCommandGateway(
             Mono.defer {
                 command.header.injectWaitStrategy(
                     commandWaitEndpoint = commandWaitEndpoint.endpoint,
-                    stage = waitStrategy.stage,
-                    context = waitStrategy.contextName,
-                    processor = waitStrategy.processorName
+                    waitingFor = waitStrategy
                 )
                 waitStrategyRegistrar.register(command.commandId, waitStrategy)
                 waitStrategy.onFinally {

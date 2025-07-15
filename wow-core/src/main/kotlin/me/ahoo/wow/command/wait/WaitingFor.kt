@@ -32,40 +32,54 @@ interface WaitingFor : WaitStrategy {
 
         fun snapshot(): WaitingFor = WaitingForSnapshot()
 
-        fun projected(contextName: String, processorName: String = ""): WaitingFor =
+        fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
             WaitingForProjected(
                 contextName = contextName,
-                processorName = processorName
+                processorName = processorName,
+                functionName = functionName
             )
 
-        fun eventHandled(contextName: String, processorName: String = ""): WaitingFor =
+        fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
             WaitingForEventHandled(
                 contextName = contextName,
-                processorName = processorName
+                processorName = processorName,
+                functionName = functionName
             )
 
-        fun sagaHandled(contextName: String, processorName: String = ""): WaitingFor =
+        fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
             WaitingForSagaHandled(
                 contextName = contextName,
-                processorName = processorName
+                processorName = processorName,
+                functionName = functionName
             )
 
-        fun stage(stage: CommandStage, contextName: String, processorName: String = ""): WaitingFor {
+        fun stage(
+            stage: CommandStage,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = ""
+        ): WaitingFor {
             return when (stage) {
                 CommandStage.SENT -> sent()
                 CommandStage.PROCESSED -> processed()
                 CommandStage.SNAPSHOT -> snapshot()
-                CommandStage.PROJECTED -> projected(contextName, processorName)
-                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName)
-                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName)
+                CommandStage.PROJECTED -> projected(contextName, processorName, functionName)
+                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName)
+                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName)
             }
         }
 
-        fun stage(stage: String, contextName: String, processorName: String = ""): WaitingFor =
+        fun stage(
+            stage: String,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = ""
+        ): WaitingFor =
             stage(
                 stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
                 contextName = contextName,
-                processorName = processorName
+                processorName = processorName,
+                functionName = functionName
             )
     }
 }

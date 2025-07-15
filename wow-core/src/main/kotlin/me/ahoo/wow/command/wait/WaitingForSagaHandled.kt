@@ -15,7 +15,8 @@ package me.ahoo.wow.command.wait
 
 class WaitingForSagaHandled(
     override val contextName: String,
-    override val processorName: String = ""
+    override val processorName: String = "",
+    override val functionName: String = ""
 ) : WaitingForAfterProcessed() {
     override val stage: CommandStage
         get() = CommandStage.SAGA_HANDLED

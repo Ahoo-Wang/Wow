@@ -91,6 +91,7 @@ class RouterSpecs(
         if (info.description.isNullOrBlank()) {
             info.description = description()
         }
+
         this.info = info
     }
 

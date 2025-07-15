@@ -18,6 +18,7 @@ class WaitingForSnapshot : WaitingForAfterProcessed() {
         get() = CommandStage.SNAPSHOT
     override val contextName: String = ""
     override val processorName: String = ""
+    override val functionName: String = ""
 
     override fun isWaitingForSignal(signal: WaitSignal): Boolean {
         return signal.stage == stage

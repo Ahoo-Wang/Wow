@@ -11,17 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.api.messaging.function
 
-class WaitingForProjected(
-    override val contextName: String,
-    override val processorName: String = "",
-    override val functionName: String = ""
-) : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.PROJECTED
-
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return super.isWaitingForSignal(signal) && signal.isLastProjection
-    }
+interface FunctionNameCapable {
+    val functionName: String
 }

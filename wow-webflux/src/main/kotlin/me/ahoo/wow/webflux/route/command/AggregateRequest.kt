@@ -97,6 +97,10 @@ fun ServerRequest.getWaitProcessor(): String {
     return headers().firstHeader(CommandComponent.Header.WAIT_PROCESSOR).orEmpty()
 }
 
+fun ServerRequest.getWaitFunction(): String {
+    return headers().firstHeader(CommandComponent.Header.WAIT_FUNCTION).orEmpty()
+}
+
 fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
     return headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)?.toLongOrNull()?.let {
         Duration.ofMillis(it)
