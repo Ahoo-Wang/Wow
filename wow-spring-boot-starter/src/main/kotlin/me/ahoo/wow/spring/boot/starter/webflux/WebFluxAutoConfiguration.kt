@@ -37,15 +37,15 @@ import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.CommandMessageParser
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
-import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
@@ -181,12 +181,12 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun commandMessageParser(
+    fun commandMessageExtractor(
         commandMessageFactory: CommandMessageFactory,
         commandBuilderExtractor: CommandBuilderExtractor,
         commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>
-    ): CommandMessageParser {
-        return DefaultCommandMessageParser(
+    ): CommandMessageExtractor {
+        return DefaultCommandMessageExtractor(
             commandMessageFactory = commandMessageFactory,
             commandBuilderExtractor = commandBuilderExtractor,
             commandRequestHeaderAppends = commandRequestHeaderAppenderObjectProvider.toList<CommandRequestHeaderAppender>()
@@ -207,12 +207,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COMMAND_FACADE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandFacadeHandlerFunctionFactory(
         commandGateway: CommandGateway,
-        commandMessageParser: CommandMessageParser,
+        commandMessageExtractor: CommandMessageExtractor,
         exceptionHandler: RequestExceptionHandler,
     ): CommandFacadeHandlerFunctionFactory {
         return CommandFacadeHandlerFunctionFactory(
             commandGateway = commandGateway,
-            commandMessageParser = commandMessageParser,
+            commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler
         )
     }
@@ -442,12 +442,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COMMAND_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandHandlerFunctionFactory(
         commandGateway: CommandGateway,
-        commandMessageParser: CommandMessageParser,
+        commandMessageExtractor: CommandMessageExtractor,
         exceptionHandler: RequestExceptionHandler,
     ): CommandHandlerFunctionFactory {
         return CommandHandlerFunctionFactory(
             commandGateway = commandGateway,
-            commandMessageParser = commandMessageParser,
+            commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,
             timeout = DEFAULT_TIME_OUT
         )

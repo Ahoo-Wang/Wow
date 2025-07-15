@@ -19,6 +19,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -26,7 +27,7 @@ import java.time.Duration
 
 class CommandHandler(
     private val commandGateway: CommandGateway,
-    private val commandMessageParser: CommandMessageParser,
+    private val commandMessageExtractor: CommandMessageExtractor,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) {
 
@@ -35,7 +36,7 @@ class CommandHandler(
         commandBody: Any,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
     ): Flux<CommandResult> {
-        return commandMessageParser.parse(
+        return commandMessageExtractor.extract(
             aggregateRouteMetadata = aggregateRouteMetadata,
             request = request,
             commandBody = commandBody

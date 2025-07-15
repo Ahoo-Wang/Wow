@@ -11,30 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.command
+package me.ahoo.wow.webflux.route.command.extractor
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
-import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
-interface CommandMessageParser {
-    fun parse(
+interface CommandMessageExtractor {
+    fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
         request: ServerRequest
     ): Mono<CommandMessage<Any>>
 }
 
-class DefaultCommandMessageParser(
+class DefaultCommandMessageExtractor(
     private val commandMessageFactory: CommandMessageFactory,
     private val commandBuilderExtractor: CommandBuilderExtractor,
     private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
-) : CommandMessageParser {
-    override fun parse(
+) : CommandMessageExtractor {
+    override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
         request: ServerRequest
