@@ -19,6 +19,8 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -38,12 +40,12 @@ class CommandHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
     private val commandGateway: CommandGateway,
-    private val commandMessageParser: CommandMessageParser,
+    private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
-    private val handler = CommandHandler(commandGateway, commandMessageParser, timeout)
+    private val handler = CommandHandler(commandGateway, commandMessageExtractor, timeout)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return if (commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()) {
             request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)
@@ -62,7 +64,7 @@ class CommandHandlerFunction(
 
 class CommandHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
-    private val commandMessageParser: CommandMessageParser,
+    private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandRouteSpec> {
@@ -75,7 +77,7 @@ class CommandHandlerFunctionFactory(
             aggregateRouteMetadata = spec.aggregateRouteMetadata,
             commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>,
             commandGateway = commandGateway,
-            commandMessageParser = commandMessageParser,
+            commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,
             timeout = timeout
         )

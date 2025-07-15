@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.command
+package me.ahoo.wow.webflux.route.command.extractor
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.configuration.requiredAggregateType

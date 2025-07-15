@@ -32,6 +32,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -49,7 +50,7 @@ class CommandHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandRouteMetadata,
             commandGateway,
-            DefaultCommandMessageParser(
+            DefaultCommandMessageExtractor(
                 SimpleCommandMessageFactory(
                     NoOpValidator,
                     SimpleCommandBuilderRewriterRegistry()

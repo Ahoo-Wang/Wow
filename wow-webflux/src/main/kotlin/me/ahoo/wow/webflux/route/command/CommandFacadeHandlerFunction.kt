@@ -17,6 +17,8 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -31,14 +33,14 @@ import java.time.Duration
  */
 class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
-    private val commandMessageParser: CommandMessageParser,
+    private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : HandlerFunction<ServerResponse> {
 
     private val handler = CommandHandler(
         commandGateway = commandGateway,
-        commandMessageParser = commandMessageParser,
+        commandMessageExtractor = commandMessageExtractor,
         timeout = timeout
     )
 
@@ -53,7 +55,7 @@ class CommandFacadeHandlerFunction(
 
 class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
-    private val commandMessageParser: CommandMessageParser,
+    private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val timeout: Duration = DEFAULT_TIME_OUT
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
@@ -63,7 +65,7 @@ class CommandFacadeHandlerFunctionFactory(
     override fun create(spec: CommandFacadeRouteSpec): HandlerFunction<ServerResponse> {
         return CommandFacadeHandlerFunction(
             commandGateway = commandGateway,
-            commandMessageParser = commandMessageParser,
+            commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,
             timeout = timeout
         )

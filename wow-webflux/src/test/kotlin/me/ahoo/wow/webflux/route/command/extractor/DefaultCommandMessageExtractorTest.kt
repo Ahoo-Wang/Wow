@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.command
+package me.ahoo.wow.webflux.route.command.extractor
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
@@ -25,12 +25,11 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
-import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
-class DefaultCommandMessageParserTest {
+class DefaultCommandMessageExtractorTest {
 
     @Test
     fun parse() {
@@ -41,15 +40,15 @@ class DefaultCommandMessageParserTest {
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
             .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
             .build()
-        val commandMessageParser =
-            DefaultCommandMessageParser(
+        val commandMessageExtractor =
+            DefaultCommandMessageExtractor(
                 commandMessageFactory = SimpleCommandMessageFactory(
                     NoOpValidator,
                     SimpleCommandBuilderRewriterRegistry()
                 ),
                 commandBuilderExtractor = DefaultCommandBuilderExtractor
             )
-        commandMessageParser.parse(
+        commandMessageExtractor.extract(
             aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandBody = MockCreateAggregate(
                 id = generateGlobalId(),
@@ -75,8 +74,8 @@ class DefaultCommandMessageParserTest {
             .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
             .header(key, value)
             .build()
-        val commandMessageParser =
-            DefaultCommandMessageParser(
+        val commandMessageExtractor =
+            DefaultCommandMessageExtractor(
                 commandMessageFactory = SimpleCommandMessageFactory(
                     validator = NoOpValidator,
                     commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
@@ -86,7 +85,7 @@ class DefaultCommandMessageParserTest {
                     CommandRequestExtendHeaderAppender
                 )
             )
-        commandMessageParser.parse(
+        commandMessageExtractor.extract(
             aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
             commandBody = MockCreateAggregate(
                 id = generateGlobalId(),
