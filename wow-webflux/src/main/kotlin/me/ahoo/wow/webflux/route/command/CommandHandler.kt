@@ -53,7 +53,8 @@ class CommandHandler(
         val waitStrategy = WaitingFor.stage(
             stage = stage,
             contextName = waitContext,
-            processorName = request.getWaitProcessor()
+            processorName = request.getWaitProcessor(),
+            functionName = request.getWaitFunction()
         )
 
         if (request.isSse()) {

@@ -16,8 +16,6 @@ package me.ahoo.wow.command.wait
 class WaitingForSent : AbstractWaitingFor() {
     override val stage: CommandStage
         get() = CommandStage.SENT
-    override val contextName: String = ""
-    override val processorName: String = ""
     override fun next(signal: WaitSignal) {
         super.next(signal)
         if (signal.stage == stage) {

@@ -36,6 +36,7 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.TENANT_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEXT
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_FUNCTION
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_PROCESSOR
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_STAGE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TIME_OUT
@@ -54,6 +55,7 @@ object CommandComponent {
         const val WAIT_TIME_OUT = "${COMMAND_HEADERS_PREFIX}Wait-Timout"
 
         const val WAIT_PROCESSOR = "${COMMAND_HEADERS_PREFIX}Wait-Processor"
+        const val WAIT_FUNCTION = "${COMMAND_HEADERS_PREFIX}Wait-Function"
         const val REQUEST_ID = "${COMMAND_HEADERS_PREFIX}Request-Id"
         const val LOCAL_FIRST = "${COMMAND_HEADERS_PREFIX}Local-First"
 
@@ -151,6 +153,13 @@ object CommandComponent {
                 `in`(ParameterIn.HEADER.toString())
             }
 
+        fun OpenAPIComponentContext.waitFunctionHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_FUNCTION
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+            }
+
         fun OpenAPIComponentContext.waitTimeOutHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_TIME_OUT
@@ -165,6 +174,7 @@ object CommandComponent {
                 waitStageHeaderParameter(),
                 waitContextHeaderParameter(),
                 waitProcessorHeaderParameter(),
+                waitFunctionHeaderParameter(),
                 waitTimeOutHeaderParameter(),
                 aggregateIdHeaderParameter(),
                 aggregateVersionHeaderParameter(),
