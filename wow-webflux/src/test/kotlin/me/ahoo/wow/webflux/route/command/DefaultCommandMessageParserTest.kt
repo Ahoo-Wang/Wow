@@ -25,6 +25,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
@@ -42,7 +43,11 @@ class DefaultCommandMessageParserTest {
             .build()
         val commandMessageParser =
             DefaultCommandMessageParser(
-                SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())
+                commandMessageFactory = SimpleCommandMessageFactory(
+                    NoOpValidator,
+                    SimpleCommandBuilderRewriterRegistry()
+                ),
+                commandBuilderExtractor = DefaultCommandBuilderExtractor
             )
         commandMessageParser.parse(
             aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
@@ -72,8 +77,12 @@ class DefaultCommandMessageParserTest {
             .build()
         val commandMessageParser =
             DefaultCommandMessageParser(
-                SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry()),
-                listOf(
+                commandMessageFactory = SimpleCommandMessageFactory(
+                    validator = NoOpValidator,
+                    commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
+                ),
+                commandBuilderExtractor = DefaultCommandBuilderExtractor,
+                commandRequestHeaderAppends = listOf(
                     CommandRequestExtendHeaderAppender
                 )
             )

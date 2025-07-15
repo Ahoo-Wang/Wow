@@ -37,8 +37,8 @@ class CommandHandler(
     ): Flux<CommandResult> {
         return commandMessageParser.parse(
             aggregateRouteMetadata = aggregateRouteMetadata,
-            commandBody = commandBody,
-            request = request
+            request = request,
+            commandBody = commandBody
         ).flatMapMany {
             sendCommand(it, request)
         }

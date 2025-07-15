@@ -31,6 +31,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -52,7 +53,8 @@ class CommandHandlerFunctionTest {
                 SimpleCommandMessageFactory(
                     NoOpValidator,
                     SimpleCommandBuilderRewriterRegistry()
-                )
+                ),
+                DefaultCommandBuilderExtractor
             ),
             DefaultRequestExceptionHandler,
         )
