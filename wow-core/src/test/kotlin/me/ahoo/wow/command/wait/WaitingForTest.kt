@@ -163,6 +163,31 @@ internal class WaitingForTest {
     }
 
     @Test
+    fun waitingForProjectedProcessorNotEq() {
+        val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val processedSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROCESSED,
+            function = COMMAND_GATEWAY_FUNCTION,
+        )
+        val waitSignal = SimpleWaitSignal(
+            id = generateGlobalId(),
+            commandId = generateGlobalId(),
+            stage = CommandStage.PROJECTED,
+            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "hi"),
+            isLastProjection = true
+        )
+        waitStrategy.waitingLast()
+            .test()
+            .consumeSubscriptionWith {
+                waitStrategy.next(processedSignal)
+                waitStrategy.next(waitSignal)
+            }
+            .verifyTimeout(Duration.ofMillis(500))
+    }
+
+    @Test
     fun waitingForProjectedFunction() {
         val waitStrategy = WaitingFor.projected(contextName, "processor", "function")
         val processedSignal = SimpleWaitSignal(
