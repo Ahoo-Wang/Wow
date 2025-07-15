@@ -14,15 +14,10 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.CommandOperator.withOperator
-import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.infra.ifNotBlank
-import me.ahoo.wow.messaging.withLocalFirst
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
+import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
@@ -36,6 +31,7 @@ interface CommandMessageParser {
 
 class DefaultCommandMessageParser(
     private val commandMessageFactory: CommandMessageFactory,
+    private val commandBuilderExtractor: CommandBuilderExtractor,
     private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
 ) : CommandMessageParser {
     override fun parse(
@@ -43,33 +39,11 @@ class DefaultCommandMessageParser(
         commandBody: Any,
         request: ServerRequest
     ): Mono<CommandMessage<Any>> {
-        val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
-        val tenantId = request.getTenantId(aggregateMetadata)
-        val ownerId = request.getOwnerId()
-        val aggregateId = request.getAggregateId(aggregateRouteMetadata.owner, ownerId)
-        val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
-        val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
-        val commandBuilder = commandBody.commandBuilder()
-            .aggregateId(aggregateId)
-            .tenantId(tenantId)
-            .ownerId(ownerId)
-            .aggregateVersion(aggregateVersion)
-            .requestId(requestId)
-            .namedAggregate(aggregateMetadata.namedAggregate)
-        commandRequestHeaderAppends.forEach {
-            it.append(request, commandBuilder.header)
-        }
-        request.getLocalFirst()?.let {
-            commandBuilder.header { header ->
-                header.withLocalFirst(it)
+        return commandBuilderExtractor.extract(aggregateRouteMetadata, commandBody, request).flatMap { commandBuilder ->
+            commandRequestHeaderAppends.forEach {
+                it.append(request, commandBuilder.header)
             }
+            commandMessageFactory.create(commandBuilder)
         }
-        return request.principal().map {
-            commandBuilder.header { header ->
-                header.withOperator(it.name)
-            }
-        }.then(
-            commandMessageFactory.create<Any>(commandBuilder)
-        )
     }
 }

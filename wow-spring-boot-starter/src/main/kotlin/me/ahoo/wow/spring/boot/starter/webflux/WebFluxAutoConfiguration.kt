@@ -44,6 +44,8 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppe
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
@@ -152,6 +154,12 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    fun commandBuilderExtractor(): CommandBuilderExtractor {
+        return DefaultCommandBuilderExtractor
+    }
+
+    @Bean
     @ConditionalOnProperty(
         value = ["${WebFluxProperties.COMMAND_REQUEST_APPENDER_PREFIX}.agent$ENABLED_SUFFIX_KEY"],
         matchIfMissing = true,
@@ -175,10 +183,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean
     fun commandMessageParser(
         commandMessageFactory: CommandMessageFactory,
+        commandBuilderExtractor: CommandBuilderExtractor,
         commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>
     ): CommandMessageParser {
         return DefaultCommandMessageParser(
             commandMessageFactory = commandMessageFactory,
+            commandBuilderExtractor = commandBuilderExtractor,
             commandRequestHeaderAppends = commandRequestHeaderAppenderObjectProvider.toList<CommandRequestHeaderAppender>()
         )
     }

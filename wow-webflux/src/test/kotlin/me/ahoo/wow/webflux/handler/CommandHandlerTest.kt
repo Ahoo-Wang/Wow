@@ -15,6 +15,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.route.command.CommandHandler
 import me.ahoo.wow.webflux.route.command.DefaultCommandMessageParser
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -44,7 +45,8 @@ class CommandHandlerTest {
                 SimpleCommandMessageFactory(
                     NoOpValidator,
                     SimpleCommandBuilderRewriterRegistry()
-                )
+                ),
+                DefaultCommandBuilderExtractor
             )
         )
         commandHandler.handle(
@@ -73,10 +75,11 @@ class CommandHandlerTest {
         val commandHandler = CommandHandler(
             SagaVerifier.defaultCommandGateway(),
             DefaultCommandMessageParser(
-                SimpleCommandMessageFactory(
-                    NoOpValidator,
-                    SimpleCommandBuilderRewriterRegistry()
-                )
+                commandMessageFactory = SimpleCommandMessageFactory(
+                    validator = NoOpValidator,
+                    commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
+                ),
+                commandBuilderExtractor = DefaultCommandBuilderExtractor
             )
         )
         commandHandler.handle(
@@ -103,12 +106,13 @@ class CommandHandlerTest {
             .principal(UserPrincipal(generateGlobalId()))
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
-            SagaVerifier.defaultCommandGateway(),
-            DefaultCommandMessageParser(
-                SimpleCommandMessageFactory(
+            commandGateway = SagaVerifier.defaultCommandGateway(),
+            commandMessageParser = DefaultCommandMessageParser(
+                commandMessageFactory = SimpleCommandMessageFactory(
                     NoOpValidator,
                     SimpleCommandBuilderRewriterRegistry()
-                )
+                ),
+                commandBuilderExtractor = DefaultCommandBuilderExtractor
             )
         )
         commandHandler.handle(
