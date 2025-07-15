@@ -13,11 +13,23 @@
 
 package me.ahoo.wow.command.wait
 
-class WaitingForSnapshot : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.SNAPSHOT
+import me.ahoo.wow.api.messaging.function.FunctionNameCapable
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 
+abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
     override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return signal.stage == stage
+        if (!super.isWaitingForSignal(signal) || !isSameBoundedContext(signal.function)) {
+            return false
+        }
+        if (processorName.isBlank()) {
+            return true
+        }
+        if (processorName != signal.function.processorName) {
+            return false
+        }
+        if (functionName.isBlank()) {
+            return true
+        }
+        return signal.function.name == functionName
     }
 }

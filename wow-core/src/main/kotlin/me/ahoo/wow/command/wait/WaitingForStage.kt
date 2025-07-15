@@ -13,7 +13,11 @@
 
 package me.ahoo.wow.command.wait
 
-class WaitingForProcessed : WaitingForStage() {
-    override val stage: CommandStage
-        get() = CommandStage.PROCESSED
+abstract class WaitingForStage : AbstractWaitingFor() {
+    override fun next(signal: WaitSignal) {
+        super.next(signal)
+        if (signal.stage == stage) {
+            complete()
+        }
+    }
 }
