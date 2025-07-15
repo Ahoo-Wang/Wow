@@ -18,6 +18,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
 import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
 
@@ -38,6 +39,10 @@ class WaitStrategyMessagePropagator : MessagePropagator {
         val commandWaitProcessor = upstreamHeader[COMMAND_WAIT_PROCESSOR]
         if (!commandWaitProcessor.isNullOrBlank()) {
             header.with(COMMAND_WAIT_PROCESSOR, commandWaitProcessor)
+        }
+        val commandWaitFunction = upstreamHeader[COMMAND_WAIT_FUNCTION]
+        if (!commandWaitFunction.isNullOrBlank()) {
+            header.with(COMMAND_WAIT_FUNCTION, commandWaitFunction)
         }
     }
 }

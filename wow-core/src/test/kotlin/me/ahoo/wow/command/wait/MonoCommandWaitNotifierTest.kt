@@ -42,7 +42,8 @@ internal class MonoCommandWaitNotifierTest {
     @Test
     fun notifyAndForgetWrap() {
         val command = MockCreateCommand("").toCommandMessage()
-        command.header.injectWaitStrategy("", CommandStage.PROCESSED, command.contextName)
+
+        command.header.injectWaitStrategy("", WaitingFor.processed())
 
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
@@ -63,7 +64,7 @@ internal class MonoCommandWaitNotifierTest {
     @Test
     fun notifyAndForgetWrapError() {
         val command = MockCreateCommand("").toCommandMessage()
-        command.header.injectWaitStrategy("", CommandStage.PROCESSED, command.contextName)
+        command.header.injectWaitStrategy("", WaitingFor.processed())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         RuntimeException("error")
             .toMono<Void>()
@@ -79,7 +80,7 @@ internal class MonoCommandWaitNotifierTest {
     @Test
     fun notifyAndForgetWrapAndStageIsEarly() {
         val command = MockCreateCommand("").toCommandMessage()
-        command.header.injectWaitStrategy("", CommandStage.SENT, command.contextName)
+        command.header.injectWaitStrategy("", WaitingFor.processed())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
             .thenNotifyAndForget(commandWaitNotifier, CommandStage.PROCESSED, SimpleServerCommandExchange(command))
