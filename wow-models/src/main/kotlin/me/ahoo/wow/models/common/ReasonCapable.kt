@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.models.common
 
-interface ReasonCapable {
-    val reason: String
+interface NullableReasonCapable {
+    val reason: String?
+}
+
+interface ReasonCapable : NullableReasonCapable {
+    override val reason: String
 }

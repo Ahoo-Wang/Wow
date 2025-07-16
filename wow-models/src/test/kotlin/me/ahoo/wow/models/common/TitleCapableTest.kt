@@ -24,4 +24,12 @@ class TitleCapableTest {
         }
         titleCapable.title.assert().isEqualTo("This is a test title.")
     }
+
+    @Test
+    fun `test NullableTitleCapable`() {
+        val nullableCapable = object : NullableTitleCapable {
+            override val title: String? = null
+        }
+        nullableCapable.title.assert().isNull()
+    }
 }
