@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.exception.ErrorInfo.Companion.isFailed
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
@@ -82,11 +83,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
     override fun getError(): Throwable? {
         super.getError()?.let { return it }
         val errorEvent = getEventStream()?.firstOrNull {
-            val eventBody = it.body
-            if (eventBody !is ErrorInfo) {
-                return@firstOrNull false
-            }
-            eventBody.succeeded.not()
+            it.body.isFailed()
         } ?: return null
         @Suppress("UNCHECKED_CAST")
         return (errorEvent as DomainEvent<ErrorInfo>).toException()

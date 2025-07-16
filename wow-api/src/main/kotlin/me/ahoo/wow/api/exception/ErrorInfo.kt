@@ -89,6 +89,10 @@ interface ErrorInfo {
             )
         }
 
+        fun Any?.isFailed(): Boolean {
+            return this is ErrorInfo && !succeeded
+        }
+
         /**
          * Creates an instance of [ErrorInfo] with the specified error code, optional error message, and a list of binding errors.
          *
