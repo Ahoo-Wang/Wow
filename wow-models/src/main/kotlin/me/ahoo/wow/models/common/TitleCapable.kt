@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.models.common
 
-interface TitleCapable {
-    val title: String
+interface NullableTitleCapable {
+    val title: String?
+}
+
+interface TitleCapable : NullableTitleCapable {
+    override val title: String
 }

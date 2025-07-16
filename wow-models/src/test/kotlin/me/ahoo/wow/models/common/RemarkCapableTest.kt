@@ -12,4 +12,12 @@ class RemarkCapableTest {
         }
         remarkCapable.remark.assert().isEqualTo("This is a test remark.")
     }
+
+    @Test
+    fun `test NullableRemarkCapable`() {
+        val nullableCapable = object : NullableRemarkCapable {
+            override val remark: String? = null
+        }
+        nullableCapable.remark.assert().isNull()
+    }
 }

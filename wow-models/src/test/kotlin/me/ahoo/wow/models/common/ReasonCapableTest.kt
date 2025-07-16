@@ -12,4 +12,12 @@ class ReasonCapableTest {
         }
         reasonCapable.reason.assert().isEqualTo("This is a test reason.")
     }
+
+    @Test
+    fun `test NullableReasonCapable`() {
+        val nullableCapable = object : NullableReasonCapable {
+            override val reason: String? = null
+        }
+        nullableCapable.reason.assert().isNull()
+    }
 }

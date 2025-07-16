@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.models.common
 
-interface RemarkCapable {
-    val remark: String
+interface NullableRemarkCapable {
+    val remark: String?
+}
+
+interface RemarkCapable : NullableRemarkCapable {
+    override val remark: String
 }
