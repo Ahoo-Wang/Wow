@@ -82,7 +82,11 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
     override fun getError(): Throwable? {
         super.getError()?.let { return it }
         val errorEvent = getEventStream()?.firstOrNull {
-            it.body is ErrorInfo
+            val eventBody = it.body
+            if (eventBody !is ErrorInfo) {
+                return@firstOrNull false
+            }
+            eventBody.succeeded.not()
         } ?: return null
         @Suppress("UNCHECKED_CAST")
         return (errorEvent as DomainEvent<ErrorInfo>).toException()
