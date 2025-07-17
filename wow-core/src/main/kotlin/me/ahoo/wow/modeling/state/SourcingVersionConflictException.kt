@@ -21,10 +21,11 @@ import me.ahoo.wow.exception.WowException
 class SourcingVersionConflictException(
     val eventStream: DomainEventStream,
     val expectVersion: Int,
-    errorMsg: String = "Expected EventStream version[$expectVersion] does not match the actual version:[${eventStream.version}]."
+    cause: Throwable? = null,
 ) :
     WowException(
         errorCode = SOURCING_VERSION_CONFLICT,
-        errorMsg = errorMsg,
+        errorMsg = "Expected EventStream version[$expectVersion] does not match the actual version:[${eventStream.version}].",
+        cause = cause
     ),
     NamedAggregate by eventStream
