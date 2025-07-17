@@ -25,10 +25,11 @@ class CommandExpectVersionConflictException(
     val command: CommandMessage<*>,
     val expectVersion: Int,
     val actualVersion: Int,
-    errorMsg: String = "The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion]."
+    cause: Throwable? = null,
 ) : WowException(
     errorCode = COMMAND_EXPECT_VERSION_CONFLICT,
-    errorMsg = errorMsg,
+    errorMsg = "The expected version[$expectVersion] of the command is inconsistent with the actual version[$actualVersion].",
+    cause = cause
 )
 
 class IllegalAccessDeletedAggregateException(

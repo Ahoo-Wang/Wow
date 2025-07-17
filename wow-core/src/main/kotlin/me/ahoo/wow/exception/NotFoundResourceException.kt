@@ -19,31 +19,35 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 class NotFoundResourceException(
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
-) : WowException(ErrorCodes.NOT_FOUND, errorMsg)
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    cause: Throwable? = null,
+) : WowException(ErrorCodes.NOT_FOUND, errorMsg, cause)
 
 fun <T> Mono<T>.throwNotFoundIfEmpty(
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    cause: Throwable? = null,
 ): Mono<T> {
     return switchIfEmpty(
         Mono.defer {
-            NotFoundResourceException(errorMsg).toMono()
+            NotFoundResourceException(errorMsg, cause).toMono()
         },
     )
 }
 
 fun <T> Flux<T>.throwNotFoundIfEmpty(
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    cause: Throwable? = null,
 ): Flux<T> {
     return switchIfEmpty(
         Flux.defer {
-            NotFoundResourceException(errorMsg).toFlux()
+            NotFoundResourceException(errorMsg, cause).toFlux()
         },
     )
 }
 
 fun <T> T?.throwNotFoundIfNull(
-    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE
+    errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
+    cause: Throwable? = null,
 ): T {
-    return this ?: throw NotFoundResourceException(errorMsg)
+    return this ?: throw NotFoundResourceException(errorMsg, cause)
 }

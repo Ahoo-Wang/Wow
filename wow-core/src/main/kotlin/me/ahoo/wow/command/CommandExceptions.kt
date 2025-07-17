@@ -51,8 +51,8 @@ class CommandResultException(val commandResult: CommandResult, cause: Throwable?
 class CommandValidationException(
     val command: Any,
     errorMsg: String = "Command validation failed.",
-    cause: Throwable? = null,
     bindingErrors: List<BindingError> = emptyList(),
+    cause: Throwable? = null,
 ) : WowException(
     errorCode = COMMAND_VALIDATION,
     errorMsg = errorMsg,
