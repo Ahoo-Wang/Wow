@@ -15,6 +15,8 @@ package me.ahoo.wow.exception
 
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
+import reactor.kotlin.core.publisher.switchIfEmptyDeferred
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
@@ -27,22 +29,18 @@ fun <T> Mono<T>.throwNotFoundIfEmpty(
     errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
     cause: Throwable? = null,
 ): Mono<T> {
-    return switchIfEmpty(
-        Mono.defer {
-            NotFoundResourceException(errorMsg, cause).toMono()
-        },
-    )
+    return switchIfEmpty {
+        NotFoundResourceException(errorMsg, cause).toMono()
+    }
 }
 
 fun <T> Flux<T>.throwNotFoundIfEmpty(
     errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
     cause: Throwable? = null,
 ): Flux<T> {
-    return switchIfEmpty(
-        Flux.defer {
-            NotFoundResourceException(errorMsg, cause).toFlux()
-        },
-    )
+    return switchIfEmptyDeferred {
+        NotFoundResourceException(errorMsg, cause).toFlux()
+    }
 }
 
 fun <T> T?.throwNotFoundIfNull(
