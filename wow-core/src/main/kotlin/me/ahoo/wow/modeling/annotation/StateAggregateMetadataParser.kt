@@ -51,7 +51,7 @@ object StateAggregateMetadataParser : CacheableMetadataParser() {
 }
 
 internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregateType: Class<S>) :
-    ClassVisitor<S> {
+    ClassVisitor<S, StateAggregateMetadata<S>> {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -106,7 +106,7 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
         aggregateIdGetter = namedIdProperty!!.toStringGetter()
     }
 
-    fun toMetadata(): StateAggregateMetadata<S> {
+    override fun toMetadata(): StateAggregateMetadata<S> {
         if (sourcingFunctionRegistry.isEmpty()) {
             log.warn {
                 "StateAggregate[$stateAggregateType] requires at least one OnSourcing function!"

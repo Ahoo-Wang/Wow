@@ -31,9 +31,9 @@ object AggregateRouteMetadataParser : CacheableMetadataParser() {
 }
 
 internal class AggregateRouteMetadataVisitor<C : Any>(private val aggregateType: Class<C>) :
-    ClassVisitor<C> {
+    ClassVisitor<C, AggregateRouteMetadata<C>> {
 
-    fun toMetadata(): AggregateRouteMetadata<C> {
+    override fun toMetadata(): AggregateRouteMetadata<C> {
         val aggregateMetadata = aggregateType.aggregateMetadata<C, Any>()
         val aggregateRoute = aggregateType.kotlin.scanAnnotation<AggregateRoute>() ?: return AggregateRouteMetadata(
             enabled = true,

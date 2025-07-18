@@ -65,7 +65,7 @@ open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
 internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
     private val processorType: Class<P>,
     private val functionCondition: (KFunction<*>) -> Boolean
-) : ClassVisitor<P> {
+) : ClassVisitor<P, ProcessorMetadata<P, E>> {
     private val functionRegistry: MutableSet<FunctionAccessorMetadata<P, Mono<*>>> = mutableSetOf()
 
     override fun visitFunction(function: KFunction<*>) {
@@ -77,7 +77,7 @@ internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
         functionRegistry.add(handler)
     }
 
-    fun toMetadata(): ProcessorMetadata<P, E> {
+    override fun toMetadata(): ProcessorMetadata<P, E> {
         return ProcessorMetadata(
             namedBoundedContext = processorType.requiredNamedBoundedContext(),
             name = processorType.simpleName,
