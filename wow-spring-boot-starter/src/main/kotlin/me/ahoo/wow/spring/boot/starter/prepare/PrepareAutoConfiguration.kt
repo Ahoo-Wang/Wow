@@ -17,6 +17,7 @@ import me.ahoo.wow.infra.prepare.proxy.DefaultPrepareKeyProxyFactory
 import me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
@@ -26,6 +27,7 @@ import org.springframework.context.annotation.Bean
 @EnableConfigurationProperties(PrepareProperties::class)
 class PrepareAutoConfiguration {
     @Bean
+    @ConditionalOnBean(PrepareKeyFactory::class)
     fun prepareKeyProxyFactory(prepareKeyFactory: PrepareKeyFactory): PrepareKeyProxyFactory {
         return DefaultPrepareKeyProxyFactory(prepareKeyFactory)
     }
