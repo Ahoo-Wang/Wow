@@ -78,6 +78,44 @@ class PrepareAutoConfigurationTest {
         }
         contextRunner
             .enableWow()
+            .withPropertyValues(
+                "${PrepareProperties.BASE_PACKAGES}=me.ahoo.wow.spring.boot.starter.prepare" +
+                    ",me.ahoo.wow.spring.boot.starter.prepare"
+            )
+            .withBean(PrepareKeyFactory::class.java, {
+                prepareKeyFactory
+            })
+            .withUserConfiguration(EnablePrepareConfiguration::class.java)
+            .withUserConfiguration(PrepareAutoConfiguration::class.java)
+            .withClassLoader(this.javaClass.classLoader)
+            .run { context: AssertableApplicationContext ->
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(PrepareKeyProxyFactory::class.java)
+                    .hasSingleBean(PrepareProperties::class.java)
+                    .hasSingleBean(MockPrepareKey::class.java)
+                val mockPrepareKey = context.getBean<MockPrepareKey>()
+                mockPrepareKey.assert().isNotNull()
+            }
+    }
+
+    @Test
+    fun contextLoadsWithAutoConfigurationArray() {
+        val prepareKeyFactory = object : PrepareKeyFactory {
+            override fun <V : Any> create(
+                name: String,
+                valueClass: Class<V>
+            ): PrepareKey<V> {
+                return mockk()
+            }
+        }
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${PrepareProperties.BASE_PACKAGES}[0]=me.ahoo.wow.spring.boot.starter.prepare"
+            )
+            .withPropertyValues(
+                "${PrepareProperties.BASE_PACKAGES}[1]=me.ahoo.wow.spring.boot.starter.prepare"
+            )
             .withBean(PrepareKeyFactory::class.java, {
                 prepareKeyFactory
             })

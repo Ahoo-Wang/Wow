@@ -35,6 +35,24 @@ class PrepareKeyAutoRegistrar : ImportBeanDefinitionRegistrar, EnvironmentAware,
         private val logger = KotlinLogging.logger { }
     }
 
+    private fun getPropertyBasePackages(): Set<String> {
+        val basePackages = env.getProperty(PrepareProperties.BASE_PACKAGES)
+        if (basePackages?.isNotBlank() == true) {
+            return basePackages.split(",").toSet()
+        }
+        var currentIndex = 0
+        buildSet {
+            while (true) {
+                val basePackage = env.getProperty("${PrepareProperties.BASE_PACKAGES}[$currentIndex]")
+                if (basePackage.isNullOrBlank()) {
+                    return this
+                }
+                add(basePackage)
+                currentIndex++
+            }
+        }
+    }
+
     private lateinit var env: Environment
     private lateinit var beanFactory: BeanFactory
     override fun setEnvironment(environment: Environment) {
@@ -45,12 +63,21 @@ class PrepareKeyAutoRegistrar : ImportBeanDefinitionRegistrar, EnvironmentAware,
         this.beanFactory = beanFactory
     }
 
-    override fun registerBeanDefinitions(importingClassMetadata: AnnotationMetadata, registry: BeanDefinitionRegistry) {
+    private fun getBasePackages(): Set<String> {
+        val configBasePackages = getPropertyBasePackages()
         if (!AutoConfigurationPackages.has(beanFactory)) {
-            logger.info { "Auto-configuration packages have not been registered" }
+            return configBasePackages.toSet()
+        }
+        val autoBasePackages = AutoConfigurationPackages.get(this.beanFactory)
+        return configBasePackages + autoBasePackages
+    }
+
+    override fun registerBeanDefinitions(importingClassMetadata: AnnotationMetadata, registry: BeanDefinitionRegistry) {
+        val basePackages = getBasePackages()
+        if (basePackages.isEmpty()) {
+            logger.warn { "No auto-configuration base packages found" }
             return
         }
-        val basePackages = AutoConfigurationPackages.get(this.beanFactory)
         val scanner = Scanner(false, env)
         for (basePackage in basePackages) {
             val candidates = scanner.findCandidateComponents(basePackage)

@@ -21,11 +21,13 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 @ConfigurationProperties(prefix = PrepareProperties.PREFIX)
 class PrepareProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
-    var storage: PrepareStorage = PrepareStorage.MONGO
+    var storage: PrepareStorage = PrepareStorage.MONGO,
+    var basePackages: List<String> = emptyList(),
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}prepare"
         const val STORAGE = "$PREFIX.storage"
+        const val BASE_PACKAGES = "$PREFIX.base-packages"
     }
 }
 
