@@ -13,15 +13,30 @@
 
 package me.ahoo.wow.redis.prepare
 
+import me.ahoo.wow.api.annotation.PreparableKey
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.infra.prepare.PrepareKey
+import me.ahoo.wow.infra.prepare.proxy.DefaultPrepareKeyProxyFactory
+import me.ahoo.wow.infra.prepare.proxy.prepareKeyMetadata
 
 class StringRedisPrepareKeyTest : RedisPrepareKeySpec<String>() {
-    override val name: String
-        get() = "string"
+    override val name: String = StringPrepareKey.NAME
     override val valueType: Class<String>
         get() = String::class.java
 
     override fun generateValue(): String {
         return GlobalIdGenerator.generateAsString()
+    }
+
+    override fun createPrepareKey(name: String): PrepareKey<String> {
+        val metadata = prepareKeyMetadata<StringPrepareKey>()
+        return DefaultPrepareKeyProxyFactory(prepareKeyFactory).create(metadata)
+    }
+
+    @PreparableKey(name = StringPrepareKey.NAME)
+    interface StringPrepareKey : PrepareKey<String> {
+        companion object {
+            const val NAME = "string"
+        }
     }
 }

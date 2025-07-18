@@ -16,7 +16,6 @@ package me.ahoo.wow.tck.prepare
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.prepare.PrepareKey
-import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -28,13 +27,14 @@ import java.time.Duration
 abstract class PrepareKeySpec<V : Any> {
     abstract val name: String
     abstract val valueType: Class<V>
-    abstract fun createPrepareKeyFactory(): PrepareKeyFactory
     abstract fun generateValue(): V
     private lateinit var prepareKey: PrepareKey<V>
 
+    abstract fun createPrepareKey(name: String): PrepareKey<V>
+
     @BeforeEach
     open fun setup() {
-        prepareKey = createPrepareKeyFactory().create(name, valueType)
+        prepareKey = createPrepareKey(name)
     }
 
     @Test

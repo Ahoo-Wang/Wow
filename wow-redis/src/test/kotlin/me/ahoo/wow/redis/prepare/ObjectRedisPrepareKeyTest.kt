@@ -13,18 +13,33 @@
 
 package me.ahoo.wow.redis.prepare
 
+import me.ahoo.wow.api.annotation.PreparableKey
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.infra.prepare.PrepareKey
+import me.ahoo.wow.infra.prepare.proxy.DefaultPrepareKeyProxyFactory
+import me.ahoo.wow.infra.prepare.proxy.prepareKeyMetadata
 
 class ObjectRedisPrepareKeyTest :
     RedisPrepareKeySpec<ObjectRedisPrepareKeyTest.ObjectedValue>() {
 
-    override val name: String
-        get() = "object"
+    override val name: String = ObjectedValuePrepareKey.NAME
     override val valueType: Class<ObjectedValue>
         get() = ObjectedValue::class.java
 
     override fun generateValue(): ObjectedValue {
         return ObjectedValue(GlobalIdGenerator.generateAsString())
+    }
+
+    override fun createPrepareKey(name: String): PrepareKey<ObjectedValue> {
+        val metadata = prepareKeyMetadata<ObjectedValuePrepareKey>()
+        return DefaultPrepareKeyProxyFactory(prepareKeyFactory).create(metadata)
+    }
+
+    @PreparableKey(name = ObjectedValuePrepareKey.NAME)
+    interface ObjectedValuePrepareKey : PrepareKey<ObjectedValue> {
+        companion object {
+            const val NAME = "object"
+        }
     }
 
     data class ObjectedValue(val value: String, val prepareTime: Long = System.currentTimeMillis())

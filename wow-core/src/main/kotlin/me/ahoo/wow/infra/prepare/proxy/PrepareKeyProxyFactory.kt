@@ -11,14 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.prepare
+package me.ahoo.wow.infra.prepare.proxy
 
-import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.metadata.Metadata
-import kotlin.reflect.KClass
+import me.ahoo.wow.infra.prepare.PrepareKey
 
-data class PrepareKeyMetadata<P: Any>(
-    override val name: String,
-    val proxyInterface: KClass<P>,
-    val valueType: KClass<*>
-) : Named, Metadata
+interface PrepareKeyProxyFactory {
+    fun <P : PrepareKey<*>> create(metadata: PrepareKeyMetadata<P>): P
+}
