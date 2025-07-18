@@ -84,6 +84,10 @@ class PrepareKeyAutoRegistrar : ImportBeanDefinitionRegistrar, EnvironmentAware,
             for (candidate in candidates) {
                 val beanClass = Class.forName(candidate.beanClassName)
                 val prepareKeyMetadata = beanClass.kotlin.prepareKeyMetadata()
+                if (registry.containsBeanDefinition(prepareKeyMetadata.name)) {
+                    logger.info { "PrepareKey: ${prepareKeyMetadata.name} already exists" }
+                    continue
+                }
                 val beanDefinitionBuilder =
                     BeanDefinitionBuilder.genericBeanDefinition(PrepareKeyFactoryBean::class.java)
                         .addConstructorArgValue(prepareKeyMetadata)
