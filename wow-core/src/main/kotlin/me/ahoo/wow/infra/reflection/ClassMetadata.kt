@@ -19,7 +19,7 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.starProjectedType
 
 object ClassMetadata {
-    fun <T : Any> KClass<T>.visit(visitor: ClassVisitor<T>) {
+    fun <T : Any> KClass<T>.visit(visitor: ClassVisitor<T, *>) {
         visitor.start()
         visitor.visitType(this.starProjectedType)
         supertypes.forEach {
