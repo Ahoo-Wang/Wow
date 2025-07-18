@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot.starter.prepare
 
+import io.mockk.mockk
+import me.ahoo.wow.infra.prepare.PrepareKeyFactory
+import me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -26,9 +29,13 @@ class PrepareAutoConfigurationTest {
     fun contextLoads() {
         contextRunner
             .enableWow()
+            .withBean(PrepareKeyFactory::class.java, {
+                mockk()
+            })
             .withUserConfiguration(PrepareAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
+                    .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
             }
     }
