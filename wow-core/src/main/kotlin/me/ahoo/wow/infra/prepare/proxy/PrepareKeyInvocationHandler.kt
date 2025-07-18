@@ -11,14 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.prepare
+package me.ahoo.wow.infra.prepare.proxy
 
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.infra.accessor.method.FastInvoke
+import me.ahoo.wow.infra.prepare.PrepareKey
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 
 class PrepareKeyInvocationHandler(
-    private val metadata: PrepareKeyMetadata,
+    private val metadata: PrepareKeyMetadata<*>,
     override val delegate: PrepareKey<*>
 ) : Decorator<PrepareKey<*>>, InvocationHandler {
     companion object {
@@ -38,6 +40,6 @@ class PrepareKeyInvocationHandler(
         if (method.isDefault && declaredDefaultMethods.contains(method)) {
             return InvocationHandler.invokeDefault(proxy, method, *methodArgs)
         }
-        return method.invoke(delegate, *methodArgs)
+        return FastInvoke.safeInvoke<Any?>(method, delegate, methodArgs)
     }
 }

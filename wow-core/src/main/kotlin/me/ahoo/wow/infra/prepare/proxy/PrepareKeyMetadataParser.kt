@@ -11,31 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.prepare
+package me.ahoo.wow.infra.prepare.proxy
 
 import me.ahoo.wow.api.annotation.PreparableKey
+import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
+import kotlin.reflect.KClass
+import kotlin.reflect.full.findAnnotation
 
 object PrepareKeyMetadataParser : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
-        val visitor = PrepareKeyMetadataVisitor(type)
-        type.kotlin.visit(visitor)
+        val kType = type.kotlin
+        val visitor = PrepareKeyMetadataVisitor(kType)
+        kType.visit(visitor)
         @Suppress("UNCHECKED_CAST")
         return visitor.toMetadata() as M
     }
 }
 
-class PrepareKeyMetadataVisitor<P : Any>(private val prepareKeyType: Class<P>) :
+class PrepareKeyMetadataVisitor<P : Any>(private val prepareKeyType: KClass<P>) :
     ClassVisitor<P, PrepareKeyMetadata<P>> {
     override fun toMetadata(): PrepareKeyMetadata<P> {
-        val name = prepareKeyType.getAnnotation(PreparableKey::class.java)?.name ?: prepareKeyType.simpleName
-
-        return PrepareKeyMetadata(name, prepareKeyType.kotlin, PreparedValue::class.java)
+        val name = prepareKeyType.findAnnotation<PreparableKey>()?.name.orEmpty().ifBlank {
+            prepareKeyType.simpleName!!
+        }
+        val superPrepareKeyType = prepareKeyType.supertypes.first {
+            it.classifier == PrepareKey::class
+        }
+        val valueType = superPrepareKeyType.arguments[0].type!!.classifier as KClass<*>
+        return PrepareKeyMetadata(name, prepareKeyType, valueType)
     }
+}
 
+fun <P : Any> KClass<out P>.prepareKeyMetadata(): PrepareKeyMetadata<P> {
+    return PrepareKeyMetadataParser.parse(this.java)
+}
 
+inline fun <reified P : Any> prepareKeyMetadata(): PrepareKeyMetadata<P> {
+    return P::class.prepareKeyMetadata()
 }

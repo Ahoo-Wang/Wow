@@ -13,8 +13,6 @@ abstract class RedisPrepareKeySpec<V : Any> : PrepareKeySpec<V>() {
         redisInitializer = RedisInitializer()
         super.setup()
     }
-
-    override fun createPrepareKeyFactory(): PrepareKeyFactory {
-        return RedisPrepareKeyFactory(redisInitializer.redisTemplate)
-    }
+    protected val prepareKeyFactory: PrepareKeyFactory
+        get() = RedisPrepareKeyFactory(redisInitializer.redisTemplate)
 }

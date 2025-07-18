@@ -11,10 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.annotation
+package me.ahoo.wow.infra.prepare.proxy
 
-import org.springframework.stereotype.Component
+import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.metadata.Metadata
+import kotlin.reflect.KClass
 
-@Target(AnnotationTarget.CLASS)
-@Component
-annotation class PreparableKey(val name: String = "")
+data class PrepareKeyMetadata<P : Any>(
+    override val name: String,
+    val proxyInterface: KClass<P>,
+    val valueType: KClass<*>
+) : Named, Metadata

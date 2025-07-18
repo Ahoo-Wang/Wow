@@ -23,7 +23,6 @@ import me.ahoo.wow.tck.prepare.PrepareKeySpec
 abstract class MongoPrepareKeySpec<V : Any> : PrepareKeySpec<V>() {
     private val client = MongoClients.create(MongoLauncher.getConnectionString())
     private val database: MongoDatabase = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
-    override fun createPrepareKeyFactory(): PrepareKeyFactory {
-        return MongoPrepareKeyFactory(database)
-    }
+    protected val prepareKeyFactory: PrepareKeyFactory
+        get() = MongoPrepareKeyFactory(database)
 }
