@@ -60,7 +60,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
     }
 
     private class AggregateMetadataVisitor<C : Any, S : Any>(commandAggregateType: Class<C>) :
-        ClassVisitor<C> {
+        ClassVisitor<C, AggregateMetadata<C, S>> {
         companion object {
             private val log = KotlinLogging.logger {}
         }
@@ -129,7 +129,7 @@ object AggregateMetadataParser : CacheableMetadataParser() {
         private fun KFunction<*>.isAfterCommandFunction() = DEFAULT_AFTER_COMMAND_NAME == name &&
             valueParameters.isNotEmpty()
 
-        fun toMetadata(): AggregateMetadata<C, S> {
+        override fun toMetadata(): AggregateMetadata<C, S> {
             if (commandFunctionRegistry.isEmpty()) {
                 log.warn {
                     "CommandAggregate[$commandAggregateType] requires at least one OnCommand function!"

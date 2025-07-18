@@ -58,7 +58,7 @@ object CommandMetadataParser : CacheableMetadataParser() {
     }
 }
 
-internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C> {
+internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C, CommandMetadata<C>> {
     private val commandName: String = commandType.toName()
     private val isCreate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private val isVoid = commandType.isAnnotationPresent(VoidCommand::class.java)
@@ -122,7 +122,7 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
         aggregateIdGetter = namedIdProperty!!.toStringGetter()
     }
 
-    fun toMetadata(): CommandMetadata<C> {
+    override fun toMetadata(): CommandMetadata<C> {
         if (tenantIdGetter == null && namedAggregateGetter is MetadataNamedAggregateGetter) {
             val metadataNamedAggregateGetter = namedAggregateGetter as MetadataNamedAggregateGetter
             val tenantId = MetadataSearcher.requiredAggregate(metadataNamedAggregateGetter.namedAggregate).tenantId

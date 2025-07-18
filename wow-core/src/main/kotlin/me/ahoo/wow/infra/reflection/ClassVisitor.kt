@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.infra.reflection
 
+import me.ahoo.wow.metadata.Metadata
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
@@ -21,7 +22,7 @@ import kotlin.reflect.KType
  * @author ahoo wang
  */
 
-interface ClassVisitor<T> : VisitorLifeCycle {
+interface ClassVisitor<T, M : Metadata> : VisitorLifeCycle {
 
     fun visitType(type: KType) = Unit
 
@@ -30,4 +31,6 @@ interface ClassVisitor<T> : VisitorLifeCycle {
     fun visitConstructor(constructor: KFunction<*>) = Unit
 
     fun visitFunction(function: KFunction<*>) = Unit
+
+    fun toMetadata(): M
 }

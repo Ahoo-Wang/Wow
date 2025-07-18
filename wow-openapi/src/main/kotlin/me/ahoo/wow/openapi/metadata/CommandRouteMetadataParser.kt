@@ -60,7 +60,7 @@ object CommandRouteMetadataParser : CacheableMetadataParser() {
 }
 
 internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Class<C>) :
-    ClassVisitor<C> {
+    ClassVisitor<C, CommandRouteMetadata<C>> {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -115,7 +115,7 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
         return Https.Method.PUT
     }
 
-    fun toMetadata(): CommandRouteMetadata<C> {
+    override fun toMetadata(): CommandRouteMetadata<C> {
         val commandMetadata = commandType.commandMetadata()
 
         val summary = commandType.kotlin.scanAnnotation<Summary>()?.value.orEmpty()

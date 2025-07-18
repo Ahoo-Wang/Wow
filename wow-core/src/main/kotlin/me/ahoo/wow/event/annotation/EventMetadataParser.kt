@@ -42,7 +42,7 @@ object EventMetadataParser : CacheableMetadataParser() {
         return visitor.toMetadata() as M
     }
 
-    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : ClassVisitor<E> {
+    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : ClassVisitor<E, EventMetadata<E>> {
         private val eventName: String = eventType.toName()
         private var aggregateNameGetter: PropertyGetter<E, String>? = null
         private var revision = DEFAULT_REVISION
@@ -65,7 +65,7 @@ object EventMetadataParser : CacheableMetadataParser() {
             }
         }
 
-        fun toMetadata(): EventMetadata<E> {
+        override fun toMetadata(): EventMetadata<E> {
             val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType)
             return EventMetadata(
                 eventType = eventType,
