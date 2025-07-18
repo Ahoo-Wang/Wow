@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.server.order
 
+import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -24,11 +25,10 @@ import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.spring.stereotype.EventProcessorComponent
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-@EventProcessorComponent
+@EventProcessor
 class OrderMessageFunction : MessageFunction<Any, DomainEventExchange<Any>, Mono<Void>> {
     companion object {
         private val log = LoggerFactory.getLogger(OrderMessageFunction::class.java)

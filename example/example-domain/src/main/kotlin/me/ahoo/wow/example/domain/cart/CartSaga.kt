@@ -15,12 +15,12 @@ package me.ahoo.wow.example.domain.cart
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
-import me.ahoo.wow.spring.stereotype.StatelessSaga
 
 @StatelessSaga
 class CartSaga {
