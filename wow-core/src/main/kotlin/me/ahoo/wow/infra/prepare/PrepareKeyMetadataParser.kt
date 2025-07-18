@@ -14,7 +14,6 @@
 package me.ahoo.wow.infra.prepare
 
 import me.ahoo.wow.api.annotation.PreparableKey
-import me.ahoo.wow.command.annotation.CommandMetadataVisitor
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
@@ -23,18 +22,20 @@ import me.ahoo.wow.metadata.Metadata
 object PrepareKeyMetadataParser : CacheableMetadataParser() {
 
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
-        val visitor = CommandMetadataVisitor(type)
+        val visitor = PrepareKeyMetadataVisitor(type)
         type.kotlin.visit(visitor)
         @Suppress("UNCHECKED_CAST")
         return visitor.toMetadata() as M
     }
 }
 
-class PrepareKeyMetadataVisitor<P : Any>(private val prepareKeyType: Class<P>) : ClassVisitor<P> {
-
-
-    fun toMetadata(): PrepareKeyMetadata<P> {
+class PrepareKeyMetadataVisitor<P : Any>(private val prepareKeyType: Class<P>) :
+    ClassVisitor<P, PrepareKeyMetadata<P>> {
+    override fun toMetadata(): PrepareKeyMetadata<P> {
         val name = prepareKeyType.getAnnotation(PreparableKey::class.java)?.name ?: prepareKeyType.simpleName
 
+        return PrepareKeyMetadata(name, prepareKeyType.kotlin, PreparedValue::class.java)
     }
+
+
 }
