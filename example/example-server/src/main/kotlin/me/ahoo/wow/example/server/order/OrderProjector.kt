@@ -14,17 +14,17 @@
 package me.ahoo.wow.example.server.order
 
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.api.annotation.ProjectionProcessor
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.spring.stereotype.ProjectionProcessorComponent
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-@ProjectionProcessorComponent
+@ProjectionProcessor
 class OrderProjector {
     companion object {
         private val log = LoggerFactory.getLogger(OrderProjector::class.java)

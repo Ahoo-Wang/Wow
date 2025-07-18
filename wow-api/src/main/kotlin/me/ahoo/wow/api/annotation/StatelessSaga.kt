@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.api.annotation
 
+import org.springframework.stereotype.Component
 import java.lang.annotation.Inherited
 
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
+@Component
 annotation class StatelessSaga

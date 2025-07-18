@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.example.server.order
 
+import me.ahoo.wow.api.annotation.EventProcessor
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
-import me.ahoo.wow.spring.stereotype.EventProcessorComponent
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
-@EventProcessorComponent
+@EventProcessor
 class OrderEventProcessor {
     companion object {
         private val log = LoggerFactory.getLogger(OrderEventProcessor::class.java)

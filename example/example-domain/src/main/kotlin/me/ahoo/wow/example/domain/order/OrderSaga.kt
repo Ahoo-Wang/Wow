@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.example.domain.order
 
+import me.ahoo.wow.api.annotation.StatelessSaga
 import me.ahoo.wow.example.api.order.OrderCreated
-import me.ahoo.wow.spring.stereotype.StatelessSaga
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 
