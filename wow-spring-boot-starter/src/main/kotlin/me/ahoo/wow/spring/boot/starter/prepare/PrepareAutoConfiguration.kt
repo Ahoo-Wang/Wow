@@ -20,11 +20,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @ConditionalOnPrepareEnabled
 @EnableConfigurationProperties(PrepareProperties::class)
+@Import(PrepareKeyAutoRegistrar::class)
 class PrepareAutoConfiguration {
     @Bean
     @ConditionalOnBean(PrepareKeyFactory::class)
