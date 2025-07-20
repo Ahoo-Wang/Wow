@@ -153,12 +153,17 @@ internal class DefaultExpectStage<C : Any, S : Any>(
 
     private val expectStates: MutableList<Consumer<ExpectedResult<S>>> = mutableListOf()
 
+    @Volatile
+    private var cachedVerifiedStage: VerifiedStage<S>? = null
     override fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S> {
         expectStates.add(expected)
         return this
     }
 
     override fun verify(): VerifiedStage<S> {
+        if (cachedVerifiedStage != null) {
+            return cachedVerifiedStage!!
+        }
         lateinit var expectedResult: ExpectedResult<S>
         expectedResultMono
             .test()
@@ -170,11 +175,12 @@ internal class DefaultExpectStage<C : Any, S : Any>(
                 }
             }
             .verifyComplete()
-        return DefaultVerifiedStage(
+        cachedVerifiedStage = DefaultVerifiedStage(
             verifiedResult = expectedResult,
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,
             serviceProvider = serviceProvider,
         )
+        return cachedVerifiedStage!!
     }
 }
