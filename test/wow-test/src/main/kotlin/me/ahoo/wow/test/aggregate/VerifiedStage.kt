@@ -29,14 +29,14 @@ import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 
-interface VerifiedStage<S : Any> {
+interface VerifiedStage<S : Any> : GivenStage<S> {
     val verifiedResult: ExpectedResult<S>
     val stateAggregate: StateAggregate<S>
         get() = verifiedResult.stateAggregate
     val stateRoot: S
         get() = stateAggregate.state
 
-    fun then(verifyError: Boolean = false): GivenStage<S>
+    fun then(verifyError: Boolean = false): VerifiedStage<S>
 
     /**
      * 为当前环境创建一个完全独立的测试分支上下文
@@ -50,7 +50,7 @@ interface VerifiedStage<S : Any> {
         commandAggregateFactorySupplier: () -> CommandAggregateFactory = {
             SimpleCommandAggregateFactory(InMemoryEventStore())
         },
-        handle: GivenStage<S>.(ExpectedResult<S>) -> Unit
+        handle: VerifiedStage<S>.() -> Unit
     ): VerifiedStage<S>
 }
 
@@ -84,7 +84,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             }
         }
 
-    override fun then(verifyError: Boolean): GivenStage<S> {
+    override fun then(verifyError: Boolean): VerifiedStage<S> {
         verifyError(verifyError)
         return this
     }
@@ -101,7 +101,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         verifyError: Boolean,
         serviceProviderSupplier: (ServiceProvider) -> ServiceProvider,
         commandAggregateFactorySupplier: () -> CommandAggregateFactory,
-        handle: GivenStage<S>.(ExpectedResult<S>) -> Unit
+        handle: VerifiedStage<S>.() -> Unit
     ): VerifiedStage<S> {
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
@@ -112,13 +112,13 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         )
         val forkedServiceProvider = serviceProviderSupplier(serviceProvider)
         val forkedCommandAggregateFactory = commandAggregateFactorySupplier()
-        val forkedGivenStage = DefaultVerifiedStage(
+        val forkedVerifiedStage = DefaultVerifiedStage(
             verifiedResult = forkedResult,
             metadata = this.metadata,
             commandAggregateFactory = forkedCommandAggregateFactory,
             serviceProvider = forkedServiceProvider,
         )
-        handle(forkedGivenStage, forkedResult)
+        handle(forkedVerifiedStage)
         return this
     }
 }
