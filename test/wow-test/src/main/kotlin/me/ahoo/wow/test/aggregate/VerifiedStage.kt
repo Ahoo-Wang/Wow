@@ -14,11 +14,11 @@
 package me.ahoo.wow.test.aggregate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -44,8 +44,8 @@ interface VerifiedStage<S : Any> : GivenStage<S> {
     fun fork(
         verifyError: Boolean = false,
         serviceProviderSupplier: (ServiceProvider) -> ServiceProvider = {
-            require(it is SimpleServiceProvider)
-            it.copy()
+            require(it is Copyable<*>)
+            it.copy() as ServiceProvider
         },
         commandAggregateFactorySupplier: () -> CommandAggregateFactory = {
             SimpleCommandAggregateFactory(InMemoryEventStore())

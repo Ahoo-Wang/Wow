@@ -25,8 +25,7 @@ import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.test.aggregate.ExpectedResult
-import me.ahoo.wow.test.aggregate.GivenStage
+import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.junit.jupiter.api.Test
@@ -80,16 +79,16 @@ class OrchestrationTest {
             }
             .verify()
             .fork {
-                changeAddress(it)
+                changeAddress()
             }.fork {
-                payOrder(it)
+                payOrder()
             }
     }
 
-    private fun GivenStage<OrderState>.payOrder(it: ExpectedResult<OrderState>) {
+    private fun VerifiedStage<OrderState>.payOrder() {
         val payOrder = PayOrder(
-            it.stateAggregate.aggregateId.id,
-            it.stateAggregate.state.payable
+            stateAggregate.aggregateId.id,
+            stateAggregate.state.payable
         )
         whenCommand(payOrder)
             .expectEventType(OrderPaid::class)
@@ -100,7 +99,7 @@ class OrchestrationTest {
             .verify()
     }
 
-    private fun GivenStage<OrderState>.changeAddress(it: ExpectedResult<OrderState>) {
+    private fun VerifiedStage<OrderState>.changeAddress() {
         val changeAddress = ChangeAddress(
             ShippingAddress(
                 country = "China",
