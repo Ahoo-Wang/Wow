@@ -20,12 +20,13 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
+import me.ahoo.wow.test.dsl.NameSpecCapable
 
 interface AggregateDsl<S : Any> {
     fun given(block: GivenDsl<S>.() -> Unit)
 }
 
-interface GivenDsl<S : Any> : WhenDsl<S> {
+interface GivenDsl<S : Any> : WhenDsl<S>, NameSpecCapable {
     fun inject(inject: ServiceProvider.() -> Unit)
 
     fun givenOwnerId(ownerId: String)
@@ -35,7 +36,7 @@ interface GivenDsl<S : Any> : WhenDsl<S> {
     fun givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)
 }
 
-interface WhenDsl<S : Any> {
+interface WhenDsl<S : Any> : NameSpecCapable {
     fun whenCommand(
         command: Any,
         header: Header = DefaultHeader.Companion.empty(),
