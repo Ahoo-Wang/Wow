@@ -16,13 +16,14 @@ package me.ahoo.wow.test.saga.stateless.dsl
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.test.dsl.NameSpecCapable
 import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
 
 interface StatelessSagaDsl<T : Any> {
     fun on(block: WhenDsl<T>.() -> Unit)
 }
 
-interface WhenDsl<T : Any> {
+interface WhenDsl<T : Any> : NameSpecCapable {
     fun inject(inject: ServiceProvider.() -> Unit)
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)
     fun functionName(functionName: String) {

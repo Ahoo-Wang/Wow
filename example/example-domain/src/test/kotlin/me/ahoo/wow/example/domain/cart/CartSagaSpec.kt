@@ -51,4 +51,26 @@ class CartSagaSpec : SagaSpec<CartSaga>({
             }
         }
     }
+    on {
+        name("NotFromCart")
+        val orderItem = OrderItem(
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
+        )
+        whenEvent(
+            event = mockk<OrderCreated> {
+                every {
+                    items
+                } returns listOf(orderItem)
+                every {
+                    fromCart
+                } returns false
+            },
+            ownerId = generateGlobalId()
+        ) {
+            expectNoCommand()
+        }
+    }
 })
