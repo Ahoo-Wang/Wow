@@ -22,7 +22,6 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
-import java.util.function.Consumer
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
@@ -68,18 +67,18 @@ interface WhenStage<T : Any> {
 }
 
 interface ExpectStage<T : Any> {
-    fun expect(expected: Consumer<ExpectedResult<T>>): ExpectStage<T>
+    fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectStage<T>
 
-    fun expectCommandStream(expected: Consumer<CommandStream>): ExpectStage<T> {
+    fun expectCommandStream(expected: CommandStream.() -> Unit): ExpectStage<T> {
         return expectNoError().expect {
-            it.commandStream.assert().describedAs { "Expect the command stream is not null." }.isNotNull()
-            expected.accept(it.commandStream!!)
+            commandStream.assert().describedAs { "Expect the command stream is not null." }.isNotNull()
+            expected(commandStream!!)
         }
     }
 
-    fun expectCommandIterator(expected: Consumer<CommandIterator>): ExpectStage<T> {
+    fun expectCommandIterator(expected: CommandIterator.() -> Unit): ExpectStage<T> {
         return expectCommandStream {
-            expected.accept(CommandIterator(it.iterator()))
+            expected(CommandIterator(iterator()))
         }
     }
 
@@ -94,25 +93,25 @@ interface ExpectStage<T : Any> {
     /**
      * 期望的第一个命令
      */
-    fun <C : Any> expectCommand(expected: Consumer<CommandMessage<C>>): ExpectStage<T> {
+    fun <C : Any> expectCommand(expected: CommandMessage<C>.() -> Unit): ExpectStage<T> {
         return expectCommandStream {
-            it.assert()
+            assert()
                 .describedAs { "Expect the command stream size to be greater than 1." }
                 .hasSizeGreaterThanOrEqualTo(1)
             @Suppress("UNCHECKED_CAST")
-            expected.accept(it.first() as CommandMessage<C>)
+            expected(first() as CommandMessage<C>)
         }
     }
 
-    fun <C : Any> expectCommandBody(expected: Consumer<C>): ExpectStage<T> {
+    fun <C : Any> expectCommandBody(expected: C.() -> Unit): ExpectStage<T> {
         return expectCommand {
-            expected.accept(it.body)
+            expected(body)
         }
     }
 
     fun expectCommandCount(expected: Int): ExpectStage<T> {
         return expectCommandStream {
-            it.assert().describedAs { "Expect the command stream size." }.hasSize(expected)
+            assert().describedAs { "Expect the command stream size." }.hasSize(expected)
         }
     }
 
@@ -122,7 +121,7 @@ interface ExpectStage<T : Any> {
 
     fun expectCommandType(vararg expected: Class<*>): ExpectStage<T> {
         return expectCommandCount(expected.size).expectCommandStream {
-            val itr = it.iterator()
+            val itr = iterator()
             for (eventType in expected) {
                 itr.next().body.assert().isInstanceOf(eventType)
             }
@@ -131,20 +130,20 @@ interface ExpectStage<T : Any> {
 
     fun expectNoError(): ExpectStage<T> {
         return expect {
-            it.error.assert().describedAs { "Expect no error." }.isNull()
+            error.assert().describedAs { "Expect no error." }.isNull()
         }
     }
 
     fun expectError(): ExpectStage<T> {
         return expect {
-            it.error.assert().describedAs { "Expect an error." }.isNotNull()
+            error.assert().describedAs { "Expect an error." }.isNotNull()
         }
     }
 
-    fun <E : Throwable> expectError(expected: Consumer<E>): ExpectStage<T> {
+    fun <E : Throwable> expectError(expected: E.() -> Unit): ExpectStage<T> {
         return expectError().expect {
             @Suppress("UNCHECKED_CAST")
-            expected.accept(it.error as E)
+            expected(error as E)
         }
     }
 
@@ -154,7 +153,7 @@ interface ExpectStage<T : Any> {
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<T> {
         return expectError<E> {
-            it.assert().isInstanceOf(expected)
+            assert().isInstanceOf(expected)
         }
     }
 
