@@ -46,6 +46,10 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         delegate.givenOwnerId(ownerId)
     }
 
+    override fun givenEvent(event: Any, block: WhenDsl<S>.() -> Unit) {
+        givenEvent(arrayOf(event), block)
+    }
+
     override fun givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit) {
         val whenStage = delegate.givenEvent(*events)
         val whenDsl = DefaultWhenDsl(whenStage)
@@ -61,7 +65,7 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val whenStage = delegate.givenState(state, version)
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
-        val container = DynamicContainer.dynamicContainer("Given State", whenDsl.dynamicNodes)
+        val container = DynamicContainer.dynamicContainer("Given[State]", whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 
@@ -74,7 +78,7 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val givenStage = delegate.givenEvent()
         val whenDsl = DefaultWhenDsl(givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
-        val container = DynamicContainer.dynamicContainer("Given Empty", whenDsl.dynamicNodes)
+        val container = DynamicContainer.dynamicContainer("Given[Empty]", whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 }
@@ -97,7 +101,7 @@ class DefaultForkedVerifiedStageDsl<S : Any>(override val delegate: VerifiedStag
         val givenStage = delegate.givenEvent()
         val whenDsl = DefaultWhenDsl(givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
-        val container = DynamicContainer.dynamicContainer("Given Verified Stage", whenDsl.dynamicNodes)
+        val container = DynamicContainer.dynamicContainer("Given[Verified Stage]", whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 }

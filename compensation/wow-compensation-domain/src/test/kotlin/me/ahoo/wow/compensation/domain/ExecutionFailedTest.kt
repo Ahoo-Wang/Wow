@@ -56,7 +56,7 @@ class ExecutionFailedTest {
             name = "onEvent"
         )
 
-        private fun newError(): ErrorDetails {
+        fun newError(): ErrorDetails {
             return ErrorDetails(generateGlobalId(), "errorMsg", "stackTrace")
         }
     }
