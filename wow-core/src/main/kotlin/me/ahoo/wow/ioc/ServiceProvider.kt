@@ -24,6 +24,8 @@ import kotlin.reflect.typeOf
  * @author ahoo wang
  */
 interface ServiceProvider : Copyable<ServiceProvider> {
+    val serviceNames: Set<String>
+
     fun register(
         service: Any,
         serviceName: String = service.javaClass.toName(),
@@ -31,7 +33,6 @@ interface ServiceProvider : Copyable<ServiceProvider> {
     )
 
     fun <S : Any> getService(serviceType: KType): S?
-
     fun <S : Any> getService(serviceName: String): S?
 }
 

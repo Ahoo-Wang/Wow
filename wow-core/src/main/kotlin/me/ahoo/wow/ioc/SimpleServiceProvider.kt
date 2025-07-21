@@ -20,6 +20,8 @@ import kotlin.reflect.full.isSubtypeOf
 class SimpleServiceProvider : ServiceProvider {
     private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
     private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
+    override val serviceNames: Set<String>
+        get() = namedServices.keys
 
     override fun register(service: Any, serviceName: String, serviceType: KType) {
         typedServices[serviceType] = service
