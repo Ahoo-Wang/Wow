@@ -125,10 +125,15 @@ class DefaultWhenDsl<S : Any>(private val delegate: WhenStage<S>) : WhenDsl<S>, 
 }
 
 class DefaultExpectDsl<S : Any>(override val delegate: ExpectStage<S>) :
-    ExpectStage<S> by delegate,
-    Decorator<ExpectStage<S>>,
     ExpectDsl<S>,
+    Decorator<ExpectStage<S>>,
     AbstractDynamicTestBuilder() {
+
+    override fun expect(expected: ExpectedResult<S>.() -> Unit): ExpectDsl<S> {
+        delegate.expect(expected)
+        return this
+    }
+
     override fun fork(
         verifyError: Boolean,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
