@@ -13,27 +13,26 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.test.aggregate.dsl.AggregateDsl
-import me.ahoo.wow.test.aggregate.dsl.DefaultAggregateDsl
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
+import me.ahoo.wow.test.saga.stateless.dsl.DefaultStatelessSagaDsl
+import me.ahoo.wow.test.saga.stateless.dsl.StatelessSagaDsl
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.TestFactory
 import java.lang.reflect.ParameterizedType
 import java.util.stream.Stream
 
-abstract class AggregateSpec<C : Any, S : Any>(private val block: AggregateDsl<S>.() -> Unit) :
-    AbstractDynamicTestBuilder() {
-    val commandAggregateType: Class<C>
+abstract class SagaSpec<T : Any>(private val block: StatelessSagaDsl<T>.() -> Unit) : AbstractDynamicTestBuilder() {
+    val processorType: Class<T>
         get() {
             val type = this::class.java.genericSuperclass as ParameterizedType
             @Suppress("UNCHECKED_CAST")
-            return type.actualTypeArguments[0] as Class<C>
+            return type.actualTypeArguments[0] as Class<T>
         }
 
     @TestFactory
     fun execute(): Stream<DynamicNode> {
-        val aggregateDsl = DefaultAggregateDsl<C, S>(commandAggregateType)
-        block(aggregateDsl)
-        return aggregateDsl.dynamicNodes.stream()
+        val statelessSagaDsl = DefaultStatelessSagaDsl<T>(processorType)
+        block(statelessSagaDsl)
+        return statelessSagaDsl.dynamicNodes.stream()
     }
 }
