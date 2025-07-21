@@ -31,6 +31,7 @@ import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.test.saga.stateless.GivenReadOnlyStateAggregate.Companion.toReadOnlyStateAggregate
+import org.assertj.core.error.MultipleAssertionsError
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.test.test
@@ -133,22 +134,37 @@ internal class DefaultWhenStage<T : Any>(
     }
 }
 
-internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<ExpectedResult<T>>) : ExpectStage<T> {
+internal class DefaultExpectStage<T : Any>(private val expectedResultMono: Mono<ExpectedResult<T>>) : ExpectStage<T> {
     private val expectStates: MutableList<Consumer<ExpectedResult<T>>> = mutableListOf()
+    private val expectedResult: ExpectedResult<T> by lazy(this) {
+        lateinit var expectedResult: ExpectedResult<T>
+        expectedResultMono.test()
+            .consumeNextWith {
+                expectedResult = it
+            }.verifyComplete()
+        expectedResult
+    }
 
     override fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectStage<T> {
         expectStates.add(expected)
         return this
     }
 
-    override fun verify() {
-        expectedResult
-            .test()
-            .consumeNextWith {
-                for (expectState in expectStates) {
-                    expectState.accept(it)
-                }
+    override fun verify(immediately: Boolean): ExpectedResult<T> {
+        val expectErrors = mutableListOf<AssertionError>()
+        for (expectState in expectStates) {
+            try {
+                expectState.accept(expectedResult)
+            } catch (e: AssertionError) {
+                expectErrors.add(e)
             }
-            .verifyComplete()
+        }
+        if (immediately.not()) {
+            return expectedResult
+        }
+        if (expectErrors.isNotEmpty()) {
+            throw MultipleAssertionsError(expectErrors)
+        }
+        return expectedResult
     }
 }
