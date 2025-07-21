@@ -36,9 +36,9 @@ class CartSagaTest {
             )
             .expectCommandType(RemoveCartItem::class)
             .expectCommand<RemoveCartItem> {
-                it.aggregateId.id.assert().isEqualTo(ownerId)
-                it.body.productIds.assert().hasSize(1)
-                it.body.productIds.assert().first().isEqualTo(orderItem.productId)
+                aggregateId.id.assert().isEqualTo(ownerId)
+                body.productIds.assert().hasSize(1)
+                body.productIds.assert().first().isEqualTo(orderItem.productId)
             }
             .verify()
     }

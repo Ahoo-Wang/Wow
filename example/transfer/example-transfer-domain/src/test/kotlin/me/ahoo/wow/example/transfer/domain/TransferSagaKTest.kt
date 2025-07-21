@@ -31,8 +31,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .whenEvent(event)
             .expectCommandBody<Entry> {
-                it.id.assert().isEqualTo(event.to)
-                it.amount.assert().isEqualTo(event.amount)
+                id.assert().isEqualTo(event.to)
+                amount.assert().isEqualTo(event.amount)
             }
             .verify()
     }
@@ -43,8 +43,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .whenEvent(event)
             .expectCommandBody<Confirm> {
-                it.id.assert().isEqualTo(event.sourceId)
-                it.amount.assert().isEqualTo(event.amount)
+                id.assert().isEqualTo(event.sourceId)
+                amount.assert().isEqualTo(event.amount)
             }
             .verify()
     }
@@ -55,8 +55,8 @@ internal class TransferSagaKTest {
         sagaVerifier<TransferSaga>()
             .whenEvent(event)
             .expectCommandBody<UnlockAmount> {
-                it.id.assert().isEqualTo(event.sourceId)
-                it.amount.assert().isEqualTo(event.amount)
+               id.assert().isEqualTo(event.sourceId)
+               amount.assert().isEqualTo(event.amount)
             }
             .verify()
     }

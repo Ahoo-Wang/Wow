@@ -136,7 +136,7 @@ internal class DefaultWhenStage<T : Any>(
 internal class DefaultExpectStage<T : Any>(private val expectedResult: Mono<ExpectedResult<T>>) : ExpectStage<T> {
     private val expectStates: MutableList<Consumer<ExpectedResult<T>>> = mutableListOf()
 
-    override fun expect(expected: Consumer<ExpectedResult<T>>): ExpectStage<T> {
+    override fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectStage<T> {
         expectStates.add(expected)
         return this
     }
