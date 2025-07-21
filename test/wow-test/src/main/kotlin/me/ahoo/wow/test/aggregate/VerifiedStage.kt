@@ -112,8 +112,17 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
 
     private fun verifyError(verifyError: Boolean) {
         if (verifyError) {
-            require(!verifiedResult.hasError) {
-                "An exception[${verifiedResult.error}] occurred in the verified result."
+            if (verifiedResult.hasError) {
+                throw AssertionError(
+                    "An exception[${verifiedResult.error}] occurred in the verified result.",
+                    verifiedResult.error
+                )
+            }
+            if (expectErrors.isNotEmpty()) {
+                throw AssertionError(
+                    "Expected errors are not empty.",
+                    expectErrors.first()
+                )
             }
         }
     }
