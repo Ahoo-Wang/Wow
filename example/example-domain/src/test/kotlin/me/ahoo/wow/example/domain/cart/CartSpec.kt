@@ -25,7 +25,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.AggregateSpec
 
-class CartAggregateSpec : AggregateSpec<Cart, CartState>(
+class CartSpec : AggregateSpec<Cart, CartState>(
     {
         on {
             val ownerId = generateGlobalId()
