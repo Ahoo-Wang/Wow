@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.ioc
 
+import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.naming.annotation.toName
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
@@ -22,7 +23,7 @@ import kotlin.reflect.typeOf
  *
  * @author ahoo wang
  */
-interface ServiceProvider {
+interface ServiceProvider : Copyable<ServiceProvider> {
     fun register(
         service: Any,
         serviceName: String = service.javaClass.toName(),

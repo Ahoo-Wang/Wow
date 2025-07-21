@@ -12,13 +12,12 @@
  */
 package me.ahoo.wow.ioc
 
-import me.ahoo.wow.api.Copyable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
 import kotlin.reflect.full.isSubtypeOf
 
-class SimpleServiceProvider : ServiceProvider, Copyable<SimpleServiceProvider> {
+class SimpleServiceProvider : ServiceProvider {
     private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
     private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
 

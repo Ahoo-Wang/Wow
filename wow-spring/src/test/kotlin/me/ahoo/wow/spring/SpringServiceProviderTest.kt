@@ -18,5 +18,8 @@ class SpringServiceProviderTest {
         serviceProvider.register(this, serviceType = typeOf<SpringServiceProviderTest>())
         serviceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
         serviceProvider.getOriginalDelegate().assert().isSameAs(beanFactory)
+
+        val copiedServiceProvider = serviceProvider.copy()
+        copiedServiceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
     }
 }
