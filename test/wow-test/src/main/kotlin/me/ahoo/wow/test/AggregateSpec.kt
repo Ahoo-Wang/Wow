@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.test.aggregate.AbstractDynamicTestBuilder
-import me.ahoo.wow.test.aggregate.AggregateDsl
+import me.ahoo.wow.test.aggregate.dsl.AbstractDynamicTestBuilder
+import me.ahoo.wow.test.aggregate.dsl.AggregateDsl
+import me.ahoo.wow.test.aggregate.dsl.DefaultAggregateDsl
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.TestFactory
 import java.lang.reflect.ParameterizedType
 import java.util.stream.Stream
 
-abstract class AggregateSpec<C : Any, S : Any>(val block: AggregateDsl<C, S>.() -> Unit) :
+abstract class AggregateSpec<C : Any, S : Any>(val block: AggregateDsl<S>.() -> Unit) :
     AbstractDynamicTestBuilder() {
     val commandAggregateType: Class<C>
         get() {
@@ -31,7 +32,7 @@ abstract class AggregateSpec<C : Any, S : Any>(val block: AggregateDsl<C, S>.() 
 
     @TestFactory
     fun execute(): Stream<DynamicNode> {
-        val aggregateDsl = AggregateDsl<C, S>(commandAggregateType)
+        val aggregateDsl = DefaultAggregateDsl<C, S>(commandAggregateType)
         block(aggregateDsl)
         return aggregateDsl.dynamicNodes.stream()
     }
