@@ -31,7 +31,7 @@ abstract class SagaSpec<T : Any>(private val block: StatelessSagaDsl<T>.() -> Un
 
     @TestFactory
     fun execute(): Stream<DynamicNode> {
-        val statelessSagaDsl = DefaultStatelessSagaDsl<T>(processorType)
+        val statelessSagaDsl = DefaultStatelessSagaDsl(processorType)
         block(statelessSagaDsl)
         return statelessSagaDsl.dynamicNodes.stream()
     }

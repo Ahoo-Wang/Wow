@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.saga.stateless.dsl
 
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -34,8 +35,16 @@ class DefaultStatelessSagaDsl<T : Any>(private val processorType: Class<T>) : St
     }
 }
 
-class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) : Decorator<WhenStage<T>>, WhenDsl<T>,
-    AbstractDynamicTestBuilder() {
+class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) :
+    Decorator<WhenStage<T>>,
+    WhenDsl<T>,
+    AbstractDynamicTestBuilder(),
+    Named {
+    override var name: String = ""
+    override fun name(name: String) {
+        this.name = name
+    }
+
     override fun inject(inject: ServiceProvider.() -> Unit) {
         delegate.inject(inject)
     }
@@ -60,6 +69,9 @@ class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) : Decorator<W
             }
             append(" Event")
             append("[${event.javaClass.toName()}]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
         }
         val dynamicTest = DynamicTest.dynamicTest(displayName) {
             expectStage.verify()
