@@ -39,6 +39,10 @@ interface ExpectStage<S : Any> {
         return expectStateAggregate { expected(state) }
     }
 
+    fun expectState(expected: Consumer<S>): ExpectStage<S> {
+        return expectState { expected.accept(this) }
+    }
+
     /**
      * 3.2 期望领域事件.
      */
@@ -57,9 +61,22 @@ interface ExpectStage<S : Any> {
         }
     }
 
+    fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
+        return expectEventStream {
+            expected.accept(this)
+        }
+    }
+
     fun expectEventIterator(expected: EventIterator.() -> Unit): ExpectStage<S> {
         return expectEventStream {
             expected(EventIterator((iterator())))
+        }
+    }
+
+
+    fun expectEventIterator(expected: Consumer<EventIterator>): ExpectStage<S> {
+        return expectEventIterator {
+            expected.accept(this)
         }
     }
 
@@ -75,9 +92,21 @@ interface ExpectStage<S : Any> {
         }
     }
 
+    fun <E : Any> expectEvent(expected: Consumer<DomainEvent<E>>): ExpectStage<S> {
+        return expectEvent {
+            expected.accept(this)
+        }
+    }
+
     fun <E : Any> expectEventBody(expected: E.() -> Unit): ExpectStage<S> {
         return expectEvent {
             expected(body)
+        }
+    }
+
+    fun <E : Any> expectEventBody(expected: Consumer<E>): ExpectStage<S> {
+        return expectEventBody<E> {
+            expected.accept(this)
         }
     }
 
@@ -125,6 +154,12 @@ interface ExpectStage<S : Any> {
         return expectError().expect {
             @Suppress("UNCHECKED_CAST")
             expected(error as E)
+        }
+    }
+
+    fun <E : Throwable> expectError(expected: Consumer<E>): ExpectStage<S> {
+        return expectError<E> {
+            expected.accept(this)
         }
     }
 
