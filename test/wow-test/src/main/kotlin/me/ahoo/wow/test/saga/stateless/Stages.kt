@@ -22,7 +22,6 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.saga.stateless.CommandStream
-import java.util.function.Consumer
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
@@ -77,21 +76,9 @@ interface ExpectStage<T : Any> {
         }
     }
 
-    fun expectCommandStream(expected: Consumer<CommandStream>): ExpectStage<T> {
-        return expectCommandStream {
-            expected.accept(this)
-        }
-    }
-
     fun expectCommandIterator(expected: CommandIterator.() -> Unit): ExpectStage<T> {
         return expectCommandStream {
             expected(CommandIterator(iterator()))
-        }
-    }
-
-    fun expectCommandIterator(expected: Consumer<CommandIterator>): ExpectStage<T> {
-        return expectCommandIterator {
-            expected.accept(this)
         }
     }
 
@@ -116,19 +103,9 @@ interface ExpectStage<T : Any> {
         }
     }
 
-    fun <C : Any> expectCommand(expected: Consumer<CommandMessage<C>>): ExpectStage<T> {
-        return expectCommand { expected.accept(this) }
-    }
-
     fun <C : Any> expectCommandBody(expected: C.() -> Unit): ExpectStage<T> {
         return expectCommand {
             expected(body)
-        }
-    }
-
-    fun <C : Any> expectCommandBody(expected: Consumer<C>): ExpectStage<T> {
-        return expectCommandBody<C> {
-            expected.accept(this)
         }
     }
 

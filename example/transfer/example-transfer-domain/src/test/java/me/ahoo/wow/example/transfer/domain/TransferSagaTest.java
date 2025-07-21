@@ -30,6 +30,7 @@ public class TransferSagaTest {
                 .expectCommandBody((Entry entry) -> {
                     assertThat(entry.id()).isEqualTo(event.to());
                     assertThat(entry.amount()).isEqualTo(event.amount());
+                    return null;
                 })
                 .verify();
     }
