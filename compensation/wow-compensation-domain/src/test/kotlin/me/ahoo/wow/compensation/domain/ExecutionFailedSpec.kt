@@ -24,7 +24,7 @@ import me.ahoo.wow.compensation.domain.ExecutionFailedTest.Companion.newError
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.test.AggregateSpec
 
-class ExecutionFailedTestSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>({
+class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>({
     on {
         val prepareCompensation = PrepareCompensation(id = generateGlobalId())
         val executionFailedCreated = ExecutionFailedCreated(
