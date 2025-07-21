@@ -38,7 +38,7 @@ interface GivenDsl<S : Any> : WhenDsl<S> {
     fun inject(inject: ServiceProvider.() -> Unit)
 
     fun givenOwnerId(ownerId: String)
-
+    fun givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)
     fun givenEvent(events: Array<out Any> = emptyArray(), block: WhenDsl<S>.() -> Unit)
 
     fun givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)
