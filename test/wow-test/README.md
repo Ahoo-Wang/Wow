@@ -16,6 +16,9 @@ class CartTest : AggregateSpec<Cart, CartState>({
         whenCommand(command1) {
             expectNoError()
             expectEventType(eventType)
+            expectState {
+                
+            }
             then {
                 whenCommand(command1_1) {
                     expectNoError()
