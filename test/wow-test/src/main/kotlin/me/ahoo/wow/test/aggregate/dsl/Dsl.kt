@@ -18,7 +18,7 @@ import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.test.aggregate.ExpectStage
+import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import org.junit.jupiter.api.DynamicNode
 
@@ -53,7 +53,7 @@ interface WhenDsl<S : Any> {
     )
 }
 
-interface ExpectDsl<S : Any> : ExpectStage<S> {
+interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>> {
     fun fork(
         verifyError: Boolean = false,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
