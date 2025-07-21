@@ -14,7 +14,6 @@
 package me.ahoo.wow.test.aggregate
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -98,11 +97,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             stateAggregate = forkedStateAggregate,
             domainEventStream = forkedEventStream
         )
-        val forkedServiceProvider = if (serviceProvider is Copyable<*>) {
-            serviceProvider.copy() as ServiceProvider
-        } else {
-            serviceProvider
-        }
+        val forkedServiceProvider = serviceProvider.copy()
         val forkedCommandAggregateFactory = SimpleCommandAggregateFactory(InMemoryEventStore())
         val forkedVerifiedStage = DefaultVerifiedStage(
             verifiedResult = forkedResult,
