@@ -30,7 +30,7 @@ import org.junit.jupiter.api.DynamicTest
 
 class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Class<C>) :
     AggregateDsl<S>, AbstractDynamicTestBuilder() {
-    override fun given(block: GivenDsl<S>.() -> Unit) {
+    override fun on(block: GivenDsl<S>.() -> Unit) {
         val givenStage = commandAggregateType.aggregateVerifier<C, S>()
         val givenDsl = DefaultGivenDsl(givenStage)
         block(givenDsl)

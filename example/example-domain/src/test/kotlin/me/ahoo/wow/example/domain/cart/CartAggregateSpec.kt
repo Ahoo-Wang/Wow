@@ -27,7 +27,7 @@ import me.ahoo.wow.test.AggregateSpec
 
 class CartAggregateSpec : AggregateSpec<Cart, CartState>(
     {
-        given {
+        on {
             val ownerId = generateGlobalId()
             val addCartItem = AddCartItem(
                 productId = "productId",

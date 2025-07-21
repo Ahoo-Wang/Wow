@@ -25,7 +25,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.test.AggregateSpec
 
 class ExecutionFailedTestSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>({
-    given {
+    on {
         val prepareCompensation = PrepareCompensation(id = generateGlobalId())
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
