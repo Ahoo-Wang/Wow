@@ -8,7 +8,7 @@ class CartTest : AggregateSpec<Cart, CartState>({
     inject {
 
     }
-    given() {
+    given("Empty") {
         inject {
 
         }
@@ -19,7 +19,7 @@ class CartTest : AggregateSpec<Cart, CartState>({
             expectState {
                 
             }
-            then {
+            fork {
                 whenCommand(command1_1) {
                     expectNoError()
                 }
@@ -32,13 +32,15 @@ class CartTest : AggregateSpec<Cart, CartState>({
 
         }
     }
-    given() {
+    given("Event") {
         givenEvent(event) {
             whenCommand(command1) {
                 expectNoError()
                 expectEventType(eventType)
-                whenCommand(command1_1) {
+                fork {
+                    whenCommand(command1_1) {
 
+                    }
                 }
             }
             whenCommand(command2) {
@@ -47,7 +49,7 @@ class CartTest : AggregateSpec<Cart, CartState>({
         }
     }
 
-    given() {
+    given("State") {
         givenState(state) {
             whenCommand(command1) {
                 expectNoError()
