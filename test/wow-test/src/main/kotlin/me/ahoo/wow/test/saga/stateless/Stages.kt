@@ -68,7 +68,6 @@ interface WhenStage<T : Any> {
 
 interface ExpectStage<T : Any> : StatelessSagaExpecter<T, ExpectStage<T>> {
 
-
     fun verify(): ExpectedResult<T> {
         return verify(immediately = true)
     }
