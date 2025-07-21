@@ -129,19 +129,16 @@ class DefaultExpectDsl<S : Any>(override val delegate: ExpectStage<S>) :
         verifyError: Boolean,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
     ) {
-        /**
-         * 这会导致过早的验证，从而导致
-         */
-        try {
+        val forkNode = try {
             val verifiedStage = delegate.verify().fork(verifyError)
             val forkedVerifiedStageDsl = DefaultForkedVerifiedStageDsl(verifiedStage)
             block(forkedVerifiedStageDsl)
-            val forkNode = DynamicContainer.dynamicContainer("Fork", forkedVerifiedStageDsl.dynamicNodes)
-            dynamicNodes.add(forkNode)
+            DynamicContainer.dynamicContainer("Fork", forkedVerifiedStageDsl.dynamicNodes)
         } catch (e: Throwable) {
-            dynamicNodes.add(DynamicTest.dynamicTest("Fork Error") {
+            DynamicTest.dynamicTest("Fork Error") {
                 throw e
-            })
+            }
         }
+        dynamicNodes.add(forkNode)
     }
 }

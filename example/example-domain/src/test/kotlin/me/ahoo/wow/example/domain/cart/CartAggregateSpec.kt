@@ -41,7 +41,7 @@ class CartAggregateSpec : AggregateSpec<Cart, CartState>(
                     items.assert().hasSize(1)
                 }
                 expectStateAggregate {
-                    ownerId.assert().isNotEqualTo(ownerId)
+                    ownerId.assert().isEqualTo(ownerId)
                 }
                 fork {
                     val removeCartItem = RemoveCartItem(
