@@ -14,7 +14,7 @@ class CartTest : AggregateSpec<Cart, CartState>({
         }
         givenOwnerId(ownerId)
         whenCommand(command1) {
-            expectNoError()
+            expectNoError() 
             expectEventType(eventType)
             expectState {
                 
