@@ -43,27 +43,18 @@ internal class DefaultExpectStage<C : Any, S : Any>(
 
     private val cachedVerifiedStage: VerifiedStage<S> by lazy<VerifiedStage<S>>(this) {
         lateinit var expectedResult: ExpectedResult<S>
-        val expectErrors = mutableListOf<AssertionError>()
         expectedResultMono
             .test()
             .consumeNextWith {
                 verifyStateAggregateSerializable(it.stateAggregate)
                 expectedResult = it
-                for (expectState in expectStates) {
-                    try {
-                        expectState.accept(it)
-                    } catch (e: AssertionError) {
-                        expectErrors.add(e)
-                    }
-                }
             }
             .verifyComplete()
         DefaultVerifiedStage(
             verifiedResult = expectedResult,
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,
-            serviceProvider = serviceProvider,
-            assertionErrors = expectErrors
+            serviceProvider = serviceProvider
         )
     }
 
@@ -76,8 +67,17 @@ internal class DefaultExpectStage<C : Any, S : Any>(
         if (immediately.not()) {
             return cachedVerifiedStage
         }
-        if (cachedVerifiedStage.assertionErrors.isNotEmpty()) {
-            throw MultipleAssertionsError(cachedVerifiedStage.assertionErrors)
+        val assertionErrors = mutableListOf<AssertionError>()
+        for (expectState in expectStates) {
+            try {
+                expectState.accept(cachedVerifiedStage.verifiedResult)
+            } catch (e: AssertionError) {
+                assertionErrors.add(e)
+            }
+        }
+
+        if (assertionErrors.isNotEmpty()) {
+            throw MultipleAssertionsError(assertionErrors)
         }
         return cachedVerifiedStage
     }
