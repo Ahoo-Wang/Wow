@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.aggregate.dsl
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.annotation.toName
@@ -37,7 +38,15 @@ class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Cl
     }
 }
 
-abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenDsl<S>, AbstractDynamicTestBuilder() {
+abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenDsl<S>, Named,
+    AbstractDynamicTestBuilder() {
+    final override var name: String = ""
+        private set
+
+    override fun name(name: String) {
+        this.name = name
+    }
+
     override fun inject(inject: ServiceProvider.() -> Unit) {
         delegate.inject(inject)
     }
@@ -55,8 +64,15 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
 
+        val displayName = buildString {
+            append("Given")
+            append(" Events[${events.joinToString(",") { it.javaClass.toName() }}]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
         val container = DynamicContainer.dynamicContainer(
-            "Given Events[${events.joinToString(",") { it.javaClass.toName() }}]",
+            displayName,
             whenDsl.dynamicNodes
         )
         dynamicNodes.add(container)
@@ -66,7 +82,13 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val whenStage = delegate.givenState(state, version)
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
-        val container = DynamicContainer.dynamicContainer("Given[State]", whenDsl.dynamicNodes)
+        val displayName = buildString {
+            append("Given[State]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
+        val container = DynamicContainer.dynamicContainer(displayName, whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 
@@ -79,7 +101,13 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val givenStage = delegate.givenEvent()
         val whenDsl = DefaultWhenDsl(givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
-        val container = DynamicContainer.dynamicContainer("Given[Empty]", whenDsl.dynamicNodes)
+        val displayName = buildString {
+            append("Given[Empty]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
+        val container = DynamicContainer.dynamicContainer(displayName, whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 }
@@ -102,12 +130,25 @@ class DefaultForkedVerifiedStageDsl<S : Any>(override val delegate: VerifiedStag
         val givenStage = delegate.givenEvent()
         val whenDsl = DefaultWhenDsl(givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
-        val container = DynamicContainer.dynamicContainer("Given[Verified Stage]", whenDsl.dynamicNodes)
+        val displayName = buildString {
+            append("Given[Verified Stage]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
+        val container = DynamicContainer.dynamicContainer(displayName, whenDsl.dynamicNodes)
         dynamicNodes.add(container)
     }
 }
 
-class DefaultWhenDsl<S : Any>(private val delegate: WhenStage<S>) : WhenDsl<S>, AbstractDynamicTestBuilder() {
+class DefaultWhenDsl<S : Any>(private val delegate: WhenStage<S>) : WhenDsl<S>, Named, AbstractDynamicTestBuilder() {
+    override var name: String = ""
+        private set
+
+    override fun name(name: String) {
+        this.name = name
+    }
+
     override fun whenCommand(
         command: Any,
         header: Header,
@@ -117,7 +158,13 @@ class DefaultWhenDsl<S : Any>(private val delegate: WhenStage<S>) : WhenDsl<S>, 
         val expectStage = delegate.whenCommand(command, header, ownerId)
         val expectDsl = DefaultExpectDsl(expectStage)
         block(expectDsl)
-        val dynamicTest = DynamicTest.dynamicTest("When[${command.javaClass.toName()}]") {
+        val displayName = buildString {
+            append("When[${command.javaClass.toName()}]")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
+        val dynamicTest = DynamicTest.dynamicTest(displayName) {
             expectStage.verify()
         }
         dynamicNodes.add(dynamicTest)
