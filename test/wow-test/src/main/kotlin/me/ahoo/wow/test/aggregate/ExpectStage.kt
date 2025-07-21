@@ -20,6 +20,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
+import org.assertj.core.error.MultipleAssertionsError
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.function.Consumer
@@ -192,7 +193,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
 
     private val cachedVerifiedStage: VerifiedStage<S> by lazy<VerifiedStage<S>>(this) {
         lateinit var expectedResult: ExpectedResult<S>
-        val expectErrors = mutableListOf<Throwable>()
+        val expectErrors = mutableListOf<AssertionError>()
         expectedResultMono
             .test()
             .consumeNextWith {
@@ -201,7 +202,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
                 for (expectState in expectStates) {
                     try {
                         expectState.accept(it)
-                    } catch (e: Throwable) {
+                    } catch (e: AssertionError) {
                         expectErrors.add(e)
                     }
                 }
@@ -212,7 +213,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,
             serviceProvider = serviceProvider,
-            expectErrors = expectErrors
+            assertionErrors = expectErrors
         )
     }
 
@@ -225,8 +226,8 @@ internal class DefaultExpectStage<C : Any, S : Any>(
         if (immediately.not()) {
             return cachedVerifiedStage
         }
-        if (cachedVerifiedStage.expectErrors.isNotEmpty()) {
-            throw cachedVerifiedStage.expectErrors.first()
+        if (cachedVerifiedStage.assertionErrors.isNotEmpty()) {
+            throw MultipleAssertionsError(cachedVerifiedStage.assertionErrors)
         }
         return cachedVerifiedStage
     }
