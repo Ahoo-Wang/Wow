@@ -41,13 +41,13 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
             .expectEventBody<CategoryCreated> {
-                it.name.assert().isEqualTo(command.name)
-                it.level.assert().isOne()
-                it.sortId.assert().isZero()
+                name.assert().isEqualTo(command.name)
+                level.assert().isOne()
+                sortId.assert().isZero()
             }
             .expect {
-                it.exchange.getCommandResult().assert().hasSize(1)
-                val result = it.exchange.getCommandResult<String>(Flat::code.name)
+                exchange.getCommandResult().assert().hasSize(1)
+                val result = exchange.getCommandResult<String>(Flat::code.name)
                 result.assert().isNotNull()
             }
             .verify()
@@ -71,10 +71,10 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryCreated::class.java)
             .expectEventBody<CategoryCreated> {
-                it.name.assert().isEqualTo("name")
-                l1Category.isDirectChild(it).assert().isTrue()
-                it.level.assert().isEqualTo(2)
-                it.sortId.assert().isEqualTo(l2Category.sortId + 1)
+                name.assert().isEqualTo("name")
+                l1Category.isDirectChild(this).assert().isTrue()
+                level.assert().isEqualTo(2)
+                sortId.assert().isEqualTo(l2Category.sortId + 1)
             }
             .verify()
     }
@@ -100,10 +100,10 @@ class CategoryTest {
             .expectNoError()
             .expectEventType(CategoryDeleted::class.java)
             .expectEventBody<CategoryDeleted> {
-                it.code.assert().isEqualTo(category.code)
+                code.assert().isEqualTo(category.code)
             }
             .expectState {
-                it.children.assert().isEmpty()
+                children.assert().isEmpty()
             }
             .verify()
     }
@@ -138,8 +138,8 @@ class CategoryTest {
             .`when`(command)
             .expectEventType(CategoryUpdated::class.java)
             .expectEventBody<CategoryUpdated> {
-                it.name.assert().isEqualTo(command.name)
-                it.code.assert().isEqualTo(command.code)
+                name.assert().isEqualTo(command.name)
+                code.assert().isEqualTo(command.code)
             }
             .verify()
     }
@@ -165,10 +165,10 @@ class CategoryTest {
             .`when`(command)
             .expectEventType(CategoryMoved::class.java)
             .expectEventBody<CategoryMoved> {
-                it.codes.assert().contains("l11", "l1")
+                codes.assert().contains("l11", "l1")
             }
             .expectState {
-                it.children.map { it.code }.assert().contains("l11", "l1")
+                children.map { it.code }.assert().contains("l11", "l1")
             }
             .verify()
     }

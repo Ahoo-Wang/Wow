@@ -78,18 +78,18 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
             .expectState {
-                it.eventId.assert().isEqualTo(createExecutionFailed.eventId)
-                it.function.assert().isEqualTo(createExecutionFailed.function)
-                it.error.assert().isEqualTo(createExecutionFailed.error)
-                it.executeAt.assert().isEqualTo(createExecutionFailed.executeAt)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
-                it.retryState.retries.assert().isZero()
-                it.isRetryable.assert().isTrue()
-                it.retryState.timeout().assert().isFalse()
-                it.retrySpec.assert().isEqualTo(DefaultNextRetryAtCalculatorTest.testRetrySpec)
-                it.canRetry().assert().isTrue()
-                it.canNextRetry().assert().isFalse()
-                it.recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
+                eventId.assert().isEqualTo(createExecutionFailed.eventId)
+                function.assert().isEqualTo(createExecutionFailed.function)
+                error.assert().isEqualTo(createExecutionFailed.error)
+                executeAt.assert().isEqualTo(createExecutionFailed.executeAt)
+                status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
+                retryState.retries.assert().isZero()
+                isRetryable.assert().isTrue()
+                retryState.timeout().assert().isFalse()
+                retrySpec.assert().isEqualTo(DefaultNextRetryAtCalculatorTest.testRetrySpec)
+                canRetry().assert().isTrue()
+                canNextRetry().assert().isFalse()
+                recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
             }
             .verify()
     }
@@ -114,18 +114,18 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionFailedCreated::class.java)
             .expectState {
-                it.eventId.assert().isEqualTo(createExecutionFailed.eventId)
-                it.function.assert().isEqualTo(createExecutionFailed.function)
-                it.error.assert().isEqualTo(createExecutionFailed.error)
-                it.executeAt.assert().isEqualTo(createExecutionFailed.executeAt)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
-                it.retryState.retries.assert().isZero()
-                it.isRetryable.assert().isTrue()
-                it.retryState.timeout().assert().isFalse()
-                it.retrySpec.assert().isEqualTo(createExecutionFailed.retrySpec)
-                it.canRetry().assert().isTrue()
-                it.canNextRetry().assert().isFalse()
-                it.recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
+                eventId.assert().isEqualTo(createExecutionFailed.eventId)
+                function.assert().isEqualTo(createExecutionFailed.function)
+                error.assert().isEqualTo(createExecutionFailed.error)
+                executeAt.assert().isEqualTo(createExecutionFailed.executeAt)
+                status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
+                retryState.retries.assert().isZero()
+                isRetryable.assert().isTrue()
+                retryState.timeout().assert().isFalse()
+                retrySpec.assert().isEqualTo(createExecutionFailed.retrySpec)
+                canRetry().assert().isTrue()
+                canNextRetry().assert().isFalse()
+                recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
             }
             .verify()
     }
@@ -149,24 +149,24 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectEventBody<CompensationPrepared> {
-                it.eventId.assert().isEqualTo(executionFailedCreated.eventId)
-                it.function.assert().isEqualTo(executionFailedCreated.function)
-                it.retryState.retries.assert().isEqualTo(executionFailedCreated.retryState.retries + 1)
+                eventId.assert().isEqualTo(executionFailedCreated.eventId)
+                function.assert().isEqualTo(executionFailedCreated.function)
+                retryState.retries.assert().isEqualTo(executionFailedCreated.retryState.retries + 1)
             }
             .expectState {
-                it.id.assert().isEqualTo(prepareCompensation.id)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
-                it.retryState.retries.assert().isEqualTo(executionFailedCreated.retryState.retries + 1)
-                it.eventId.assert().isEqualTo(executionFailedCreated.eventId)
-                it.function.assert().isEqualTo(executionFailedCreated.function)
-                it.canRetry().assert().isFalse()
+                id.assert().isEqualTo(prepareCompensation.id)
+                status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
+                retryState.retries.assert().isEqualTo(executionFailedCreated.retryState.retries + 1)
+                eventId.assert().isEqualTo(executionFailedCreated.eventId)
+                function.assert().isEqualTo(executionFailedCreated.function)
+                canRetry().assert().isFalse()
             }
             .verify()
             .fork {
                 whenCommand(prepareCompensation)
                     .expectErrorType(IllegalStateException::class.java)
                     .expectState {
-                        it.status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
+                        status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
                     }
                     .verify()
             }
@@ -193,10 +193,10 @@ class ExecutionFailedTest {
             .whenCommand(prepareCompensation)
             .expectErrorType(IllegalStateException::class.java)
             .expectState {
-                it.id.assert().isEqualTo(prepareCompensation.id)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
-                it.retryState.retries.assert().isEqualTo(10)
-                it.canRetry().assert().isFalse()
+                id.assert().isEqualTo(prepareCompensation.id)
+                status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
+                retryState.retries.assert().isEqualTo(10)
+                canRetry().assert().isFalse()
             }
             .verify()
     }
@@ -223,10 +223,10 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(CompensationPrepared::class.java)
             .expectState {
-                it.id.assert().isEqualTo(prepareCompensation.id)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
-                it.retryState.retries.assert().isEqualTo(11)
-                it.canNextRetry().assert().isFalse()
+                id.assert().isEqualTo(prepareCompensation.id)
+                status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
+                retryState.retries.assert().isEqualTo(11)
+                canNextRetry().assert().isFalse()
             }
             .verify()
     }
@@ -264,22 +264,22 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionFailedApplied::class.java)
             .expectState {
-                it.id.assert().isEqualTo(applyExecutionFailed.id)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
-                it.error.assert().isEqualTo(applyExecutionFailed.error)
-                it.executeAt.assert().isEqualTo(applyExecutionFailed.executeAt)
-                it.recoverable.assert().isEqualTo(applyExecutionFailed.recoverable)
-                it.retryState.retries.assert().isEqualTo(1)
-                it.canRetry().assert().isTrue()
-                it.canNextRetry().assert().isFalse()
+                id.assert().isEqualTo(applyExecutionFailed.id)
+                status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
+                error.assert().isEqualTo(applyExecutionFailed.error)
+                executeAt.assert().isEqualTo(applyExecutionFailed.executeAt)
+                recoverable.assert().isEqualTo(applyExecutionFailed.recoverable)
+                retryState.retries.assert().isEqualTo(1)
+                canRetry().assert().isTrue()
+                canNextRetry().assert().isFalse()
             }
             .verify()
             .fork {
                 whenCommand(applyExecutionFailed)
                     .expectErrorType(IllegalStateException::class.java)
                     .expectState {
-                        it.status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
-                        it.retryState.retries.assert().isEqualTo(1)
+                        status.assert().isEqualTo(ExecutionFailedStatus.FAILED)
+                        retryState.retries.assert().isEqualTo(1)
                     }
                     .verify()
             }
@@ -316,21 +316,21 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(ExecutionSuccessApplied::class.java)
             .expectState {
-                it.id.assert().isEqualTo(applyExecutionSuccess.id)
-                it.status.assert().isEqualTo(ExecutionFailedStatus.SUCCEEDED)
-                it.error.assert().isEqualTo(executionFailedCreated.error)
-                it.recoverable.assert().isEqualTo(executionFailedCreated.recoverable)
-                it.retryState.retries.assert().isEqualTo(1)
-                it.canRetry().assert().isFalse()
-                it.canNextRetry().assert().isFalse()
+                id.assert().isEqualTo(applyExecutionSuccess.id)
+                status.assert().isEqualTo(ExecutionFailedStatus.SUCCEEDED)
+                error.assert().isEqualTo(executionFailedCreated.error)
+                recoverable.assert().isEqualTo(executionFailedCreated.recoverable)
+                retryState.retries.assert().isEqualTo(1)
+                canRetry().assert().isFalse()
+                canNextRetry().assert().isFalse()
             }
             .verify()
             .fork {
                 whenCommand(applyExecutionSuccess)
                     .expectErrorType(IllegalStateException::class.java)
                     .expectState {
-                        it.status.assert().isEqualTo(ExecutionFailedStatus.SUCCEEDED)
-                        it.retryState.retries.assert().isEqualTo(1)
+                        status.assert().isEqualTo(ExecutionFailedStatus.SUCCEEDED)
+                        retryState.retries.assert().isEqualTo(1)
                     }
                     .verify()
             }
@@ -360,11 +360,11 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(RetrySpecApplied::class.java)
             .expectState {
-                it.id.assert().isEqualTo(applyRetrySpec.id)
-                it.error.assert().isEqualTo(executionFailedCreated.error)
-                it.retrySpec.maxRetries.assert().isEqualTo(applyRetrySpec.maxRetries)
-                it.retrySpec.minBackoff.assert().isEqualTo(applyRetrySpec.minBackoff)
-                it.retrySpec.executionTimeout.assert().isEqualTo(applyRetrySpec.executionTimeout)
+                id.assert().isEqualTo(applyRetrySpec.id)
+                error.assert().isEqualTo(executionFailedCreated.error)
+                retrySpec.maxRetries.assert().isEqualTo(applyRetrySpec.maxRetries)
+                retrySpec.minBackoff.assert().isEqualTo(applyRetrySpec.minBackoff)
+                retrySpec.executionTimeout.assert().isEqualTo(applyRetrySpec.executionTimeout)
             }
             .verify()
     }
@@ -392,8 +392,8 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(RecoverableMarked::class.java)
             .expectState {
-                it.id.assert().isEqualTo(markRecoverable.id)
-                it.recoverable.assert().isEqualTo(markRecoverable.recoverable)
+                id.assert().isEqualTo(markRecoverable.id)
+                recoverable.assert().isEqualTo(markRecoverable.recoverable)
             }
             .verify()
             .fork {
@@ -429,9 +429,9 @@ class ExecutionFailedTest {
             .expectNoError()
             .expectEventType(FunctionChanged::class.java)
             .expectState {
-                it.id.assert().isEqualTo(changeFunction.id)
-                it.recoverable.assert().isEqualTo(executionFailedCreated.recoverable)
-                it.function.isSameFunction(changeFunction).assert().isTrue()
+                id.assert().isEqualTo(changeFunction.id)
+                recoverable.assert().isEqualTo(executionFailedCreated.recoverable)
+                function.isSameFunction(changeFunction).assert().isTrue()
             }
             .verify()
             .fork {

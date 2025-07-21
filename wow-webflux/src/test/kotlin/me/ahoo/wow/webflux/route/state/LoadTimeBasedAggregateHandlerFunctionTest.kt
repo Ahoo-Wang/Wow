@@ -53,7 +53,7 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {
-                it.items.assert().hasSize(1)
+                items.assert().hasSize(1)
             }
             .verify()
 
