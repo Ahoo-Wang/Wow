@@ -23,6 +23,7 @@ import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.aggregate.GivenStage
 import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregate.WhenStage
+import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicTest
 
