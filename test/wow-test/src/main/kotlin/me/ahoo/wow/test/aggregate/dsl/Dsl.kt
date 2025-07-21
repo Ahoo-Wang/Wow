@@ -20,15 +20,6 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
-import org.junit.jupiter.api.DynamicNode
-
-interface DynamicTestBuilder {
-    val dynamicNodes: List<DynamicNode>
-}
-
-abstract class AbstractDynamicTestBuilder : DynamicTestBuilder {
-    override val dynamicNodes: MutableList<DynamicNode> = mutableListOf()
-}
 
 interface AggregateDsl<S : Any> {
     fun given(block: GivenDsl<S>.() -> Unit)

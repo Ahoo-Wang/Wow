@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.test
 
-import me.ahoo.wow.test.aggregate.dsl.AbstractDynamicTestBuilder
 import me.ahoo.wow.test.aggregate.dsl.AggregateDsl
 import me.ahoo.wow.test.aggregate.dsl.DefaultAggregateDsl
+import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.TestFactory
 import java.lang.reflect.ParameterizedType
