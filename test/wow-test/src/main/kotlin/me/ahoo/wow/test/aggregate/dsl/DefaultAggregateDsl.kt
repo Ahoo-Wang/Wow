@@ -17,7 +17,6 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.annotation.toName
-import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
 import me.ahoo.wow.test.aggregate.ExpectStage
 import me.ahoo.wow.test.aggregate.ExpectedResult
@@ -54,8 +53,9 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         val whenStage = delegate.givenEvent(*events)
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
+
         val container = DynamicContainer.dynamicContainer(
-            "Given Events${events.map { it.javaClass.toName() }.toJsonString()}",
+            "Given Events[${events.joinToString(",") { it.javaClass.toName() }}]",
             whenDsl.dynamicNodes
         )
         dynamicNodes.add(container)
