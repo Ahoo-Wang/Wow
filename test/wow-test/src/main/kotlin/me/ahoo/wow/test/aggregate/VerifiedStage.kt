@@ -43,15 +43,16 @@ interface VerifiedStage<S : Any> : GivenStage<S> {
      */
     fun fork(
         verifyError: Boolean = false,
-        serviceProviderSupplier: (ServiceProvider) -> ServiceProvider = {
-            require(it is Copyable<*>)
-            it.copy() as ServiceProvider
-        },
-        commandAggregateFactorySupplier: () -> CommandAggregateFactory = {
-            SimpleCommandAggregateFactory(InMemoryEventStore())
-        },
-        handle: VerifiedStage<S>.() -> Unit
     ): VerifiedStage<S>
+
+    fun fork(
+        verifyError: Boolean = false,
+        handle: VerifiedStage<S>.() -> Unit
+    ): VerifiedStage<S> {
+        val forkedVerifiedStage = fork(verifyError)
+        handle(forkedVerifiedStage)
+        return this
+    }
 }
 
 internal fun <S : Any> verifyStateAggregateSerializable(stateAggregate: StateAggregate<S>): StateAggregate<S> {
@@ -89,20 +90,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
         return this
     }
 
-    private fun verifyError(verifyError: Boolean) {
-        if (verifyError) {
-            require(!verifiedResult.hasError) {
-                "An exception[${verifiedResult.error}] occurred in the verified result."
-            }
-        }
-    }
-
-    override fun fork(
-        verifyError: Boolean,
-        serviceProviderSupplier: (ServiceProvider) -> ServiceProvider,
-        commandAggregateFactorySupplier: () -> CommandAggregateFactory,
-        handle: VerifiedStage<S>.() -> Unit
-    ): VerifiedStage<S> {
+    override fun fork(verifyError: Boolean): VerifiedStage<S> {
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
         val forkedEventStream = verifiedResult.domainEventStream?.deepCody(DomainEventStream::class.java)
@@ -110,15 +98,26 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             stateAggregate = forkedStateAggregate,
             domainEventStream = forkedEventStream
         )
-        val forkedServiceProvider = serviceProviderSupplier(serviceProvider)
-        val forkedCommandAggregateFactory = commandAggregateFactorySupplier()
+        val forkedServiceProvider = if (serviceProvider is Copyable<*>) {
+            serviceProvider.copy() as ServiceProvider
+        } else {
+            serviceProvider
+        }
+        val forkedCommandAggregateFactory = SimpleCommandAggregateFactory(InMemoryEventStore())
         val forkedVerifiedStage = DefaultVerifiedStage(
             verifiedResult = forkedResult,
             metadata = this.metadata,
             commandAggregateFactory = forkedCommandAggregateFactory,
             serviceProvider = forkedServiceProvider,
         )
-        handle(forkedVerifiedStage)
-        return this
+        return forkedVerifiedStage
+    }
+
+    private fun verifyError(verifyError: Boolean) {
+        if (verifyError) {
+            require(!verifiedResult.hasError) {
+                "An exception[${verifiedResult.error}] occurred in the verified result."
+            }
+        }
     }
 }
