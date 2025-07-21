@@ -171,11 +171,14 @@ interface ExpectStage<S : Any> {
             assert().isInstanceOf(expected)
         }
     }
+    fun verify(): VerifiedStage<S> {
+        return verify(true)
+    }
 
     /**
      * 完成流程编排后，执行验证逻辑.
      */
-    fun verify(): VerifiedStage<S>
+    fun verify(immediately: Boolean): VerifiedStage<S>
 }
 
 internal class DefaultExpectStage<C : Any, S : Any>(
@@ -187,34 +190,44 @@ internal class DefaultExpectStage<C : Any, S : Any>(
 
     private val expectStates: MutableList<Consumer<ExpectedResult<S>>> = mutableListOf()
 
-    @Volatile
-    private var cachedVerifiedStage: VerifiedStage<S>? = null
-    override fun expect(expected: ExpectedResult<S>.() -> Unit): ExpectStage<S> {
-        expectStates.add(expected)
-        return this
-    }
-
-    override fun verify(): VerifiedStage<S> {
-        if (cachedVerifiedStage != null) {
-            return cachedVerifiedStage!!
-        }
+    private val cachedVerifiedStage: VerifiedStage<S> by lazy<VerifiedStage<S>>(this) {
         lateinit var expectedResult: ExpectedResult<S>
+        val expectErrors = mutableListOf<Throwable>()
         expectedResultMono
             .test()
             .consumeNextWith {
                 verifyStateAggregateSerializable(it.stateAggregate)
                 expectedResult = it
                 for (expectState in expectStates) {
-                    expectState.accept(it)
+                    try {
+                        expectState.accept(it)
+                    } catch (e: Throwable) {
+                        expectErrors.add(e)
+                    }
                 }
             }
             .verifyComplete()
-        cachedVerifiedStage = DefaultVerifiedStage(
+        DefaultVerifiedStage(
             verifiedResult = expectedResult,
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,
             serviceProvider = serviceProvider,
+            expectErrors = expectErrors
         )
-        return cachedVerifiedStage!!
+    }
+
+    override fun expect(expected: ExpectedResult<S>.() -> Unit): ExpectStage<S> {
+        expectStates.add(expected)
+        return this
+    }
+
+    override fun verify(immediately: Boolean): VerifiedStage<S> {
+        if (immediately.not()) {
+            return cachedVerifiedStage
+        }
+        if (cachedVerifiedStage.expectErrors.isNotEmpty()) {
+            throw cachedVerifiedStage.expectErrors.first()
+        }
+        return cachedVerifiedStage
     }
 }

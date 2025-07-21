@@ -34,7 +34,7 @@ interface VerifiedStage<S : Any> : GivenStage<S> {
         get() = verifiedResult.stateAggregate
     val stateRoot: S
         get() = stateAggregate.state
-
+    val expectErrors: List<Throwable>
     fun then(verifyError: Boolean = false): VerifiedStage<S>
 
     /**
@@ -68,7 +68,8 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     override val verifiedResult: ExpectedResult<S>,
     override val metadata: AggregateMetadata<C, S>,
     override val commandAggregateFactory: CommandAggregateFactory,
-    override val serviceProvider: ServiceProvider
+    override val serviceProvider: ServiceProvider,
+    override val expectErrors: List<Throwable>
 ) : VerifiedStage<S>, AbstractGivenStage<C, S>() {
     override val aggregateId: AggregateId
         get() = verifiedResult.stateAggregate.aggregateId
@@ -104,6 +105,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             metadata = this.metadata,
             commandAggregateFactory = forkedCommandAggregateFactory,
             serviceProvider = forkedServiceProvider,
+            expectErrors = expectErrors
         )
         return forkedVerifiedStage
     }
