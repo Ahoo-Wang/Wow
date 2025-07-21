@@ -6,7 +6,7 @@ class CartTest : AggregateSpec<Cart, CartState>({
     eventStore(eventStore)
     serviceProvider(serviceProvider)
     inject {
-        
+
     }
     given() {
         inject {
@@ -16,11 +16,13 @@ class CartTest : AggregateSpec<Cart, CartState>({
         whenCommand(command1) {
             expectNoError()
             expectEventType(eventType)
-            whenCommand(command1_1) {
-                expectNoError()
-            }
-            whenCommand(command1_2) {
-                expectNoError()
+            then {
+                whenCommand(command1_1) {
+                    expectNoError()
+                }
+                whenCommand(command1_2) {
+                    expectNoError()
+                }
             }
         }
         whenCommand(command2) {
@@ -33,11 +35,11 @@ class CartTest : AggregateSpec<Cart, CartState>({
                 expectNoError()
                 expectEventType(eventType)
                 whenCommand(command1_1) {
-                    
+
                 }
             }
             whenCommand(command2) {
-                
+
             }
         }
     }
