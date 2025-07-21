@@ -27,7 +27,6 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.assertj.core.error.MultipleAssertionsError
 
 interface VerifiedStage<S : Any> : GivenStage<S> {
     val verifiedResult: ExpectedResult<S>
@@ -35,7 +34,6 @@ interface VerifiedStage<S : Any> : GivenStage<S> {
         get() = verifiedResult.stateAggregate
     val stateRoot: S
         get() = stateAggregate.state
-    val assertionErrors: List<AssertionError>
     fun then(verifyError: Boolean = false): VerifiedStage<S>
 
     /**
@@ -70,7 +68,6 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     override val metadata: AggregateMetadata<C, S>,
     override val commandAggregateFactory: CommandAggregateFactory,
     override val serviceProvider: ServiceProvider,
-    override val assertionErrors: List<AssertionError>
 ) : VerifiedStage<S>, AbstractGivenStage<C, S>() {
     override val aggregateId: AggregateId
         get() = verifiedResult.stateAggregate.aggregateId
@@ -105,8 +102,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
             verifiedResult = forkedResult,
             metadata = this.metadata,
             commandAggregateFactory = forkedCommandAggregateFactory,
-            serviceProvider = forkedServiceProvider,
-            assertionErrors = assertionErrors
+            serviceProvider = forkedServiceProvider
         )
         return forkedVerifiedStage
     }
@@ -118,9 +114,6 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
                     "An exception[${verifiedResult.error}] occurred in the verified result.",
                     verifiedResult.error
                 )
-            }
-            if (assertionErrors.isNotEmpty()) {
-                throw MultipleAssertionsError(assertionErrors)
             }
         }
     }

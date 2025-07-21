@@ -154,16 +154,16 @@ internal class DefaultExpectStage<T : Any>(private val expectedResultMono: Mono<
         if (immediately.not()) {
             return expectedResult
         }
-        val expectErrors = mutableListOf<AssertionError>()
+        val assertionErrors = mutableListOf<AssertionError>()
         for (expectState in expectStates) {
             try {
                 expectState.accept(expectedResult)
             } catch (e: AssertionError) {
-                expectErrors.add(e)
+                assertionErrors.add(e)
             }
         }
-        if (expectErrors.isNotEmpty()) {
-            throw MultipleAssertionsError(expectErrors)
+        if (assertionErrors.isNotEmpty()) {
+            throw MultipleAssertionsError(assertionErrors)
         }
         return expectedResult
     }
