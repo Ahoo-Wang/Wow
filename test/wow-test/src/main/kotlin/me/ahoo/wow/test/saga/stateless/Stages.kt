@@ -68,10 +68,15 @@ interface WhenStage<T : Any> {
 
 interface ExpectStage<T : Any> : StatelessSagaExpecter<T, ExpectStage<T>> {
 
+
+    fun verify(): ExpectedResult<T> {
+        return verify(immediately = true)
+    }
+
     /**
      * 完成流程编排后，执行验证逻辑.
      */
-    fun verify()
+    fun verify(immediately: Boolean): ExpectedResult<T>
 }
 
 data class ExpectedResult<T>(
