@@ -73,7 +73,6 @@ interface ExpectStage<S : Any> {
         }
     }
 
-
     fun expectEventIterator(expected: Consumer<EventIterator>): ExpectStage<S> {
         return expectEventIterator {
             expected.accept(this)
