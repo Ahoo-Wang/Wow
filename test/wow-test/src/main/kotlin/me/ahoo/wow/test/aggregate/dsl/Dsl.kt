@@ -23,7 +23,7 @@ import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.dsl.NameSpecCapable
 
 interface AggregateDsl<S : Any> {
-    fun given(block: GivenDsl<S>.() -> Unit)
+    fun on(block: GivenDsl<S>.() -> Unit)
 }
 
 interface GivenDsl<S : Any> : WhenDsl<S>, NameSpecCapable {
