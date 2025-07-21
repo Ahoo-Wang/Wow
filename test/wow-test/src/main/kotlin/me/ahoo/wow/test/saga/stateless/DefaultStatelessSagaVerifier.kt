@@ -151,6 +151,9 @@ internal class DefaultExpectStage<T : Any>(private val expectedResultMono: Mono<
     }
 
     override fun verify(immediately: Boolean): ExpectedResult<T> {
+        if (immediately.not()) {
+            return expectedResult
+        }
         val expectErrors = mutableListOf<AssertionError>()
         for (expectState in expectStates) {
             try {
@@ -158,9 +161,6 @@ internal class DefaultExpectStage<T : Any>(private val expectedResultMono: Mono<
             } catch (e: AssertionError) {
                 expectErrors.add(e)
             }
-        }
-        if (immediately.not()) {
-            return expectedResult
         }
         if (expectErrors.isNotEmpty()) {
             throw MultipleAssertionsError(expectErrors)
