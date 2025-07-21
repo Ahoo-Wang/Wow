@@ -26,58 +26,58 @@ import java.util.function.Consumer
 import kotlin.reflect.KClass
 
 interface ExpectStage<S : Any> {
-    fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S>
+    fun expect(expected: ExpectedResult<S>.() -> Unit): ExpectStage<S>
 
     /**
      * 3.1 期望聚合状态.
      */
-    fun expectStateAggregate(expected: Consumer<StateAggregate<S>>): ExpectStage<S> {
-        return expect { expected.accept(it.stateAggregate) }
+    fun expectStateAggregate(expected: StateAggregate<S>.() -> Unit): ExpectStage<S> {
+        return expect { expected(stateAggregate) }
     }
 
-    fun expectState(expected: Consumer<S>): ExpectStage<S> {
-        return expectStateAggregate { expected.accept(it.state) }
+    fun expectState(expected: S.() -> Unit): ExpectStage<S> {
+        return expectStateAggregate { expected(state) }
     }
 
     /**
      * 3.2 期望领域事件.
      */
-    fun expectEventStream(expected: Consumer<DomainEventStream>): ExpectStage<S> {
+    fun expectEventStream(expected: DomainEventStream.() -> Unit): ExpectStage<S> {
         return expect {
-            it.domainEventStream.assert().describedAs {
+            domainEventStream.assert().describedAs {
                 buildString {
                     append("Expect the domain event stream is not null.")
-                    it.error?.let { error ->
+                    error?.let { error ->
                         appendLine()
                         append(error.stackTraceToString())
                     }
                 }
             }.isNotNull()
-            expected.accept(it.domainEventStream!!)
+            expected(domainEventStream!!)
         }
     }
 
-    fun expectEventIterator(expected: Consumer<EventIterator>): ExpectStage<S> {
+    fun expectEventIterator(expected: EventIterator.() -> Unit): ExpectStage<S> {
         return expectEventStream {
-            expected.accept(EventIterator((it.iterator())))
+            expected(EventIterator((iterator())))
         }
     }
 
     /**
      * 期望的第一个领域事件
      */
-    fun <E : Any> expectEvent(expected: Consumer<DomainEvent<E>>): ExpectStage<S> {
+    fun <E : Any> expectEvent(expected: DomainEvent<E>.() -> Unit): ExpectStage<S> {
         return expectEventStream {
-            it.assert().describedAs { "Expect the domain event stream size to be greater than 1." }
+            assert().describedAs { "Expect the domain event stream size to be greater than 1." }
                 .hasSizeGreaterThanOrEqualTo(1)
             @Suppress("UNCHECKED_CAST")
-            expected.accept(it.first() as DomainEvent<E>)
+            expected(first() as DomainEvent<E>)
         }
     }
 
-    fun <E : Any> expectEventBody(expected: Consumer<E>): ExpectStage<S> {
+    fun <E : Any> expectEventBody(expected: E.() -> Unit): ExpectStage<S> {
         return expectEvent {
-            expected.accept(it.body)
+            expected(body)
         }
     }
 
@@ -86,7 +86,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventCount(expected: Int): ExpectStage<S> {
         return expectEventStream {
-            it.assert().describedAs { "Expect the domain event stream size." }.hasSize(expected)
+            assert().describedAs { "Expect the domain event stream size." }.hasSize(expected)
         }
     }
 
@@ -99,7 +99,7 @@ interface ExpectStage<S : Any> {
      */
     fun expectEventType(vararg expected: Class<*>): ExpectStage<S> {
         return expectEventCount(expected.size).expectEventStream {
-            val itr = it.iterator()
+            val itr = iterator()
             for (eventType in expected) {
                 itr.next().body.assert().isInstanceOf(eventType)
             }
@@ -108,23 +108,23 @@ interface ExpectStage<S : Any> {
 
     fun expectNoError(): ExpectStage<S> {
         return expect {
-            it.error.assert().describedAs { "Expect no error" }.isNull()
+            error.assert().describedAs { "Expect no error" }.isNull()
         }
     }
 
     fun expectError(): ExpectStage<S> {
         return expect {
-            it.error.assert().describedAs { "Expect an error." }.isNotNull()
+            error.assert().describedAs { "Expect an error." }.isNotNull()
         }
     }
 
     /**
      * 3.3 期望产生异常
      */
-    fun <E : Throwable> expectError(expected: Consumer<E>): ExpectStage<S> {
+    fun <E : Throwable> expectError(expected: E.() -> Unit): ExpectStage<S> {
         return expectError().expect {
             @Suppress("UNCHECKED_CAST")
-            expected.accept(it.error as E)
+            expected(error as E)
         }
     }
 
@@ -134,7 +134,7 @@ interface ExpectStage<S : Any> {
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectStage<S> {
         return expectError<E> {
-            it.assert().isInstanceOf(expected)
+            assert().isInstanceOf(expected)
         }
     }
 
@@ -155,7 +155,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
 
     @Volatile
     private var cachedVerifiedStage: VerifiedStage<S>? = null
-    override fun expect(expected: Consumer<ExpectedResult<S>>): ExpectStage<S> {
+    override fun expect(expected: ExpectedResult<S>.() -> Unit): ExpectStage<S> {
         expectStates.add(expected)
         return this
     }

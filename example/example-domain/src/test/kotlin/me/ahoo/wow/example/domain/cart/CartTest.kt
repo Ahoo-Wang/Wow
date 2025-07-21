@@ -46,9 +46,9 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class)
             .expectState {
-                it.items.assert().hasSize(1)
+                items.assert().hasSize(1)
             }.expectStateAggregate {
-                it.ownerId.assert().isEqualTo(ownerId)
+                ownerId.assert().isEqualTo(ownerId)
             }
             .verify()
     }
@@ -66,7 +66,7 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class)
             .expectState {
-                it.items.assert().hasSize(1)
+                items.assert().hasSize(1)
             }
             .verify()
     }
@@ -91,8 +91,8 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartQuantityChanged::class)
             .expectState {
-                it.items.assert().hasSize(1)
-                it.items.first().quantity.assert().isEqualTo(2)
+                items.assert().hasSize(1)
+                items.first().quantity.assert().isEqualTo(2)
             }
             .verify()
     }
@@ -109,10 +109,10 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class)
             .expectState {
-                it.items.assert().hasSize(1)
+                items.assert().hasSize(1)
             }
             .expectStateAggregate {
-                it.version.assert().isEqualTo(1)
+                version.assert().isEqualTo(1)
             }
             .verify()
     }
@@ -141,7 +141,7 @@ class CartTest {
             .whenCommand(addCartItem)
             .expectErrorType(IllegalArgumentException::class)
             .expectState {
-                it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
+                items.assert().hasSize(MAX_CART_ITEM_SIZE)
             }
             .verify()
     }
@@ -165,7 +165,7 @@ class CartTest {
             .whenCommand(removeCartItem)
             .expectEventType(CartItemRemoved::class)
             .expectState {
-                it.items.assert().isEmpty()
+                items.assert().isEmpty()
             }
             .verify()
     }
@@ -189,8 +189,8 @@ class CartTest {
             .whenCommand(changeQuantity)
             .expectEventType(CartQuantityChanged::class)
             .expectState {
-                it.items.assert().hasSize(1)
-                it.items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
+                items.assert().hasSize(1)
+                items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
             }
             .verify()
     }
@@ -206,14 +206,14 @@ class CartTest {
             .expectNoError()
             .expectEventType(CartItemAdded::class)
             .expectState {
-                it.items.assert().hasSize(1)
+                items.assert().hasSize(1)
             }
             .verify()
             .then()
             .whenCommand(DefaultDeleteAggregate)
             .expectEventType(DefaultAggregateDeleted::class)
             .expectStateAggregate {
-                it.deleted.assert().isTrue()
+                deleted.assert().isTrue()
             }.verify()
             .then()
             .whenCommand(DefaultDeleteAggregate::class)
@@ -222,7 +222,7 @@ class CartTest {
             .then()
             .whenCommand(DefaultRecoverAggregate)
             .expectStateAggregate {
-                it.deleted.assert().isFalse()
+                deleted.assert().isFalse()
             }.verify()
             .then()
             .whenCommand(DefaultRecoverAggregate)

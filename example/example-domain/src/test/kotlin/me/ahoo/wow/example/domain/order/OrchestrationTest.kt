@@ -61,20 +61,20 @@ class OrchestrationTest {
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class)
             .expectStateAggregate {
-                it.aggregateId.tenantId.assert().isEqualTo(tenantId)
+                aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
             .expectState {
-                it.id.assert().isNotNull()
-                it.address.assert().isEqualTo(SHIPPING_ADDRESS)
-                it.items.assert().hasSize(1)
-                val item = it.items.first()
+                id.assert().isNotNull()
+                address.assert().isEqualTo(SHIPPING_ADDRESS)
+                items.assert().hasSize(1)
+                val item = items.first()
                 item.productId.assert().isEqualTo(orderItem.productId)
                 item.price.assert().isEqualTo(orderItem.price)
                 item.quantity.assert().isEqualTo(orderItem.quantity)
-                it.status.assert().isEqualTo(OrderStatus.CREATED)
+                status.assert().isEqualTo(OrderStatus.CREATED)
             }.expect {
-                it.exchange.getCommandResult().assert().hasSize(1)
-                val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
+                exchange.getCommandResult().assert().hasSize(1)
+                val result = exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
                 result.assert().isEqualTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong())))
             }
             .verify()
@@ -93,8 +93,8 @@ class OrchestrationTest {
         whenCommand(payOrder)
             .expectEventType(OrderPaid::class)
             .expectState {
-                it.paidAmount.assert().isEqualTo(it.totalAmount)
-                it.status.assert().isEqualTo(OrderStatus.PAID)
+                paidAmount.assert().isEqualTo(totalAmount)
+                status.assert().isEqualTo(OrderStatus.PAID)
             }
             .verify()
     }
@@ -113,7 +113,7 @@ class OrchestrationTest {
             .expectNoError()
             .expectEventType(AddressChanged::class)
             .expectState {
-                it.address.assert().isEqualTo(changeAddress.shippingAddress)
+                address.assert().isEqualTo(changeAddress.shippingAddress)
             }
             .verify()
     }

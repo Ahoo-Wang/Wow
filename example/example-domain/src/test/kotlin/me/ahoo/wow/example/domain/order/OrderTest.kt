@@ -73,18 +73,18 @@ internal class OrderTest {
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class)
             .expectStateAggregate {
-                it.aggregateId.tenantId.assert().isEqualTo(tenantId)
+                aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
             .expectState {
-                it.id.assert().isNotNull()
-                it.assert().isNotNull()
-                it.address.assert().isEqualTo(SHIPPING_ADDRESS)
-                verifyItems(it.items, orderItems)
-                it.status.assert().isEqualTo(OrderStatus.CREATED)
+                id.assert().isNotNull()
+                assert().isNotNull()
+                address.assert().isEqualTo(SHIPPING_ADDRESS)
+                verifyItems(items, orderItems)
+                status.assert().isEqualTo(OrderStatus.CREATED)
             }.expect {
-                it.exchange.getCommandResult().size.assert().isOne()
-                it.exchange.getCommandResult().assert().hasSize(1)
-                val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
+                exchange.getCommandResult().size.assert().isOne()
+                exchange.getCommandResult().assert().hasSize(1)
+                val result = exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
                 result.assert().isEqualTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong())))
             }
             .verify()
@@ -135,7 +135,7 @@ internal class OrderTest {
             .whenCommand(CreateOrder(orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
             .expectErrorType(IllegalArgumentException::class)
             .expectStateAggregate {
-                it.initialized.assert().isFalse()
+                initialized.assert().isFalse()
             }.verify()
     }
 
@@ -153,7 +153,7 @@ internal class OrderTest {
                 /*
                  * 该聚合对象处于未初始化状态，即该聚合未创建成功.
                  */
-                it.initialized.assert().isFalse()
+                initialized.assert().isFalse()
             }.verify()
     }
 
@@ -195,7 +195,7 @@ internal class OrderTest {
                 /*
                  * 该聚合对象处于未初始化状态，即该聚合未创建成功.
                  */
-                it.initialized.assert().isFalse()
+                initialized.assert().isFalse()
             }.verify()
     }
 
@@ -261,15 +261,15 @@ internal class OrderTest {
              * 3.3 期望产生的事件状态
              */
             .expectEventBody<OrderPaid> {
-                it.amount.assert().isEqualTo(payOrder.amount)
+                amount.assert().isEqualTo(payOrder.amount)
             }
             /*
              * 4. 期望当前聚合状态
              */
             .expectState {
-                it.address.assert().isEqualTo(SHIPPING_ADDRESS)
-                it.paidAmount.assert().isEqualTo(payOrder.amount)
-                it.status.assert().isEqualTo(OrderStatus.PAID)
+                address.assert().isEqualTo(SHIPPING_ADDRESS)
+                paidAmount.assert().isEqualTo(payOrder.amount)
+                status.assert().isEqualTo(OrderStatus.PAID)
             }
             /*
              * 完成测试编排后，验证期望.
@@ -303,7 +303,7 @@ internal class OrderTest {
             .expectErrorType(DomainEventException::class)
             .expectEventType(OrderPayDuplicated::class)
             .expectEventBody<OrderPayDuplicated> {
-                it.paymentId.assert().isEqualTo(payOrder.paymentId)
+                paymentId.assert().isEqualTo(payOrder.paymentId)
             }
             .verify()
     }
@@ -336,17 +336,17 @@ internal class OrderTest {
              * 3.2 期望产生的事件状态
              */
             .expectEventIterator {
-                val orderPaid = it.nextEventBody<OrderPaid>()
+                val orderPaid = nextEventBody<OrderPaid>()
                 orderPaid.paid.assert().isTrue()
-                val orderOverPaid = it.nextEventBody<OrderOverPaid>()
+                val orderOverPaid = nextEventBody<OrderOverPaid>()
                 orderOverPaid.overPay.assert().isEqualTo(payOrder.amount.minus(previousState.totalAmount))
             }
             /*
              * 4. 期望当前聚合状态
              */
             .expectState {
-                it.paidAmount.assert().isEqualTo(previousState.totalAmount)
-                it.status.assert().isEqualTo(OrderStatus.PAID)
+                paidAmount.assert().isEqualTo(previousState.totalAmount)
+                status.assert().isEqualTo(OrderStatus.PAID)
             }
             .verify()
     }
@@ -362,7 +362,7 @@ internal class OrderTest {
              * 4. 期望当前聚合状态
              */
             .expectState {
-                it.status.assert().isEqualTo(OrderStatus.SHIPPED)
+                status.assert().isEqualTo(OrderStatus.SHIPPED)
             }
             .verify()
     }
@@ -383,7 +383,7 @@ internal class OrderTest {
             .expectNoError()
             .expectEventType(OrderReceived::class)
             .expectState {
-                it.status.assert().isEqualTo(OrderStatus.RECEIVED)
+                status.assert().isEqualTo(OrderStatus.RECEIVED)
             }
             .verify()
     }
@@ -399,8 +399,8 @@ internal class OrderTest {
                 /*
                  * 验证聚合状态[未]发生变更.
                  */
-                it.paidAmount.assert().isEqualTo(BigDecimal.ZERO)
-                it.status.assert().isEqualTo(OrderStatus.CREATED)
+                paidAmount.assert().isEqualTo(BigDecimal.ZERO)
+                status.assert().isEqualTo(OrderStatus.CREATED)
             }
             .verify()
     }
@@ -415,7 +415,7 @@ internal class OrderTest {
             .whenCommand(changeAddress)
             .expectEventType(AddressChanged::class)
             .expectState {
-                it.address.assert().isEqualTo(changeAddress.shippingAddress)
+                address.assert().isEqualTo(changeAddress.shippingAddress)
             }
             .verify()
     }
@@ -425,7 +425,7 @@ internal class OrderTest {
             .whenCommand(DefaultDeleteAggregate)
             .expectEventType(AggregateDeleted::class)
             .expectStateAggregate {
-                it.deleted.assert().isTrue()
+                deleted.assert().isTrue()
             }
             .verify()
     }
@@ -442,9 +442,9 @@ internal class OrderTest {
             .whenCommand(DefaultDeleteAggregate)
             .expectErrorType(IllegalAccessDeletedAggregateException::class)
             .expectError<IllegalAccessDeletedAggregateException> {
-                it.aggregateId.assert().isEqualTo(verifiedStageAfterDelete.stateAggregate.aggregateId)
+                aggregateId.assert().isEqualTo(verifiedStageAfterDelete.stateAggregate.aggregateId)
             }.expectStateAggregate {
-                it.deleted.assert().isTrue()
+                deleted.assert().isTrue()
             }
             .verify()
     }

@@ -32,7 +32,7 @@ import me.ahoo.wow.example.transfer.api.UnfreezeAccount
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.aggregateVerifier
-import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 internal class AccountKTest {
@@ -43,8 +43,8 @@ internal class AccountKTest {
             .whenCommand(CreateAccount("name", 100))
             .expectEventType(AccountCreated::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
             }
             .verify()
     }
@@ -56,8 +56,8 @@ internal class AccountKTest {
             .whenCommand(Prepare("name", 100))
             .expectEventType(AmountLocked::class, Prepared::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(0)
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(0)
             }
             .verify()
     }
@@ -68,12 +68,12 @@ internal class AccountKTest {
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .whenCommand(Prepare("name", 100))
             .expectError<IllegalStateException> {
-                assertThat(it).hasMessage("账号已冻结无法转账.")
+                assertThat(this).hasMessage("账号已冻结无法转账.")
             }
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.isFrozen.assert().isTrue()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                isFrozen.assert().isTrue()
             }
             .verify()
     }
@@ -84,11 +84,11 @@ internal class AccountKTest {
             .given(AccountCreated("name", 100))
             .whenCommand(Prepare("name", 200))
             .expectError<IllegalStateException> {
-                assertThat(it).hasMessage("账号余额不足.")
+                assertThat(this).hasMessage("账号余额不足.")
             }
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
             }
             .verify()
     }
@@ -101,8 +101,8 @@ internal class AccountKTest {
             .whenCommand(Entry(aggregateId, "sourceId", 100))
             .expectEventType(AmountEntered::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(200)
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(200)
             }
             .verify()
     }
@@ -115,9 +115,9 @@ internal class AccountKTest {
             .whenCommand(Entry(aggregateId, "sourceId", 100))
             .expectEventType(EntryFailed::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.isFrozen.assert().isTrue()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                isFrozen.assert().isTrue()
             }
             .verify()
     }
@@ -130,10 +130,10 @@ internal class AccountKTest {
             .whenCommand(Confirm(aggregateId, 100))
             .expectEventType(Confirmed::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(0)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isFalse()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(0)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isFalse()
             }
             .verify()
     }
@@ -146,10 +146,10 @@ internal class AccountKTest {
             .whenCommand(UnlockAmount(aggregateId, 100))
             .expectEventType(AmountUnlocked::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isFalse()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isFalse()
             }
             .verify()
     }
@@ -162,10 +162,10 @@ internal class AccountKTest {
             .whenCommand(FreezeAccount(""))
             .expectEventType(AccountFrozen::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isTrue()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isTrue()
             }
             .verify()
     }
@@ -177,13 +177,13 @@ internal class AccountKTest {
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .whenCommand(FreezeAccount(""))
             .expectError<IllegalStateException> {
-                assertThat(it).hasMessage("账号已冻结无需再次冻结.")
+                assertThat(this).hasMessage("账号已冻结无需再次冻结.")
             }
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isTrue()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isTrue()
             }
             .verify()
     }
@@ -195,10 +195,10 @@ internal class AccountKTest {
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .whenCommand(UnfreezeAccount(""))
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isFalse()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isFalse()
             }
             .verify()
     }
@@ -210,10 +210,10 @@ internal class AccountKTest {
             .given(AccountCreated("name", 100), AccountUnfrozen(""))
             .whenCommand(UnfreezeAccount(""))
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(100)
-                it.lockedAmount.assert().isEqualTo(0)
-                it.isFrozen.assert().isFalse()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(100)
+                lockedAmount.assert().isEqualTo(0)
+                isFrozen.assert().isFalse()
             }
             .verify()
     }
@@ -226,10 +226,10 @@ internal class AccountKTest {
             .whenCommand(LockAmount(10))
             .expectEventType(AmountLocked::class)
             .expectState {
-                it.name.assert().isEqualTo("name")
-                it.balanceAmount.assert().isEqualTo(90)
-                it.lockedAmount.assert().isEqualTo(10)
-                it.isFrozen.assert().isFalse()
+                name.assert().isEqualTo("name")
+                balanceAmount.assert().isEqualTo(90)
+                lockedAmount.assert().isEqualTo(10)
+                isFrozen.assert().isFalse()
             }
             .verify()
     }

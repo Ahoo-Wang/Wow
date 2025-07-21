@@ -34,10 +34,12 @@ class AccountTest {
                     assertThat(eventBody.name()).isEqualTo("name");
                     assertThat(eventBody.balance()).isEqualTo(100L);
                     assertThat(eventIterator.hasNext()).isFalse();
+                    return null;
                 })
                 .expectState(account -> {
                     assertThat(account.getName()).isEqualTo("name");
                     assertThat(account.getBalanceAmount()).isEqualTo(100L);
+                    return null;
                 })
                 .verify();
     }
