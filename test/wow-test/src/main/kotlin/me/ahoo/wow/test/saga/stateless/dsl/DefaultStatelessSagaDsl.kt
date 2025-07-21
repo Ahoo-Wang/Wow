@@ -41,6 +41,7 @@ class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) :
     AbstractDynamicTestBuilder(),
     Named {
     override var name: String = ""
+        private set
     override fun name(name: String) {
         this.name = name
     }
