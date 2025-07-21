@@ -1,64 +1,59 @@
 ```kotlin
-class CartTest : AggregateSpec<Cart, CartState>({
-    tenantId(tenantId)
-    aggregateId(aggregateId)
-    ownerId(ownerId)
-    eventStore(eventStore)
-    serviceProvider(serviceProvider)
-    inject {
-
-    }
-    given("Empty") {
-        inject {
-
-        }
-        givenOwnerId(ownerId)
-        whenCommand(command1) {
-            expectNoError() 
-            expectEventType(eventType)
-            expectState {
-                
-            }
-            fork {
-                whenCommand(command1_1) {
-                    expectNoError()
-                }
-                whenCommand(command1_2) {
-                    expectNoError()
-                }
-            }
-        }
-        whenCommand(command2) {
-
-        }
-    }
-    given("Event") {
-        givenEvent(event) {
-            whenCommand(command1) {
+class CartAggregateSpec : AggregateSpec<Cart, CartState>(
+    {
+        given {
+            val ownerId = generateGlobalId()
+            val addCartItem = AddCartItem(
+                productId = "productId",
+                quantity = 1,
+            )
+            givenOwnerId(ownerId)
+            whenCommand(addCartItem) {
                 expectNoError()
-                expectEventType(eventType)
+                expectEventType(CartItemAdded::class)
+                expectState {
+                    items.assert().hasSize(1)
+                }
+                expectStateAggregate {
+                    ownerId.assert().isEqualTo(ownerId)
+                }
                 fork {
-                    whenCommand(command1_1) {
+                    val removeCartItem = RemoveCartItem(
+                        productIds = setOf(addCartItem.productId),
+                    )
+                    whenCommand(removeCartItem) {
+                        expectEventType(CartItemRemoved::class)
+                    }
+                }
+                fork {
+                    whenCommand(DefaultDeleteAggregate) {
+                        expectEventType(DefaultAggregateDeleted::class)
+                        expectStateAggregate {
+                            deleted.assert().isTrue()
+                        }
 
+                        fork {
+                            whenCommand(DefaultDeleteAggregate) {
+                                expectErrorType(IllegalAccessDeletedAggregateException::class)
+                            }
+                        }
+                        fork {
+                            whenCommand(DefaultRecoverAggregate) {
+                                expectNoError()
+                                expectStateAggregate {
+                                    deleted.assert().isFalse()
+                                }
+                                fork {
+                                    whenCommand(DefaultRecoverAggregate) {
+                                        expectErrorType(IllegalStateException::class)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-            whenCommand(command2) {
-
-            }
         }
     }
-
-    given("State") {
-        givenState(state) {
-            whenCommand(command1) {
-                expectNoError()
-                expectEventType(eventType)
-            }
-            whenCommand(command2) {
-
-            }
-        }
-    }
-})
+)
 ```
