@@ -14,13 +14,28 @@
 package me.ahoo.wow.test.saga.stateless.dsl
 
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
+import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.test.SagaVerifier.defaultCommandGateway
 import me.ahoo.wow.test.dsl.NameSpecCapable
 import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
+import me.ahoo.wow.test.validation.TestValidator
 
 interface StatelessSagaDsl<T : Any> {
-    fun on(block: WhenDsl<T>.() -> Unit)
+    fun on(
+        serviceProvider: ServiceProvider = SimpleServiceProvider(),
+        commandGateway: CommandGateway = defaultCommandGateway(),
+        commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
+            validator = TestValidator,
+            commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
+        ),
+        block: WhenDsl<T>.() -> Unit
+    )
 }
 
 interface WhenDsl<T : Any> : NameSpecCapable {
