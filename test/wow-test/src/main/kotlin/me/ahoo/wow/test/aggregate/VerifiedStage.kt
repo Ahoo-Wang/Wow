@@ -28,12 +28,18 @@ import me.ahoo.wow.serialization.deepCody
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 
-interface VerifiedStage<S : Any> : GivenStage<S> {
+interface VerifiedStage<S : Any> : GivenStage<S>, AggregateExpecter<S, VerifiedStage<S>> {
     val verifiedResult: ExpectedResult<S>
     val stateAggregate: StateAggregate<S>
         get() = verifiedResult.stateAggregate
     val stateRoot: S
         get() = stateAggregate.state
+
+    override fun expect(expected: ExpectedResult<S>.() -> Unit): VerifiedStage<S> {
+        expected(verifiedResult)
+        return this
+    }
+
     fun then(verifyError: Boolean = false): VerifiedStage<S>
 
     /**
