@@ -100,6 +100,8 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 )
 ```
 
+![CartSpec-Results](../public/images/test-suite/CartSpec-Results.png)
+
 ## 测试 Saga
 
 ```kotlin
@@ -155,3 +157,5 @@ class CartSagaSpec : SagaSpec<CartSaga>({
     }
 })
 ```
+
+![CartSagaSpec-Results](../public/images/test-suite/CartSagaSpec-Results.png)
