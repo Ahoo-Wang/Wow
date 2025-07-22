@@ -16,11 +16,15 @@ package me.ahoo.wow.test.saga.stateless
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.saga.stateless.CommandStream
 
-data class ExpectedResult<T>(
+data class ExpectedResult<T : Any>(
     val exchange: DomainEventExchange<*>,
     val processor: T,
     val commandStream: CommandStream?,
     val error: Throwable? = null
-) {
+) : StatelessSagaExpecter<T, ExpectedResult<T>> {
     val hasError = error != null
+    override fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectedResult<T> {
+        expected(this)
+        return this
+    }
 }
