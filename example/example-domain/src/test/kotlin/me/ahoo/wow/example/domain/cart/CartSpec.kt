@@ -43,7 +43,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                 expectStateAggregate {
                     ownerId.assert().isEqualTo(ownerId)
                 }
-                fork {
+                fork("Added") {
                     val removeCartItem = RemoveCartItem(
                         productIds = setOf(addCartItem.productId),
                     )
