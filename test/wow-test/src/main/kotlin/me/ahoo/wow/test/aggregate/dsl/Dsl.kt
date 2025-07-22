@@ -15,15 +15,29 @@ package me.ahoo.wow.test.aggregate.dsl
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.dsl.NameSpecCapable
 
 interface AggregateDsl<S : Any> {
-    fun on(block: GivenDsl<S>.() -> Unit)
+    fun on(
+        aggregateId: String = generateGlobalId(),
+        tenantId: String = TenantId.DEFAULT_TENANT_ID,
+        stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+        eventStore: EventStore = InMemoryEventStore(),
+        serviceProvider: ServiceProvider = SimpleServiceProvider(),
+        block: GivenDsl<S>.() -> Unit
+    )
 }
 
 interface GivenDsl<S : Any> : WhenDsl<S>, NameSpecCapable {

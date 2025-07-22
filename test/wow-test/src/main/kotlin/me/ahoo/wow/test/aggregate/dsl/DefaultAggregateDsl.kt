@@ -17,9 +17,11 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
 import me.ahoo.wow.test.aggregate.EventIterator
 import me.ahoo.wow.test.aggregate.ExpectStage
@@ -35,8 +37,21 @@ import kotlin.reflect.KClass
 
 class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Class<C>) :
     AggregateDsl<S>, AbstractDynamicTestBuilder() {
-    override fun on(block: GivenDsl<S>.() -> Unit) {
-        val givenStage = commandAggregateType.aggregateVerifier<C, S>()
+    override fun on(
+        aggregateId: String,
+        tenantId: String,
+        stateAggregateFactory: StateAggregateFactory,
+        eventStore: EventStore,
+        serviceProvider: ServiceProvider,
+        block: GivenDsl<S>.() -> Unit
+    ) {
+        val givenStage = commandAggregateType.aggregateVerifier<C, S>(
+            aggregateId = aggregateId,
+            tenantId = tenantId,
+            stateAggregateFactory = stateAggregateFactory,
+            eventStore = eventStore,
+            serviceProvider = serviceProvider
+        )
         val givenDsl = DefaultGivenDsl(givenStage)
         block(givenDsl)
         dynamicNodes.addAll(givenDsl.dynamicNodes)
