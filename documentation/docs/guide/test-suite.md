@@ -41,216 +41,70 @@ testImplementation 'me.ahoo.wow:wow-test'
 ## 测试聚合根
 
 ```kotlin
-class CartTest {
-
-    @Test
-    fun addCartItem() {
-        val ownerId = generateGlobalId()
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-
-        aggregateVerifier<Cart, CartState>(ownerId)
-            .givenOwnerId(ownerId)
-            .whenCommand(addCartItem)
-            .expectNoError()
-            .expectEventType(CartItemAdded::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-            }.expectStateAggregate {
-                it.ownerId.assert().isEqualTo(ownerId)
-            }
-            .verify()
-    }
-
-    @Test
-    fun givenStateWhenAdd() {
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-
-        aggregateVerifier<Cart, CartState>()
-            .givenState(CartState(generateGlobalId()), 1)
-            .whenCommand(addCartItem)
-            .expectNoError()
-            .expectEventType(CartItemAdded::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-            }
-            .verify()
-    }
-
-    @Test
-    fun addCartItemIfSameProduct() {
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-
-        aggregateVerifier<Cart, CartState>()
-            .given(
-                CartItemAdded(
-                    added = CartItem(
-                        productId = addCartItem.productId,
-                        quantity = 1,
-                    ),
-                ),
+class CartSpec : AggregateSpec<Cart, CartState>(
+    {
+        on {
+            val ownerId = generateGlobalId()
+            val addCartItem = AddCartItem(
+                productId = "productId",
+                quantity = 1,
             )
-            .whenCommand(addCartItem)
-            .expectNoError()
-            .expectEventType(CartQuantityChanged::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-                it.items.first().quantity.assert().isEqualTo(2)
+            givenOwnerId(ownerId)
+            whenCommand(addCartItem) {
+                expectNoError()
+                expectEventType(CartItemAdded::class)
+                expectState {
+                    items.assert().hasSize(1)
+                }
+                expectStateAggregate {
+                    ownerId.assert().isEqualTo(ownerId)
+                }
+                fork {
+                    val removeCartItem = RemoveCartItem(
+                        productIds = setOf(addCartItem.productId),
+                    )
+                    whenCommand(removeCartItem) {
+                        expectEventType(CartItemRemoved::class)
+                    }
+                }
+                fork {
+                    whenCommand(DefaultDeleteAggregate) {
+                        expectEventType(DefaultAggregateDeleted::class)
+                        expectStateAggregate {
+                            deleted.assert().isTrue()
+                        }
+
+                        fork {
+                            whenCommand(DefaultDeleteAggregate) {
+                                expectErrorType(IllegalAccessDeletedAggregateException::class)
+                            }
+                        }
+                        fork {
+                            whenCommand(DefaultRecoverAggregate) {
+                                expectNoError()
+                                expectStateAggregate {
+                                    deleted.assert().isFalse()
+                                }
+                                fork {
+                                    whenCommand(DefaultRecoverAggregate) {
+                                        expectErrorType(IllegalStateException::class)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            .verify()
+        }
     }
-
-    @Test
-    fun addCartItemIfUnCreated() {
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-        aggregateVerifier<Cart, CartState>()
-            .given()
-            .whenCommand(addCartItem)
-            .expectNoError()
-            .expectEventType(CartItemAdded::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-            }
-            .expectStateAggregate {
-                it.version.assert().isEqualTo(1)
-            }
-            .verify()
-    }
-
-    @Test
-    fun addCartItemGivenMax() {
-        val events = buildList {
-            for (i in 0..99) {
-                add(
-                    CartItemAdded(
-                        added = CartItem(
-                            productId = "productId$i",
-                            quantity = 1,
-                        ),
-                    ),
-                )
-            }
-        }.toTypedArray()
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-
-        aggregateVerifier<Cart, CartState>()
-            .given(*events)
-            .whenCommand(addCartItem)
-            .expectErrorType(IllegalArgumentException::class)
-            .expectState {
-                it.items.assert().hasSize(MAX_CART_ITEM_SIZE)
-            }
-            .verify()
-    }
-
-    @Test
-    fun removeCartItem() {
-        val removeCartItem = RemoveCartItem(
-            productIds = setOf("productId"),
-        )
-        val added = CartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-
-        aggregateVerifier<Cart, CartState>()
-            .given(
-                CartItemAdded(
-                    added = added,
-                ),
-            )
-            .whenCommand(removeCartItem)
-            .expectEventType(CartItemRemoved::class)
-            .expectState {
-                it.items.assert().isEmpty()
-            }
-            .verify()
-    }
-
-    @Test
-    fun changeQuantity() {
-        val changeQuantity = ChangeQuantity(
-            productId = "productId",
-            quantity = 2,
-        )
-        val added = CartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-        aggregateVerifier<Cart, CartState>()
-            .given(
-                CartItemAdded(
-                    added = added,
-                ),
-            )
-            .whenCommand(changeQuantity)
-            .expectEventType(CartQuantityChanged::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-                it.items.first().quantity.assert().isEqualTo(changeQuantity.quantity)
-            }
-            .verify()
-    }
-
-    @Test
-    fun onCreateThenDeleteThenRecover() {
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-        aggregateVerifier<Cart, CartState>()
-            .whenCommand(addCartItem)
-            .expectNoError()
-            .expectEventType(CartItemAdded::class)
-            .expectState {
-                it.items.assert().hasSize(1)
-            }
-            .verify()
-            .then()
-            .whenCommand(DefaultDeleteAggregate)
-            .expectEventType(DefaultAggregateDeleted::class)
-            .expectStateAggregate {
-                it.deleted.assert().isTrue()
-            }.verify()
-            .then()
-            .whenCommand(DefaultDeleteAggregate::class)
-            .expectErrorType(IllegalAccessDeletedAggregateException::class)
-            .verify()
-            .then()
-            .whenCommand(DefaultRecoverAggregate)
-            .expectStateAggregate {
-                it.deleted.assert().isFalse()
-            }.verify()
-            .then()
-            .whenCommand(DefaultRecoverAggregate)
-            .expectErrorType(IllegalStateException::class)
-            .verify()
-    }
-}
-
+)
 ```
 
 ## 测试 Saga
 
 ```kotlin
-class CartSagaTest {
-
-    @Test
-    fun onOrderCreated() {
+class CartSagaSpec : SagaSpec<CartSaga>({
+    on {
         val ownerId = generateGlobalId()
         val orderItem = OrderItem(
             id = generateGlobalId(),
@@ -258,24 +112,46 @@ class CartSagaTest {
             price = BigDecimal.valueOf(10),
             quantity = 10,
         )
-        sagaVerifier<CartSaga>()
-            .whenEvent(
-                event = mockk<OrderCreated> {
-                    every {
-                        items
-                    } returns listOf(orderItem)
-                    every {
-                        fromCart
-                    } returns true
-                },
-                ownerId = ownerId
-            )
-            .expectCommand<RemoveCartItem> {
-                it.aggregateId.id.assert().isEqualTo(ownerId)
-                it.body.productIds.assert().hasSize(1)
-                it.body.productIds.assert().first().isEqualTo(orderItem.productId)
+        whenEvent(
+            event = mockk<OrderCreated> {
+                every {
+                    items
+                } returns listOf(orderItem)
+                every {
+                    fromCart
+                } returns true
+            },
+            ownerId = ownerId
+        ) {
+            expectCommandType(RemoveCartItem::class)
+            expectCommand<RemoveCartItem> {
+                aggregateId.id.assert().isEqualTo(ownerId)
+                body.productIds.assert().hasSize(1)
+                body.productIds.assert().first().isEqualTo(orderItem.productId)
             }
-            .verify()
+        }
     }
-}
+    on {
+        name("NotFromCart")
+        val orderItem = OrderItem(
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
+        )
+        whenEvent(
+            event = mockk<OrderCreated> {
+                every {
+                    items
+                } returns listOf(orderItem)
+                every {
+                    fromCart
+                } returns false
+            },
+            ownerId = generateGlobalId()
+        ) {
+            expectNoCommand()
+        }
+    }
+})
 ```
