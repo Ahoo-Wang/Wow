@@ -40,7 +40,7 @@ object StateAggregateRootResolver {
         val codeGenerator = StringBuilder()
         codeGenerator.appendLine("package $packageName")
         codeGenerator.appendLine()
-        codeGenerator.appendLine("import javax.annotation.processing.Generated")
+        codeGenerator.appendLine("import me.ahoo.wow.api.annotation.Generated")
         codeGenerator.appendLine()
         val generatedDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         codeGenerator.appendLine("@Generated(\"$GENERATOR_NAME\", date = \"$generatedDate\")")
