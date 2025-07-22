@@ -15,77 +15,8 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.OwnerId
-import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.naming.annotation.toName
-import me.ahoo.wow.saga.stateless.CommandStream
 import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.defaultType
-
-/**
- * Stateless Saga:
- * 1. when event
- * 2. expect commands
- */
-interface WhenStage<T : Any> {
-    fun <SERVICE : Any> inject(
-        service: SERVICE,
-        serviceName: String = service.javaClass.toName(),
-        serviceType: KType = service.javaClass.kotlin.defaultType
-    ): WhenStage<T> {
-        inject {
-            register(service, serviceName, serviceType)
-        }
-        return this
-    }
-
-    fun inject(inject: ServiceProvider.() -> Unit): WhenStage<T>
-    fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
-
-    fun functionName(functionName: String): WhenStage<T> {
-        return functionFilter {
-            it.name == functionName
-        }
-    }
-
-    /**
-     * 1. 当订阅到领域事件时，生成聚合命令.
-     */
-    fun `when`(event: Any, state: Any?, ownerId: String = OwnerId.DEFAULT_OWNER_ID): ExpectStage<T> {
-        return whenEvent(event = event, state = state, ownerId = ownerId)
-    }
-
-    fun `when`(event: Any): ExpectStage<T> {
-        return whenEvent(event = event, state = null)
-    }
-
-    fun whenEvent(event: Any, state: Any? = null, ownerId: String = OwnerId.DEFAULT_OWNER_ID): ExpectStage<T>
-}
-
-interface ExpectStage<T : Any> : StatelessSagaExpecter<T, ExpectStage<T>> {
-
-    fun verify(): ExpectedResult<T> {
-        return verify(immediately = true)
-    }
-
-    /**
-     * 完成流程编排后，执行验证逻辑.
-     */
-    fun verify(immediately: Boolean): ExpectedResult<T>
-}
-
-data class ExpectedResult<T>(
-    val exchange: DomainEventExchange<*>,
-    val processor: T,
-    val commandStream: CommandStream?,
-    val error: Throwable? = null
-) {
-    val hasError = error != null
-}
 
 class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
     Iterator<CommandMessage<*>> by delegate,
