@@ -114,19 +114,19 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
     }
 
     fun expectEventType(vararg expected: KClass<*>): AE {
-        return expectEventType(*expected.map { it.java }.toTypedArray())
+        return expectEventCount(expected.size).expectEventStream {
+            val itr = iterator()
+            for (eventType in expected) {
+                itr.next().body.assert().isInstanceOf(eventType.java)
+            }
+        }
     }
 
     /**
      * 期望事件类型. 严格按照事件生成顺序验证。
      */
     fun expectEventType(vararg expected: Class<*>): AE {
-        return expectEventCount(expected.size).expectEventStream {
-            val itr = iterator()
-            for (eventType in expected) {
-                itr.next().body.assert().isInstanceOf(eventType)
-            }
-        }
+        return expectEventType(*expected.map { it.kotlin }.toTypedArray())
     }
 
     fun expectNoError(): AE {
@@ -158,12 +158,12 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
     }
 
     fun <E : Throwable> expectErrorType(expected: KClass<E>): AE {
-        return expectErrorType(expected.java)
+        return expectError<E> {
+            assert().isInstanceOf(expected.java)
+        }
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): AE {
-        return expectError<E> {
-            assert().isInstanceOf(expected)
-        }
+        return expectErrorType(expected.kotlin)
     }
 }
