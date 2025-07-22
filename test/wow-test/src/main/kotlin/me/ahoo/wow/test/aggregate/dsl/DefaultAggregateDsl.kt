@@ -194,16 +194,23 @@ class DefaultExpectDsl<S : Any>(override val delegate: ExpectStage<S>) :
     Decorator<ExpectStage<S>>,
     AbstractDynamicTestBuilder() {
     override fun fork(
+        name: String,
         verifyError: Boolean,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
     ) {
+        val displayName = buildString {
+            append("Fork")
+            if (name.isNotEmpty()) {
+                append("[$name]")
+            }
+        }
         val forkNode = try {
             val verifiedStage = delegate.verify().fork(verifyError)
             val forkedVerifiedStageDsl = DefaultForkedVerifiedStageDsl(verifiedStage)
             block(forkedVerifiedStageDsl)
-            DynamicContainer.dynamicContainer("Fork", forkedVerifiedStageDsl.dynamicNodes)
+            DynamicContainer.dynamicContainer(displayName, forkedVerifiedStageDsl.dynamicNodes)
         } catch (e: Throwable) {
-            DynamicTest.dynamicTest("Fork Error") {
+            DynamicTest.dynamicTest("$displayName Error") {
                 throw e
             }
         }

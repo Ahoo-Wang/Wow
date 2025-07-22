@@ -61,6 +61,7 @@ interface WhenDsl<S : Any> : NameSpecCapable {
 
 interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>> {
     fun fork(
+        name: String = "",
         verifyError: Boolean = false,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
     )
