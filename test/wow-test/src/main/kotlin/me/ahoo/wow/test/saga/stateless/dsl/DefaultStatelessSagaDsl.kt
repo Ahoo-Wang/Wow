@@ -151,10 +151,6 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
-    override fun expectCommandType(vararg expected: Class<*>): ExpectDsl<T> {
-        return expectCommandType(*expected.map { it.kotlin }.toTypedArray())
-    }
-
     override fun expectNoError(): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectNoError") {
             delegate.verify(false).expectNoError()
@@ -185,9 +181,5 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         }
         dynamicNodes.add(dynamicTest)
         return this
-    }
-
-    override fun <E : Throwable> expectErrorType(expected: Class<E>): ExpectDsl<T> {
-        return expectErrorType(expected.kotlin)
     }
 }

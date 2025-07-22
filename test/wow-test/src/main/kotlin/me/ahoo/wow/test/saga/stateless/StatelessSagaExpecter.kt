@@ -68,16 +68,16 @@ interface StatelessSagaExpecter<T : Any, SE : StatelessSagaExpecter<T, SE>> {
     }
 
     fun expectCommandType(vararg expected: KClass<*>): SE {
-        return expectCommandType(*expected.map { it.java }.toTypedArray())
-    }
-
-    fun expectCommandType(vararg expected: Class<*>): SE {
         return expectCommandCount(expected.size).expectCommandStream {
             val itr = iterator()
             for (eventType in expected) {
-                itr.next().body.assert().isInstanceOf(eventType)
+                itr.next().body.assert().isInstanceOf(eventType.java)
             }
         }
+    }
+
+    fun expectCommandType(vararg expected: Class<*>): SE {
+        return expectCommandType(*expected.map { it.kotlin }.toTypedArray())
     }
 
     fun expectNoError(): SE {
@@ -100,12 +100,12 @@ interface StatelessSagaExpecter<T : Any, SE : StatelessSagaExpecter<T, SE>> {
     }
 
     fun <E : Throwable> expectErrorType(expected: KClass<E>): SE {
-        return expectErrorType(expected.java)
+        return expectError<E> {
+            assert().isInstanceOf(expected.java)
+        }
     }
 
     fun <E : Throwable> expectErrorType(expected: Class<E>): SE {
-        return expectError<E> {
-            assert().isInstanceOf(expected)
-        }
+        return expectErrorType(expected.kotlin)
     }
 }
