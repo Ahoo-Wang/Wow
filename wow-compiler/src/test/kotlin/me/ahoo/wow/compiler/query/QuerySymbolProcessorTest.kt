@@ -44,7 +44,7 @@ class QuerySymbolProcessorTest {
                 """
                 package me.ahoo.wow.compiler
                 
-                import javax.annotation.processing.Generated
+                import me.ahoo.wow.api.annotation.Generated
                 
                 object MockCompilerAggregateProperties {
                     const val ID = "id"
@@ -87,7 +87,7 @@ class QuerySymbolProcessorTest {
                 """
                     package me.ahoo.wow.compiler
                     
-                    import javax.annotation.processing.Generated
+                    import me.ahoo.wow.api.annotation.Generated
                     
                     object MockJavaCompilerAggregateProperties {
                         const val ID = "id"
