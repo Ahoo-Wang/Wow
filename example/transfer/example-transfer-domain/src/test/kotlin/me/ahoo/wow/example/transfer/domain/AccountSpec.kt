@@ -16,8 +16,11 @@ package me.ahoo.wow.example.transfer.domain
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.transfer.api.AccountCreated
 import me.ahoo.wow.example.transfer.api.AccountFrozen
+import me.ahoo.wow.example.transfer.api.AmountEntered
 import me.ahoo.wow.example.transfer.api.AmountLocked
 import me.ahoo.wow.example.transfer.api.CreateAccount
+import me.ahoo.wow.example.transfer.api.Entry
+import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepare
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.test.AggregateSpec
@@ -54,6 +57,14 @@ class AccountSpec : AggregateSpec<Account, AccountState>({
                             isFrozen.assert().isTrue()
                         }
                     }
+                    val entry = Entry(stateRoot.id, "sourceId", 100)
+                    whenCommand(entry) {
+                        expectEventType(EntryFailed::class)
+                        expectState {
+                            balanceAmount.assert().isEqualTo(100)
+                            isFrozen.assert().isTrue()
+                        }
+                    }
                 }
             }
             fork {
@@ -65,6 +76,15 @@ class AccountSpec : AggregateSpec<Account, AccountState>({
                     expectState {
                         name.assert().isEqualTo(createAccount.name)
                         balanceAmount.assert().isEqualTo(createAccount.balance)
+                    }
+                }
+            }
+            fork {
+                val entry = Entry(stateRoot.id, "sourceId", 100)
+                whenCommand(entry) {
+                    expectEventType(AmountEntered::class)
+                    expectState {
+                        balanceAmount.assert().isEqualTo(200)
                     }
                 }
             }
