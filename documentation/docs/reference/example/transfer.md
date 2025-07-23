@@ -319,42 +319,38 @@ internal class AccountKTest {
 > `TransferSaga` 单元测试
 
 ```kotlin
-internal class TransferSagaTest {
-
-    @Test
-    fun onPrepared() {
-        val event = Prepared("to", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<Entry> {
-                assertThat(it.id, equalTo(event.to))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-
-    @Test
-    fun onAmountEntered() {
-        val event = AmountEntered("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<Confirm> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-
-    @Test
-    fun onEntryFailed() {
-        val event = EntryFailed("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .`when`(event)
-            .expectCommandBody<UnlockAmount> {
-                assertThat(it.id, equalTo(event.sourceId))
-                assertThat(it.amount, equalTo(event.amount))
-            }
-            .verify()
-    }
-}
+class TransferSagaSpec : SagaSpec<TransferSaga>({
+   on {
+      val prepared = Prepared("to", 1)
+      whenEvent(prepared) {
+         expectNoError()
+         expectCommandType(Entry::class)
+         expectCommandBody<Entry> {
+            id.assert().isEqualTo(prepared.to)
+            amount.assert().isEqualTo(prepared.amount)
+         }
+      }
+   }
+   on {
+      val amountEntered = AmountEntered("sourceId", 1)
+      whenEvent(amountEntered) {
+         expectNoError()
+         expectCommandType(Confirm::class)
+         expectCommandBody<Confirm> {
+            id.assert().isEqualTo(amountEntered.sourceId)
+            amount.assert().isEqualTo(amountEntered.amount)
+         }
+      }
+   }
+   on {
+      val entryFailed = EntryFailed("sourceId", 1)
+      whenEvent(entryFailed) {
+         expectCommandType(UnlockAmount::class)
+         expectCommandBody<UnlockAmount> {
+            id.assert().isEqualTo(entryFailed.sourceId)
+            amount.assert().isEqualTo(entryFailed.amount)
+         }
+      }
+   }
+})
 ```
