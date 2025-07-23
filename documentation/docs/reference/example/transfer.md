@@ -208,110 +208,71 @@ public class TransferSaga {
 > `Account` 聚合根单元测试
 
 ```kotlin
-internal class AccountKTest {
-    @Test
-    fun createAccount() {
-        aggregateVerifier<Account, AccountState>()
-            .given()
-            .`when`(CreateAccount("name", 100))
-            .expectEventType(AccountCreated::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-            }
-            .verify()
-    }
+class AccountSpec : AggregateSpec<Account, AccountState>({
 
-    @Test
-    fun prepare() {
-        aggregateVerifier<Account, AccountState>()
-            .given(AccountCreated("name", 100))
-            .`when`(Prepare("name", 100))
-            .expectEventType(AmountLocked::class.java, Prepared::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(0))
+   on {
+      val createAccount = CreateAccount("name", 100)
+      whenCommand(createAccount) {
+         expectEventType(AccountCreated::class)
+         expectState {
+            name.assert().isEqualTo(createAccount.name)
+            balanceAmount.assert().isEqualTo(createAccount.balance)
+         }
+         fork {
+            val prepare = Prepare("to", 100)
+            whenCommand(prepare) {
+               expectEventType(AmountLocked::class, Prepared::class)
+               expectState {
+                  balanceAmount.assert().isEqualTo(createAccount.balance - prepare.amount)
+               }
             }
-            .verify()
-    }
-
-    @Test
-    fun entry() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(AmountEntered::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(200))
+         }
+         fork {
+            givenEvent(AccountFrozen("")) {
+               whenCommand(Prepare("to", 100)) {
+                  expectError<IllegalStateException> {
+                     assertThat(this).hasMessage("账号已冻结无法转账.")
+                  }
+                  expectState {
+                     name.assert().isEqualTo(createAccount.name)
+                     balanceAmount.assert().isEqualTo(createAccount.balance)
+                     isFrozen.assert().isTrue()
+                  }
+               }
+               val entry = Entry(stateRoot.id, "sourceId", 100)
+               whenCommand(entry) {
+                  expectEventType(EntryFailed::class)
+                  expectState {
+                     balanceAmount.assert().isEqualTo(100)
+                     isFrozen.assert().isTrue()
+                  }
+               }
             }
-            .verify()
-    }
-
-    @Test
-    fun entryGivenFrozen() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AccountFrozen(""))
-            .`when`(Entry(aggregateId, "sourceId", 100))
-            .expectEventType(EntryFailed::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.isFrozen, equalTo(true))
+         }
+         fork {
+            val prepare = Prepare("to", createAccount.balance + 1)
+            whenCommand(prepare) {
+               expectError<IllegalStateException> {
+                  this.assert().hasMessage("账号余额不足.")
+               }
+               expectState {
+                  name.assert().isEqualTo(createAccount.name)
+                  balanceAmount.assert().isEqualTo(createAccount.balance)
+               }
             }
-            .verify()
-    }
-
-    @Test
-    fun confirm() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(Confirm(aggregateId, 100))
-            .expectEventType(Confirmed::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(0))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(false))
+         }
+         fork {
+            val entry = Entry(stateRoot.id, "sourceId", 100)
+            whenCommand(entry) {
+               expectEventType(AmountEntered::class)
+               expectState {
+                  balanceAmount.assert().isEqualTo(200)
+               }
             }
-            .verify()
-    }
-
-    @Test
-    fun unlockAmount() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100), AmountLocked(100))
-            .`when`(UnlockAmount(aggregateId, 100))
-            .expectEventType(AmountUnlocked::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(false))
-            }
-            .verify()
-    }
-
-    @Test
-    fun freezeAccount() {
-        val aggregateId = GlobalIdGenerator.generateAsString()
-        aggregateVerifier<Account, AccountState>(aggregateId)
-            .given(AccountCreated("name", 100))
-            .`when`(FreezeAccount(""))
-            .expectEventType(AccountFrozen::class.java)
-            .expectState {
-                assertThat(it.name, equalTo("name"))
-                assertThat(it.balanceAmount, equalTo(100))
-                assertThat(it.lockedAmount, equalTo(0))
-                assertThat(it.isFrozen, equalTo(true))
-            }
-            .verify()
-    }
-}
+         }
+      }
+   }
+})
 ```
 
 > 使用 `sagaVerifier` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
