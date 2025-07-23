@@ -42,10 +42,7 @@ class DefaultStatelessSagaDsl<T : Any>(private val processorType: Class<T>) : St
         commandMessageFactory: CommandMessageFactory,
         block: WhenDsl<T>.() -> Unit
     ) {
-        publicServiceProvider.serviceNames.forEach { serviceName ->
-            val publicService = serviceProvider.getService<Any>(serviceName)!!
-            serviceProvider.register(publicService, serviceName = serviceName)
-        }
+        publicServiceProvider.copyTo(serviceProvider)
         val whenStage = processorType.sagaVerifier(
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,

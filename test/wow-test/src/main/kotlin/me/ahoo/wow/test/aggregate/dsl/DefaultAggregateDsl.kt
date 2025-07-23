@@ -47,10 +47,7 @@ class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Cl
         serviceProvider: ServiceProvider,
         block: GivenDsl<S>.() -> Unit
     ) {
-        publicServiceProvider.serviceNames.forEach { serviceName ->
-            val publicService = serviceProvider.getService<Any>(serviceName)!!
-            serviceProvider.register(publicService, serviceName = serviceName)
-        }
+        publicServiceProvider.copyTo(serviceProvider)
         val givenStage = commandAggregateType.aggregateVerifier<C, S>(
             aggregateId = aggregateId,
             tenantId = tenantId,
