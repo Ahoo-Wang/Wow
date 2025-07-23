@@ -19,6 +19,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
@@ -33,12 +34,21 @@ import kotlin.reflect.KClass
 
 class DefaultStatelessSagaDsl<T : Any>(private val processorType: Class<T>) : StatelessSagaDsl<T>,
     AbstractDynamicTestBuilder() {
+    private val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
+    override fun inject(inject: ServiceProvider.() -> Unit) {
+        inject(publicServiceProvider)
+    }
+
     override fun on(
         serviceProvider: ServiceProvider,
         commandGateway: CommandGateway,
         commandMessageFactory: CommandMessageFactory,
         block: WhenDsl<T>.() -> Unit
     ) {
+        publicServiceProvider.serviceNames.forEach { serviceName ->
+            val publicService = serviceProvider.getService<Any>(serviceName)!!
+            serviceProvider.register(publicService, serviceName = serviceName)
+        }
         val whenStage = processorType.sagaVerifier(
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,

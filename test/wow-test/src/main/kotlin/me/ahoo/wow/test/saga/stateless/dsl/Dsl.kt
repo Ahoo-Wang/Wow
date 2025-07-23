@@ -27,6 +27,7 @@ import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
 import me.ahoo.wow.test.validation.TestValidator
 
 interface StatelessSagaDsl<T : Any> {
+    fun inject(inject: ServiceProvider.() -> Unit)
     fun on(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
