@@ -20,44 +20,39 @@ import me.ahoo.wow.example.transfer.api.Entry
 import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.example.transfer.api.UnlockAmount
-import me.ahoo.wow.test.SagaVerifier.sagaVerifier
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.test.SagaSpec
 
-internal class TransferSagaKTest {
-
-    @Test
-    fun onPrepared() {
-        val event = Prepared("to", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<Entry> {
-                id.assert().isEqualTo(event.to)
-                amount.assert().isEqualTo(event.amount)
+class TransferSagaSpec : SagaSpec<TransferSaga>({
+    on {
+        val prepared = Prepared("to", 1)
+        whenEvent(prepared) {
+            expectNoError()
+            expectCommandType(Entry::class)
+            expectCommandBody<Entry> {
+                id.assert().isEqualTo(prepared.to)
+                amount.assert().isEqualTo(prepared.amount)
             }
-            .verify()
+        }
     }
-
-    @Test
-    fun onAmountEntered() {
-        val event = AmountEntered("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<Confirm> {
-                id.assert().isEqualTo(event.sourceId)
-                amount.assert().isEqualTo(event.amount)
+    on {
+        val amountEntered = AmountEntered("sourceId", 1)
+        whenEvent(amountEntered) {
+            expectNoError()
+            expectCommandType(Confirm::class)
+            expectCommandBody<Confirm> {
+                id.assert().isEqualTo(amountEntered.sourceId)
+                amount.assert().isEqualTo(amountEntered.amount)
             }
-            .verify()
+        }
     }
-
-    @Test
-    fun onEntryFailed() {
-        val event = EntryFailed("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<UnlockAmount> {
-                id.assert().isEqualTo(event.sourceId)
-                amount.assert().isEqualTo(event.amount)
+    on {
+        val entryFailed = EntryFailed("sourceId", 1)
+        whenEvent(entryFailed) {
+            expectCommandType(UnlockAmount::class)
+            expectCommandBody<UnlockAmount> {
+                id.assert().isEqualTo(entryFailed.sourceId)
+                amount.assert().isEqualTo(entryFailed.amount)
             }
-            .verify()
+        }
     }
-}
+})
