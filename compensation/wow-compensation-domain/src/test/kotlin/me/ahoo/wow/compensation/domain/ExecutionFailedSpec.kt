@@ -15,6 +15,7 @@ package me.ahoo.wow.compensation.domain
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
@@ -22,6 +23,8 @@ import me.ahoo.wow.compensation.api.ApplyRetrySpec
 import me.ahoo.wow.compensation.api.ChangeFunction
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
+import me.ahoo.wow.compensation.api.ErrorDetails
+import me.ahoo.wow.compensation.api.EventId
 import me.ahoo.wow.compensation.api.ExecutionFailedApplied
 import me.ahoo.wow.compensation.api.ExecutionFailedCreated
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
@@ -33,12 +36,23 @@ import me.ahoo.wow.compensation.api.PrepareCompensation
 import me.ahoo.wow.compensation.api.RecoverableMarked
 import me.ahoo.wow.compensation.api.RetrySpec
 import me.ahoo.wow.compensation.api.RetrySpecApplied
-import me.ahoo.wow.compensation.domain.ExecutionFailedTest.Companion.EVENT_ID
-import me.ahoo.wow.compensation.domain.ExecutionFailedTest.Companion.function
-import me.ahoo.wow.compensation.domain.ExecutionFailedTest.Companion.newError
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.test.AggregateSpec
 
+val EVENT_AGGREGATE = "order.order".toNamedAggregate()
+val EVENT_ID = EventId(generateGlobalId(), EVENT_AGGREGATE.aggregateId(), 1)
+val function = FunctionInfoData(
+    functionKind = FunctionKind.EVENT,
+    contextName = "order",
+    processorName = "OrderProjector",
+    name = "onEvent"
+)
+
+fun newError(): ErrorDetails {
+    return ErrorDetails(generateGlobalId(), "errorMsg", "stackTrace")
+}
 class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>({
     inject {
         register(DefaultNextRetryAtCalculatorTest.testRetrySpec)
