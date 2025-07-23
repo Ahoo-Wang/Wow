@@ -25,10 +25,11 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggreg
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.naming.annotation.toName
+import me.ahoo.wow.test.dsl.InjectServiceCapable
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
 
-interface GivenStage<S : Any> {
+interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
     fun <SERVICE : Any> inject(
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
@@ -39,8 +40,6 @@ interface GivenStage<S : Any> {
         }
         return this
     }
-
-    fun inject(inject: ServiceProvider.() -> Unit): GivenStage<S>
 
     fun givenOwnerId(ownerId: String): GivenStage<S>
 

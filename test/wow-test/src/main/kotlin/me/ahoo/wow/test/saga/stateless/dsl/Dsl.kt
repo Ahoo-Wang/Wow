@@ -22,12 +22,12 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.test.SagaVerifier.defaultCommandGateway
+import me.ahoo.wow.test.dsl.InjectServiceCapable
 import me.ahoo.wow.test.dsl.NameSpecCapable
 import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
 import me.ahoo.wow.test.validation.TestValidator
 
-interface StatelessSagaDsl<T : Any> {
-    fun inject(inject: ServiceProvider.() -> Unit)
+interface StatelessSagaDsl<T : Any> : InjectServiceCapable<Unit> {
     fun on(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
@@ -39,8 +39,7 @@ interface StatelessSagaDsl<T : Any> {
     )
 }
 
-interface WhenDsl<T : Any> : NameSpecCapable {
-    fun inject(inject: ServiceProvider.() -> Unit)
+interface WhenDsl<T : Any> : NameSpecCapable, InjectServiceCapable<Unit> {
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)
     fun functionName(functionName: String) {
         functionFilter {
