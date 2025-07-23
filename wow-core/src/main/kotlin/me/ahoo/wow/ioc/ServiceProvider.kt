@@ -34,6 +34,8 @@ interface ServiceProvider : Copyable<ServiceProvider> {
 
     fun <S : Any> getService(serviceType: KType): S?
     fun <S : Any> getService(serviceName: String): S?
+
+    fun copyTo(target: ServiceProvider)
 }
 
 inline fun <reified S : Any> ServiceProvider.register(

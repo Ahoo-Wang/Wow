@@ -23,5 +23,8 @@ class SpringServiceProviderTest {
 
         val copiedServiceProvider = serviceProvider.copy()
         copiedServiceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
+        val targetServiceProvider = SpringServiceProvider(DefaultListableBeanFactory())
+        serviceProvider.copyTo(targetServiceProvider)
+        targetServiceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
     }
 }

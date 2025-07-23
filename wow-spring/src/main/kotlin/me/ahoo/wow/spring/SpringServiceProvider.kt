@@ -42,11 +42,18 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
         return delegate.getBean(serviceName) as S?
     }
 
+    override fun copyTo(target: ServiceProvider) {
+        serviceNames.forEach {
+            val bean = delegate.getBean(it)
+            target.register(bean, it)
+        }
+    }
+
     override fun copy(): ServiceProvider {
         val newBeanFactory = DefaultListableBeanFactory()
         newBeanFactory.copyConfigurationFrom(delegate)
         delegate.copyConfigurationFrom(delegate)
-        delegate.singletonNames.forEach {
+        serviceNames.forEach {
             val bean = delegate.getBean(it)
             newBeanFactory.registerSingleton(it, bean)
         }
