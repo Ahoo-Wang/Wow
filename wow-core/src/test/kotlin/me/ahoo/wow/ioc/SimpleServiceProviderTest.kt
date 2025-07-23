@@ -40,6 +40,11 @@ class SimpleServiceProviderTest {
         val copiedServiceProvider = serviceProvider.copy()
         copiedServiceProvider.getRequiredService<SimpleServiceProviderTest>().assert().isSameAs(this)
         copiedServiceProvider.getRequiredService<SimpleServiceProviderTest>(SERVICE_NAME).assert().isSameAs(this)
+
+        val targetServiceProvider = SimpleServiceProvider()
+        copiedServiceProvider.copyTo(targetServiceProvider)
+        targetServiceProvider.getRequiredService<SimpleServiceProviderTest>().assert().isSameAs(this)
+        targetServiceProvider.getRequiredService<SimpleServiceProviderTest>(SERVICE_NAME).assert().isSameAs(this)
     }
 
     object MockService
