@@ -27,7 +27,7 @@ import me.ahoo.wow.test.dsl.NameSpecCapable
 import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
 import me.ahoo.wow.test.validation.TestValidator
 
-interface StatelessSagaDsl<T : Any> : InjectServiceCapable<Unit> {
+interface StatelessSagaDsl<T : Any> : InjectPublicServiceCapable {
     fun on(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),

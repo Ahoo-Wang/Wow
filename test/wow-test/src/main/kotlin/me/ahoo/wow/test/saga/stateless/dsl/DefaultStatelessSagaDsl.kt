@@ -34,10 +34,7 @@ import kotlin.reflect.KClass
 
 class DefaultStatelessSagaDsl<T : Any>(private val processorType: Class<T>) : StatelessSagaDsl<T>,
     AbstractDynamicTestBuilder() {
-    private val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
-    override fun inject(inject: ServiceProvider.() -> Unit) {
-        inject(publicServiceProvider)
-    }
+    override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
 
     override fun on(
         serviceProvider: ServiceProvider,
