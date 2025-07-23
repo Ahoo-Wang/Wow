@@ -14,9 +14,9 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.modeling.OwnerId
-import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
+import me.ahoo.wow.test.dsl.InjectServiceCapable
 import kotlin.reflect.KType
 import kotlin.reflect.full.defaultType
 
@@ -25,7 +25,7 @@ import kotlin.reflect.full.defaultType
  * 1. when event
  * 2. expect commands
  */
-interface WhenStage<T : Any> {
+interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
     fun <SERVICE : Any> inject(
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
@@ -37,7 +37,6 @@ interface WhenStage<T : Any> {
         return this
     }
 
-    fun inject(inject: ServiceProvider.() -> Unit): WhenStage<T>
     fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean): WhenStage<T>
 
     fun functionName(functionName: String): WhenStage<T> {
