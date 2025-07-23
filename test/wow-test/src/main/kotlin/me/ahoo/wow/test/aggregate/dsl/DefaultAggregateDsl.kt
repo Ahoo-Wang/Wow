@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
@@ -37,6 +38,7 @@ import kotlin.reflect.KClass
 
 class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Class<C>) :
     AggregateDsl<S>, AbstractDynamicTestBuilder() {
+    override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
     override fun on(
         aggregateId: String,
         tenantId: String,
@@ -45,6 +47,10 @@ class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Cl
         serviceProvider: ServiceProvider,
         block: GivenDsl<S>.() -> Unit
     ) {
+        publicServiceProvider.serviceNames.forEach { serviceName ->
+            val publicService = serviceProvider.getService<Any>(serviceName)!!
+            serviceProvider.register(publicService, serviceName = serviceName)
+        }
         val givenStage = commandAggregateType.aggregateVerifier<C, S>(
             aggregateId = aggregateId,
             tenantId = tenantId,

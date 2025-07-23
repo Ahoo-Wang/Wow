@@ -28,8 +28,9 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.dsl.NameSpecCapable
+import me.ahoo.wow.test.saga.stateless.dsl.InjectPublicServiceCapable
 
-interface AggregateDsl<S : Any> {
+interface AggregateDsl<S : Any> : InjectPublicServiceCapable {
     fun on(
         aggregateId: String = generateGlobalId(),
         tenantId: String = TenantId.DEFAULT_TENANT_ID,
