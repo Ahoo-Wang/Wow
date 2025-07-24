@@ -15,4 +15,13 @@ package me.ahoo.wow.test.dsl
 
 interface NameSpecCapable {
     fun name(name: String)
+
+    companion object {
+        fun StringBuilder.appendName(name: String) {
+            if (name.isBlank()) {
+                return
+            }
+            append("($name)")
+        }
+    }
 }
