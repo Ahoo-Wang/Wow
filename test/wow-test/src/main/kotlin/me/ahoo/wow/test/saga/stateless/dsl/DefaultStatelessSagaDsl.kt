@@ -24,6 +24,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.saga.stateless.CommandStream
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
+import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
 import me.ahoo.wow.test.saga.stateless.CommandIterator
 import me.ahoo.wow.test.saga.stateless.ExpectStage
 import me.ahoo.wow.test.saga.stateless.ExpectedResult
@@ -90,9 +91,7 @@ class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) :
             }
             append(" Event")
             append("[${event.javaClass.simpleName}]")
-            if (name.isNotEmpty()) {
-                append("[$name]")
-            }
+            appendName(name)
         }
         val dynamicTest = DynamicContainer.dynamicContainer(displayName, expectDsl.dynamicNodes)
         dynamicNodes.add(dynamicTest)
