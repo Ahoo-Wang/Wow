@@ -28,6 +28,8 @@ import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.reactor.thenDefer
+import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -66,11 +68,9 @@ class DefaultCommandGateway(
 
     private fun <C : Any> check(command: CommandMessage<C>): Mono<Void> {
         return idempotencyCheck(command)
-            .then(
-                Mono.fromRunnable {
-                    validate(command.body)
-                }
-            )
+            .thenRunnable {
+                validate(command.body)
+            }
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
@@ -113,23 +113,21 @@ class DefaultCommandGateway(
         if (command.isVoid) {
             require(waitStrategy.stage == CommandStage.SENT) { "The wait strategy for the void command must be SENT." }
         }
-        return check(command).then(
-            Mono.defer {
-                command.header.injectWaitStrategy(
-                    commandWaitEndpoint = commandWaitEndpoint.endpoint,
-                    waitingFor = waitStrategy
-                )
-                waitStrategyRegistrar.register(command.commandId, waitStrategy)
-                waitStrategy.onFinally {
-                    waitStrategyRegistrar.unregister(command.commandId)
-                }
-                val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
-                commandBus.send(command)
-                    .thenEmitSentSignal(command, waitStrategy)
-                    .ensureUnregister(command)
-                    .thenReturn(commandExchange)
+        return check(command).thenDefer {
+            command.header.injectWaitStrategy(
+                commandWaitEndpoint = commandWaitEndpoint.endpoint,
+                waitingFor = waitStrategy
+            )
+            waitStrategyRegistrar.register(command.commandId, waitStrategy)
+            waitStrategy.onFinally {
+                waitStrategyRegistrar.unregister(command.commandId)
             }
-        ).onErrorMap {
+            val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
+            commandBus.send(command)
+                .thenEmitSentSignal(command, waitStrategy)
+                .ensureUnregister(command)
+                .thenReturn(commandExchange)
+        }.onErrorMap {
             it.toCommandResultException(command)
         }
     }
