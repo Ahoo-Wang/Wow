@@ -21,6 +21,7 @@ import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
+import me.ahoo.wow.modeling.command.getCommandAggregate
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -93,6 +94,10 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
         val extracted = super.extractDeclared(type)
         if (extracted != null) {
             return extracted
+        }
+        val commandAggregate = getCommandAggregate<Any, Any>()
+        if (type.isInstance(commandAggregate)) {
+            return type.cast(commandAggregate)
         }
         val eventStream = getEventStream()
         if (type.isInstance(eventStream)) {

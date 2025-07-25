@@ -5,6 +5,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.command.CommandAggregate
+import me.ahoo.wow.modeling.command.setCommandAggregate
 import org.junit.jupiter.api.Test
 
 class SimpleServerCommandExchangeTest {
@@ -24,6 +26,14 @@ class SimpleServerCommandExchangeTest {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.extractDeclared(CommandMessage::class.java).assert().isNotNull()
+    }
+
+    @Test
+    fun extractDeclaredCommandAggregate() {
+        val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
+        val commandExchange = SimpleServerCommandExchange(command)
+        commandExchange.setCommandAggregate(mockk())
+        commandExchange.extractDeclared(CommandAggregate::class.java).assert().isNotNull()
     }
 
     @Test
