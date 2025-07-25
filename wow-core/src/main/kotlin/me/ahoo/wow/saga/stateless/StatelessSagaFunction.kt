@@ -53,7 +53,7 @@ class StatelessSagaFunction(
                 toCommandFlux(exchange.message, it)
             }
             .concatMap {
-                commandGateway.send(it).thenReturn(it)
+                commandGateway.sendAndWaitForSent(it).thenReturn(it)
             }.collectList()
             .map {
                 val commandStream = DefaultCommandStream(exchange.message.id, it)
