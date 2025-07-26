@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
-class WaitingForSnapshot : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.SNAPSHOT
+import me.ahoo.wow.command.wait.WaitSignal
 
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return signal.stage == stage
+abstract class WaitingForStage : AbstractWaitingFor() {
+    override fun next(signal: WaitSignal) {
+        super.next(signal)
+        if (signal.stage == stage) {
+            complete()
+        }
     }
 }

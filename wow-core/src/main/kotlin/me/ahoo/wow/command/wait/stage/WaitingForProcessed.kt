@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
-class WaitingForSent : WaitingForStage() {
+import me.ahoo.wow.command.wait.CommandStage
+
+class WaitingForProcessed : WaitingForStage() {
     override val stage: CommandStage
-        get() = CommandStage.SENT
+        get() = CommandStage.PROCESSED
 }

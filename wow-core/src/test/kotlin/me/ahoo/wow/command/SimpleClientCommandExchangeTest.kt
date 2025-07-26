@@ -14,7 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingFor
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 

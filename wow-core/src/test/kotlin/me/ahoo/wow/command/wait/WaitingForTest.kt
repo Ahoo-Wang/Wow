@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
+import me.ahoo.wow.command.wait.stage.WaitingFor
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test

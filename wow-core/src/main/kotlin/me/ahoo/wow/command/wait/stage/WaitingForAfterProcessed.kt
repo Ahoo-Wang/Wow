@@ -11,8 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitSignal
 import reactor.core.publisher.Mono
 
 abstract class WaitingForAfterProcessed : AbstractWaitingFor() {

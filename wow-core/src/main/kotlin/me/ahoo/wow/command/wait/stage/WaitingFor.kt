@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitStrategy
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
