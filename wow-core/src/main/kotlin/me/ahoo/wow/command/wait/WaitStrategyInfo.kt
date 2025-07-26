@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.naming.Materialized
 
 interface WaitStrategyInfo : ProcessorInfo, FunctionNameCapable {
     val commandWaitEndpoint: String
@@ -27,4 +28,4 @@ data class WaitingForInfo(
     override val processorName: String,
     override val contextName: String,
     override val functionName: String
-) : WaitStrategyInfo
+) : WaitStrategyInfo, Materialized
