@@ -57,7 +57,9 @@ enum class CommandStage {
     };
 
     /**
-     * 前置阶段
+     * 前置阶段列表
+     *
+     * 定义了当前命令阶段之前必须完成的所有阶段。用于确定阶段之间的依赖关系和执行顺序。
      */
     abstract val previous: List<CommandStage>
 
