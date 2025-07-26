@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
+
+import me.ahoo.wow.command.wait.CommandStage
 
 class WaitingForSagaHandled(
     override val contextName: String,

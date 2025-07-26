@@ -7,8 +7,8 @@ import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
 import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
-import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
+import me.ahoo.wow.command.wait.stage.WaitingFor
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.tck.mock.MockCreateAggregate

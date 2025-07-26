@@ -18,7 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingFor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 

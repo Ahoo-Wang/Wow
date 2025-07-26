@@ -11,25 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitSignal
 
-abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
+class WaitingForProjected(
+    override val contextName: String,
+    override val processorName: String = "",
+    override val functionName: String = ""
+) : WaitingForFunction() {
+    override val stage: CommandStage
+        get() = CommandStage.PROJECTED
+
     override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        if (!super.isWaitingForSignal(signal) || !isSameBoundedContext(signal.function)) {
-            return false
-        }
-        if (processorName.isBlank()) {
-            return true
-        }
-        if (processorName != signal.function.processorName) {
-            return false
-        }
-        if (functionName.isBlank()) {
-            return true
-        }
-        return signal.function.name == functionName
+        return super.isWaitingForSignal(signal) && signal.isLastProjection
     }
 }
