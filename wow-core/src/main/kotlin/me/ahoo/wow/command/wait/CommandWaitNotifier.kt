@@ -50,21 +50,13 @@ fun Header.injectWaitStrategy(
     return this
 }
 
-data class WaitStrategyInfo(
-    val commandWaitEndpoint: String,
-    val stage: CommandStage,
-    override val contextName: String,
-    override val processorName: String,
-    override val functionName: String
-) : ProcessorInfo, FunctionNameCapable
-
 fun Header.extractWaitStrategy(): WaitStrategyInfo? {
     val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
     val stage = this[COMMAND_WAIT_STAGE].orEmpty()
     val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
     val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
     val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
-    return WaitStrategyInfo(
+    return WaitingForInfo(
         commandWaitEndpoint = commandWaitEndpoint,
         stage = CommandStage.valueOf(stage),
         contextName = context,
