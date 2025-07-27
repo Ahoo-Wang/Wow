@@ -23,7 +23,6 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.stage.WaitingFor
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
@@ -108,10 +107,6 @@ class DefaultCommandGateway(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
-        require(waitStrategy is WaitingFor) { "waitStrategy must be WaitingFor." }
-        if (command.isVoid) {
-            require(waitStrategy.stage == CommandStage.SENT) { "The wait strategy for the void command must be SENT." }
-        }
         return check(command).thenDefer {
             waitStrategy.inject(commandWaitEndpoint, command.header)
             waitStrategyRegistrar.register(command.commandId, waitStrategy)
