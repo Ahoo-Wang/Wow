@@ -23,7 +23,6 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.injectWaitStrategy
 import me.ahoo.wow.command.wait.stage.WaitingFor
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
@@ -114,10 +113,7 @@ class DefaultCommandGateway(
             require(waitStrategy.stage == CommandStage.SENT) { "The wait strategy for the void command must be SENT." }
         }
         return check(command).thenDefer {
-            command.header.injectWaitStrategy(
-                commandWaitEndpoint = commandWaitEndpoint.endpoint,
-                waitingFor = waitStrategy
-            )
+            waitStrategy.inject(commandWaitEndpoint, command.header)
             waitStrategyRegistrar.register(command.commandId, waitStrategy)
             waitStrategy.onFinally {
                 waitStrategyRegistrar.unregister(command.commandId)
