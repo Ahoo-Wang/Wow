@@ -13,24 +13,19 @@
 
 package me.ahoo.wow.command.wait.stage
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.injectWaitStrategy
-import reactor.core.Scannable
-import reactor.core.publisher.Flux
-import reactor.core.publisher.SignalType
-import reactor.core.publisher.Sinks
-import java.time.Duration
 import java.util.*
-import java.util.concurrent.atomic.AtomicReference
-import java.util.function.Consumer
 
 interface WaitingFor : WaitStrategy, CommandStageCapable {
+
+    override fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
+        header.injectWaitStrategy(commandWaitEndpoint.endpoint, this)
+    }
 
     companion object {
         fun sent(): WaitingFor = WaitingForSent()
@@ -87,69 +82,5 @@ interface WaitingFor : WaitStrategy, CommandStageCapable {
                 processorName = processorName,
                 functionName = functionName
             )
-    }
-}
-
-private val log = KotlinLogging.logger {}
-
-abstract class AbstractWaitingFor : WaitingFor {
-    companion object {
-
-        val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
-    }
-
-    private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
-    override val cancelled: Boolean
-        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
-
-    override val terminated: Boolean
-        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
-
-    private var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun safeDoFinally(signalType: SignalType) {
-        val currentHook = onFinallyHook.get()
-        try {
-            currentHook.accept(signalType)
-        } catch (error: Throwable) {
-            log.error(error) {
-                "Finally hook execution failed"
-            }
-        }
-    }
-
-    override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
-    }
-
-    private fun busyLooping(): Sinks.EmitFailureHandler {
-        return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
-    }
-
-    override fun next(signal: WaitSignal) {
-        waitSignalSink.emitNext(signal, busyLooping())
-    }
-
-    override fun error(throwable: Throwable) {
-        waitSignalSink.emitError(throwable, busyLooping())
-    }
-
-    override fun complete() {
-        waitSignalSink.emitComplete(busyLooping())
-    }
-
-    override fun onFinally(doFinally: Consumer<SignalType>) {
-        check(this.onFinallyHook.compareAndSet(EmptyOnFinally, doFinally)) {
-            "Finally hook already set [${this.onFinallyHook.get()}]"
-        }
-    }
-
-    override fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
-        header.injectWaitStrategy(commandWaitEndpoint.endpoint, this)
-    }
-
-    object EmptyOnFinally : Consumer<SignalType> {
-        override fun accept(t: SignalType) = Unit
     }
 }
