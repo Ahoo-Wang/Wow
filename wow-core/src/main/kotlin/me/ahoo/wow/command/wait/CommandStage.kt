@@ -83,3 +83,7 @@ enum class CommandStage {
         return processingStage in previous
     }
 }
+
+interface CommandStageCapable {
+    val stage: CommandStage
+}

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.NullableAggregateVersionCapable
 import me.ahoo.wow.command.wait.SignalTimeCapable
 import me.ahoo.wow.command.wait.WaitSignal
@@ -31,7 +32,7 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 
 data class CommandResult(
-    val stage: CommandStage,
+    override val stage: CommandStage,
     val aggregateId: String,
     override val aggregateVersion: Int? = null,
     override val id: String,
@@ -45,7 +46,8 @@ data class CommandResult(
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
     override val signalTime: Long = System.currentTimeMillis()
-) : Identifier,
+) : CommandStageCapable,
+    Identifier,
     CommandId,
     TenantId,
     RequestId,
