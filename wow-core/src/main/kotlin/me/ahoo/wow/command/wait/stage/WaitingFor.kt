@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait.stage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -29,8 +30,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
-interface WaitingFor : WaitStrategy {
-    val stage: CommandStage
+interface WaitingFor : WaitStrategy, CommandStageCapable {
 
     companion object {
         fun sent(): WaitingFor = WaitingForSent()
