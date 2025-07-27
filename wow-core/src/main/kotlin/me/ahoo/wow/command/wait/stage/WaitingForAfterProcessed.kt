@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.command.wait.AbstractWaitStrategy
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 import reactor.core.publisher.Mono
 
-abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
+abstract class WaitingForAfterProcessed : WaitingFor, AbstractWaitStrategy() {
     @Volatile
     private var processedSignal: WaitSignal? = null
 

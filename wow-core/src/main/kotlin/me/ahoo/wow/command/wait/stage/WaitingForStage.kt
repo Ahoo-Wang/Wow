@@ -13,9 +13,10 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.command.wait.AbstractWaitStrategy
 import me.ahoo.wow.command.wait.WaitSignal
 
-abstract class WaitingForStage : AbstractWaitingFor() {
+abstract class WaitingForStage : WaitingFor, AbstractWaitStrategy() {
     override fun next(signal: WaitSignal) {
         super.next(signal)
         if (signal.stage == stage) {
