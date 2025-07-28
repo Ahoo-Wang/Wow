@@ -14,15 +14,15 @@
 package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.AbstractWaitStrategy
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.injectWaitStrategy
 import java.util.Locale
 
-abstract class WaitingForStage : AbstractWaitStrategy(), CommandStageCapable {
+abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     override fun next(signal: WaitSignal) {
         nextSignal(signal)
         if (signal.stage == stage) {
