@@ -18,4 +18,6 @@ import me.ahoo.wow.command.wait.CommandStage
 class WaitingForSent : WaitingForStage() {
     override val stage: CommandStage
         get() = CommandStage.SENT
+
+    override val supportVoidCommand: Boolean = true
 }

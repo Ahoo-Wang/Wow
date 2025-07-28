@@ -34,7 +34,7 @@ abstract class WaitingFor : WaitStrategy {
 
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
-
+    override val supportVoidCommand: Boolean = false
     protected var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
 
     @Suppress("TooGenericExceptionCaught")
