@@ -17,12 +17,9 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.validation.validateCommand
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.reactor.thenDefer
@@ -106,54 +103,24 @@ class DefaultCommandGateway(
                 "The wait strategy[${waitStrategy.javaClass.simpleName}] for the void command must support void command."
             }
         }
-
+        val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
         return check(command).thenDefer {
             waitStrategy.inject(commandWaitEndpoint, command.header)
             waitStrategyRegistrar.register(command.commandId, waitStrategy)
             waitStrategy.onFinally {
                 waitStrategyRegistrar.unregister(command.commandId)
             }
-            val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
             commandBus.send(command)
-                .thenEmitSentSignal(command, waitStrategy)
-                .ensureUnregister(command)
-                .thenReturn(commandExchange)
-        }.onErrorMap {
-            it.toCommandResultException(command)
-        }
-    }
-
-    private fun Throwable.toCommandResultException(command: CommandMessage<*>): CommandResultException {
-        return CommandResultException(
-            this.toResult(
-                commandMessage = command,
-                contextName = command.contextName,
-                processorName = command.aggregateName
-            ),
-            this
-        )
-    }
-
-    private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
-        return doOnSuccess {
-            safeEmitSentSignal(command, waitStrategy)
-        }
-    }
-
-    private fun Mono<Void>.ensureUnregister(command: CommandMessage<*>): Mono<Void> {
-        return doOnCancel {
-            waitStrategyRegistrar.unregister(command.commandId)
-        }.doOnError {
-            waitStrategyRegistrar.unregister(command.commandId)
-        }
-    }
-
-    private fun safeEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy) {
-        val waitSignal = command.commandGatewayFunction().toWaitSignal(
-            id = generateGlobalId(),
-            commandId = command.commandId,
-            stage = CommandStage.SENT,
-        )
-        waitStrategy.next(waitSignal)
+                .doOnCancel {
+                    waitStrategyRegistrar.unregister(command.commandId)
+                }
+        }.doOnSuccess {
+            val waitSignal = command.commandSentSignal()
+            waitStrategy.next(waitSignal)
+        }.onErrorResume {
+            val waitSignal = command.commandSentSignal(it)
+            waitStrategy.next(waitSignal)
+            Mono.empty()
+        }.thenReturn(commandExchange)
     }
 }

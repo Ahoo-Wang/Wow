@@ -14,10 +14,16 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SimpleWaitSignal
+import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -27,6 +33,24 @@ fun CommandMessage<*>.commandGatewayFunction(): FunctionInfoData {
         contextName = contextName,
         processorName = aggregateName,
         name = name,
+    )
+}
+
+fun CommandMessage<*>.commandSentSignal(error: Throwable? = null): WaitSignal {
+    val function = commandGatewayFunction()
+    val errorInfo = error?.toErrorInfo() ?: ErrorInfo.OK
+    return SimpleWaitSignal(
+        id = generateGlobalId(),
+        commandId = commandId,
+        stage = CommandStage.SENT,
+        function = function,
+        aggregateVersion = aggregateVersion,
+        isLastProjection = true,
+        errorCode = errorInfo.errorCode,
+        errorMsg = errorInfo.errorMsg,
+        bindingErrors = errorInfo.bindingErrors,
+        result = emptyMap(),
+        signalTime = System.currentTimeMillis()
     )
 }
 
