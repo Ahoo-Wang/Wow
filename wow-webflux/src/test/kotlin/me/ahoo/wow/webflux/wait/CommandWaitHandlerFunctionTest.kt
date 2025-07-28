@@ -3,7 +3,8 @@ package me.ahoo.wow.webflux.wait
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -23,7 +24,12 @@ class CommandWaitHandlerFunctionTest {
                 id = generateGlobalId(),
                 commandId = "commandId",
                 stage = CommandStage.SENT,
-                function = COMMAND_GATEWAY_FUNCTION,
+                function = FunctionInfoData(
+                    functionKind = FunctionKind.COMMAND,
+                    contextName = "contextName",
+                    processorName = "processorName",
+                    name = "name"
+                ),
             ).toMono()
         }
         val response = commandWaitHandlerFunction.handle(request)
