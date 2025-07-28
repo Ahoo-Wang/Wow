@@ -15,41 +15,22 @@ package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
-const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
-const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
-const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
-const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
 
 interface CommandWaitEndpoint {
     val endpoint: String
 }
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
-
-fun Header.injectWaitStrategy(
-    commandWaitEndpoint: String,
-    waitingFor: WaitingForStage
-): Header {
-    with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
-        .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)
-    if (waitingFor is ProcessorInfo) {
-        with(COMMAND_WAIT_CONTEXT, waitingFor.contextName)
-            .with(COMMAND_WAIT_PROCESSOR, waitingFor.processorName)
-    }
-    if (waitingFor is FunctionNameCapable) {
-        with(COMMAND_WAIT_FUNCTION, waitingFor.functionName)
-    }
-    return this
-}
 
 fun Header.extractWaitStrategy(): WaitStrategyInfo? {
     val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
