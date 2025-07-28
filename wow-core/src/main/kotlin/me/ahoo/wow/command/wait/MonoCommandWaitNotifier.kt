@@ -111,10 +111,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             bindingErrors = error.bindingErrors,
             result = messageExchange.getCommandResult()
         )
-        if (!waitStrategy.shouldNotify(waitSignal)) {
-            return
-        }
-        commandWaitNotifier.notifyAndForget(waitStrategy.endpoint, waitSignal)
+        commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
     }
 
     override fun hookOnComplete() {
