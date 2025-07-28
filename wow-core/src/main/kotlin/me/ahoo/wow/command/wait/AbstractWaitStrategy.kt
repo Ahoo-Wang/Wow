@@ -29,17 +29,17 @@ abstract class AbstractWaitStrategy : WaitStrategy {
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
     }
 
-    private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    protected val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
     override val cancelled: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
-    private var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
+    protected var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
 
     @Suppress("TooGenericExceptionCaught")
-    private fun safeDoFinally(signalType: SignalType) {
+    protected fun safeDoFinally(signalType: SignalType) {
         val currentHook = onFinallyHook.get()
         try {
             currentHook.accept(signalType)
@@ -54,11 +54,11 @@ abstract class AbstractWaitStrategy : WaitStrategy {
         return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
     }
 
-    private fun busyLooping(): Sinks.EmitFailureHandler {
+    protected fun busyLooping(): Sinks.EmitFailureHandler {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    override fun next(signal: WaitSignal) {
+    protected fun nextSignal(signal: WaitSignal) {
         waitSignalSink.emitNext(signal, busyLooping())
     }
 

@@ -18,7 +18,7 @@ import me.ahoo.wow.command.wait.WaitSignal
 
 abstract class WaitingForStage : WaitingFor, AbstractWaitStrategy() {
     override fun next(signal: WaitSignal) {
-        super.next(signal)
+        nextSignal(signal)
         if (signal.stage == stage) {
             complete()
         }

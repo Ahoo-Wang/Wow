@@ -47,7 +47,7 @@ abstract class WaitingForAfterProcessed : WaitingFor, AbstractWaitStrategy() {
     }
 
     override fun next(signal: WaitSignal) {
-        super.next(signal)
+        nextSignal(signal)
         if (signal.stage == CommandStage.PROCESSED) {
             processedSignal = signal
             if (!signal.succeeded) {
