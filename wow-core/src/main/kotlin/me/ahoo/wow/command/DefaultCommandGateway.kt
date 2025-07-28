@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
@@ -30,7 +29,6 @@ import me.ahoo.wow.reactor.thenDefer
 import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
@@ -39,10 +37,6 @@ class DefaultCommandGateway(
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
     private val waitStrategyRegistrar: WaitStrategyRegistrar
 ) : CommandGateway, CommandBus by commandBus {
-
-    companion object {
-        private val log = KotlinLogging.logger {}
-    }
 
     private fun <C : Any> validate(commandBody: C) {
         if (commandBody is CommandValidator) {
@@ -160,13 +154,6 @@ class DefaultCommandGateway(
             commandId = command.commandId,
             stage = CommandStage.SENT,
         )
-        try {
-            // 防止基于内存的消息总线聚合处理信号早于命令发送完成而抛出异常。
-            waitStrategy.next(waitSignal)
-        } catch (emissionError: Sinks.EmissionException) {
-            log.warn(emissionError) {
-                "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent."
-            }
-        }
+        waitStrategy.next(waitSignal)
     }
 }

@@ -34,7 +34,9 @@ abstract class WaitingFor : WaitStrategy {
 
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
+
     override val supportVoidCommand: Boolean = false
+
     protected var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
 
     @Suppress("TooGenericExceptionCaught")
@@ -57,11 +59,15 @@ abstract class WaitingFor : WaitStrategy {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    private fun tryEmit(emit: () -> Unit) {
-        if (terminated || cancelled) {
-            return
+    private fun tryEmit(emit: () -> Unit): Boolean {
+        if (completed) {
+            log.warn {
+                "WaitingFor is terminated or cancelled, ignore emit."
+            }
+            return false
         }
         emit()
+        return true
     }
 
     /**

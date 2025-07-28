@@ -25,6 +25,9 @@ abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNot
     @Volatile
     private var waitingForSignal: WaitSignal? = null
     private fun tryComplete() {
+        if (completed) {
+            return
+        }
         val waitingForSignal = waitingForSignal
         if (processedSignal == null || waitingForSignal == null) {
             return
