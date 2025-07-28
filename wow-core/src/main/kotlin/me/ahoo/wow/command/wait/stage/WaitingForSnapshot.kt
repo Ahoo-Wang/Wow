@@ -20,7 +20,7 @@ class WaitingForSnapshot : WaitingForAfterProcessed() {
     override val stage: CommandStage
         get() = CommandStage.SNAPSHOT
 
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
+    override fun shouldNotify(signal: WaitSignal): Boolean {
         return signal.stage == stage
     }
 }

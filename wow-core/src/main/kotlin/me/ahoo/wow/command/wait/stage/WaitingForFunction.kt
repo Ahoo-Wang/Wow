@@ -18,8 +18,8 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.command.wait.WaitSignal
 
 abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        if (!super.isWaitingForSignal(signal) || !isSameBoundedContext(signal.function)) {
+    override fun shouldNotify(signal: WaitSignal): Boolean {
+        if (!super.shouldNotify(signal) || !isSameBoundedContext(signal.function)) {
             return false
         }
         if (processorName.isBlank()) {

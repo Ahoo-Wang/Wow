@@ -15,9 +15,10 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
 import reactor.core.publisher.Mono
 
-abstract class WaitingForAfterProcessed : WaitingForStage() {
+abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNotifyPredicate {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
@@ -31,7 +32,7 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
         super.complete()
     }
 
-    open fun isWaitingForSignal(signal: WaitSignal): Boolean {
+    override fun shouldNotify(signal: WaitSignal): Boolean {
         return signal.stage == stage
     }
 
@@ -54,7 +55,7 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
                 return
             }
         }
-        if (isWaitingForSignal(signal)) {
+        if (shouldNotify(signal)) {
             waitingForSignal = signal
         }
         tryComplete()

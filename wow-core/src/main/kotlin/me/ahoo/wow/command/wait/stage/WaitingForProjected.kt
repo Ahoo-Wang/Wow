@@ -24,7 +24,7 @@ class WaitingForProjected(
     override val stage: CommandStage
         get() = CommandStage.PROJECTED
 
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return super.isWaitingForSignal(signal) && signal.isLastProjection
+    override fun shouldNotify(signal: WaitSignal): Boolean {
+        return super.shouldNotify(signal) && signal.isLastProjection
     }
 }
