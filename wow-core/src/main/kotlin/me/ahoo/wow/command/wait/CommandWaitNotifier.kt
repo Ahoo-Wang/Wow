@@ -15,10 +15,7 @@ package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -32,19 +29,8 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
-fun Header.extractWaitStrategy(): WaitStrategyInfo? {
-    val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
-    val stage = this[COMMAND_WAIT_STAGE].orEmpty()
-    val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
-    val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
-    val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
-    return WaitingForInfo(
-        commandWaitEndpoint = commandWaitEndpoint,
-        stage = CommandStage.valueOf(stage),
-        contextName = context,
-        processorName = processor,
-        functionName = function
-    )
+fun Header.extractWaitStrategyInfo(): WaitStrategy.Info? {
+    return extractWaitingForStage()
 }
 
 /**
