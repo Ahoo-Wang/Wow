@@ -29,6 +29,14 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
+fun Header.extractCommandWaitEndpoint(): String? {
+    return this[COMMAND_WAIT_ENDPOINT]
+}
+
+fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
+    return with(COMMAND_WAIT_ENDPOINT, endpoint)
+}
+
 fun Header.extractWaitStrategyInfo(): WaitStrategy.Info? {
     return extractWaitingForStage()
 }

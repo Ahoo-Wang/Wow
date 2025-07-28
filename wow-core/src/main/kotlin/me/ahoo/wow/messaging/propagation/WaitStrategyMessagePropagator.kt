@@ -17,6 +17,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
@@ -28,7 +29,7 @@ class WaitStrategyMessagePropagator : MessagePropagator {
             return
         }
         val upstreamHeader = upstream.header
-        val commandWaitEndpoint = upstreamHeader[COMMAND_WAIT_ENDPOINT] ?: return
+        val commandWaitEndpoint = upstreamHeader.extractCommandWaitEndpoint() ?: return
         header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
         val commandWaitStage = upstreamHeader[COMMAND_WAIT_STAGE].orEmpty()
         header.with(COMMAND_WAIT_STAGE, commandWaitStage)

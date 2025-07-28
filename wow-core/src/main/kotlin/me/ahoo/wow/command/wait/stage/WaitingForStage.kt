@@ -16,7 +16,6 @@ package me.ahoo.wow.command.wait.stage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
@@ -24,6 +23,8 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
+import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import java.util.*
 
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
@@ -40,7 +41,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
     override fun propagate(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
         val waitingFor = this
-        header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint.endpoint)
+        header.propagateCommandWaitEndpoint(commandWaitEndpoint.endpoint)
             .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)
         if (waitingFor is ProcessorInfo) {
             header.with(COMMAND_WAIT_CONTEXT, waitingFor.contextName)
@@ -73,7 +74,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Info? {
-            val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
+            val commandWaitEndpoint = extractCommandWaitEndpoint() ?: return null
             val stage = this[COMMAND_WAIT_STAGE] ?: return null
             val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
