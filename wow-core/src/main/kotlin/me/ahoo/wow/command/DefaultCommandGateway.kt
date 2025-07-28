@@ -119,7 +119,7 @@ class DefaultCommandGateway(
         return check(command).thenDefer {
             waitStrategy.inject(commandWaitEndpoint, command.header)
             commandBus.send(command)
-                .doOnSuccess {
+                .doOnSubscribe {
                     waitStrategyRegistrar.register(command.commandId, waitStrategy)
                     waitStrategy.onFinally {
                         waitStrategyRegistrar.unregister(command.commandId)
