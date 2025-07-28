@@ -17,12 +17,12 @@ import org.junit.jupiter.api.Test
 class TraceMessagePropagatorTest {
 
     @Test
-    fun inject() {
+    fun propagate() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
                 .toCommandMessage()
-        TraceMessagePropagator().inject(injectedHeader, upstreamMessage)
+        TraceMessagePropagator().propagate(injectedHeader, upstreamMessage)
         upstreamMessage.header.traceId.assert().isEqualTo(upstreamMessage.id)
         injectedHeader.traceId.assert().isEqualTo(upstreamMessage.header.traceId)
         injectedHeader.upstreamId.assert().isEqualTo(upstreamMessage.id)
@@ -30,13 +30,13 @@ class TraceMessagePropagatorTest {
     }
 
     @Test
-    fun injectIfNotNamed() {
+    fun propagateIfNotNamed() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage = mockk<Message<*, *>> {
             every { id } returns generateGlobalId()
             every { header } returns DefaultHeader.empty()
         }
-        TraceMessagePropagator().inject(injectedHeader, upstreamMessage)
+        TraceMessagePropagator().propagate(injectedHeader, upstreamMessage)
         injectedHeader.upstreamName.assert().isNull()
     }
 }

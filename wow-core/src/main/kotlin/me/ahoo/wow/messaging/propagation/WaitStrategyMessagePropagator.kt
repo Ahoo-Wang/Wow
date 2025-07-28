@@ -23,7 +23,7 @@ import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PRO
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
 
 class WaitStrategyMessagePropagator : MessagePropagator {
-    override fun inject(header: Header, upstream: Message<*, *>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
         if (upstream !is CommandMessage<*>) {
             return
         }

@@ -21,7 +21,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
+import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 
 @Suppress("UNCHECKED_CAST")
 fun Any.flatEvent(): Iterable<Any> {
@@ -47,7 +47,7 @@ fun Any.toDomainEventStream(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEventStream {
-    header.inject(upstream)
+    header.propagate(upstream)
     val eventStreamId = generateGlobalId()
     val aggregateId = upstream.aggregateId
     val streamVersion = aggregateVersion + 1

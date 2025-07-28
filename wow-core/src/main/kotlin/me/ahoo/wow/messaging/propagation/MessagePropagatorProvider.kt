@@ -33,12 +33,12 @@ object MessagePropagatorProvider : MessagePropagator {
             }
     }
 
-    override fun inject(header: Header, upstream: Message<*, *>) {
-        messagePropagators.forEach { it.inject(header, upstream) }
+    override fun propagate(header: Header, upstream: Message<*, *>) {
+        messagePropagators.forEach { it.propagate(header, upstream) }
     }
 
-    fun Header.inject(upstream: Message<*, *>): Header {
-        inject(this, upstream)
+    fun Header.propagate(upstream: Message<*, *>): Header {
+        propagate(this, upstream)
         return this
     }
 }

@@ -36,7 +36,7 @@ class CoSecMessagePropagator : MessagePropagator {
         }
     }
 
-    override fun inject(header: Header, upstream: Message<*, *>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
         upstream.header.appId?.let {
             header.withAppId(it)
         }
