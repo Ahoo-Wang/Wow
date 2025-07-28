@@ -70,7 +70,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Info? {
             val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
-            val stage = this[COMMAND_WAIT_STAGE].orEmpty()
+            val stage = this[COMMAND_WAIT_STAGE] ?: return null
             val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
             val function = this[COMMAND_WAIT_FUNCTION].orEmpty()

@@ -16,14 +16,42 @@ package me.ahoo.wow.command.wait
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.messaging.DefaultHeader
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
 
-internal class WaitingForTest {
+internal class WaitingForStageTest {
     private val contextName = "WaitingForTest"
+
+    @Test
+    fun processedInject() {
+        val waitStrategy = WaitingForStage.projected("content", "processor", "function")
+        val header = DefaultHeader()
+        waitStrategy.inject(SimpleCommandWaitEndpoint("endpoint"), header)
+        val waitStrategyInfo = header.extractWaitingForStage()
+        waitStrategyInfo.assert().isNotNull()
+        waitStrategyInfo!!.stage.assert().isEqualTo(CommandStage.PROJECTED)
+        waitStrategyInfo.contextName.assert().isEqualTo("content")
+        waitStrategyInfo.processorName.assert().isEqualTo("processor")
+        waitStrategyInfo.functionName.assert().isEqualTo("function")
+    }
+
+    @Test
+    fun extractWaitingForStageIfNotExistEndpoint() {
+        val header = DefaultHeader()
+        header.extractWaitingForStage().assert().isNull()
+    }
+
+    @Test
+    fun extractWaitingForStageIfNotExistStage() {
+        val header = DefaultHeader()
+        header[COMMAND_WAIT_ENDPOINT] = "endpoint"
+        header.extractWaitingForStage().assert().isNull()
+    }
 
     @Test
     fun processed() {
