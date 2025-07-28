@@ -292,7 +292,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             waitStrategyRegistrar.unregister(message.commandId)
         }
         waitStrategyRegistrar.register(message.commandId, waitStrategy)
-        waitStrategy.inject(SimpleCommandWaitEndpoint(""), message.header)
+        waitStrategy.propagate(SimpleCommandWaitEndpoint(""), message.header)
         waitStrategy.waitingLast().subscribe()
         verify {
             send(message)
@@ -312,7 +312,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             waitStrategyRegistrar.unregister(message.commandId)
         }
         waitStrategyRegistrar.register(message.commandId, waitStrategy)
-        waitStrategy.inject(SimpleCommandWaitEndpoint(""), message.header)
+        waitStrategy.propagate(SimpleCommandWaitEndpoint(""), message.header)
         waitStrategy.waitingLast().subscribe()
         verify {
             send(message)

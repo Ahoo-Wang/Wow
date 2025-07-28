@@ -117,7 +117,7 @@ class DefaultCommandGateway(
         }
         val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
         return check(command).thenDefer {
-            waitStrategy.inject(commandWaitEndpoint, command.header)
+            waitStrategy.propagate(commandWaitEndpoint, command.header)
             commandBus.send(command)
                 .doOnSubscribe {
                     waitStrategyRegistrar.register(command.commandId, waitStrategy)
