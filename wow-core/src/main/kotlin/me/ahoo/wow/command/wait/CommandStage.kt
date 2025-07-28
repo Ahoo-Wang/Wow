@@ -70,16 +70,16 @@ enum class CommandStage {
      * @return 如果当前阶段等于或在处理阶段之后则返回true，否则返回false
      */
     fun shouldNotify(processingStage: CommandStage): Boolean {
-        return this == processingStage || isAfter(processingStage)
+        return this == processingStage || isPrevious(processingStage)
     }
 
     /**
-     * 判断当前处理阶段是否在指定处理阶段之后
+     * 判断给定的处理阶段是否为当前阶段的前置阶段
      *
-     * @param processingStage 要比较的处理阶段
-     * @return 如果当前阶段在指定阶段之后则返回true，否则返回false
+     * @param processingStage 待判断的处理阶段
+     * @return 如果给定阶段是当前阶段的前置阶段则返回true，否则返回false
      */
-    fun isAfter(processingStage: CommandStage): Boolean {
+    fun isPrevious(processingStage: CommandStage): Boolean {
         return processingStage in previous
     }
 }
