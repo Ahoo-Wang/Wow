@@ -130,7 +130,14 @@ class DefaultCommandGateway(
     }
 
     private fun Throwable.toCommandResultException(command: CommandMessage<*>): CommandResultException {
-        return CommandResultException(this.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), this)
+        return CommandResultException(
+            this.toResult(
+                commandMessage = command,
+                contextName = command.contextName,
+                processorName = command.aggregateName
+            ),
+            this
+        )
     }
 
     private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
@@ -148,7 +155,7 @@ class DefaultCommandGateway(
     }
 
     private fun safeEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy) {
-        val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
+        val waitSignal = command.commandGatewayFunction().toWaitSignal(
             id = generateGlobalId(),
             commandId = command.commandId,
             stage = CommandStage.SENT,

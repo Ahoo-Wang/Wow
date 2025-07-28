@@ -13,12 +13,20 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 internal class LocalCommandWaitNotifierTest {
+    private val functionInfo = FunctionInfoData(
+        functionKind = FunctionKind.COMMAND,
+        contextName = "wow",
+        processorName = "LocalCommandWaitNotifierTest",
+        name = "Send"
+    )
+
     @Test
     fun notifyLocal() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
@@ -28,7 +36,7 @@ internal class LocalCommandWaitNotifierTest {
                 id = generateGlobalId(),
                 commandId = generateGlobalId(),
                 stage = CommandStage.SENT,
-                function = COMMAND_GATEWAY_FUNCTION
+                function = functionInfo
             ),
         )
             .test()
@@ -44,7 +52,7 @@ internal class LocalCommandWaitNotifierTest {
                 id = generateGlobalId(),
                 commandId = generateGlobalId(),
                 stage = CommandStage.SENT,
-                function = COMMAND_GATEWAY_FUNCTION
+                function = functionInfo
             ),
         )
     }
@@ -58,7 +66,7 @@ internal class LocalCommandWaitNotifierTest {
                 id = generateGlobalId(),
                 commandId = "0THbs0sW0066001",
                 stage = CommandStage.SENT,
-                function = COMMAND_GATEWAY_FUNCTION
+                function = functionInfo
             )
         )
             .test()
