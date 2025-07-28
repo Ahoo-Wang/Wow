@@ -16,11 +16,11 @@ package me.ahoo.wow.messaging.propagation
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
-import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
-import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
 
 class WaitStrategyMessagePropagator : MessagePropagator {
     override fun inject(header: Header, upstream: Message<*, *>) {

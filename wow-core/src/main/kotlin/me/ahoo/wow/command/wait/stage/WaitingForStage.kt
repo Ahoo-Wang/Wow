@@ -14,12 +14,15 @@
 package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.function.FunctionNameCapable
+import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.injectWaitStrategy
 import java.util.Locale
 
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
@@ -29,11 +32,25 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             complete()
         }
     }
+
     override fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
-        header.injectWaitStrategy(commandWaitEndpoint.endpoint, this)
+        val waitingFor = this
+        header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint.endpoint)
+            .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)
+        if (waitingFor is ProcessorInfo) {
+            header.with(COMMAND_WAIT_CONTEXT, waitingFor.contextName)
+                .with(COMMAND_WAIT_PROCESSOR, waitingFor.processorName)
+        }
+        if (waitingFor is FunctionNameCapable) {
+            header.with(COMMAND_WAIT_FUNCTION, waitingFor.functionName)
+        }
     }
 
     companion object {
+        const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
+        const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
+        const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
+        const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun sent(): WaitingForStage = WaitingForSent()
         fun processed(): WaitingForStage = WaitingForProcessed()
 
