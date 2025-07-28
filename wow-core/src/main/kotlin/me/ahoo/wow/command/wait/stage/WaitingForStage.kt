@@ -19,15 +19,20 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
-import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
 
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
+    override val materialized: WaitStrategy.Materialized by lazy {
+        Materialized(
+            stage = stage
+        )
+    }
+
     override fun isPreviousSignal(signal: WaitSignal): Boolean {
         return stage.isPrevious(signal.stage)
     }
@@ -39,32 +44,35 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
     }
 
-    override fun propagate(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
-        val waitingFor = this
-        header.propagateCommandWaitEndpoint(commandWaitEndpoint.endpoint)
-            .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)
-        if (waitingFor is ProcessorInfo) {
-            header.with(COMMAND_WAIT_CONTEXT, waitingFor.contextName)
-                .with(COMMAND_WAIT_PROCESSOR, waitingFor.processorName)
-        }
-        if (waitingFor is FunctionNameCapable) {
-            header.with(COMMAND_WAIT_FUNCTION, waitingFor.functionName)
-        }
-    }
-
-    data class Info(
-        override val endpoint: String,
+    data class Materialized(
         override val stage: CommandStage,
-        override val contextName: String,
-        override val processorName: String,
-        override val functionName: String
-    ) : WaitStrategy.Info, CommandStageCapable, ProcessorInfo, FunctionNameCapable {
+        override val contextName: String = "",
+        override val processorName: String = "",
+        override val functionName: String = ""
+    ) : WaitStrategy.Materialized, CommandStageCapable, ProcessorInfo, FunctionNameCapable {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
             return stage.shouldNotify(processingStage)
         }
 
         override fun shouldNotify(signal: WaitSignal): Boolean {
             return true
+        }
+
+        override fun propagate(commandWaitEndpoint: String, header: Header) {
+            header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+                .with(COMMAND_WAIT_STAGE, stage.name)
+            contextName.ifNotBlank {
+                header.with(COMMAND_WAIT_CONTEXT, contextName)
+            }
+            processorName.ifNotBlank {
+                header.with(COMMAND_WAIT_PROCESSOR, processorName)
+            }
+            functionName.ifNotBlank {
+                header.with(COMMAND_WAIT_FUNCTION, functionName)
+            }
+            functionName.ifNotBlank {
+                header.with(COMMAND_WAIT_FUNCTION, functionName)
+            }
         }
     }
 
@@ -73,14 +81,12 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
         const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
-        fun Header.extractWaitingForStage(): Info? {
-            val commandWaitEndpoint = extractCommandWaitEndpoint() ?: return null
+        fun Header.extractWaitingForStage(): Materialized? {
             val stage = this[COMMAND_WAIT_STAGE] ?: return null
             val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
             val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
-            return Info(
-                endpoint = commandWaitEndpoint,
+            return Materialized(
                 stage = CommandStage.valueOf(stage),
                 contextName = context,
                 processorName = processor,

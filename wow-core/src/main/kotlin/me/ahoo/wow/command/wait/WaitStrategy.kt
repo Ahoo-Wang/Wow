@@ -14,14 +14,13 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.naming.Materialized
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import java.util.function.Consumer
 
 interface WaitStrategyPropagator {
-    fun propagate(commandWaitEndpoint: CommandWaitEndpoint, header: Header)
+    fun propagate(commandWaitEndpoint: String, header: Header)
 }
 
 /**
@@ -33,6 +32,7 @@ interface WaitStrategy : WaitStrategyPropagator {
     val terminated: Boolean
     val completed: Boolean
         get() = terminated || cancelled
+    val materialized: Materialized
 
     /**
      * 是否支持虚空命令
@@ -53,10 +53,13 @@ interface WaitStrategy : WaitStrategyPropagator {
     fun complete()
 
     fun onFinally(doFinally: Consumer<SignalType>)
+    override fun propagate(commandWaitEndpoint: String, header: Header) {
+        materialized.propagate(commandWaitEndpoint, header)
+    }
 
-    interface Info :
-        CommandWaitEndpoint,
+    interface Materialized :
+        WaitStrategyPropagator,
         ProcessingStageShouldNotifyPredicate,
         WaitSignalShouldNotifyPredicate,
-        Materialized
+        me.ahoo.wow.api.naming.Materialized
 }

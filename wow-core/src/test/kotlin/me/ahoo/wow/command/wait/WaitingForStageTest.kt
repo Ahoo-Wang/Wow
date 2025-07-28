@@ -38,7 +38,7 @@ internal class WaitingForStageTest {
     fun processedInject() {
         val waitStrategy = WaitingForStage.projected("content", "processor", "function")
         val header = DefaultHeader()
-        waitStrategy.propagate(SimpleCommandWaitEndpoint("endpoint"), header)
+        waitStrategy.propagate("endpoint", header)
         val waitStrategyInfo = header.extractWaitingForStage()
         waitStrategyInfo.assert().isNotNull()
         waitStrategyInfo!!.stage.assert().isEqualTo(CommandStage.PROJECTED)
