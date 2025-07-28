@@ -8,8 +8,10 @@ import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CON
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
+import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 
@@ -44,5 +46,16 @@ class WaitStrategyMessagePropagatorTest {
         header[COMMAND_WAIT_CONTEXT].assert().isNull()
         header[COMMAND_WAIT_PROCESSOR].assert().isNull()
         header[COMMAND_WAIT_FUNCTION].assert().isNull()
+    }
+
+    @Test
+    fun propagateIfDomainEvent() {
+        val header = DefaultHeader.empty()
+        val upstreamMessage =
+            MockAggregateCreated(generateGlobalId())
+                .toDomainEvent(generateGlobalId(), generateGlobalId(), generateGlobalId())
+        WaitingForStage.sent().propagate("wait-endpoint", upstreamMessage.header)
+        WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
+        header[COMMAND_WAIT_ENDPOINT].assert().isNull()
     }
 }
