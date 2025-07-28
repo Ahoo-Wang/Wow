@@ -22,11 +22,10 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
-private val log = KotlinLogging.logger {}
-
-abstract class AbstractWaitStrategy : WaitStrategy {
+abstract class WaitingFor : WaitStrategy {
     companion object {
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
+        private val log = KotlinLogging.logger {}
     }
 
     protected val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
