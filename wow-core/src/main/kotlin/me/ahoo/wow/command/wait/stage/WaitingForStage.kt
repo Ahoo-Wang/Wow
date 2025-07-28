@@ -13,14 +13,80 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.command.wait.AbstractWaitStrategy
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandStageCapable
+import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.injectWaitStrategy
+import java.util.Locale
 
-abstract class WaitingForStage : WaitingFor, AbstractWaitStrategy() {
+abstract class WaitingForStage : AbstractWaitStrategy(), CommandStageCapable {
     override fun next(signal: WaitSignal) {
         nextSignal(signal)
         if (signal.stage == stage) {
             complete()
         }
+    }
+    override fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
+        header.injectWaitStrategy(commandWaitEndpoint.endpoint, this)
+    }
+
+    companion object {
+        fun sent(): WaitingForStage = WaitingForSent()
+        fun processed(): WaitingForStage = WaitingForProcessed()
+
+        fun snapshot(): WaitingForStage = WaitingForSnapshot()
+
+        fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+            WaitingForProjected(
+                contextName = contextName,
+                processorName = processorName,
+                functionName = functionName
+            )
+
+        fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+            WaitingForEventHandled(
+                contextName = contextName,
+                processorName = processorName,
+                functionName = functionName
+            )
+
+        fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+            WaitingForSagaHandled(
+                contextName = contextName,
+                processorName = processorName,
+                functionName = functionName
+            )
+
+        fun stage(
+            stage: CommandStage,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = ""
+        ): WaitingForStage {
+            return when (stage) {
+                CommandStage.SENT -> sent()
+                CommandStage.PROCESSED -> processed()
+                CommandStage.SNAPSHOT -> snapshot()
+                CommandStage.PROJECTED -> projected(contextName, processorName, functionName)
+                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName)
+                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName)
+            }
+        }
+
+        fun stage(
+            stage: String,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = ""
+        ): WaitingForStage =
+            stage(
+                stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
+                contextName = contextName,
+                processorName = processorName,
+                functionName = functionName
+            )
     }
 }

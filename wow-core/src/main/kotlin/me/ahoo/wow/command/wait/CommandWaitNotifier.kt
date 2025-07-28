@@ -17,7 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -37,7 +37,7 @@ data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWai
 
 fun Header.injectWaitStrategy(
     commandWaitEndpoint: String,
-    waitingFor: WaitingFor
+    waitingFor: WaitingForStage
 ): Header {
     with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
         .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)

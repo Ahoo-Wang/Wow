@@ -18,7 +18,7 @@ import io.mockk.mockk
 import me.ahoo.wow.command.MockCreateCommand
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -44,7 +44,7 @@ internal class MonoCommandWaitNotifierTest {
     fun notifyAndForgetWrap() {
         val command = MockCreateCommand("").toCommandMessage()
 
-        command.header.injectWaitStrategy("", WaitingFor.processed())
+        command.header.injectWaitStrategy("", WaitingForStage.processed())
 
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
@@ -65,7 +65,7 @@ internal class MonoCommandWaitNotifierTest {
     @Test
     fun notifyAndForgetWrapError() {
         val command = MockCreateCommand("").toCommandMessage()
-        command.header.injectWaitStrategy("", WaitingFor.processed())
+        command.header.injectWaitStrategy("", WaitingForStage.processed())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         RuntimeException("error")
             .toMono<Void>()
@@ -81,7 +81,7 @@ internal class MonoCommandWaitNotifierTest {
     @Test
     fun notifyAndForgetWrapAndStageIsEarly() {
         val command = MockCreateCommand("").toCommandMessage()
-        command.header.injectWaitStrategy("", WaitingFor.processed())
+        command.header.injectWaitStrategy("", WaitingForStage.processed())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
             .thenNotifyAndForget(commandWaitNotifier, CommandStage.PROCESSED, SimpleServerCommandExchange(command))

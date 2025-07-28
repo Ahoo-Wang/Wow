@@ -17,7 +17,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import org.reactivestreams.Publisher
@@ -51,7 +51,7 @@ class CommandHandler(
             commandMessage.contextName
         }
         val commandWaitTimeout = request.getWaitTimeout(timeout)
-        val waitStrategy = WaitingFor.stage(
+        val waitStrategy = WaitingForStage.stage(
             stage = stage,
             contextName = waitContext,
             processorName = request.getWaitProcessor(),

@@ -14,7 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 
@@ -22,7 +22,7 @@ class SimpleClientCommandExchangeTest {
 
     @Test
     fun main() {
-        val waitingFor = WaitingFor.sent()
+        val waitingFor = WaitingForStage.sent()
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleClientCommandExchange(command, waitingFor)
         commandExchange.message.assert().isEqualTo(command)
