@@ -283,4 +283,44 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         }
         verifyWaitStrategyDestroyed(message.commandId)
     }
+
+    @Test
+    fun sendAndWaitThenNotify() {
+        val message = createMessage()
+        val waitStrategy = WaitingForStage.sent()
+        waitStrategy.onFinally {
+            waitStrategyRegistrar.unregister(message.commandId)
+        }
+        waitStrategyRegistrar.register(message.commandId, waitStrategy)
+        waitStrategy.inject(SimpleCommandWaitEndpoint(""), message.header)
+        waitStrategy.waitingLast().subscribe()
+        verify {
+            send(message)
+                .test()
+                .expectNextCount(0)
+                .thenAwait(Duration.ofMillis(10))
+                .verifyComplete()
+        }
+        verifyWaitStrategyDestroyed(message.commandId)
+    }
+
+    @Test
+    fun sendAndWaitThenNotifyError() {
+        val message = WrongCommandMessage.toCommandMessage()
+        val waitStrategy = WaitingForStage.sent()
+        waitStrategy.onFinally {
+            waitStrategyRegistrar.unregister(message.commandId)
+        }
+        waitStrategyRegistrar.register(message.commandId, waitStrategy)
+        waitStrategy.inject(SimpleCommandWaitEndpoint(""), message.header)
+        waitStrategy.waitingLast().subscribe()
+        verify {
+            send(message)
+                .test()
+                .thenAwait(Duration.ofMillis(10))
+                .expectError()
+                .verify()
+        }
+        verifyWaitStrategyDestroyed(message.commandId)
+    }
 }
