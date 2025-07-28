@@ -58,7 +58,7 @@ class MonoCommandWaitNotifier<E, M>(
 class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
-    private val waitStrategy: EndpointWaitWaitStrategy,
+    private val waitStrategy: EndpointWaitStrategy,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
 ) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
