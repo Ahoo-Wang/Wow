@@ -70,6 +70,13 @@ class LocalCommandWaitNotifier(
     }
 }
 
+fun CommandWaitNotifier.notifyAndForget(waiteStrategy: WaitStrategy.Info, waitSignal: WaitSignal) {
+    if (!waiteStrategy.shouldNotify(waitSignal.stage)) {
+        return
+    }
+    notifyAndForget(waiteStrategy.endpoint, waitSignal)
+}
+
 fun isLocalCommand(commandId: String): Boolean {
     if (commandId.isBlank()) {
         return false
