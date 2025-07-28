@@ -21,7 +21,7 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.extractWaitStrategyInfo
+import me.ahoo.wow.command.wait.extractWaitStrategy
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
@@ -68,11 +68,11 @@ class DefaultCommandGateway(
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return check(message).then(commandBus.send(message)).doOnSuccess {
-            val waitStrategy = message.header.extractWaitStrategyInfo() ?: return@doOnSuccess
+            val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
             val waitSignal = message.commandSentSignal()
             commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
         }.doOnError {
-            val waitStrategy = message.header.extractWaitStrategyInfo() ?: return@doOnError
+            val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnError
             val waitSignal = message.commandSentSignal(it)
             commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
         }
@@ -117,7 +117,7 @@ class DefaultCommandGateway(
         }
         val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
         return check(command).thenDefer {
-            waitStrategy.propagate(commandWaitEndpoint, command.header)
+            waitStrategy.propagate(commandWaitEndpoint.endpoint, command.header)
             commandBus.send(command)
                 .doOnSubscribe {
                     waitStrategyRegistrar.register(command.commandId, waitStrategy)

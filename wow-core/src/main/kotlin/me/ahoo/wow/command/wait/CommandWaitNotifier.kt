@@ -29,6 +29,9 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
+data class EndpointWaitWaitStrategy(override val endpoint: String, val waitStrategy: WaitStrategy.Materialized) :
+    CommandWaitEndpoint
+
 fun Header.extractCommandWaitEndpoint(): String? {
     return this[COMMAND_WAIT_ENDPOINT]
 }
@@ -37,8 +40,10 @@ fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
     return with(COMMAND_WAIT_ENDPOINT, endpoint)
 }
 
-fun Header.extractWaitStrategyInfo(): WaitStrategy.Info? {
-    return extractWaitingForStage()
+fun Header.extractWaitStrategy(): EndpointWaitWaitStrategy? {
+    val endpoint = this.extractCommandWaitEndpoint() ?: return null
+    val waitStrategy = this.extractWaitingForStage() ?: return null
+    return EndpointWaitWaitStrategy(endpoint, waitStrategy)
 }
 
 /**
@@ -78,8 +83,11 @@ class LocalCommandWaitNotifier(
     }
 }
 
-fun CommandWaitNotifier.notifyAndForget(waiteStrategy: WaitStrategy.Info, waitSignal: WaitSignal) {
-    if (!waiteStrategy.shouldNotify(waitSignal.stage)) {
+fun CommandWaitNotifier.notifyAndForget(
+    waiteStrategy: EndpointWaitWaitStrategy,
+    waitSignal: WaitSignal
+) {
+    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal.stage)) {
         return
     }
     notifyAndForget(waiteStrategy.endpoint, waitSignal)

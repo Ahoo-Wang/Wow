@@ -16,12 +16,7 @@ package me.ahoo.wow.messaging.propagation
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
-import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.extractWaitStrategy
 
 class WaitStrategyMessagePropagator : MessagePropagator {
     override fun propagate(header: Header, upstream: Message<*, *>) {
@@ -29,21 +24,7 @@ class WaitStrategyMessagePropagator : MessagePropagator {
             return
         }
         val upstreamHeader = upstream.header
-        val commandWaitEndpoint = upstreamHeader.extractCommandWaitEndpoint() ?: return
-        header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
-        val commandWaitStage = upstreamHeader[COMMAND_WAIT_STAGE].orEmpty()
-        header.with(COMMAND_WAIT_STAGE, commandWaitStage)
-        val commandWaitContext = upstreamHeader[COMMAND_WAIT_CONTEXT]
-        if (!commandWaitContext.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_CONTEXT, commandWaitContext)
-        }
-        val commandWaitProcessor = upstreamHeader[COMMAND_WAIT_PROCESSOR]
-        if (!commandWaitProcessor.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_PROCESSOR, commandWaitProcessor)
-        }
-        val commandWaitFunction = upstreamHeader[COMMAND_WAIT_FUNCTION]
-        if (!commandWaitFunction.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_FUNCTION, commandWaitFunction)
-        }
+        val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
+        waitStrategy.waitStrategy.propagate(waitStrategy.endpoint, header)
     }
 }
