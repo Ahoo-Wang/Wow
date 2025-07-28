@@ -28,6 +28,7 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -81,6 +82,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
+            LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         )
     }
 

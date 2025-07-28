@@ -18,6 +18,7 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
@@ -40,11 +41,12 @@ object SagaVerifier {
     @JvmStatic
     fun defaultCommandGateway(): CommandGateway {
         return DefaultCommandGateway(
-            SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
-            InMemoryCommandBus(),
+            commandWaitEndpoint = SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
+            commandBus = InMemoryCommandBus(),
             validator = TestValidator,
-            DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
-            SimpleWaitStrategyRegistrar,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         )
     }
 

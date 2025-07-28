@@ -99,6 +99,7 @@ abstract class CommandDispatcherSpec {
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         )
         eventStore = createEventStore().metrizable()
         snapshotRepository = createSnapshotRepository().metrizable()
