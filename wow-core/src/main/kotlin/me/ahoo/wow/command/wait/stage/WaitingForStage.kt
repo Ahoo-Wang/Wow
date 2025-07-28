@@ -38,7 +38,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
     }
 
-    override fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
+    override fun propagate(commandWaitEndpoint: CommandWaitEndpoint, header: Header) {
         val waitingFor = this
         header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint.endpoint)
             .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)

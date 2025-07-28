@@ -23,7 +23,7 @@ class WaitStrategyMessagePropagatorTest {
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         WaitingForStage.projected("context", "processor", "function")
-            .inject(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
+            .propagate(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
         WaitStrategyMessagePropagator().inject(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")
         header[COMMAND_WAIT_STAGE].assert().isEqualTo("PROJECTED")
@@ -38,7 +38,7 @@ class WaitStrategyMessagePropagatorTest {
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
-        WaitingForStage.sent().inject(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
+        WaitingForStage.sent().propagate(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
         WaitStrategyMessagePropagator().inject(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_ENDPOINT])
         header[COMMAND_WAIT_STAGE].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_STAGE])

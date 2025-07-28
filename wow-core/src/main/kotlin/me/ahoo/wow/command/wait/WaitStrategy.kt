@@ -20,11 +20,15 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import java.util.function.Consumer
 
+interface WaitStrategyPropagator {
+    fun propagate(commandWaitEndpoint: CommandWaitEndpoint, header: Header)
+}
+
 /**
  * Command Wait Strategy
  * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
-interface WaitStrategy {
+interface WaitStrategy : WaitStrategyPropagator {
     val cancelled: Boolean
     val terminated: Boolean
     val completed: Boolean
@@ -49,8 +53,6 @@ interface WaitStrategy {
     fun complete()
 
     fun onFinally(doFinally: Consumer<SignalType>)
-
-    fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header)
 
     interface Info :
         CommandWaitEndpoint,
