@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.naming.Materialized
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -48,4 +49,10 @@ interface WaitStrategy {
     fun onFinally(doFinally: Consumer<SignalType>)
 
     fun inject(commandWaitEndpoint: CommandWaitEndpoint, header: Header)
+
+    interface Info :
+        CommandWaitEndpoint,
+        ProcessingStageShouldNotifyPredicate,
+        WaitSignalShouldNotifyPredicate,
+        Materialized
 }

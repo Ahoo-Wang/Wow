@@ -38,8 +38,8 @@ class MonoCommandWaitNotifier<E, M>(
 ) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val message = messageExchange.message
-        val waitStrategy = message.header.extractWaitStrategy() ?: return source.subscribe(actual)
-        if (!waitStrategy.stage.shouldNotify(processingStage)) {
+        val waitStrategy = message.header.extractWaitStrategyInfo() ?: return source.subscribe(actual)
+        if (!waitStrategy.shouldNotify(processingStage)) {
             return source.subscribe(actual)
         }
 
@@ -58,7 +58,7 @@ class MonoCommandWaitNotifier<E, M>(
 class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
-    private val waitStrategy: WaitStrategyInfo,
+    private val waitStrategy: WaitStrategy.Info,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
 ) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
@@ -111,7 +111,10 @@ class CommandWaitNotifierSubscriber<E, M>(
             bindingErrors = error.bindingErrors,
             result = messageExchange.getCommandResult()
         )
-        commandWaitNotifier.notifyAndForget(waitStrategy.commandWaitEndpoint, waitSignal)
+        if (!waitStrategy.shouldNotify(waitSignal)) {
+            return
+        }
+        commandWaitNotifier.notifyAndForget(waitStrategy.endpoint, waitSignal)
     }
 
     override fun hookOnComplete() {

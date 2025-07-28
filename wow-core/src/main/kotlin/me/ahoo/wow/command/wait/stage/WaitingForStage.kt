@@ -22,6 +22,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import java.util.Locale
 
@@ -46,11 +47,42 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
     }
 
+    data class Info(
+        override val endpoint: String,
+        override val stage: CommandStage,
+        override val contextName: String,
+        override val processorName: String,
+        override val functionName: String
+    ) : WaitStrategy.Info, CommandStageCapable, ProcessorInfo, FunctionNameCapable {
+        override fun shouldNotify(processingStage: CommandStage): Boolean {
+            return stage.shouldNotify(processingStage)
+        }
+
+        override fun shouldNotify(signal: WaitSignal): Boolean {
+            return true
+        }
+    }
+
     companion object {
         const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
         const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
         const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
+        fun Header.extractWaitingForStage(): Info? {
+            val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
+            val stage = this[COMMAND_WAIT_STAGE].orEmpty()
+            val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
+            val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
+            val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
+            return Info(
+                endpoint = commandWaitEndpoint,
+                stage = CommandStage.valueOf(stage),
+                contextName = context,
+                processorName = processor,
+                functionName = function
+            )
+        }
+
         fun sent(): WaitingForStage = WaitingForSent()
         fun processed(): WaitingForStage = WaitingForProcessed()
 
