@@ -27,14 +27,8 @@ import me.ahoo.wow.command.wait.WaitingFor
 import java.util.*
 
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
-    override fun nextSignal(signal: WaitSignal) {
-        super.nextSignal(signal)
-        /**
-         * fail fast
-         */
-        if (signal.succeeded.not() && stage.isPrevious(signal.stage)) {
-            complete()
-        }
+    override fun isPreviousSignal(signal: WaitSignal): Boolean {
+        return stage.isPrevious(signal.stage)
     }
 
     override fun next(signal: WaitSignal) {

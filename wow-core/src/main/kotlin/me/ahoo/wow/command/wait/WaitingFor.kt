@@ -64,9 +64,23 @@ abstract class WaitingFor : WaitStrategy {
         emit()
     }
 
+    /**
+     * 判断给定的等待信号是否为前置信号
+     *
+     * @param signal 等待信号
+     * @return 如果是前置信号则返回 true，否则返回 false
+     */
+    abstract fun isPreviousSignal(signal: WaitSignal): Boolean
+
     protected open fun nextSignal(signal: WaitSignal) {
         tryEmit {
             waitSignalSink.emitNext(signal, busyLooping())
+            /**
+             * fail fast
+             */
+            if (signal.succeeded.not() && isPreviousSignal(signal)) {
+                complete()
+            }
         }
     }
 
