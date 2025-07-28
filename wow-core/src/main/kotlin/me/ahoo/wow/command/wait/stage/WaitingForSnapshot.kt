@@ -14,13 +14,8 @@
 package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.WaitSignal
 
 class WaitingForSnapshot : WaitingForAfterProcessed() {
     override val stage: CommandStage
         get() = CommandStage.SNAPSHOT
-
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-        return signal.stage == stage
-    }
 }
