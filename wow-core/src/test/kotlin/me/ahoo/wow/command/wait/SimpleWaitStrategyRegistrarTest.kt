@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     fun register() {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingForStage.processed()
         var registerResult = registrar.register(commandId, waitStrategy)
         registerResult.assert().isNull()
         registerResult = registrar.register(commandId, waitStrategy)
@@ -37,7 +37,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     fun unregister() {
         val registrar = SimpleWaitStrategyRegistrar
         val commandId = GlobalIdGenerator.generateAsString()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingForStage.processed()
         var registerResult = registrar.unregister(commandId)
         registerResult.assert().isNull()
         registerResult = registrar.register(commandId, waitStrategy)
@@ -52,7 +52,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         val commandId = GlobalIdGenerator.generateAsString()
         var containsResult = registrar.contains(commandId)
         containsResult.assert().isFalse()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingForStage.processed()
         registrar.register(commandId, waitStrategy)
         containsResult = registrar.contains(commandId)
         containsResult.assert().isTrue()
@@ -71,7 +71,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         )
         var nextResult = registrar.next(waitSignal)
         nextResult.assert().isFalse()
-        val waitStrategy = WaitingFor.processed()
+        val waitStrategy = WaitingForStage.processed()
         waitStrategy.waiting().subscribe()
         registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)

@@ -21,7 +21,7 @@ import java.util.function.Consumer
 
 /**
  * Command Wait Strategy
- * @see me.ahoo.wow.command.wait.stage.WaitingFor
+ * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
 interface WaitStrategy {
     val cancelled: Boolean

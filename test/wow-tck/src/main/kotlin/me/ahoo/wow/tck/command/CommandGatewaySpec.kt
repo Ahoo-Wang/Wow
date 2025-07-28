@@ -33,7 +33,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.generateGlobalId
@@ -93,7 +93,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendAndWaitForSent() {
         val message = createMessage()
         verify {
-            val waitStrategy = WaitingFor.sent()
+            val waitStrategy = WaitingForStage.sent()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -124,7 +124,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             function = COMMAND_GATEWAY_FUNCTION,
         )
         verify {
-            val waitStrategy = WaitingFor.processed()
+            val waitStrategy = WaitingForStage.processed()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -175,7 +175,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             function = COMMAND_GATEWAY_FUNCTION,
         )
         verify {
-            val waitStrategy = WaitingFor.snapshot()
+            val waitStrategy = WaitingForStage.snapshot()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -251,7 +251,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             errorCode = "ERROR"
         )
         verify {
-            val waitStrategy = WaitingFor.processed()
+            val waitStrategy = WaitingForStage.processed()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -270,7 +270,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     fun sendThenWaitingForProcessedWhenValidateError() {
         val message = WrongCommandMessage.toCommandMessage()
         verify {
-            val waitStrategy = WaitingFor.processed()
+            val waitStrategy = WaitingForStage.processed()
             sendAndWait(message, waitStrategy)
                 .test()
                 .expectError(CommandResultException::class.java)

@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -27,7 +27,7 @@ internal class WaitingForTest {
 
     @Test
     fun processed() {
-        val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
+        val waitStrategy = WaitingForStage.stage("PROCESSED", contextName)
         waitStrategy.cancelled.assert().isEqualTo(false)
         waitStrategy.terminated.assert().isEqualTo(false)
         val waitSignal = SimpleWaitSignal(
@@ -48,7 +48,7 @@ internal class WaitingForTest {
 
     @Test
     fun processedIfSnapshot() {
-        val waitStrategy = WaitingFor.stage("PROCESSED", contextName)
+        val waitStrategy = WaitingForStage.stage("PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = "commandId",
@@ -67,7 +67,7 @@ internal class WaitingForTest {
 
     @Test
     fun snapshot() {
-        val waitStrategy = WaitingFor.stage("SNAPSHOT", contextName)
+        val waitStrategy = WaitingForStage.stage("SNAPSHOT", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -94,7 +94,7 @@ internal class WaitingForTest {
 
     @Test
     fun snapshotFailFast() {
-        val waitStrategy = WaitingFor.snapshot()
+        val waitStrategy = WaitingForStage.snapshot()
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -113,7 +113,7 @@ internal class WaitingForTest {
 
     @Test
     fun projected() {
-        val waitStrategy = WaitingFor.stage("PROJECTED", contextName)
+        val waitStrategy = WaitingForStage.stage("PROJECTED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -139,7 +139,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjectedProcessor() {
-        val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val waitStrategy = WaitingForStage.projected(contextName, "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -165,7 +165,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjectedProcessorNotEq() {
-        val waitStrategy = WaitingFor.projected(contextName, "processor")
+        val waitStrategy = WaitingForStage.projected(contextName, "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -190,7 +190,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjectedFunction() {
-        val waitStrategy = WaitingFor.projected(contextName, "processor", "function")
+        val waitStrategy = WaitingForStage.projected(contextName, "processor", "function")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -220,7 +220,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForProjectedWhenNotLast() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -247,7 +247,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForEventHandled() {
-        val waitStrategy = WaitingFor.stage("EVENT_HANDLED", contextName)
+        val waitStrategy = WaitingForStage.stage("EVENT_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -273,7 +273,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForSagaHandled() {
-        val waitStrategy = WaitingFor.stage("SAGA_HANDLED", contextName)
+        val waitStrategy = WaitingForStage.stage("SAGA_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
@@ -298,7 +298,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingWhenNoMatchedContext() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(contextName)
         waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
@@ -318,7 +318,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingWhenError() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
             .test()
@@ -328,7 +328,7 @@ internal class WaitingForTest {
 
     @Test
     fun waitingForSent() {
-        val waitStrategy = WaitingFor.stage("SENT", contextName)
+        val waitStrategy = WaitingForStage.stage("SENT", contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
             .test()
@@ -338,7 +338,7 @@ internal class WaitingForTest {
 
     @Test
     fun doFinallyError() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(contextName)
         waitStrategy.onFinally {
             throw IllegalArgumentException()
         }
@@ -351,7 +351,7 @@ internal class WaitingForTest {
 
     @Test
     fun doFinallySetTwice() {
-        val waitStrategy = WaitingFor.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(contextName)
         waitStrategy.onFinally {
         }
         Assertions.assertThrows(IllegalStateException::class.java) {

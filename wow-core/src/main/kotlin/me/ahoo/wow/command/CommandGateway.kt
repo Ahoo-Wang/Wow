@@ -18,7 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -60,15 +60,15 @@ interface CommandGateway : CommandBus {
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.sent())
+        sendAndWait(command, WaitingForStage.sent())
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.processed())
+        sendAndWait(command, WaitingForStage.processed())
 
     fun <C : Any> sendAndWaitForSnapshot(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.snapshot())
+        sendAndWait(command, WaitingForStage.snapshot())
 }

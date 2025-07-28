@@ -19,7 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.stage.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.tck.command.CommandGatewaySpec
@@ -41,7 +41,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val messageGateway = createMessageBus()
         val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
-            messageGateway.send(message, WaitingFor.stage(CommandStage.PROCESSED, "", ""))
+            messageGateway.send(message, WaitingForStage.stage(CommandStage.PROCESSED, "", ""))
         }
     }
 
