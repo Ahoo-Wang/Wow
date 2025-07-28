@@ -26,6 +26,11 @@ import java.util.function.Consumer
 interface WaitStrategy {
     val cancelled: Boolean
     val terminated: Boolean
+
+    /**
+     * 是否支持虚空命令
+     */
+    val supportVoidCommand: Boolean
     fun waiting(): Flux<WaitSignal>
     fun waitingLast(): Mono<WaitSignal> {
         return waiting().last()

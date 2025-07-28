@@ -19,7 +19,6 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -108,10 +107,10 @@ class DefaultCommandGateway(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
-        if (command.isVoid && waitStrategy is CommandStageCapable) {
-            require(
-                waitStrategy.stage == CommandStage.SENT
-            ) { "The wait strategy for the void command must be SENT." }
+        if (command.isVoid) {
+            require(waitStrategy.supportVoidCommand) {
+                "The wait strategy[${waitStrategy.javaClass.simpleName}] for the void command must support void command."
+            }
         }
 
         return check(command).thenDefer {
