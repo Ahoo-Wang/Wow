@@ -118,21 +118,28 @@ class DefaultCommandGateway(
         val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
         return check(command).thenDefer {
             waitStrategy.inject(commandWaitEndpoint, command.header)
-            waitStrategyRegistrar.register(command.commandId, waitStrategy)
-            waitStrategy.onFinally {
-                waitStrategyRegistrar.unregister(command.commandId)
-            }
             commandBus.send(command)
-                .doOnCancel {
-                    waitStrategyRegistrar.unregister(command.commandId)
+                .doOnSuccess {
+                    waitStrategyRegistrar.register(command.commandId, waitStrategy)
+                    waitStrategy.onFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
+                    }
                 }
         }.doOnSuccess {
             val waitSignal = command.commandSentSignal()
             waitStrategy.next(waitSignal)
-        }.onErrorResume {
+        }.doOnError {
             val waitSignal = command.commandSentSignal(it)
             waitStrategy.next(waitSignal)
-            Mono.empty()
+        }.onErrorMap {
+            CommandResultException(
+                it.toResult(
+                    commandMessage = command,
+                    contextName = command.contextName,
+                    processorName = command.aggregateName
+                ),
+                it
+            )
         }.thenReturn(commandExchange)
     }
 }
