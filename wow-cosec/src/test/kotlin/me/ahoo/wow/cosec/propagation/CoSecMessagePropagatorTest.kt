@@ -28,23 +28,23 @@ class CoSecMessagePropagatorTest {
     val coSecMessagePropagator = CoSecMessagePropagator()
 
     @Test
-    fun inject() {
+    fun propagate() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage = MockCreateAggregate(generateGlobalId(), generateGlobalId())
             .toCommandMessage()
         upstreamMessage.header.withAppId("appId").withDeviceId("deviceId")
-        coSecMessagePropagator.inject(injectedHeader, upstreamMessage)
+        coSecMessagePropagator.propagate(injectedHeader, upstreamMessage)
         injectedHeader.appId.assert().isEqualTo(upstreamMessage.header.appId)
         injectedHeader.deviceId.assert().isEqualTo(upstreamMessage.header.deviceId)
     }
 
     @Test
-    fun injectIfNull() {
+    fun propagateIfNull() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
-        coSecMessagePropagator.inject(injectedHeader, upstreamMessage)
+        coSecMessagePropagator.propagate(injectedHeader, upstreamMessage)
         injectedHeader.appId.assert().isNull()
         injectedHeader.deviceId.assert().isNull()
     }

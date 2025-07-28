@@ -17,14 +17,14 @@ import org.junit.jupiter.api.Test
 class WaitStrategyMessagePropagatorTest {
 
     @Test
-    fun inject() {
+    fun propagate() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         WaitingForStage.projected("context", "processor", "function")
             .propagate(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
-        WaitStrategyMessagePropagator().inject(header, upstreamMessage)
+        WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")
         header[COMMAND_WAIT_STAGE].assert().isEqualTo("PROJECTED")
         header[COMMAND_WAIT_CONTEXT].assert().isEqualTo("context")
@@ -33,13 +33,13 @@ class WaitStrategyMessagePropagatorTest {
     }
 
     @Test
-    fun injectIfBlank() {
+    fun propagateIfBlank() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         WaitingForStage.sent().propagate(SimpleCommandWaitEndpoint("wait-endpoint"), upstreamMessage.header)
-        WaitStrategyMessagePropagator().inject(header, upstreamMessage)
+        WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_ENDPOINT])
         header[COMMAND_WAIT_STAGE].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_STAGE])
         header[COMMAND_WAIT_CONTEXT].assert().isNull()
