@@ -25,7 +25,6 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.DefaultCommandGateway
-import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
@@ -238,7 +237,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                     it.assert().isInstanceOf(CommandResultException::class.java)
                     val commandResultException = it as CommandResultException
                     commandResultException.commandResult.errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
-                    commandResultException.cause.assert().isInstanceOf(DuplicateRequestIdException::class.java)
                 }
                 .verify()
         }

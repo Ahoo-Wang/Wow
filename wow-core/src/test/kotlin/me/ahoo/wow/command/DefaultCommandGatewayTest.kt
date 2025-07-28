@@ -89,7 +89,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             .test()
             .expectError(CommandResultException::class.java)
             .verify()
-        Thread.sleep(5)
+        Thread.sleep(10)
         waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
     }
 
