@@ -27,6 +27,8 @@ import java.util.function.Consumer
 interface WaitStrategy {
     val cancelled: Boolean
     val terminated: Boolean
+    val completed: Boolean
+        get() = terminated || cancelled
 
     /**
      * 是否支持虚空命令

@@ -39,7 +39,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
     override fun next(signal: WaitSignal) {
         nextSignal(signal)
-        if (signal.stage == stage) {
+        if (completed.not() && signal.stage == stage) {
             complete()
         }
     }
