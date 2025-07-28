@@ -24,9 +24,19 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import java.util.Locale
+import java.util.*
 
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
+    override fun nextSignal(signal: WaitSignal) {
+        super.nextSignal(signal)
+        /**
+         * fail fast
+         */
+        if (signal.succeeded.not() && stage.isPrevious(signal.stage)) {
+            complete()
+        }
+    }
+
     override fun next(signal: WaitSignal) {
         nextSignal(signal)
         if (signal.stage == stage) {

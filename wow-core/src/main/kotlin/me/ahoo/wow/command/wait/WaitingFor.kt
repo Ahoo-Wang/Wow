@@ -57,16 +57,29 @@ abstract class WaitingFor : WaitStrategy {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    protected fun nextSignal(signal: WaitSignal) {
-        waitSignalSink.emitNext(signal, busyLooping())
+    private fun tryEmit(emit: () -> Unit) {
+        if (terminated || cancelled) {
+            return
+        }
+        emit()
+    }
+
+    protected open fun nextSignal(signal: WaitSignal) {
+        tryEmit {
+            waitSignalSink.emitNext(signal, busyLooping())
+        }
     }
 
     override fun error(throwable: Throwable) {
-        waitSignalSink.emitError(throwable, busyLooping())
+        tryEmit {
+            waitSignalSink.emitError(throwable, busyLooping())
+        }
     }
 
     override fun complete() {
-        waitSignalSink.emitComplete(busyLooping())
+        tryEmit {
+            waitSignalSink.emitComplete(busyLooping())
+        }
     }
 
     override fun onFinally(doFinally: Consumer<SignalType>) {

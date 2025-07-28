@@ -50,10 +50,6 @@ abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNot
         nextSignal(signal)
         if (signal.stage == CommandStage.PROCESSED) {
             processedSignal = signal
-            if (!signal.succeeded) {
-                super.complete()
-                return
-            }
         }
         if (shouldNotify(signal)) {
             waitingForSignal = signal
