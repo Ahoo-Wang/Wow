@@ -105,8 +105,6 @@ class WebFluxAutoConfiguration {
             "loadVersionedAggregateHandlerFunctionFactory"
         const val LOAD_TIME_BASED_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
             "loadTimeBasedAggregateHandlerFunctionFactory"
-        const val IDS_QUERY_AGGREGATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME =
-            "idsQueryAggregateHandlerFunctionFactory"
         const val AGGREGATE_TRACING_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "aggregateTracingHandlerFunctionFactory"
         const val LOAD_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "loadSnapshotHandlerFunctionFactory"
         const val PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME = "pagedQuerySnapshotHandlerFunctionFactory"

@@ -18,8 +18,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
+import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.extractWaitStrategyInfo
+import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.reactor.thenDefer
@@ -32,7 +35,8 @@ class DefaultCommandGateway(
     private val commandBus: CommandBus,
     private val validator: Validator,
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
-    private val waitStrategyRegistrar: WaitStrategyRegistrar
+    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val commandWaitNotifier: CommandWaitNotifier
 ) : CommandGateway, CommandBus by commandBus {
 
     private fun <C : Any> validate(commandBody: C) {
@@ -63,7 +67,15 @@ class DefaultCommandGateway(
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        return check(message).then(commandBus.send(message))
+        return check(message).then(commandBus.send(message)).doOnSuccess {
+            val waitStrategy = message.header.extractWaitStrategyInfo() ?: return@doOnSuccess
+            val waitSignal = message.commandSentSignal()
+            commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+        }.doOnError {
+            val waitStrategy = message.header.extractWaitStrategyInfo() ?: return@doOnError
+            val waitSignal = message.commandSentSignal(it)
+            commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+        }
     }
 
     override fun <C : Any> sendAndWaitStream(

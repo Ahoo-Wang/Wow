@@ -130,14 +130,16 @@ class CommandGatewayAutoConfiguration {
         commandBus: CommandBus,
         validator: Validator,
         idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
-        waitStrategyRegistrar: WaitStrategyRegistrar
+        waitStrategyRegistrar: WaitStrategyRegistrar,
+        commandWaitNotifier: CommandWaitNotifier
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
             validator = validator,
             idempotencyCheckerProvider = idempotencyCheckerProvider,
-            waitStrategyRegistrar = waitStrategyRegistrar
+            waitStrategyRegistrar = waitStrategyRegistrar,
+            commandWaitNotifier = commandWaitNotifier
         )
     }
 }
