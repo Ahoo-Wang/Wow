@@ -125,6 +125,12 @@ class DefaultCommandGateway(
                         waitStrategyRegistrar.unregister(command.commandId)
                     }
                 }
+                .doOnError {
+                    waitStrategyRegistrar.unregister(command.commandId)
+                }
+                .doOnCancel {
+                    waitStrategyRegistrar.unregister(command.commandId)
+                }
         }.doOnSuccess {
             val waitSignal = command.commandSentSignal()
             waitStrategy.next(waitSignal)

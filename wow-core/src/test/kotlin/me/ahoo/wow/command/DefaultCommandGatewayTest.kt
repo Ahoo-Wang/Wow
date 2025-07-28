@@ -90,6 +90,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val message = createMessage()
         commandGateway.sendAndWaitForProcessed(message)
             .test()
+            .thenAwait(Duration.ofMillis(10))
             .expectError(CommandResultException::class.java)
             .verify()
         Thread.sleep(10)
