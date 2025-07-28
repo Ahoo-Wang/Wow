@@ -14,7 +14,8 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.generateGlobalId
@@ -26,6 +27,12 @@ import java.time.Duration
 
 internal class WaitingForStageTest {
     private val contextName = "WaitingForTest"
+    private val functionInfo = FunctionInfoData(
+        functionKind = FunctionKind.COMMAND,
+        contextName = "wow",
+        processorName = "WaitingForStageTest",
+        name = "Send"
+    )
 
     @Test
     fun processedInject() {
@@ -62,7 +69,7 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = "commandId",
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         waitStrategy.waitingLast()
             .test()
@@ -81,7 +88,7 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = "commandId",
             stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         waitStrategy.waitingLast()
             .test()
@@ -100,13 +107,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         waitStrategy.waitingLast()
             .test()
@@ -127,7 +134,7 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
             errorCode = "ERROR_CODE"
         )
         waitStrategy.waitingLast()
@@ -146,13 +153,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
+            function = functionInfo.copy(contextName = contextName),
             isLastProjection = true
         )
         waitStrategy.waitingLast()
@@ -172,13 +179,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "processor"),
+            function = functionInfo.copy(contextName = contextName, processorName = "processor"),
             isLastProjection = true
         )
         waitStrategy.waitingLast()
@@ -198,13 +205,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName, processorName = "hi"),
+            function = functionInfo.copy(contextName = contextName, processorName = "hi"),
             isLastProjection = true
         )
         waitStrategy.waitingLast()
@@ -223,13 +230,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(
+            function = functionInfo.copy(
                 contextName = contextName,
                 processorName = "processor",
                 name = "function"
@@ -253,13 +260,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROJECTED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
+            function = functionInfo.copy(contextName = contextName),
             isLastProjection = false
         )
         waitStrategy.waitingLast()
@@ -280,13 +287,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.EVENT_HANDLED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName),
+            function = functionInfo.copy(contextName = contextName),
             isLastProjection = false
         )
         waitStrategy.waitingLast()
@@ -306,13 +313,13 @@ internal class WaitingForStageTest {
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
             stage = CommandStage.SAGA_HANDLED,
-            function = COMMAND_GATEWAY_FUNCTION.copy(contextName = contextName)
+            function = functionInfo.copy(contextName = contextName)
         )
         waitStrategy.waitingLast()
             .test()
@@ -335,7 +342,7 @@ internal class WaitingForStageTest {
                         id = generateGlobalId(),
                         commandId = generateGlobalId(),
                         stage = CommandStage.PROJECTED,
-                        function = COMMAND_GATEWAY_FUNCTION,
+                        function = functionInfo,
                     )
                 )
             }

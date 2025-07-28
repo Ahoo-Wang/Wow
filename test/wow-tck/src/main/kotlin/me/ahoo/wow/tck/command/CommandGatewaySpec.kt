@@ -21,7 +21,6 @@ import me.ahoo.wow.api.messaging.TopicKind
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResultException
@@ -61,6 +60,12 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         ).toCommandMessage()
     }
 
+    private val functionInfo = FunctionInfoData(
+        functionKind = FunctionKind.COMMAND,
+        contextName = namedAggregate.contextName,
+        processorName = namedAggregate.aggregateName,
+        name = CommandGatewaySpec::class.simpleName!!,
+    )
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
         Duration.ofSeconds(1),
@@ -121,7 +126,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         verify {
             val waitStrategy = WaitingForStage.processed()
@@ -144,7 +149,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         verify {
             sendAndWaitForProcessed(message)
@@ -166,13 +171,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         verify {
             val waitStrategy = WaitingForStage.snapshot()
@@ -196,13 +201,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.PROCESSED,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
             stage = CommandStage.SNAPSHOT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = functionInfo,
         )
         verify {
             sendAndWaitForSnapshot(message)
