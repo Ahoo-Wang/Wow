@@ -223,42 +223,32 @@ class DemoState(override val id: String) : Identifier {
 ### 测试聚合根
 
 ```kotlin
-class DemoTest {
-
-  @Test
-  fun onCreate() {
-    val command = CreateDemo(
+class DemoSpec : AggregateSpec<Demo, DemoState>({
+  on {
+    val create = CreateDemo(
       data = "data"
     )
-
-    aggregateVerifier<Demo, DemoState>()
-      .whenCommand(command)
-      .expectNoError()
-      .expectEventType(DemoCreated::class.java)
-      .expectState {
-        it.data.assert().isEqualTo(command.data)
+    whenCommand(create) {
+      expectNoError()
+      expectEventType(DemoCreated::class)
+      expectState {
+        data.assert().isEqualTo(create.data)
       }
-      .verify()
-  }
-
-  @Test
-  fun onUpdate() {
-    val command = UpdateDemo(
-      id = generateGlobalId(),
-      data = "data"
-    )
-
-    aggregateVerifier<Demo, DemoState>()
-      .given(DemoCreated("old"))
-      .whenCommand(command)
-      .expectNoError()
-      .expectEventType(DemoUpdated::class.java)
-      .expectState {
-        it.data.assert().isEqualTo(command.data)
+      fork {
+        val update = UpdateDemo(
+          data = "newData"
+        )
+        whenCommand(update) {
+          expectNoError()
+          expectEventType(DemoUpdated::class)
+          expectState {
+            data.assert().isEqualTo(update.data)
+          }
+        }
       }
-      .verify()
+    }
   }
-}
+})
 ```
 
 ## CI/CD 流水线
