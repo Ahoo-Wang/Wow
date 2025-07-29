@@ -48,11 +48,9 @@ class ApplicationBasePackageScanner : EnvironmentAware, BeanFactoryAware {
     fun getStringSet(key: String): Set<String> {
         val basePackages = env.getProperty(key)
         if (basePackages?.isNotBlank() == true) {
-            // 处理逗号分隔的配置值
             return basePackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         }
         var currentIndex = 0
-        // 处理数组形式的配置值
         return buildSet {
             while (true) {
                 val basePackage = env.getProperty("$key[$currentIndex]")
@@ -71,7 +69,6 @@ class ApplicationBasePackageScanner : EnvironmentAware, BeanFactoryAware {
      * @return 应用配置的扫描基础包路径集合，如果没有配置则返回空集合
      */
     fun getApplicationBasePackages(): Set<String> {
-        // 检查是否存在自动配置包，如果不存在则返回空集合
         if (!AutoConfigurationPackages.has(beanFactory)) {
             return setOf()
         }
@@ -81,7 +78,6 @@ class ApplicationBasePackageScanner : EnvironmentAware, BeanFactoryAware {
         for (autoBasePackage in autoBasePackages) {
             val scanner = SpringBootApplicationScanner(false, env)
             val candidates = scanner.findCandidateComponents(autoBasePackage)
-            // 遍历所有候选组件，提取@SpringBootApplication注解中配置的扫描包路径
             for (candidate in candidates) {
                 val appBeanClass = Class.forName(candidate.beanClassName)
                 val appAnnotation = appBeanClass.getAnnotation(SpringBootApplication::class.java)
