@@ -203,7 +203,7 @@ public class TransferSaga {
 
 ![example-transfer-jacoco](../../public/images/example/transfer-jacoco.png)
 
-> 使用 `aggregateVerifier` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
+> 使用 `AggregateSpec` 进行聚合根单元测试，可以有效的减少单元测试的编写工作量。
 
 > `Account` 聚合根单元测试
 
@@ -275,7 +275,7 @@ class AccountSpec : AggregateSpec<Account, AccountState>({
 })
 ```
 
-> 使用 `sagaVerifier` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
+> 使用 `SagaSpec` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
 
 > `TransferSaga` 单元测试
 
