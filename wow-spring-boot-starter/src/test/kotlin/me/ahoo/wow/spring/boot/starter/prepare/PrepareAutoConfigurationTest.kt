@@ -128,7 +128,7 @@ class PrepareAutoConfigurationTest {
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
                     .hasSingleBean(MockPrepareKey::class.java)
-                val mockPrepareKey = context.getBean<MockPrepareKey>()
+                val mockPrepareKey = context.getBean<MockPrepareKey>("MockPrepareKey")
                 mockPrepareKey.assert().isNotNull()
             }
     }
