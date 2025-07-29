@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.prepare
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.PreparableKey
+import me.ahoo.wow.example.domain.ExampleBoundedContext
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyFactory
@@ -157,7 +158,8 @@ class PrepareAutoConfigurationTest {
         WowWebClientAutoConfiguration::class,
         CompensationAutoConfiguration::class,
         QueryAutoConfiguration::class,
-    ]
+    ],
+    scanBasePackageClasses = [ExampleBoundedContext::class]
 )
 class EnablePrepareConfiguration
 

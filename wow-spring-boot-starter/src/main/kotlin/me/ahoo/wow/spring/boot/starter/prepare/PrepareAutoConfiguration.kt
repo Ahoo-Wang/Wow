@@ -28,6 +28,12 @@ import org.springframework.context.annotation.Import
 @EnableConfigurationProperties(PrepareProperties::class)
 @Import(PrepareKeyAutoRegistrar::class)
 class PrepareAutoConfiguration {
+
+    @Bean
+    fun applicationBasePackageScanner(): ApplicationBasePackageScanner {
+        return ApplicationBasePackageScanner()
+    }
+
     @Bean
     @ConditionalOnBean(PrepareKeyFactory::class)
     fun prepareKeyProxyFactory(prepareKeyFactory: PrepareKeyFactory): PrepareKeyProxyFactory {
