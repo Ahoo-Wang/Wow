@@ -13,12 +13,12 @@
 在一般场景中，聚合根的最新状态快照可以当做读模型，比如 [事件补偿控制台](./event-compensation) 就没有定义投影处理器，直接使用了最新状态快照作为读模型。
 :::
 
-- 投影处理器需要标记 `@ProjectionProcessorComponent` 注解，以便框架能够自动发现。
+- 投影处理器需要标记 `@ProjectionProcessor` 注解，以便框架能够自动发现。
 - 领域事件处理函数需要添加 `@OnEvent` 注解，但该注解不是必须的，默认情况下命名为 `onEvent` 即表明该函数为领域事件处理函数。
 - 领域事件处理函数接受的参数为：具体领域事件 (`OrderCreated`)、领域事件 (`DomainEvent<OrderCreated>`)。
 
 ```kotlin
-@ProjectionProcessorComponent
+@ProjectionProcessor
 class OrderProjector {
 
     fun onEvent(orderCreated: OrderCreated) {
