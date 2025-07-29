@@ -11,14 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitStrategy
 
 abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        if (!super.isWaitingForSignal(signal) || !isSameBoundedContext(signal.function)) {
+    override val materialized: WaitStrategy.Materialized by lazy {
+        Materialized(
+            stage = stage,
+            contextName = contextName,
+            processorName = processorName,
+            functionName = functionName
+        )
+    }
+
+    override fun shouldNotify(signal: WaitSignal): Boolean {
+        if (!super.shouldNotify(signal) || !isSameBoundedContext(signal.function)) {
             return false
         }
         if (processorName.isBlank()) {

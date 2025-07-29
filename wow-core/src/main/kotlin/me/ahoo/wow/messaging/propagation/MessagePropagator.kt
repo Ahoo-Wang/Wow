@@ -16,6 +16,15 @@ package me.ahoo.wow.messaging.propagation
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 
+/**
+ * 消息传播器接口，用于将上游消息的上下文信息传播到指定的头部信息中
+ */
 interface MessagePropagator {
-    fun inject(header: Header, upstream: Message<*, *>)
+    /**
+     * 将上游消息的上下文信息传播到目标头部
+     *
+     * @param header 目标消息的头部信息，用于接收传播的上下文数据
+     * @param upstream 上游消息，提供需要传播的上下文信息
+     */
+    fun propagate(header: Header, upstream: Message<*, *>)
 }

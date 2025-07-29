@@ -19,7 +19,7 @@ import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.command.CommandOperator.withOperator
 
 class CommandOperatorMessagePropagator : MessagePropagator {
-    override fun inject(header: Header, upstream: Message<*, *>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
         upstream.header.operator?.let {
             header.withOperator(it)
         }

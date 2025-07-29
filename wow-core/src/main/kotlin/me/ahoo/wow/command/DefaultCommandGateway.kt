@@ -13,36 +13,31 @@
 
 package me.ahoo.wow.command
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.validation.validateCommand
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
+import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.injectWaitStrategy
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.command.wait.extractWaitStrategy
+import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.reactor.thenDefer
+import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
 
 class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
     private val validator: Validator,
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
-    private val waitStrategyRegistrar: WaitStrategyRegistrar
+    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val commandWaitNotifier: CommandWaitNotifier
 ) : CommandGateway, CommandBus by commandBus {
-
-    companion object {
-        private val log = KotlinLogging.logger {}
-    }
 
     private fun <C : Any> validate(commandBody: C) {
         if (commandBody is CommandValidator) {
@@ -66,15 +61,21 @@ class DefaultCommandGateway(
 
     private fun <C : Any> check(command: CommandMessage<C>): Mono<Void> {
         return idempotencyCheck(command)
-            .then(
-                Mono.fromRunnable {
-                    validate(command.body)
-                }
-            )
+            .thenRunnable {
+                validate(command.body)
+            }
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {
-        return check(message).then(commandBus.send(message))
+        return check(message).then(commandBus.send(message)).doOnSuccess {
+            val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
+            val waitSignal = message.commandSentSignal()
+            commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+        }.doOnError {
+            val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnError
+            val waitSignal = message.commandSentSignal(it)
+            commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+        }
     }
 
     override fun <C : Any> sendAndWaitStream(
@@ -109,62 +110,42 @@ class DefaultCommandGateway(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<out ClientCommandExchange<C>> {
-        require(waitStrategy is WaitingFor) { "waitStrategy must be WaitingFor." }
         if (command.isVoid) {
-            require(waitStrategy.stage == CommandStage.SENT) { "The wait strategy for the void command must be SENT." }
+            require(waitStrategy.supportVoidCommand) {
+                "The wait strategy[${waitStrategy.javaClass.simpleName}] for the void command must support void command."
+            }
         }
-        return check(command).then(
-            Mono.defer {
-                command.header.injectWaitStrategy(
-                    commandWaitEndpoint = commandWaitEndpoint.endpoint,
-                    waitingFor = waitStrategy
-                )
-                waitStrategyRegistrar.register(command.commandId, waitStrategy)
-                waitStrategy.onFinally {
+        val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
+        return check(command).thenDefer {
+            waitStrategy.propagate(commandWaitEndpoint.endpoint, command.header)
+            commandBus.send(command)
+                .doOnSubscribe {
+                    waitStrategyRegistrar.register(command.commandId, waitStrategy)
+                    waitStrategy.onFinally {
+                        waitStrategyRegistrar.unregister(command.commandId)
+                    }
+                }
+                .doOnError {
                     waitStrategyRegistrar.unregister(command.commandId)
                 }
-                val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
-                commandBus.send(command)
-                    .thenEmitSentSignal(command, waitStrategy)
-                    .ensureUnregister(command)
-                    .thenReturn(commandExchange)
-            }
-        ).onErrorMap {
-            it.toCommandResultException(command)
-        }
-    }
-
-    private fun Throwable.toCommandResultException(command: CommandMessage<*>): CommandResultException {
-        return CommandResultException(this.toResult(command, processorName = COMMAND_GATEWAY_PROCESSOR_NAME), this)
-    }
-
-    private fun Mono<Void>.thenEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy): Mono<Void> {
-        return doOnSuccess {
-            safeEmitSentSignal(command, waitStrategy)
-        }
-    }
-
-    private fun Mono<Void>.ensureUnregister(command: CommandMessage<*>): Mono<Void> {
-        return doOnCancel {
-            waitStrategyRegistrar.unregister(command.commandId)
-        }.doOnError {
-            waitStrategyRegistrar.unregister(command.commandId)
-        }
-    }
-
-    private fun safeEmitSentSignal(command: CommandMessage<*>, waitStrategy: WaitStrategy) {
-        val waitSignal = COMMAND_GATEWAY_FUNCTION.toWaitSignal(
-            id = generateGlobalId(),
-            commandId = command.commandId,
-            stage = CommandStage.SENT,
-        )
-        try {
-            // 防止基于内存的消息总线聚合处理信号早于命令发送完成而抛出异常。
+                .doOnCancel {
+                    waitStrategyRegistrar.unregister(command.commandId)
+                }
+        }.doOnSuccess {
+            val waitSignal = command.commandSentSignal()
             waitStrategy.next(waitSignal)
-        } catch (emissionError: Sinks.EmissionException) {
-            log.warn(emissionError) {
-                "The wait strategy [${command.commandId}] is cancelled or terminated, so the signal is not sent."
-            }
-        }
+        }.doOnError {
+            val waitSignal = command.commandSentSignal(it)
+            waitStrategy.next(waitSignal)
+        }.onErrorMap {
+            CommandResultException(
+                it.toResult(
+                    commandMessage = command,
+                    contextName = command.contextName,
+                    processorName = command.aggregateName
+                ),
+                it
+            )
+        }.thenReturn(commandExchange)
     }
 }

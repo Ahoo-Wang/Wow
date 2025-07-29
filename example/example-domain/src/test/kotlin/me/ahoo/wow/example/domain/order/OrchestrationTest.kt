@@ -25,8 +25,7 @@ import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.test.aggregate.ExpectedResult
-import me.ahoo.wow.test.aggregate.GivenStage
+import me.ahoo.wow.test.aggregate.VerifiedStage
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import org.junit.jupiter.api.Test
@@ -62,45 +61,45 @@ class OrchestrationTest {
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class)
             .expectStateAggregate {
-                it.aggregateId.tenantId.assert().isEqualTo(tenantId)
+                aggregateId.tenantId.assert().isEqualTo(tenantId)
             }
             .expectState {
-                it.id.assert().isNotNull()
-                it.address.assert().isEqualTo(SHIPPING_ADDRESS)
-                it.items.assert().hasSize(1)
-                val item = it.items.first()
+                id.assert().isNotNull()
+                address.assert().isEqualTo(SHIPPING_ADDRESS)
+                items.assert().hasSize(1)
+                val item = items.first()
                 item.productId.assert().isEqualTo(orderItem.productId)
                 item.price.assert().isEqualTo(orderItem.price)
                 item.quantity.assert().isEqualTo(orderItem.quantity)
-                it.status.assert().isEqualTo(OrderStatus.CREATED)
+                status.assert().isEqualTo(OrderStatus.CREATED)
             }.expect {
-                it.exchange.getCommandResult().assert().hasSize(1)
-                val result = it.exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
+                exchange.getCommandResult().assert().hasSize(1)
+                val result = exchange.getCommandResult<BigDecimal>(OrderState::totalAmount.name)
                 result.assert().isEqualTo(orderItem.price.multiply(BigDecimal.valueOf(orderItem.quantity.toLong())))
             }
             .verify()
             .fork {
-                changeAddress(it)
+                changeAddress()
             }.fork {
-                payOrder(it)
+                payOrder()
             }
     }
 
-    private fun GivenStage<OrderState>.payOrder(it: ExpectedResult<OrderState>) {
+    private fun VerifiedStage<OrderState>.payOrder() {
         val payOrder = PayOrder(
-            it.stateAggregate.aggregateId.id,
-            it.stateAggregate.state.payable
+            stateAggregate.aggregateId.id,
+            stateAggregate.state.payable
         )
         whenCommand(payOrder)
             .expectEventType(OrderPaid::class)
             .expectState {
-                it.paidAmount.assert().isEqualTo(it.totalAmount)
-                it.status.assert().isEqualTo(OrderStatus.PAID)
+                paidAmount.assert().isEqualTo(totalAmount)
+                status.assert().isEqualTo(OrderStatus.PAID)
             }
             .verify()
     }
 
-    private fun GivenStage<OrderState>.changeAddress(it: ExpectedResult<OrderState>) {
+    private fun VerifiedStage<OrderState>.changeAddress() {
         val changeAddress = ChangeAddress(
             ShippingAddress(
                 country = "China",
@@ -114,7 +113,7 @@ class OrchestrationTest {
             .expectNoError()
             .expectEventType(AddressChanged::class)
             .expectState {
-                it.address.assert().isEqualTo(changeAddress.shippingAddress)
+                address.assert().isEqualTo(changeAddress.shippingAddress)
             }
             .verify()
     }

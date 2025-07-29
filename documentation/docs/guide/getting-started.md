@@ -13,7 +13,7 @@
     - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
     - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
 - 将模板压缩包放到 _IDEA_ 项目模板目录下
-    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v5.21.1/wow-project-template.zip)
+    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v5.26.9/wow-project-template.zip)
 
 ## 创建项目
 
@@ -223,42 +223,32 @@ class DemoState(override val id: String) : Identifier {
 ### 测试聚合根
 
 ```kotlin
-class DemoTest {
-
-  @Test
-  fun onCreate() {
-    val command = CreateDemo(
+class DemoSpec : AggregateSpec<Demo, DemoState>({
+  on {
+    val create = CreateDemo(
       data = "data"
     )
-
-    aggregateVerifier<Demo, DemoState>()
-      .whenCommand(command)
-      .expectNoError()
-      .expectEventType(DemoCreated::class.java)
-      .expectState {
-        it.data.assert().isEqualTo(command.data)
+    whenCommand(create) {
+      expectNoError()
+      expectEventType(DemoCreated::class)
+      expectState {
+        data.assert().isEqualTo(create.data)
       }
-      .verify()
-  }
-
-  @Test
-  fun onUpdate() {
-    val command = UpdateDemo(
-      id = generateGlobalId(),
-      data = "data"
-    )
-
-    aggregateVerifier<Demo, DemoState>()
-      .given(DemoCreated("old"))
-      .whenCommand(command)
-      .expectNoError()
-      .expectEventType(DemoUpdated::class.java)
-      .expectState {
-        it.data.assert().isEqualTo(command.data)
+      fork {
+        val update = UpdateDemo(
+          data = "newData"
+        )
+        whenCommand(update) {
+          expectNoError()
+          expectEventType(DemoUpdated::class)
+          expectState {
+            data.assert().isEqualTo(update.data)
+          }
+        }
       }
-      .verify()
+    }
   }
-}
+})
 ```
 
 ## CI/CD 流水线

@@ -59,7 +59,7 @@ class TraceMessagePropagator : MessagePropagator {
         }
     }
 
-    override fun inject(header: Header, upstream: Message<*, *>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
         upstream.header.traceId?.let {
             header.withTraceId(it)
         }

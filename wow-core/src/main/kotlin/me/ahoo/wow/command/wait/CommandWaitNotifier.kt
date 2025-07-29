@@ -15,18 +15,13 @@ package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
-const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
-const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
-const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
-const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
 
 interface CommandWaitEndpoint {
     val endpoint: String
@@ -34,43 +29,21 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
-fun Header.injectWaitStrategy(
-    commandWaitEndpoint: String,
-    waitingFor: WaitingFor
-): Header {
-    with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
-        .with(COMMAND_WAIT_STAGE, waitingFor.stage.name)
-    if (waitingFor is ProcessorInfo) {
-        with(COMMAND_WAIT_CONTEXT, waitingFor.contextName)
-            .with(COMMAND_WAIT_PROCESSOR, waitingFor.processorName)
-    }
-    if (waitingFor is FunctionNameCapable) {
-        with(COMMAND_WAIT_FUNCTION, waitingFor.functionName)
-    }
-    return this
+data class EndpointWaitStrategy(override val endpoint: String, val waitStrategy: WaitStrategy.Materialized) :
+    CommandWaitEndpoint
+
+fun Header.extractCommandWaitEndpoint(): String? {
+    return this[COMMAND_WAIT_ENDPOINT]
 }
 
-data class WaitStrategyInfo(
-    val commandWaitEndpoint: String,
-    val stage: CommandStage,
-    override val contextName: String,
-    override val processorName: String,
-    override val functionName: String
-) : ProcessorInfo, FunctionNameCapable
+fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
+    return with(COMMAND_WAIT_ENDPOINT, endpoint)
+}
 
-fun Header.extractWaitStrategy(): WaitStrategyInfo? {
-    val commandWaitEndpoint = this[COMMAND_WAIT_ENDPOINT] ?: return null
-    val stage = this[COMMAND_WAIT_STAGE].orEmpty()
-    val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
-    val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
-    val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
-    return WaitStrategyInfo(
-        commandWaitEndpoint = commandWaitEndpoint,
-        stage = CommandStage.valueOf(stage),
-        contextName = context,
-        processorName = processor,
-        functionName = function
-    )
+fun Header.extractWaitStrategy(): EndpointWaitStrategy? {
+    val endpoint = this.extractCommandWaitEndpoint() ?: return null
+    val waitStrategy = this.extractWaitingForStage() ?: return null
+    return EndpointWaitStrategy(endpoint, waitStrategy)
 }
 
 /**
@@ -108,6 +81,16 @@ class LocalCommandWaitNotifier(
             }
         }
     }
+}
+
+fun CommandWaitNotifier.notifyAndForget(
+    waiteStrategy: EndpointWaitStrategy,
+    waitSignal: WaitSignal
+) {
+    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal.stage)) {
+        return
+    }
+    notifyAndForget(waiteStrategy.endpoint, waitSignal)
 }
 
 fun isLocalCommand(commandId: String): Boolean {

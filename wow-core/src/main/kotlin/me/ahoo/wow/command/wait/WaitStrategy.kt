@@ -13,18 +13,31 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.messaging.Header
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import java.util.function.Consumer
 
+interface WaitStrategyPropagator {
+    fun propagate(commandWaitEndpoint: String, header: Header)
+}
+
 /**
  * Command Wait Strategy
- * @see WaitingFor
+ * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
-interface WaitStrategy {
+interface WaitStrategy : WaitStrategyPropagator {
     val cancelled: Boolean
     val terminated: Boolean
+    val completed: Boolean
+        get() = terminated || cancelled
+    val materialized: Materialized
+
+    /**
+     * 是否支持虚空命令
+     */
+    val supportVoidCommand: Boolean
     fun waiting(): Flux<WaitSignal>
     fun waitingLast(): Mono<WaitSignal> {
         return waiting().last()
@@ -40,4 +53,13 @@ interface WaitStrategy {
     fun complete()
 
     fun onFinally(doFinally: Consumer<SignalType>)
+    override fun propagate(commandWaitEndpoint: String, header: Header) {
+        materialized.propagate(commandWaitEndpoint, header)
+    }
+
+    interface Materialized :
+        WaitStrategyPropagator,
+        ProcessingStageShouldNotifyPredicate,
+        WaitSignalShouldNotifyPredicate,
+        me.ahoo.wow.api.naming.Materialized
 }

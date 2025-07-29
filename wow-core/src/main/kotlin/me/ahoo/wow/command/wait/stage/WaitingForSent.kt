@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
-class WaitingForSagaHandled(
-    override val contextName: String,
-    override val processorName: String = "",
-    override val functionName: String = ""
-) : WaitingForFunction() {
+import me.ahoo.wow.command.wait.CommandStage
+
+class WaitingForSent : WaitingForStage() {
     override val stage: CommandStage
-        get() = CommandStage.SAGA_HANDLED
+        get() = CommandStage.SENT
+
+    override val supportVoidCommand: Boolean = true
 }

@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.test.saga.stateless.dsl
 
-class WaitingForSnapshot : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.SNAPSHOT
+import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.test.dsl.InjectServiceCapable
 
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return signal.stage == stage
+interface InjectPublicServiceCapable : InjectServiceCapable<Unit> {
+    val publicServiceProvider: ServiceProvider
+
+    override fun inject(inject: ServiceProvider.() -> Unit) {
+        inject(publicServiceProvider)
     }
 }

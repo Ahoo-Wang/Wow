@@ -18,8 +18,10 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.tck.command.CommandGatewaySpec
@@ -41,7 +43,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val messageGateway = createMessageBus()
         val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
         Assertions.assertThrows(IllegalArgumentException::class.java) {
-            messageGateway.send(message, WaitingFor.stage(CommandStage.PROCESSED, "", ""))
+            messageGateway.send(message, WaitingForStage.stage(CommandStage.PROCESSED, "", ""))
         }
     }
 
@@ -83,13 +85,15 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         )
         val message = createMessage()
         commandGateway.sendAndWaitForProcessed(message)
             .test()
+            .thenAwait(Duration.ofMillis(10))
             .expectError(CommandResultException::class.java)
             .verify()
-        Thread.sleep(5)
+        Thread.sleep(10)
         waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
     }
 

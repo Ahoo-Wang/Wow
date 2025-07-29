@@ -26,51 +26,51 @@ import org.junit.jupiter.api.Test
 
 class CommandRequestHeaderPropagatorTest {
     @Test
-    fun inject() {
+    fun propagate() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
-        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        CommandRequestHeaderPropagator().propagate(injectedHeader, upstreamMessage)
         injectedHeader.userAgent.assert().isEqualTo(upstreamMessage.header.userAgent)
         injectedHeader.remoteIp.assert().isEqualTo(upstreamMessage.header.remoteIp)
     }
 
     @Test
-    fun injectIfNull() {
+    fun propagateIfNull() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
-        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        CommandRequestHeaderPropagator().propagate(injectedHeader, upstreamMessage)
         injectedHeader.userAgent.assert().isNull()
         injectedHeader.remoteIp.assert().isNull()
     }
 
     @Test
-    fun injectDisabled() {
+    fun propagateDisabled() {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "false")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
-        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        CommandRequestHeaderPropagator().propagate(injectedHeader, upstreamMessage)
         injectedHeader.userAgent.assert().isNull()
         injectedHeader.remoteIp.assert().isNull()
         System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)
     }
 
     @Test
-    fun injectEnabled() {
+    fun propagateEnabled() {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "true")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         upstreamMessage.header.withUserAgent("userAgent").withRemoteIp("remoteIp")
-        CommandRequestHeaderPropagator().inject(injectedHeader, upstreamMessage)
+        CommandRequestHeaderPropagator().propagate(injectedHeader, upstreamMessage)
         injectedHeader.userAgent.assert().isEqualTo(upstreamMessage.header.userAgent)
         injectedHeader.remoteIp.assert().isEqualTo(upstreamMessage.header.remoteIp)
         System.clearProperty(CommandRequestHeaderPropagator.ENABLED_KEY)

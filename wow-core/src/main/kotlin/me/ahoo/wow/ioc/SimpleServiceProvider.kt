@@ -19,11 +19,13 @@ import kotlin.reflect.full.isSubtypeOf
 
 class SimpleServiceProvider : ServiceProvider {
     private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
-    private val namedServices: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
+    private val namedServices: ConcurrentHashMap<String, TypedService> = ConcurrentHashMap<String, TypedService>()
+    override val serviceNames: Set<String>
+        get() = namedServices.keys
 
     override fun register(service: Any, serviceName: String, serviceType: KType) {
         typedServices[serviceType] = service
-        namedServices[serviceName] = service
+        namedServices[serviceName] = TypedService(serviceType, service)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -40,13 +42,21 @@ class SimpleServiceProvider : ServiceProvider {
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceName: String): S? {
-        return namedServices[serviceName] as S?
+        return namedServices[serviceName]?.service as S?
     }
 
-    fun copy(): SimpleServiceProvider {
+    override fun copy(): SimpleServiceProvider {
         val copy = SimpleServiceProvider()
         copy.typedServices.putAll(typedServices)
         copy.namedServices.putAll(namedServices)
         return copy
     }
+
+    override fun copyTo(target: ServiceProvider) {
+        namedServices.forEach { (serviceName, typedService) ->
+            target.register(service = typedService.service, serviceName = serviceName, serviceType = typedService.type)
+        }
+    }
+
+    internal class TypedService(val type: KType, val service: Any)
 }

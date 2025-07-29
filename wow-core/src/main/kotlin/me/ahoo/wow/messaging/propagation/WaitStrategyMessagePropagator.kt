@@ -16,33 +16,16 @@ package me.ahoo.wow.messaging.propagation
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
-import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
-import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
-import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.extractWaitStrategy
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 
 class WaitStrategyMessagePropagator : MessagePropagator {
-    override fun inject(header: Header, upstream: Message<*, *>) {
-        if (upstream !is CommandMessage<*>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
+        val upstreamHeader = upstream.header
+        val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
+        if (waitStrategy.waitStrategy is WaitingForStage.Materialized && upstream !is CommandMessage<*>) {
             return
         }
-        val upstreamHeader = upstream.header
-        val commandWaitEndpoint = upstreamHeader[COMMAND_WAIT_ENDPOINT] ?: return
-        header.with(COMMAND_WAIT_ENDPOINT, commandWaitEndpoint)
-        val commandWaitStage = upstreamHeader[COMMAND_WAIT_STAGE].orEmpty()
-        header.with(COMMAND_WAIT_STAGE, commandWaitStage)
-        val commandWaitContext = upstreamHeader[COMMAND_WAIT_CONTEXT]
-        if (!commandWaitContext.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_CONTEXT, commandWaitContext)
-        }
-        val commandWaitProcessor = upstreamHeader[COMMAND_WAIT_PROCESSOR]
-        if (!commandWaitProcessor.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_PROCESSOR, commandWaitProcessor)
-        }
-        val commandWaitFunction = upstreamHeader[COMMAND_WAIT_FUNCTION]
-        if (!commandWaitFunction.isNullOrBlank()) {
-            header.with(COMMAND_WAIT_FUNCTION, commandWaitFunction)
-        }
+        waitStrategy.waitStrategy.propagate(waitStrategy.endpoint, header)
     }
 }

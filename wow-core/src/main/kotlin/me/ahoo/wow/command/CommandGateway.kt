@@ -13,23 +13,46 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SimpleWaitSignal
+import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.exception.toErrorInfo
+import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
+fun CommandMessage<*>.commandGatewayFunction(): FunctionInfoData {
+    return FunctionInfoData(
+        functionKind = FunctionKind.COMMAND,
+        contextName = contextName,
+        processorName = aggregateName,
+        name = name,
+    )
+}
 
-val COMMAND_GATEWAY_FUNCTION = FunctionInfoData(
-    functionKind = FunctionKind.COMMAND,
-    contextName = Wow.WOW,
-    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
-    name = "Send",
-)
+fun CommandMessage<*>.commandSentSignal(error: Throwable? = null): WaitSignal {
+    val function = commandGatewayFunction()
+    val errorInfo = error?.toErrorInfo() ?: ErrorInfo.OK
+    return SimpleWaitSignal(
+        id = generateGlobalId(),
+        commandId = commandId,
+        stage = CommandStage.SENT,
+        function = function,
+        aggregateVersion = aggregateVersion,
+        isLastProjection = true,
+        errorCode = errorInfo.errorCode,
+        errorMsg = errorInfo.errorMsg,
+        bindingErrors = errorInfo.bindingErrors,
+        result = emptyMap(),
+        signalTime = System.currentTimeMillis()
+    )
+}
 
 /**
  * Command Gateway .
@@ -60,15 +83,15 @@ interface CommandGateway : CommandBus {
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.sent())
+        sendAndWait(command, WaitingForStage.sent())
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.processed())
+        sendAndWait(command, WaitingForStage.processed())
 
     fun <C : Any> sendAndWaitForSnapshot(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingFor.snapshot())
+        sendAndWait(command, WaitingForStage.snapshot())
 }

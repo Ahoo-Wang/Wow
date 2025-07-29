@@ -42,7 +42,7 @@ class CommandRequestHeaderPropagator : MessagePropagator {
 
     private val enabled: Boolean = System.getProperty(ENABLED_KEY)?.toBoolean() != false
 
-    override fun inject(header: Header, upstream: Message<*, *>) {
+    override fun propagate(header: Header, upstream: Message<*, *>) {
         if (!enabled) {
             return
         }

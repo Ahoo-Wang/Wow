@@ -11,13 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
-class WaitingForEventHandled(
-    override val contextName: String,
-    override val processorName: String = "",
-    override val functionName: String = ""
-) : WaitingForFunction() {
+import me.ahoo.wow.command.wait.CommandStage
+
+class WaitingForSnapshot : WaitingForAfterProcessed() {
     override val stage: CommandStage
-        get() = CommandStage.EVENT_HANDLED
+        get() = CommandStage.SNAPSHOT
 }

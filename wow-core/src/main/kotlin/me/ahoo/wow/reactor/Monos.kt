@@ -11,9 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.reactor
 
-class WaitingForProcessed : WaitingForStage() {
-    override val stage: CommandStage
-        get() = CommandStage.PROCESSED
+import reactor.core.publisher.Mono
+
+fun <R> Mono<*>.thenDefer(defer: () -> Mono<R>): Mono<R> {
+    return this.then(Mono.defer { defer() })
+}
+
+fun Mono<*>.thenRunnable(runnable: () -> Unit): Mono<Void> {
+    return this.then(Mono.fromRunnable(runnable))
 }

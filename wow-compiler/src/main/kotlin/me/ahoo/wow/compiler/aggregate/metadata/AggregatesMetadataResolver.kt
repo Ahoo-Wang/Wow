@@ -46,7 +46,7 @@ object AggregatesMetadataResolver {
             }
         }
         codeGenerator.appendLine("import me.ahoo.wow.modeling.annotation.aggregateMetadata")
-        codeGenerator.appendLine("import javax.annotation.processing.Generated")
+        codeGenerator.appendLine("import me.ahoo.wow.api.annotation.Generated")
         codeGenerator.appendLine()
         val generatedDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         codeGenerator.appendLine(

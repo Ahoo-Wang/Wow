@@ -25,7 +25,7 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.inject
+import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
 import me.ahoo.wow.modeling.aggregateId
 
@@ -43,7 +43,7 @@ fun <C : Any> C.toCommandMessage(
     upstream: DomainEvent<*>? = null,
 ): CommandMessage<C> {
     upstream?.let {
-        header.inject(it)
+        header.propagate(it)
     }
     val metadata = javaClass.commandMetadata()
     val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)

@@ -18,7 +18,7 @@ import me.ahoo.wow.apiclient.query.queryState
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartData
 import me.ahoo.wow.example.api.client.CartQueryClient
@@ -71,7 +71,7 @@ class CartController(
         )
         return commandGateway.sendAndWaitStream(
             addCartItem.toCommandMessage(ownerId = userId),
-            waitStrategy = WaitingFor.snapshot()
+            waitStrategy = WaitingForStage.snapshot()
         )
     }
 }

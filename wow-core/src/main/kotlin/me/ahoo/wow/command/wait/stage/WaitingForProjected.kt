@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
+
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitSignal
 
 class WaitingForProjected(
     override val contextName: String,
@@ -21,7 +24,7 @@ class WaitingForProjected(
     override val stage: CommandStage
         get() = CommandStage.PROJECTED
 
-    override fun isWaitingForSignal(signal: WaitSignal): Boolean {
-        return super.isWaitingForSignal(signal) && signal.isLastProjection
+    override fun shouldNotify(signal: WaitSignal): Boolean {
+        return super.shouldNotify(signal) && signal.isLastProjection
     }
 }

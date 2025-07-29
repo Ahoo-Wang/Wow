@@ -12,23 +12,23 @@ import org.junit.jupiter.api.Test
 class CommandOperatorMessagePropagatorTest {
 
     @Test
-    fun inject() {
+    fun propagate() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
                 .toCommandMessage()
         upstreamMessage.header.withOperator("operator")
-        CommandOperatorMessagePropagator().inject(header, upstreamMessage)
+        CommandOperatorMessagePropagator().propagate(header, upstreamMessage)
         header.operator.assert().isEqualTo("operator")
     }
 
     @Test
-    fun injectIfNull() {
+    fun propagateIfNull() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
                 .toCommandMessage()
-        CommandOperatorMessagePropagator().inject(header, upstreamMessage)
+        CommandOperatorMessagePropagator().propagate(header, upstreamMessage)
         header.operator.assert().isNull()
     }
 }

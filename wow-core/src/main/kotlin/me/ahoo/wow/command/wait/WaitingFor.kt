@@ -19,90 +19,28 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
-interface WaitingFor : WaitStrategy {
-    val stage: CommandStage
-
+abstract class WaitingFor : WaitStrategy {
     companion object {
-        fun sent(): WaitingFor = WaitingForSent()
-        fun processed(): WaitingFor = WaitingForProcessed()
-
-        fun snapshot(): WaitingFor = WaitingForSnapshot()
-
-        fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
-            WaitingForProjected(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-
-        fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
-            WaitingForEventHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-
-        fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingFor =
-            WaitingForSagaHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-
-        fun stage(
-            stage: CommandStage,
-            contextName: String,
-            processorName: String = "",
-            functionName: String = ""
-        ): WaitingFor {
-            return when (stage) {
-                CommandStage.SENT -> sent()
-                CommandStage.PROCESSED -> processed()
-                CommandStage.SNAPSHOT -> snapshot()
-                CommandStage.PROJECTED -> projected(contextName, processorName, functionName)
-                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName)
-                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName)
-            }
-        }
-
-        fun stage(
-            stage: String,
-            contextName: String,
-            processorName: String = "",
-            functionName: String = ""
-        ): WaitingFor =
-            stage(
-                stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-    }
-}
-
-private val log = KotlinLogging.logger {}
-
-abstract class AbstractWaitingFor : WaitingFor {
-    companion object {
-
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
+        private val log = KotlinLogging.logger {}
     }
 
-    private val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    protected val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
     override val cancelled: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
     override val terminated: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
 
-    private var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
+    override val supportVoidCommand: Boolean = false
+
+    protected var onFinallyHook: AtomicReference<Consumer<SignalType>> = AtomicReference(EmptyOnFinally)
 
     @Suppress("TooGenericExceptionCaught")
-    private fun safeDoFinally(signalType: SignalType) {
+    protected fun safeDoFinally(signalType: SignalType) {
         val currentHook = onFinallyHook.get()
         try {
             currentHook.accept(signalType)
@@ -117,20 +55,51 @@ abstract class AbstractWaitingFor : WaitingFor {
         return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
     }
 
-    private fun busyLooping(): Sinks.EmitFailureHandler {
+    protected fun busyLooping(): Sinks.EmitFailureHandler {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    override fun next(signal: WaitSignal) {
-        waitSignalSink.emitNext(signal, busyLooping())
+    private fun tryEmit(emit: () -> Unit): Boolean {
+        if (completed) {
+            log.warn {
+                "WaitingFor is terminated or cancelled, ignore emit."
+            }
+            return false
+        }
+        emit()
+        return true
+    }
+
+    /**
+     * 判断给定的等待信号是否为前置信号
+     *
+     * @param signal 等待信号
+     * @return 如果是前置信号则返回 true，否则返回 false
+     */
+    abstract fun isPreviousSignal(signal: WaitSignal): Boolean
+
+    protected open fun nextSignal(signal: WaitSignal) {
+        tryEmit {
+            waitSignalSink.emitNext(signal, busyLooping())
+            /**
+             * fail fast
+             */
+            if (signal.succeeded.not() && isPreviousSignal(signal)) {
+                complete()
+            }
+        }
     }
 
     override fun error(throwable: Throwable) {
-        waitSignalSink.emitError(throwable, busyLooping())
+        tryEmit {
+            waitSignalSink.emitError(throwable, busyLooping())
+        }
     }
 
     override fun complete() {
-        waitSignalSink.emitComplete(busyLooping())
+        tryEmit {
+            waitSignalSink.emitComplete(busyLooping())
+        }
     }
 
     override fun onFinally(doFinally: Consumer<SignalType>) {

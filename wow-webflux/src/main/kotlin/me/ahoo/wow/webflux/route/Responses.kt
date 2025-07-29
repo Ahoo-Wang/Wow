@@ -98,7 +98,7 @@ fun Flux<ServerSentEvent<String>>.errorResume(
         val serverSendEventMono = ServerSentEvent.builder<String>()
             .id(generateGlobalId())
             .event(errorInfo.errorCode)
-            .data(errorInfo.errorMsg)
+            .data(errorInfo.toJsonString())
             .build().toMono()
 
         exceptionHandler.handle(request, it).then(serverSendEventMono)

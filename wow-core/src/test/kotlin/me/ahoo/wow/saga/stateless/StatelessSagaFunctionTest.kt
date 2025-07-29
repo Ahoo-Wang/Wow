@@ -63,7 +63,7 @@ class StatelessSagaFunctionTest {
             .`when`(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
-                it.requestId.assert().isEqualTo(it.id)
+                requestId.assert().isEqualTo(id)
             }
             .verify()
     }
@@ -74,7 +74,7 @@ class StatelessSagaFunctionTest {
             .`when`(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
-                it.requestId.assert().isNotEqualTo(it.id)
+                requestId.assert().isNotEqualTo(id)
             }
             .verify()
     }

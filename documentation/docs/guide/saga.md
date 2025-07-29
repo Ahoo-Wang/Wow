@@ -79,7 +79,7 @@ _Saga_ 通过订阅事件完成处理逻辑后返回聚合命令。
 - `onEvent(EntryFailed)`: 订阅转账入账失败事件（`EntryFailed`），并生成解锁金额命令(`UnlockAmount`)。
 
 ```java
-@StatelessSagaComponent
+@StatelessSaga
 public class TransferSaga {
 
     Entry onEvent(Prepared prepared, AggregateId aggregateId) {
@@ -98,47 +98,43 @@ public class TransferSaga {
 
 ## 单元测试
 
-> 使用 `sagaVerifier` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
+> 使用 `SagaSpec` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
 
 > `TransferSaga` 单元测试
 
 ```kotlin
-internal class TransferSagaTest {
-
-    @Test
-    fun onPrepared() {
-        val event = Prepared("to", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<Entry> {
-                it.id.assert().isEqualTo(event.to)
-                it.amount.assert().isEqualTo(event.amount)
-            }
-            .verify()
-    }
-
-    @Test
-    fun onAmountEntered() {
-        val event = AmountEntered("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<Confirm> {
-                it.id.assert().isEqualTo(event.sourceId)
-                it.amount.assert().isEqualTo(event.amount)
-            }
-            .verify()
-    }
-
-    @Test
-    fun onEntryFailed() {
-        val event = EntryFailed("sourceId", 1)
-        sagaVerifier<TransferSaga>()
-            .whenEvent(event)
-            .expectCommandBody<UnlockAmount> {
-                it.id.assert().isEqualTo(event.sourceId)
-                it.amount.assert().isEqualTo(event.amount)
-            }
-            .verify()
-    }
-}
+class TransferSagaSpec : SagaSpec<TransferSaga>({
+   on {
+      val prepared = Prepared("to", 1)
+      whenEvent(prepared) {
+         expectNoError()
+         expectCommandType(Entry::class)
+         expectCommandBody<Entry> {
+            id.assert().isEqualTo(prepared.to)
+            amount.assert().isEqualTo(prepared.amount)
+         }
+      }
+   }
+   on {
+      val amountEntered = AmountEntered("sourceId", 1)
+      whenEvent(amountEntered) {
+         expectNoError()
+         expectCommandType(Confirm::class)
+         expectCommandBody<Confirm> {
+            id.assert().isEqualTo(amountEntered.sourceId)
+            amount.assert().isEqualTo(amountEntered.amount)
+         }
+      }
+   }
+   on {
+      val entryFailed = EntryFailed("sourceId", 1)
+      whenEvent(entryFailed) {
+         expectCommandType(UnlockAmount::class)
+         expectCommandBody<UnlockAmount> {
+            id.assert().isEqualTo(entryFailed.sourceId)
+            amount.assert().isEqualTo(entryFailed.amount)
+         }
+      }
+   }
+})
 ```

@@ -11,6 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.domain.order
+package me.ahoo.wow.test.dsl
 
-object MainFixtures
+interface NameSpecCapable {
+    fun name(name: String)
+
+    companion object {
+        fun StringBuilder.appendName(name: String) {
+            if (name.isBlank()) {
+                return
+            }
+            append("($name)")
+        }
+    }
+}

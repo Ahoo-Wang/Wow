@@ -11,17 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
 import reactor.core.publisher.Mono
 
-abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
+abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNotifyPredicate {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
     @Volatile
     private var waitingForSignal: WaitSignal? = null
     private fun tryComplete() {
+        if (completed) {
+            return
+        }
         val waitingForSignal = waitingForSignal
         if (processedSignal == null || waitingForSignal == null) {
             return
@@ -29,7 +35,7 @@ abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
         super.complete()
     }
 
-    open fun isWaitingForSignal(signal: WaitSignal): Boolean {
+    override fun shouldNotify(signal: WaitSignal): Boolean {
         return signal.stage == stage
     }
 
@@ -44,15 +50,11 @@ abstract class WaitingForAfterProcessed : AbstractWaitingFor() {
     }
 
     override fun next(signal: WaitSignal) {
-        super.next(signal)
+        nextSignal(signal)
         if (signal.stage == CommandStage.PROCESSED) {
             processedSignal = signal
-            if (!signal.succeeded) {
-                super.complete()
-                return
-            }
         }
-        if (isWaitingForSignal(signal)) {
+        if (shouldNotify(signal)) {
             waitingForSignal = signal
         }
         tryComplete()

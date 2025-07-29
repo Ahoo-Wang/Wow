@@ -2,7 +2,8 @@ package me.ahoo.wow.webflux.wait
 
 import io.mockk.every
 import io.mockk.mockk
-import me.ahoo.wow.command.COMMAND_GATEWAY_FUNCTION
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -24,7 +25,12 @@ class WebClientCommandWaitNotifierTest {
             id = generateGlobalId(),
             commandId = GlobalIdGenerator.generateAsString(),
             stage = CommandStage.SENT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         )
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()
@@ -51,7 +57,12 @@ class WebClientCommandWaitNotifierTest {
             id = generateGlobalId(),
             commandId = "0ToC0Bez003X00Z",
             stage = CommandStage.SENT,
-            function = COMMAND_GATEWAY_FUNCTION,
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         )
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()

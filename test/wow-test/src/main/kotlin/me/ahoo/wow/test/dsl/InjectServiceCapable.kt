@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.test.dsl
 
-class WaitingForSent : WaitingForStage() {
-    override val stage: CommandStage
-        get() = CommandStage.SENT
+import me.ahoo.wow.ioc.ServiceProvider
+
+interface InjectServiceCapable<R> {
+    fun inject(inject: ServiceProvider.() -> Unit): R
 }
