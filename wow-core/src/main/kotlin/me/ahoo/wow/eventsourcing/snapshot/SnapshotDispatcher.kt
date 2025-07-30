@@ -37,7 +37,7 @@ fun NamedAggregate.snapshotFunction(): FunctionInfoData {
         functionKind = FunctionKind.STATE_EVENT,
         contextName = contextName,
         processorName = aggregateName,
-        name = "SaveSnapshot"
+        name = "saveSnapshot"
     )
 }
 
