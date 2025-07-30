@@ -11,28 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait.stage
+package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.isWaitingForFunction
+import me.ahoo.wow.infra.ifNotBlank
 
-abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
-    override val materialized: WaitStrategy.Materialized by lazy {
-        Materialized(
-            stage = stage,
-            contextName = contextName,
-            processorName = processorName,
-            functionName = functionName
-        )
-    }
-
-    override fun isWaitingFor(signal: WaitSignal): Boolean {
-        if (!super.isWaitingFor(signal)) {
+fun <T> T.isWaitingForFunction(function: FunctionInfo): Boolean where T : ProcessorInfo, T : FunctionNameCapable {
+    contextName.ifNotBlank {
+        if (!isSameBoundedContext(function)) {
             return false
         }
-        return this.isWaitingForFunction(signal.function)
     }
+    processorName.ifNotBlank {
+        if (processorName != function.processorName) {
+            return false
+        }
+    }
+
+    functionName.ifNotBlank {
+        return functionName == function.name
+    }
+    return true
 }
