@@ -18,7 +18,7 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_FUNCTION
+import me.ahoo.wow.eventsourcing.snapshot.snapshotFunction
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
@@ -69,7 +69,7 @@ class EventCompensateHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .body(
                 CompensationTarget(
-                    function = SNAPSHOT_FUNCTION
+                    function = MOCK_AGGREGATE_METADATA.snapshotFunction()
                 ).toMono()
             )
         handlerFunction.handle(request)
