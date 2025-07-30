@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.command.wait.chain.WaitingForChain.Companion.extractWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
@@ -42,7 +43,7 @@ fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
 
 fun Header.extractWaitStrategy(): EndpointWaitStrategy? {
     val endpoint = this.extractCommandWaitEndpoint() ?: return null
-    val waitStrategy = this.extractWaitingForStage() ?: return null
+    val waitStrategy = this.extractWaitingForStage() ?: this.extractWaitingForChain() ?: return null
     return EndpointWaitStrategy(endpoint, waitStrategy)
 }
 

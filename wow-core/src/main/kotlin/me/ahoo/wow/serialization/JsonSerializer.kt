@@ -60,11 +60,6 @@ fun <T> String.toObject(objectType: Class<T>): T {
     return JsonSerializer.readValue(this, objectType)
 }
 
-fun <T> String.toList(objectType: Class<T>): List<T> {
-    val listType = JsonSerializer.typeFactory.constructCollectionType(List::class.java, objectType)
-    return JsonSerializer.readValue(this, listType)
-}
-
 fun <T> JsonNode.toObject(objectType: Class<T>): T {
     return JsonSerializer.treeToValue(this, objectType)
 }
@@ -75,9 +70,6 @@ fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T {
 
 inline fun <reified T> String.toObject(): T {
     return toObject(T::class.java)
-}
-inline fun <reified T> String.toList(): List<T> {
-    return toList(T::class.java)
 }
 
 inline fun <reified T> JsonNode.toObject(): T {

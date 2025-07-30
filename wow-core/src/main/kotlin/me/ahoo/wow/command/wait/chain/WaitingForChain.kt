@@ -14,46 +14,42 @@
 package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toList
+import me.ahoo.wow.serialization.toObject
 
-
-interface WaitingForChainNodesCapable {
-    val nodes: List<WaitingNode>
-}
-
-class WaitingForChain(override val nodes: List<WaitingNode>) : WaitingFor(), WaitingForChainNodesCapable {
-    override val materialized: WaitStrategy.Materialized by lazy {
-        Materialized(nodes)
-    }
+class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
 
     override fun next(signal: WaitSignal) {
         TODO("Not yet implemented")
     }
 
     override fun isPreviousSignal(signal: WaitSignal): Boolean {
-        TODO("Not yet implemented")
+        return true
     }
 
 
-    class Materialized(override val nodes: List<WaitingNode>) : WaitStrategy.Materialized,
-        WaitingForChainNodesCapable {
+    class Materialized(
+        override val contextName: String,
+        /**
+         * 首个等待聚合名称
+         */
+        override val aggregateName: String,
+        val nodes: List<WaitingNode>,
+    ) : WaitStrategy.Materialized, NamedAggregate {
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_CHAIN, nodes.toJsonString())
         }
 
         override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return nodes.any { it.stage == processingStage }
+            return true
         }
 
         override fun shouldNotify(signal: WaitSignal): Boolean {
@@ -65,10 +61,7 @@ class WaitingForChain(override val nodes: List<WaitingNode>) : WaitingFor(), Wai
         const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
         fun Header.extractWaitingForChain(): Materialized? {
             val chain = this[COMMAND_WAIT_CHAIN] ?: return null
-            val nodes = chain.toList<WaitingForChainNode>()
-            return Materialized(
-                nodes = nodes
-            )
+            return chain.toObject<Materialized>()
         }
     }
 }

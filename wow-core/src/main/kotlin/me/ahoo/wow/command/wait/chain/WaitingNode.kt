@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.command.wait.chain
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
@@ -20,6 +23,19 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "stage"
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = WaitingNode.Sent::class, name = "SENT"),
+    JsonSubTypes.Type(value = WaitingNode.Processed::class, name = "PROCESSED"),
+    JsonSubTypes.Type(value = WaitingNode.Snapshot::class, name = "SNAPSHOT"),
+    JsonSubTypes.Type(value = WaitingNode.Projected::class, name = "PROJECTED"),
+    JsonSubTypes.Type(value = WaitingNode.EventHandled::class, name = "EVENT_HANDLED"),
+    JsonSubTypes.Type(value = WaitingNode.SagaHandled::class, name = "SAGA_HANDLED")
+)
 interface WaitingNode : CommandStageCapable, NamedBoundedContext {
 
     data class Sent(
@@ -36,8 +52,8 @@ interface WaitingNode : CommandStageCapable, NamedBoundedContext {
 
     data class Processed(
         override val contextName: String,
-        override val processorName: String
-    ) : WaitingNode, ProcessorInfo {
+        override val aggregateName: String
+    ) : WaitingNode, NamedAggregate {
         override val stage: CommandStage
             get() = CommandStage.PROCESSED
     }
@@ -52,11 +68,28 @@ interface WaitingNode : CommandStageCapable, NamedBoundedContext {
 
     data class Projected(
         override val contextName: String,
-        override val aggregateName: String,
         override val processorName: String,
         override val functionName: String
-    ) : WaitingNode, NamedAggregate, {
+    ) : WaitingNode, ProcessorInfo, FunctionNameCapable {
         override val stage: CommandStage
             get() = CommandStage.PROJECTED
+    }
+
+    data class EventHandled(
+        override val contextName: String,
+        override val processorName: String,
+        override val functionName: String
+    ) : WaitingNode, ProcessorInfo, FunctionNameCapable {
+        override val stage: CommandStage
+            get() = CommandStage.EVENT_HANDLED
+    }
+
+    data class SagaHandled(
+        override val contextName: String,
+        override val processorName: String,
+        override val functionName: String
+    ) : WaitingNode, ProcessorInfo, FunctionNameCapable {
+        override val stage: CommandStage
+            get() = CommandStage.SAGA_HANDLED
     }
 }
