@@ -39,8 +39,8 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override val processorName: String = metadata.processorName
     private val processorFunction = FunctionInfoData(
         functionKind = FunctionKind.COMMAND,
-        contextName = metadata.processorName,
-        processorName = metadata.contextName,
+        contextName = metadata.contextName,
+        processorName = metadata.processorName,
         name = "process"
     )
     private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
