@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait.chain
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -37,6 +38,8 @@ import me.ahoo.wow.command.wait.CommandStageCapable
     JsonSubTypes.Type(value = WaitingNode.SagaHandled::class, name = "SAGA_HANDLED")
 )
 interface WaitingNode : CommandStageCapable, NamedBoundedContext {
+    @get:Schema(accessMode = Schema.AccessMode.READ_WRITE)
+    override val stage: CommandStage
 
     data class Sent(
         override val contextName: String,
