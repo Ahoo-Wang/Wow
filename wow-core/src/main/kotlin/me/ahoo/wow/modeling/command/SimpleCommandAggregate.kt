@@ -36,12 +36,12 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         private val log = KotlinLogging.logger {}
     }
 
-    override val processorName: String = metadata.processorName
+    override val processorName: String = SimpleCommandAggregate::class.simpleName!!
     private val processorFunction = FunctionInfoData(
         functionKind = FunctionKind.COMMAND,
-        contextName = metadata.processorName,
-        processorName = metadata.contextName,
-        name = "process"
+        contextName = metadata.contextName,
+        processorName = metadata.processorName,
+        name = SimpleCommandAggregate<*, *>::process.name
     )
     private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)

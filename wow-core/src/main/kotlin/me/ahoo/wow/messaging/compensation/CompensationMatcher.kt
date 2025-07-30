@@ -61,10 +61,10 @@ object CompensationMatcher {
             return true
         }
         val context = this[COMPENSATION_CONTEXT]
-        val processorName = this[COMPENSATION_PROCESSOR]
         if (context != function.contextName) {
             return false
         }
+        val processorName = this[COMPENSATION_PROCESSOR]
         if (processorName != function.processorName) {
             return false
         }
