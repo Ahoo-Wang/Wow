@@ -32,14 +32,13 @@ class AggregateSnapshotDispatcher(
     override val scheduler: Scheduler,
     override val messageFlux: Flux<StateEventExchange<*>>
 ) : AggregateMessageDispatcher<StateEventExchange<*>>(), ProcessorInfo {
-    private val snapshotFunction = namedAggregate.snapshotFunction()
     override val contextName: String
-        get() = snapshotFunction.contextName
+        get() = namedAggregate.contextName
     override val processorName: String
-        get() = snapshotFunction.processorName
+        get() = SNAPSHOT_PROCESSOR_NAME
 
     override fun handleExchange(exchange: StateEventExchange<*>): Mono<Void> {
-        exchange.setFunction(snapshotFunction)
+        exchange.setFunction(SNAPSHOT_FUNCTION)
         return snapshotHandler.handle(exchange)
     }
 
