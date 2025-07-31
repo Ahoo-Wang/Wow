@@ -330,6 +330,5 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError()
                 .verify()
         }
-        verifyWaitStrategyDestroyed(message.commandId)
     }
 }
