@@ -96,7 +96,7 @@ class OpenAPISchemaBuilderTest {
         openAPISchemaBuilder.inline.assert().isFalse()
         openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
-        componentsSchemas.assert().hasSize(6)
+        componentsSchemas.assert().hasSize(7)
     }
 
     @Test
