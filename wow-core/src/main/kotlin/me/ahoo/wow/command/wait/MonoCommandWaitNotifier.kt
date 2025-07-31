@@ -22,8 +22,10 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.saga.stateless.getCommandStream
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 import reactor.core.Exceptions
@@ -93,6 +95,14 @@ class CommandWaitNotifierSubscriber<E, M>(
         actual.onError(exception)
     }
 
+    private fun getCommandSize(): Int {
+        if (processingStage != CommandStage.SAGA_HANDLED) {
+            return 0
+        }
+        val domainEventExchange = messageExchange as DomainEventExchange<*>
+        return domainEventExchange.getCommandStream()?.size ?: 0
+    }
+
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
         val error = errorInfo ?: ErrorInfo.OK
         val functionInfo = messageExchange.getFunction()
@@ -111,7 +121,8 @@ class CommandWaitNotifierSubscriber<E, M>(
             errorCode = error.errorCode,
             errorMsg = error.errorMsg,
             bindingErrors = error.bindingErrors,
-            result = messageExchange.getCommandResult()
+            result = messageExchange.getCommandResult(),
+            commandSize = getCommandSize()
         )
         commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
     }
