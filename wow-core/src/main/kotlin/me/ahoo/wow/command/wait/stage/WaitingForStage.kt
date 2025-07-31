@@ -27,6 +27,9 @@ import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
 
+/**
+ * Single command waiting strategy based on command execution phase
+ */
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
