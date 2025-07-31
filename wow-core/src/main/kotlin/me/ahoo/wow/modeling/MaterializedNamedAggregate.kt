@@ -24,6 +24,7 @@ data class MaterializedNamedAggregate(
     override val contextName: String,
     override val aggregateName: String
 ) : NamedAggregate, Materialized {
+
     @Transient
     private val hashCode = Objects.hash(contextName, aggregateName)
     override fun hashCode(): Int = hashCode

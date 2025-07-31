@@ -140,9 +140,7 @@ class DefaultCommandGateway(
         }.onErrorMap {
             CommandResultException(
                 it.toResult(
-                    commandMessage = command,
-                    contextName = command.contextName,
-                    processorName = command.aggregateName
+                    commandMessage = command
                 ),
                 it
             )

@@ -26,6 +26,7 @@ data class DefaultAggregateId(
     override val id: String,
     override val tenantId: String = TenantId.DEFAULT_TENANT_ID
 ) : AggregateId {
+
     @Transient
     private val hashCode: Int = hash()
     override fun equals(other: Any?): Boolean = equalTo(other)

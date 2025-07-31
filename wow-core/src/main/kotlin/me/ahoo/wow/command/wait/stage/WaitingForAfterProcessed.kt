@@ -44,7 +44,8 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
             signals.forEach { signal ->
                 result.putAll(signal.result)
             }
-            signals.last().copyResult(result)
+            val waitingForSignal = waitingForSignal ?: return@map signals.last().copyResult(result)
+            waitingForSignal.copyResult(result)
         }
     }
 

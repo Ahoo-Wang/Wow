@@ -19,6 +19,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
 import me.ahoo.wow.exception.toErrorInfo
@@ -35,7 +36,7 @@ class MonoCommandWaitNotifier<E, M>(
     private val processingStage: CommandStage,
     private val messageExchange: E,
     private val source: Mono<Void>
-) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val message = messageExchange.message
         val waitStrategy = message.header.extractWaitStrategy() ?: return source.subscribe(actual)
@@ -61,7 +62,7 @@ class CommandWaitNotifierSubscriber<E, M>(
     private val waitStrategy: EndpointWaitStrategy,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
-) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     private val message = messageExchange.message
     private val isLastProjection = if (message is DomainEvent<*>) {
         message.isLast
@@ -103,6 +104,7 @@ class CommandWaitNotifierSubscriber<E, M>(
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
             commandId = messageExchange.message.commandId,
+            aggregateId = messageExchange.message.aggregateId,
             stage = processingStage,
             aggregateVersion = messageExchange.getAggregateVersion(),
             isLastProjection = isLastProjection,
@@ -125,7 +127,7 @@ fun <E : MessageExchange<*, M>, M> Mono<Void>.thenNotifyAndForget(
     commandWaitNotifier: CommandWaitNotifier,
     processingStage: CommandStage,
     messageExchange: E
-): Mono<Void> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+): Mono<Void> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     return MonoCommandWaitNotifier(
         commandWaitNotifier = commandWaitNotifier,
         processingStage = processingStage,

@@ -13,7 +13,16 @@
 
 package me.ahoo.wow.api.modeling
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.naming.NamedBoundedContext
+
+interface AggregateNameCapable {
+    /**
+     * 聚合根的名称
+     */
+    val aggregateName: String
+}
 
 /**
  * 一个在特定上下文中具有唯一名称的聚合根。
@@ -21,9 +30,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
  * @see me.ahoo.wow.command.CommandBus
  * @see me.ahoo.wow.eventsourcing.EventStore
  */
-interface NamedAggregate : NamedBoundedContext {
-    // 聚合根的名称。
-    val aggregateName: String
+interface NamedAggregate : NamedBoundedContext, AggregateNameCapable {
 
     /**
      * 检查两个聚合根是否属于同一个上下文并具有相同的聚合根名称。
@@ -47,9 +54,13 @@ interface NamedAggregateDecorator : NamedAggregate {
      */
     val namedAggregate: NamedAggregate
 
+    @get:Schema(accessMode = Schema.AccessMode.READ_ONLY)
+    @get:JsonIgnore
     override val contextName: String
         get() = namedAggregate.contextName
 
+    @get:Schema(accessMode = Schema.AccessMode.READ_ONLY)
+    @get:JsonIgnore
     override val aggregateName: String
         get() = namedAggregate.aggregateName
 }

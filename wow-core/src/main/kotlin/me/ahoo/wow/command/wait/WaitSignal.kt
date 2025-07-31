@@ -21,6 +21,8 @@ import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoCapable
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.materialize
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.command.CommandResultCapable
 import me.ahoo.wow.exception.ErrorCodes
 
@@ -35,6 +37,7 @@ interface NullableAggregateVersionCapable {
 interface WaitSignal :
     Identifier,
     CommandId,
+    AggregateIdCapable,
     NullableAggregateVersionCapable,
     ErrorInfo,
     SignalTimeCapable,
@@ -48,6 +51,7 @@ interface WaitSignal :
 data class SimpleWaitSignal(
     override val id: String,
     override val commandId: String,
+    override val aggregateId: AggregateId,
     override val stage: CommandStage,
     override val function: FunctionInfoData,
     override val aggregateVersion: Int? = null,
@@ -62,6 +66,7 @@ data class SimpleWaitSignal(
         fun FunctionInfo.toWaitSignal(
             id: String,
             commandId: String,
+            aggregateId: AggregateId,
             stage: CommandStage,
             isLastProjection: Boolean = false,
             aggregateVersion: Int? = null,
@@ -74,6 +79,7 @@ data class SimpleWaitSignal(
             return SimpleWaitSignal(
                 id = id,
                 commandId = commandId,
+                aggregateId = aggregateId,
                 stage = stage,
                 function = this.materialize(),
                 aggregateVersion = aggregateVersion,
