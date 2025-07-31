@@ -76,9 +76,10 @@ class CommandWaitNotifierSubscriber<E, M>(
         return actual.currentContext()
     }
 
-    override fun hookOnNext(value: Void) {
-        // Mono<Void> will not call this method.
-    }
+    /**
+     * Mono<Void> will not call this method.
+     */
+    override fun hookOnNext(value: Void) = Unit
 
     override fun hookOnSubscribe(subscription: Subscription) {
         actual.onSubscribe(this)
