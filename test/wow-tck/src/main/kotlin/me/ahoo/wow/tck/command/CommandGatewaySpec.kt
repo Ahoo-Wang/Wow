@@ -126,6 +126,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
@@ -149,6 +150,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
@@ -171,12 +173,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
@@ -201,12 +205,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
@@ -251,6 +257,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val errorSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = message.commandId,
+            aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = FunctionInfoData(FunctionKind.COMMAND, message.contextName, "", ""),
             errorCode = "ERROR"

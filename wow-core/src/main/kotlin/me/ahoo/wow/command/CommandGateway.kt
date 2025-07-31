@@ -42,6 +42,7 @@ fun CommandMessage<*>.commandSentSignal(error: Throwable? = null): WaitSignal {
     return SimpleWaitSignal(
         id = generateGlobalId(),
         commandId = commandId,
+        aggregateId = aggregateId,
         stage = CommandStage.SENT,
         function = function,
         aggregateVersion = aggregateVersion,
