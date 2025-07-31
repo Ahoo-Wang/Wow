@@ -22,6 +22,7 @@ import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
@@ -55,8 +56,13 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
 
         override fun shouldNotify(signal: WaitSignal): Boolean {
-            // TODO
-            return true
+            if (stage.isPrevious(signal.stage)) {
+                return true
+            }
+            if (stage != signal.stage) {
+                return false
+            }
+            return this.isWaitingForFunction(signal.function)
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {

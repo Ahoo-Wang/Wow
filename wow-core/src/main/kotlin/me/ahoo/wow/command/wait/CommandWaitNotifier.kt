@@ -88,7 +88,7 @@ fun CommandWaitNotifier.notifyAndForget(
     waiteStrategy: EndpointWaitStrategy,
     waitSignal: WaitSignal
 ) {
-    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal.stage)) {
+    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal)) {
         return
     }
     notifyAndForget(waiteStrategy.endpoint, waitSignal)
