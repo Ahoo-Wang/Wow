@@ -47,6 +47,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
 
 abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerCommandExchange<*>, CommandGateway>() {
     override val topicKind: TopicKind
@@ -293,11 +294,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
     }
 
     @Test
-    fun sendAndWaitThenNotify() {
+    fun sendThenNotify() {
         val message = createMessage()
         val waitStrategy = WaitingForStage.sent()
+        val countDownLatch = CountDownLatch(1)
         waitStrategy.onFinally {
             waitStrategyRegistrar.unregister(message.commandId)
+            countDownLatch.countDown()
         }
         waitStrategyRegistrar.register(message.commandId, waitStrategy)
         waitStrategy.propagate("", message.header)
@@ -309,15 +312,18 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .thenAwait(Duration.ofMillis(10))
                 .verifyComplete()
         }
+        countDownLatch.await()
         verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
-    fun sendAndWaitThenNotifyError() {
+    fun sendThenNotifyError() {
         val message = WrongCommandMessage.toCommandMessage()
         val waitStrategy = WaitingForStage.sent()
+        val countDownLatch = CountDownLatch(1)
         waitStrategy.onFinally {
             waitStrategyRegistrar.unregister(message.commandId)
+            countDownLatch.countDown()
         }
         waitStrategyRegistrar.register(message.commandId, waitStrategy)
         waitStrategy.propagate("", message.header)
@@ -330,5 +336,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectError()
                 .verify()
         }
+        countDownLatch.await()
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 }
