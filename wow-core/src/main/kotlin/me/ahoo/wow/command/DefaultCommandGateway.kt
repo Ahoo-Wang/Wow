@@ -140,8 +140,7 @@ class DefaultCommandGateway(
         }.onErrorMap {
             CommandResultException(
                 it.toResult(
-                    commandMessage = command,
-                    function = command.commandGatewayFunction()
+                    commandMessage = command
                 ),
                 it
             )
