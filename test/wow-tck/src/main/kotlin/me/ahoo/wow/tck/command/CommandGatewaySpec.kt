@@ -44,6 +44,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
 import me.ahoo.wow.test.validation.TestValidator
 import org.junit.jupiter.api.Test
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
 
@@ -323,6 +324,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         waitStrategy.waitingLast().subscribe()
         verify {
             send(message)
+                .subscribeOn(Schedulers.parallel())
                 .test()
                 .thenAwait(Duration.ofMillis(10))
                 .expectError()
