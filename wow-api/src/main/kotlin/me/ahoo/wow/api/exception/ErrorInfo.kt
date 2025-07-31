@@ -89,6 +89,17 @@ interface ErrorInfo {
             )
         }
 
+        fun ErrorInfo.toDefault(): DefaultErrorInfo {
+            if (this is DefaultErrorInfo) {
+                return this
+            }
+            return DefaultErrorInfo(
+                errorCode = errorCode,
+                errorMsg = errorMsg,
+                bindingErrors = bindingErrors
+            )
+        }
+
         fun Any?.isFailed(): Boolean {
             return this is ErrorInfo && !succeeded
         }
@@ -105,7 +116,7 @@ interface ErrorInfo {
             errorCode: String,
             errorMsg: String? = null,
             bindingErrors: List<BindingError> = emptyList()
-        ): ErrorInfo = DefaultErrorInfo(errorCode, errorMsg.orEmpty(), bindingErrors)
+        ): DefaultErrorInfo = DefaultErrorInfo(errorCode, errorMsg.orEmpty(), bindingErrors)
     }
 }
 
@@ -131,6 +142,6 @@ data class BindingError(override val name: String, val msg: String) : Named
  */
 data class DefaultErrorInfo(
     override val errorCode: String,
-    override val errorMsg: String,
+    override val errorMsg: String = "",
     override val bindingErrors: List<BindingError> = emptyList()
 ) : ErrorInfo, Materialized
