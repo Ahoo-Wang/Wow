@@ -141,8 +141,7 @@ class DefaultCommandGateway(
             CommandResultException(
                 it.toResult(
                     commandMessage = command,
-                    contextName = command.contextName,
-                    processorName = command.aggregateName
+                    function = command.commandGatewayFunction()
                 ),
                 it
             )

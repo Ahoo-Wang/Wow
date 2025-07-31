@@ -20,6 +20,8 @@ import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -68,6 +70,7 @@ internal class WaitingForStageTest {
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = "commandId",
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
@@ -87,6 +90,7 @@ internal class WaitingForStageTest {
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = "commandId",
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
@@ -106,12 +110,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
@@ -133,6 +139,7 @@ internal class WaitingForStageTest {
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
             errorCode = "ERROR_CODE"
@@ -152,12 +159,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
             function = functionInfo.copy(contextName = contextName),
             isLastProjection = true
@@ -178,12 +187,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
             function = functionInfo.copy(contextName = contextName, processorName = "processor"),
             isLastProjection = true
@@ -204,12 +215,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
             function = functionInfo.copy(contextName = contextName, processorName = "hi"),
             isLastProjection = true
@@ -229,12 +242,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
             function = functionInfo.copy(
                 contextName = contextName,
@@ -259,12 +274,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
             function = functionInfo.copy(contextName = contextName),
             isLastProjection = false
@@ -286,12 +303,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.EVENT_HANDLED,
             function = functionInfo.copy(contextName = contextName),
             isLastProjection = false
@@ -312,12 +331,14 @@ internal class WaitingForStageTest {
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = generateGlobalId(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SAGA_HANDLED,
             function = functionInfo.copy(contextName = contextName)
         )
@@ -341,6 +362,7 @@ internal class WaitingForStageTest {
                     SimpleWaitSignal(
                         id = generateGlobalId(),
                         commandId = generateGlobalId(),
+                        aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                         stage = CommandStage.PROJECTED,
                         function = functionInfo,
                     )

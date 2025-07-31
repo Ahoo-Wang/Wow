@@ -12,7 +12,7 @@ class CommandResultTest {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val actual = IllegalStateException("test").toResult(
             command,
-            processorName = "processorName"
+            command.commandGatewayFunction(),
         )
         actual.id.assert().isNotBlank()
         actual.stage.assert().isEqualTo(CommandStage.SENT)

@@ -19,6 +19,8 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 
 internal class SimpleWaitStrategyRegistrarTest {
@@ -67,6 +69,7 @@ internal class SimpleWaitStrategyRegistrarTest {
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
             commandId = commandId,
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = FunctionInfoData(
                 functionKind = FunctionKind.COMMAND,
