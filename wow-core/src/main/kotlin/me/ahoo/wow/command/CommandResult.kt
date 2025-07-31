@@ -86,7 +86,7 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
 
 fun Throwable.toResult(
     commandMessage: CommandMessage<*>,
-    function: FunctionInfoData,
+    function: FunctionInfoData = COMMAND_GATEWAY_FUNCTION,
     id: String = generateGlobalId(),
     stage: CommandStage = CommandStage.SENT,
     result: Map<String, Any> = emptyMap(),
