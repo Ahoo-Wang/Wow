@@ -309,7 +309,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             send(message)
                 .test()
                 .expectNextCount(0)
-                .thenAwait(Duration.ofMillis(10))
                 .verifyComplete()
         }
         countDownLatch.await()
@@ -332,7 +331,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             send(message)
                 .subscribeOn(Schedulers.parallel())
                 .test()
-                .thenAwait(Duration.ofMillis(10))
                 .expectError()
                 .verify()
         }
