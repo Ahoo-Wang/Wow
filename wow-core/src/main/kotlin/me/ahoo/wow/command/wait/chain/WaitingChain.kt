@@ -13,22 +13,5 @@
 
 package me.ahoo.wow.command.wait.chain
 
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.CommandStageCapable
-import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
-
-data class WaitingNode(
-    override val stage: CommandStage,
-    override val contextName: String,
-    override val aggregateName: String
-) : CommandStageCapable, NamedAggregate, WaitSignalShouldNotifyPredicate {
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-        if (!isSameAggregateName(signal.aggregateId)) {
-            return false
-        }
-        return stage.shouldNotify(signal.stage)
-    }
-
+class WaitingChain {
 }
