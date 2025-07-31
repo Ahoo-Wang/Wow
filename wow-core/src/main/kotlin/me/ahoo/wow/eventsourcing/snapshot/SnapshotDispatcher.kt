@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -32,14 +33,12 @@ import reactor.core.publisher.Flux
 
 internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
 
-fun NamedAggregate.snapshotFunction(): FunctionInfoData {
-    return FunctionInfoData(
-        functionKind = FunctionKind.STATE_EVENT,
-        contextName = contextName,
-        processorName = aggregateName,
-        name = "saveSnapshot"
-    )
-}
+val SNAPSHOT_FUNCTION = FunctionInfoData(
+    functionKind = FunctionKind.STATE_EVENT,
+    contextName = Wow.WOW,
+    processorName = SNAPSHOT_PROCESSOR_NAME,
+    name = "save",
+)
 
 class SnapshotDispatcher(
     /**
@@ -55,13 +54,12 @@ class SnapshotDispatcher(
 ) : AbstractDispatcher<StateEventExchange<*>>(), MessageDispatcher {
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
-        val snapshotFunction = namedAggregate.snapshotFunction()
         return stateEventBus
             .receive(setOf(namedAggregate))
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
             .filterThenAck {
-                it.message.match(snapshotFunction)
+                it.message.match(SNAPSHOT_FUNCTION)
             }
     }
 
