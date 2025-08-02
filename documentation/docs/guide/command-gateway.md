@@ -60,7 +60,9 @@ wow:
 
 ### WaitingForStage
 
-![WaitingForStage](../public/images/wait/WaitingForStage.svg)
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="../public/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
+</p>
 
 `WaitingForStage` 支持的等待信号如下：
 
@@ -93,7 +95,9 @@ commamdGateway.sendAndWaitForProcessed(message)
 
 ### WaitingForChain
 
-![WaitingForChain](../public/images/wait/WaitingForChain.svg)
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
+</p>
 
 ## 验证
 
