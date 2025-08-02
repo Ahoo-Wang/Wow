@@ -30,12 +30,14 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
 ## Architecture
 
 <p align="center" style="text-align:center">
-  <img src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img width="95%" src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ### Command Processing Propagation Chain
 
-![WaitingForChain.gif](documentation/docs/public/images/wait/WaitingForChain.gif)
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+</p>
 
 ## Performance Test (Example)
 

@@ -153,11 +153,17 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 为了解决该问题，*Wow* 集成了 *OpenTelemetry* 以实现系统的端到端可观测性，有助于监控和调试。
 
 <p align="center" style="text-align:center">
-  <img src="../public/images/Features.png" alt="Wow-Features"/>
+  <img width="95%" src="../public/images/Features.png" alt="Wow-Features"/>
 </p>
 
 ## 架构图
 
 <p align="center" style="text-align:center">
-  <img src="../public/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img width="95%" src="../public/images/Architecture.svg" alt="Wow-Architecture"/>
+</p>
+
+### 命令处理传播链
+
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="../public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
 </p>
