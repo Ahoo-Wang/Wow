@@ -33,6 +33,8 @@ Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to
   <img src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
+### Command Processing Propagation Chain
+
 ![WaitingForChain.gif](documentation/docs/public/images/wait/WaitingForChain.gif)
 
 ## Performance Test (Example)
