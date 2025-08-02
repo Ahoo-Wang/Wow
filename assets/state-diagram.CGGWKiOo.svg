@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="us-ascii" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="292px" preserveAspectRatio="none" style="width:1431px;height:292px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 1431 292" width="1431px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="1234" y="9.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="192" x="612.5" y="36.3125">ExecutionFailed State Flow
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              text-decoration="underline" textLength="102" x="657.5" y="52.8008">State Diagram
+        </text>
+        <g id="FAILED">
+            <rect fill="#F1F1F1" height="50" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;" width="67"
+                  x="312" y="159.2539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="312" x2="379" y1="185.7422" y2="185.7422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="47" x="322"
+                  y="177.7891">FAILED
+            </text>
+        </g>
+        <g id="PREPARED">
+            <rect fill="#F1F1F1" height="50" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;" width="90"
+                  x="601.5" y="159.2539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="601.5" x2="691.5" y1="185.7422" y2="185.7422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="70"
+                  x="611.5" y="177.7891">PREPARED
+            </text>
+        </g>
+        <g id="elem_ExecutionStatus">
+            <polygon fill="#F1F1F1" points="887,172.2539,899,184.2539,887,196.2539,875,184.2539,887,172.2539"
+                     style="stroke:#181818;stroke-width:0.5;"/>
+        </g>
+        <g id="SUCCEEDED">
+            <rect fill="#F1F1F1" height="50" rx="12.5" ry="12.5" style="stroke:#181818;stroke-width:0.5;" width="102"
+                  x="1158" y="159.2539"/>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="1158" x2="1260" y1="185.7422" y2="185.7422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82" x="1168"
+                  y="177.7891">SUCCEEDED
+            </text>
+        </g>
+        <g id="COMPLETED">
+            <rect fill="#F1F1F1" height="50" rx="12.5" ry="12.5"
+                  style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,3.0;" width="103" x="1321" y="217.2539"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,3.0;" x1="1321" x2="1424" y1="243.7422"
+                  y2="243.7422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="83" x="1331"
+                  y="235.7891">COMPLETED
+            </text>
+        </g>
+        <ellipse cx="125" cy="184.2539" fill="#222222" rx="10" ry="10" style="stroke:#222222;stroke-width:1.0;"/>
+        <rect fill="#F1F1F1" height="61.4648" style="stroke:#181818;stroke-width:0.5;" width="236" x="7" y="73.7539"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="56.5"
+              y="89.2891">CompletedCategory
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="134" x2="134" y1="94.2422" y2="135.2188"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="7" x2="243" y1="94.2422" y2="94.2422"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82" x="12"
+              y="109.7773">SUCCEEDED
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="139"
+              y="109.7773">Succeeded
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="7" x2="243" y1="114.7305" y2="114.7305"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="117" x="12"
+              y="130.2656">UNRECOVERABLE
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="99" x="139"
+              y="130.2656">Unrecoverable
+        </text><!--link *start* to FAILED-->
+        <g id="link_*start*_FAILED">
+            <path d="M135.39,184.2539 C165.53,184.2539 254.84,184.2539 305.73,184.2539 " fill="none"
+                  id="*start*-to-FAILED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="311.73,184.2539,302.73,180.2539,306.73,184.2539,302.73,188.2539,311.73,184.2539"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link FAILED to PREPARED-->
+        <g id="link_FAILED_PREPARED">
+            <path d="M379.35,184.2539 C433.28,184.2539 534.63,184.2539 595.22,184.2539 " fill="none"
+                  id="FAILED-to-PREPARED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="601.22,184.2539,592.22,180.2539,596.22,184.2539,592.22,188.2539,601.22,184.2539"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="137" x="410"
+                  y="180.8223">PrepareCompensation
+            </text>
+        </g><!--link PREPARED to ExecutionStatus-->
+        <g id="link_PREPARED_ExecutionStatus">
+            <path d="M691.8,184.2539 C748.11,184.2539 835.91,184.2539 868.46,184.2539 " fill="none"
+                  id="PREPARED-to-ExecutionStatus" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="874.46,184.2539,865.46,180.2539,869.46,184.2539,865.46,188.2539,874.46,184.2539"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="49" x="746"
+                  y="180.8223">Execute
+            </text>
+        </g><!--link ExecutionStatus to FAILED-->
+        <g id="link_ExecutionStatus_FAILED">
+            <path d="M877.61,181.3139 C853.02,172.8939 778.85,148.8839 715,142.2539 C579.52,128.1939 541.29,126.8239 409,159.2539 C399.13,161.6739 394.3068,163.0954 384.9068,166.8754 "
+                  fill="none" id="ExecutionStatus-to-FAILED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="379.34,169.1139,389.1825,169.4673,383.979,167.2484,386.1978,162.0449,379.34,169.1139"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="135" x="579"
+                  y="128.8223">ApplyExecutionFailed
+            </text>
+        </g><!--link ExecutionStatus to SUCCEEDED-->
+        <g id="link_ExecutionStatus_SUCCEEDED">
+            <path d="M899.39,184.2539 C940.25,184.2539 1075.1,184.2539 1151.6,184.2539 " fill="none"
+                  id="ExecutionStatus-to-SUCCEEDED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="1157.6,184.2539,1148.6,180.2539,1152.6,184.2539,1148.6,188.2539,1157.6,184.2539"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="148" x="979"
+                  y="180.8223">ApplyExecutionSuccess
+            </text>
+        </g><!--link SUCCEEDED to COMPLETED-->
+        <g id="link_SUCCEEDED_COMPLETED">
+            <path d="M1260.21,202.2839 C1279.47,209.2039 1295.8036,215.0646 1315.1136,222.0046 " fill="none"
+                  id="SUCCEEDED-to-COMPLETED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="1320.76,224.0339,1313.6433,217.2257,1316.0547,222.3428,1310.9375,224.7542,1320.76,224.0339"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--link FAILED to COMPLETED-->
+        <g id="link_FAILED_COMPLETED">
+            <path d="M379.4,198.7439 C433.7,221.3039 545.98,262.2539 645.5,262.2539 C645.5,262.2539 645.5,262.2539 1210,262.2539 C1247.29,262.2539 1283.1476,257.8958 1314.8576,252.7458 "
+                  fill="none" id="FAILED-to-COMPLETED" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="#181818"
+                     points="1320.78,251.7839,1311.2552,249.2784,1315.8447,252.5855,1312.5376,257.175,1320.78,251.7839"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="120" x="827"
+                  y="258.8223">MarkUnrecoverable
+            </text>
+        </g>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="617" y="281.9219">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--SRC=[RL7BJiCm4BplLopXXcW_85ILGk9AI2sDKie5LP69bzRWsf7Z01NYtychfbIShDsTcTqPNqXTg5eGAdumjHkNzLu1A7fnw0nQkTqv5D9IuQJH04uwHS0-gQZRnenBHG9NZZl2cJ8VaETzaKY-jNoVvq1QO4-3giT5TtEM34MQiJJAVEcLMvMwmicas1bPq7Gw05RhE6OiyOHukKZdx84bUAcafh4mpf6u0NYwsk1eD3rkW_xjMiUT8QQMIcufDlkITCKxZyTf1psx9nmQ9n4CX_wk2Z4gItKuo-XVWZTppbdLHK5L1HxGmRtNKpE-6UA2sxUrRlxAl9FbpstYhvNHsDfJrCGIDubjZJtW5o1YuDM3CEWsaY0HN7UpzNt6ukKZowBREMlcVtG3-8OV]-->
+    </g>
+</svg>
