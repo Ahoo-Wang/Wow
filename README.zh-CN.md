@@ -41,6 +41,10 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
   <img src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
+### 命令处理传播链
+
+![WaitingForChain.gif](documentation/docs/public/images/wait/WaitingForChain.gif)
+
 ## 背景
 
 随着业务的发展和复杂性的增加，传统的架构和开发方式逐渐显露出瓶颈。*领域驱动设计*和*事件溯源*等理念在提高系统设计的灵活性和可维护性方面表现出色，但在实践中常常需要面对复杂性和学习曲线的挑战。
@@ -91,6 +95,8 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 然而，有时1秒无法完成同步，这就导致用户获取的数据变得**无效**。
 
 使用 _Wow_ 框架，你可以通过等待 _PROJECTED_ 信号完成，然后再将结果返回给用户，以更为优雅和高效的方式处理数据同步延迟的问题。
+
+![WaitingForStage.gif](documentation/docs/public/images/wait/WaitingForStage.gif)
 
 ### 工程质量
 
