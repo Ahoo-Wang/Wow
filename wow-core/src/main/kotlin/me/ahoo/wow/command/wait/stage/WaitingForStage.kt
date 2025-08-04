@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionNameCapable
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
@@ -66,6 +68,10 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
                 return false
             }
             return this.isWaitingForFunction(signal.function)
+        }
+
+        override fun shouldPropagate(upstream: Message<*, *>): Boolean {
+            return upstream !is CommandMessage<*>
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
