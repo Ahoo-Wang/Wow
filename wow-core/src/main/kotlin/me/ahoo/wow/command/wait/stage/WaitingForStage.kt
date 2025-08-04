@@ -71,7 +71,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
 
         override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-            return upstream !is CommandMessage<*>
+            return upstream is CommandMessage<*>
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
