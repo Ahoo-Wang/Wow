@@ -13,17 +13,15 @@
 
 package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.extractWaitStrategy
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 
 class WaitStrategyMessagePropagator : MessagePropagator {
     override fun propagate(header: Header, upstream: Message<*, *>) {
         val upstreamHeader = upstream.header
         val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
-        if (waitStrategy.waitStrategy is WaitingForStage.Materialized && upstream !is CommandMessage<*>) {
+        if (!waitStrategy.waitStrategy.shouldPropagate(upstream)) {
             return
         }
         waitStrategy.waitStrategy.propagate(waitStrategy.endpoint, header)
