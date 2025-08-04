@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
@@ -37,6 +38,11 @@ class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
     class Materialized(
         val nodes: List<WaitingNode>,
     ) : WaitStrategy.Materialized {
+
+        override fun shouldPropagate(upstream: Message<*, *>): Boolean {
+            TODO("Not yet implemented")
+        }
+
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_CHAIN, nodes.toJsonString())
