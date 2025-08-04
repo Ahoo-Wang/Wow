@@ -14,12 +14,35 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import java.util.function.Consumer
 
+/**
+ * 等待策略传播器接口
+ *
+ * 定义了命令等待策略中关于传播行为的抽象方法，用于控制命令处理结果的传播逻辑。
+ */
 interface WaitStrategyPropagator {
+
+    /**
+     * 判断是否应该传播指定的消息
+     *
+     * @param upstream 上游消息对象，包含命令或事件的相关信息
+     * @return 如果应该传播该消息则返回 true，否则返回 false
+     */
+    fun shouldPropagate(upstream: Message<*, *>): Boolean
+
+    /**
+     * 执行传播操作
+     *
+     * 将命令处理结果传播到指定的等待端点
+     *
+     * @param commandWaitEndpoint 命令等待端点地址
+     * @param header 消息头信息，包含元数据和上下文信息
+     */
     fun propagate(commandWaitEndpoint: String, header: Header)
 }
 
@@ -53,6 +76,10 @@ interface WaitStrategy : WaitStrategyPropagator {
     fun complete()
 
     fun onFinally(doFinally: Consumer<SignalType>)
+    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
+        return materialized.shouldPropagate(upstream)
+    }
+
     override fun propagate(commandWaitEndpoint: String, header: Header) {
         materialized.propagate(commandWaitEndpoint, header)
     }
