@@ -83,6 +83,9 @@ class StatelessSagaFunction(
             .requestIdIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
             .upstream(domainEvent)
+            .header {
+                it.propagate(domainEvent)
+            }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
     }
