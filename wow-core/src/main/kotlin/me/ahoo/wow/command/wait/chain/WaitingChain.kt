@@ -39,7 +39,9 @@ import me.ahoo.wow.serialization.toJsonString
     JsonSubTypes.Type(value = SimpleWaitingChain::class, name = SimpleWaitingChain.TYPE),
     JsonSubTypes.Type(value = WaitingTailNode::class, name = WaitingTailNode.TYPE),
 )
-interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredicate,
+interface WaitingChain :
+    CommandStageCapable,
+    ProcessingStageShouldNotifyPredicate,
     WaitSignalShouldNotifyPredicate,
     NullableFunctionInfoCapable<NamedFunctionInfoData>,
     WaitStrategy.Materialized {
@@ -71,5 +73,4 @@ interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredica
         }
         return this.function.isWaitingForFunction(signal.function)
     }
-
 }

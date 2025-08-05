@@ -58,9 +58,7 @@ class SimpleWaitingChain(
         }
         return this.function.isWaitingForFunction(signal.function)
     }
-
 }
-
 
 class WaitingTailNode(
     override val id: String,
