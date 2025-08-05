@@ -22,7 +22,7 @@ import me.ahoo.wow.command.wait.isWaitingForFunction
 abstract class WaitingForFunction : WaitingForAfterProcessed(), NullableFunctionInfoCapable<NamedFunctionInfoData> {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
-            id = id,
+            waitCommandId = waitCommandId,
             stage = stage,
             function = function
         )

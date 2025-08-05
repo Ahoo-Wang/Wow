@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 
-class WaitingForSnapshot(override val id: String) : WaitingForAfterProcessed() {
+class WaitingForSnapshot(override val waitCommandId: String) : WaitingForAfterProcessed() {
     override val stage: CommandStage
         get() = CommandStage.SNAPSHOT
 }

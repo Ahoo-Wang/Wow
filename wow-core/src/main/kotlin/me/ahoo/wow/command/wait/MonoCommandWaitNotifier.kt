@@ -61,7 +61,7 @@ class MonoCommandWaitNotifier<E, M>(
 class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
-    private val waitStrategy: EndpointWaitStrategy,
+    private val waitStrategy: ExtractedWaitStrategy,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
 ) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
@@ -114,7 +114,7 @@ class CommandWaitNotifierSubscriber<E, M>(
 
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
-            commandWaitId = waitStrategy.waitStrategy.id,
+            waitCommandId = waitStrategy.waitStrategy.waitCommandId,
             commandId = messageExchange.message.commandId,
             aggregateId = messageExchange.message.aggregateId,
             stage = processingStage,

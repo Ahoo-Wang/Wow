@@ -38,7 +38,7 @@ internal class WaitingForStageTest {
 
     @Test
     fun processedInject() {
-        val waitStrategy = WaitingForStage.projected("content", "processor", "function")
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), "content", "processor", "function")
         val header = DefaultHeader()
         waitStrategy.propagate("endpoint", header)
         val waitStrategyInfo = header.extractWaitingForStage()
@@ -64,12 +64,12 @@ internal class WaitingForStageTest {
 
     @Test
     fun processed() {
-        val waitStrategy = WaitingForStage.stage("PROCESSED", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         waitStrategy.cancelled.assert().isEqualTo(false)
         waitStrategy.terminated.assert().isEqualTo(false)
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -87,10 +87,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun processedIfSnapshot() {
-        val waitStrategy = WaitingForStage.stage("PROCESSED", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SNAPSHOT,
@@ -108,10 +108,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun snapshot() {
-        val waitStrategy = WaitingForStage.stage("SNAPSHOT", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SNAPSHOT", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -119,7 +119,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SNAPSHOT,
@@ -139,10 +139,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun snapshotFailFast() {
-        val waitStrategy = WaitingForStage.snapshot()
+        val waitStrategy = WaitingForStage.snapshot(generateGlobalId())
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -160,10 +160,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun projected() {
-        val waitStrategy = WaitingForStage.stage("PROJECTED", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROJECTED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -171,7 +171,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
@@ -190,10 +190,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForProjectedProcessor() {
-        val waitStrategy = WaitingForStage.projected(contextName, "processor")
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName, "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -201,7 +201,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
@@ -220,10 +220,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForProjectedProcessorNotEq() {
-        val waitStrategy = WaitingForStage.projected(contextName, "processor")
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -231,7 +231,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
@@ -249,10 +249,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForProjectedFunction() {
-        val waitStrategy = WaitingForStage.projected(contextName, "processor", "function")
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName, "processor", "function")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -260,7 +260,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
@@ -283,10 +283,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForProjectedWhenNotLast() {
-        val waitStrategy = WaitingForStage.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -294,7 +294,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROJECTED,
@@ -314,10 +314,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForEventHandled() {
-        val waitStrategy = WaitingForStage.stage("EVENT_HANDLED", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "EVENT_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -325,7 +325,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.EVENT_HANDLED,
@@ -344,10 +344,10 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForSagaHandled() {
-        val waitStrategy = WaitingForStage.stage("SAGA_HANDLED", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SAGA_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
@@ -355,7 +355,7 @@ internal class WaitingForStageTest {
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = generateGlobalId(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SAGA_HANDLED,
@@ -373,14 +373,14 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingWhenNoMatchedContext() {
-        val waitStrategy = WaitingForStage.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.waitingLast()
             .test()
             .consumeSubscriptionWith {
                 waitStrategy.next(
                     SimpleWaitSignal(
                         id = generateGlobalId(),
-                        commandWaitId = waitStrategy.id,
+                        waitCommandId = waitStrategy.waitCommandId,
                         commandId = generateGlobalId(),
                         aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                         stage = CommandStage.PROJECTED,
@@ -395,7 +395,7 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingWhenError() {
-        val waitStrategy = WaitingForStage.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
             .test()
@@ -405,7 +405,7 @@ internal class WaitingForStageTest {
 
     @Test
     fun waitingForSent() {
-        val waitStrategy = WaitingForStage.stage("SENT", contextName)
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SENT", contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
             .test()
@@ -415,7 +415,7 @@ internal class WaitingForStageTest {
 
     @Test
     fun doFinallyError() {
-        val waitStrategy = WaitingForStage.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.onFinally {
             throw IllegalArgumentException()
         }
@@ -428,7 +428,7 @@ internal class WaitingForStageTest {
 
     @Test
     fun doFinallySetTwice() {
-        val waitStrategy = WaitingForStage.projected(contextName)
+        val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.onFinally {
         }
         Assertions.assertThrows(IllegalStateException::class.java) {

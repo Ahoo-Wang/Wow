@@ -27,7 +27,7 @@ class SagaHandledNotifierFilterTest {
             MOCK_AGGREGATE_METADATA.aggregateId(),
             generateGlobalId()
         ) as DomainEvent<Any>
-        WaitingForStage.sagaHandled(domainEvent.contextName).propagate("", domainEvent.header)
+        WaitingForStage.sagaHandled(domainEvent.commandId, domainEvent.contextName).propagate("", domainEvent.header)
         val exchange = SimpleDomainEventExchange(domainEvent)
         val commandMessage = MockCreateAggregate(generateGlobalId(), generateGlobalId()).toCommandMessage()
         val commandStream = DefaultCommandStream(generateGlobalId(), listOf(commandMessage))
