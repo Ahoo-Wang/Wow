@@ -19,7 +19,7 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.serialization.toObject
 
-class WaitingForChain(override val materialized: WaitingChain) : WaitingFor() {
+class SimpleWaitingForChain(override val materialized: SimpleWaitingChain) : WaitingFor() {
 
     override fun next(signal: WaitSignal) {
         TODO("Not yet implemented")
@@ -31,9 +31,9 @@ class WaitingForChain(override val materialized: WaitingChain) : WaitingFor() {
 
     companion object {
         const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
-        fun Header.extractWaitingForChain(): WaitingChain? {
+        fun Header.extractWaitingForChain(): SimpleWaitingChain? {
             val chain = this[COMMAND_WAIT_CHAIN] ?: return null
-            return chain.toObject<WaitingChain>()
+            return chain.toObject<SimpleWaitingChain>()
         }
     }
 }
