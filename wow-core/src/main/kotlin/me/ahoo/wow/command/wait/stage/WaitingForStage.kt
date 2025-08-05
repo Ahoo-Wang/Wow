@@ -13,9 +13,7 @@
 
 package me.ahoo.wow.command.wait.stage
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
@@ -24,7 +22,6 @@ import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.command.wait.propagateCommandWaitId
@@ -72,14 +69,6 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
                 return false
             }
             return this.function.isWaitingForFunction(signal.function)
-        }
-
-        override fun propagate(header: Header, upstream: Message<*, *>) {
-            if (upstream !is CommandMessage<*>) {
-                return
-            }
-            val commandWaitEndpoint = upstream.header.extractCommandWaitEndpoint() ?: return
-            propagate(commandWaitEndpoint, header)
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {

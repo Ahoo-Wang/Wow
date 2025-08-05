@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.Identifier
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.CompletedCapable
@@ -39,6 +40,14 @@ interface WaitStrategyPropagator : Identifier, MessagePropagator {
      * @param header 消息头信息，包含元数据和上下文信息
      */
     fun propagate(commandWaitEndpoint: String, header: Header)
+
+    override fun propagate(header: Header, upstream: Message<*, *>) {
+        if (upstream !is CommandMessage<*>) {
+            return
+        }
+        val commandWaitEndpoint = upstream.header.extractCommandWaitEndpoint() ?: return
+        propagate(commandWaitEndpoint, header)
+    }
 }
 
 /**
