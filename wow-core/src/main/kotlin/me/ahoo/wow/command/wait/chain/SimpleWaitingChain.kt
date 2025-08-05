@@ -15,7 +15,6 @@ package me.ahoo.wow.command.wait.chain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
@@ -35,10 +34,6 @@ class SimpleWaitingChain(
 
     @field:JsonIgnore
     override val stage: CommandStage = CommandStage.SAGA_HANDLED
-
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return true
-    }
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
         header.propagateCommandWaitEndpoint(commandWaitEndpoint)
@@ -68,10 +63,6 @@ class WaitingTailNode(
 
     @field:JsonIgnore
     override val next: WaitingChain? = null
-
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return false
-    }
 
     companion object {
         const val TYPE = "tail"

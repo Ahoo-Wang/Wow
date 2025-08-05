@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.CommandStage
@@ -26,6 +27,7 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain.Companion.COMMAND_WAIT_CHAIN
+import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.serialization.toJsonString
@@ -58,6 +60,11 @@ interface WaitingChain :
     override fun propagate(commandWaitEndpoint: String, header: Header) {
         header.propagateCommandWaitEndpoint(commandWaitEndpoint)
             .with(COMMAND_WAIT_CHAIN, this.toJsonString())
+    }
+
+    override fun propagate(header: Header, upstream: Message<*, *>) {
+        val commandWaitEndpoint = upstream.header.extractCommandWaitEndpoint() ?: return
+        propagate(commandWaitEndpoint, header)
     }
 
     override fun shouldNotify(processingStage: CommandStage): Boolean {
