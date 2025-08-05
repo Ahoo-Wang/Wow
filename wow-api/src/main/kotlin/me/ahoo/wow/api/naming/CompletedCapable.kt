@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.models.common
+package me.ahoo.wow.api.naming
 
-interface CompletedCapable : me.ahoo.wow.api.naming.CompletedCapable
+interface CompletedCapable {
+    val completed: Boolean
+}
