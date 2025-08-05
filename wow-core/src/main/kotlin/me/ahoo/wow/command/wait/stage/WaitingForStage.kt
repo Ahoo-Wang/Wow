@@ -16,8 +16,8 @@ package me.ahoo.wow.command.wait.stage
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
@@ -52,10 +52,8 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
     data class Materialized(
         override val stage: CommandStage,
-        override val contextName: String = "",
-        override val processorName: String = "",
-        override val functionName: String = ""
-    ) : WaitStrategy.Materialized, CommandStageCapable, ProcessorInfo, FunctionNameCapable {
+        override val function: NamedFunctionInfoData? = null
+    ) : WaitStrategy.Materialized, CommandStageCapable, NullableFunctionInfoCapable<NamedFunctionInfoData> {
         override fun shouldNotify(processingStage: CommandStage): Boolean {
             return stage.shouldNotify(processingStage)
         }
@@ -67,7 +65,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             if (stage != signal.stage) {
                 return false
             }
-            return this.isWaitingForFunction(signal.function)
+            return this.function.isWaitingForFunction(signal.function)
         }
 
         override fun shouldPropagate(upstream: Message<*, *>): Boolean {
@@ -77,17 +75,15 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_STAGE, stage.name)
-            contextName.ifNotBlank {
-                header.with(COMMAND_WAIT_CONTEXT, contextName)
+            val function = function ?: return
+            function.contextName.ifNotBlank {
+                header.with(COMMAND_WAIT_CONTEXT, it)
             }
-            processorName.ifNotBlank {
-                header.with(COMMAND_WAIT_PROCESSOR, processorName)
+            function.processorName.ifNotBlank {
+                header.with(COMMAND_WAIT_PROCESSOR, it)
             }
-            functionName.ifNotBlank {
-                header.with(COMMAND_WAIT_FUNCTION, functionName)
-            }
-            functionName.ifNotBlank {
-                header.with(COMMAND_WAIT_FUNCTION, functionName)
+            function.name.ifNotBlank {
+                header.with(COMMAND_WAIT_FUNCTION, it)
             }
         }
     }
@@ -104,9 +100,11 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
             return Materialized(
                 stage = CommandStage.valueOf(stage),
-                contextName = context,
-                processorName = processor,
-                functionName = function
+                function = NamedFunctionInfoData(
+                    contextName = context,
+                    processorName = processor,
+                    name = function
+                )
             )
         }
 
@@ -117,23 +115,29 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
         fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
             WaitingForProjected(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
             )
 
         fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
             WaitingForEventHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
             )
 
         fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
             WaitingForSagaHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
             )
 
         fun stage(

@@ -14,11 +14,13 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.function.FunctionInfo
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfo
 import me.ahoo.wow.infra.ifNotBlank
 
-fun <T> T.isWaitingForFunction(function: FunctionInfo): Boolean where T : ProcessorInfo, T : FunctionNameCapable {
+fun NamedFunctionInfo?.isWaitingForFunction(function: FunctionInfo): Boolean {
+    if (this == null) {
+        return true
+    }
     contextName.ifNotBlank {
         if (!isSameBoundedContext(function)) {
             return false
@@ -30,8 +32,8 @@ fun <T> T.isWaitingForFunction(function: FunctionInfo): Boolean where T : Proces
         }
     }
 
-    functionName.ifNotBlank {
-        return functionName == function.name
+    name.ifNotBlank {
+        return name == function.name
     }
     return true
 }
