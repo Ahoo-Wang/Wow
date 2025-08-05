@@ -46,6 +46,8 @@ interface WaitingChain : CompletedCapable, CommandStageCapable, ProcessingStageS
     WaitSignalShouldNotifyPredicate,
     NullableFunctionInfoCapable<NamedFunctionInfoData>,
     WaitStrategy.Materialized {
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val next: WaitingChain?
 
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     override val function: NamedFunctionInfoData?
@@ -76,7 +78,7 @@ interface WaitingChain : CompletedCapable, CommandStageCapable, ProcessingStageS
 }
 
 class WaitingSagaNode(
-    val next: WaitingChain,
+    override val next: WaitingChain,
     override val function: NamedFunctionInfoData? = null
 ) : WaitingChain {
     @field:JsonIgnore
@@ -100,6 +102,7 @@ class WaitingTailNode(
     override val function: NamedFunctionInfoData? = null
 ) : WaitingChain {
 
+    override val next: WaitingChain? = null
     override fun shouldPropagate(upstream: Message<*, *>): Boolean {
         return false
     }
