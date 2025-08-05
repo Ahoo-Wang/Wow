@@ -25,6 +25,8 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 
 class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
+    override val id: String
+        get() = materialized.id
 
     override fun next(signal: WaitSignal) {
         TODO("Not yet implemented")
@@ -36,24 +38,25 @@ class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
 
 
     class Materialized(
-        val waitingNode: WaitingNode
+        override val id: String,
+        val chain: WaitingChain
     ) : WaitStrategy.Materialized {
 
         override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-            TODO("Not yet implemented")
+            return true
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
-                .with(COMMAND_WAIT_CHAIN, waitingNode.toJsonString())
+                .with(COMMAND_WAIT_CHAIN, this.toJsonString())
         }
 
         override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return true
+            return chain.shouldNotify(processingStage)
         }
 
         override fun shouldNotify(signal: WaitSignal): Boolean {
-            return nodes.any { it.shouldNotify(signal) }
+            return chain.shouldNotify(signal)
         }
     }
 

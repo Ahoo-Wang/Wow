@@ -13,5 +13,70 @@
 
 package me.ahoo.wow.command.wait.chain
 
-class WaitingChain {
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import me.ahoo.wow.api.command.CommandId
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandStageCapable
+import me.ahoo.wow.command.wait.ProcessingStageShouldNotifyPredicate
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
+import me.ahoo.wow.command.wait.isWaitingForFunction
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = WaitingChain.TYPE
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = WaitingSagaNode::class, name = WaitingSagaNode.TYPE),
+    JsonSubTypes.Type(value = WaitingTailNode::class, name = WaitingTailNode.TYPE),
+)
+interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredicate,
+    WaitSignalShouldNotifyPredicate,
+    NullableFunctionInfoCapable<NamedFunctionInfoData>,
+    me.ahoo.wow.api.naming.Materialized {
+    companion object {
+        const val TYPE = "type"
+    }
+
+    override fun shouldNotify(processingStage: CommandStage): Boolean {
+        return stage.shouldNotify(processingStage)
+    }
+
+    override fun shouldNotify(signal: WaitSignal): Boolean {
+        if (stage.isPrevious(signal.stage)) {
+            return true
+        }
+        if (stage != signal.stage) {
+            return false
+        }
+        return this.function.isWaitingForFunction(signal.function)
+    }
+
+}
+
+class WaitingSagaNode(
+
+    override val function: NamedFunctionInfoData? = null,
+    val children: List<WaitingChain> = listOf()
+) : WaitingChain {
+    override val stage: CommandStage = CommandStage.SAGA_HANDLED
+
+    companion object {
+        const val TYPE = "saga"
+    }
+}
+
+class WaitingTailNode(
+
+    override val stage: CommandStage,
+    override val function: NamedFunctionInfoData? = null
+) : WaitingChain {
+
+    companion object {
+        const val TYPE = "tail"
+    }
 }
