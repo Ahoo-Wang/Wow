@@ -44,9 +44,9 @@ internal class WaitingForStageTest {
         val waitStrategyInfo = header.extractWaitingForStage()
         waitStrategyInfo.assert().isNotNull()
         waitStrategyInfo!!.stage.assert().isEqualTo(CommandStage.PROJECTED)
-        waitStrategyInfo.contextName.assert().isEqualTo("content")
-        waitStrategyInfo.processorName.assert().isEqualTo("processor")
-        waitStrategyInfo.functionName.assert().isEqualTo("function")
+        waitStrategyInfo.function?.contextName.assert().isEqualTo("content")
+        waitStrategyInfo.function?.processorName.assert().isEqualTo("processor")
+        waitStrategyInfo.function?.name.assert().isEqualTo("function")
     }
 
     @Test
