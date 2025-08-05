@@ -24,6 +24,7 @@ class CommandWaitHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(
                 id = generateGlobalId(),
+                commandWaitId = generateGlobalId(),
                 commandId = "commandId",
                 aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
