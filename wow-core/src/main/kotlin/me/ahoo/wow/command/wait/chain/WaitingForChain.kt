@@ -36,7 +36,7 @@ class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
 
 
     class Materialized(
-        val nodes: List<WaitingNode>,
+        val waitingNode: WaitingNode
     ) : WaitStrategy.Materialized {
 
         override fun shouldPropagate(upstream: Message<*, *>): Boolean {
@@ -45,7 +45,7 @@ class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
-                .with(COMMAND_WAIT_CHAIN, nodes.toJsonString())
+                .with(COMMAND_WAIT_CHAIN, waitingNode.toJsonString())
         }
 
         override fun shouldNotify(processingStage: CommandStage): Boolean {

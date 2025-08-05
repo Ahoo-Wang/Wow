@@ -16,22 +16,31 @@ package me.ahoo.wow.api.messaging.function
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.naming.Named
 
-interface FunctionInfo : ProcessorInfo, FunctionKindCapable, Named {
-
+interface SmallFunctionInfo : ProcessorInfo, Named {
     /**
      * The name of the function.
      *
      * Under the same processor, the name is unique.
      */
     override val name: String
+}
+
+data class SmallFunctionInfoData(
+    override val processorName: String,
+    override val contextName: String,
+    override val name: String
+) : SmallFunctionInfo
+
+interface FunctionInfo : SmallFunctionInfo, FunctionKindCapable {
+
 
     /**
      * Is Same Function
      */
     fun isSameFunction(functionInfo: FunctionInfo): Boolean {
         return this.functionKind == functionInfo.functionKind &&
-            this.processorName == functionInfo.processorName &&
-            this.contextName == functionInfo.contextName &&
-            this.name == functionInfo.name
+                this.processorName == functionInfo.processorName &&
+                this.contextName == functionInfo.contextName &&
+                this.name == functionInfo.name
     }
 }
