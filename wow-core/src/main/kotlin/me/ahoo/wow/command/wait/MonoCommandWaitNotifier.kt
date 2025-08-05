@@ -96,12 +96,12 @@ class CommandWaitNotifierSubscriber<E, M>(
         actual.onError(exception)
     }
 
-    private fun getCommandSize(): Int {
+    private fun getCommands(): List<String> {
         if (processingStage != CommandStage.SAGA_HANDLED) {
-            return 0
+            return emptyList()
         }
         val domainEventExchange = messageExchange as DomainEventExchange<*>
-        return domainEventExchange.getCommandStream()?.size ?: 0
+        return domainEventExchange.getCommandStream()?.map { it.commandId }.orEmpty()
     }
 
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
@@ -123,7 +123,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             errorMsg = error.errorMsg,
             bindingErrors = error.bindingErrors,
             result = messageExchange.getCommandResult(),
-            commandSize = getCommandSize()
+            commands = getCommands()
         )
         commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
     }

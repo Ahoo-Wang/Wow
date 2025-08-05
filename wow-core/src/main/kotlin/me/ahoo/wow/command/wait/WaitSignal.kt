@@ -47,9 +47,9 @@ interface WaitSignal :
     val isLastProjection: Boolean
 
     /**
-     * Number of commands emit by Saga
+     * List of command IDs sent by Saga
      */
-    val commandSize: Int
+    val commands: List<String>
 
     fun copyResult(result: Map<String, Any>): WaitSignal
 }
@@ -66,7 +66,7 @@ data class SimpleWaitSignal(
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
-    override val commandSize: Int = 0,
+    override val commands: List<String> = listOf(),
     override val signalTime: Long = System.currentTimeMillis()
 ) : WaitSignal {
     companion object {
@@ -81,7 +81,7 @@ data class SimpleWaitSignal(
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
             bindingErrors: List<BindingError> = emptyList(),
             result: Map<String, Any> = emptyMap(),
-            commandSize: Int = 0,
+            commands: List<String> = listOf(),
             signalTime: Long = System.currentTimeMillis()
         ): WaitSignal {
             return SimpleWaitSignal(
@@ -96,7 +96,7 @@ data class SimpleWaitSignal(
                 errorMsg = errorMsg,
                 bindingErrors = bindingErrors,
                 result = result,
-                commandSize = commandSize,
+                commands = commands,
                 signalTime = signalTime
             )
         }
