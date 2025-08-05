@@ -11,9 +11,8 @@ class CommandResultTest {
     fun throwableAsResult() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val actual = IllegalStateException("test").toResult(
-            commandWaitId = generateGlobalId(),
-            commandMessage = command,
-            function = COMMAND_GATEWAY_FUNCTION
+            command,
+            COMMAND_GATEWAY_FUNCTION
         )
         actual.id.assert().isNotBlank()
         actual.stage.assert().isEqualTo(CommandStage.SENT)

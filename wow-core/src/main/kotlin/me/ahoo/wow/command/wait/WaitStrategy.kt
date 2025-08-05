@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.CompletedCapable
@@ -27,7 +26,7 @@ import java.util.function.Consumer
  *
  * 定义了命令等待策略中关于传播行为的抽象方法，用于控制命令处理结果的传播逻辑。
  */
-interface WaitStrategyPropagator : Identifier {
+interface WaitStrategyPropagator {
 
     /**
      * 判断是否应该传播指定的消息
@@ -58,7 +57,6 @@ interface WaitStrategy : WaitStrategyPropagator, CompletedCapable {
     override val completed: Boolean
         get() = terminated || cancelled
     val materialized: Materialized
-    override val id: String
 
     /**
      * 是否支持虚空命令
@@ -88,7 +86,6 @@ interface WaitStrategy : WaitStrategyPropagator, CompletedCapable {
     }
 
     interface Materialized :
-        Identifier,
         WaitStrategyPropagator,
         ProcessingStageShouldNotifyPredicate,
         WaitSignalShouldNotifyPredicate,

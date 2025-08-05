@@ -17,7 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.isLocalWaitStrategy
+import me.ahoo.wow.command.wait.isLocalCommand
 import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
@@ -33,7 +33,7 @@ class WebClientCommandWaitNotifier(
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.defer {
-            if (isLocalWaitStrategy(waitSignal.id)) {
+            if (isLocalCommand(waitSignal.commandId)) {
                 log.debug {
                     "Notify Local - waitSignal: $waitSignal."
                 }
