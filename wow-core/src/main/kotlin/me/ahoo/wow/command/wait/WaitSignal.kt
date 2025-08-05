@@ -36,7 +36,7 @@ interface NullableAggregateVersionCapable {
 
 interface WaitSignal :
     Identifier,
-    CommandWaitIdCapable,
+    WaitCommandIdCapable,
     CommandId,
     AggregateIdCapable,
     NullableAggregateVersionCapable,
@@ -57,7 +57,7 @@ interface WaitSignal :
 
 data class SimpleWaitSignal(
     override val id: String,
-    override val commandWaitId: String,
+    override val waitCommandId: String,
     override val commandId: String,
     override val aggregateId: AggregateId,
     override val stage: CommandStage,
@@ -74,7 +74,7 @@ data class SimpleWaitSignal(
     companion object {
         fun FunctionInfo.toWaitSignal(
             id: String,
-            commandWaitId: String,
+            waitCommandId: String,
             commandId: String,
             aggregateId: AggregateId,
             stage: CommandStage,
@@ -89,7 +89,7 @@ data class SimpleWaitSignal(
         ): WaitSignal {
             return SimpleWaitSignal(
                 id = id,
-                commandWaitId = commandWaitId,
+                waitCommandId = waitCommandId,
                 commandId = commandId,
                 aggregateId = aggregateId,
                 stage = stage,

@@ -13,6 +13,6 @@
 
 package me.ahoo.wow.command.wait
 
-interface CommandWaitIdCapable {
-    val commandWaitId: String
+interface WaitCommandIdCapable {
+    val waitCommandId: String
 }

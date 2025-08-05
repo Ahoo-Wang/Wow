@@ -22,8 +22,8 @@ class SimpleClientCommandExchangeTest {
 
     @Test
     fun main() {
-        val waitingFor = WaitingForStage.sent()
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
+        val waitingFor = WaitingForStage.sent(command.commandId)
         val commandExchange = SimpleClientCommandExchange(command, waitingFor)
         commandExchange.message.assert().isEqualTo(command)
         commandExchange.waitStrategy.assert().isEqualTo(waitingFor)

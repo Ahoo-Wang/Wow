@@ -69,9 +69,10 @@ class CartController(
             productId = "productId",
             quantity = 1
         )
+        val command = addCartItem.toCommandMessage(ownerId = userId)
         return commandGateway.sendAndWaitStream(
-            addCartItem.toCommandMessage(ownerId = userId),
-            waitStrategy = WaitingForStage.snapshot()
+            command,
+            waitStrategy = WaitingForStage.snapshot(command.commandId)
         )
     }
 }

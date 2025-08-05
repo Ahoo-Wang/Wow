@@ -27,9 +27,9 @@ import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
-import me.ahoo.wow.command.wait.CommandWaitIdCapable
 import me.ahoo.wow.command.wait.NullableAggregateVersionCapable
 import me.ahoo.wow.command.wait.SignalTimeCapable
+import me.ahoo.wow.command.wait.WaitCommandIdCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
@@ -37,7 +37,7 @@ import me.ahoo.wow.id.generateGlobalId
 
 data class CommandResult(
     override val id: String,
-    override val commandWaitId: String,
+    override val waitCommandId: String,
     override val stage: CommandStage,
     override val contextName: String,
     override val aggregateName: String,
@@ -53,7 +53,7 @@ data class CommandResult(
     override val result: Map<String, Any> = emptyMap(),
     override val signalTime: Long = System.currentTimeMillis()
 ) : Identifier,
-    CommandWaitIdCapable,
+    WaitCommandIdCapable,
     CommandStageCapable,
     NamedBoundedContext,
     AggregateNameCapable,
@@ -70,7 +70,7 @@ data class CommandResult(
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         id = this.id,
-        commandWaitId = commandWaitId,
+        waitCommandId = waitCommandId,
         stage = this.stage,
         contextName = aggregateId.contextName,
         aggregateName = aggregateId.aggregateName,
@@ -89,7 +89,7 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
 }
 
 fun Throwable.toResult(
-    commandWaitId: String,
+    waitCommandId: String,
     commandMessage: CommandMessage<*>,
     function: FunctionInfoData = COMMAND_GATEWAY_FUNCTION,
     id: String = generateGlobalId(),
@@ -100,7 +100,7 @@ fun Throwable.toResult(
     val errorInfo = toErrorInfo()
     return CommandResult(
         id = id,
-        commandWaitId = commandWaitId,
+        waitCommandId = waitCommandId,
         stage = stage,
         contextName = commandMessage.contextName,
         aggregateName = commandMessage.aggregateName,

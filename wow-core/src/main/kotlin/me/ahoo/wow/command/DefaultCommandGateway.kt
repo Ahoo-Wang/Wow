@@ -69,11 +69,11 @@ class DefaultCommandGateway(
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return check(message).then(commandBus.send(message)).doOnSuccess {
             val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
-            val waitSignal = message.commandSentSignal(waitStrategy.waitStrategy.id)
+            val waitSignal = message.commandSentSignal(waitStrategy.waitStrategy.waitCommandId)
             commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
         }.doOnError {
             val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnError
-            val waitSignal = message.commandSentSignal(waitStrategy.waitStrategy.id, it)
+            val waitSignal = message.commandSentSignal(waitStrategy.waitStrategy.waitCommandId, it)
             commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
         }
     }
@@ -122,25 +122,25 @@ class DefaultCommandGateway(
                 .doOnSubscribe {
                     waitStrategyRegistrar.register(waitStrategy)
                     waitStrategy.onFinally {
-                        waitStrategyRegistrar.unregister(waitStrategy.id)
+                        waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
                     }
                 }
                 .doOnError {
-                    waitStrategyRegistrar.unregister(waitStrategy.id)
+                    waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
                 }
                 .doOnCancel {
-                    waitStrategyRegistrar.unregister(waitStrategy.id)
+                    waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
                 }
         }.doOnSuccess {
-            val waitSignal = command.commandSentSignal(waitStrategy.id)
+            val waitSignal = command.commandSentSignal(waitStrategy.waitCommandId)
             waitStrategy.next(waitSignal)
         }.doOnError {
-            val waitSignal = command.commandSentSignal(waitStrategy.id, it)
+            val waitSignal = command.commandSentSignal(waitStrategy.waitCommandId, it)
             waitStrategy.next(waitSignal)
         }.onErrorMap {
             CommandResultException(
                 it.toResult(
-                    commandWaitId = waitStrategy.id,
+                    waitCommandId = waitStrategy.waitCommandId,
                     commandMessage = command
                 ),
                 it
