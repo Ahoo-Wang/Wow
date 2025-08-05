@@ -21,6 +21,7 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.isSse
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.codec.ServerSentEvent
@@ -29,6 +30,8 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+
+object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
@@ -86,7 +89,7 @@ fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
     return ServerResponse.ok()
         .contentType(MediaType.TEXT_EVENT_STREAM)
         .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
-        .body(eventStream, ServerSentEvent::class.java)
+        .body(eventStream, StringServerSentEventType)
 }
 
 fun Flux<ServerSentEvent<String>>.errorResume(
