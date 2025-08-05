@@ -17,6 +17,7 @@ import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 
 class WaitingForEventHandled(
+    override val id: String,
     override val function: NamedFunctionInfoData? = null
 ) : WaitingForFunction() {
     override val stage: CommandStage

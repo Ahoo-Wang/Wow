@@ -44,6 +44,7 @@ class CommandResponsesTest {
         val serverRequest = MockServerRequest.builder().build()
         CommandResult(
             id = generateGlobalId(),
+            commandWaitId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -83,6 +84,7 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            commandWaitId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -120,6 +122,7 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            commandWaitId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -160,6 +163,7 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            commandWaitId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
