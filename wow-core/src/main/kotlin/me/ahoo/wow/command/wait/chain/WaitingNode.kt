@@ -17,7 +17,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
@@ -38,7 +38,7 @@ import me.ahoo.wow.command.wait.isWaitingForFunction
 @Schema(description = "文件来源")
 interface WaitingNode : CommandId, CommandStageCapable, ProcessingStageShouldNotifyPredicate,
     WaitSignalShouldNotifyPredicate,
-    NullableFunctionInfoCapable<FunctionInfoData>,
+    NullableFunctionInfoCapable<NamedFunctionInfoData>,
     me.ahoo.wow.api.naming.Materialized {
     companion object {
         const val TYPE = "type"
@@ -49,30 +49,27 @@ interface WaitingNode : CommandId, CommandStageCapable, ProcessingStageShouldNot
     }
 
     override fun shouldNotify(signal: WaitSignal): Boolean {
+        if (commandId != signal.commandId) {
+            return false
+        }
         if (stage.isPrevious(signal.stage)) {
             return true
         }
         if (stage != signal.stage) {
             return false
         }
-        return this.isWaitingForFunction(signal.function)
+        return this.function.isWaitingForFunction(signal.function)
     }
 
 }
 
 class WaitingSagaNode(
     override val commandId: String,
-    override val function: FunctionInfoData? = null,
+    override val function: NamedFunctionInfoData? = null,
     val children: List<WaitingNode> = listOf()
 ) : WaitingNode {
     override val stage: CommandStage = CommandStage.SAGA_HANDLED
-    override fun shouldNotify(processingStage: CommandStage): Boolean {
-        TODO("Not yet implemented")
-    }
 
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-        TODO("Not yet implemented")
-    }
 
     companion object {
         const val TYPE = "saga"
@@ -82,15 +79,8 @@ class WaitingSagaNode(
 class WaitingTailNode(
     override val commandId: String,
     override val stage: CommandStage,
-    override val function: FunctionInfoData? = null
+    override val function: NamedFunctionInfoData? = null
 ) : WaitingNode {
-    override fun shouldNotify(processingStage: CommandStage): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-
-    }
 
     companion object {
         const val TYPE = "tail"
