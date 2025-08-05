@@ -13,11 +13,12 @@
 
 package me.ahoo.wow.command.wait.chain
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
+import me.ahoo.wow.api.naming.CompletedCapable
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.ProcessingStageShouldNotifyPredicate
@@ -34,7 +35,7 @@ import me.ahoo.wow.command.wait.isWaitingForFunction
     JsonSubTypes.Type(value = WaitingSagaNode::class, name = WaitingSagaNode.TYPE),
     JsonSubTypes.Type(value = WaitingTailNode::class, name = WaitingTailNode.TYPE),
 )
-interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredicate,
+interface WaitingChain : CompletedCapable, CommandStageCapable, ProcessingStageShouldNotifyPredicate,
     WaitSignalShouldNotifyPredicate,
     NullableFunctionInfoCapable<NamedFunctionInfoData>,
     me.ahoo.wow.api.naming.Materialized {
@@ -59,11 +60,15 @@ interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredica
 }
 
 class WaitingSagaNode(
-
     override val function: NamedFunctionInfoData? = null,
     val children: List<WaitingChain> = listOf()
 ) : WaitingChain {
+    @field:JsonIgnore
     override val stage: CommandStage = CommandStage.SAGA_HANDLED
+
+    @field:JsonIgnore
+    override var completed: Boolean = false
+        private set
 
     companion object {
         const val TYPE = "saga"
@@ -71,10 +76,13 @@ class WaitingSagaNode(
 }
 
 class WaitingTailNode(
-
     override val stage: CommandStage,
     override val function: NamedFunctionInfoData? = null
 ) : WaitingChain {
+
+    @field:JsonIgnore
+    override var completed: Boolean = false
+        private set
 
     companion object {
         const val TYPE = "tail"
