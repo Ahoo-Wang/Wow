@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait.stage
+package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.command.wait.CommandStage
-
-class WaitingForSnapshot(override val id: String) : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.SNAPSHOT
+interface CommandWaitIdCapable {
+    val commandWaitId: String
 }
