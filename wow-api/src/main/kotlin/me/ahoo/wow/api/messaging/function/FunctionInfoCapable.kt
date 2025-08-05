@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.api.messaging.function
 
-interface FunctionInfoCapable<FUN : FunctionInfo> {
-    val function: FUN
+interface NullableFunctionInfoCapable<FUN : NamedFunctionInfo> {
+    val function: FUN?
+}
+
+interface FunctionInfoCapable<FUN : NamedFunctionInfo> : NullableFunctionInfoCapable<FUN> {
+    override val function: FUN
 }
