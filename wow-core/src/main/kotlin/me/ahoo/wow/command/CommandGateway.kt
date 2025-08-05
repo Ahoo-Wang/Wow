@@ -37,10 +37,11 @@ val COMMAND_GATEWAY_FUNCTION = FunctionInfoData(
     name = "send",
 )
 
-fun CommandMessage<*>.commandSentSignal(error: Throwable? = null): WaitSignal {
+fun CommandMessage<*>.commandSentSignal(commandWaitId: String, error: Throwable? = null): WaitSignal {
     val errorInfo = error?.toErrorInfo() ?: ErrorInfo.OK
     return SimpleWaitSignal(
         id = generateGlobalId(),
+        commandWaitId = commandWaitId,
         commandId = commandId,
         aggregateId = aggregateId,
         stage = CommandStage.SENT,
@@ -82,17 +83,20 @@ interface CommandGateway : CommandBus {
     ): Mono<CommandResult>
 
     fun <C : Any> sendAndWaitForSent(
-        command: CommandMessage<C>
+        command: CommandMessage<C>,
+        commandWaitId: String = command.commandId,
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.sent())
+        sendAndWait(command, WaitingForStage.sent(commandWaitId))
 
     fun <C : Any> sendAndWaitForProcessed(
-        command: CommandMessage<C>
+        command: CommandMessage<C>,
+        commandWaitId: String = command.commandId,
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.processed())
+        sendAndWait(command, WaitingForStage.processed(commandWaitId))
 
     fun <C : Any> sendAndWaitForSnapshot(
-        command: CommandMessage<C>
+        command: CommandMessage<C>,
+        commandWaitId: String = command.commandId,
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.snapshot())
+        sendAndWait(command, WaitingForStage.snapshot(commandWaitId))
 }

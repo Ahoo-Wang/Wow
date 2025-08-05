@@ -26,6 +26,9 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.command.wait.propagateCommandWaitId
+import me.ahoo.wow.command.wait.requireExtractCommandWaitId
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
 
@@ -35,6 +38,7 @@ import java.util.*
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
+            id = id,
             stage = stage
         )
     }
@@ -51,6 +55,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     }
 
     data class Materialized(
+        override val id: String,
         override val stage: CommandStage,
         override val function: NamedFunctionInfoData? = null
     ) : WaitStrategy.Materialized, CommandStageCapable, NullableFunctionInfoCapable<NamedFunctionInfoData> {
@@ -73,7 +78,8 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
-            header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+            header.propagateCommandWaitId(id)
+                .propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_STAGE, stage.name)
             val function = function ?: return
             function.contextName.ifNotBlank {
@@ -95,10 +101,12 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Materialized? {
             val stage = this[COMMAND_WAIT_STAGE] ?: return null
+            val id = requireExtractCommandWaitId()
             val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
             val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
             return Materialized(
+                id = id,
                 stage = CommandStage.valueOf(stage),
                 function = NamedFunctionInfoData(
                     contextName = context,
@@ -108,13 +116,19 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             )
         }
 
-        fun sent(): WaitingForStage = WaitingForSent()
-        fun processed(): WaitingForStage = WaitingForProcessed()
+        fun sent(commandWaitId: String = generateGlobalId()): WaitingForStage = WaitingForSent(commandWaitId)
+        fun processed(commandWaitId: String = generateGlobalId()): WaitingForStage = WaitingForProcessed(commandWaitId)
 
-        fun snapshot(): WaitingForStage = WaitingForSnapshot()
+        fun snapshot(commandWaitId: String = generateGlobalId()): WaitingForStage = WaitingForSnapshot(commandWaitId)
 
-        fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+        fun projected(
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
+            commandWaitId: String = generateGlobalId()
+        ): WaitingForStage =
             WaitingForProjected(
+                id = commandWaitId,
                 function = NamedFunctionInfoData(
                     contextName = contextName,
                     processorName = processorName,
@@ -122,8 +136,14 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
                 )
             )
 
-        fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+        fun eventHandled(
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
+            commandWaitId: String = generateGlobalId()
+        ): WaitingForStage =
             WaitingForEventHandled(
+                id = commandWaitId,
                 function = NamedFunctionInfoData(
                     contextName = contextName,
                     processorName = processorName,
@@ -131,8 +151,14 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
                 )
             )
 
-        fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+        fun sagaHandled(
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
+            commandWaitId: String = generateGlobalId()
+        ): WaitingForStage =
             WaitingForSagaHandled(
+                id = commandWaitId,
                 function = NamedFunctionInfoData(
                     contextName = contextName,
                     processorName = processorName,
@@ -144,15 +170,16 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             stage: CommandStage,
             contextName: String,
             processorName: String = "",
-            functionName: String = ""
+            functionName: String = "",
+            commandWaitId: String = generateGlobalId()
         ): WaitingForStage {
             return when (stage) {
-                CommandStage.SENT -> sent()
-                CommandStage.PROCESSED -> processed()
-                CommandStage.SNAPSHOT -> snapshot()
-                CommandStage.PROJECTED -> projected(contextName, processorName, functionName)
-                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName)
-                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName)
+                CommandStage.SENT -> sent(commandWaitId)
+                CommandStage.PROCESSED -> processed(commandWaitId)
+                CommandStage.SNAPSHOT -> snapshot(commandWaitId)
+                CommandStage.PROJECTED -> projected(contextName, processorName, functionName, commandWaitId)
+                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName, commandWaitId)
+                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName, commandWaitId)
             }
         }
 
@@ -160,13 +187,15 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
             stage: String,
             contextName: String,
             processorName: String = "",
-            functionName: String = ""
+            functionName: String = "",
+            commandWaitId: String = generateGlobalId()
         ): WaitingForStage =
             stage(
                 stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
                 contextName = contextName,
                 processorName = processorName,
-                functionName = functionName
+                functionName = functionName,
+                commandWaitId = commandWaitId
             )
     }
 }

@@ -7,6 +7,6 @@ class CommandWaitNotifierKtTest {
 
     @Test
     fun isLocalCommandIfBlank() {
-        isLocalCommand("").assert().isFalse()
+        isLocalWaitStrategy("").assert().isFalse()
     }
 }
