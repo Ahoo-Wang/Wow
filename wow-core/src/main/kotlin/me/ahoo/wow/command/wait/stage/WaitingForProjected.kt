@@ -18,7 +18,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 
 class WaitingForProjected(
-    override val id: String,
+    override val waitCommandId: String,
     override val function: NamedFunctionInfoData? = null
 ) : WaitingForFunction() {
     override val stage: CommandStage

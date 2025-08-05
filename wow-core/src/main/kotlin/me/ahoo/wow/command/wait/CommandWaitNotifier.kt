@@ -15,14 +15,13 @@ package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain.Companion.extractWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
-const val COMMAND_WAIT_ID = "${COMMAND_WAIT_PREFIX}id"
+const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
 
 interface CommandWaitEndpoint {
@@ -31,21 +30,24 @@ interface CommandWaitEndpoint {
 
 data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
 
-data class EndpointWaitStrategy(override val endpoint: String, val waitStrategy: WaitStrategy.Materialized) :
-    CommandWaitEndpoint
+data class ExtractedWaitStrategy(
+    override val endpoint: String,
+    override val waitCommandId: String,
+    val waitStrategy: WaitStrategy.Materialized
+) : CommandWaitEndpoint, WaitCommandIdCapable
 
 fun Header.extractCommandWaitId(): String? {
-    return this[COMMAND_WAIT_ID]
+    return this[WAIT_COMMAND_ID]
 }
 
-fun Header.requireExtractCommandWaitId(): String {
+fun Header.requireExtractWaitCommandId(): String {
     return requireNotNull(extractCommandWaitId()) {
-        "$COMMAND_WAIT_ID is required!"
+        "$WAIT_COMMAND_ID is required!"
     }
 }
 
-fun Header.propagateCommandWaitId(id: String): Header {
-    return with(COMMAND_WAIT_ID, id)
+fun Header.propagateWaitCommandId(commandId: String): Header {
+    return with(WAIT_COMMAND_ID, commandId)
 }
 
 fun Header.extractCommandWaitEndpoint(): String? {
@@ -56,10 +58,11 @@ fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
     return with(COMMAND_WAIT_ENDPOINT, endpoint)
 }
 
-fun Header.extractWaitStrategy(): EndpointWaitStrategy? {
+fun Header.extractWaitStrategy(): ExtractedWaitStrategy? {
+    val waitCommandId = this.extractCommandWaitId() ?: return null
     val endpoint = this.extractCommandWaitEndpoint() ?: return null
-    val waitStrategy = this.extractWaitingForStage() ?: this.extractWaitingForChain() ?: return null
-    return EndpointWaitStrategy(endpoint, waitStrategy)
+    val waitStrategy = this.extractWaitingForStage() ?: return null
+    return ExtractedWaitStrategy(endpoint, waitCommandId, waitStrategy)
 }
 
 /**
@@ -100,7 +103,7 @@ class LocalCommandWaitNotifier(
 }
 
 fun CommandWaitNotifier.notifyAndForget(
-    waiteStrategy: EndpointWaitStrategy,
+    waiteStrategy: ExtractedWaitStrategy,
     waitSignal: WaitSignal
 ) {
     if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal)) {

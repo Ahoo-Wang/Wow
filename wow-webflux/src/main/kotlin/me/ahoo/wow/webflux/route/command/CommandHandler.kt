@@ -52,6 +52,7 @@ class CommandHandler(
         }
         val commandWaitTimeout = request.getWaitTimeout(timeout)
         val waitStrategy = WaitingForStage.stage(
+            waitCommandId = commandMessage.commandId,
             stage = stage,
             contextName = waitContext,
             processorName = request.getWaitProcessor(),

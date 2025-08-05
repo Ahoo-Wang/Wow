@@ -32,14 +32,14 @@ interface WaitStrategyRegistrar {
      *
      * @see java.util.Map.remove
      */
-    fun unregister(commandWaitId: String): WaitStrategy?
+    fun unregister(waitCommandId: String): WaitStrategy?
 
-    fun get(commandWaitId: String): WaitStrategy?
+    fun get(waitCommandId: String): WaitStrategy?
 
-    operator fun contains(commandWaitId: String): Boolean
+    operator fun contains(waitCommandId: String): Boolean
 
     fun next(signal: WaitSignal): Boolean {
-        val waitStrategy = get(signal.commandWaitId) ?: return false
+        val waitStrategy = get(signal.waitCommandId) ?: return false
         waitStrategy.next(signal)
         return true
     }
@@ -51,24 +51,24 @@ object SimpleWaitStrategyRegistrar : WaitStrategyRegistrar {
 
     override fun register(waitStrategy: WaitStrategy): WaitStrategy? {
         log.debug {
-            "Register - commandWaitId[${waitStrategy.id}] WaitStrategy."
+            "Register - waitCommandId[${waitStrategy.waitCommandId}] WaitStrategy."
         }
-        return waitStrategies.putIfAbsent(waitStrategy.id, waitStrategy)
+        return waitStrategies.putIfAbsent(waitStrategy.waitCommandId, waitStrategy)
     }
 
-    override fun unregister(commandWaitId: String): WaitStrategy? {
-        val value = waitStrategies.remove(commandWaitId)
+    override fun unregister(waitCommandId: String): WaitStrategy? {
+        val value = waitStrategies.remove(waitCommandId)
         log.debug {
-            "Unregister - remove commandWaitId[$commandWaitId] WaitStrategy - [${value != null}]."
+            "Unregister - remove waitCommandId[$waitCommandId] WaitStrategy - [${value != null}]."
         }
         return value
     }
 
-    override fun get(commandWaitId: String): WaitStrategy? {
-        return waitStrategies[commandWaitId]
+    override fun get(waitCommandId: String): WaitStrategy? {
+        return waitStrategies[waitCommandId]
     }
 
-    override fun contains(commandWaitId: String): Boolean {
-        return waitStrategies.containsKey(commandWaitId)
+    override fun contains(waitCommandId: String): Boolean {
+        return waitStrategies.containsKey(waitCommandId)
     }
 }
