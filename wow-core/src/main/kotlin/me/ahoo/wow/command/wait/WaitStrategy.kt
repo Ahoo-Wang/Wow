@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.naming.CompletedCapable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -51,10 +52,10 @@ interface WaitStrategyPropagator : Identifier {
  * Command Wait Strategy
  * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
-interface WaitStrategy : WaitStrategyPropagator {
+interface WaitStrategy : WaitStrategyPropagator, CompletedCapable {
     val cancelled: Boolean
     val terminated: Boolean
-    val completed: Boolean
+    override val completed: Boolean
         get() = terminated || cancelled
     val materialized: Materialized
     override val id: String
