@@ -1,8 +1,7 @@
 package me.ahoo.wow.command.wait
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
@@ -10,10 +9,11 @@ import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.saga.stateless.CommandStream
+import me.ahoo.wow.saga.stateless.DefaultCommandStream
 import me.ahoo.wow.saga.stateless.setCommandStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -29,11 +29,8 @@ class SagaHandledNotifierFilterTest {
         ) as DomainEvent<Any>
         WaitingForStage.sagaHandled(domainEvent.contextName).propagate("", domainEvent.header)
         val exchange = SimpleDomainEventExchange(domainEvent)
-        val commandStream = mockk<CommandStream> {
-            every {
-                size
-            } returns 1
-        }
+        val commandMessage = MockCreateAggregate(generateGlobalId(), generateGlobalId()).toCommandMessage()
+        val commandStream = DefaultCommandStream(generateGlobalId(), listOf(commandMessage))
         exchange.setCommandStream(commandStream)
         val chain = FilterChainBuilder<DomainEventExchange<Any>>().build()
         notifierFilter.filter(exchange, chain)
