@@ -36,7 +36,6 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
-                commandWaitId = generateGlobalId(),
                 commandId = generateGlobalId(),
                 aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
@@ -54,7 +53,6 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
-                commandWaitId = generateGlobalId(),
                 commandId = generateGlobalId(),
                 aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
@@ -70,7 +68,6 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
-                commandWaitId = "0THbs0sW0066001",
                 commandId = "0THbs0sW0066001",
                 aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,

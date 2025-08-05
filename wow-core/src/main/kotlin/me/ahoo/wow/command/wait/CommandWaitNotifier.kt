@@ -22,7 +22,6 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
-const val COMMAND_WAIT_ID = "${COMMAND_WAIT_PREFIX}id"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
 
 interface CommandWaitEndpoint {
@@ -33,20 +32,6 @@ data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWai
 
 data class EndpointWaitStrategy(override val endpoint: String, val waitStrategy: WaitStrategy.Materialized) :
     CommandWaitEndpoint
-
-fun Header.extractCommandWaitId(): String? {
-    return this[COMMAND_WAIT_ID]
-}
-
-fun Header.requireExtractCommandWaitId(): String {
-    return requireNotNull(extractCommandWaitId()) {
-        "$COMMAND_WAIT_ID is required!"
-    }
-}
-
-fun Header.propagateCommandWaitId(id: String): Header {
-    return with(COMMAND_WAIT_ID, id)
-}
 
 fun Header.extractCommandWaitEndpoint(): String? {
     return this[COMMAND_WAIT_ENDPOINT]
@@ -85,7 +70,7 @@ class LocalCommandWaitNotifier(
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.fromRunnable {
-            if (isLocalWaitStrategy(waitSignal.id)) {
+            if (isLocalCommand(waitSignal.commandId)) {
                 log.debug {
                     "Notify Local - waitSignal: $waitSignal"
                 }
@@ -109,9 +94,9 @@ fun CommandWaitNotifier.notifyAndForget(
     notifyAndForget(waiteStrategy.endpoint, waitSignal)
 }
 
-fun isLocalWaitStrategy(commandWaitId: String): Boolean {
-    if (commandWaitId.isBlank()) {
+fun isLocalCommand(commandId: String): Boolean {
+    if (commandId.isBlank()) {
         return false
     }
-    return GlobalIdGenerator.stateParser.asState(commandWaitId).machineId == GlobalIdGenerator.machineId
+    return GlobalIdGenerator.stateParser.asState(commandId).machineId == GlobalIdGenerator.machineId
 }

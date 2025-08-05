@@ -25,7 +25,6 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = generateGlobalId(),
             commandId = GlobalIdGenerator.generateAsString(),
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SENT,
@@ -59,7 +58,6 @@ class WebClientCommandWaitNotifierTest {
 
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = "0ToC0Bez003X00Z",
             commandId = "0ToC0Bez003X00Z",
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SENT,

@@ -88,54 +88,52 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
     }
 
-    private fun verifyWaitStrategyDestroyed(commandWaitId: String) {
+    private fun verifyWaitStrategyDestroyed(commandId: String) {
         repeat(10) {
-            if (waitStrategyRegistrar.contains(commandWaitId)) {
+            if (waitStrategyRegistrar.contains(commandId)) {
                 Thread.sleep(5)
             }
         }
-        waitStrategyRegistrar.contains(commandWaitId).assert().isFalse()
+        waitStrategyRegistrar.contains(commandId).assert().isFalse()
     }
 
     @Test
     fun sendAndWaitForSent() {
         val message = createMessage()
-        val waitStrategy = WaitingForStage.sent()
         verify {
+            val waitStrategy = WaitingForStage.sent()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendAndWaitForSentDefault() {
         val message = createMessage()
-        val commandWaitId = generateGlobalId()
         verify {
-            sendAndWaitForSent(message, commandWaitId)
+            sendAndWaitForSent(message)
                 .test()
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(commandWaitId)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendAndWaitForProcessed() {
         val message = createMessage()
-        val waitStrategy = WaitingForStage.processed()
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         verify {
+            val waitStrategy = WaitingForStage.processed()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -145,23 +143,21 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendAndWaitForProcessedDefault() {
         val message = createMessage()
-        val commandWaitId = generateGlobalId()
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = commandWaitId,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
             function = functionInfo,
         )
         verify {
-            sendAndWaitForProcessed(message, commandWaitId)
+            sendAndWaitForProcessed(message)
                 .test()
                 .thenAwait(Duration.ofMillis(10))
                 .then {
@@ -170,16 +166,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(commandWaitId)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendAndWaitForSnapshot() {
         val message = createMessage()
-        val waitStrategy = WaitingForStage.snapshot()
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
@@ -187,13 +181,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
         verify {
+            val waitStrategy = WaitingForStage.snapshot()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -204,16 +198,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(2)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendAndWaitForSnapshotDefault() {
         val message = createMessage()
-        val commandWaitId = generateGlobalId()
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = commandWaitId,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
@@ -221,14 +213,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         )
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = commandWaitId,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.SNAPSHOT,
             function = functionInfo,
         )
         verify {
-            sendAndWaitForSnapshot(message, commandWaitId)
+            sendAndWaitForSnapshot(message)
                 .test()
                 .expectSubscription()
                 .thenAwait(Duration.ofMillis(10))
@@ -239,19 +230,18 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .expectNextCount(1)
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(commandWaitId)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendGivenDuplicate() {
         val message = createMessage()
-        val commandWaitId = generateGlobalId()
         verify {
-            sendAndWaitForSent(message, commandWaitId)
+            sendAndWaitForSent(message)
                 .test()
                 .expectNextCount(1)
                 .verifyComplete()
-            sendAndWaitForSent(message, commandWaitId)
+            sendAndWaitForSent(message)
                 .test()
                 .consumeErrorWith {
                     it.assert().isInstanceOf(CommandResultException::class.java)
@@ -260,16 +250,14 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verify()
         }
-        verifyWaitStrategyDestroyed(commandWaitId)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendThenWaitingForProcessedWhenError() {
         val message = createMessage()
-        val waitStrategy = WaitingForStage.processed()
         val errorSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
             commandId = message.commandId,
             aggregateId = message.aggregateId,
             stage = CommandStage.PROCESSED,
@@ -277,6 +265,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             errorCode = "ERROR"
         )
         verify {
+            val waitStrategy = WaitingForStage.processed()
             sendAndWaitStream(message, waitStrategy)
                 .test()
                 .expectNextCount(1)
@@ -288,20 +277,20 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 }
                 .verifyComplete()
         }
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
     fun sendThenWaitingForProcessedWhenValidateError() {
         val message = WrongCommandMessage.toCommandMessage()
-        val waitStrategy = WaitingForStage.processed()
         verify {
+            val waitStrategy = WaitingForStage.processed()
             sendAndWait(message, waitStrategy)
                 .test()
                 .expectError(CommandResultException::class.java)
                 .verify()
         }
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -310,10 +299,10 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val waitStrategy = WaitingForStage.sent()
         val countDownLatch = CountDownLatch(1)
         waitStrategy.onFinally {
-            waitStrategyRegistrar.unregister(waitStrategy.id)
+            waitStrategyRegistrar.unregister(message.commandId)
             countDownLatch.countDown()
         }
-        waitStrategyRegistrar.register(waitStrategy)
+        waitStrategyRegistrar.register(message.commandId, waitStrategy)
         waitStrategy.propagate("", message.header)
         waitStrategy.waitingLast().subscribe()
         verify {
@@ -323,7 +312,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .verifyComplete()
         }
         countDownLatch.await()
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 
     @Test
@@ -332,10 +321,10 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         val waitStrategy = WaitingForStage.sent()
         val countDownLatch = CountDownLatch(1)
         waitStrategy.onFinally {
-            waitStrategyRegistrar.unregister(waitStrategy.id)
+            waitStrategyRegistrar.unregister(message.commandId)
             countDownLatch.countDown()
         }
-        waitStrategyRegistrar.register(waitStrategy)
+        waitStrategyRegistrar.register(message.commandId, waitStrategy)
         waitStrategy.propagate("", message.header)
         waitStrategy.waitingLast().subscribe()
         verify {
@@ -346,6 +335,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
                 .verify()
         }
         countDownLatch.await()
-        verifyWaitStrategyDestroyed(waitStrategy.id)
+        verifyWaitStrategyDestroyed(message.commandId)
     }
 }

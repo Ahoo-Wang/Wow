@@ -26,7 +26,6 @@ class ErrorInfoConverterRegistrarTest {
     fun commandResultExceptionToErrorInfo() {
         val commandResult = CommandResult(
             id = generateGlobalId(),
-            commandWaitId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
