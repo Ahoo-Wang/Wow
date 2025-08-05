@@ -14,19 +14,12 @@
 package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
-import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
-import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 
-class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
-    override val id: String
-        get() = materialized.id
+class WaitingForChain(override val materialized: WaitingChain) : WaitingFor() {
 
     override fun next(signal: WaitSignal) {
         TODO("Not yet implemented")
@@ -36,35 +29,11 @@ class WaitingForChain(override val materialized: Materialized) : WaitingFor() {
         return true
     }
 
-
-    class Materialized(
-        override val id: String,
-        val chain: WaitingChain
-    ) : WaitStrategy.Materialized {
-
-        override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-            return true
-        }
-
-        override fun propagate(commandWaitEndpoint: String, header: Header) {
-            header.propagateCommandWaitEndpoint(commandWaitEndpoint)
-                .with(COMMAND_WAIT_CHAIN, this.toJsonString())
-        }
-
-        override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return chain.shouldNotify(processingStage)
-        }
-
-        override fun shouldNotify(signal: WaitSignal): Boolean {
-            return chain.shouldNotify(signal)
-        }
-    }
-
     companion object {
         const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
-        fun Header.extractWaitingForChain(): Materialized? {
+        fun Header.extractWaitingForChain(): WaitingChain? {
             val chain = this[COMMAND_WAIT_CHAIN] ?: return null
-            return chain.toObject<Materialized>()
+            return chain.toObject<WaitingChain>()
         }
     }
 }
