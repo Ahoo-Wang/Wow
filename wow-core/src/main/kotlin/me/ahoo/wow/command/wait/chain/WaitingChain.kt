@@ -13,31 +13,44 @@
 
 package me.ahoo.wow.command.wait.chain
 
-import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandStageCapable
+import me.ahoo.wow.command.wait.ProcessingStageShouldNotifyPredicate
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
+import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain.Companion.COMMAND_WAIT_CHAIN
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.serialization.toJsonString
 
-class SimpleWaitingChain(
-    override val id: String,
-    override val next: WaitingTailNode,
-    override val function: NamedFunctionInfoData
-) : WaitingChain {
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+    property = WaitingChain.TYPE
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = SimpleWaitingChain::class, name = SimpleWaitingChain.TYPE),
+    JsonSubTypes.Type(value = WaitingTailNode::class, name = WaitingTailNode.TYPE),
+)
+interface WaitingChain : CommandStageCapable, ProcessingStageShouldNotifyPredicate,
+    WaitSignalShouldNotifyPredicate,
+    NullableFunctionInfoCapable<NamedFunctionInfoData>,
+    WaitStrategy.Materialized {
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val next: WaitingChain?
+
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    override val function: NamedFunctionInfoData?
+
     companion object {
-        const val TYPE = "simple"
-    }
-
-    @field:JsonIgnore
-    override val stage: CommandStage = CommandStage.SAGA_HANDLED
-
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return true
+        const val TYPE = "type"
     }
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
@@ -59,23 +72,4 @@ class SimpleWaitingChain(
         return this.function.isWaitingForFunction(signal.function)
     }
 
-}
-
-
-class WaitingTailNode(
-    override val id: String,
-    override val stage: CommandStage,
-    override val function: NamedFunctionInfoData? = null
-) : WaitingChain {
-
-    @field:JsonIgnore
-    override val next: WaitingChain? = null
-
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return false
-    }
-
-    companion object {
-        const val TYPE = "tail"
-    }
 }

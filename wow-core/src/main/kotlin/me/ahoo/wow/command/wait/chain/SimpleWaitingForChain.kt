@@ -19,8 +19,14 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.serialization.toObject
 
+/**
+ * level 1
+ */
 class SimpleWaitingForChain(override val materialized: SimpleWaitingChain) : WaitingFor() {
+    override val id: String
+        get() = materialized.id
 
+    val commands: List<String> = emptyList()
     override fun next(signal: WaitSignal) {
         TODO("Not yet implemented")
     }
