@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -27,44 +28,47 @@ internal class SimpleWaitStrategyRegistrarTest {
     @Test
     fun register() {
         val registrar = SimpleWaitStrategyRegistrar
+        val commandId = GlobalIdGenerator.generateAsString()
         val waitStrategy = WaitingForStage.processed()
-        var registerResult = registrar.register(waitStrategy)
+        var registerResult = registrar.register(commandId, waitStrategy)
         registerResult.assert().isNull()
-        registerResult = registrar.register(waitStrategy)
+        registerResult = registrar.register(commandId, waitStrategy)
         registerResult.assert().isEqualTo(waitStrategy)
     }
 
     @Test
     fun unregister() {
         val registrar = SimpleWaitStrategyRegistrar
+        val commandId = GlobalIdGenerator.generateAsString()
         val waitStrategy = WaitingForStage.processed()
-        var registerResult = registrar.unregister(waitStrategy.id)
+        var registerResult = registrar.unregister(commandId)
         registerResult.assert().isNull()
-        registerResult = registrar.register(waitStrategy)
+        registerResult = registrar.register(commandId, waitStrategy)
         registerResult.assert().isNull()
-        val unregisterResult = registrar.unregister(waitStrategy.id)
+        val unregisterResult = registrar.unregister(commandId)
         unregisterResult.assert().isEqualTo(waitStrategy)
     }
 
     @Test
     fun contains() {
         val registrar = SimpleWaitStrategyRegistrar
-        val waitStrategy = WaitingForStage.processed()
-        var containsResult = registrar.contains(waitStrategy.id)
+        val commandId = GlobalIdGenerator.generateAsString()
+        var containsResult = registrar.contains(commandId)
         containsResult.assert().isFalse()
-        registrar.register(waitStrategy)
-        containsResult = registrar.contains(waitStrategy.id)
+        val waitStrategy = WaitingForStage.processed()
+        registrar.register(commandId, waitStrategy)
+        containsResult = registrar.contains(commandId)
         containsResult.assert().isTrue()
     }
 
     @Test
     fun next() {
         val registrar = SimpleWaitStrategyRegistrar
-        val waitStrategy = WaitingForStage.processed()
+        val commandId = generateGlobalId()
+
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
-            commandWaitId = waitStrategy.id,
-            commandId = generateGlobalId(),
+            commandId = commandId,
             aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.PROCESSED,
             function = FunctionInfoData(
@@ -76,12 +80,13 @@ internal class SimpleWaitStrategyRegistrarTest {
         )
         var nextResult = registrar.next(waitSignal)
         nextResult.assert().isFalse()
+        val waitStrategy = WaitingForStage.processed()
         waitStrategy.waiting().subscribe()
-        registrar.register(waitStrategy)
+        registrar.register(commandId, waitStrategy)
         nextResult = registrar.next(waitSignal)
         nextResult.assert().isTrue()
-        registrar.unregister(waitStrategy.id)
-        val containsResult = registrar.contains(waitStrategy.id)
+        registrar.unregister(commandId)
+        val containsResult = registrar.contains(commandId)
         containsResult.assert().isFalse()
     }
 }
