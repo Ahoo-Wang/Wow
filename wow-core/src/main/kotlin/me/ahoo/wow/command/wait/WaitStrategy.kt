@@ -16,8 +16,6 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
-import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.api.naming.CompletedCapable
 import me.ahoo.wow.messaging.propagation.MessagePropagator
 import reactor.core.publisher.Flux
@@ -30,7 +28,7 @@ import java.util.function.Consumer
  *
  * 定义了命令等待策略中关于传播行为的抽象方法，用于控制命令处理结果的传播逻辑。
  */
-interface WaitStrategyPropagator : MessagePropagator {
+interface WaitStrategyPropagator {
 
     /**
      * 执行传播操作
@@ -41,21 +39,6 @@ interface WaitStrategyPropagator : MessagePropagator {
      * @param header 消息头信息，包含元数据和上下文信息
      */
     fun propagate(commandWaitEndpoint: String, header: Header)
-
-    /**
-     * 判断是否应该传播指定的消息
-     *
-     * @param upstream 上游消息对象，包含命令或事件的相关信息
-     * @return 如果应该传播该消息则返回 true，否则返回 false
-     */
-    fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return upstream is CommandMessage<*>
-    }
-
-    override fun propagate(header: Header, upstream: Message<*, *>) {
-        val commandWaitEndpoint = upstream.header.requireExtractCommandWaitEndpoint()
-        propagate(commandWaitEndpoint, header)
-    }
 }
 
 /**
@@ -89,35 +72,39 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
 
     fun onFinally(doFinally: Consumer<SignalType>)
 
+    /**
+     * 执行传播操作
+     *
+     * 将命令处理结果传播到指定的等待端点
+     *
+     * @param commandWaitEndpoint 命令等待端点地址
+     * @param header 消息头信息，包含元数据和上下文信息
+     */
     override fun propagate(commandWaitEndpoint: String, header: Header) {
         header.propagateWaitCommandId(waitCommandId)
         materialized.propagate(commandWaitEndpoint, header)
     }
 
-    override fun propagate(header: Header, upstream: Message<*, *>) {
-        materialized.propagate(header, upstream)
-    }
-
     interface Materialized :
-        WaitStrategyPropagator,
         ProcessingStageShouldNotifyPredicate,
         WaitSignalShouldNotifyPredicate,
-        me.ahoo.wow.api.naming.Materialized
+        me.ahoo.wow.api.naming.Materialized,
+        WaitStrategyPropagator,
+        MessagePropagator {
 
-    interface FunctionMaterialized : Materialized, CommandStageCapable,
-        NullableFunctionInfoCapable<NamedFunctionInfoData> {
-        override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return stage.shouldNotify(processingStage)
+        /**
+         * 判断是否应该传播指定的消息
+         *
+         * @param upstream 上游消息对象，包含命令或事件的相关信息
+         * @return 如果应该传播该消息则返回 true，否则返回 false
+         */
+        fun shouldPropagate(upstream: Message<*, *>): Boolean {
+            return upstream is CommandMessage<*>
         }
 
-        override fun shouldNotify(signal: WaitSignal): Boolean {
-            if (stage.isPrevious(signal.stage)) {
-                return true
-            }
-            if (stage != signal.stage) {
-                return false
-            }
-            return this.function.isWaitingForFunction(signal.function)
+        override fun propagate(header: Header, upstream: Message<*, *>) {
+            val commandWaitEndpoint = upstream.header.requireExtractCommandWaitEndpoint()
+            propagate(commandWaitEndpoint, header)
         }
     }
 }
