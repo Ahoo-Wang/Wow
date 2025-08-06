@@ -60,7 +60,7 @@ class WaitingChainTail(
             )
         }
 
-        fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.Companion.EMPTY): WaitingChainTail {
+        fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY): WaitingChainTail {
             if (shouldWaitFunction) {
                 return WaitingChainTail(
                     stage = this,
