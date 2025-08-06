@@ -102,6 +102,48 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
+    fun waitingLast() {
+        val waitCommandId = generateGlobalId()
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val waitingForChain = SimpleWaitingForChain(waitCommandId, chain)
+
+        val signal = createTestSignal(
+            commandId = waitCommandId,
+            waitCommandId = waitCommandId,
+            stage = CommandStage.SAGA_HANDLED
+        )
+
+        waitingForChain.waitingLast()
+            .test()
+            .expectSubscription()
+            .then {
+                waitingForChain.next(signal)
+                waitingForChain.complete()
+            }
+            .expectNext(signal)
+            .expectComplete()
+            .verify()
+    }
+
+    @Test
+    fun waitingLastEmpty() {
+        val waitCommandId = generateGlobalId()
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val waitingForChain = SimpleWaitingForChain(waitCommandId, chain)
+
+        waitingForChain.waitingLast()
+            .test()
+            .expectSubscription()
+            .then { waitingForChain.complete() }
+            .expectComplete()
+            .verify()
+    }
+
+    @Test
     fun nextWithMainSignal() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")

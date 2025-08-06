@@ -39,12 +39,15 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
     }
 
     override fun waitingLast(): Mono<WaitSignal> {
-        return waiting().collectList().map { signals ->
+        return waiting().collectList().mapNotNull { signals ->
+            if (signals.isEmpty()) {
+                return@mapNotNull null
+            }
             val result: MutableMap<String, Any> = mutableMapOf()
             signals.forEach { signal ->
                 result.putAll(signal.result)
             }
-            val waitingForSignal = waitingForSignal ?: return@map signals.last().copyResult(result)
+            val waitingForSignal = waitingForSignal ?: return@mapNotNull signals.last().copyResult(result)
             waitingForSignal.copyResult(result)
         }
     }
