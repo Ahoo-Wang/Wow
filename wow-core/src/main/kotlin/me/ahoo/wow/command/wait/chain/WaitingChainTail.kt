@@ -64,12 +64,12 @@ class WaitingChainTail(
             if (shouldWaitFunction) {
                 return WaitingChainTail(
                     stage = this,
-                    function = NamedFunctionInfoData.EMPTY
+                    function = function
                 )
             }
             return WaitingChainTail(
                 stage = this,
-                function = function
+                function = NamedFunctionInfoData.EMPTY
             )
         }
     }

@@ -243,4 +243,50 @@ class SimpleWaitingForChainTest {
             .expectComplete()
             .verify()
     }
+
+    @Test
+    fun chain() {
+        val waitCommandId = generateGlobalId()
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tailStage = CommandStage.PROCESSED
+        val tailFunction = NamedFunctionInfoData("tail-context", "tail-processor", "tail-function")
+
+        val waitingForChain = SimpleWaitingForChain.chain(
+            waitCommandId = waitCommandId,
+            function = function,
+            tailStage = tailStage,
+            tailFunction = tailFunction
+        )
+
+        waitingForChain.waitCommandId.assert().isEqualTo(waitCommandId)
+        waitingForChain.materialized.function.assert().isEqualTo(function)
+        waitingForChain.materialized.tail.stage.assert().isEqualTo(tailStage)
+        waitingForChain.materialized.tail.function.assert().isEqualTo(NamedFunctionInfoData.EMPTY)
+    }
+
+    @Test
+    fun tailWaitingCompletedWhenMainWaitingSignalIsNull() {
+        val waitCommandId = generateGlobalId()
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val waitingForChain = SimpleWaitingForChain(waitCommandId, chain)
+
+        // tailWaitingCompleted should return false when mainWaitingSignal is null
+        // We can't directly test this private method, but we can verify the behavior
+        // by checking that the chain doesn't complete when there's no main signal
+        waitingForChain.waiting()
+            .test()
+            .expectSubscription()
+            .then {
+                val tailSignal = createTestSignal(
+                    commandId = "tail-command-id",
+                    waitCommandId = "tail-command-id",
+                    stage = CommandStage.PROCESSED
+                )
+                waitingForChain.next(tailSignal)
+            }
+            .thenCancel()
+            .verify()
+    }
 }
