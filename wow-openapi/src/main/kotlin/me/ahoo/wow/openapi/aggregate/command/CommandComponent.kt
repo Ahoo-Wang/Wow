@@ -39,6 +39,10 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEX
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_FUNCTION
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_PROCESSOR
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_STAGE
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_CONTEXT
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_FUNCTION
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_PROCESSOR
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_STAGE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TIME_OUT
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Schema.commandResultSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -46,16 +50,30 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 object CommandComponent {
     object Header {
         const val COMMAND_HEADERS_PREFIX = "Command-"
-        const val WAIT_CONTEXT = "${COMMAND_HEADERS_PREFIX}Wait-Context"
+
         const val TENANT_ID = "${COMMAND_HEADERS_PREFIX}Tenant-Id"
         const val OWNER_ID = "${COMMAND_HEADERS_PREFIX}Owner-Id"
         const val AGGREGATE_ID = "${COMMAND_HEADERS_PREFIX}Aggregate-Id"
         const val AGGREGATE_VERSION = "${COMMAND_HEADERS_PREFIX}Aggregate-Version"
-        const val WAIT_STAGE = "${COMMAND_HEADERS_PREFIX}Wait-Stage"
-        const val WAIT_TIME_OUT = "${COMMAND_HEADERS_PREFIX}Wait-Timout"
 
-        const val WAIT_PROCESSOR = "${COMMAND_HEADERS_PREFIX}Wait-Processor"
-        const val WAIT_FUNCTION = "${COMMAND_HEADERS_PREFIX}Wait-Function"
+        const val WAIT_PREFIX = "${COMMAND_HEADERS_PREFIX}Wait-"
+        const val WAIT_TIME_OUT = "${WAIT_PREFIX}Timout"
+
+        //region Wait Stage
+        const val WAIT_STAGE = "${WAIT_PREFIX}Stage"
+        const val WAIT_CONTEXT = "${WAIT_PREFIX}Context"
+        const val WAIT_PROCESSOR = "${WAIT_PREFIX}Processor"
+        const val WAIT_FUNCTION = "${WAIT_PREFIX}Function"
+
+        //endregion
+        //region Wait Chain Tail
+        const val WAIT_TAIL_PREFIX = "${WAIT_PREFIX}Tail-"
+        const val WAIT_TAIL_STAGE = "${WAIT_TAIL_PREFIX}Stage"
+        const val WAIT_TAIL_CONTEXT = "${WAIT_TAIL_PREFIX}Context"
+        const val WAIT_TAIL_PROCESSOR = "${WAIT_TAIL_PREFIX}Processor"
+        const val WAIT_TAIL_FUNCTION = "${WAIT_TAIL_PREFIX}Function"
+
+        //endregion
         const val REQUEST_ID = "${COMMAND_HEADERS_PREFIX}Request-Id"
         const val LOCAL_FIRST = "${COMMAND_HEADERS_PREFIX}Local-First"
 
@@ -131,7 +149,15 @@ object CommandComponent {
                     "Whether to enable local priority mode, if false, it will be turned off, and the default is true."
             }
 
-        //region Wait Strategy
+        fun OpenAPIComponentContext.waitTimeOutHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_TIME_OUT
+                schema = IntegerSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "Command timeout period. Milliseconds"
+            }
+
+        //region Wait Stage
         fun OpenAPIComponentContext.waitContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = WAIT_CONTEXT
@@ -160,13 +186,36 @@ object CommandComponent {
                 `in`(ParameterIn.HEADER.toString())
             }
 
-        fun OpenAPIComponentContext.waitTimeOutHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+        //endregion
+        //region Wait Chain Tail
+        fun OpenAPIComponentContext.waitTailContextHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = WAIT_TIME_OUT
-                schema = IntegerSchema()
+                name = WAIT_TAIL_CONTEXT
+                schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
-                description = "Command timeout period. Milliseconds"
             }
+
+        fun OpenAPIComponentContext.waitTailStageHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_TAIL_STAGE
+                schema = schema(CommandStage::class.java)
+                `in`(ParameterIn.HEADER.toString())
+            }
+
+        fun OpenAPIComponentContext.waitTailProcessorHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_TAIL_PROCESSOR
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+            }
+
+        fun OpenAPIComponentContext.waitTailFunctionHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = WAIT_TAIL_FUNCTION
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+            }
+
         //endregion
 
         fun OpenAPIComponentContext.commandCommonHeaderParameters(): List<io.swagger.v3.oas.models.parameters.Parameter> {
@@ -176,6 +225,10 @@ object CommandComponent {
                 waitProcessorHeaderParameter(),
                 waitFunctionHeaderParameter(),
                 waitTimeOutHeaderParameter(),
+                waitTailStageHeaderParameter(),
+                waitTailContextHeaderParameter(),
+                waitTailProcessorHeaderParameter(),
+                waitTailFunctionHeaderParameter(),
                 aggregateIdHeaderParameter(),
                 aggregateVersionHeaderParameter(),
                 requestIdHeaderParameter(),

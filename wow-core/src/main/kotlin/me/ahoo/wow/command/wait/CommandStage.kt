@@ -40,6 +40,7 @@ enum class CommandStage {
      */
     PROJECTED {
         override val previous: List<CommandStage> = listOf(SENT, PROCESSED)
+        override val shouldWaitFunction: Boolean = true
     },
 
     /**
@@ -47,6 +48,7 @@ enum class CommandStage {
      */
     EVENT_HANDLED {
         override val previous: List<CommandStage> = listOf(SENT, PROCESSED)
+        override val shouldWaitFunction: Boolean = true
     },
 
     /**
@@ -54,6 +56,7 @@ enum class CommandStage {
      */
     SAGA_HANDLED {
         override val previous: List<CommandStage> = listOf(SENT, PROCESSED)
+        override val shouldWaitFunction: Boolean = true
     };
 
     /**
@@ -62,6 +65,8 @@ enum class CommandStage {
      * 定义了当前命令阶段之前必须完成的所有阶段。用于确定阶段之间的依赖关系和执行顺序。
      */
     abstract val previous: List<CommandStage>
+
+    open val shouldWaitFunction: Boolean = false
 
     /**
      * 判断是否应该发送通知

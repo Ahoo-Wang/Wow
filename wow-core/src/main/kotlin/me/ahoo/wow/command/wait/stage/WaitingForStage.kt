@@ -15,15 +15,16 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.extractWaitFunction
+import me.ahoo.wow.command.wait.extractWaitingStage
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.command.wait.propagateWaitFunction
+import me.ahoo.wow.command.wait.propagateWaitingStage
 import java.util.*
 
 /**
@@ -54,18 +55,17 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
-                .with(COMMAND_WAIT_STAGE, stage.name)
+                .propagateWaitingStage(stage)
                 .propagateWaitFunction(function)
         }
     }
 
     companion object {
-        const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
         fun Header.extractWaitingForStage(): Materialized? {
-            val stage = this[COMMAND_WAIT_STAGE] ?: return null
+            val stage = extractWaitingStage() ?: return null
             val function = extractWaitFunction()
             return Materialized(
-                stage = CommandStage.valueOf(stage),
+                stage = stage,
                 function = function
             )
         }

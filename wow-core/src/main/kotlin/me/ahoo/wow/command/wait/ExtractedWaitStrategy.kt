@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.extractSimpleWaitingChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.propagation.MessagePropagator
@@ -23,6 +24,8 @@ import me.ahoo.wow.messaging.propagation.MessagePropagator
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
+
+const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
 
 const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
 const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
@@ -76,8 +79,17 @@ fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
 fun Header.extractWaitStrategy(): ExtractedWaitStrategy? {
     val waitCommandId = this.extractCommandWaitId() ?: return null
     val endpoint = this.extractCommandWaitEndpoint() ?: return null
-    val waitStrategy = this.extractWaitingForStage() ?: return null
+    val waitStrategy = this.extractSimpleWaitingChain() ?: this.extractWaitingForStage() ?: return null
     return ExtractedWaitStrategy(endpoint, waitCommandId, waitStrategy)
+}
+
+fun Header.extractWaitingStage(): CommandStage? {
+    val stage = this[COMMAND_WAIT_STAGE] ?: return null
+    return CommandStage.valueOf(stage)
+}
+
+fun Header.propagateWaitingStage(stage: CommandStage): Header {
+    return with(COMMAND_WAIT_STAGE, stage.name)
 }
 
 fun Header.extractWaitFunction(): NamedFunctionInfoData {
