@@ -125,6 +125,9 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
             if (stage != signal.stage) {
                 return false
             }
+            if (!stage.shouldWaitFunction) {
+                return true
+            }
             return this.function.isWaitingForFunction(signal.function)
         }
     }
