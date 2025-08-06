@@ -20,6 +20,7 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.toWaitingChainTail
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import java.util.concurrent.ConcurrentHashMap
 
 class SimpleWaitingForChain(
     override val waitCommandId: String,
@@ -35,7 +36,7 @@ class SimpleWaitingForChain(
 
     @Volatile
     private var mainWaitingSignal: WaitSignal? = null
-    private val tailWaiting = mutableMapOf<String, WaitingForStage>()
+    private val tailWaiting = ConcurrentHashMap<String, WaitingForStage>()
 
     private fun tailWaitingCompleted(): Boolean {
         if (mainWaitingSignal == null) {
@@ -46,26 +47,14 @@ class SimpleWaitingForChain(
 
     private fun ensureTailWaiting(commandId: String): WaitingForStage {
         val tail = materialized.tail
-        var waitingForStage = tailWaiting[commandId]
-        if (waitingForStage != null) {
-            return waitingForStage
-        }
-
-        synchronized(this) {
-            waitingForStage = tailWaiting[commandId]
-            if (waitingForStage != null) {
-                return waitingForStage
-            }
-
-            waitingForStage = WaitingForStage.stage(
+        return tailWaiting.computeIfAbsent(commandId) {
+            WaitingForStage.stage(
                 waitCommandId = commandId,
                 stage = tail.stage,
                 contextName = tail.function.contextName,
                 processorName = tail.function.processorName,
                 functionName = tail.function.name
             )
-            tailWaiting[commandId] = waitingForStage
-            return waitingForStage
         }
     }
 
