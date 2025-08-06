@@ -28,7 +28,7 @@ import java.util.function.Consumer
  *
  * 定义了命令等待策略中关于传播行为的抽象方法，用于控制命令处理结果的传播逻辑。
  */
-interface WaitStrategyPropagator : WaitCommandIdCapable, MessagePropagator {
+interface WaitStrategyPropagator : MessagePropagator {
 
     /**
      * 执行传播操作
@@ -40,11 +40,18 @@ interface WaitStrategyPropagator : WaitCommandIdCapable, MessagePropagator {
      */
     fun propagate(commandWaitEndpoint: String, header: Header)
 
+    /**
+     * 判断是否应该传播指定的消息
+     *
+     * @param upstream 上游消息对象，包含命令或事件的相关信息
+     * @return 如果应该传播该消息则返回 true，否则返回 false
+     */
+    fun shouldPropagate(upstream: Message<*, *>): Boolean {
+        return upstream is CommandMessage<*>
+    }
+
     override fun propagate(header: Header, upstream: Message<*, *>) {
-        if (upstream !is CommandMessage<*>) {
-            return
-        }
-        val commandWaitEndpoint = upstream.header.extractCommandWaitEndpoint() ?: return
+        val commandWaitEndpoint = upstream.header.requireExtractCommandWaitEndpoint()
         propagate(commandWaitEndpoint, header)
     }
 }
@@ -53,7 +60,7 @@ interface WaitStrategyPropagator : WaitCommandIdCapable, MessagePropagator {
  * Command Wait Strategy
  * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
-interface WaitStrategy : WaitStrategyPropagator, CompletedCapable {
+interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, CompletedCapable {
     val cancelled: Boolean
     val terminated: Boolean
     override val completed: Boolean
@@ -81,6 +88,7 @@ interface WaitStrategy : WaitStrategyPropagator, CompletedCapable {
     fun onFinally(doFinally: Consumer<SignalType>)
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
+        header.propagateWaitCommandId(waitCommandId)
         materialized.propagate(commandWaitEndpoint, header)
     }
 

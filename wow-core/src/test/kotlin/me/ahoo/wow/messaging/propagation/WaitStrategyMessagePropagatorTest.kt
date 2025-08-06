@@ -20,12 +20,12 @@ class WaitStrategyMessagePropagatorTest {
 
     @Test
     fun propagate() {
-        val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
         WaitingForStage.projected(upstreamMessage.commandId, "context", "processor", "function")
             .propagate("wait-endpoint", upstreamMessage.header)
+        val header = DefaultHeader.empty()
         WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
         header.requireExtractWaitCommandId().assert().isEqualTo(upstreamMessage.commandId)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")

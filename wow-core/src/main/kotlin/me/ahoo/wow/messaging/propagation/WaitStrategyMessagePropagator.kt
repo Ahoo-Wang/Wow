@@ -21,6 +21,6 @@ class WaitStrategyMessagePropagator : MessagePropagator {
     override fun propagate(header: Header, upstream: Message<*, *>) {
         val upstreamHeader = upstream.header
         val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
-        waitStrategy.waitStrategy.propagate(header, upstream)
+        waitStrategy.propagate(header, upstream)
     }
 }
