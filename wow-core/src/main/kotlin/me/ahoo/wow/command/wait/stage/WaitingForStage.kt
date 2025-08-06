@@ -15,7 +15,6 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
@@ -62,7 +61,6 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     }
 
     companion object {
-        const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
         fun Header.extractWaitingForStage(): Materialized? {
             val stage = extractWaitingStage() ?: return null
             val function = extractWaitFunction()
