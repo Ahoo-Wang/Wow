@@ -60,7 +60,14 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
     val supportVoidCommand: Boolean
     fun waiting(): Flux<WaitSignal>
     fun waitingLast(): Mono<WaitSignal> {
-        return waiting().last()
+        return waiting().collectList().map { signals ->
+            signals.sortBy { it.signalTime }
+            val result: MutableMap<String, Any> = mutableMapOf()
+            signals.forEach { signal ->
+                result.putAll(signal.result)
+            }
+            signals.last().copyResult(result)
+        }
     }
 
     fun error(throwable: Throwable)
