@@ -6,9 +6,9 @@ import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
+import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
 import me.ahoo.wow.command.wait.requireExtractWaitCommandId
 import me.ahoo.wow.command.wait.stage.WaitingForStage
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
 import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader

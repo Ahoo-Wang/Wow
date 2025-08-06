@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader

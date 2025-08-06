@@ -20,7 +20,7 @@ import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingTailNode
+import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingChainTail
 import me.ahoo.wow.command.wait.extractWaitFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.command.wait.propagateWaitFunction
@@ -65,9 +65,9 @@ class SimpleWaitingChain(
 
         fun Header.extractSimpleWaitingChain(): WaitStrategy.FunctionMaterialized? {
             if (extractWaitChain() != SIMPLE_CHAIN) {
-                return extractWaitingTailNode()
+                return extractWaitingChainTail()
             }
-            val tail = extractWaitingTailNode() ?: return null
+            val tail = extractWaitingChainTail() ?: return null
             val function = extractWaitFunction()
             return SimpleWaitingChain(tail, function)
         }
@@ -98,7 +98,7 @@ class WaitingChainTail(
         const val COMMAND_WAIT_TAIL_CONTEXT = "${COMMAND_WAIT_TAIL_PREFIX}context"
         const val COMMAND_WAIT_TAIL_PROCESSOR = "${COMMAND_WAIT_TAIL_PREFIX}processor"
         const val COMMAND_WAIT_TAIL_FUNCTION = "${COMMAND_WAIT_TAIL_PREFIX}function"
-        fun Header.extractWaitingTailNode(): WaitingChainTail? {
+        fun Header.extractWaitingChainTail(): WaitingChainTail? {
             val stage = this[COMMAND_WAIT_TAIL_STAGE] ?: return null
             val context = this[COMMAND_WAIT_TAIL_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_TAIL_PROCESSOR].orEmpty()
