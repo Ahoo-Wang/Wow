@@ -44,14 +44,16 @@ class SimpleWaitingForChain(
 
     private fun ensureTailWaiting(commandId: String): WaitingForStage {
         val tail = materialized.tail
-        return tailWaiting.computeIfAbsent(commandId) {
-            WaitingForStage.stage(
-                waitCommandId = commandId,
-                stage = tail.stage,
-                contextName = tail.function.contextName,
-                processorName = tail.function.processorName,
-                functionName = tail.function.name
-            )
+        synchronized(this) {
+            return tailWaiting.computeIfAbsent(commandId) {
+                WaitingForStage.stage(
+                    waitCommandId = commandId,
+                    stage = tail.stage,
+                    contextName = tail.function.contextName,
+                    processorName = tail.function.processorName,
+                    functionName = tail.function.name
+                )
+            }
         }
     }
 

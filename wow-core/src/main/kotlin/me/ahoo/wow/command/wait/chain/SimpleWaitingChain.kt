@@ -93,7 +93,7 @@ class WaitingChainTail(
     }
 
     companion object {
-        const val COMMAND_WAIT_TAIL_PREFIX = "${COMMAND_WAIT_PREFIX}_tail_"
+        const val COMMAND_WAIT_TAIL_PREFIX = "${COMMAND_WAIT_PREFIX}tail_"
         const val COMMAND_WAIT_TAIL_STAGE = "${COMMAND_WAIT_TAIL_PREFIX}stage"
         const val COMMAND_WAIT_TAIL_CONTEXT = "${COMMAND_WAIT_TAIL_PREFIX}context"
         const val COMMAND_WAIT_TAIL_PROCESSOR = "${COMMAND_WAIT_TAIL_PREFIX}processor"
