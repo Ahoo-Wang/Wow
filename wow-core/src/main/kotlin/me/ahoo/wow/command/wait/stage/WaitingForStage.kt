@@ -15,14 +15,12 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
-import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
-import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
@@ -51,20 +49,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     data class Materialized(
         override val stage: CommandStage,
         override val function: NamedFunctionInfoData? = null
-    ) : WaitStrategy.Materialized, CommandStageCapable, NullableFunctionInfoCapable<NamedFunctionInfoData> {
-        override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return stage.shouldNotify(processingStage)
-        }
-
-        override fun shouldNotify(signal: WaitSignal): Boolean {
-            if (stage.isPrevious(signal.stage)) {
-                return true
-            }
-            if (stage != signal.stage) {
-                return false
-            }
-            return this.function.isWaitingForFunction(signal.function)
-        }
+    ) : WaitStrategy.FunctionMaterialized {
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
