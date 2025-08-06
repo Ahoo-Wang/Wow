@@ -14,7 +14,6 @@
 package me.ahoo.wow.command.wait.chain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
@@ -25,14 +24,14 @@ import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain.Companion.COMMAND_WA
 import me.ahoo.wow.command.wait.extractCommandWaitEndpoint
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.command.wait.propagateWaitCommandId
 import me.ahoo.wow.serialization.toJsonString
 
 class SimpleWaitingChain(
-    override val id: String,
-    override val commandId: String,
+    override val waitCommandId: String,
     override val function: NamedFunctionInfoData,
     override val next: WaitingTailNode
-) : WaitingChain, CommandId {
+) : WaitingChain {
     companion object {
         const val TYPE = "simple"
     }
@@ -41,7 +40,8 @@ class SimpleWaitingChain(
     override val stage: CommandStage = CommandStage.SAGA_HANDLED
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
-        header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+        header.propagateWaitCommandId(waitCommandId)
+            .propagateCommandWaitEndpoint(commandWaitEndpoint)
             .with(COMMAND_WAIT_CHAIN, this.toJsonString())
     }
 
@@ -70,7 +70,7 @@ class SimpleWaitingChain(
 }
 
 class WaitingTailNode(
-    override val id: String,
+    override val waitCommandId: String,
     override val stage: CommandStage,
     override val function: NamedFunctionInfoData? = null
 ) : WaitingChain {

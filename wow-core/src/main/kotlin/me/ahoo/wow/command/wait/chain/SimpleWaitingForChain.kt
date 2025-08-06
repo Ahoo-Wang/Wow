@@ -21,22 +21,41 @@ import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.serialization.toObject
 
 class SimpleWaitingForChain(override val materialized: SimpleWaitingChain) : WaitingFor() {
-    override val id: String
-        get() = materialized.id
+
+    override val waitCommandId: String
+        get() = materialized.waitCommandId
 
     private val firstWaiting = WaitingForStage.sagaHandled(
+        waitCommandId = waitCommandId,
         contextName = materialized.function.contextName,
         processorName = materialized.function.processorName,
         functionName = materialized.function.name
     )
 
+    private val nextWaiting = WaitingForStage.stage(
+        waitCommandId = waitCommandId,
+        stage = materialized.next.stage,
+        contextName = materialized.function.contextName,
+        processorName = materialized.function.processorName,
+        functionName = materialized.function.name
+    )
+
+    override fun next(signal: WaitSignal) {
+        nextSignal(signal)
+        if (waitCommandId == signal.commandId) {
+            firstWaiting.next(signal)
+        } else {
+            nextWaiting.next(signal)
+        }
+        if (firstWaiting.completed && nextWaiting.completed) {
+            complete()
+        }
+    }
+
     override fun isPreviousSignal(signal: WaitSignal): Boolean {
         return true
     }
 
-    override fun next(signal: WaitSignal) {
-        TODO("Not yet implemented")
-    }
 
     companion object {
         const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"

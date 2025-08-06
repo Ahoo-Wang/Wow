@@ -28,6 +28,7 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain.Companion.COMMAND_WAIT_CHAIN
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.command.wait.propagateWaitCommandId
 import me.ahoo.wow.serialization.toJsonString
 
 @JsonTypeInfo(
@@ -56,7 +57,8 @@ interface WaitingChain :
     }
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
-        header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+        header.propagateWaitCommandId(waitCommandId)
+            .propagateCommandWaitEndpoint(commandWaitEndpoint)
             .with(COMMAND_WAIT_CHAIN, this.toJsonString())
     }
 
