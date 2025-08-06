@@ -20,10 +20,8 @@ import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.serialization.toObject
 
-class SimpleWaitingForChain(override val materialized: SimpleWaitingChain) : WaitingFor() {
-
-    override val waitCommandId: String
-        get() = materialized.waitCommandId
+class SimpleWaitingForChain(override val waitCommandId: String, override val materialized: SimpleWaitingChain) :
+    WaitingFor() {
 
     private val firstWaiting = WaitingForStage.sagaHandled(
         waitCommandId = waitCommandId,
@@ -34,7 +32,7 @@ class SimpleWaitingForChain(override val materialized: SimpleWaitingChain) : Wai
 
     private val nextWaiting = WaitingForStage.stage(
         waitCommandId = waitCommandId,
-        stage = materialized.next.stage,
+        stage = materialized.tail.stage,
         contextName = materialized.function.contextName,
         processorName = materialized.function.processorName,
         functionName = materialized.function.name
