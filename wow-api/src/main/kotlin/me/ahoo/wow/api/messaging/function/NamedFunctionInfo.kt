@@ -24,11 +24,14 @@ interface NamedFunctionInfo : ProcessorInfo, Named {
      * Under the same processor, the name is unique.
      */
     override val name: String
+    fun isEmpty(): Boolean {
+        return contextName.isEmpty() && processorName.isEmpty() && name.isEmpty()
+    }
 }
 
 data class NamedFunctionInfoData(
-    override val processorName: String,
     override val contextName: String,
+    override val processorName: String,
     override val name: String
 ) : NamedFunctionInfo, Materialized
 
