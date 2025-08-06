@@ -16,11 +16,19 @@ package me.ahoo.wow.command.wait.chain
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.extractSimpleWaitingChain
 import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.extractWaitChain
 import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.propagateWaitChain
+import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.event.toDomainEvent
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 
 class SimpleWaitingChainTest {
@@ -48,6 +56,42 @@ class SimpleWaitingChainTest {
         extracted.function.assert().isEqualTo(function)
         extracted.tail.stage.assert().isEqualTo(tail.stage)
         extracted.tail.function.assert().isEqualTo(tail.function)
+    }
+
+    @Test
+    fun propagateCommandMessageUpstream() {
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val header = DefaultHeader.empty()
+        val upstream = MockCreateAggregate(generateGlobalId(), generateGlobalId())
+            .toCommandMessage()
+        upstream.header.propagateCommandWaitEndpoint("endpoint")
+        chain.propagate(header, upstream)
+        header.extractWaitChain().assert().isEqualTo(SimpleWaitingChain.SIMPLE_CHAIN)
+        val extracted = header.extractSimpleWaitingChain()
+        extracted.assert().isNotNull().isInstanceOf(SimpleWaitingChain::class.java)
+        extracted as SimpleWaitingChain
+        extracted.function.assert().isEqualTo(function)
+        extracted.tail.stage.assert().isEqualTo(tail.stage)
+        extracted.tail.function.assert().isEqualTo(tail.function)
+    }
+
+    @Test
+    fun propagateDomainEventUpstream() {
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val header = DefaultHeader.empty()
+        val upstream = MockAggregateCreated(generateGlobalId())
+            .toDomainEvent(MOCK_AGGREGATE_METADATA.aggregateId(), generateGlobalId())
+        upstream.header.propagateCommandWaitEndpoint("endpoint")
+        chain.propagate(header, upstream)
+        val extracted = header.extractSimpleWaitingChain()
+        extracted.assert().isNotNull().isInstanceOf(WaitingChainTail::class.java)
+        extracted as WaitingChainTail
+        extracted.function.assert().isEqualTo(function)
+        extracted.stage.assert().isEqualTo(tail.stage)
     }
 
     @Test
