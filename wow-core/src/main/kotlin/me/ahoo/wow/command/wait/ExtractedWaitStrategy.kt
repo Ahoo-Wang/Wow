@@ -14,7 +14,9 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
+import me.ahoo.wow.messaging.propagation.MessagePropagator
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
@@ -24,7 +26,18 @@ data class ExtractedWaitStrategy(
     override val endpoint: String,
     override val waitCommandId: String,
     val waitStrategy: WaitStrategy.Materialized
-) : CommandWaitEndpoint, WaitCommandIdCapable
+) : CommandWaitEndpoint, WaitCommandIdCapable, MessagePropagator {
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
+        if (waitStrategy.shouldPropagate(upstream)) {
+            header.propagateWaitCommandId(waitCommandId)
+                .propagateCommandWaitEndpoint(endpoint)
+            waitStrategy.propagate(header, upstream)
+        }
+    }
+}
 
 fun Header.extractCommandWaitId(): String? {
     return this[WAIT_COMMAND_ID]
@@ -42,6 +55,12 @@ fun Header.propagateWaitCommandId(commandId: String): Header {
 
 fun Header.extractCommandWaitEndpoint(): String? {
     return this[COMMAND_WAIT_ENDPOINT]
+}
+
+fun Header.requireExtractCommandWaitEndpoint(): String {
+    return requireNotNull(this[COMMAND_WAIT_ENDPOINT]) {
+        "$COMMAND_WAIT_ENDPOINT is required!"
+    }
 }
 
 fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
