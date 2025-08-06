@@ -16,6 +16,8 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.api.naming.CompletedCapable
 import me.ahoo.wow.messaging.propagation.MessagePropagator
 import reactor.core.publisher.Flux
@@ -105,6 +107,25 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
         override fun propagate(header: Header, upstream: Message<*, *>) {
             val commandWaitEndpoint = upstream.header.requireExtractCommandWaitEndpoint()
             propagate(commandWaitEndpoint, header)
+        }
+    }
+
+    interface FunctionMaterialized :
+        Materialized,
+        CommandStageCapable,
+        NullableFunctionInfoCapable<NamedFunctionInfoData> {
+        override fun shouldNotify(processingStage: CommandStage): Boolean {
+            return stage.shouldNotify(processingStage)
+        }
+
+        override fun shouldNotify(signal: WaitSignal): Boolean {
+            if (stage.isPrevious(signal.stage)) {
+                return true
+            }
+            if (stage != signal.stage) {
+                return false
+            }
+            return this.function.isWaitingForFunction(signal.function)
         }
     }
 }
