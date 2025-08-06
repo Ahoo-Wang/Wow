@@ -88,6 +88,19 @@ internal class WaitingForStageTest {
     }
 
     @Test
+    fun waitingLastEmpty() {
+        val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
+        waitStrategy.cancelled.assert().isEqualTo(false)
+        waitStrategy.terminated.assert().isEqualTo(false)
+        waitStrategy.waitingLast()
+            .test()
+            .expectSubscription()
+            .then { waitStrategy.complete() }
+            .expectComplete()
+            .verify()
+    }
+
+    @Test
     fun processedIfSnapshot() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
