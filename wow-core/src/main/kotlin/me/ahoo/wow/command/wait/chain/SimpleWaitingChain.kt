@@ -39,6 +39,7 @@ class SimpleWaitingChain(
 
     override fun propagate(commandWaitEndpoint: String, header: Header) {
         header.propagateWaitFunction(function)
+            .propagateWaitChain(SIMPLE_CHAIN)
         tail.propagate(commandWaitEndpoint, header)
     }
 
@@ -51,7 +52,21 @@ class SimpleWaitingChain(
     }
 
     companion object {
-        fun Header.extractSimpleWaitingChain(): SimpleWaitingChain? {
+        const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
+        const val SIMPLE_CHAIN = "simple"
+
+        fun Header.propagateWaitChain(chain: String): Header {
+            return with(COMMAND_WAIT_CHAIN, chain)
+        }
+
+        fun Header.extractWaitChain(): String? {
+            return this[COMMAND_WAIT_CHAIN]
+        }
+
+        fun Header.extractSimpleWaitingChain(): WaitStrategy.FunctionMaterialized? {
+            if (extractWaitChain() != SIMPLE_CHAIN) {
+                return extractWaitingTailNode()
+            }
             val tail = extractWaitingTailNode() ?: return null
             val function = extractWaitFunction()
             return SimpleWaitingChain(tail, function)
