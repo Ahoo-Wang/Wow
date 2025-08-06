@@ -15,12 +15,18 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
+import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.messaging.propagation.MessagePropagator
 
 const val COMMAND_WAIT_PREFIX = "command_wait_"
 const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
 const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
+
+const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
+const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
+const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
 
 data class ExtractedWaitStrategy(
     override val endpoint: String,
@@ -72,4 +78,25 @@ fun Header.extractWaitStrategy(): ExtractedWaitStrategy? {
     val endpoint = this.extractCommandWaitEndpoint() ?: return null
     val waitStrategy = this.extractWaitingForStage() ?: return null
     return ExtractedWaitStrategy(endpoint, waitCommandId, waitStrategy)
+}
+
+fun Header.extractWaitFunction(): NamedFunctionInfoData {
+    val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
+    val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
+    val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
+    return NamedFunctionInfoData(contextName = context, processorName = processor, name = function)
+}
+
+fun Header.propagateWaitFunction(function: NamedFunctionInfoData?): Header {
+    val function = function ?: return this
+    function.contextName.ifNotBlank {
+        with(COMMAND_WAIT_CONTEXT, it)
+    }
+    function.processorName.ifNotBlank {
+        with(COMMAND_WAIT_PROCESSOR, it)
+    }
+    function.name.ifNotBlank {
+        with(COMMAND_WAIT_FUNCTION, it)
+    }
+    return this
 }

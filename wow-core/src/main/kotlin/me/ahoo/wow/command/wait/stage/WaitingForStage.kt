@@ -21,8 +21,9 @@ import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.extractWaitFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
-import me.ahoo.wow.infra.ifNotBlank
+import me.ahoo.wow.command.wait.propagateWaitFunction
 import java.util.*
 
 /**
@@ -54,36 +55,18 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_STAGE, stage.name)
-            val function = function ?: return
-            function.contextName.ifNotBlank {
-                header.with(COMMAND_WAIT_CONTEXT, it)
-            }
-            function.processorName.ifNotBlank {
-                header.with(COMMAND_WAIT_PROCESSOR, it)
-            }
-            function.name.ifNotBlank {
-                header.with(COMMAND_WAIT_FUNCTION, it)
-            }
+                .propagateWaitFunction(function)
         }
     }
 
     companion object {
         const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
-        const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
-        const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
-        const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Materialized? {
             val stage = this[COMMAND_WAIT_STAGE] ?: return null
-            val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
-            val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
-            val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
+            val function = extractWaitFunction()
             return Materialized(
                 stage = CommandStage.valueOf(stage),
-                function = NamedFunctionInfoData(
-                    contextName = context,
-                    processorName = processor,
-                    name = function
-                )
+                function = function
             )
         }
 

@@ -13,29 +13,89 @@
 
 package me.ahoo.wow.command.wait.chain
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
+import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingTailNode
+import me.ahoo.wow.command.wait.extractWaitFunction
+import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.command.wait.propagateWaitFunction
+import me.ahoo.wow.infra.ifNotBlank
 
 class SimpleWaitingChain(
+    val tail: WaitingChainTail,
     override val function: NamedFunctionInfoData,
-    val tail: WaitingTailNode,
 ) : WaitStrategy.FunctionMaterialized {
     override val stage: CommandStage
         get() = CommandStage.SAGA_HANDLED
 
-    override fun propagate(commandWaitEndpoint: String, header: Header) {
-        TODO("Not yet implemented")
+    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
+        return true
     }
 
+    override fun propagate(commandWaitEndpoint: String, header: Header) {
+        header.propagateWaitFunction(function)
+        tail.propagate(commandWaitEndpoint, header)
+    }
+
+    override fun propagate(header: Header, upstream: Message<*, *>) {
+        if (upstream is CommandMessage) {
+            super.propagate(header, upstream)
+        } else {
+            tail.propagate(header, upstream)
+        }
+    }
+
+    companion object {
+        fun Header.extractSimpleWaitingChain(): SimpleWaitingChain? {
+            val tail = extractWaitingTailNode() ?: return null
+            val function = extractWaitFunction()
+            return SimpleWaitingChain(tail, function)
+        }
+    }
 }
 
-class WaitingTailNode(
+class WaitingChainTail(
     override val stage: CommandStage,
-    override val function: NamedFunctionInfoData? = null
+    override val function: NamedFunctionInfoData
 ) : WaitStrategy.FunctionMaterialized {
     override fun propagate(commandWaitEndpoint: String, header: Header) {
-        TODO("Not yet implemented")
+        header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+            .with(COMMAND_WAIT_TAIL_STAGE, stage.name)
+        function.contextName.ifNotBlank {
+            header.with(COMMAND_WAIT_TAIL_CONTEXT, it)
+        }
+        function.processorName.ifNotBlank {
+            header.with(COMMAND_WAIT_TAIL_PROCESSOR, it)
+        }
+        function.name.ifNotBlank {
+            header.with(COMMAND_WAIT_TAIL_FUNCTION, it)
+        }
+    }
+
+    companion object {
+        const val COMMAND_WAIT_TAIL_PREFIX = "${COMMAND_WAIT_PREFIX}_tail_"
+        const val COMMAND_WAIT_TAIL_STAGE = "${COMMAND_WAIT_TAIL_PREFIX}stage"
+        const val COMMAND_WAIT_TAIL_CONTEXT = "${COMMAND_WAIT_TAIL_PREFIX}context"
+        const val COMMAND_WAIT_TAIL_PROCESSOR = "${COMMAND_WAIT_TAIL_PREFIX}processor"
+        const val COMMAND_WAIT_TAIL_FUNCTION = "${COMMAND_WAIT_TAIL_PREFIX}function"
+        fun Header.extractWaitingTailNode(): WaitingChainTail? {
+            val stage = this[COMMAND_WAIT_TAIL_STAGE] ?: return null
+            val context = this[COMMAND_WAIT_TAIL_CONTEXT].orEmpty()
+            val processor = this[COMMAND_WAIT_TAIL_PROCESSOR].orEmpty()
+            val function = this[COMMAND_WAIT_TAIL_FUNCTION].orEmpty()
+            return WaitingChainTail(
+                stage = CommandStage.valueOf(stage),
+                function = NamedFunctionInfoData(
+                    contextName = context,
+                    processorName = processor,
+                    name = function
+                )
+            )
+        }
     }
 }

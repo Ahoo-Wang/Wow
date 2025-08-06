@@ -2,9 +2,6 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/example/transfer/example-transfer-api/Wow.example-transfer-api.main.iml" filepath="$PROJECT_DIR$/.idea/modules/example/transfer/example-transfer-api/Wow.example-transfer-api.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/wow-apiclient/Wow.wow-apiclient.main.iml" filepath="$PROJECT_DIR$/.idea/modules/wow-apiclient/Wow.wow-apiclient.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/wow-cocache/Wow.wow-cocache.main.iml" filepath="$PROJECT_DIR$/.idea/modules/wow-cocache/Wow.wow-cocache.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/wow-mcp/Wow.wow-mcp.main.iml" filepath="$PROJECT_DIR$/.idea/modules/wow-mcp/Wow.wow-mcp.main.iml" />
     </modules>
   </component>

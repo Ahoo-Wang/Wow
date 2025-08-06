@@ -18,7 +18,7 @@ import me.ahoo.wow.api.messaging.function.NamedFunctionInfo
 import me.ahoo.wow.infra.ifNotBlank
 
 fun NamedFunctionInfo?.isWaitingForFunction(function: FunctionInfo): Boolean {
-    if (this == null) {
+    if (this == null || isEmpty()) {
         return true
     }
     contextName.ifNotBlank {

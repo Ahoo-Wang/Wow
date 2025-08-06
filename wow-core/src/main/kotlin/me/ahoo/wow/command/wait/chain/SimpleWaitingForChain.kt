@@ -13,15 +13,14 @@
 
 package me.ahoo.wow.command.wait.chain
 
-import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.stage.WaitingForStage
-import me.ahoo.wow.serialization.toObject
 
-class SimpleWaitingForChain(override val waitCommandId: String, override val materialized: SimpleWaitingChain) :
-    WaitingFor() {
+class SimpleWaitingForChain(
+    override val waitCommandId: String,
+    override val materialized: SimpleWaitingChain
+) : WaitingFor() {
 
     private val firstWaiting = WaitingForStage.sagaHandled(
         waitCommandId = waitCommandId,
@@ -52,14 +51,5 @@ class SimpleWaitingForChain(override val waitCommandId: String, override val mat
 
     override fun isPreviousSignal(signal: WaitSignal): Boolean {
         return true
-    }
-
-
-    companion object {
-        const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
-        fun Header.extractWaitingForChain(): SimpleWaitingChain? {
-            val chain = this[COMMAND_WAIT_CHAIN] ?: return null
-            return chain.toObject<SimpleWaitingChain>()
-        }
     }
 }
