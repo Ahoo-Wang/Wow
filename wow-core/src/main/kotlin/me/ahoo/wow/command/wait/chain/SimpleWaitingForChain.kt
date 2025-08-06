@@ -15,36 +15,69 @@ package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import java.util.concurrent.ConcurrentHashMap
 
 class SimpleWaitingForChain(
     override val waitCommandId: String,
     override val materialized: SimpleWaitingChain
 ) : WaitingFor() {
 
-    private val firstWaiting = WaitingForStage.sagaHandled(
+    private val mainWaiting = WaitingForStage.sagaHandled(
         waitCommandId = waitCommandId,
         contextName = materialized.function.contextName,
         processorName = materialized.function.processorName,
         functionName = materialized.function.name
     )
 
-    private val nextWaiting = WaitingForStage.stage(
-        waitCommandId = waitCommandId,
-        stage = materialized.tail.stage,
-        contextName = materialized.function.contextName,
-        processorName = materialized.function.processorName,
-        functionName = materialized.function.name
-    )
+    @Volatile
+    private var mainWaitingSignal: WaitSignal? = null
+    private val tailWaiting = ConcurrentHashMap<String, WaitingForStage>()
+
+    private fun tailWaitingCompleted(): Boolean {
+        if (mainWaitingSignal == null) {
+            return false
+        }
+        return tailWaiting.all { it.value.completed }
+    }
+
+    private fun ensureTailWaiting(commandId: String): WaitingForStage {
+        val tail = materialized.tail
+        return tailWaiting.computeIfAbsent(commandId) {
+            WaitingForStage.stage(
+                waitCommandId = commandId,
+                stage = tail.stage,
+                contextName = tail.function.contextName,
+                processorName = tail.function.processorName,
+                functionName = tail.function.name
+            )
+        }
+    }
+
+    private fun mainNext(signal: WaitSignal) {
+        mainWaiting.next(signal)
+        if (!materialized.function.isWaitingForFunction(signal.function)) {
+            return
+        }
+        mainWaitingSignal = signal
+        signal.commands.forEach { commandId ->
+            ensureTailWaiting(commandId)
+        }
+    }
+
+    private fun tailNext(signal: WaitSignal) {
+        ensureTailWaiting(signal.commandId).next(signal)
+    }
 
     override fun next(signal: WaitSignal) {
         nextSignal(signal)
         if (waitCommandId == signal.commandId) {
-            firstWaiting.next(signal)
+            mainNext(signal)
         } else {
-            nextWaiting.next(signal)
+            tailNext(signal)
         }
-        if (firstWaiting.completed && nextWaiting.completed) {
+        if (mainWaiting.completed && tailWaitingCompleted()) {
             complete()
         }
     }
