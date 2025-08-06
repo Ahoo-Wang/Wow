@@ -114,7 +114,7 @@ class CommandWaitNotifierSubscriber<E, M>(
 
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
-            waitCommandId = waitStrategy.waitStrategy.waitCommandId,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = messageExchange.message.commandId,
             aggregateId = messageExchange.message.aggregateId,
             stage = processingStage,

@@ -24,8 +24,6 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
 import me.ahoo.wow.command.wait.isWaitingForFunction
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
-import me.ahoo.wow.command.wait.propagateWaitCommandId
-import me.ahoo.wow.command.wait.requireExtractWaitCommandId
 import me.ahoo.wow.infra.ifNotBlank
 import java.util.*
 
@@ -35,7 +33,6 @@ import java.util.*
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
-            waitCommandId = waitCommandId,
             stage = stage
         )
     }
@@ -52,7 +49,6 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     }
 
     data class Materialized(
-        override val waitCommandId: String,
         override val stage: CommandStage,
         override val function: NamedFunctionInfoData? = null
     ) : WaitStrategy.Materialized, CommandStageCapable, NullableFunctionInfoCapable<NamedFunctionInfoData> {
@@ -71,8 +67,7 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         }
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
-            header.propagateWaitCommandId(waitCommandId)
-                .propagateCommandWaitEndpoint(commandWaitEndpoint)
+            header.propagateCommandWaitEndpoint(commandWaitEndpoint)
                 .with(COMMAND_WAIT_STAGE, stage.name)
             val function = function ?: return
             function.contextName.ifNotBlank {
@@ -94,12 +89,10 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
         const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Materialized? {
             val stage = this[COMMAND_WAIT_STAGE] ?: return null
-            val waitCommandId = requireExtractWaitCommandId()
             val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
             val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
             val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
             return Materialized(
-                waitCommandId = waitCommandId,
                 stage = CommandStage.valueOf(stage),
                 function = NamedFunctionInfoData(
                     contextName = context,

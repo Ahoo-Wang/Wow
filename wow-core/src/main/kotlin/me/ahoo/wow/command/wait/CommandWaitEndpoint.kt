@@ -11,16 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.messaging.propagation
+package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.command.wait.extractWaitStrategy
-
-class WaitStrategyMessagePropagator : MessagePropagator {
-    override fun propagate(header: Header, upstream: Message<*, *>) {
-        val upstreamHeader = upstream.header
-        val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
-        waitStrategy.propagate(header, upstream)
-    }
+interface CommandWaitEndpoint {
+    val endpoint: String
 }
+
+data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint

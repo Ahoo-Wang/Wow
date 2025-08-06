@@ -59,7 +59,7 @@ abstract class WaitingFor : WaitStrategy {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    private fun tryEmit(emit: () -> Unit): Boolean {
+    protected fun tryEmit(emit: () -> Unit): Boolean {
         if (completed) {
             log.warn {
                 "WaitingFor is terminated or cancelled, ignore emit."
