@@ -16,8 +16,6 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import org.reactivestreams.Publisher
@@ -46,19 +44,8 @@ class CommandHandler(
     }
 
     private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Publisher<CommandResult> {
-        val stage: CommandStage = request.getCommandStage()
-        val waitContext = request.getWaitContext().ifBlank {
-            commandMessage.contextName
-        }
+        val waitStrategy = request.extractWaitStrategy(commandMessage)
         val commandWaitTimeout = request.getWaitTimeout(timeout)
-        val waitStrategy = WaitingForStage.stage(
-            waitCommandId = commandMessage.commandId,
-            stage = stage,
-            contextName = waitContext,
-            processorName = request.getWaitProcessor(),
-            functionName = request.getWaitFunction()
-        )
-
         if (request.isSse()) {
             return commandGateway.sendAndWaitStream(
                 command = commandMessage,

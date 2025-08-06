@@ -66,13 +66,13 @@ class AggregateRequestTest {
     fun getCommandStage() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name).build()
-        request.getCommandStage().assert().isEqualTo(CommandStage.SENT)
+        request.getWaitStage().assert().isEqualTo(CommandStage.SENT)
     }
 
     @Test
     fun getCommandStageIfNull() {
         val request = MockServerRequest.builder().build()
-        request.getCommandStage().assert().isEqualTo(CommandStage.PROCESSED)
+        request.getWaitStage().assert().isEqualTo(CommandStage.PROCESSED)
     }
 
     @Test

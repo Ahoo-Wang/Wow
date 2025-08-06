@@ -14,8 +14,15 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitStrategy
+import me.ahoo.wow.command.wait.chain.SimpleWaitingChain
+import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
+import me.ahoo.wow.command.wait.chain.WaitingChainTail
+import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -83,7 +90,18 @@ fun ServerRequest.getLocalFirst(): Boolean? {
     return null
 }
 
-fun ServerRequest.getCommandStage(): CommandStage {
+fun ServerRequest.isSse(): Boolean {
+    return headers().accept().firstOrNull() == MediaType.TEXT_EVENT_STREAM
+}
+
+fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)?.toLongOrNull()?.let {
+        Duration.ofMillis(it)
+    } ?: default
+}
+
+//region Wait Stage
+fun ServerRequest.getWaitStage(): CommandStage {
     return headers().firstHeader(CommandComponent.Header.WAIT_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     } ?: CommandStage.PROCESSED
@@ -101,12 +119,61 @@ fun ServerRequest.getWaitFunction(): String {
     return headers().firstHeader(CommandComponent.Header.WAIT_FUNCTION).orEmpty()
 }
 
-fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)?.toLongOrNull()?.let {
-        Duration.ofMillis(it)
-    } ?: default
+//endregion
+//region Wait Chain Tail
+fun ServerRequest.getWaitTailStage(): CommandStage? {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_STAGE).ifNotBlank { stage ->
+        CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
+    }
 }
 
-fun ServerRequest.isSse(): Boolean {
-    return headers().accept().firstOrNull() == MediaType.TEXT_EVENT_STREAM
+fun ServerRequest.getWaitTailContext(): String {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_CONTEXT).orEmpty()
+}
+
+fun ServerRequest.getWaitTailProcessor(): String {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_PROCESSOR).orEmpty()
+}
+
+fun ServerRequest.getWaitTailFunction(): String {
+    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_FUNCTION).orEmpty()
+}
+//endregion
+
+fun ServerRequest.extractWaitStrategy(commandMessage: CommandMessage<Any>): WaitStrategy {
+    val stage: CommandStage = getWaitStage()
+    val waitContext = getWaitContext().ifBlank {
+        commandMessage.contextName
+    }
+    val waitFunction = NamedFunctionInfoData(
+        contextName = waitContext,
+        processorName = getWaitProcessor(),
+        name = getWaitFunction()
+    )
+    val waitTailStage = getWaitTailStage()
+    if (stage == CommandStage.SAGA_HANDLED && waitTailStage != null) {
+        val tail = WaitingChainTail(
+            stage = waitTailStage,
+            function = NamedFunctionInfoData(
+                contextName = getWaitTailContext().ifBlank {
+                    commandMessage.contextName
+                },
+                processorName = getWaitTailProcessor(),
+                name = getWaitTailFunction()
+            )
+        )
+        val chain = SimpleWaitingChain(
+            tail = tail,
+            function = waitFunction
+        )
+        return SimpleWaitingForChain(commandMessage.commandId, chain)
+    }
+
+    return WaitingForStage.stage(
+        waitCommandId = commandMessage.commandId,
+        stage = stage,
+        contextName = waitContext,
+        processorName = waitFunction.processorName,
+        functionName = waitFunction.name
+    )
 }
