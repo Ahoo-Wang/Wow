@@ -19,9 +19,7 @@ import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.chain.SimpleWaitingChain
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
-import me.ahoo.wow.command.wait.chain.WaitingChainTail
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
@@ -152,21 +150,19 @@ fun ServerRequest.extractWaitStrategy(commandMessage: CommandMessage<Any>): Wait
     )
     val waitTailStage = getWaitTailStage()
     if (stage == CommandStage.SAGA_HANDLED && waitTailStage != null) {
-        val tail = WaitingChainTail(
-            stage = waitTailStage,
-            function = NamedFunctionInfoData(
-                contextName = getWaitTailContext().ifBlank {
-                    commandMessage.contextName
-                },
-                processorName = getWaitTailProcessor(),
-                name = getWaitTailFunction()
-            )
+        val waitTailFunction = NamedFunctionInfoData(
+            contextName = getWaitTailContext().ifBlank {
+                commandMessage.contextName
+            },
+            processorName = getWaitTailProcessor(),
+            name = getWaitTailFunction()
         )
-        val chain = SimpleWaitingChain(
-            tail = tail,
-            function = waitFunction
+        return SimpleWaitingForChain.chain(
+            waitCommandId = commandMessage.commandId,
+            function = waitFunction,
+            tailStage = waitTailStage,
+            tailFunction = waitTailFunction
         )
-        return SimpleWaitingForChain(commandMessage.commandId, chain)
     }
 
     return WaitingForStage.stage(

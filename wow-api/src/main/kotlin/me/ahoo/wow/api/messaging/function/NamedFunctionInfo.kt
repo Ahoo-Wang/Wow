@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.messaging.function
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.Named
@@ -24,6 +25,8 @@ interface NamedFunctionInfo : ProcessorInfo, Named {
      * Under the same processor, the name is unique.
      */
     override val name: String
+
+    @JsonIgnore
     fun isEmpty(): Boolean {
         return contextName.isEmpty() && processorName.isEmpty() && name.isEmpty()
     }
@@ -33,7 +36,11 @@ data class NamedFunctionInfoData(
     override val contextName: String,
     override val processorName: String,
     override val name: String
-) : NamedFunctionInfo, Materialized
+) : NamedFunctionInfo, Materialized {
+    companion object {
+        val EMPTY = NamedFunctionInfoData("", "", "")
+    }
+}
 
 fun NamedFunctionInfo.materialize(): NamedFunctionInfoData {
     if (this is NamedFunctionInfoData) {

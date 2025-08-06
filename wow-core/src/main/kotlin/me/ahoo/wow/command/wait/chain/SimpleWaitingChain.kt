@@ -112,5 +112,23 @@ class WaitingChainTail(
                 )
             )
         }
+
+        fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY): WaitingChainTail {
+            return when (this) {
+                CommandStage.SENT, CommandStage.PROJECTED, CommandStage.PROCESSED -> {
+                    WaitingChainTail(
+                        stage = this,
+                        function = NamedFunctionInfoData.EMPTY
+                    )
+                }
+
+                else -> {
+                    WaitingChainTail(
+                        stage = this,
+                        function = function
+                    )
+                }
+            }
+        }
     }
 }

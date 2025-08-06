@@ -195,4 +195,52 @@ class SimpleWaitingForChainTest {
             .expectComplete()
             .verify()
     }
+
+    @Test
+    fun nextWithTailErrorSignal() {
+        val waitCommandId = generateGlobalId()
+        val function = NamedFunctionInfoData("context", "processor", "function")
+        val tail = WaitingChainTail(CommandStage.PROCESSED, function)
+        val chain = SimpleWaitingChain(tail, function)
+        val waitingForChain = SimpleWaitingForChain(waitCommandId, chain)
+
+        // First send main signal to initialize tail waiting
+        val mainProcessedSignal = createTestSignal(
+            commandId = waitCommandId,
+            waitCommandId = waitCommandId,
+            stage = CommandStage.PROCESSED,
+        )
+        val mainSagaSignal = createTestSignal(
+            commandId = waitCommandId,
+            waitCommandId = waitCommandId,
+            stage = CommandStage.SAGA_HANDLED,
+            commands = listOf("tail-command-id"),
+            function = FunctionInfoData(
+                functionKind = FunctionKind.EVENT,
+                contextName = function.contextName,
+                processorName = function.processorName,
+                name = function.name
+            )
+        )
+
+        val tailSignal = createTestSignal(
+            commandId = "tail-command-id",
+            waitCommandId = "tail-command-id",
+            stage = CommandStage.PROCESSED,
+            function = mainSagaSignal.function,
+            errorInfo = ErrorInfo.of("error-code", "error-msg")
+        )
+
+        waitingForChain.waiting()
+            .test()
+            .expectSubscription()
+            .then { waitingForChain.next(mainProcessedSignal) }
+            .expectNext(mainProcessedSignal)
+            .then { waitingForChain.next(mainSagaSignal) }
+            .expectNext(mainSagaSignal)
+            .then { waitingForChain.next(tailSignal) }
+            .expectNext(tailSignal)
+            .expectComplete()
+            .verify()
+    }
 }
