@@ -14,56 +14,9 @@
 package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
-
-const val COMMAND_WAIT_PREFIX = "command_wait_"
-const val WAIT_COMMAND_ID = "${COMMAND_WAIT_PREFIX}id"
-const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
-
-interface CommandWaitEndpoint {
-    val endpoint: String
-}
-
-data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
-
-data class ExtractedWaitStrategy(
-    override val endpoint: String,
-    override val waitCommandId: String,
-    val waitStrategy: WaitStrategy.Materialized
-) : CommandWaitEndpoint, WaitCommandIdCapable
-
-fun Header.extractCommandWaitId(): String? {
-    return this[WAIT_COMMAND_ID]
-}
-
-fun Header.requireExtractWaitCommandId(): String {
-    return requireNotNull(extractCommandWaitId()) {
-        "$WAIT_COMMAND_ID is required!"
-    }
-}
-
-fun Header.propagateWaitCommandId(commandId: String): Header {
-    return with(WAIT_COMMAND_ID, commandId)
-}
-
-fun Header.extractCommandWaitEndpoint(): String? {
-    return this[COMMAND_WAIT_ENDPOINT]
-}
-
-fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
-    return with(COMMAND_WAIT_ENDPOINT, endpoint)
-}
-
-fun Header.extractWaitStrategy(): ExtractedWaitStrategy? {
-    val waitCommandId = this.extractCommandWaitId() ?: return null
-    val endpoint = this.extractCommandWaitEndpoint() ?: return null
-    val waitStrategy = this.extractWaitingForStage() ?: return null
-    return ExtractedWaitStrategy(endpoint, waitCommandId, waitStrategy)
-}
 
 /**
  * 命令处理器完成处理后，将处理结果发往等待者
