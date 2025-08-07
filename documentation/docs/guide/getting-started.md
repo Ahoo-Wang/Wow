@@ -13,7 +13,7 @@
     - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
     - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
 - 将模板压缩包放到 _IDEA_ 项目模板目录下
-    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v5.26.9/wow-project-template.zip)
+    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v6.0.6/wow-project-template.zip)
 
 ## 创建项目
 

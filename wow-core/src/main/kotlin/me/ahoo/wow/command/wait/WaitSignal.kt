@@ -21,6 +21,8 @@ import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoCapable
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.materialize
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.command.CommandResultCapable
 import me.ahoo.wow.exception.ErrorCodes
 
@@ -34,7 +36,9 @@ interface NullableAggregateVersionCapable {
 
 interface WaitSignal :
     Identifier,
+    WaitCommandIdCapable,
     CommandId,
+    AggregateIdCapable,
     NullableAggregateVersionCapable,
     ErrorInfo,
     SignalTimeCapable,
@@ -42,12 +46,20 @@ interface WaitSignal :
     FunctionInfoCapable<FunctionInfoData> {
     val stage: CommandStage
     val isLastProjection: Boolean
+
+    /**
+     * List of command IDs sent by Saga
+     */
+    val commands: List<String>
+
     fun copyResult(result: Map<String, Any>): WaitSignal
 }
 
 data class SimpleWaitSignal(
     override val id: String,
+    override val waitCommandId: String,
     override val commandId: String,
+    override val aggregateId: AggregateId,
     override val stage: CommandStage,
     override val function: FunctionInfoData,
     override val aggregateVersion: Int? = null,
@@ -56,12 +68,15 @@ data class SimpleWaitSignal(
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
+    override val commands: List<String> = listOf(),
     override val signalTime: Long = System.currentTimeMillis()
 ) : WaitSignal {
     companion object {
         fun FunctionInfo.toWaitSignal(
             id: String,
+            waitCommandId: String,
             commandId: String,
+            aggregateId: AggregateId,
             stage: CommandStage,
             isLastProjection: Boolean = false,
             aggregateVersion: Int? = null,
@@ -69,11 +84,14 @@ data class SimpleWaitSignal(
             errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
             bindingErrors: List<BindingError> = emptyList(),
             result: Map<String, Any> = emptyMap(),
+            commands: List<String> = listOf(),
             signalTime: Long = System.currentTimeMillis()
         ): WaitSignal {
             return SimpleWaitSignal(
                 id = id,
+                waitCommandId = waitCommandId,
                 commandId = commandId,
+                aggregateId = aggregateId,
                 stage = stage,
                 function = this.materialize(),
                 aggregateVersion = aggregateVersion,
@@ -82,6 +100,7 @@ data class SimpleWaitSignal(
                 errorMsg = errorMsg,
                 bindingErrors = bindingErrors,
                 result = result,
+                commands = commands,
                 signalTime = signalTime
             )
         }

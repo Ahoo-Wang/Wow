@@ -19,56 +19,67 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoCapable
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.modeling.AggregateNameCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.NullableAggregateVersionCapable
 import me.ahoo.wow.command.wait.SignalTimeCapable
+import me.ahoo.wow.command.wait.WaitCommandIdCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 
 data class CommandResult(
+    override val id: String,
+    override val waitCommandId: String,
     override val stage: CommandStage,
+    override val contextName: String,
+    override val aggregateName: String,
+    override val tenantId: String,
     val aggregateId: String,
     override val aggregateVersion: Int? = null,
-    override val id: String,
-    override val contextName: String,
-    override val processorName: String,
-    override val tenantId: String,
     override val requestId: String,
     override val commandId: String,
+    override val function: FunctionInfoData,
     override val errorCode: String = ErrorCodes.SUCCEEDED,
     override val errorMsg: String = ErrorCodes.SUCCEEDED_MESSAGE,
     override val bindingErrors: List<BindingError> = emptyList(),
     override val result: Map<String, Any> = emptyMap(),
     override val signalTime: Long = System.currentTimeMillis()
-) : CommandStageCapable,
-    Identifier,
-    CommandId,
+) : Identifier,
+    WaitCommandIdCapable,
+    CommandStageCapable,
+    NamedBoundedContext,
+    AggregateNameCapable,
     TenantId,
+    NullableAggregateVersionCapable,
+    CommandId,
     RequestId,
     ErrorInfo,
-    ProcessorInfo,
+    FunctionInfoCapable<FunctionInfoData>,
     CommandResultCapable,
     SignalTimeCapable,
-    NullableAggregateVersionCapable,
     Materialized
 
 fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
     return CommandResult(
         id = this.id,
+        waitCommandId = waitCommandId,
         stage = this.stage,
-        aggregateId = commandMessage.aggregateId.id,
+        contextName = aggregateId.contextName,
+        aggregateName = aggregateId.aggregateName,
+        tenantId = aggregateId.tenantId,
+        aggregateId = aggregateId.id,
         aggregateVersion = aggregateVersion,
-        contextName = function.contextName,
-        processorName = function.processorName,
-        tenantId = commandMessage.aggregateId.tenantId,
+        function = function,
         requestId = commandMessage.requestId,
-        commandId = commandMessage.commandId,
+        commandId = commandId,
         errorCode = this.errorCode,
         errorMsg = this.errorMsg,
         bindingErrors = bindingErrors,
@@ -78,9 +89,9 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
 }
 
 fun Throwable.toResult(
+    waitCommandId: String,
     commandMessage: CommandMessage<*>,
-    contextName: String = commandMessage.contextName,
-    processorName: String,
+    function: FunctionInfoData = COMMAND_GATEWAY_FUNCTION,
     id: String = generateGlobalId(),
     stage: CommandStage = CommandStage.SENT,
     result: Map<String, Any> = emptyMap(),
@@ -89,13 +100,15 @@ fun Throwable.toResult(
     val errorInfo = toErrorInfo()
     return CommandResult(
         id = id,
+        waitCommandId = waitCommandId,
         stage = stage,
-        aggregateId = commandMessage.aggregateId.id,
-        contextName = contextName,
-        processorName = processorName,
+        contextName = commandMessage.contextName,
+        aggregateName = commandMessage.aggregateName,
         tenantId = commandMessage.aggregateId.tenantId,
+        aggregateId = commandMessage.aggregateId.id,
         requestId = commandMessage.requestId,
         commandId = commandMessage.commandId,
+        function = function,
         errorCode = errorInfo.errorCode,
         errorMsg = errorInfo.errorMsg,
         bindingErrors = errorInfo.bindingErrors,

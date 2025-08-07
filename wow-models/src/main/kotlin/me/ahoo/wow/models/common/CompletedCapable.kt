@@ -13,6 +13,4 @@
 
 package me.ahoo.wow.models.common
 
-interface CompletedCapable {
-    val completed: Boolean
-}
+interface CompletedCapable : me.ahoo.wow.api.naming.CompletedCapable

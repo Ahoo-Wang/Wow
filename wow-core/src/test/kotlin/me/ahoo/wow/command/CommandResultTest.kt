@@ -11,8 +11,9 @@ class CommandResultTest {
     fun throwableAsResult() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val actual = IllegalStateException("test").toResult(
-            command,
-            processorName = "processorName"
+            waitCommandId = generateGlobalId(),
+            commandMessage = command,
+            function = COMMAND_GATEWAY_FUNCTION
         )
         actual.id.assert().isNotBlank()
         actual.stage.assert().isEqualTo(CommandStage.SENT)
@@ -22,6 +23,7 @@ class CommandResultTest {
         actual.commandId.assert().isEqualTo(command.commandId)
         actual.errorCode.assert().isEqualTo(ErrorCodes.ILLEGAL_STATE)
         actual.errorMsg.assert().isEqualTo("test")
+        actual.function.assert().isEqualTo(COMMAND_GATEWAY_FUNCTION)
         actual.bindingErrors.assert().isEmpty()
         actual.result.assert().isEmpty()
         actual.signalTime.assert().isGreaterThan(0)

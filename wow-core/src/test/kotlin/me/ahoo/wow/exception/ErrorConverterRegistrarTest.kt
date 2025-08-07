@@ -2,6 +2,8 @@ package me.ahoo.wow.exception
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
@@ -24,13 +26,20 @@ class ErrorInfoConverterRegistrarTest {
     fun commandResultExceptionToErrorInfo() {
         val commandResult = CommandResult(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
             requestId = generateGlobalId(),
             commandId = generateGlobalId(),
             contextName = "contextName",
-            processorName = "processorName",
+            aggregateName = "aggregateName",
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
             errorCode = ErrorCodes.NOT_FOUND
         )
         CommandResultException(commandResult).toErrorInfo().assert().isEqualTo(commandResult)

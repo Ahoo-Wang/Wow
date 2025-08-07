@@ -15,10 +15,9 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitSignalShouldNotifyPredicate
 import reactor.core.publisher.Mono
 
-abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNotifyPredicate {
+abstract class WaitingForAfterProcessed : WaitingForStage() {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
@@ -35,17 +34,21 @@ abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNot
         super.complete()
     }
 
-    override fun shouldNotify(signal: WaitSignal): Boolean {
+    open fun isWaitingFor(signal: WaitSignal): Boolean {
         return signal.stage == stage
     }
 
     override fun waitingLast(): Mono<WaitSignal> {
-        return waiting().collectList().map { signals ->
+        return waiting().collectList().mapNotNull { signals ->
+            if (signals.isEmpty()) {
+                return@mapNotNull null
+            }
             val result: MutableMap<String, Any> = mutableMapOf()
             signals.forEach { signal ->
                 result.putAll(signal.result)
             }
-            signals.last().copyResult(result)
+            val waitingForSignal = waitingForSignal ?: return@mapNotNull signals.last().copyResult(result)
+            waitingForSignal.copyResult(result)
         }
     }
 
@@ -54,7 +57,7 @@ abstract class WaitingForAfterProcessed : WaitingForStage(), WaitSignalShouldNot
         if (signal.stage == CommandStage.PROCESSED) {
             processedSignal = signal
         }
-        if (shouldNotify(signal)) {
+        if (isWaitingFor(signal)) {
             waitingForSignal = signal
         }
         tryComplete()

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventDispatcher
@@ -38,7 +39,7 @@ import reactor.core.publisher.Mono
 abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     private val processingStage: CommandStage,
     private val commandWaitNotifier: CommandWaitNotifier
-) : ExchangeFilter<T> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : ExchangeFilter<T> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     override fun filter(
         exchange: T,
         next: FilterChain<T>

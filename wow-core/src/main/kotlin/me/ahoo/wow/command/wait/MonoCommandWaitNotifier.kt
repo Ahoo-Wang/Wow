@@ -19,10 +19,13 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal.Companion.toWaitSignal
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.saga.stateless.getCommandStream
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 import reactor.core.Exceptions
@@ -35,7 +38,7 @@ class MonoCommandWaitNotifier<E, M>(
     private val processingStage: CommandStage,
     private val messageExchange: E,
     private val source: Mono<Void>
-) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val message = messageExchange.message
         val waitStrategy = message.header.extractWaitStrategy() ?: return source.subscribe(actual)
@@ -58,10 +61,10 @@ class MonoCommandWaitNotifier<E, M>(
 class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
-    private val waitStrategy: EndpointWaitStrategy,
+    private val waitStrategy: ExtractedWaitStrategy,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
-) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     private val message = messageExchange.message
     private val isLastProjection = if (message is DomainEvent<*>) {
         message.isLast
@@ -73,9 +76,10 @@ class CommandWaitNotifierSubscriber<E, M>(
         return actual.currentContext()
     }
 
-    override fun hookOnNext(value: Void) {
-        // Mono<Void> will not call this method.
-    }
+    /**
+     * Mono<Void> will not call this method.
+     */
+    override fun hookOnNext(value: Void) = Unit
 
     override fun hookOnSubscribe(subscription: Subscription) {
         actual.onSubscribe(this)
@@ -92,6 +96,14 @@ class CommandWaitNotifierSubscriber<E, M>(
         actual.onError(exception)
     }
 
+    private fun getCommands(): List<String> {
+        if (processingStage != CommandStage.SAGA_HANDLED) {
+            return emptyList()
+        }
+        val domainEventExchange = messageExchange as DomainEventExchange<*>
+        return domainEventExchange.getCommandStream()?.map { it.commandId }.orEmpty()
+    }
+
     private fun notifySignal(errorInfo: ErrorInfo? = null) {
         val error = errorInfo ?: ErrorInfo.OK
         val functionInfo = messageExchange.getFunction()
@@ -102,14 +114,17 @@ class CommandWaitNotifierSubscriber<E, M>(
 
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
+            waitCommandId = waitStrategy.waitCommandId,
             commandId = messageExchange.message.commandId,
+            aggregateId = messageExchange.message.aggregateId,
             stage = processingStage,
             aggregateVersion = messageExchange.getAggregateVersion(),
             isLastProjection = isLastProjection,
             errorCode = error.errorCode,
             errorMsg = error.errorMsg,
             bindingErrors = error.bindingErrors,
-            result = messageExchange.getCommandResult()
+            result = messageExchange.getCommandResult(),
+            commands = getCommands()
         )
         commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
     }
@@ -125,7 +140,7 @@ fun <E : MessageExchange<*, M>, M> Mono<Void>.thenNotifyAndForget(
     commandWaitNotifier: CommandWaitNotifier,
     processingStage: CommandStage,
     messageExchange: E
-): Mono<Void> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext {
+): Mono<Void> where M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     return MonoCommandWaitNotifier(
         commandWaitNotifier = commandWaitNotifier,
         processingStage = processingStage,

@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
@@ -36,12 +37,12 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         private val log = KotlinLogging.logger {}
     }
 
-    override val processorName: String = metadata.processorName
+    override val processorName: String = SimpleCommandAggregate::class.simpleName!!
     private val processorFunction = FunctionInfoData(
         functionKind = FunctionKind.COMMAND,
-        contextName = metadata.processorName,
-        processorName = metadata.contextName,
-        name = "process"
+        contextName = Wow.WOW,
+        processorName = processorName,
+        name = SimpleCommandAggregate<*, *>::process.name
     )
     private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)

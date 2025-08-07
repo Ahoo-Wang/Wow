@@ -13,17 +13,10 @@
 
 package me.ahoo.wow.api.messaging.function
 
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.api.naming.Named
-
-interface FunctionInfo : ProcessorInfo, FunctionKindCapable, Named {
-
-    /**
-     * The name of the function.
-     *
-     * Under the same processor, the name is unique.
-     */
-    override val name: String
+/**
+ * Function Info
+ */
+interface FunctionInfo : NamedFunctionInfo, FunctionKindCapable {
 
     /**
      * Is Same Function

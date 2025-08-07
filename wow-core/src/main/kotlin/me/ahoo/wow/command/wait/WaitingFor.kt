@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait
 import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import java.time.Duration
@@ -55,11 +56,25 @@ abstract class WaitingFor : WaitStrategy {
         return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
     }
 
+    override fun waitingLast(): Mono<WaitSignal> {
+        return waiting().collectList().mapNotNull { signals ->
+            if (signals.isEmpty()) {
+                return@mapNotNull null
+            }
+            signals.sortBy { it.signalTime }
+            val result: MutableMap<String, Any> = mutableMapOf()
+            signals.forEach { signal ->
+                result.putAll(signal.result)
+            }
+            signals.last().copyResult(result)
+        }
+    }
+
     protected fun busyLooping(): Sinks.EmitFailureHandler {
         return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
     }
 
-    private fun tryEmit(emit: () -> Unit): Boolean {
+    protected fun tryEmit(emit: () -> Unit): Boolean {
         if (completed) {
             log.warn {
                 "WaitingFor is terminated or cancelled, ignore emit."

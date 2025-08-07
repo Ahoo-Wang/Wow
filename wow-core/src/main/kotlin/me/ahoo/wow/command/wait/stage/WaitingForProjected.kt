@@ -13,18 +13,18 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 
 class WaitingForProjected(
-    override val contextName: String,
-    override val processorName: String = "",
-    override val functionName: String = ""
+    override val waitCommandId: String,
+    override val function: NamedFunctionInfoData? = null
 ) : WaitingForFunction() {
     override val stage: CommandStage
         get() = CommandStage.PROJECTED
 
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-        return super.shouldNotify(signal) && signal.isLastProjection
+    override fun isWaitingFor(signal: WaitSignal): Boolean {
+        return super.isWaitingFor(signal) && signal.isLastProjection
     }
 }

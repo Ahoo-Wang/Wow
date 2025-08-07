@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
@@ -27,23 +28,24 @@ import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-fun CommandMessage<*>.commandGatewayFunction(): FunctionInfoData {
-    return FunctionInfoData(
-        functionKind = FunctionKind.COMMAND,
-        contextName = contextName,
-        processorName = aggregateName,
-        name = name,
-    )
-}
+const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
 
-fun CommandMessage<*>.commandSentSignal(error: Throwable? = null): WaitSignal {
-    val function = commandGatewayFunction()
+val COMMAND_GATEWAY_FUNCTION = FunctionInfoData(
+    functionKind = FunctionKind.COMMAND,
+    contextName = Wow.WOW,
+    processorName = COMMAND_GATEWAY_PROCESSOR_NAME,
+    name = "send",
+)
+
+fun CommandMessage<*>.commandSentSignal(waitCommandId: String, error: Throwable? = null): WaitSignal {
     val errorInfo = error?.toErrorInfo() ?: ErrorInfo.OK
     return SimpleWaitSignal(
         id = generateGlobalId(),
+        waitCommandId = waitCommandId,
         commandId = commandId,
+        aggregateId = aggregateId,
         stage = CommandStage.SENT,
-        function = function,
+        function = COMMAND_GATEWAY_FUNCTION,
         aggregateVersion = aggregateVersion,
         isLastProjection = true,
         errorCode = errorInfo.errorCode,
@@ -83,15 +85,15 @@ interface CommandGateway : CommandBus {
     fun <C : Any> sendAndWaitForSent(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.sent())
+        sendAndWait(command, WaitingForStage.sent(command.commandId))
 
     fun <C : Any> sendAndWaitForProcessed(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.processed())
+        sendAndWait(command, WaitingForStage.processed(command.commandId))
 
     fun <C : Any> sendAndWaitForSnapshot(
         command: CommandMessage<C>
     ): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.snapshot())
+        sendAndWait(command, WaitingForStage.snapshot(command.commandId))
 }

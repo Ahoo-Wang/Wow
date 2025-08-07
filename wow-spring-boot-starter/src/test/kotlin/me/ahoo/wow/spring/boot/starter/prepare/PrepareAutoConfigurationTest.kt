@@ -64,6 +64,7 @@ class PrepareAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
+                    .hasSingleBean(PrepareKeyInitializer::class.java)
             }
     }
 
@@ -93,6 +94,7 @@ class PrepareAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
+                    .hasSingleBean(PrepareKeyInitializer::class.java)
                     .hasSingleBean(MockPrepareKey::class.java)
                 val mockPrepareKey = context.getBean<MockPrepareKey>()
                 mockPrepareKey.assert().isNotNull()
@@ -127,6 +129,7 @@ class PrepareAutoConfigurationTest {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
+                    .hasSingleBean(PrepareKeyInitializer::class.java)
                     .hasSingleBean(MockPrepareKey::class.java)
                 val mockPrepareKey = context.getBean<MockPrepareKey>("MockPrepareKey")
                 mockPrepareKey.assert().isNotNull()

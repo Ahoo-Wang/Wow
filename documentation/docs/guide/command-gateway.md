@@ -56,7 +56,15 @@ wow:
 
 *命令等待策略*是 _Wow_ 框架中的重要特性，其目标是解决 _CQRS_ 、读写分离模式下数据同步延迟的问题。
 
-命令等待策略（`WaitStrategy`）支持的等待信号如下：
+目前支持的命令等待策略有：
+
+### WaitingForStage
+
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="../public/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
+</p>
+
+`WaitingForStage` 支持的等待信号如下：
 
 - `SENT` : 当命令发布到命令总线/队列后，生成完成信号
 - `PROCESSED` : 当命令被聚合根处理完成后，生成完成信号
@@ -84,6 +92,12 @@ Command-Aggregate-Id: sourceId
 commamdGateway.sendAndWaitForProcessed(message)
 ```
 :::
+
+### WaitingForChain
+
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
+</p>
 
 ## 验证
 

@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.command.wait.stage
 
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 
 class WaitingForSagaHandled(
-    override val contextName: String,
-    override val processorName: String = "",
-    override val functionName: String = ""
+    override val waitCommandId: String,
+    override val function: NamedFunctionInfoData? = null
 ) : WaitingForFunction() {
     override val stage: CommandStage
         get() = CommandStage.SAGA_HANDLED

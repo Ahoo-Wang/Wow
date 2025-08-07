@@ -17,6 +17,8 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
@@ -42,13 +44,20 @@ class CommandResponsesTest {
         val serverRequest = MockServerRequest.builder().build()
         CommandResult(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
             requestId = generateGlobalId(),
             commandId = generateGlobalId(),
             contextName = "contextName",
-            processorName = "processorName",
+            aggregateName = "aggregateName",
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         ).toMono()
             .toFlux()
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
@@ -75,13 +84,20 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
             requestId = generateGlobalId(),
             commandId = generateGlobalId(),
             contextName = "contextName",
-            processorName = "processorName",
+            aggregateName = "aggregateName",
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         ).toMono()
             .toFlux()
             .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
@@ -106,13 +122,20 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
             requestId = generateGlobalId(),
             commandId = generateGlobalId(),
             contextName = "contextName",
-            processorName = "processorName",
+            aggregateName = "aggregateName",
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         ).toMono()
             .toFlux()
             .doOnNext {
@@ -140,13 +163,20 @@ class CommandResponsesTest {
         }
         CommandResult(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             stage = CommandStage.SENT,
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
             requestId = generateGlobalId(),
             commandId = generateGlobalId(),
             contextName = "contextName",
-            processorName = "processorName",
+            aggregateName = "aggregateName",
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
         ).toMono()
             .toFlux()
             .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)

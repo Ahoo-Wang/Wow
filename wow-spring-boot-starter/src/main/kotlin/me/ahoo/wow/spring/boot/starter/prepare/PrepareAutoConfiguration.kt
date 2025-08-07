@@ -39,4 +39,9 @@ class PrepareAutoConfiguration {
     fun prepareKeyProxyFactory(prepareKeyFactory: PrepareKeyFactory): PrepareKeyProxyFactory {
         return DefaultPrepareKeyProxyFactory(prepareKeyFactory)
     }
+
+    @Bean
+    fun prepareKeyInitializer(): PrepareKeyInitializer {
+        return PrepareKeyInitializer()
+    }
 }

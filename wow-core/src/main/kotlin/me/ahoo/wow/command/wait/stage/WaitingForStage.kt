@@ -14,18 +14,22 @@
 package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
-import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandStageCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitingFor
+import me.ahoo.wow.command.wait.extractWaitFunction
+import me.ahoo.wow.command.wait.extractWaitingStage
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
-import me.ahoo.wow.infra.ifNotBlank
+import me.ahoo.wow.command.wait.propagateWaitFunction
+import me.ahoo.wow.command.wait.propagateWaitingStage
 import java.util.*
 
+/**
+ * Single command waiting strategy based on command execution phase
+ */
 abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
@@ -46,107 +50,106 @@ abstract class WaitingForStage : WaitingFor(), CommandStageCapable {
 
     data class Materialized(
         override val stage: CommandStage,
-        override val contextName: String = "",
-        override val processorName: String = "",
-        override val functionName: String = ""
-    ) : WaitStrategy.Materialized, CommandStageCapable, ProcessorInfo, FunctionNameCapable {
-        override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return stage.shouldNotify(processingStage)
-        }
-
-        override fun shouldNotify(signal: WaitSignal): Boolean {
-            return true
-        }
+        override val function: NamedFunctionInfoData? = null
+    ) : WaitStrategy.FunctionMaterialized {
 
         override fun propagate(commandWaitEndpoint: String, header: Header) {
             header.propagateCommandWaitEndpoint(commandWaitEndpoint)
-                .with(COMMAND_WAIT_STAGE, stage.name)
-            contextName.ifNotBlank {
-                header.with(COMMAND_WAIT_CONTEXT, contextName)
-            }
-            processorName.ifNotBlank {
-                header.with(COMMAND_WAIT_PROCESSOR, processorName)
-            }
-            functionName.ifNotBlank {
-                header.with(COMMAND_WAIT_FUNCTION, functionName)
-            }
-            functionName.ifNotBlank {
-                header.with(COMMAND_WAIT_FUNCTION, functionName)
-            }
+                .propagateWaitingStage(stage)
+                .propagateWaitFunction(function)
         }
     }
 
     companion object {
-        const val COMMAND_WAIT_STAGE = "${COMMAND_WAIT_PREFIX}stage"
-        const val COMMAND_WAIT_CONTEXT = "${COMMAND_WAIT_PREFIX}context"
-        const val COMMAND_WAIT_PROCESSOR = "${COMMAND_WAIT_PREFIX}processor"
-        const val COMMAND_WAIT_FUNCTION = "${COMMAND_WAIT_PREFIX}function"
         fun Header.extractWaitingForStage(): Materialized? {
-            val stage = this[COMMAND_WAIT_STAGE] ?: return null
-            val context = this[COMMAND_WAIT_CONTEXT].orEmpty()
-            val processor = this[COMMAND_WAIT_PROCESSOR].orEmpty()
-            val function = this[COMMAND_WAIT_FUNCTION].orEmpty()
+            val stage = extractWaitingStage() ?: return null
+            val function = extractWaitFunction()
             return Materialized(
-                stage = CommandStage.valueOf(stage),
-                contextName = context,
-                processorName = processor,
-                functionName = function
+                stage = stage,
+                function = function
             )
         }
 
-        fun sent(): WaitingForStage = WaitingForSent()
-        fun processed(): WaitingForStage = WaitingForProcessed()
+        fun sent(commandWaitId: String): WaitingForStage = WaitingForSent(commandWaitId)
+        fun processed(commandWaitId: String): WaitingForStage = WaitingForProcessed(commandWaitId)
 
-        fun snapshot(): WaitingForStage = WaitingForSnapshot()
+        fun snapshot(commandWaitId: String): WaitingForStage = WaitingForSnapshot(commandWaitId)
 
-        fun projected(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
+        fun projected(
+            waitCommandId: String,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
+        ): WaitingForStage =
             WaitingForProjected(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
+                waitCommandId = waitCommandId,
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
             )
 
-        fun eventHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
-            WaitingForEventHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-
-        fun sagaHandled(contextName: String, processorName: String = "", functionName: String = ""): WaitingForStage =
-            WaitingForSagaHandled(
-                contextName = contextName,
-                processorName = processorName,
-                functionName = functionName
-            )
-
-        fun stage(
-            stage: CommandStage,
+        fun eventHandled(
+            waitCommandId: String,
             contextName: String,
             processorName: String = "",
             functionName: String = ""
+        ): WaitingForStage =
+            WaitingForEventHandled(
+                waitCommandId = waitCommandId,
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
+            )
+
+        fun sagaHandled(
+            waitCommandId: String,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
+        ): WaitingForStage =
+            WaitingForSagaHandled(
+                waitCommandId = waitCommandId,
+                function = NamedFunctionInfoData(
+                    contextName = contextName,
+                    processorName = processorName,
+                    name = functionName
+                )
+            )
+
+        fun stage(
+            waitCommandId: String,
+            stage: CommandStage,
+            contextName: String,
+            processorName: String = "",
+            functionName: String = "",
         ): WaitingForStage {
             return when (stage) {
-                CommandStage.SENT -> sent()
-                CommandStage.PROCESSED -> processed()
-                CommandStage.SNAPSHOT -> snapshot()
-                CommandStage.PROJECTED -> projected(contextName, processorName, functionName)
-                CommandStage.EVENT_HANDLED -> eventHandled(contextName, processorName, functionName)
-                CommandStage.SAGA_HANDLED -> sagaHandled(contextName, processorName, functionName)
+                CommandStage.SENT -> sent(waitCommandId)
+                CommandStage.PROCESSED -> processed(waitCommandId)
+                CommandStage.SNAPSHOT -> snapshot(waitCommandId)
+                CommandStage.PROJECTED -> projected(waitCommandId, contextName, processorName, functionName)
+                CommandStage.EVENT_HANDLED -> eventHandled(waitCommandId, contextName, processorName, functionName)
+                CommandStage.SAGA_HANDLED -> sagaHandled(waitCommandId, contextName, processorName, functionName)
             }
         }
 
         fun stage(
+            waitCommandId: String,
             stage: String,
             contextName: String,
             processorName: String = "",
             functionName: String = ""
         ): WaitingForStage =
             stage(
+                waitCommandId = waitCommandId,
                 stage = CommandStage.valueOf(stage.uppercase(Locale.getDefault())),
                 contextName = contextName,
                 processorName = processorName,
-                functionName = functionName
+                functionName = functionName,
             )
     }
 }

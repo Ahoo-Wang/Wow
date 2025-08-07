@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/me.ahoo.wow/wow-core)
+[![Maven Central Version](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/cfc724df22db4f9387525258c8a59609)](https://app.codacy.com/gh/Ahoo-Wang/Wow/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![codecov](https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir)](https://codecov.io/gh/Ahoo-Wang/Wow)
 [![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
@@ -38,8 +38,15 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
 ## 架构图
 
 <p align="center" style="text-align:center">
-  <img src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img  width="95%"  src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
+
+### 命令处理传播链
+
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+</p>
+
 
 ## 背景
 
@@ -91,6 +98,11 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 然而，有时1秒无法完成同步，这就导致用户获取的数据变得**无效**。
 
 使用 _Wow_ 框架，你可以通过等待 _PROJECTED_ 信号完成，然后再将结果返回给用户，以更为优雅和高效的方式处理数据同步延迟的问题。
+
+<p align="center" style="text-align:center;">
+  <img  width="95%" src="documentation/docs/public/images/wait/WaitingForStage.svg" alt="Wow-WaitingForStage"/>
+</p>
+
 
 ### 工程质量
 

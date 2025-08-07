@@ -13,34 +13,24 @@
 
 package me.ahoo.wow.command.wait.stage
 
-import me.ahoo.wow.api.messaging.function.FunctionNameCapable
-import me.ahoo.wow.api.messaging.processor.ProcessorInfo
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.messaging.function.NullableFunctionInfoCapable
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
+import me.ahoo.wow.command.wait.isWaitingForFunction
 
-abstract class WaitingForFunction : WaitingForAfterProcessed(), ProcessorInfo, FunctionNameCapable {
+abstract class WaitingForFunction : WaitingForAfterProcessed(), NullableFunctionInfoCapable<NamedFunctionInfoData> {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
             stage = stage,
-            contextName = contextName,
-            processorName = processorName,
-            functionName = functionName
+            function = function
         )
     }
 
-    override fun shouldNotify(signal: WaitSignal): Boolean {
-        if (!super.shouldNotify(signal) || !isSameBoundedContext(signal.function)) {
+    override fun isWaitingFor(signal: WaitSignal): Boolean {
+        if (!super.isWaitingFor(signal)) {
             return false
         }
-        if (processorName.isBlank()) {
-            return true
-        }
-        if (processorName != signal.function.processorName) {
-            return false
-        }
-        if (functionName.isBlank()) {
-            return true
-        }
-        return signal.function.name == functionName
+        return this.function.isWaitingForFunction(signal.function)
     }
 }

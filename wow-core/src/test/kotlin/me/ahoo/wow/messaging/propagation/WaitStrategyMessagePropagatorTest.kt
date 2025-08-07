@@ -2,12 +2,13 @@ package me.ahoo.wow.messaging.propagation
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.wait.COMMAND_WAIT_CONTEXT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
+import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
+import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.requireExtractWaitCommandId
 import me.ahoo.wow.command.wait.stage.WaitingForStage
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_CONTEXT
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_FUNCTION
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_PROCESSOR
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.COMMAND_WAIT_STAGE
 import me.ahoo.wow.event.toDomainEvent
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -19,13 +20,14 @@ class WaitStrategyMessagePropagatorTest {
 
     @Test
     fun propagate() {
-        val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
-        WaitingForStage.projected("context", "processor", "function")
+        WaitingForStage.projected(upstreamMessage.commandId, "context", "processor", "function")
             .propagate("wait-endpoint", upstreamMessage.header)
+        val header = DefaultHeader.empty()
         WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
+        header.requireExtractWaitCommandId().assert().isEqualTo(upstreamMessage.commandId)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")
         header[COMMAND_WAIT_STAGE].assert().isEqualTo("PROJECTED")
         header[COMMAND_WAIT_CONTEXT].assert().isEqualTo("context")
@@ -39,7 +41,7 @@ class WaitStrategyMessagePropagatorTest {
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
-        WaitingForStage.sent().propagate("wait-endpoint", upstreamMessage.header)
+        WaitingForStage.sent(upstreamMessage.commandId).propagate("wait-endpoint", upstreamMessage.header)
         WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_ENDPOINT])
         header[COMMAND_WAIT_STAGE].assert().isEqualTo(upstreamMessage.header[COMMAND_WAIT_STAGE])
@@ -54,7 +56,7 @@ class WaitStrategyMessagePropagatorTest {
         val upstreamMessage =
             MockAggregateCreated(generateGlobalId())
                 .toDomainEvent(generateGlobalId(), generateGlobalId(), generateGlobalId())
-        WaitingForStage.sent().propagate("wait-endpoint", upstreamMessage.header)
+        WaitingForStage.sent(upstreamMessage.commandId).propagate("wait-endpoint", upstreamMessage.header)
         WaitStrategyMessagePropagator().propagate(header, upstreamMessage)
         header[COMMAND_WAIT_ENDPOINT].assert().isNull()
     }

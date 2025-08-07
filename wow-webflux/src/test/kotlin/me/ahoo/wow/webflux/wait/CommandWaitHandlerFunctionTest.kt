@@ -9,6 +9,8 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.kotlin.core.publisher.toMono
@@ -22,7 +24,9 @@ class CommandWaitHandlerFunctionTest {
         val request = mockk<ServerRequest> {
             every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(
                 id = generateGlobalId(),
+                waitCommandId = generateGlobalId(),
                 commandId = "commandId",
+                aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
                 function = FunctionInfoData(
                     functionKind = FunctionKind.COMMAND,

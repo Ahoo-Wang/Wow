@@ -14,37 +14,9 @@
 package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.wait.stage.WaitingForStage.Companion.extractWaitingForStage
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
-
-const val COMMAND_WAIT_PREFIX = "command_wait_"
-const val COMMAND_WAIT_ENDPOINT = "${COMMAND_WAIT_PREFIX}endpoint"
-
-interface CommandWaitEndpoint {
-    val endpoint: String
-}
-
-data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
-
-data class EndpointWaitStrategy(override val endpoint: String, val waitStrategy: WaitStrategy.Materialized) :
-    CommandWaitEndpoint
-
-fun Header.extractCommandWaitEndpoint(): String? {
-    return this[COMMAND_WAIT_ENDPOINT]
-}
-
-fun Header.propagateCommandWaitEndpoint(endpoint: String): Header {
-    return with(COMMAND_WAIT_ENDPOINT, endpoint)
-}
-
-fun Header.extractWaitStrategy(): EndpointWaitStrategy? {
-    val endpoint = this.extractCommandWaitEndpoint() ?: return null
-    val waitStrategy = this.extractWaitingForStage() ?: return null
-    return EndpointWaitStrategy(endpoint, waitStrategy)
-}
 
 /**
  * 命令处理器完成处理后，将处理结果发往等待者
@@ -69,7 +41,7 @@ class LocalCommandWaitNotifier(
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.fromRunnable {
-            if (isLocalCommand(waitSignal.commandId)) {
+            if (isLocalWaitStrategy(waitSignal.id)) {
                 log.debug {
                     "Notify Local - waitSignal: $waitSignal"
                 }
@@ -84,18 +56,18 @@ class LocalCommandWaitNotifier(
 }
 
 fun CommandWaitNotifier.notifyAndForget(
-    waiteStrategy: EndpointWaitStrategy,
+    waiteStrategy: ExtractedWaitStrategy,
     waitSignal: WaitSignal
 ) {
-    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal.stage)) {
+    if (!waiteStrategy.waitStrategy.shouldNotify(waitSignal)) {
         return
     }
     notifyAndForget(waiteStrategy.endpoint, waitSignal)
 }
 
-fun isLocalCommand(commandId: String): Boolean {
-    if (commandId.isBlank()) {
+fun isLocalWaitStrategy(commandWaitId: String): Boolean {
+    if (commandWaitId.isBlank()) {
         return false
     }
-    return GlobalIdGenerator.stateParser.asState(commandId).machineId == GlobalIdGenerator.machineId
+    return GlobalIdGenerator.stateParser.asState(commandWaitId).machineId == GlobalIdGenerator.machineId
 }

@@ -9,6 +9,8 @@ import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -23,7 +25,9 @@ class WebClientCommandWaitNotifierTest {
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
             commandId = GlobalIdGenerator.generateAsString(),
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SENT,
             function = FunctionInfoData(
                 functionKind = FunctionKind.COMMAND,
@@ -55,7 +59,9 @@ class WebClientCommandWaitNotifierTest {
 
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
+            waitCommandId = "0ToC0Bez003X00Z",
             commandId = "0ToC0Bez003X00Z",
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
             stage = CommandStage.SENT,
             function = FunctionInfoData(
                 functionKind = FunctionKind.COMMAND,

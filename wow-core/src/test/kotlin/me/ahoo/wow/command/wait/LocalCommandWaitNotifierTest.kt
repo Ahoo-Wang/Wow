@@ -16,6 +16,8 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -34,7 +36,9 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
+                waitCommandId = generateGlobalId(),
                 commandId = generateGlobalId(),
+                aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
                 function = functionInfo
             ),
@@ -50,7 +54,9 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
+                waitCommandId = generateGlobalId(),
                 commandId = generateGlobalId(),
+                aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
                 function = functionInfo
             ),
@@ -64,7 +70,9 @@ internal class LocalCommandWaitNotifierTest {
             "endpoint",
             SimpleWaitSignal(
                 id = generateGlobalId(),
+                waitCommandId = "0THbs0sW0066001",
                 commandId = "0THbs0sW0066001",
+                aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
                 stage = CommandStage.SENT,
                 function = functionInfo
             )

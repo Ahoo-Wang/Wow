@@ -15,7 +15,7 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 
-class WaitingForProcessed : WaitingForStage() {
+class WaitingForProcessed(override val waitCommandId: String) : WaitingForStage() {
     override val stage: CommandStage
         get() = CommandStage.PROCESSED
 }
