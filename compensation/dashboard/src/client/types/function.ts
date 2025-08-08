@@ -11,20 +11,16 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch.tsx";
-import { FailedTable } from "./FailedTable.tsx";
-import type { FailedCategory } from "./FailedCategory.tsx";
+export type FunctionKind =
+  | "COMMAND"
+  | "ERROR"
+  | "EVENT"
+  | "SOURCING"
+  | "STATE_EVENT";
 
-interface FailedViewProps {
-  category: FailedCategory;
-}
-
-export default function FailedView({ category }: FailedViewProps) {
-  return (
-    <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
-
-    </>
-  );
+export interface FunctionInfo{
+  functionKind: FunctionKind;
+  contextName: string;
+  processorName: string;
+  name: string;
 }

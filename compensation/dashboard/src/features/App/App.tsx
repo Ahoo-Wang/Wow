@@ -12,7 +12,7 @@
  */
 
 import classes from "./App.module.css";
-import { Layout, Menu, type MenuProps } from "antd";
+import { Layout, Menu, type MenuProps, Watermark, theme } from "antd";
 import { GithubOutlined, CodepenOutlined } from "@ant-design/icons";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
 import { Link, Outlet, useLocation } from "react-router";
@@ -41,7 +41,7 @@ const createExternalLinkItem = (
   label: string,
   url: string,
   icon?: React.ReactNode,
-  style?: React.CSSProperties
+  style?: React.CSSProperties,
 ): MenuItem => ({
   key,
   icon,
@@ -66,28 +66,30 @@ const createNavItem = (navItem: NavItem): MenuItem => ({
 
 export default function App({ navItems }: AppProps) {
   const location = useLocation();
-  
+
   // 构建菜单项数组
   const menuItems: MenuItem[] = [
     // 导航菜单项
     ...navItems.map(createNavItem),
-    
+
     // 外部链接菜单项
     createExternalLinkItem(
       "github",
       "GitHub",
       "https://github.com/Ahoo-Wang/Wow",
       <GithubOutlined />,
-      { marginLeft: "auto" }
+      { marginLeft: "auto" },
     ),
     createExternalLinkItem(
       "gitee",
       "Gitee",
       "https://gitee.com/AhooWang/Wow",
-      <CodepenOutlined />
+      <CodepenOutlined />,
     ),
   ];
-
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
   return (
     <ErrorBoundary>
       <Layout style={{ minHeight: "100vh" }}>
@@ -103,8 +105,16 @@ export default function App({ navItems }: AppProps) {
             items={menuItems}
           />
         </Header>
-        <Content style={{ padding: "24px" }}>
-          <Outlet />
+        <Content
+          style={{
+            padding: "24px",
+            background: colorBgContainer,
+            borderRadius: borderRadiusLG,
+          }}
+        >
+          <Watermark content={["Wow", "Compensation Dashboard"]}>
+            <Outlet />
+          </Watermark>
         </Content>
         <Footer style={{ textAlign: "center" }}>
           Wow Compensation Dashboard ©{new Date().getFullYear()}

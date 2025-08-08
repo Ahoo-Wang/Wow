@@ -15,7 +15,6 @@ import * as React from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
 import FailedView from "../components/Failed/FailedView.tsx";
-import { FailedViewCategory } from "../components/Failed/FailedViewCategory.ts";
 
 export const NavItemPaths = {
   ToRetry: "/to-retry",
@@ -37,32 +36,32 @@ export const NavItems: NavItem[] = [
   {
     label: "To Retry",
     path: NavItemPaths.ToRetry,
-    component: <FailedView category={FailedViewCategory.ToRetry}></FailedView>,
+    component: <FailedView category="ToRetry"></FailedView>,
   },
   {
     label: "Executing",
     path: NavItemPaths.Executing,
-    component: <FailedView category={FailedViewCategory.Executing}></FailedView>,
+    component: <FailedView category="Executing"></FailedView>,
   },
   {
     label: "NextRetry",
     path: NavItemPaths.NextRetry,
-    component: <FailedView category={FailedViewCategory.NextRetry}></FailedView>,
+    component: <FailedView category="NextRetry"></FailedView>,
   },
   {
     label: "NonRetryable",
     path: NavItemPaths.NonRetryable,
-    component: <FailedView category={FailedViewCategory.NonRetryable}></FailedView>,
+    component: <FailedView category="NonRetryable"></FailedView>,
   },
   {
     label: "Succeeded",
     path: NavItemPaths.Succeeded,
-    component: <FailedView category={FailedViewCategory.Succeeded}></FailedView>,
+    component: <FailedView category="Succeeded"></FailedView>,
   },
   {
     label: "Unrecoverable",
     path: NavItemPaths.Unrecoverable,
-    component: <FailedView category={FailedViewCategory.Unrecoverable}></FailedView>,
+    component: <FailedView category="Unrecoverable"></FailedView>,
   },
 ];
 

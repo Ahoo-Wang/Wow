@@ -11,10 +11,176 @@
  * limitations under the License.
  */
 
-interface FailedTableProps {
+import type { FailedCategory } from "./FailedCategory.tsx";
+import type { ExecutionFailedState } from "./ExecutionFailedState.ts";
+import { Table, Tag, Typography } from "antd";
+import type { TableColumnsType } from "antd";
+import { PagedList } from "./mock.ts";
+const { Paragraph, Text } = Typography;
 
+interface FailedTableProps {
+  category: FailedCategory;
 }
 
-export function FailedTable({}: FailedTableProps) {
-  return <>FailedTable</>;
+const columns: TableColumnsType<ExecutionFailedState> = [
+  {
+    title: "ID",
+    dataIndex: "id",
+    key: "id",
+    width: 180,
+    fixed: "left",
+    render: (id) => <Paragraph copyable>{id}</Paragraph>,
+  },
+  {
+    title: "Function",
+    children: [
+      {
+        title: "Context",
+        dataIndex: "function",
+        key: "function.contextName",
+        render: (func) => func?.contextName,
+        width: 120,
+      },
+      {
+        title: "Processor",
+        dataIndex: "function",
+        key: "function.processorName",
+        render: (func) => (<Paragraph copyable ellipsis={{tooltip: func?.processorName}}>{func?.processorName}</Paragraph>),
+        width: 120,
+      },
+      {
+        title: "Name",
+        dataIndex: "function",
+        key: "function.name",
+        render: (func) => (<Paragraph copyable ellipsis={{tooltip: func?.name}}>{func?.name}</Paragraph>),
+        width: 150,
+      },
+      {
+        title: "Kind",
+        dataIndex: "function",
+        key: "function.functionKind",
+        render: (func) => func?.functionKind,
+        width: 100,
+      },
+    ],
+  },
+  {
+    title: "Event Info",
+    children: [
+      {
+        title: "Event ID",
+        dataIndex: "eventId",
+        key: "eventId.id",
+        render: (eventId) => (<Paragraph copyable>{eventId?.id}</Paragraph>),
+        width: 180,
+      },
+      {
+        title: "Version",
+        dataIndex: "eventId",
+        key: "eventId.version",
+        render: (eventId) => eventId?.version,
+        width: 80,
+      },
+      {
+        title: "Aggregate ID",
+        dataIndex: "eventId",
+        key: "eventId.aggregateId.aggregateId",
+        render: (eventId) => (<Paragraph copyable>{eventId?.aggregateId.aggregateId}</Paragraph>),
+        width: 180,
+      },
+      {
+        title: "Context",
+        dataIndex: "eventId",
+        key: "eventId.aggregateId.contextName",
+        render: (eventId) => eventId?.aggregateId.contextName,
+        width: 120,
+      },
+      {
+        title: "Aggregate",
+        dataIndex: "eventId",
+        key: "eventId.aggregateId.aggregateName",
+        render: (eventId) => eventId?.aggregateId.aggregateName,
+        width: 120,
+      },
+    ],
+  },
+  {
+    title: "Retry Info",
+    children: [
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        render: (status) => {
+          switch (status) {
+            case "FAILED":
+              return <Tag color="error">Failed</Tag>;
+            case "PREPARED":
+              return <Tag color="processing">Prepared</Tag>;
+            case "SUCCEEDED":
+              return <Tag color="success">Succeeded</Tag>;
+            default:
+              return <Tag>{status}</Tag>;
+          }
+        },
+        width: 100,
+      },
+      {
+        title: "Retries",
+        dataIndex: "retryState",
+        key: "retryState.retries",
+        render: (retryState) => retryState?.retries,
+        width: 80,
+      },
+      {
+        title: "Max Retries",
+        dataIndex: ["retrySpec", "maxRetries"],
+        key: "retrySpec.maxRetries",
+        // render: (retrySpec) => retrySpec?.maxRetries,
+        width: 100,
+      },
+      {
+        title: "Recoverable",
+        dataIndex: "recoverable",
+        key: "recoverable",
+        width: 120,
+      },
+    ],
+  },
+  {
+    title: "Time",
+    children: [
+      {
+        title: "Execute At",
+        dataIndex: "executeAt",
+        key: "executeAt",
+        render: (executeAt) =>
+          executeAt && new Date(executeAt).toLocaleString(),
+        width: 180,
+        fixed: "right",
+      },
+      {
+        title: "Next Retry",
+        dataIndex: "retryState",
+        key: "retryState.nextRetryAt",
+        render: (retryState) =>
+          retryState?.nextRetryAt &&
+          new Date(retryState.nextRetryAt).toLocaleString(),
+        width: 180,
+        fixed: "right",
+      },
+    ],
+  },
+];
+
+export function FailedTable({ category }: FailedTableProps) {
+  return (
+    <Table<ExecutionFailedState>
+      rowKey="id"
+      columns={columns}
+      dataSource={PagedList.list}
+      bordered
+      scroll={{ x: 1500 }}
+    ></Table>
+  );
 }

@@ -11,20 +11,16 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch.tsx";
-import { FailedTable } from "./FailedTable.tsx";
-import type { FailedCategory } from "./FailedCategory.tsx";
+import type { NamedBoundedContext } from "./naming.ts";
 
-interface FailedViewProps {
-  category: FailedCategory;
+export interface TenantId {
+  tenantId: string;
 }
 
-export default function FailedView({ category }: FailedViewProps) {
-  return (
-    <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
+export interface NamedAggregate extends NamedBoundedContext {
+  aggregateName: string;
+}
 
-    </>
-  );
+export interface AggregateId extends TenantId, NamedAggregate {
+  aggregateId: string;
 }

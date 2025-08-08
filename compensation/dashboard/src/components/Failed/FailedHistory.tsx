@@ -11,20 +11,6 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch.tsx";
-import { FailedTable } from "./FailedTable.tsx";
-import type { FailedCategory } from "./FailedCategory.tsx";
-
-interface FailedViewProps {
-  category: FailedCategory;
-}
-
-export default function FailedView({ category }: FailedViewProps) {
-  return (
-    <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
-
-    </>
-  );
+export function FailedHistory() {
+  return <>FailedHistory</>;
 }

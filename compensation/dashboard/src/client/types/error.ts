@@ -11,20 +11,15 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch.tsx";
-import { FailedTable } from "./FailedTable.tsx";
-import type { FailedCategory } from "./FailedCategory.tsx";
+export type RecoverableType = "RECOVERABLE" | "UNKNOWN" | "UNRECOVERABLE";
 
-interface FailedViewProps {
-  category: FailedCategory;
+export interface BindingError {
+  name: string;
+  msg: string;
 }
 
-export default function FailedView({ category }: FailedViewProps) {
-  return (
-    <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
-
-    </>
-  );
+export interface ErrorInfo {
+  errorCode: string;
+  errorMsg: string;
+  bindingErrors?: BindingError[];
 }

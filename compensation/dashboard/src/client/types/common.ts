@@ -11,19 +11,11 @@
  * limitations under the License.
  */
 
-export type FailedViewCategory = 
-  | "ToRetry"
-  | "Executing"
-  | "NextRetry"
-  | "NonRetryable"
-  | "Succeeded"
-  | "Unrecoverable";
+export interface Identifier {
+  id: string;
+}
 
-export const FailedViewCategory = {
-  ToRetry: "ToRetry" as FailedViewCategory,
-  Executing: "Executing" as FailedViewCategory,
-  NextRetry: "NextRetry" as FailedViewCategory,
-  NonRetryable: "NonRetryable" as FailedViewCategory,
-  Succeeded: "Succeeded" as FailedViewCategory,
-  Unrecoverable: "Unrecoverable" as FailedViewCategory,
-} as const;
+
+export interface Version{
+  version: number;
+}
