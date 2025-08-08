@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { ErrorInfo, RecoverableType } from "../../client/types/error.ts";
+import type {
+  BindingError,
+  ErrorInfo,
+  RecoverableType,
+} from "../../client/types/error.ts";
 import type { AggregateId } from "../../client/types/modeling.ts";
 import type { FunctionInfo } from "../../client/types/function.ts";
 import type { Identifier, Version } from "../../client/types/common.ts";
