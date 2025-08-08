@@ -13,13 +13,17 @@
 
 import { FailedSearch } from "./FailedSearch.tsx";
 import { FailedTable } from "./FailedTable.tsx";
+import type { FailedViewCategory } from "./FailedViewCategory.ts";
 
-interface FailedViewProps {}
 
-export function FailedView({}: FailedViewProps) {
+interface FailedViewProps {
+  category: FailedViewCategory;
+}
+
+export default function FailedView({ category }: FailedViewProps) {
   return (
     <>
-      <FailedSearch status="ToRetry"></FailedSearch>
+      <FailedSearch status={category}></FailedSearch>
       <FailedTable></FailedTable>
     </>
   );
