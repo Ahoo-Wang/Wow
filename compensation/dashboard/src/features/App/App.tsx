@@ -95,7 +95,9 @@ export default function App({ navItems }: AppProps) {
       <Layout style={{ minHeight: "100vh" }}>
         <Header style={{ display: "flex", alignItems: "center" }}>
           <div className={classes.logo}>
-            <img src={"/logo.svg"} alt={"logo"} />
+            <Link to={"/to-retry"}>
+              <img src={"/logo.svg"} alt={"logo"} />
+            </Link>
           </div>
           <Menu
             theme="dark"
