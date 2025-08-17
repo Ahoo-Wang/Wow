@@ -43,6 +43,8 @@ internal class SnapshotDispatcherTest {
         val inMemorySnapshotRepository = InMemorySnapshotRepository()
         val waitForAppend = Sinks.empty<Void>()
         val snapshotRepository = object : SnapshotRepository {
+            override val name: String
+                get() = "TEST"
             override fun <S : Any> load(
                 aggregateId: AggregateId
             ): Mono<Snapshot<S>> {

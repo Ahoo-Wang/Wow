@@ -35,8 +35,12 @@ import reactor.kotlin.core.publisher.toMono
 
 class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRepository {
     companion object {
+        const val NAME = "mongo"
         val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = ReplaceOptions().upsert(true)
     }
+
+    override val name: String
+        get() = NAME
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         val snapshotCollectionName = aggregateId.toSnapshotCollectionName()
