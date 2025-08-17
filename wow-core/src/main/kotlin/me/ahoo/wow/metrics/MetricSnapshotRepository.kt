@@ -24,6 +24,9 @@ import reactor.core.publisher.Mono
 class MetricSnapshotRepository(delegate: SnapshotRepository) :
     SnapshotRepository,
     AbstractMetricDecorator<SnapshotRepository>(delegate) {
+    override val name: String
+        get() = delegate.name
+
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return delegate.load<S>(aggregateId)
             .name(Wow.WOW_PREFIX + "snapshot.load")
