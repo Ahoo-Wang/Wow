@@ -41,6 +41,12 @@ abstract class SnapshotRepositorySpec {
     protected abstract fun createSnapshotRepository(): SnapshotRepository
 
     @Test
+    fun name() {
+        val snapshotRepository = createSnapshotRepository().metrizable()
+        snapshotRepository.name.assert().isNotBlank()
+    }
+
+    @Test
     fun load() {
         val snapshotRepository = createSnapshotRepository().metrizable()
         val stateAggregate =

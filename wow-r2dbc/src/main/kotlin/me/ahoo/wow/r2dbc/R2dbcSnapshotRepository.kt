@@ -33,7 +33,12 @@ class R2dbcSnapshotRepository(
     private val database: Database,
     private val snapshotSchema: SnapshotSchema
 ) : SnapshotRepository {
+    companion object {
+        const val NAME = "r2dbc"
+    }
 
+    override val name: String
+        get() = NAME
     override fun <S : Any> load(
         aggregateId: AggregateId
     ): Mono<Snapshot<S>> {

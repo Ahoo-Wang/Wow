@@ -23,6 +23,12 @@ import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemorySnapshotRepository : SnapshotRepository {
+    companion object {
+        const val NAME = "in_memory"
+    }
+
+    override val name: String
+        get() = NAME
     private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
