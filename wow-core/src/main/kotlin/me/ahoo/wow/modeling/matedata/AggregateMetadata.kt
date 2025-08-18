@@ -16,8 +16,10 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
 /**
  * StateAggregateMetadata .
@@ -67,4 +69,12 @@ data class AggregateMetadata<C : Any, S : Any>(
     override fun toString(): String {
         return "AggregateMetadata(command=$command)"
     }
+}
+
+fun <C : Any, S : Any> NamedAggregate.asAggregateMetadata(): AggregateMetadata<C, S> {
+    if (this is AggregateMetadata<*, *>) {
+        @Suppress("UNCHECKED_CAST")
+        return this as AggregateMetadata<C, S>
+    }
+    return requiredAggregateType<C>().aggregateMetadata()
 }
