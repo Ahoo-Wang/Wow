@@ -44,8 +44,8 @@ interface WhenStage<S : Any> {
 
     fun whenCommand(
         command: Any,
-        header: Header = DefaultHeader.Companion.empty(),
-        ownerId: String = OwnerId.Companion.DEFAULT_OWNER_ID
+        header: Header = DefaultHeader.empty(),
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID
     ): ExpectStage<S>
 }
 
