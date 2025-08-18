@@ -1,0 +1,66 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.test.saga.stateless.dsl
+
+import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
+import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
+import me.ahoo.wow.test.saga.stateless.WhenStage
+import org.junit.jupiter.api.DynamicContainer
+
+class DefaultWhenDsl<T : Any>(override val delegate: WhenStage<T>) :
+    Decorator<WhenStage<T>>,
+    WhenDsl<T>,
+    AbstractDynamicTestBuilder(),
+    Named {
+    override var name: String = ""
+        private set
+
+    override fun name(name: String) {
+        this.name = name
+    }
+
+    override fun inject(inject: ServiceProvider.() -> Unit) {
+        delegate.inject(inject)
+    }
+
+    override fun functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean) {
+        delegate.functionFilter(filter)
+    }
+
+    override fun whenEvent(
+        event: Any,
+        state: Any?,
+        ownerId: String,
+        block: ExpectDsl<T>.() -> Unit
+    ) {
+        val expectStage = delegate.whenEvent(event, state, ownerId)
+        val expectDsl = DefaultExpectDsl(expectStage)
+        block(expectDsl)
+        val displayName = buildString {
+            append("When ")
+            if (state != null) {
+                append("State")
+            }
+            append(" Event")
+            append("[${event.javaClass.simpleName}]")
+            appendName(name)
+        }
+        val dynamicTest = DynamicContainer.dynamicContainer(displayName, expectDsl.dynamicNodes)
+        dynamicNodes.add(dynamicTest)
+    }
+}
