@@ -38,7 +38,7 @@ interface SnapshotRepository : Named, AggregateIdScanner {
 }
 
 object NoOpSnapshotRepository : SnapshotRepository {
-    const val NAME = "NoOp"
+    const val NAME = "no_op"
     override val name: String
         get() = NAME
 

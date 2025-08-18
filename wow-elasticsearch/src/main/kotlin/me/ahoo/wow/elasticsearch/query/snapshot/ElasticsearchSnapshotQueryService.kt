@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
@@ -33,6 +34,8 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val conditionConverter: ConditionConverter<Query> = SnapshotConditionConverter
 ) : AbstractElasticsearchQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    override val name: String
+        get() = ElasticsearchSnapshotRepository.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
     private val snapshotType = TypeFactory.defaultInstance()
         .constructParametricType(

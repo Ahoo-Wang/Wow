@@ -25,6 +25,11 @@ class NoOpSnapshotQueryServiceTest {
     private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
 
     @Test
+    fun name() {
+        queryService.name.assert().isEqualTo("no_op")
+    }
+
+    @Test
     fun aggregate() {
         queryService.namedAggregate.assert().isEqualTo("test.test".toNamedAggregate())
     }

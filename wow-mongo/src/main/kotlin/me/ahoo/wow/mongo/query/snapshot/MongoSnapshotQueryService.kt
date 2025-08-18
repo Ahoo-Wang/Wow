@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.query.AbstractMongoQueryService
 import me.ahoo.wow.mongo.query.MongoProjectionConverter
 import me.ahoo.wow.mongo.query.MongoSortConverter
@@ -36,6 +37,8 @@ class MongoSnapshotQueryService<S : Any>(
     override val collection: MongoCollection<Document>,
     override val converter: ConditionConverter<Bson> = SnapshotConditionConverter
 ) : AbstractMongoQueryService<MaterializedSnapshot<S>>(), SnapshotQueryService<S> {
+    override val name: String
+        get() = MongoSnapshotRepository.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
     private val snapshotType = TypeFactory.defaultInstance()
