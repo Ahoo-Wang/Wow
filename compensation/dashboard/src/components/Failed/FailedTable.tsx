@@ -16,6 +16,10 @@ import type { ExecutionFailedState } from "./ExecutionFailedState.ts";
 import { Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { PagedList } from "./mock.ts";
+import { Fetcher } from "@ahoo-wang/fetcher";
+import { useEffect } from "react";
+import { EventStreamInterceptor } from "@ahoo-wang/fetcher-eventstream";
+import { executionFailedService } from "../../services/ExecutionFailedService.ts";
 const { Paragraph, Text } = Typography;
 
 interface FailedTableProps {
@@ -45,14 +49,22 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Processor",
         dataIndex: "function",
         key: "function.processorName",
-        render: (func) => (<Paragraph copyable ellipsis={{tooltip: func?.processorName}}>{func?.processorName}</Paragraph>),
+        render: (func) => (
+          <Paragraph copyable ellipsis={{ tooltip: func?.processorName }}>
+            {func?.processorName}
+          </Paragraph>
+        ),
         width: 120,
       },
       {
         title: "Name",
         dataIndex: "function",
         key: "function.name",
-        render: (func) => (<Paragraph copyable ellipsis={{tooltip: func?.name}}>{func?.name}</Paragraph>),
+        render: (func) => (
+          <Paragraph copyable ellipsis={{ tooltip: func?.name }}>
+            {func?.name}
+          </Paragraph>
+        ),
         width: 150,
       },
       {
@@ -71,7 +83,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Event ID",
         dataIndex: "eventId",
         key: "eventId.id",
-        render: (eventId) => (<Paragraph copyable>{eventId?.id}</Paragraph>),
+        render: (eventId) => <Paragraph copyable>{eventId?.id}</Paragraph>,
         width: 180,
       },
       {
@@ -85,7 +97,9 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Aggregate ID",
         dataIndex: "eventId",
         key: "eventId.aggregateId.aggregateId",
-        render: (eventId) => (<Paragraph copyable>{eventId?.aggregateId.aggregateId}</Paragraph>),
+        render: (eventId) => (
+          <Paragraph copyable>{eventId?.aggregateId.aggregateId}</Paragraph>
+        ),
         width: 180,
       },
       {
@@ -174,6 +188,30 @@ const columns: TableColumnsType<ExecutionFailedState> = [
 ];
 
 export function FailedTable({ category }: FailedTableProps) {
+  const fetcher = new Fetcher({
+    baseURL: "http://compensation-service.dev.svc.cluster.local/",
+  });
+  fetcher.interceptors.response.use(new EventStreamInterceptor());
+  async function fetchData() {
+    const response = await executionFailedService.listSnapshot({
+      condition: {
+        operator: "ALL",
+      },
+      limit: 2,
+    });
+    let eventStream = response.eventStream;
+    if (eventStream) {
+      for await (const event of eventStream()) {
+        console.log("Received event:", event);
+      }
+    }
+  }
+
+
+  useEffect( () => {
+     fetchData();
+  }, [category]);
+
   return (
     <Table<ExecutionFailedState>
       rowKey="id"
