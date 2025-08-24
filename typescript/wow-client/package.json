@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-wow",
-  "version": "0.3.1",
+  "version": "0.5.5",
   "description": "Support for Wow in Fetcher",
   "keywords": [
     "fetch",
@@ -18,7 +18,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Ahoo-Wang/fetcher.git",
-    "directory": "packages/core"
+    "directory": "packages/wow"
   },
   "bugs": {
     "url": "https://github.com/Ahoo-Wang/fetcher/issues"
@@ -39,7 +39,7 @@
   "scripts": {
     "build": "vite build",
     "test": "vitest run --coverage",
-    "lint": "tsc --noEmit",
+    "lint": "eslint . --fix",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
