@@ -42,7 +42,7 @@ export enum RecoverableType {
    * Represents an unknown type of recoverability for an error or operation.
    * This is used when the recoverability of an error cannot be determined or is not specified.
    */
-  UNRECOVERABLE = 'UNRECOVERABLE'
+  UNRECOVERABLE = 'UNRECOVERABLE',
 }
 
 /**
@@ -82,8 +82,99 @@ export interface ErrorInfo {
   bindingErrors?: BindingError[];
 }
 
-/**
- * A constant representing a successful operation or status.
- * This value is typically used in the context of error handling and response descriptions to indicate that an operation has been completed successfully.
- */
-export const SUCCEEDED_ERROR_CODE = 'Ok';
+export class ErrorCodes {
+  /**
+   * A constant representing a successful operation or status.
+   * This value is typically used in the context of error handling and response descriptions to indicate that an operation has been completed successfully.
+   */
+  static readonly SUCCEEDED = 'Ok';
+  static readonly SUCCEEDED_MESSAGE = '';
+
+  /**
+   * Error code for when a requested resource is not found.
+   */
+  static readonly NOT_FOUND = 'NotFound';
+
+  /**
+   * Default message for NOT_FOUND error code.
+   */
+  static readonly NOT_FOUND_MESSAGE = 'Not found resource!';
+
+  /**
+   * Error code for bad request errors.
+   */
+  static readonly BAD_REQUEST = 'BadRequest';
+
+  /**
+   * Error code for illegal argument errors.
+   */
+  static readonly ILLEGAL_ARGUMENT = 'IllegalArgument';
+
+  /**
+   * Error code for illegal state errors.
+   */
+  static readonly ILLEGAL_STATE = 'IllegalState';
+
+  /**
+   * Error code for request timeout errors.
+   */
+  static readonly REQUEST_TIMEOUT = 'RequestTimeout';
+
+  /**
+   * Error code for too many requests errors (rate limiting).
+   */
+  static readonly TOO_MANY_REQUESTS = 'TooManyRequests';
+
+  /**
+   * Error code for duplicate request ID errors.
+   */
+  static readonly DUPLICATE_REQUEST_ID = 'DuplicateRequestId';
+
+  /**
+   * Error code for command validation errors.
+   */
+  static readonly COMMAND_VALIDATION = 'CommandValidation';
+
+  /**
+   * Error code for when no command is found to rewrite.
+   */
+  static readonly REWRITE_NO_COMMAND = 'RewriteNoCommand';
+
+  /**
+   * Error code for event version conflicts.
+   */
+  static readonly EVENT_VERSION_CONFLICT = 'EventVersionConflict';
+
+  /**
+   * Error code for duplicate aggregate ID errors.
+   */
+  static readonly DUPLICATE_AGGREGATE_ID = 'DuplicateAggregateId';
+
+  /**
+   * Error code for command expected version conflicts.
+   */
+  static readonly COMMAND_EXPECT_VERSION_CONFLICT =
+    'CommandExpectVersionConflict';
+
+  /**
+   * Error code for sourcing version conflicts.
+   */
+  static readonly SOURCING_VERSION_CONFLICT = 'SourcingVersionConflict';
+
+  /**
+   * Error code for illegal access to deleted aggregate errors.
+   */
+  static readonly ILLEGAL_ACCESS_DELETED_AGGREGATE =
+    'IllegalAccessDeletedAggregate';
+
+  /**
+   * Error code for illegal access to owner aggregate errors.
+   */
+  static readonly ILLEGAL_ACCESS_OWNER_AGGREGATE =
+    'IllegalAccessOwnerAggregate';
+
+  /**
+   * Error code for internal server errors.
+   */
+  static readonly INTERNAL_SERVER_ERROR = 'InternalServerError';
+}

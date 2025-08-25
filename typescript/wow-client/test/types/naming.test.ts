@@ -12,10 +12,24 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { Named, NamedBoundedContext } from '../../src/types';
 
-describe('Naming Types', () => {
-  it('should compile without errors', () => {
-    // This test ensures that the naming types can be imported without compilation errors
-    expect(true).toBe(true);
+describe('NamedBoundedContext', () => {
+  it('should have a contextName property', () => {
+    const namedContext: NamedBoundedContext = {
+      contextName: 'test-context',
+    };
+
+    expect(namedContext.contextName).toBe('test-context');
+  });
+});
+
+describe('Named', () => {
+  it('should have a name property', () => {
+    const named: Named = {
+      name: 'test-name',
+    };
+
+    expect(named.name).toBe('test-name');
   });
 });

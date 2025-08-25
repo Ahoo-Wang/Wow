@@ -12,10 +12,24 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { Identifier, Version } from '../../src/types';
 
-describe('Common Types', () => {
-  it('should compile without errors', () => {
-    // This test ensures that the common types can be imported without compilation errors
-    expect(true).toBe(true);
+describe('Identifier', () => {
+  it('should have an id property', () => {
+    const identifier: Identifier = {
+      id: 'test-id',
+    };
+
+    expect(identifier.id).toBe('test-id');
+  });
+});
+
+describe('Version', () => {
+  it('should have a version property', () => {
+    const version: Version = {
+      version: 1,
+    };
+
+    expect(version.version).toBe(1);
   });
 });

@@ -12,4 +12,5 @@
  */
 
 export * from './commandGateway';
+export * from './commandHeaders';
 export * from './types';
