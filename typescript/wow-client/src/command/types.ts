@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import type { Identifier } from '../types/common';
-import type { AggregateId } from '../types/modeling';
-import type { ErrorInfo } from '../types/error';
-import { FunctionInfoCapable } from '../types/function';
+import type { AggregateId, ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
 
 export interface CommandId {
   commandId: string;

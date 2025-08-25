@@ -12,8 +12,19 @@
  */
 
 
-import { NamedAggregate, OwnerId, StateCapable, TenantId } from '../types/modeling';
-import { Version } from '../types/common';
+import {
+  DeletedCapable,
+  EventIdCapable,
+  EventTimeCapable,
+  FirstEventTimeCapable,
+  FirstOperatorCapable,
+  NamedAggregate,
+  OperatorCapable,
+  OwnerId,
+  StateCapable,
+  TenantId,
+  Version,
+} from '../types';
 
 export interface MaterializedSnapshot<S> extends StateCapable<S>, NamedAggregate,
   TenantId,
