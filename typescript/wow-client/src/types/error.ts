@@ -177,4 +177,24 @@ export class ErrorCodes {
    * Error code for internal server errors.
    */
   static readonly INTERNAL_SERVER_ERROR = 'InternalServerError';
+
+  /**
+   * Checks if the provided error code represents a successful operation.
+   *
+   * @param errorCode The error code to check
+   * @returns true if the error code is 'Ok', false otherwise
+   */
+  static isSucceeded(errorCode: string): boolean {
+    return errorCode === ErrorCodes.SUCCEEDED;
+  }
+
+  /**
+   * Checks if the provided error code represents an error condition.
+   *
+   * @param errorCode The error code to check
+   * @returns true if the error code is not 'Ok', false otherwise
+   */
+  static isError(errorCode: string): boolean {
+    return !ErrorCodes.isSucceeded(errorCode);
+  }
 }

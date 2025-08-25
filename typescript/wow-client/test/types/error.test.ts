@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ErrorCodes, RecoverableType } from '../../src/types/error';
+import { ErrorCodes, RecoverableType } from '../../src';
 
 describe('ErrorCodes', () => {
   it('should have correct SUCCEEDED code and message', () => {
@@ -91,6 +91,22 @@ describe('ErrorCodes', () => {
 
   it('should have correct INTERNAL_SERVER_ERROR code', () => {
     expect(ErrorCodes.INTERNAL_SERVER_ERROR).toBe('InternalServerError');
+  });
+
+  it('should return true for isSucceeded when errorCode is SUCCEEDED', () => {
+    expect(ErrorCodes.isSucceeded(ErrorCodes.SUCCEEDED)).toBe(true);
+  });
+
+  it('should return false for isSucceeded when errorCode is not SUCCEEDED', () => {
+    expect(ErrorCodes.isSucceeded(ErrorCodes.NOT_FOUND)).toBe(false);
+  });
+
+  it('should return false for isError when errorCode is SUCCEEDED', () => {
+    expect(ErrorCodes.isError(ErrorCodes.SUCCEEDED)).toBe(false);
+  });
+
+  it('should return true for isError when errorCode is not SUCCEEDED', () => {
+    expect(ErrorCodes.isError(ErrorCodes.NOT_FOUND)).toBe(true);
   });
 });
 
