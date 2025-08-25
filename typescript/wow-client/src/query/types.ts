@@ -11,4 +11,3 @@
  * limitations under the License.
  */
 
-export * from './command/commandGateway';

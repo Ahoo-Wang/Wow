@@ -15,7 +15,6 @@ export interface Identifier {
   id: string;
 }
 
-
 export interface Version {
   version: number;
 }
