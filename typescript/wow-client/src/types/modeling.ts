@@ -58,8 +58,14 @@ export interface FirstOperatorCapable {
   firstOperator: string;
 }
 
-export interface NamedAggregate extends NamedBoundedContext {
+export interface AggregateNameCapable {
+  /**
+   * The name of the aggregate.
+   */
   aggregateName: string;
+}
+
+export interface NamedAggregate extends NamedBoundedContext, AggregateNameCapable {
 }
 
 export interface AggregateId extends TenantId, NamedAggregate {

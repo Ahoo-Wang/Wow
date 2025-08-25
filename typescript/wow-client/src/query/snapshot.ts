@@ -21,6 +21,7 @@ import {
   NamedAggregate,
   OperatorCapable,
   OwnerId,
+  SnapshotTimeCapable,
   StateCapable,
   TenantId,
   Version,

@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import type { AggregateId, ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
+import type {
+  AggregateId,
+  AggregateNameCapable,
+  ErrorInfo,
+  FunctionInfoCapable,
+  Identifier,
+  NamedBoundedContext,
+} from '../types';
 
 export interface CommandId {
   commandId: string;
