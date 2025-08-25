@@ -13,7 +13,7 @@
 
 import { Operator } from './operator';
 
-interface Condition {
+export interface Condition {
   field?: string;
   operator?: Operator;
   value?: any;
@@ -31,25 +31,29 @@ export interface ConditionCapable {
 export enum DeletionState {
   ACTIVE = 'ACTIVE',
   DELETED = 'DELETED',
-  ALL = 'ALL'
+  ALL = 'ALL',
 }
 
 export enum ConditionOptionKey {
   IGNORE_CASE_OPTION_KEY = 'ignoreCase',
   ZONE_ID_OPTION_KEY = 'zoneId',
-  DATE_PATTERN_OPTION_KEY = 'datePattern'
+  DATE_PATTERN_OPTION_KEY = 'datePattern',
 }
 
 export class Conditions {
-
-  static ignoreCaseOptions(ignoreCase?: boolean): Record<string, any> | undefined {
+  static ignoreCaseOptions(
+    ignoreCase?: boolean,
+  ): Record<string, any> | undefined {
     if (typeof ignoreCase === 'undefined') {
       return undefined;
     }
     return { ignoreCase };
   }
 
-  static dateOptions(datePattern?: string, zoneId?: string): Record<string, any> | undefined {
+  static dateOptions(
+    datePattern?: string,
+    zoneId?: string,
+  ): Record<string, any> | undefined {
     if (typeof datePattern === 'undefined' && typeof zoneId === 'undefined') {
       return undefined;
     }
@@ -118,7 +122,7 @@ export class Conditions {
   }
 
   static ne(field: string, value: any): Condition {
-    return { operator: Operator.NE, value };
+    return { field, operator: Operator.NE, value };
   }
 
   static gt(field: string, value: any): Condition {
@@ -138,7 +142,8 @@ export class Conditions {
   }
 
   static contains(field: string, value: any, ignoreCase?: boolean): Condition {
-    const options: Record<string, any> | undefined = this.ignoreCaseOptions(ignoreCase);
+    const options: Record<string, any> | undefined =
+      this.ignoreCaseOptions(ignoreCase);
     return { field, operator: Operator.CONTAINS, value, options };
   }
 
@@ -158,13 +163,19 @@ export class Conditions {
     return { field, operator: Operator.ALL_IN, value };
   }
 
-  static startsWith(field: string, value: any, ignoreCase?: boolean): Condition {
-    const options: Record<string, any> | undefined = this.ignoreCaseOptions(ignoreCase);
+  static startsWith(
+    field: string,
+    value: any,
+    ignoreCase?: boolean,
+  ): Condition {
+    const options: Record<string, any> | undefined =
+      this.ignoreCaseOptions(ignoreCase);
     return { field, operator: Operator.STARTS_WITH, value, options };
   }
 
   static endsWith(field: string, value: any, ignoreCase?: boolean): Condition {
-    const options: Record<string, any> | undefined = this.ignoreCaseOptions(ignoreCase);
+    const options: Record<string, any> | undefined =
+      this.ignoreCaseOptions(ignoreCase);
     return { field, operator: Operator.ENDS_WITH, value, options };
   }
 
@@ -192,52 +203,95 @@ export class Conditions {
     return { field, operator: Operator.EXISTS, value: exists };
   }
 
-  static today(field: string, datePattern?: string, zoneId?: string): Condition {
+  static today(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.TODAY, options };
   }
 
-  static beforeToday(field: string, time: any, datePattern?: string, zoneId?: string): Condition {
+  static beforeToday(
+    field: string,
+    time: any,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.BEFORE_TODAY, value: time, options };
   }
 
-  static tomorrow(field: string, datePattern?: string, zoneId?: string): Condition {
+  static tomorrow(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.TOMORROW, options };
   }
 
-  static thisWeek(field: string, datePattern?: string, zoneId?: string): Condition {
+  static thisWeek(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.THIS_WEEK, options };
   }
 
-  static nextWeek(field: string, datePattern?: string, zoneId?: string): Condition {
+  static nextWeek(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.NEXT_WEEK, options };
   }
 
-  static lastWeek(field: string, datePattern?: string, zoneId?: string): Condition {
+  static lastWeek(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.LAST_WEEK, options };
   }
 
-  static thisMonth(field: string, datePattern?: string, zoneId?: string): Condition {
+  static thisMonth(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.THIS_MONTH, options };
   }
 
-  static lastMonth(field: string, datePattern?: string, zoneId?: string): Condition {
+  static lastMonth(
+    field: string,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.LAST_MONTH, options };
   }
 
-  static recentDays(field: string, days: number, datePattern?: string, zoneId?: string): Condition {
+  static recentDays(
+    field: string,
+    days: number,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.RECENT_DAYS, value: days, options };
   }
 
-  static earlierDays(field: string, days: number, datePattern?: string, zoneId?: string): Condition {
+  static earlierDays(
+    field: string,
+    days: number,
+    datePattern?: string,
+    zoneId?: string,
+  ): Condition {
     const options = this.dateOptions(datePattern, zoneId);
     return { field, operator: Operator.EARLIER_DAYS, value: days, options };
   }

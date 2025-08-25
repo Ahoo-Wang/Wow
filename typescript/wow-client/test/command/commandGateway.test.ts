@@ -11,27 +11,16 @@
  * limitations under the License.
  */
 
-import { defineConfig } from 'vite';
-import dts from 'unplugin-dts/vite';
+import { describe, expect, it } from 'vitest';
+import { CommandGateway } from '../../src';
 
-export default defineConfig({
-  build: {
-    lib: {
-      entry: 'src/index.ts',
-      name: 'FetcherWow',
-      fileName: format => `index.${format}.js`,
-    },
-    rollupOptions: {
-      external: [],
-      output: {
-        globals: {},
-      },
-    },
-  },
-  plugins: [
-    dts({
-      outDirs: 'dist',
-      tsconfigPath: './tsconfig.json',
-    }),
-  ],
+describe('CommandGateway', () => {
+  it('should be able to create an instance', () => {
+    const gateway = new CommandGateway();
+    expect(gateway).toBeInstanceOf(CommandGateway);
+  });
+
+  it('should be defined', () => {
+    expect(CommandGateway).toBeDefined();
+  });
 });
