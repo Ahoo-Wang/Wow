@@ -51,6 +51,7 @@ export interface Queryable extends ConditionCapable, ProjectionCapable, SortCapa
 
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SingleQuery extends Queryable {
 
 }
