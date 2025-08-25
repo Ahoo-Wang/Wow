@@ -11,4 +11,6 @@
  * limitations under the License.
  */
 
-export * from './command/commandGateway';
+export * from './command';
+export * from './query';
+export * from './types';

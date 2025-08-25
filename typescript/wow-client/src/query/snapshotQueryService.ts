@@ -11,20 +11,6 @@
  * limitations under the License.
  */
 
-/**
- * Represents an identifiable entity with a unique identifier.
- */
-export interface Identifier {
-  /**
-   * Represents a unique identifier for the implementing entity.
-   *
-   * This identifier is crucial for distinguishing between different instances of the same type and
-   * is often used in operations that require a unique reference to a specific entity, such as database lookups,
-   * state management, and event handling.
-   */
-  id: string;
-}
+export class SnapshotQueryService {
 
-export interface Version {
-  version: number;
 }

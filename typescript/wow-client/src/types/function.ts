@@ -11,16 +11,22 @@
  * limitations under the License.
  */
 
-export type FunctionKind =
-  | 'COMMAND'
-  | 'ERROR'
-  | 'EVENT'
-  | 'SOURCING'
-  | 'STATE_EVENT';
+export enum FunctionKind {
+  COMMAND = 'COMMAND',
+  ERROR = 'ERROR',
+  EVENT = 'EVENT',
+  SOURCING = 'SOURCING',
+  STATE_EVENT = 'STATE_EVENT'
+}
 
 export interface FunctionInfo {
   functionKind: FunctionKind;
   contextName: string;
   processorName: string;
   name: string;
+}
+
+
+export interface FunctionInfoCapable {
+  function: FunctionInfo;
 }

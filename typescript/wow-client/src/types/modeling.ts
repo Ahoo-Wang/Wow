@@ -13,8 +13,49 @@
 
 import type { NamedBoundedContext } from './naming.ts';
 
-export interface TenantId {
-  tenantId: string;
+/**
+ * Interface for classes that have a creation time.
+ */
+export interface CreateTimeCapable {
+  /**
+   * Gets the creation time in milliseconds since the Unix epoch.
+   */
+  createTime: number;
+}
+
+export interface DeletedCapable {
+  /**
+   * Whether the aggregate is deleted.
+   */
+  deleted: boolean;
+}
+
+export interface EventIdCapable {
+  /**
+   * The event id of the aggregate.
+   */
+  eventId: string;
+}
+
+export interface EventTimeCapable {
+  /**
+   * The last event time of the aggregate, represented as a Unix timestamp in milliseconds.
+   */
+  eventTime: number;
+}
+
+export interface FirstEventTimeCapable {
+  /**
+   * The first event time of the aggregate, represented as a Unix timestamp in milliseconds.
+   */
+  firstEventTime: number;
+}
+
+export interface FirstOperatorCapable {
+  /**
+   * The first operator of the aggregate.
+   */
+  firstOperator: string;
 }
 
 export interface NamedAggregate extends NamedBoundedContext {
@@ -24,3 +65,43 @@ export interface NamedAggregate extends NamedBoundedContext {
 export interface AggregateId extends TenantId, NamedAggregate {
   aggregateId: string;
 }
+
+export interface OperatorCapable {
+  /**
+   * The last operator of the aggregate.
+   */
+  operator: string;
+}
+
+export const DEFAULT_OWNER_ID = '';
+
+/**
+ * 用于标识资源的拥有者
+ */
+export interface OwnerId {
+  /**
+   * 资源拥有者的唯一标识符
+   */
+  ownerId: string;
+}
+
+export interface SnapshotTimeCapable {
+  /**
+   * The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds.
+   */
+  snapshotTime: number;
+}
+
+export const DEFAULT_TENANT_ID = '(0)';
+
+export interface TenantId {
+  tenantId: string;
+}
+
+export interface StateCapable<S> {
+  state: S;
+}
+
+
+
+
