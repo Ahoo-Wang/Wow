@@ -24,9 +24,9 @@ data class Sort(val field: String, val direction: Direction) {
 
 data class Pagination(
     @field:Schema(defaultValue = "1")
-    val index: Int,
+    val index: Int = 1,
     @field:Schema(defaultValue = "10")
-    val size: Int
+    val size: Int = 10
 ) {
     companion object {
         val DEFAULT = Pagination(1, 10)
