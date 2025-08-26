@@ -43,6 +43,12 @@ data class CommandResult(
     override val aggregateName: String,
     override val tenantId: String,
     val aggregateId: String,
+    /**
+     * 聚合根版本号
+     * - 命令处理成功时,为聚合根完成命令处理后的版本号
+     * - 当命令在命令网关验证失败时，为 null
+     * - 当命令在命令处理器中执行失败时，为聚合根的当前版本号
+     */
     override val aggregateVersion: Int? = null,
     override val requestId: String,
     override val commandId: String,
