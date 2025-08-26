@@ -26,6 +26,9 @@ import reactor.core.publisher.Mono
 class TracingSnapshotRepository(override val delegate: SnapshotRepository) :
     SnapshotRepository,
     Decorator<SnapshotRepository> {
+    override val name: String
+        get() = delegate.name
+
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return Mono.defer {
             val parentContext = Context.current()

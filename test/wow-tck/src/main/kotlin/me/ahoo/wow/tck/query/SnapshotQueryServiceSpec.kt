@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.query
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -66,6 +67,11 @@ abstract class SnapshotQueryServiceSpec {
         val queryService1 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val queryService2 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         assertThat(queryService1, sameInstance(queryService2))
+    }
+
+    @Test
+    fun name() {
+        snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA).name.assert().isNotBlank()
     }
 
     @Test

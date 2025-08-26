@@ -28,6 +28,13 @@ class DelaySnapshotRepository(
     override val delegate: SnapshotRepository = InMemorySnapshotRepository()
 ) :
     SnapshotRepository, Decorator<SnapshotRepository> {
+    companion object {
+        const val NAME = "delay"
+    }
+
+    override val name: String
+        get() = NAME
+
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return delegate.load<S>(aggregateId).delaySubscription(delaySupplier())
     }

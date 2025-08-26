@@ -33,7 +33,11 @@ class ElasticsearchSnapshotRepository(
 ) : SnapshotRepository {
     companion object {
         private const val NOT_FOUND_CODE = 404
+        const val NAME = "elasticsearch"
     }
+
+    override val name: String
+        get() = NAME
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {

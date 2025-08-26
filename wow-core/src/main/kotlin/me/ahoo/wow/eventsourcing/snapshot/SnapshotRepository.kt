@@ -15,6 +15,7 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -22,7 +23,7 @@ import reactor.core.publisher.Mono
 /**
  * Snapshot Repository.
  */
-interface SnapshotRepository : AggregateIdScanner {
+interface SnapshotRepository : Named, AggregateIdScanner {
 
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun getVersion(aggregateId: AggregateId): Mono<Int> {
@@ -37,6 +38,9 @@ interface SnapshotRepository : AggregateIdScanner {
 }
 
 object NoOpSnapshotRepository : SnapshotRepository {
+    const val NAME = "no_op"
+    override val name: String
+        get() = NAME
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return Mono.empty()

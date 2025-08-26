@@ -30,6 +30,12 @@ class RedisSnapshotRepository(
     private val redisTemplate: ReactiveStringRedisTemplate,
     private val keyConverter: AggregateKeyConverter = DefaultSnapshotKeyConverter
 ) : SnapshotRepository {
+    companion object {
+        const val NAME = "redis"
+    }
+
+    override val name: String
+        get() = NAME
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         val snapshotKey = keyConverter.convert(aggregateId)

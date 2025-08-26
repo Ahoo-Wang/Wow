@@ -168,6 +168,8 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     object MockSnapshotQueryService : SnapshotQueryService<DataMaskable> {
+        override val name: String
+            get() = "mock"
         override val namedAggregate: NamedAggregate
             get() = "test.masking".toNamedAggregate()
         private val snapshot = MaterializedSnapshot(

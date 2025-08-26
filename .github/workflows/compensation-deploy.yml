@@ -52,7 +52,7 @@ jobs:
       - name: Set up NodeJs 20
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: compensation/wow-compensation-dashboard/pnpm-lock.yaml
 
@@ -65,7 +65,7 @@ jobs:
         run: ng build
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
