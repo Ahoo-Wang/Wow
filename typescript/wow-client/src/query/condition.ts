@@ -13,6 +13,48 @@
 
 import { Operator } from './operator';
 
+export enum ConditionOptionKey {
+  IGNORE_CASE_OPTION_KEY = 'ignoreCase',
+  ZONE_ID_OPTION_KEY = 'zoneId',
+  DATE_PATTERN_OPTION_KEY = 'datePattern',
+}
+
+export interface ConditionOptions {
+  ignoreCase?: boolean;
+  datePattern?: string;
+  zoneId?: string;
+
+  [key: string]: any;
+}
+
+
+// Helper functions
+export function ignoreCaseOptions(
+  ignoreCase?: boolean,
+): ConditionOptions | undefined {
+  if (typeof ignoreCase === 'undefined') {
+    return undefined;
+  }
+  return { ignoreCase };
+}
+
+export function dateOptions(
+  datePattern?: string,
+  zoneId?: string,
+): ConditionOptions | undefined {
+  if (typeof datePattern === 'undefined' && typeof zoneId === 'undefined') {
+    return undefined;
+  }
+  const options: ConditionOptions = {};
+  if (typeof datePattern !== 'undefined') {
+    options.datePattern = datePattern;
+  }
+  if (typeof zoneId !== 'undefined') {
+    options.zoneId = zoneId;
+  }
+  return options;
+}
+
 export interface Condition {
   field?: string;
   operator?: Operator;
@@ -21,7 +63,7 @@ export interface Condition {
    * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
    */
   children?: Condition[];
-  options?: Record<string, any>;
+  options?: ConditionOptions;
 }
 
 export interface ConditionCapable {
@@ -34,38 +76,6 @@ export enum DeletionState {
   ALL = 'ALL',
 }
 
-export enum ConditionOptionKey {
-  IGNORE_CASE_OPTION_KEY = 'ignoreCase',
-  ZONE_ID_OPTION_KEY = 'zoneId',
-  DATE_PATTERN_OPTION_KEY = 'datePattern',
-}
-
-// Helper functions
-export function ignoreCaseOptions(
-  ignoreCase?: boolean,
-): Record<string, any> | undefined {
-  if (typeof ignoreCase === 'undefined') {
-    return undefined;
-  }
-  return { ignoreCase };
-}
-
-export function dateOptions(
-  datePattern?: string,
-  zoneId?: string,
-): Record<string, any> | undefined {
-  if (typeof datePattern === 'undefined' && typeof zoneId === 'undefined') {
-    return undefined;
-  }
-  const options: Record<string, any> = {};
-  if (typeof datePattern !== 'undefined') {
-    options.datePattern = datePattern;
-  }
-  if (typeof zoneId !== 'undefined') {
-    options.zoneId = zoneId;
-  }
-  return options;
-}
 
 // Export functions
 export function and(...conditions: Condition[]): Condition {
