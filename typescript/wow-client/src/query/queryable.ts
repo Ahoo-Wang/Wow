@@ -28,7 +28,13 @@ export interface SortCapable {
 }
 
 export interface Pagination {
+  /**
+   * 页码，从1开始
+   */
   index: number;
+  /**
+   * 每页数量
+   */
   size: number;
 }
 
@@ -42,9 +48,10 @@ export interface Projection {
   exclude?: string[];
 }
 
+export const DEFAULT_PROJECTION: Projection = {};
 
 export interface ProjectionCapable {
-  projection: Projection;
+  projection?: Projection;
 }
 
 export interface Queryable extends ConditionCapable, ProjectionCapable, SortCapable {
@@ -57,11 +64,14 @@ export interface SingleQuery extends Queryable {
 }
 
 export interface ListQuery extends Queryable {
-  limit: number;
+  /**
+   *  Limit the number of results.default:DEFAULT_PAGINATION.size
+   */
+  limit?: number;
 }
 
 export interface PagedQuery extends Queryable {
-  pagination: Pagination;
+  pagination?: Pagination;
 }
 
 export interface PagedList<T> {
