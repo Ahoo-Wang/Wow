@@ -43,7 +43,7 @@ export interface CommandResultEventStream extends ReadableStream<CommandResultEv
 }
 
 export function toCommandResultEventStream(
-  serverSentEventReadableStream: ServerSentEventStream,
+  serverSentEventStream: ServerSentEventStream,
 ): CommandResultEventStream {
-  return serverSentEventReadableStream.pipeThrough(new CommandResultEventTransformStream());
+  return serverSentEventStream.pipeThrough(new CommandResultEventTransformStream());
 }
