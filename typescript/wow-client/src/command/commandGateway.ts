@@ -11,7 +11,24 @@
  * limitations under the License.
  */
 
+import { CommandRequest } from './commandRequest';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { CommandResult } from './commandResult';
+import { CommandResultEventStream } from './commandResultEventTransformStream';
+
 export class CommandGateway {
 
+  private fetcher: Fetcher;
 
+  constructor(fetcher: Fetcher) {
+    this.fetcher = fetcher;
+  }
+
+  send(command: CommandRequest): Promise<CommandResult> {
+    return Promise.reject();
+  }
+
+  sendAndWaitStream(command: CommandRequest): Promise<CommandResultEventStream> {
+    return Promise.reject();
+  }
 }

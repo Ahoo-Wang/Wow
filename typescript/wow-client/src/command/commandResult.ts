@@ -1,0 +1,47 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type {
+  AggregateId,
+  AggregateNameCapable,
+  ErrorInfo,
+  FunctionInfoCapable,
+  Identifier,
+  NamedBoundedContext,
+} from '../types';
+import {
+  CommandId,
+  CommandResultCapable,
+  CommandStageCapable,
+  NullableAggregateVersionCapable,
+  RequestId,
+  SignalTimeCapable,
+  WaitCommandIdCapable,
+} from './types';
+
+export interface CommandResult
+  extends Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext,
+    AggregateNameCapable,
+    AggregateId,
+    ErrorInfo,
+    CommandId,
+    RequestId, ErrorInfo, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable, NullableAggregateVersionCapable {
+  /**
+   * 聚合根版本号
+   * - 命令处理成功时,为聚合根完成命令处理后的版本号
+   * - 当命令在命令网关验证失败时，为 null
+   * - 当命令在命令处理器中执行失败时，为聚合根的当前版本号
+   */
+  aggregateVersion?: number;
+
+}

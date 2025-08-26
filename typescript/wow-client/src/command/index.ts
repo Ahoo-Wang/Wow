@@ -13,4 +13,7 @@
 
 export * from './commandGateway';
 export * from './commandHeaders';
+export * from './commandRequest';
+export * from './commandResult';
+export * from './commandResultEventTransformStream';
 export * from './types';

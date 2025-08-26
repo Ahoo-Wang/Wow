@@ -11,15 +11,6 @@
  * limitations under the License.
  */
 
-import type {
-  AggregateId,
-  AggregateNameCapable,
-  ErrorInfo,
-  FunctionInfoCapable,
-  Identifier,
-  NamedBoundedContext,
-} from '../types';
-
 export interface CommandId {
   commandId: string;
 }
@@ -72,13 +63,9 @@ export interface SignalTimeCapable {
   signalTime: number;
 }
 
-export interface CommandResult
-  extends Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext,
-    AggregateNameCapable,
-    AggregateId,
-    ErrorInfo,
-    CommandId,
-    RequestId, ErrorInfo, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable {
+export interface NullableAggregateVersionCapable {
+  /**
+   * The aggregate version of the aggregate.
+   */
   aggregateVersion?: number;
-
 }
