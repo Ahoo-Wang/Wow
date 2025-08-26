@@ -40,351 +40,106 @@ export enum ConditionOptionKey {
   DATE_PATTERN_OPTION_KEY = 'datePattern',
 }
 
-export class Conditions {
-  static ignoreCaseOptions(
-    ignoreCase?: boolean,
-  ): Record<string, any> | undefined {
-    if (typeof ignoreCase === 'undefined') {
-      return undefined;
-    }
-    return { ignoreCase };
-  }
-
-  static dateOptions(
-    datePattern?: string,
-    zoneId?: string,
-  ): Record<string, any> | undefined {
-    if (typeof datePattern === 'undefined' && typeof zoneId === 'undefined') {
-      return undefined;
-    }
-    const options: Record<string, any> = {};
-    if (typeof datePattern !== 'undefined') {
-      options.datePattern = datePattern;
-    }
-    if (typeof zoneId !== 'undefined') {
-      options.zoneId = zoneId;
-    }
-    return options;
-  }
-
-  static and(...conditions: Condition[]): Condition {
-    return { operator: Operator.AND, children: conditions };
-  }
-
-  static or(...conditions: Condition[]): Condition {
-    return { operator: Operator.OR, children: conditions };
-  }
-
-  static nor(...conditions: Condition[]): Condition {
-    return { operator: Operator.NOR, children: conditions };
-  }
-
-  static id(value: string): Condition {
-    return { operator: Operator.ID, value: value };
-  }
-
-  static ids(value: string[]): Condition {
-    return { operator: Operator.IDS, value: value };
-  }
-
-  static aggregateId(value: string): Condition {
-    return { operator: Operator.AGGREGATE_ID, value: value };
-  }
-
-  static aggregateIds(...value: string[]): Condition {
-    return { operator: Operator.AGGREGATE_IDS, value: value };
-  }
-
-  static tenantId(value: string): Condition {
-    return { operator: Operator.TENANT_ID, value: value };
-  }
-
-  static ownerId(value: string): Condition {
-    return { operator: Operator.OWNER_ID, value: value };
-  }
-
-  static deleted(value: DeletionState): Condition {
-    return { operator: Operator.DELETED, value: value };
-  }
-
-  static active(): Condition {
-    return this.deleted(DeletionState.ACTIVE);
-  }
-
-  static all(): Condition {
-    return {
-      operator: Operator.ALL,
-    };
-  }
-
-  static eq(field: string, value: any): Condition {
-    return { field, operator: Operator.EQ, value };
-  }
-
-  static ne(field: string, value: any): Condition {
-    return { field, operator: Operator.NE, value };
-  }
-
-  static gt(field: string, value: any): Condition {
-    return { field, operator: Operator.GT, value };
-  }
-
-  static lt(field: string, value: any): Condition {
-    return { field, operator: Operator.LT, value };
-  }
-
-  static gte(field: string, value: any): Condition {
-    return { field, operator: Operator.GTE, value };
-  }
-
-  static lte(field: string, value: any): Condition {
-    return { field, operator: Operator.LTE, value };
-  }
-
-  static contains(field: string, value: any, ignoreCase?: boolean): Condition {
-    const options: Record<string, any> | undefined =
-      this.ignoreCaseOptions(ignoreCase);
-    return { field, operator: Operator.CONTAINS, value, options };
-  }
-
-  static isIn(field: string, ...value: any[]): Condition {
-    return { field, operator: Operator.IN, value };
-  }
-
-  static notIn(field: string, ...value: any[]): Condition {
-    return { field, operator: Operator.NOT_IN, value };
-  }
-
-  static between(field: string, start: any, end: any): Condition {
-    return { field, operator: Operator.BETWEEN, value: [start, end] };
-  }
-
-  static allIn(field: string, ...value: any[]): Condition {
-    return { field, operator: Operator.ALL_IN, value };
-  }
-
-  static startsWith(
-    field: string,
-    value: any,
-    ignoreCase?: boolean,
-  ): Condition {
-    const options: Record<string, any> | undefined =
-      this.ignoreCaseOptions(ignoreCase);
-    return { field, operator: Operator.STARTS_WITH, value, options };
-  }
-
-  static endsWith(field: string, value: any, ignoreCase?: boolean): Condition {
-    const options: Record<string, any> | undefined =
-      this.ignoreCaseOptions(ignoreCase);
-    return { field, operator: Operator.ENDS_WITH, value, options };
-  }
-
-  static elemMatch(field: string, value: Condition): Condition {
-    return { field, operator: Operator.ELEM_MATCH, children: [value] };
-  }
-
-  static isNull(field: string): Condition {
-    return { field, operator: Operator.NULL };
-  }
-
-  static notNull(field: string): Condition {
-    return { field, operator: Operator.NOT_NULL };
-  }
-
-  static isTrue(field: string): Condition {
-    return { field, operator: Operator.TRUE };
-  }
-
-  static isFalse(field: string): Condition {
-    return { field, operator: Operator.FALSE };
-  }
-
-  static exists(field: string, exists: boolean = true): Condition {
-    return { field, operator: Operator.EXISTS, value: exists };
-  }
-
-  static today(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.TODAY, options };
-  }
-
-  static beforeToday(
-    field: string,
-    time: any,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.BEFORE_TODAY, value: time, options };
-  }
-
-  static tomorrow(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.TOMORROW, options };
-  }
-
-  static thisWeek(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.THIS_WEEK, options };
-  }
-
-  static nextWeek(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.NEXT_WEEK, options };
-  }
-
-  static lastWeek(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.LAST_WEEK, options };
-  }
-
-  static thisMonth(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.THIS_MONTH, options };
-  }
-
-  static lastMonth(
-    field: string,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.LAST_MONTH, options };
-  }
-
-  static recentDays(
-    field: string,
-    days: number,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.RECENT_DAYS, value: days, options };
-  }
-
-  static earlierDays(
-    field: string,
-    days: number,
-    datePattern?: string,
-    zoneId?: string,
-  ): Condition {
-    const options = this.dateOptions(datePattern, zoneId);
-    return { field, operator: Operator.EARLIER_DAYS, value: days, options };
-  }
-
-  static raw(raw: any): Condition {
-    return { operator: Operator.RAW, value: raw };
-  }
-}
-
-// Independent export functions for direct import
+// Helper functions
 export function ignoreCaseOptions(
   ignoreCase?: boolean,
 ): Record<string, any> | undefined {
-  return Conditions.ignoreCaseOptions(ignoreCase);
+  if (typeof ignoreCase === 'undefined') {
+    return undefined;
+  }
+  return { ignoreCase };
 }
 
 export function dateOptions(
   datePattern?: string,
   zoneId?: string,
 ): Record<string, any> | undefined {
-  return Conditions.dateOptions(datePattern, zoneId);
+  if (typeof datePattern === 'undefined' && typeof zoneId === 'undefined') {
+    return undefined;
+  }
+  const options: Record<string, any> = {};
+  if (typeof datePattern !== 'undefined') {
+    options.datePattern = datePattern;
+  }
+  if (typeof zoneId !== 'undefined') {
+    options.zoneId = zoneId;
+  }
+  return options;
 }
 
+// Export functions
 export function and(...conditions: Condition[]): Condition {
-  return Conditions.and(...conditions);
+  return { operator: Operator.AND, children: conditions };
 }
 
 export function or(...conditions: Condition[]): Condition {
-  return Conditions.or(...conditions);
+  return { operator: Operator.OR, children: conditions };
 }
 
 export function nor(...conditions: Condition[]): Condition {
-  return Conditions.nor(...conditions);
+  return { operator: Operator.NOR, children: conditions };
 }
 
 export function id(value: string): Condition {
-  return Conditions.id(value);
+  return { operator: Operator.ID, value: value };
 }
 
 export function ids(value: string[]): Condition {
-  return Conditions.ids(value);
+  return { operator: Operator.IDS, value: value };
 }
 
 export function aggregateId(value: string): Condition {
-  return Conditions.aggregateId(value);
+  return { operator: Operator.AGGREGATE_ID, value: value };
 }
 
 export function aggregateIds(...value: string[]): Condition {
-  return Conditions.aggregateIds(...value);
+  return { operator: Operator.AGGREGATE_IDS, value: value };
 }
 
 export function tenantId(value: string): Condition {
-  return Conditions.tenantId(value);
+  return { operator: Operator.TENANT_ID, value: value };
 }
 
 export function ownerId(value: string): Condition {
-  return Conditions.ownerId(value);
+  return { operator: Operator.OWNER_ID, value: value };
 }
 
 export function deleted(value: DeletionState): Condition {
-  return Conditions.deleted(value);
+  return { operator: Operator.DELETED, value: value };
 }
 
 export function active(): Condition {
-  return Conditions.active();
+  return deleted(DeletionState.ACTIVE);
 }
 
 export function all(): Condition {
-  return Conditions.all();
+  return {
+    operator: Operator.ALL,
+  };
 }
 
 export function eq(field: string, value: any): Condition {
-  return Conditions.eq(field, value);
+  return { field, operator: Operator.EQ, value };
 }
 
 export function ne(field: string, value: any): Condition {
-  return Conditions.ne(field, value);
+  return { field, operator: Operator.NE, value };
 }
 
 export function gt(field: string, value: any): Condition {
-  return Conditions.gt(field, value);
+  return { field, operator: Operator.GT, value };
 }
 
 export function lt(field: string, value: any): Condition {
-  return Conditions.lt(field, value);
+  return { field, operator: Operator.LT, value };
 }
 
 export function gte(field: string, value: any): Condition {
-  return Conditions.gte(field, value);
+  return { field, operator: Operator.GTE, value };
 }
 
 export function lte(field: string, value: any): Condition {
-  return Conditions.lte(field, value);
+  return { field, operator: Operator.LTE, value };
 }
 
 export function contains(
@@ -392,23 +147,25 @@ export function contains(
   value: any,
   ignoreCase?: boolean,
 ): Condition {
-  return Conditions.contains(field, value, ignoreCase);
+  const options: Record<string, any> | undefined =
+    ignoreCaseOptions(ignoreCase);
+  return { field, operator: Operator.CONTAINS, value, options };
 }
 
 export function isIn(field: string, ...value: any[]): Condition {
-  return Conditions.isIn(field, ...value);
+  return { field, operator: Operator.IN, value };
 }
 
 export function notIn(field: string, ...value: any[]): Condition {
-  return Conditions.notIn(field, ...value);
+  return { field, operator: Operator.NOT_IN, value };
 }
 
 export function between(field: string, start: any, end: any): Condition {
-  return Conditions.between(field, start, end);
+  return { field, operator: Operator.BETWEEN, value: [start, end] };
 }
 
 export function allIn(field: string, ...value: any[]): Condition {
-  return Conditions.allIn(field, ...value);
+  return { field, operator: Operator.ALL_IN, value };
 }
 
 export function startsWith(
@@ -416,7 +173,9 @@ export function startsWith(
   value: any,
   ignoreCase?: boolean,
 ): Condition {
-  return Conditions.startsWith(field, value, ignoreCase);
+  const options: Record<string, any> | undefined =
+    ignoreCaseOptions(ignoreCase);
+  return { field, operator: Operator.STARTS_WITH, value, options };
 }
 
 export function endsWith(
@@ -424,31 +183,33 @@ export function endsWith(
   value: any,
   ignoreCase?: boolean,
 ): Condition {
-  return Conditions.endsWith(field, value, ignoreCase);
+  const options: Record<string, any> | undefined =
+    ignoreCaseOptions(ignoreCase);
+  return { field, operator: Operator.ENDS_WITH, value, options };
 }
 
 export function elemMatch(field: string, value: Condition): Condition {
-  return Conditions.elemMatch(field, value);
+  return { field, operator: Operator.ELEM_MATCH, children: [value] };
 }
 
 export function isNull(field: string): Condition {
-  return Conditions.isNull(field);
+  return { field, operator: Operator.NULL };
 }
 
 export function notNull(field: string): Condition {
-  return Conditions.notNull(field);
+  return { field, operator: Operator.NOT_NULL };
 }
 
 export function isTrue(field: string): Condition {
-  return Conditions.isTrue(field);
+  return { field, operator: Operator.TRUE };
 }
 
 export function isFalse(field: string): Condition {
-  return Conditions.isFalse(field);
+  return { field, operator: Operator.FALSE };
 }
 
 export function exists(field: string, exists: boolean = true): Condition {
-  return Conditions.exists(field, exists);
+  return { field, operator: Operator.EXISTS, value: exists };
 }
 
 export function today(
@@ -456,7 +217,8 @@ export function today(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.today(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.TODAY, options };
 }
 
 export function beforeToday(
@@ -465,7 +227,8 @@ export function beforeToday(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.beforeToday(field, time, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.BEFORE_TODAY, value: time, options };
 }
 
 export function tomorrow(
@@ -473,7 +236,8 @@ export function tomorrow(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.tomorrow(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.TOMORROW, options };
 }
 
 export function thisWeek(
@@ -481,7 +245,8 @@ export function thisWeek(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.thisWeek(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.THIS_WEEK, options };
 }
 
 export function nextWeek(
@@ -489,7 +254,8 @@ export function nextWeek(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.nextWeek(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.NEXT_WEEK, options };
 }
 
 export function lastWeek(
@@ -497,7 +263,8 @@ export function lastWeek(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.lastWeek(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.LAST_WEEK, options };
 }
 
 export function thisMonth(
@@ -505,7 +272,8 @@ export function thisMonth(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.thisMonth(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.THIS_MONTH, options };
 }
 
 export function lastMonth(
@@ -513,7 +281,8 @@ export function lastMonth(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.lastMonth(field, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.LAST_MONTH, options };
 }
 
 export function recentDays(
@@ -522,7 +291,8 @@ export function recentDays(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.recentDays(field, days, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.RECENT_DAYS, value: days, options };
 }
 
 export function earlierDays(
@@ -531,9 +301,10 @@ export function earlierDays(
   datePattern?: string,
   zoneId?: string,
 ): Condition {
-  return Conditions.earlierDays(field, days, datePattern, zoneId);
+  const options = dateOptions(datePattern, zoneId);
+  return { field, operator: Operator.EARLIER_DAYS, value: days, options };
 }
 
 export function raw(raw: any): Condition {
-  return Conditions.raw(raw);
+  return { operator: Operator.RAW, value: raw };
 }

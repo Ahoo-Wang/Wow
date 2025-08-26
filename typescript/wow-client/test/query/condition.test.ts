@@ -12,7 +12,56 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Condition, ConditionOptionKey, Conditions, DeletionState, Operator } from '../../src';
+import {
+  Condition,
+  ConditionOptionKey,
+  DeletionState,
+  ignoreCaseOptions,
+  dateOptions,
+  and,
+  or,
+  nor,
+  id,
+  ids,
+  aggregateId,
+  aggregateIds,
+  tenantId,
+  ownerId,
+  deleted,
+  active,
+  all,
+  eq,
+  ne,
+  gt,
+  lt,
+  gte,
+  lte,
+  contains,
+  isIn,
+  notIn,
+  between,
+  allIn,
+  startsWith,
+  endsWith,
+  elemMatch,
+  isNull,
+  notNull,
+  isTrue,
+  isFalse,
+  exists,
+  today,
+  beforeToday,
+  tomorrow,
+  thisWeek,
+  nextWeek,
+  lastWeek,
+  thisMonth,
+  lastMonth,
+  recentDays,
+  earlierDays,
+  raw,
+} from '../../src/query/condition';
+import { Operator } from '../../src/query/operator';
 
 describe('Condition', () => {
   describe('DeletionState', () => {
@@ -34,14 +83,23 @@ describe('Condition', () => {
   describe('Conditions Utility Methods', () => {
     describe('ignoreCaseOptions', () => {
       it('should return undefined when ignoreCase is undefined', () => {
-        expect(Conditions.ignoreCaseOptions(undefined)).toBeUndefined();
+        expect(ignoreCaseOptions(undefined)).toBeUndefined();
       });
 
       it('should return options object when ignoreCase is defined', () => {
-        expect(Conditions.ignoreCaseOptions(true)).toEqual({
+        expect(ignoreCaseOptions(true)).toEqual({
           ignoreCase: true,
         });
-        expect(Conditions.ignoreCaseOptions(false)).toEqual({
+        expect(ignoreCaseOptions(false)).toEqual({
+          ignoreCase: false,
+        });
+      });
+
+      it('should return options object when ignoreCase is defined', () => {
+        expect(ignoreCaseOptions(true)).toEqual({
+          ignoreCase: true,
+        });
+        expect(ignoreCaseOptions(false)).toEqual({
           ignoreCase: false,
         });
       });
@@ -49,23 +107,23 @@ describe('Condition', () => {
 
     describe('dateOptions', () => {
       it('should return undefined when both datePattern and zoneId are undefined', () => {
-        expect(Conditions.dateOptions(undefined, undefined)).toBeUndefined();
+        expect(dateOptions(undefined, undefined)).toBeUndefined();
       });
 
       it('should return options with datePattern when only datePattern is defined', () => {
-        expect(Conditions.dateOptions('yyyy-MM-dd', undefined)).toEqual({
+        expect(dateOptions('yyyy-MM-dd', undefined)).toEqual({
           datePattern: 'yyyy-MM-dd',
         });
       });
 
       it('should return options with zoneId when only zoneId is defined', () => {
-        expect(Conditions.dateOptions(undefined, 'UTC')).toEqual({
+        expect(dateOptions(undefined, 'UTC')).toEqual({
           zoneId: 'UTC',
         });
       });
 
       it('should return options with both datePattern and zoneId when both are defined', () => {
-        expect(Conditions.dateOptions('yyyy-MM-dd', 'UTC')).toEqual({
+        expect(dateOptions('yyyy-MM-dd', 'UTC')).toEqual({
           datePattern: 'yyyy-MM-dd',
           zoneId: 'UTC',
         });
@@ -84,7 +142,7 @@ describe('Condition', () => {
           operator: Operator.GT,
           value: 18,
         };
-        const result = Conditions.and(condition1, condition2);
+        const result = and(condition1, condition2);
 
         expect(result).toEqual({
           operator: Operator.AND,
@@ -103,7 +161,7 @@ describe('Condition', () => {
           operator: Operator.GT,
           value: 18,
         };
-        const result = Conditions.or(condition1, condition2);
+        const result = or(condition1, condition2);
 
         expect(result).toEqual({
           operator: Operator.OR,
@@ -122,7 +180,7 @@ describe('Condition', () => {
           operator: Operator.GT,
           value: 18,
         };
-        const result = Conditions.nor(condition1, condition2);
+        const result = nor(condition1, condition2);
 
         expect(result).toEqual({
           operator: Operator.NOR,
@@ -133,7 +191,7 @@ describe('Condition', () => {
 
     describe('ID Conditions', () => {
       it('should create ID condition', () => {
-        const result = Conditions.id('123');
+        const result = id('123');
         expect(result).toEqual({
           operator: Operator.ID,
           value: '123',
@@ -141,7 +199,7 @@ describe('Condition', () => {
       });
 
       it('should create IDS condition', () => {
-        const result = Conditions.ids(['123', '456']);
+        const result = ids(['123', '456']);
         expect(result).toEqual({
           operator: Operator.IDS,
           value: ['123', '456'],
@@ -149,7 +207,7 @@ describe('Condition', () => {
       });
 
       it('should create aggregate ID condition', () => {
-        const result = Conditions.aggregateId('agg123');
+        const result = aggregateId('agg123');
         expect(result).toEqual({
           operator: Operator.AGGREGATE_ID,
           value: 'agg123',
@@ -157,7 +215,7 @@ describe('Condition', () => {
       });
 
       it('should create aggregate IDS condition', () => {
-        const result = Conditions.aggregateIds('agg123', 'agg456');
+        const result = aggregateIds('agg123', 'agg456');
         expect(result).toEqual({
           operator: Operator.AGGREGATE_IDS,
           value: ['agg123', 'agg456'],
@@ -167,7 +225,7 @@ describe('Condition', () => {
 
     describe('Tenant and Owner Conditions', () => {
       it('should create tenant ID condition', () => {
-        const result = Conditions.tenantId('tenant123');
+        const result = tenantId('tenant123');
         expect(result).toEqual({
           operator: Operator.TENANT_ID,
           value: 'tenant123',
@@ -175,7 +233,7 @@ describe('Condition', () => {
       });
 
       it('should create owner ID condition', () => {
-        const result = Conditions.ownerId('owner123');
+        const result = ownerId('owner123');
         expect(result).toEqual({
           operator: Operator.OWNER_ID,
           value: 'owner123',
@@ -185,7 +243,7 @@ describe('Condition', () => {
 
     describe('Deletion State Conditions', () => {
       it('should create deleted condition', () => {
-        const result = Conditions.deleted(DeletionState.ACTIVE);
+        const result = deleted(DeletionState.ACTIVE);
         expect(result).toEqual({
           operator: Operator.DELETED,
           value: DeletionState.ACTIVE,
@@ -193,7 +251,7 @@ describe('Condition', () => {
       });
 
       it('should create active condition', () => {
-        const result = Conditions.active();
+        const result = active();
         expect(result).toEqual({
           operator: Operator.DELETED,
           value: DeletionState.ACTIVE,
@@ -201,7 +259,7 @@ describe('Condition', () => {
       });
 
       it('should create all condition', () => {
-        const result = Conditions.all();
+        const result = all();
         expect(result).toEqual({
           operator: Operator.ALL,
         });
@@ -210,7 +268,7 @@ describe('Condition', () => {
 
     describe('Comparison Conditions', () => {
       it('should create EQ condition', () => {
-        const result = Conditions.eq('name', 'test');
+        const result = eq('name', 'test');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.EQ,
@@ -219,7 +277,7 @@ describe('Condition', () => {
       });
 
       it('should create NE condition', () => {
-        const result = Conditions.ne('name', 'test');
+        const result = ne('name', 'test');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.NE,
@@ -228,7 +286,7 @@ describe('Condition', () => {
       });
 
       it('should create GT condition', () => {
-        const result = Conditions.gt('age', 18);
+        const result = gt('age', 18);
         expect(result).toEqual({
           field: 'age',
           operator: Operator.GT,
@@ -237,7 +295,7 @@ describe('Condition', () => {
       });
 
       it('should create LT condition', () => {
-        const result = Conditions.lt('age', 18);
+        const result = lt('age', 18);
         expect(result).toEqual({
           field: 'age',
           operator: Operator.LT,
@@ -246,7 +304,7 @@ describe('Condition', () => {
       });
 
       it('should create GTE condition', () => {
-        const result = Conditions.gte('age', 18);
+        const result = gte('age', 18);
         expect(result).toEqual({
           field: 'age',
           operator: Operator.GTE,
@@ -255,7 +313,7 @@ describe('Condition', () => {
       });
 
       it('should create LTE condition', () => {
-        const result = Conditions.lte('age', 18);
+        const result = lte('age', 18);
         expect(result).toEqual({
           field: 'age',
           operator: Operator.LTE,
@@ -266,7 +324,7 @@ describe('Condition', () => {
 
     describe('String Matching Conditions', () => {
       it('should create CONTAINS condition without ignoreCase', () => {
-        const result = Conditions.contains('name', 'test');
+        const result = contains('name', 'test');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.CONTAINS,
@@ -276,7 +334,7 @@ describe('Condition', () => {
       });
 
       it('should create CONTAINS condition with ignoreCase true', () => {
-        const result = Conditions.contains('name', 'test', true);
+        const result = contains('name', 'test', true);
         expect(result).toEqual({
           field: 'name',
           operator: Operator.CONTAINS,
@@ -286,7 +344,7 @@ describe('Condition', () => {
       });
 
       it('should create CONTAINS condition with ignoreCase false', () => {
-        const result = Conditions.contains('name', 'test', false);
+        const result = contains('name', 'test', false);
         expect(result).toEqual({
           field: 'name',
           operator: Operator.CONTAINS,
@@ -296,7 +354,7 @@ describe('Condition', () => {
       });
 
       it('should create STARTS_WITH condition', () => {
-        const result = Conditions.startsWith('name', 'test', true);
+        const result = startsWith('name', 'test', true);
         expect(result).toEqual({
           field: 'name',
           operator: Operator.STARTS_WITH,
@@ -306,7 +364,7 @@ describe('Condition', () => {
       });
 
       it('should create ENDS_WITH condition', () => {
-        const result = Conditions.endsWith('name', 'test', false);
+        const result = endsWith('name', 'test', false);
         expect(result).toEqual({
           field: 'name',
           operator: Operator.ENDS_WITH,
@@ -318,7 +376,7 @@ describe('Condition', () => {
 
     describe('Array Conditions', () => {
       it('should create IN condition', () => {
-        const result = Conditions.isIn('status', 'active', 'pending');
+        const result = isIn('status', 'active', 'pending');
         expect(result).toEqual({
           field: 'status',
           operator: Operator.IN,
@@ -327,7 +385,7 @@ describe('Condition', () => {
       });
 
       it('should create NOT_IN condition', () => {
-        const result = Conditions.notIn('status', 'deleted', 'banned');
+        const result = notIn('status', 'deleted', 'banned');
         expect(result).toEqual({
           field: 'status',
           operator: Operator.NOT_IN,
@@ -336,7 +394,7 @@ describe('Condition', () => {
       });
 
       it('should create BETWEEN condition', () => {
-        const result = Conditions.between('age', 18, 65);
+        const result = between('age', 18, 65);
         expect(result).toEqual({
           field: 'age',
           operator: Operator.BETWEEN,
@@ -345,7 +403,7 @@ describe('Condition', () => {
       });
 
       it('should create ALL_IN condition', () => {
-        const result = Conditions.allIn('tags', 'tag1', 'tag2');
+        const result = allIn('tags', 'tag1', 'tag2');
         expect(result).toEqual({
           field: 'tags',
           operator: Operator.ALL_IN,
@@ -359,7 +417,7 @@ describe('Condition', () => {
           operator: Operator.EQ,
           value: 'test',
         };
-        const result = Conditions.elemMatch('items', childCondition);
+        const result = elemMatch('items', childCondition);
         expect(result).toEqual({
           field: 'items',
           operator: Operator.ELEM_MATCH,
@@ -370,7 +428,7 @@ describe('Condition', () => {
 
     describe('Null and Boolean Conditions', () => {
       it('should create NULL condition', () => {
-        const result = Conditions.isNull('name');
+        const result = isNull('name');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.NULL,
@@ -378,7 +436,7 @@ describe('Condition', () => {
       });
 
       it('should create NOT_NULL condition', () => {
-        const result = Conditions.notNull('name');
+        const result = notNull('name');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.NOT_NULL,
@@ -386,7 +444,7 @@ describe('Condition', () => {
       });
 
       it('should create TRUE condition', () => {
-        const result = Conditions.isTrue('isActive');
+        const result = isTrue('isActive');
         expect(result).toEqual({
           field: 'isActive',
           operator: Operator.TRUE,
@@ -394,7 +452,7 @@ describe('Condition', () => {
       });
 
       it('should create FALSE condition', () => {
-        const result = Conditions.isFalse('isActive');
+        const result = isFalse('isActive');
         expect(result).toEqual({
           field: 'isActive',
           operator: Operator.FALSE,
@@ -402,7 +460,7 @@ describe('Condition', () => {
       });
 
       it('should create EXISTS condition with default value', () => {
-        const result = Conditions.exists('name');
+        const result = exists('name');
         expect(result).toEqual({
           field: 'name',
           operator: Operator.EXISTS,
@@ -411,7 +469,7 @@ describe('Condition', () => {
       });
 
       it('should create EXISTS condition with custom value', () => {
-        const result = Conditions.exists('name', false);
+        const result = exists('name', false);
         expect(result).toEqual({
           field: 'name',
           operator: Operator.EXISTS,
@@ -422,7 +480,7 @@ describe('Condition', () => {
 
     describe('Date Conditions', () => {
       it('should create TODAY condition without options', () => {
-        const result = Conditions.today('createdAt');
+        const result = today('createdAt');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.TODAY,
@@ -431,7 +489,7 @@ describe('Condition', () => {
       });
 
       it('should create TODAY condition with date pattern', () => {
-        const result = Conditions.today('createdAt', 'yyyy-MM-dd');
+        const result = today('createdAt', 'yyyy-MM-dd');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.TODAY,
@@ -440,7 +498,7 @@ describe('Condition', () => {
       });
 
       it('should create TODAY condition with zone ID', () => {
-        const result = Conditions.today('createdAt', undefined, 'UTC');
+        const result = today('createdAt', undefined, 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.TODAY,
@@ -449,7 +507,7 @@ describe('Condition', () => {
       });
 
       it('should create TODAY condition with both options', () => {
-        const result = Conditions.today('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = today('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.TODAY,
@@ -458,7 +516,7 @@ describe('Condition', () => {
       });
 
       it('should create BEFORE_TODAY condition', () => {
-        const result = Conditions.beforeToday(
+        const result = beforeToday(
           'createdAt',
           '2023-01-01',
           'yyyy-MM-dd',
@@ -473,7 +531,7 @@ describe('Condition', () => {
       });
 
       it('should create TOMORROW condition', () => {
-        const result = Conditions.tomorrow('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = tomorrow('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.TOMORROW,
@@ -482,7 +540,7 @@ describe('Condition', () => {
       });
 
       it('should create THIS_WEEK condition', () => {
-        const result = Conditions.thisWeek('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = thisWeek('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.THIS_WEEK,
@@ -491,7 +549,7 @@ describe('Condition', () => {
       });
 
       it('should create NEXT_WEEK condition', () => {
-        const result = Conditions.nextWeek('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = nextWeek('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.NEXT_WEEK,
@@ -500,7 +558,7 @@ describe('Condition', () => {
       });
 
       it('should create LAST_WEEK condition', () => {
-        const result = Conditions.lastWeek('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = lastWeek('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.LAST_WEEK,
@@ -509,7 +567,7 @@ describe('Condition', () => {
       });
 
       it('should create THIS_MONTH condition', () => {
-        const result = Conditions.thisMonth('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = thisMonth('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.THIS_MONTH,
@@ -518,7 +576,7 @@ describe('Condition', () => {
       });
 
       it('should create LAST_MONTH condition', () => {
-        const result = Conditions.lastMonth('createdAt', 'yyyy-MM-dd', 'UTC');
+        const result = lastMonth('createdAt', 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.LAST_MONTH,
@@ -527,12 +585,7 @@ describe('Condition', () => {
       });
 
       it('should create RECENT_DAYS condition', () => {
-        const result = Conditions.recentDays(
-          'createdAt',
-          7,
-          'yyyy-MM-dd',
-          'UTC',
-        );
+        const result = recentDays('createdAt', 7, 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.RECENT_DAYS,
@@ -542,12 +595,7 @@ describe('Condition', () => {
       });
 
       it('should create EARLIER_DAYS condition', () => {
-        const result = Conditions.earlierDays(
-          'createdAt',
-          30,
-          'yyyy-MM-dd',
-          'UTC',
-        );
+        const result = earlierDays('createdAt', 30, 'yyyy-MM-dd', 'UTC');
         expect(result).toEqual({
           field: 'createdAt',
           operator: Operator.EARLIER_DAYS,
@@ -560,7 +608,7 @@ describe('Condition', () => {
     describe('Raw Condition', () => {
       it('should create RAW condition', () => {
         const rawValue = { custom: 'query' };
-        const result = Conditions.raw(rawValue);
+        const result = raw(rawValue);
         expect(result).toEqual({
           operator: Operator.RAW,
           value: rawValue,
