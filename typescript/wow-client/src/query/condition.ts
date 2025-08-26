@@ -300,3 +300,240 @@ export class Conditions {
     return { operator: Operator.RAW, value: raw };
   }
 }
+
+// Independent export functions for direct import
+export function ignoreCaseOptions(
+  ignoreCase?: boolean,
+): Record<string, any> | undefined {
+  return Conditions.ignoreCaseOptions(ignoreCase);
+}
+
+export function dateOptions(
+  datePattern?: string,
+  zoneId?: string,
+): Record<string, any> | undefined {
+  return Conditions.dateOptions(datePattern, zoneId);
+}
+
+export function and(...conditions: Condition[]): Condition {
+  return Conditions.and(...conditions);
+}
+
+export function or(...conditions: Condition[]): Condition {
+  return Conditions.or(...conditions);
+}
+
+export function nor(...conditions: Condition[]): Condition {
+  return Conditions.nor(...conditions);
+}
+
+export function id(value: string): Condition {
+  return Conditions.id(value);
+}
+
+export function ids(value: string[]): Condition {
+  return Conditions.ids(value);
+}
+
+export function aggregateId(value: string): Condition {
+  return Conditions.aggregateId(value);
+}
+
+export function aggregateIds(...value: string[]): Condition {
+  return Conditions.aggregateIds(...value);
+}
+
+export function tenantId(value: string): Condition {
+  return Conditions.tenantId(value);
+}
+
+export function ownerId(value: string): Condition {
+  return Conditions.ownerId(value);
+}
+
+export function deleted(value: DeletionState): Condition {
+  return Conditions.deleted(value);
+}
+
+export function active(): Condition {
+  return Conditions.active();
+}
+
+export function all(): Condition {
+  return Conditions.all();
+}
+
+export function eq(field: string, value: any): Condition {
+  return Conditions.eq(field, value);
+}
+
+export function ne(field: string, value: any): Condition {
+  return Conditions.ne(field, value);
+}
+
+export function gt(field: string, value: any): Condition {
+  return Conditions.gt(field, value);
+}
+
+export function lt(field: string, value: any): Condition {
+  return Conditions.lt(field, value);
+}
+
+export function gte(field: string, value: any): Condition {
+  return Conditions.gte(field, value);
+}
+
+export function lte(field: string, value: any): Condition {
+  return Conditions.lte(field, value);
+}
+
+export function contains(
+  field: string,
+  value: any,
+  ignoreCase?: boolean,
+): Condition {
+  return Conditions.contains(field, value, ignoreCase);
+}
+
+export function isIn(field: string, ...value: any[]): Condition {
+  return Conditions.isIn(field, ...value);
+}
+
+export function notIn(field: string, ...value: any[]): Condition {
+  return Conditions.notIn(field, ...value);
+}
+
+export function between(field: string, start: any, end: any): Condition {
+  return Conditions.between(field, start, end);
+}
+
+export function allIn(field: string, ...value: any[]): Condition {
+  return Conditions.allIn(field, ...value);
+}
+
+export function startsWith(
+  field: string,
+  value: any,
+  ignoreCase?: boolean,
+): Condition {
+  return Conditions.startsWith(field, value, ignoreCase);
+}
+
+export function endsWith(
+  field: string,
+  value: any,
+  ignoreCase?: boolean,
+): Condition {
+  return Conditions.endsWith(field, value, ignoreCase);
+}
+
+export function elemMatch(field: string, value: Condition): Condition {
+  return Conditions.elemMatch(field, value);
+}
+
+export function isNull(field: string): Condition {
+  return Conditions.isNull(field);
+}
+
+export function notNull(field: string): Condition {
+  return Conditions.notNull(field);
+}
+
+export function isTrue(field: string): Condition {
+  return Conditions.isTrue(field);
+}
+
+export function isFalse(field: string): Condition {
+  return Conditions.isFalse(field);
+}
+
+export function exists(field: string, exists: boolean = true): Condition {
+  return Conditions.exists(field, exists);
+}
+
+export function today(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.today(field, datePattern, zoneId);
+}
+
+export function beforeToday(
+  field: string,
+  time: any,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.beforeToday(field, time, datePattern, zoneId);
+}
+
+export function tomorrow(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.tomorrow(field, datePattern, zoneId);
+}
+
+export function thisWeek(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.thisWeek(field, datePattern, zoneId);
+}
+
+export function nextWeek(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.nextWeek(field, datePattern, zoneId);
+}
+
+export function lastWeek(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.lastWeek(field, datePattern, zoneId);
+}
+
+export function thisMonth(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.thisMonth(field, datePattern, zoneId);
+}
+
+export function lastMonth(
+  field: string,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.lastMonth(field, datePattern, zoneId);
+}
+
+export function recentDays(
+  field: string,
+  days: number,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.recentDays(field, days, datePattern, zoneId);
+}
+
+export function earlierDays(
+  field: string,
+  days: number,
+  datePattern?: string,
+  zoneId?: string,
+): Condition {
+  return Conditions.earlierDays(field, days, datePattern, zoneId);
+}
+
+export function raw(raw: any): Condition {
+  return Conditions.raw(raw);
+}
