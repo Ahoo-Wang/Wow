@@ -23,6 +23,9 @@ export interface CreateTimeCapable {
   createTime: number;
 }
 
+/**
+ * Interface for objects that track deletion status.
+ */
 export interface DeletedCapable {
   /**
    * Whether the aggregate is deleted.
@@ -30,6 +33,9 @@ export interface DeletedCapable {
   deleted: boolean;
 }
 
+/**
+ * Interface for objects that track event IDs.
+ */
 export interface EventIdCapable {
   /**
    * The event id of the aggregate.
@@ -37,6 +43,9 @@ export interface EventIdCapable {
   eventId: string;
 }
 
+/**
+ * Interface for objects that track event times.
+ */
 export interface EventTimeCapable {
   /**
    * The last event time of the aggregate, represented as a Unix timestamp in milliseconds.
@@ -44,6 +53,9 @@ export interface EventTimeCapable {
   eventTime: number;
 }
 
+/**
+ * Interface for objects that track the first event time.
+ */
 export interface FirstEventTimeCapable {
   /**
    * The first event time of the aggregate, represented as a Unix timestamp in milliseconds.
@@ -51,6 +63,9 @@ export interface FirstEventTimeCapable {
   firstEventTime: number;
 }
 
+/**
+ * Interface for objects that track the first operator.
+ */
 export interface FirstOperatorCapable {
   /**
    * The first operator of the aggregate.
@@ -58,6 +73,9 @@ export interface FirstOperatorCapable {
   firstOperator: string;
 }
 
+/**
+ * Interface for objects that have an aggregate name.
+ */
 export interface AggregateNameCapable {
   /**
    * The name of the aggregate.
@@ -65,13 +83,23 @@ export interface AggregateNameCapable {
   aggregateName: string;
 }
 
-export interface NamedAggregate extends NamedBoundedContext, AggregateNameCapable {
-}
+/**
+ * Interface for named aggregates that belong to a bounded context.
+ */
+export interface NamedAggregate
+  extends NamedBoundedContext,
+    AggregateNameCapable {}
 
+/**
+ * Interface for aggregate IDs that combine tenant and named aggregate information.
+ */
 export interface AggregateId extends TenantId, NamedAggregate {
   aggregateId: string;
 }
 
+/**
+ * Interface for objects that track the last operator.
+ */
 export interface OperatorCapable {
   /**
    * The last operator of the aggregate.
@@ -82,15 +110,18 @@ export interface OperatorCapable {
 export const DEFAULT_OWNER_ID = '';
 
 /**
- * 用于标识资源的拥有者
+ * Interface for identifying resource owners.
  */
 export interface OwnerId {
   /**
-   * 资源拥有者的唯一标识符
+   * Unique identifier of the resource owner.
    */
   ownerId: string;
 }
 
+/**
+ * Interface for objects that track snapshot times.
+ */
 export interface SnapshotTimeCapable {
   /**
    * The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds.
@@ -100,14 +131,16 @@ export interface SnapshotTimeCapable {
 
 export const DEFAULT_TENANT_ID = '(0)';
 
+/**
+ * Interface for objects that have a tenant ID.
+ */
 export interface TenantId {
   tenantId: string;
 }
 
+/**
+ * Interface for objects that hold state.
+ */
 export interface StateCapable<S> {
   state: S;
 }
-
-
-
-

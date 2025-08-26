@@ -15,26 +15,32 @@ import { ConditionCapable } from './condition';
 
 export enum SortDirection {
   ASC = 'ASC',
-  DESC = 'DESC'
+  DESC = 'DESC',
 }
 
+/**
+ * Interface for sort criteria.
+ */
 export interface Sort {
   field: string;
   direction: SortDirection;
 }
 
+/**
+ * Interface for objects that support sorting.
+ */
 export interface SortCapable {
   sort?: Sort[];
 }
 
+/**
+ * Interface for pagination information.
+ *
+ * Page number, starting from 1
+ * Page size
+ */
 export interface Pagination {
-  /**
-   * 页码，从1开始
-   */
   index: number;
-  /**
-   * 每页数量
-   */
   size: number;
 }
 
@@ -43,6 +49,9 @@ export const DEFAULT_PAGINATION: Pagination = {
   size: 10,
 };
 
+/**
+ * Interface for field projection.
+ */
 export interface Projection {
   include?: string[];
   exclude?: string[];
@@ -50,30 +59,46 @@ export interface Projection {
 
 export const DEFAULT_PROJECTION: Projection = {};
 
+/**
+ * Interface for objects that support field projection.
+ */
 export interface ProjectionCapable {
   projection?: Projection;
 }
 
-export interface Queryable extends ConditionCapable, ProjectionCapable, SortCapable {
+/**
+ * Interface for queryable objects that support conditions, projection, and sorting.
+ */
+export interface Queryable
+  extends ConditionCapable,
+    ProjectionCapable,
+    SortCapable {}
 
-}
-
+/**
+ * Interface for single query objects.
+ */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SingleQuery extends Queryable {
+export interface SingleQuery extends Queryable {}
 
-}
-
+/**
+ * Interface for list query objects.
+ *
+ * Limit the number of results. Default: DEFAULT_PAGINATION.size
+ */
 export interface ListQuery extends Queryable {
-  /**
-   *  Limit the number of results.default:DEFAULT_PAGINATION.size
-   */
   limit?: number;
 }
 
+/**
+ * Interface for paged query objects.
+ */
 export interface PagedQuery extends Queryable {
   pagination?: Pagination;
 }
 
+/**
+ * Interface for paged list results.
+ */
 export interface PagedList<T> {
   total: number;
   list: T[];

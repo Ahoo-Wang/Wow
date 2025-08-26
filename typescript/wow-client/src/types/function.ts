@@ -16,9 +16,12 @@ export enum FunctionKind {
   ERROR = 'ERROR',
   EVENT = 'EVENT',
   SOURCING = 'SOURCING',
-  STATE_EVENT = 'STATE_EVENT'
+  STATE_EVENT = 'STATE_EVENT',
 }
 
+/**
+ * Interface for function information.
+ */
 export interface FunctionInfo {
   functionKind: FunctionKind;
   contextName: string;
@@ -26,7 +29,9 @@ export interface FunctionInfo {
   name: string;
 }
 
-
+/**
+ * Interface for objects that have function information.
+ */
 export interface FunctionInfoCapable {
   function: FunctionInfo;
 }

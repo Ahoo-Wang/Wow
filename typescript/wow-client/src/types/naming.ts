@@ -11,10 +11,16 @@
  * limitations under the License.
  */
 
+/**
+ * Interface for named bounded contexts.
+ */
 export interface NamedBoundedContext {
   contextName: string;
 }
 
+/**
+ * Interface for named entities.
+ */
 export interface Named {
   name: string;
 }

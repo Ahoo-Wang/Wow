@@ -27,8 +27,12 @@ export interface ConditionOptions {
   [key: string]: any;
 }
 
-
-// Helper functions
+/**
+ * Helper function to create condition options with ignoreCase flag.
+ *
+ * @param ignoreCase - Whether to ignore case
+ * @returns Condition options or undefined if ignoreCase is undefined
+ */
 export function ignoreCaseOptions(
   ignoreCase?: boolean,
 ): ConditionOptions | undefined {
@@ -38,6 +42,13 @@ export function ignoreCaseOptions(
   return { ignoreCase };
 }
 
+/**
+ * Helper function to create condition options with date pattern and zone ID.
+ *
+ * @param datePattern - Date pattern
+ * @param zoneId - Time zone ID
+ * @returns Condition options or undefined if both parameters are undefined
+ */
 export function dateOptions(
   datePattern?: string,
   zoneId?: string,
@@ -55,17 +66,22 @@ export function dateOptions(
   return options;
 }
 
+/**
+ * Interface for query conditions.
+ *
+ * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
+ */
 export interface Condition {
   field?: string;
   operator?: Operator;
   value?: any;
-  /**
-   * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
-   */
   children?: Condition[];
   options?: ConditionOptions;
 }
 
+/**
+ * Interface for objects that have a condition.
+ */
 export interface ConditionCapable {
   condition: Condition;
 }
@@ -76,16 +92,32 @@ export enum DeletionState {
   ALL = 'ALL',
 }
 
-
-// Export functions
+/**
+ * Creates an AND condition with the specified conditions.
+ *
+ * @param conditions - Conditions to combine with AND
+ * @returns A condition with AND operator
+ */
 export function and(...conditions: Condition[]): Condition {
   return { operator: Operator.AND, children: conditions };
 }
 
+/**
+ * Creates an OR condition with the specified conditions.
+ *
+ * @param conditions - Conditions to combine with OR
+ * @returns A condition with OR operator
+ */
 export function or(...conditions: Condition[]): Condition {
   return { operator: Operator.OR, children: conditions };
 }
 
+/**
+ * Creates a NOR condition with the specified conditions.
+ *
+ * @param conditions - Conditions to combine with NOR
+ * @returns A condition with NOR operator
+ */
 export function nor(...conditions: Condition[]): Condition {
   return { operator: Operator.NOR, children: conditions };
 }
