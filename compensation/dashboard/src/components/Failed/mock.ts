@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { ExecutionFailedState } from "./ExecutionFailedState.ts";
+
 export const PagedList = {
   total: 210,
   list: [
@@ -434,5 +436,5 @@ export const PagedList = {
       isRetryable: true,
       isBelowRetryThreshold: true,
     },
-  ],
+  ] as ExecutionFailedState[],
 };

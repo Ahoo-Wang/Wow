@@ -16,11 +16,12 @@ import type { ExecutionFailedState } from "./ExecutionFailedState.ts";
 import { Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { PagedList } from "./mock.ts";
-import { Fetcher } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
-import { EventStreamInterceptor } from "@ahoo-wang/fetcher-eventstream";
-import { executionFailedService } from "../../services/ExecutionFailedService.ts";
-const { Paragraph, Text } = Typography;
+import {
+  stateExecutionFailedService,
+} from "../../services/ExecutionFailedService.ts";
+import { all, eq } from "@ahoo-wang/fetcher-wow";
+const { Paragraph } = Typography;
 
 interface FailedTableProps {
   category: FailedCategory;
@@ -188,15 +189,10 @@ const columns: TableColumnsType<ExecutionFailedState> = [
 ];
 
 export function FailedTable({ category }: FailedTableProps) {
-  const fetcher = new Fetcher({
-    baseURL: "http://compensation-service.dev.svc.cluster.local/",
-  });
-  fetcher.interceptors.response.use(new EventStreamInterceptor());
   async function fetchData() {
-    const response = await executionFailedService.listSnapshot({
-      condition: {
-        operator: "ALL",
-      },
+    eq("field", "value");
+    const response = await stateExecutionFailedService.listSnapshot({
+      condition: all(),
       limit: 2,
     });
     let eventStream = response.eventStream;
@@ -207,9 +203,8 @@ export function FailedTable({ category }: FailedTableProps) {
     }
   }
 
-
-  useEffect( () => {
-     fetchData();
+  useEffect(() => {
+    fetchData();
   }, [category]);
 
   return (
