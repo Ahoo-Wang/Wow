@@ -22,9 +22,11 @@ export default defineConfig({
       fileName: format => `index.${format}.js`,
     },
     rollupOptions: {
-      external: [],
+      external: ['@ahoo-wang/fetcher'],
       output: {
-        globals: {},
+        globals: {
+          '@ahoo-wang/fetcher': 'Fetcher',
+        },
       },
     },
   },
