@@ -12,24 +12,26 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Identifier, Version } from '../../src/types';
+import { Identifier, Version } from '../../src/types/common';
 
-describe('Identifier', () => {
-  it('should have an id property', () => {
-    const identifier: Identifier = {
-      id: 'test-id',
-    };
+describe('Common Types', () => {
+  describe('Identifier', () => {
+    it('should have an id property', () => {
+      const identifier: Identifier = {
+        id: 'test-id',
+      };
 
-    expect(identifier.id).toBe('test-id');
+      expect(identifier.id).toBe('test-id');
+    });
   });
-});
 
-describe('Version', () => {
-  it('should have a version property', () => {
-    const version: Version = {
-      version: 1,
-    };
+  describe('Version', () => {
+    it('should have a version property', () => {
+      const version: Version = {
+        version: 1,
+      };
 
-    expect(version.version).toBe(1);
+      expect(version.version).toBe(1);
+    });
   });
 });
