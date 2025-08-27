@@ -15,4 +15,3 @@ export * from './condition';
 export * from './operator';
 export * from './queryable';
 export * from './snapshot';
-export * from './snapshotQueryService';

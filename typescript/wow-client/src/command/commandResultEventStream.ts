@@ -39,8 +39,7 @@ export class CommandResultEventTransformStream extends TransformStream<ServerSen
   }
 }
 
-export interface CommandResultEventStream extends ReadableStream<CommandResultEvent> {
-}
+export type CommandResultEventStream = ReadableStream<CommandResultEvent>;
 
 export function toCommandResultEventStream(
   serverSentEventStream: ServerSentEventStream,
