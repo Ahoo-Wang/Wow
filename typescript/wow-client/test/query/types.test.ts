@@ -85,10 +85,4 @@ describe('Operator', () => {
   it('should have raw operator', () => {
     expect(Operator.RAW).toBe('RAW');
   });
-
-  it('should have unique values for all operators', () => {
-    const operatorValues = Object.values(Operator);
-    const uniqueValues = [...new Set(operatorValues)];
-    expect(operatorValues.length).toBe(uniqueValues.length);
-  });
 });

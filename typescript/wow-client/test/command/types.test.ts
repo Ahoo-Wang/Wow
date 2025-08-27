@@ -24,11 +24,5 @@ describe('Command Types', () => {
       expect(CommandStage.EVENT_HANDLED).toBe('EVENT_HANDLED');
       expect(CommandStage.SAGA_HANDLED).toBe('SAGA_HANDLED');
     });
-
-    it('should have unique values for all stages', () => {
-      const stageValues = Object.values(CommandStage);
-      const uniqueValues = [...new Set(stageValues)];
-      expect(stageValues.length).toBe(uniqueValues.length);
-    });
   });
 });

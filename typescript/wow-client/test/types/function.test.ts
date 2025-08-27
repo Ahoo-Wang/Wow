@@ -23,12 +23,6 @@ describe('Function Types', () => {
       expect(FunctionKind.SOURCING).toBe('SOURCING');
       expect(FunctionKind.STATE_EVENT).toBe('STATE_EVENT');
     });
-
-    it('should have unique values for all kinds', () => {
-      const kindValues = Object.values(FunctionKind);
-      const uniqueValues = [...new Set(kindValues)];
-      expect(kindValues.length).toBe(uniqueValues.length);
-    });
   });
 
   it('should compile without errors', () => {

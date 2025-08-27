@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Named, NamedBoundedContext } from '../../src/types';
+import { Named, NamedBoundedContext } from '../../src';
 
 describe('NamedBoundedContext', () => {
   it('should have a contextName property', () => {
