@@ -14,5 +14,4 @@
 export * from './commandHeaders';
 export * from './commandRequest';
 export * from './commandResult';
-export * from './commandResultEventStream';
 export * from './types';
