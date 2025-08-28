@@ -191,15 +191,13 @@ const columns: TableColumnsType<ExecutionFailedState> = [
 export function FailedTable({ category }: FailedTableProps) {
   async function fetchData() {
     eq("field", "value");
-    const response = await stateExecutionFailedService.listSnapshot({
+    const eventStream = await stateExecutionFailedService.listSnapshot({
       condition: all(),
       limit: 2,
     });
-    let eventStream = response.eventStream;
-    if (eventStream) {
-      for await (const event of eventStream()) {
-        console.log("Received event:", event);
-      }
+
+    for await (const event of eventStream) {
+      console.log("Received event:", event);
     }
   }
 
