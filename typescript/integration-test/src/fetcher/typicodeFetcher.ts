@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-export * from './cosec';
-export * from './decorator';
-export * from './types';
-export * from './fetcher';
+
+import { NamedFetcher } from '@ahoo-wang/fetcher';
+import { cosecRequestInterceptor, cosecResponseInterceptor } from '../cosec';
+
+export const typicodeFetcher = new NamedFetcher('typicode', {
+  baseURL: 'https://jsonplaceholder.typicode.com',
+});
+
+typicodeFetcher.interceptors.request.use(cosecRequestInterceptor);
+typicodeFetcher.interceptors.response.use(cosecResponseInterceptor);

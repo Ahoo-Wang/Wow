@@ -18,7 +18,7 @@ import {
   ResultExtractors,
 } from '@ahoo-wang/fetcher-decorator';
 import { Post } from '../types';
-import { typicodeFetcher } from '../typicodeFetcher';
+import { typicodeFetcher } from '../fetcher';
 import { FetchExchange } from '@ahoo-wang/fetcher';
 
 @api('/posts', { fetcher: typicodeFetcher })
