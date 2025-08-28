@@ -124,29 +124,17 @@ const commandResult: CommandResult = {
 
 #### CommandResultEventStream
 
-Utilities for working with command result event streams:
+Type alias for a readable stream of CommandResult events:
 
 ```typescript
-import {
-  toCommandResultEventStream,
-  CommandResultEvent,
-} from '@ahoo-wang/fetcher-wow';
-import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
+import { CommandResult } from '@ahoo-wang/fetcher-wow';
+import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 
-// Convert ServerSentEventStream to CommandResultEventStream
-const eventStream = fetchEventStream('/commands/stream');
-const commandResultStream = toCommandResultEventStream(eventStream);
-
-// Process command results as they arrive
-const reader = commandResultStream.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-
-  const commandResult: CommandResult = value.data;
-  console.log('Command result:', commandResult);
-}
+// CommandResultEventStream is a JsonServerSentEventStream of CommandResult
+type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
 ```
+
+````
 
 ### Query Module
 
@@ -196,7 +184,7 @@ const dateConditions = [
   thisWeek('updatedAt'),
   lastMonth('createdDate'),
 ];
-```
+````
 
 #### Operators
 
@@ -372,7 +360,6 @@ import {
   CommandHeaders,
   CommandResult,
   CommandStage,
-  toCommandResultEventStream,
 } from '@ahoo-wang/fetcher-wow';
 import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
 
@@ -408,7 +395,7 @@ async function executeCommand(request: CommandRequest): Promise<CommandResult> {
 // 3. Stream command results in real-time
 async function streamCommandResults() {
   const eventStream = fetchEventStream('/commands/stream');
-  const commandResultStream = toCommandResultEventStream(eventStream);
+  const commandResultStream = eventStream as CommandResultEventStream;
 
   const reader = commandResultStream.getReader();
   try {

@@ -123,29 +123,25 @@ const commandResult: CommandResult = {
 
 #### CommandResultEventStream
 
-用于处理命令结果事件流的工具：
+命令结果事件流的类型别名：
 
 ```typescript
-import {
-  toCommandResultEventStream,
-  CommandResultEvent,
-} from '@ahoo-wang/fetcher-wow';
-import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
+import { CommandResult } from '@ahoo-wang/fetcher-wow';
+import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 
-// 将 ServerSentEventStream 转换为 CommandResultEventStream
-const eventStream = fetchEventStream('/commands/stream');
-const commandResultStream = toCommandResultEventStream(eventStream);
-
-// 处理实时到达的命令结果
-const reader = commandResultStream.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-
-  const commandResult: CommandResult = value.data;
-  console.log('命令结果:', commandResult);
-}
+// CommandResultEventStream 是 CommandResult 的 JsonServerSentEventStream
+type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
 ```
+
+while (true) {
+const { done, value } = await reader.read();
+if (done) break;
+
+const commandResult: CommandResult = value.data;
+console.log('命令结果:', commandResult);
+}
+
+````
 
 ### 查询模块
 
@@ -195,7 +191,7 @@ const dateConditions = [
   thisWeek('updatedAt'),
   lastMonth('createdDate'),
 ];
-```
+````
 
 #### 操作符
 
@@ -371,7 +367,6 @@ import {
   CommandHeaders,
   CommandResult,
   CommandStage,
-  toCommandResultEventStream,
 } from '@ahoo-wang/fetcher-wow';
 import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
 
@@ -407,7 +402,7 @@ async function executeCommand(request: CommandRequest): Promise<CommandResult> {
 // 3. 实时流式处理命令结果
 async function streamCommandResults() {
   const eventStream = fetchEventStream('/commands/stream');
-  const commandResultStream = toCommandResultEventStream(eventStream);
+  const commandResultStream = eventStream as CommandResultEventStream;
 
   const reader = commandResultStream.getReader();
   try {
