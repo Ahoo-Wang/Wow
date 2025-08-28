@@ -8,8 +8,7 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-wow)](https://www.npmjs.com/package/@ahoo-wang/fetcher-wow)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-Support for [Wow](https://github.com/Ahoo-Wang/Wow) in Fetcher. Provides TypeScript types and utilities for working with
-the Wow CQRS/DDD framework.
+Provides TypeScript types and utilities for working with the [Wow](https://github.com/Ahoo-Wang/Wow) CQRS/DDD framework.
 
 ## 🌟 Features
 
