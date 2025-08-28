@@ -28,6 +28,7 @@ import {
   SignalTimeCapable,
   WaitCommandIdCapable,
 } from './types';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 export interface CommandResult
   extends Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext,
@@ -45,3 +46,5 @@ export interface CommandResult
   aggregateVersion?: number;
 
 }
+
+export type CommandResultEventStream = ReadableStream<JsonServerSentEvent<CommandResult>>;
