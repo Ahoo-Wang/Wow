@@ -13,7 +13,7 @@
 
 
 import { ServerSentEvent, ServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
-import { CommandResult } from './commandResult';
+import { CommandResult, CommandResultEventStream } from './commandResult';
 
 export interface CommandResultEvent extends Omit<ServerSentEvent, 'data'> {
   data: CommandResult;
@@ -39,7 +39,6 @@ export class CommandResultEventTransformStream extends TransformStream<ServerSen
   }
 }
 
-export type CommandResultEventStream = ReadableStream<CommandResultEvent>;
 
 export function toCommandResultEventStream(
   serverSentEventStream: ServerSentEventStream,
