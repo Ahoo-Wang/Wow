@@ -11,11 +11,35 @@
  * limitations under the License.
  */
 
+/**
+ * Function kind enum
+ *
+ * Represents the different types of functions in the system.
+ */
 export enum FunctionKind {
+  /**
+   * Command function kind
+   */
   COMMAND = 'COMMAND',
+
+  /**
+   * Error function kind
+   */
   ERROR = 'ERROR',
+
+  /**
+   * Event function kind
+   */
   EVENT = 'EVENT',
+
+  /**
+   * Sourcing function kind
+   */
   SOURCING = 'SOURCING',
+
+  /**
+   * State event function kind
+   */
   STATE_EVENT = 'STATE_EVENT',
 }
 
