@@ -16,6 +16,7 @@ import dts from 'unplugin-dts/vite';
 
 export default defineConfig({
   build: {
+    sourcemap: true,
     lib: {
       entry: 'src/index.ts',
       name: 'FetcherWow',
