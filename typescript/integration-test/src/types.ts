@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 export interface Comment {
   postId: number;
   id: number;
@@ -47,4 +46,3 @@ export interface Post {
   title: string;
   body: string;
 }
-

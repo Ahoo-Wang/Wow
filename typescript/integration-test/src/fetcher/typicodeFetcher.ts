@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 import { NamedFetcher } from '@ahoo-wang/fetcher';
 import { cosecRequestInterceptor, cosecResponseInterceptor } from '../cosec';
 

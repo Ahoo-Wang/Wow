@@ -14,7 +14,8 @@
 import {
   CompositeToken,
   CoSecOptions,
-  CoSecRequestInterceptor, CoSecResponseInterceptor,
+  CoSecRequestInterceptor,
+  CoSecResponseInterceptor,
   DeviceIdStorage,
   TokenRefresher,
   TokenStorage,
@@ -33,5 +34,9 @@ const cosecOptions: CoSecOptions = {
   tokenRefresher: new MockTokenRefresher(),
 };
 
-export const cosecRequestInterceptor = new CoSecRequestInterceptor(cosecOptions);
-export const cosecResponseInterceptor = new CoSecResponseInterceptor(cosecOptions);
+export const cosecRequestInterceptor = new CoSecRequestInterceptor(
+  cosecOptions,
+);
+export const cosecResponseInterceptor = new CoSecResponseInterceptor(
+  cosecOptions,
+);

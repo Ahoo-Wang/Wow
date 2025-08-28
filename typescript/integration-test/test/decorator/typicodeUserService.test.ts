@@ -14,9 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { typicodeUserService } from '../../src';
 
-
 describe('TypicodeUserService Integration Test', () => {
-
   it('should get user albums', async () => {
     const userId = '1';
     const albums = await typicodeUserService.getAlbums(userId);

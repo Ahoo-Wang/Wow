@@ -14,7 +14,6 @@
 import { describe, it, expect } from 'vitest';
 import { Post, typicodePostService } from '../../src';
 
-
 describe('TypicodePostService Integration Test', () => {
   it('should get posts from typicode API', async () => {
     const posts = await typicodePostService.getPosts();
@@ -75,7 +74,10 @@ describe('TypicodePostService Integration Test', () => {
       body: 'This post has been updated',
     };
 
-    const post = await typicodePostService.updatePost(postId, updatedPost as Post);
+    const post = await typicodePostService.updatePost(
+      postId,
+      updatedPost as Post,
+    );
     expect(post).toBeDefined();
     expect(post.id).toBe(parseInt(postId));
     expect(post.title).toBe(updatedPost.title);
