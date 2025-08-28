@@ -1,0 +1,45 @@
+{
+  "name": "@ahoo-wang/fetcher-integration-test",
+  "version": "0.11.1",
+  "private": true,
+  "description": "Integration Test Fetcher",
+  "keywords": [
+    "fetcher",
+    "http",
+    "client",
+    "examples",
+    "sse",
+    "server-sent-events"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/fetcher/tree/master/examples",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/fetcher.git",
+    "directory": "examples"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/fetcher/issues"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run --coverage",
+    "preview": "vite preview",
+    "clean": "rm -rf dist",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ahoo-wang/fetcher": "workspace:*",
+    "@ahoo-wang/fetcher-eventstream": "workspace:*",
+    "@ahoo-wang/fetcher-cosec": "workspace:*",
+    "@ahoo-wang/fetcher-decorator": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "unplugin-dts": "1.0.0-beta.6",
+    "vitest": "^3.0.5"
+  }
+}
