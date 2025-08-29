@@ -15,7 +15,7 @@ import { ListQuery, PagedList, PagedQuery, SingleQuery } from './queryable';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { Condition } from './condition';
 
-export interface QueryServiceApi<R> {
+export interface QueryApi<R> {
 
   single(singleQuery: SingleQuery): Promise<Partial<R>>;
 

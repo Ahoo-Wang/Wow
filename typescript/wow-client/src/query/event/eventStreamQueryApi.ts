@@ -12,8 +12,8 @@
  */
 
 import { DomainEventStream } from './domainEventStream';
-import { QueryServiceApi } from '../queryServiceApi';
+import { QueryApi } from '../queryApi';
 
-export interface EventStreamQueryApi extends Omit<QueryServiceApi<DomainEventStream>, 'single'> {
+export interface EventStreamQueryApi extends Omit<QueryApi<DomainEventStream>, 'single'> {
 
 }

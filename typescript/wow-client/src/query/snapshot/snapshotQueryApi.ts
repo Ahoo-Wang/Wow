@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { QueryServiceApi } from '../queryServiceApi';
+import { QueryApi } from '../queryApi';
 import { MaterializedSnapshot } from './snapshot';
 
-export interface SnapshotApi<S> extends QueryServiceApi<MaterializedSnapshot<S>> {
+export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
 
 }

@@ -16,4 +16,4 @@ export * from './operator';
 export * from './queryable';
 export * from './event';
 export * from './snapshot';
-export * from './queryServiceApi';
+export * from './queryApi';
