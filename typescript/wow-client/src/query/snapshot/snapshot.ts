@@ -24,7 +24,7 @@ import {
   StateCapable,
   TenantId,
   Version,
-} from '../types';
+} from '../../types';
 
 /**
  * Interface for materialized snapshots with full capabilities.

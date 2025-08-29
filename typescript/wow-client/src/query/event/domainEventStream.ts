@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregateId, CreateTimeCapable, Identifier, Named, OwnerId, Version } from '../types';
-import { CommandId, CommandStage, RequestId } from '../command';
-import { BodyCapable } from '../types';
+import { AggregateId, CreateTimeCapable, Identifier, Named, OwnerId, Version } from '../../types';
+import { CommandId, CommandStage, RequestId } from '../../command';
+import { BodyCapable } from '../../types';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * A list of domain events for the domain event stream
@@ -38,3 +39,7 @@ export interface DomainEventStreamHeaders {
 export interface DomainEventStream extends Identifier, AggregateId, OwnerId, CommandId, CreateTimeCapable, RequestId, Version, BodyCapable<DomainEvent<any>[]> {
   headers: DomainEventStreamHeaders;
 }
+
+export type ReadableDomainEventStream = ReadableStream<
+  JsonServerSentEvent<DomainEventStream>
+>;

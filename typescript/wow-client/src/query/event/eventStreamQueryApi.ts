@@ -11,8 +11,19 @@
  * limitations under the License.
  */
 
-export * from './condition';
-export * from './operator';
-export * from './queryable';
-export * from './event';
-export * from './snapshot';
+import { ListQuery, PagedList } from '../queryable';
+import { DomainEventStream } from './domainEventStream';
+import { Condition } from '../condition';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+
+export interface EventStreamQueryApi {
+  list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]>;
+
+  listAsStream(listQuery: ListQuery): Promise<ReadableStream<
+    JsonServerSentEvent<Partial<DomainEventStream>>
+  >>;
+
+  paged(pagedQuery: ListQuery): Promise<PagedList<Partial<DomainEventStream>>>;
+
+  count(condition: Condition): Promise<number>;
+}
